@@ -1,0 +1,46 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "054-multi-command-final",
+  "sourceSnapshot": "054-multi-command-final",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "label": "overview",
+        "data": {
+          "content": "# overview\n\nTop-level summary.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false,
+          "collapsed": true,
+          "childCount": 2
+        },
+        "kind": "folder-collapsed"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-b/remote.md",
+        "label": "remote",
+        "data": {
+          "content": "# remote\n\nSecondary root note.\n",
+          "summary": "",
+          "selected": true
+        },
+        "classes": [
+          "selected"
+        ],
+        "kind": "node"
+      }
+    ],
+    "edges": [],
+    "revision": 0
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "015-f6-folder-to-external-collapsed",
+  "sourceSnapshot": "015-f6-folder-to-external-collapsed",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "label": "overview",
+        "data": {
+          "content": "# Overview\n\nExternal node outside the folder.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false,
+          "collapsed": true,
+          "childCount": 2
+        },
+        "kind": "folder-collapsed"
+      }
+    ],
+    "edges": [
+      {
+        "id": "synthetic:/tmp/graph-state-fixtures/root-a/tasks/:out:/tmp/graph-state-fixtures/root-a/overview.md",
+        "source": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "target": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "label": "Escalates into",
+        "data": {
+          "isSyntheticEdge": true
+        },
+        "classes": [
+          "synthetic-folder-edge"
+        ],
+        "kind": "synthetic"
+      }
+    ],
+    "revision": 0
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "008-add-node-result",
+  "sourceSnapshot": "008-add-node-result",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "label": "alpha",
+        "data": {
+          "content": "# Alpha\n\nTracks [Beta]*.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "beta",
+        "data": {
+          "content": "# Beta\n\nExecution detail.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/delta.md",
+        "label": "delta",
+        "data": {
+          "content": "# Delta\n\nNew node added for mutation tests.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "label": "gamma",
+        "data": {
+          "content": "# Gamma\n\nLoose note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
+        "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "target": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "Tracks",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}

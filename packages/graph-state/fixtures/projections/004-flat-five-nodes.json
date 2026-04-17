@@ -1,0 +1,65 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "004-flat-five-nodes",
+  "sourceSnapshot": "004-flat-five-nodes",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "label": "alpha",
+        "data": {
+          "content": "# Alpha\n\nTracks [Beta]*.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "beta",
+        "data": {
+          "content": "# Beta\n\nExecution detail.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/delta.md",
+        "label": "delta",
+        "data": {
+          "content": "# Delta\n\nStaging note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/epsilon.md",
+        "label": "epsilon",
+        "data": {
+          "content": "# Epsilon\n\nArchive note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "label": "gamma",
+        "data": {
+          "content": "# Gamma\n\nLoose note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
+        "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "target": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "Tracks",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}

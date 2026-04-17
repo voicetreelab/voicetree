@@ -1,0 +1,51 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "010-flat-folder",
+  "sourceSnapshot": "010-flat-folder",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "BF-117",
+        "data": {
+          "content": "# BF-117\n\nDepends on [BF-118]*.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "BF-118",
+        "data": {
+          "content": "# BF-118\n\nReady for execution.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "target": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "label": "Depends on",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}

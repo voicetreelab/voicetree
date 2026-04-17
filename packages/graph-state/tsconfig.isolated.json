@@ -3,7 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@vt/graph-model": ["./src/__isolation__/graph-model.d.ts"],
-      "@vt/graph-model/pure/graph": ["./src/__isolation__/graph-model-pure-graph.d.ts"]
+      "@vt/graph-model/pure/graph": ["./src/__isolation__/graph-model-pure-graph.d.ts"],
+      "@vt/graph-model/pure/graph/markdown-writing/node_to_markdown": ["./src/__isolation__/graph-model-node-to-markdown.d.ts"]
     }
   }
 }

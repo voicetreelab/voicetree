@@ -1,0 +1,620 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "080-folder-nodes-real-vault",
+  "sourceSnapshot": "080-folder-nodes-real-vault",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-108-identity-model.md",
+        "label": "BF-108-identity-model",
+        "data": {
+          "content": "# BF-108: Folder Identity Model Formalization\n\n## Description\n\nFormalize the folder identity model (Option B): a folder = directory + optional folder note (`foldername/foldername.md`). Update types.md to add the folder note concept to the Folder primitive section. Define the naming convention and frontmatter schema for folder notes.\n\nKey distinction: a folder note is NOT an index. Indexes enumerate children (drift-prone). Folder notes describe the folder itself (self-contained). types.md's \"no INDEX.md\" design decision remains correct — folder notes are a different concept.\n\n## Design Context\n\nSee `openspec/changes/folder-nodes/design.md` — Decision 6.\nSee `openspec/changes/folder-nodes/specs/folder-note-convention/spec.md` for requirements.\n\n## Acceptance Criteria\n\n- types.md Folder primitive section includes folder note concept\n- Folder note naming convention documented: `foldername/foldername.md`\n- Clear distinction between folder notes and indexes documented\n- Optional folder node frontmatter schema defined\n\n## Artifacts\n\n- Progress nodes from implementation sessions\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "assigned_to",
+              "Otto"
+            ],
+            [
+              "complexity_score",
+              "4"
+            ],
+            [
+              "created",
+              "\"2026-04-04T00:00:00.000Z\""
+            ],
+            [
+              "epic",
+              "folder-nodes"
+            ],
+            [
+              "id",
+              "BF-108"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "openspec_phase",
+              "7"
+            ],
+            [
+              "priority",
+              "2"
+            ],
+            [
+              "status",
+              "done"
+            ]
+          ]
+        },
+        "position": {
+          "x": -308.65828381745496,
+          "y": -461.93976625564324
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-109-linter-folder-containment.md",
+        "label": "BF-109-linter-folder-containment",
+        "data": {
+          "content": "# BF-109: Linter Folder-Aware Containment\n\n## Description\n\nExtend `graphLint.ts` to build containment from directory structure in addition to `- parent [X]*` edge conventions. Add folder note detection (`foldername/foldername.md`) — treat folder notes as identity nodes, not regular children. Exempt folder notes from ORPHAN_NODE warnings.\n\nThis unblocks the linter for ~/brain and other folder-organized vaults where directory hierarchy is the primary containment mechanism.\n\n## Design Context\n\nSee `openspec/changes/folder-nodes/design.md` — Decision 7.\nSee `openspec/changes/folder-nodes/specs/linter-folder-awareness/spec.md` for requirements.\n\n## Acceptance Criteria\n\n- `graphLint.ts` containment tree includes directory-derived parent-child relationships\n- Folder notes (`foldername/foldername.md`) detected and treated as folder identity nodes\n- Folder notes exempt from ORPHAN_NODE warning\n- Folder notes not counted as siblings in `attention_items`\n- Tests cover folder-structured vaults (~/brain-style hierarchies)\n\n## Artifacts\n\n- Progress nodes from implementation sessions\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "assigned_to",
+              "Otto"
+            ],
+            [
+              "complexity_score",
+              "6"
+            ],
+            [
+              "created",
+              "\"2026-04-04T00:00:00.000Z\""
+            ],
+            [
+              "epic",
+              "folder-nodes"
+            ],
+            [
+              "id",
+              "BF-109"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "openspec_phase",
+              "8"
+            ],
+            [
+              "priority",
+              "2"
+            ],
+            [
+              "status",
+              "done"
+            ]
+          ]
+        },
+        "position": {
+          "x": -1000,
+          "y": 1.2246467991473532e-13
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-110-cross-folder-edges.md",
+        "label": "BF-110-cross-folder-edges",
+        "data": {
+          "content": "# BF-110: Cross-Folder Edges (F6)\n\n## Description\n\nCore synthetic edge aggregation is already implemented for collapsed folders. Hidden-descendant edges are synthesized at the folder level so topology is not lost, including collapsed-folder-to-collapsed-folder rerouting and re-computation when parent folders expand.\n\nAlgorithm:\n```\nfor each edge (source -> target) where source inside collapsed folder F:\n  if target outside F: synthesize edge (F -> target)\n  if target inside collapsed folder G: synthesize edge (F -> G)\n```\n\nThis gives each folder its **minimum edge interface** at the parent level, per the design law.\n\n## Design Context\n\nSee `openspec/changes/folder-nodes/design.md` — original Decision 3 (deferred to F6).\nSee `openspec/changes/folder-nodes/tasks.md` — Phase 9.\n\n## Acceptance Criteria\n\n- Core shipped now:\n  - Collapsing a folder synthesizes external edges at the folder level\n  - Expanding removes synthetic edges and restores/recomputes the correct visible interface\n  - No duplicate synthetic edges for multiple hidden edges to the same target; aggregate counts are stored in `edgeCount`\n- Remaining before this BF is fully closed:\n  - Decide whether `edgeCount` metadata + width scaling is sufficient, or add an explicit numeric count surface\n  - Validate behavior/performance at 500+ nodes with nested collapsed folders\n\n## Artifacts\n\n- Progress nodes from implementation sessions\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "complexity_score",
+              "7"
+            ],
+            [
+              "created",
+              "\"2026-04-04T00:00:00.000Z\""
+            ],
+            [
+              "epic",
+              "folder-nodes"
+            ],
+            [
+              "id",
+              "BF-110"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "openspec_phase",
+              "9"
+            ],
+            [
+              "priority",
+              "3"
+            ],
+            [
+              "status",
+              "implemented"
+            ]
+          ]
+        },
+        "position": {
+          "x": -691.3417161825448,
+          "y": -461.93976625564335
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-111-stale-artifact-cleanup.md",
+        "label": "BF-111-stale-artifact-cleanup",
+        "data": {
+          "content": "# BF-111: Stale Artifact Cleanup\n\n## Description\n\nUpdate stale artifacts that reference folder nodes as future work when they are now partially or fully shipped:\n\n1. **BF-036**: Update status to note F1-F5 (folder compound collapse) shipped. Reference folder-nodes epic for remaining work (residual F6 UX/validation closure, current 600-file safety cap).\n2. **BF-103**: Add note that folder-aware containment is needed and tracked as BF-109.\n3. **GitHub #9**: Close or update — Coldaine's virtual-projection approach was superseded by the real-filesystem-move decision.\n4. **GitHub #11**: Update — the original `>300` complaint is obsolete; the live question is whether the current `600`-file safety cap can be raised or removed after high-scale validation, tracked as BF-112.\n\n## Acceptance Criteria\n\n- BF-036 status section updated\n- BF-103 notes section updated\n- GitHub #9 closed as shipped umbrella scope\n- GitHub #11 updated to current `600`-file cap state and BF-112 tracking\n\n## Artifacts\n\n- Progress nodes from implementation sessions\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "complexity_score",
+              "2"
+            ],
+            [
+              "created",
+              "\"2026-04-04T00:00:00.000Z\""
+            ],
+            [
+              "epic",
+              "folder-nodes"
+            ],
+            [
+              "id",
+              "BF-111"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "openspec_phase",
+              "10"
+            ],
+            [
+              "priority",
+              "3"
+            ],
+            [
+              "status",
+              "done"
+            ],
+            [
+              "updated",
+              "\"2026-04-08T00:00:00.000Z\""
+            ]
+          ]
+        },
+        "position": {
+          "x": -853.5533905932739,
+          "y": -353.55339059327366
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-112-revisit-file-load-safety-cap.md",
+        "label": "BF-112-revisit-file-load-safety-cap",
+        "data": {
+          "content": "# BF-112: Revisit File-Load Safety Cap\n\n## Description\n\nRemove or raise the current 600-file loading cap that limits how many markdown files can be loaded into a vault path before VoiceTree creates a new workspace. The original 300-file framing is stale; the live loader and tests now enforce 600.\n\nGated on:\n- Folder collapse stability confirmed through sustained usage at and above the current boundary\n- Residual BF-110 UX/validation closure on the shipped cross-folder-edge behavior\n- Performance regression evidence at higher node counts (600+, 1000+)\n\n## Acceptance Criteria\n\n- Profiling shows acceptable performance at 600+ and 1000+ nodes with folder collapse\n- Decision recorded on whether the current 600-file safety cap should be removed, raised, or retained\n- Regression tests added for performance at scale\n- GitHub #11 closed\n\n## Artifacts\n\n- Progress nodes from implementation sessions\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "blocked_by",
+              "BF-110"
+            ],
+            [
+              "complexity_score",
+              "5"
+            ],
+            [
+              "created",
+              "\"2026-04-04T00:00:00.000Z\""
+            ],
+            [
+              "epic",
+              "folder-nodes"
+            ],
+            [
+              "id",
+              "BF-112"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "openspec_phase",
+              "11"
+            ],
+            [
+              "priority",
+              "3"
+            ],
+            [
+              "status",
+              "research"
+            ],
+            [
+              "updated",
+              "\"2026-04-08T00:00:00.000Z\""
+            ]
+          ]
+        },
+        "position": {
+          "x": -961.9397662556435,
+          "y": -191.34171618254456
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "folder-architecture-refactor",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "folder-architecture-refactor",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-116-extract-pure.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "BF-116-extract-pure",
+        "data": {
+          "content": "# BF-116: Phase 1 — Extract Pure Computation\n\n**Goal:** Move pure logic from `folderCollapse.ts` (shell) into `packages/graph-model/src/pure/graph/folderCollapse.ts` (pure layer) without changing behavior. Add comprehensive tests.\n\n## What to Add\n\n### Types (in `packages/graph-model/src/pure/graph/folderCollapse.ts`)\n\n```typescript\nexport interface OriginalEdgeRef {\n    readonly sourceId: string\n    readonly targetId: string\n    readonly label?: string\n}\n\nexport interface SyntheticEdgeSpec {\n    readonly syntheticEdgeId: string\n    readonly direction: 'incoming' | 'outgoing'\n    readonly externalNodeId: string\n    readonly originalEdges: readonly OriginalEdgeRef[]\n}\n\nexport interface ExpandPlan {\n    readonly subFolders: readonly string[]\n    readonly childNodes: readonly {\n        readonly id: string\n        readonly node: GraphNode\n        readonly parentFolder: string | null\n    }[]\n    readonly realEdges: readonly {\n        readonly id: string; readonly source: string\n        readonly target: string; readonly label?: string\n    }[]\n    readonly syntheticEdges: readonly {\n        readonly folderId: string\n        readonly direction: 'incoming' | 'outgoing'\n        readonly externalId: string\n        readonly original: OriginalEdgeRef\n    }[]\n}\n```\n\n### Pure Functions\n\n1. **`computeSyntheticEdgeSpecs(folderId, descendantIds, connectedEdges)`** — Takes pre-extracted data from cy (Set of descendant IDs + array of connected edges), returns array of SyntheticEdgeSpec. Handles grouping, dedup, direction detection, self-loop filtering. This is the pure extraction of the inline logic currently in `collapseFolder()`.\n\n2. **`computeExpandPlan(graph, folderId, collapsedFolders, visibleNodeIds)`** — Takes Graph model data, returns an ExpandPlan. This is the pure extraction of the ~80-line expand logic in `expandFolder()`. The plan describes what to add/remove without touching cy.\n\n3. **`findCollapsedAncestor(nodeId, collapsedFolders)`** — Walk up folder parents to find nearest collapsed ancestor. Already exists as `findCollapsedAncestorFolder` in shell with cy dependency, but the logic is pure (just string/set operations).\n\n4. **`absolutePathToGraphFolderId(absolutePath, treeRootAbsolutePath)`** — Convert absolute FS path to graph folder ID. Currently duplicated in FolderTreeNode.tsx and FolderTreeSidebar.tsx. Pure string operation.\n\n## What NOT to Change\n\n- Do NOT modify any callers yet (that's Phase 3)\n- Do NOT remove the shell versions yet\n- Do NOT change the FolderTreeStore\n- The existing 4 functions in `packages/graph-model/src/pure/graph/folderCollapse.ts` must stay as-is\n\n## Test Requirements\n\nCreate `packages/graph-model/src/pure/graph/folderCollapse.test.ts` with tests for all 4 new functions:\n- `computeSyntheticEdgeSpecs`: incoming edges, outgoing edges, dedup/grouping, self-loop filtering, no edges case\n- `computeExpandPlan`: basic expand, nested folders remain collapsed, real edges restored, synthetic edges for still-collapsed sub-folders\n- `findCollapsedAncestor`: no ancestor, direct parent, deeply nested, multiple collapsed ancestors (returns nearest)\n- `absolutePathToGraphFolderId`: basic conversion, nested paths, root path returns null, outside tree returns null\n\n## Reference Files\n\n- Current shell implementation: `webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts` (read this to understand the logic to extract)\n- Existing pure layer: `packages/graph-model/src/pure/graph/folderCollapse.ts` (extend this file)\n- Graph types: `packages/graph-model/src/pure/graph/index.ts`\n- Existing tests: `webapp/src/shell/edge/UI-edge/graph/folderCollapse.test.ts` (21 tests, all passing — do not break)\n\n## Verification\n\n1. `cd packages/graph-model && npx vitest run` — new pure tests pass\n2. `cd webapp && npx vitest run` — existing 40 folder tests still pass\n3. `cd webapp && npx tsc --noEmit` — TypeScript clean\n4. Export new types and functions from `packages/graph-model/src/pure/graph/index.ts`\n\n## Invariant\n\nPhase 1 is ADDITIVE ONLY. No existing code changes. If you need to change existing code, STOP and report back.\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 691.3417161825449,
+          "y": 461.93976625564335
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "BF-117-unify-state",
+        "data": {
+          "content": "# BF-117: Phase 2 — Unify State Ownership\n\n**Goal:** FolderTreeStore becomes single source of truth for collapsed folders. Remove dual state.\n\n**Blocked by:** BF-116 (pure functions must exist first)\n\n## Changes\n\n### FolderTreeStore.ts\n- Add `ADD_COLLAPSED_FOLDER` action + `addCollapsedFolder()` dispatcher\n- Add `REMOVE_COLLAPSED_FOLDER` action + `removeCollapsedFolder()` dispatcher  \n- Add `isGraphFolderCollapsed(folderId)` — reads `getFolderTreeState().graphCollapsedFolders`\n- Keep `SYNC_GRAPH_COLLAPSED` for now (Phase 4 removes it)\n\n### folderCollapse.ts\n- Remove module-level `collapsedFolders: Set<string>` \n- `collapseFolder()`: replace `collapsedFolders.add(folderId)` with `addCollapsedFolder(folderId)` — AFTER cy.batch()\n- `expandFolder()`: replace `collapsedFolders.delete(folderId)` with `removeCollapsedFolder(folderId)` — AFTER cy.batch()\n- `isFolderCollapsed()`: delegate to `isGraphFolderCollapsed()` from store\n- Remove `syncGraphCollapsedFolders()` calls (store IS the truth now)\n- `expandingFolders` Set stays (race condition guard, not application state)\n\n### applyGraphDeltaToUI.ts\n- Change `isFolderCollapsed` import from folderCollapse.ts to use store's `isGraphFolderCollapsed`\n\n## Critical Invariant\n\n**Store updates MUST happen AFTER cy.batch(), never inside.** If store updates inside cy.batch(), React subscribers could see intermediate state (folder marked collapsed but children still in cy).\n\n## Verification\n\n1. All 40 existing folder tests pass\n2. TypeScript clean\n3. Manual check: collapsing/expanding folders still works\n4. Grep: no remaining references to module-level `collapsedFolders` Set\n\n## Reference\n\n- Design: [voicetree-6-4/design-proposed-state-shell]*\n- Review concern: [voicetree-6-4/review-design-refactor]* — \"State timing during cy.batch\"\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 308.65828381745513,
+          "y": 461.93976625564335
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "BF-118-wire-shell-pure",
+        "data": {
+          "content": "# BF-118: Phase 3 — Wire Shell to Pure Functions\n\n**Goal:** Replace inline computation in folderCollapse.ts with calls to pure functions from Phase 1.\n\n**Blocked by:** BF-117 (state must be unified first)\n\n## Changes\n\n### folderCollapse.ts\n- `collapseFolder()`: Extract cy descendants + connected edges as plain data → call `computeSyntheticEdgeSpecs()` → apply specs via cy.batch\n- `expandFolder()`: After IPC getGraph() → call `computeExpandPlan()` → apply plan via cy.batch. ~80 lines → ~20 lines.\n- Delete old inline `computeSyntheticEdges()` function\n- Delete old `findCollapsedAncestorFolder()` — import from pure layer\n\n### applyGraphDeltaToUI.ts\n- Replace `findCollapsedAncestorFolder` import with `findCollapsedAncestor` from pure layer\n\n## Risk: Highest of all phases\n\nThe expand logic is the trickiest code. Must have comprehensive tests from Phase 1 before refactoring. Pair with existing 34 unit tests + manual E2E.\n\n## Verification\n\n1. All existing folder tests pass (adjust test imports if needed)\n2. TypeScript clean\n3. `folderCollapse.ts` is noticeably shorter (~80 fewer lines)\n4. No behavioral changes\n\n## Reference\n\n- Pure functions from Phase 1: `packages/graph-model/src/pure/graph/folderCollapse.ts`\n- Design: [voicetree-6-4/design-proposed-pure-layer]*\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 1000,
+          "y": 0
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-119-ui-cleanup.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "BF-119-ui-cleanup",
+        "data": {
+          "content": "# BF-119: Phase 4 — UI Cleanup\n\n**Goal:** Remove duplicated code and dead actions.\n\n**Blocked by:** BF-118 (shell must be wired to pure first)\n\n## Changes\n\n### FolderTreeNode.tsx\n- Delete local `absolutePathToGraphFolderId` function\n- Import from `@vt/graph-model/pure/graph/folderCollapse`\n\n### FolderTreeSidebar.tsx (if copy still exists)\n- Delete local `absolutePathToGraphFolderId` \n- Import from `@vt/graph-model/pure/graph/folderCollapse`\n\n### FolderTreeStore.ts\n- Remove dead `SYNC_GRAPH_COLLAPSED` action (replaced by ADD/REMOVE in Phase 2)\n- Remove `syncGraphCollapsedFolders()` dispatcher\n- Clean up type union\n\n## Verification\n\n1. All folder tests pass (update test imports if needed)\n2. TypeScript clean\n3. Grep: `absolutePathToGraphFolderId` only defined in one place (pure layer)\n4. Grep: no remaining `SYNC_GRAPH_COLLAPSED` references\n\n## Risk: Low\n\nPure cleanup. Each deletion is safe because Phase 2-3 already replaced all callers.\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 853.5533905932738,
+          "y": 353.5533905932737
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+        "label": "kanban",
+        "data": {
+          "content": "## Context\n\n- [ ] 📐 [voicetree-6-4/design-proposed-pure-layer|Phase 1 Design: Pure Layer]*\n- [ ] 📐 [voicetree-6-4/design-proposed-state-shell|Phases 2-4 Design: State + Shell]*\n- [ ] 📎 [voicetree-6-4/design-current-architecture|Current Architecture Analysis]*\n- [ ] 📎 [voicetree-6-4/review-design-refactor|Review: Design Refactor Proposal]*\n- [ ] 📎 [voicetree-6-4/design-refactoring-plan|Refactoring Plan: 4 Phases]*\n\n## Todo\n\n\n## Prioritised\n\n\n## Researching\n\n\n## Spec\n\n\n## Design\n\n\n## Plan\n\n\n## TDD (creating tests that fail)\n\n\n## Implementing\n\n## Testing\n\n\n## QA (red-teaming / reviewing tests to have confidence in quality & verification)\n\n\n## Reviewing\n\n\n## Done\n\n- [x] [BF-116-extract-pure]* Phase 1: Extract pure computation — 23 new tests, 4 types, 4 functions (c=3)\n- [x] [BF-117-unify-state]* Phase 2: Unify state — module-level Set removed, store is single truth, +8 tests (c=4)\n- [x] [BF-118-wire-shell-pure]* Phase 3: Wire shell to pure — 316→222 lines, old functions deleted, pure imports (c=4)\n- [x] [BF-119-ui-cleanup]* Phase 4: UI cleanup — dedup removed, dead SYNC_GRAPH_COLLAPSED removed (c=2)\n\n\n## Rejected\n\n\n\n%% kanban:settings\n```\n{\"kanban-plugin\":\"board\"}\n```\n%%\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "kanban-plugin",
+              "board"
+            ],
+            [
+              "meta-instructions",
+              "[\"Move tasks through columns: Todo → Prioritised → Researching → Spec → Design → Plan → Implementing → Testing → QA → Reviewing → Done\",\"Complete a task → change [ ] to [x] and move to Done. Also update parent kanban at working-memory/kanban.md.\",\"Spec = what & why (user stories, key functionality, openspec proposal + specs). Design = how (architecture, UI mockups, openspec design.md). Plan = how to build it (orchestration tree, phased breakdown, openspec tasks.md).\",\"Format: `- [ ] [[BF-NNN-slug]] description (c=N)`\",\"BF numbering: increment from highest existing.\",\"Context column: pin openspec docs + key voicetree vault folders. Artifacts produced at each stage get pinned here. Never check off or move context items. Task-specific context belongs in the task file, not here.\",\"Don't touch this frontmatter or the kanban:settings footer.\"]"
+            ]
+          ]
+        },
+        "position": {
+          "x": 500,
+          "y": 0
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/",
+        "label": "folder-interaction-improvements",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "folder-interaction-improvements",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-113-edges-on-collapsed-folders.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/",
+        "label": "BF-113-edges-on-collapsed-folders",
+        "data": {
+          "content": "# BF-113: Show Incoming Edges on Collapsed Folders\n\n## Problem\nWhen a folder is collapsed, all children are removed from Cytoscape, which automatically removes their connected edges. Edges from other visible nodes that point to children inside the collapsed folder disappear entirely — losing important graph relationship context.\n\n## Desired Behavior\nWhen a folder is collapsed, any edge from a visible node outside the folder to a child inside the folder should be re-routed as a synthetic edge from that outside node to the collapsed folder node. Vice versa for outgoing edges from children to outside nodes.\n\nThe user clarified: \"show all incoming edges from other nodes visible in our graph\" — meaning both incoming and outgoing cross-folder edges should be displayed as folder-level edges.\n\n## Key Files\n- `webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts` — collapse/expand logic\n- `webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts` — delta application\n- `packages/graph-model/src/pure/graph/folderCollapse.ts` — pure folder helpers\n- `webapp/src/shell/UI/cytoscape-graph-ui/services/defaultEdgeStyles.ts` — edge styles\n\n## Design Decisions\n\n### D1: Scan Cytoscape, not Graph model, for cross-boundary edges on collapse\n`collapseFolder()` stays **synchronous**. Before `folder.children().remove()`, use `folder.descendants().connectedEdges()` to find cross-boundary edges directly from Cytoscape state. No IPC needed.\n\n### D2: Deduplicate synthetic edges by (externalNode, direction)\nIf multiple children have edges from the same external node, create ONE synthetic edge with `edgeCount` data. Existing `edgeCount` style rules already scale width. Single edge = inherit original label. Multiple = no label.\n\n### D3: Use `descendants()` not `children()` for nested folder support\n`folder.descendants()` returns all visible nodes inside compound, handling nested sub-folders. If sub-folder G inside F is already collapsed, G itself is a descendant — its synthetic edges (from prior collapse) become cross-boundary edges that get re-targeted to F.\n\n### D4: Synthetic edge registry tracks original edges for clean expand\n`Map<folderId, SyntheticEdgeRecord[]>` stores what synthetic edges exist and what original edges they represent. On expand, remove synthetics and let existing code restore originals.\n\n### D5: Expand must re-create nested folder synthetic edges\nAfter expanding F, any sub-folder G still in `collapsedFolders` needs its synthetic edges re-computed from newly-visible Cytoscape state.\n\n### D6: Delta path creates synthetic edges for collapsed folder targets\nIn `applyGraphDeltaToUI` Pass 2, when an edge target is missing and its folder is collapsed, create a synthetic edge to the folder. Walk up `getFolderParent()` to find the nearest collapsed ancestor.\n\n### D7: Dashed style, no special color\nSynthetic edges use `line-style: dashed` (class `synthetic-folder-edge`). Same color as regular edges. Visually distinct but not distracting.\n\n### D8: Synthetic edges participate in layout\nUnlike `isIndicatorEdge`, synthetic edges should affect Cola layout — they represent real graph relationships and should pull the collapsed folder toward connected nodes.\n\n### D9: Edge ID convention\n`synthetic:${folderId}:in:${externalId}` / `synthetic:${folderId}:out:${externalId}`. Prefix prevents collision with normal `${source}->${target}` IDs.\n\n## Implementation Approach\n1. Add `syntheticEdgeRegistry` (module-level Map) + helper `computeSyntheticEdges(cy, folderId)` to `folderCollapse.ts`\n2. Modify `collapseFolder()`: before child removal, scan cross-boundary edges, create synthetics, store in registry\n3. Modify `expandFolder()`: remove synthetics, delete from registry, re-compute for nested collapsed sub-folders\n4. Modify `applyGraphDeltaToUI()` Pass 2: when edge target is in collapsed folder, create/update synthetic edge\n5. Add `synthetic-folder-edge` style to `defaultEdgeStyles.ts`\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "blocked_by",
+              "[]"
+            ],
+            [
+              "complexity",
+              "5"
+            ],
+            [
+              "id",
+              "BF-113"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "phase",
+              "9 (cross-folder edges, simplified)"
+            ],
+            [
+              "status",
+              "tested"
+            ]
+          ]
+        },
+        "position": {
+          "x": 191.34171618254496,
+          "y": 961.9397662556433
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-114-filetree-collapse-sync.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/",
+        "label": "BF-114-filetree-collapse-sync",
+        "data": {
+          "content": "# BF-114: File Tree ↔ Graph Collapse State Bidirectional Sync\n\n## Problem\nThe sidebar folder tree (`FolderTreeNode.tsx`) and the graph's folder collapse state (`collapsedFolders` Set in `folderCollapse.ts`) are completely independent. Users cannot tell which folders are collapsed in the graph by looking at the file tree, and cannot toggle collapse from the file tree.\n\n## Desired Behavior\n1. File tree visually indicates which folders are collapsed/expanded in the graph\n2. Toggle a folder's graph collapse state directly from the file tree\n3. Bidirectional: collapsing in graph updates file tree, toggling in file tree updates graph\n\n## Key Files\n- `webapp/src/shell/UI/views/folderTree/FolderTreeNode.tsx` — file tree component\n- `webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts` — collapse state (ephemeral `Set<string>`)\n- `webapp/src/shell/edge/UI-edge/state/FolderTreeStore.ts` — folder tree store (reducer+subscriber pattern)\n- `webapp/src/shell/edge/UI-edge/state/cytoscape-state.ts` — global cy accessor\n- `webapp/src/shell/UI/views/folderTree/FolderTreeSidebar.tsx` — sidebar mount + wiring\n- `webapp/src/shell/UI/views/folderTree/folder-tree.css` — styles\n\n## Design (complete — see voicetree-6-4/bf114-design.md)\n\n### Architecture\n```\nfolderCollapse.ts  ──push──▶  FolderTreeStore  ──subscribe──▶  FolderTreeSidebar\n     ▲                                                              │\n     └──────────────── toggleFolderCollapse(getCyInstance(), id) ────┘\n```\n\n### Approach: Extend FolderTreeStore (no new abstractions)\n1. **FolderTreeStore** gets `graphCollapsedFolders: ReadonlySet<string>` + `SYNC_GRAPH_COLLAPSED` action\n2. **folderCollapse.ts** calls `syncGraphCollapsedFolders(new Set(collapsedFolders))` after every collapse/expand\n3. **FolderTreeSidebar** maps graph folder IDs to absolute paths via pure conversion function, wires toggle via `getCyInstance()`\n4. **FolderTreeNode** gets collapse toggle icon (7px blue dot, same pattern as load indicator)\n5. Toggle only shown when folder has a valid graph folder ID (skips root, unloaded)\n\n### Path Mapping\n- Graph folder IDs: relative with trailing `/` (e.g. `\"auth/\"`)\n- File tree: absolute paths (e.g. `/Users/bob/project/auth`)\n- Conversion: `absolutePath.slice(treeRoot.length + 1) + \"/\"`\n- Root folder → null (no graph counterpart)\n\n### Risks\n- S4: Multi-root mapping for starred/external folders — may need implementation-time discovery\n- expandFolder() is async — file tree toggle must handle the promise\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "blocked_by",
+              "[]"
+            ],
+            [
+              "complexity",
+              "5"
+            ],
+            [
+              "id",
+              "BF-114"
+            ],
+            [
+              "openspec_change",
+              "folder-nodes"
+            ],
+            [
+              "status",
+              "tested"
+            ]
+          ]
+        },
+        "position": {
+          "x": -191.34171618254484,
+          "y": 961.9397662556433
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-115-nested-folder-zindex.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/",
+        "label": "BF-115-nested-folder-zindex",
+        "data": {
+          "content": "# BF-115: Fix Z-Index — Most Nested Folder Takes Precedence on Right-Click\n\n## Problem\nWhen right-clicking on a nested folder in the graph, the parent folder's bounding box also contains the click point. `VerticalMenuService.getCanvasVerticalMenuItems()` uses `.first()` on the filtered folder nodes, which returns the outermost folder — making it impossible to collapse a nested folder via right-click.\n\n## Desired Behavior\nThe most deeply nested folder whose bounding box contains the click point should take precedence.\n\n## Key File\n- `webapp/src/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts` lines 118-134\n\n## Current Code\n```typescript\nconst folderAtPosition = this.cy!.nodes('[?isFolderNode]').filter(node => {\n    const bb = node.boundingBox()\n    return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2\n}).first()\n```\n\n## Fix\nSort matching folders by nesting depth (deepest first) before calling `.first()`. In Cytoscape compound nodes, depth = number of ancestors. Use `.ancestors().length` or bounding box area (smallest = most nested).\n\n```typescript\nconst folderAtPosition = this.cy!.nodes('[?isFolderNode]').filter(node => {\n    const bb = node.boundingBox()\n    return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2\n}).sort((a, b) => b.ancestors().length - a.ancestors().length).first()\n```\n\n## Implementation\n- Updated `VerticalMenuService.getCanvasVerticalMenuItems()` to sort overlapping folder nodes by ancestor depth before selecting the first match.\n- Added a regression test that simulates overlapping parent and child folder bounds and asserts the child folder gets the collapse action.\n\n## Verification\n- `npx vitest run src/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.test.ts` from `webapp/` passed.\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "blocked_by",
+              "[]"
+            ],
+            [
+              "complexity",
+              "2"
+            ],
+            [
+              "id",
+              "BF-115"
+            ],
+            [
+              "status",
+              "implemented"
+            ]
+          ]
+        },
+        "position": {
+          "x": -461.9397662556433,
+          "y": 691.3417161825449
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md",
+        "parent": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/",
+        "label": "kanban",
+        "data": {
+          "content": "## Context\n\n- [ ] 📐 [working-memory/openspec/changes/folder-nodes/design|OpenSpec design (parent)]*\n- [ ] 📋 [working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal (parent)]*\n- [ ] 📎 [working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks (parent)]*\n- [ ] 🔗 Key files: `folderCollapse.ts`, `VerticalMenuService.ts`, `FolderTreeNode.tsx`, `defaultNodeStyles.ts`\n\n## Todo\n\n\n\n## Prioritised\n\n\n\n## Researching\n\n\n\n## Spec\n\n\n\n## Design\n\n\n\n## Plan\n\n\n\n## TDD (creating tests that fail)\n\n\n\n## Implementing\n\n\n\n\n\n## Testing\n\n\n\n\n\n## QA\n\n\n\n## Reviewing\n\n\n\n## TDD (creating tests that fail)\n\n\n\n## QA\n\n\n\n## Reviewing\n\n\n\n\n## Done\n\n- [x] [BF-113-edges-on-collapsed-folders]* Show incoming edges on collapsed folders — implemented (c=5)\n- [x] [BF-114-filetree-collapse-sync]* File tree ↔ graph collapse state bidirectional sync — implemented (c=5)\n- [x] [BF-115-nested-folder-zindex]* Fix z-index: most nested folder takes precedence on right-click — implemented (c=2)\n- [x] TDD: 21 tests for BF-113, 13 tests for BF-114, BF-115 verified\n- [x] QA: Red-team risk assessment completed\n- [x] Code review: All 3 implementations reviewed (4 review nodes)\n- [x] Fix agent: 3 bugs fixed (including broken blue button), E2E tests written (blocked by infra)\n- [x] QA red-team risk assessment\n- [x] Design refactor proposal: pure layer + unified state + 4-phase plan (reviewed, approved)\n- [x] Final review: fixes verified, refactor endorsed\n\n## Rejected\n\n\n\n%% kanban:settings\n```\n{\"kanban-plugin\":\"board\"}\n```\n%%\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "kanban-plugin",
+              "board"
+            ],
+            [
+              "meta-instructions",
+              "[\"Move tasks through columns: Todo → Prioritised → Researching → Spec → Design → Plan → Implementing → Testing → QA → Reviewing → Done\",\"Complete a task → change [ ] to [x] and move to Done. Also update parent kanban at working-memory/tasks/folder-nodes/kanban.md.\",\"Spec = what & why (user stories, key functionality, openspec proposal + specs). Design = how (architecture, UI mockups, openspec design.md). Plan = how to build it (orchestration tree, phased breakdown, openspec tasks.md).\",\"Format: `- [ ] [[BF-NNN-slug]] description (c=N)`\",\"BF numbering: increment from highest existing.\",\"Context column: pin openspec docs + key voicetree vault folders. Artifacts produced at each stage get pinned here. Never check off or move context items. Task-specific context belongs in the task file, not here.\",\"Don't touch this frontmatter or the kanban:settings footer.\"]"
+            ]
+          ]
+        },
+        "position": {
+          "x": 3.061616997868383e-14,
+          "y": 500
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "label": "kanban",
+        "data": {
+          "content": "## Context\n\n- [ ] 📐 [working-memory/openspec/changes/folder-nodes/design|OpenSpec design]*\n- [ ] 📋 [working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal]*\n- [ ] 📎 [working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks]*\n- [ ] 🔗 [folder-nodes-epic-complete|Implementation notes]*\n\n## Todo\n\n## In Progress\n\n## Prioritised\n\n## Researching\n\n- [ ] [BF-112-revisit-file-load-safety-cap]* Revisit file-load safety cap (current cap: 600; blocked by residual BF-110 UX/validation closure, c=5)\n\n## Spec\n\n\n## Design\n\n\n## Plan\n\n\n## TDD (creating tests that fail)\n\n\n## Implementing\n\n\n## Testing\n\n- [ ] [BF-110-cross-folder-edges]* Cross-folder edges F6 — core synthetic aggregation shipped; explicit count surface + scale validation remain (c=7, openspec: folder-nodes)\n\n## QA\n\n\n## Reviewing\n\n\n## Done\n\n- [x] [BF-108-identity-model]* Folder identity model formalization — canonical folder-note contract and optional frontmatter schema documented\n- [x] [BF-109-linter-folder-containment]* Linter folder-aware containment — canonical folder-note detection, directory precedence, orphan exemption, tests\n- [x] [BF-111-stale-artifact-cleanup]* Stale artifact cleanup (c=2)\n- [x] [folder-interaction-improvements/kanban|Folder Interaction Improvements]* — BF-113 (edges on collapse), BF-114 (filetree sync), BF-115 (z-index fix)\n- [x] [folder-architecture-refactor/kanban|Folder Architecture Refactor]* — BF-116→119: pure/state/shell/cleanup, -83 lines, +31 tests\n\n## Rejected\n\n\n%% kanban:settings\n```\n{\"kanban-plugin\":\"board\"}\n```\n%%\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "kanban-plugin",
+              "board"
+            ],
+            [
+              "meta-instructions",
+              "[\"Move tasks through columns: Todo → Prioritised → Researching → Spec → Design → Plan → Implementing → Testing → QA → Reviewing → Done\",\"Complete a task → change [ ] to [x] and move to Done. Also update parent kanban at working-memory/kanban.md.\",\"Spec = what & why (user stories, key functionality, openspec proposal + specs). Design = how (architecture, UI mockups, openspec design.md). Plan = how to build it (orchestration tree, phased breakdown, openspec tasks.md).\",\"Format: `- [ ] [[BF-NNN-slug]] description (c=N)`\",\"BF numbering: increment from highest existing.\",\"Context column: pin openspec docs + key voicetree vault folders. Artifacts produced at each stage get pinned here. Never check off or move context items. Task-specific context belongs in the task file, not here.\",\"Don't touch this frontmatter or the kanban:settings footer.\"]"
+            ]
+          ]
+        },
+        "position": {
+          "x": -500,
+          "y": 6.123233995736766e-14
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-116-extract-pure.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-116-extract-pure.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-119-ui-cleanup.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-119-ui-cleanup.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-113-edges-on-collapsed-folders.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-113-edges-on-collapsed-folders.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-114-filetree-collapse-sync.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-114-filetree-collapse-sync.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-115-nested-folder-zindex.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/BF-115-nested-folder-zindex.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-108-identity-model.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-108-identity-model.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-109-linter-folder-containment.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-109-linter-folder-containment.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-110-cross-folder-edges.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-110-cross-folder-edges.md",
+        "label": "[ ]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-111-stale-artifact-cleanup.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-111-stale-artifact-cleanup.md",
+        "label": "[x]",
+        "data": {},
+        "kind": "real"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-112-revisit-file-load-safety-cap.md",
+        "source": "/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md",
+        "target": "/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-112-revisit-file-load-safety-cap.md",
+        "label": "[ ]",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}

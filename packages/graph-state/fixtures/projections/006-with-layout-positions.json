@@ -1,0 +1,59 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "006-with-layout-positions",
+  "sourceSnapshot": "006-with-layout-positions",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "label": "alpha",
+        "data": {
+          "content": "# Alpha\n\nTracks [Beta]*.\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 80,
+          "y": 100
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "beta",
+        "data": {
+          "content": "# Beta\n\nExecution detail.\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 220,
+          "y": 100
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "label": "gamma",
+        "data": {
+          "content": "# Gamma\n\nLoose note.\n",
+          "summary": ""
+        },
+        "position": {
+          "x": 360,
+          "y": 100
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
+        "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "target": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "Tracks",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}

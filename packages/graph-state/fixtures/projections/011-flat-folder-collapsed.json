@@ -1,0 +1,24 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "011-flat-folder-collapsed",
+  "sourceSnapshot": "011-flat-folder-collapsed",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false,
+          "collapsed": true,
+          "childCount": 2
+        },
+        "kind": "folder-collapsed"
+      }
+    ],
+    "edges": [],
+    "revision": 0
+  }
+}

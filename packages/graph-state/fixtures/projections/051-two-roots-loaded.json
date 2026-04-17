@@ -1,0 +1,50 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "051-two-roots-loaded",
+  "sourceSnapshot": "051-two-roots-loaded",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "label": "overview",
+        "data": {
+          "content": "# overview\n\nTop-level summary.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "seed",
+        "data": {
+          "content": "# seed\n\nCore task file.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-b/remote.md",
+        "label": "remote",
+        "data": {
+          "content": "# remote\n\nSecondary root note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [],
+    "revision": 0
+  }
+}

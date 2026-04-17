@@ -1,0 +1,59 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "023-all-collapsed",
+  "sourceSnapshot": "023-all-collapsed",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "label": "notes",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "notes",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "label": "roadmap",
+        "data": {
+          "content": "# roadmap\n\nRelates to [summary]*.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false,
+          "collapsed": true,
+          "childCount": 2
+        },
+        "kind": "folder-collapsed"
+      }
+    ],
+    "edges": [
+      {
+        "id": "synthetic:/tmp/graph-state-fixtures/root-a/tasks/:in:/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+        "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+        "target": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "Relates to",
+        "data": {
+          "isSyntheticEdge": true
+        },
+        "classes": [
+          "synthetic-folder-edge"
+        ],
+        "kind": "synthetic"
+      }
+    ],
+    "revision": 0
+  }
+}

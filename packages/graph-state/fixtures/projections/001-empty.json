@@ -1,0 +1,10 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "001-empty",
+  "sourceSnapshot": "001-empty",
+  "elementSpec": {
+    "nodes": [],
+    "edges": [],
+    "revision": 0
+  }
+}

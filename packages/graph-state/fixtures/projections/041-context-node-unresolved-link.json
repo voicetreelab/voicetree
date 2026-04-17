@@ -1,0 +1,61 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "041-context-node-unresolved-link",
+  "sourceSnapshot": "041-context-node-unresolved-link",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "label": "alpha",
+        "data": {
+          "content": "# Alpha\n\nReferenced node.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "label": "beta",
+        "data": {
+          "content": "# Beta\n\nReferenced node.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/context.md",
+        "label": "context",
+        "data": {
+          "content": "# Context\n\nContains a dangling [missing-target]* link.\n",
+          "summary": "",
+          "additionalYAMLProps": [
+            [
+              "containedNodeIds",
+              "[\"/tmp/graph-state-fixtures/root-a/alpha.md\",\"/tmp/graph-state-fixtures/root-a/beta.md\"]"
+            ],
+            [
+              "priority",
+              "2"
+            ],
+            [
+              "status",
+              "draft"
+            ]
+          ],
+          "color": "#FF00AA",
+          "containedNodeIds": [
+            "/tmp/graph-state-fixtures/root-a/alpha.md",
+            "/tmp/graph-state-fixtures/root-a/beta.md"
+          ],
+          "isContextNode": true
+        },
+        "classes": [
+          "context-node"
+        ],
+        "kind": "node"
+      }
+    ],
+    "edges": [],
+    "revision": 0
+  }
+}

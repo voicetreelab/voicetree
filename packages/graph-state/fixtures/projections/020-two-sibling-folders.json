@@ -1,0 +1,72 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "020-two-sibling-folders",
+  "sourceSnapshot": "020-two-sibling-folders",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "label": "notes",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "notes",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/notes/retro.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "label": "retro",
+        "data": {
+          "content": "# retro\n\nWeekly retro.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "label": "spec",
+        "data": {
+          "content": "# spec\n\nShared reference note.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "tasks",
+        "data": {
+          "isFolderNode": true,
+          "folderLabel": "tasks",
+          "loadState": "not-loaded",
+          "isWriteTarget": false
+        },
+        "kind": "folder"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "label": "BF-117",
+        "data": {
+          "content": "# BF-117\n\nSee [spec]*.\n",
+          "summary": ""
+        },
+        "kind": "node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/notes/spec.md",
+        "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "target": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+        "label": "See",
+        "data": {},
+        "kind": "real"
+      }
+    ],
+    "revision": 0
+  }
+}
