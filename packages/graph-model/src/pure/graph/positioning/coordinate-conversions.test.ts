@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { Core } from 'cytoscape';
 import { toGraphCoords, toScreenCoords, graphToScreen, screenToGraph } from './coordinate-conversions';
+import type { GraphViewport } from './coordinate-conversions';
 
 describe('Coordinate Conversions', () => {
   // Mock Cytoscape core instance
-  const createMockCy: (zoom: number, panX: number, panY: number, containerLeft?: number, containerTop?: number) => Core = (zoom: number, panX: number, panY: number, containerLeft = 0, containerTop = 0): Core => {
+  const createMockCy: (zoom: number, panX: number, panY: number, containerLeft?: number, containerTop?: number) => GraphViewport = (zoom: number, panX: number, panY: number, containerLeft = 0, containerTop = 0): GraphViewport => {
     return {
       zoom: () => zoom,
       pan: () => ({ x: panX, y: panY }),
@@ -20,12 +20,12 @@ describe('Coordinate Conversions', () => {
           y: containerTop
         })
       })
-    } as unknown as Core;
+    };
   };
 
   describe('toScreenCoords', () => {
     it('should convert graph coordinates to screen coordinates at zoom 1 with no pan', () => {
-      const cy: Core = createMockCy(1, 0, 0, 0, 0);
+      const cy: GraphViewport = createMockCy(1, 0, 0, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // At zoom 1, no pan, no container offset: screen = graph
@@ -34,7 +34,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should scale coordinates based on zoom level', () => {
-      const cy: Core = createMockCy(2, 0, 0, 0, 0);
+      const cy: GraphViewport = createMockCy(2, 0, 0, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // At zoom 2: screen = graph * 2
@@ -43,7 +43,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should apply pan offset to screen coordinates', () => {
-      const cy: Core = createMockCy(1, 50, 75, 0, 0);
+      const cy: GraphViewport = createMockCy(1, 50, 75, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // With pan: screen = graph + pan
@@ -52,7 +52,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should account for container offset from viewport', () => {
-      const cy: Core = createMockCy(1, 0, 0, 200, 100);
+      const cy: GraphViewport = createMockCy(1, 0, 0, 200, 100);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // With container offset: screen = graph + container offset
@@ -61,7 +61,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should combine zoom, pan, and container offset correctly', () => {
-      const cy: Core = createMockCy(1.5, 25, 30, 100, 50);
+      const cy: GraphViewport = createMockCy(1.5, 25, 30, 100, 50);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(100, 100, cy);
 
       // screen = (graph * zoom) + pan + container offset
@@ -72,7 +72,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should handle negative graph coordinates', () => {
-      const cy: Core = createMockCy(1, 0, 0, 0, 0);
+      const cy: GraphViewport = createMockCy(1, 0, 0, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toScreenCoords(-50, -50, cy);
 
       expect(result.x).toBe(-50);
@@ -82,7 +82,7 @@ describe('Coordinate Conversions', () => {
 
   describe('toGraphCoords', () => {
     it('should convert screen coordinates to graph coordinates at zoom 1 with no pan', () => {
-      const cy: Core = createMockCy(1, 0, 0, 0, 0);
+      const cy: GraphViewport = createMockCy(1, 0, 0, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toGraphCoords(100, 100, cy);
 
       // At zoom 1, no pan, no container offset: graph = screen
@@ -91,7 +91,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should inversely scale coordinates based on zoom level', () => {
-      const cy: Core = createMockCy(2, 0, 0, 0, 0);
+      const cy: GraphViewport = createMockCy(2, 0, 0, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toGraphCoords(200, 200, cy);
 
       // At zoom 2: graph = screen / 2
@@ -100,7 +100,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should remove pan offset from screen coordinates', () => {
-      const cy: Core = createMockCy(1, 50, 75, 0, 0);
+      const cy: GraphViewport = createMockCy(1, 50, 75, 0, 0);
       const result: { readonly x: number; readonly y: number; } = toGraphCoords(150, 175, cy);
 
       // With pan: graph = screen - pan
@@ -109,7 +109,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should subtract container offset from screen coordinates', () => {
-      const cy: Core = createMockCy(1, 0, 0, 200, 100);
+      const cy: GraphViewport = createMockCy(1, 0, 0, 200, 100);
       const result: { readonly x: number; readonly y: number; } = toGraphCoords(300, 200, cy);
 
       // With container offset: graph = screen - container offset
@@ -118,7 +118,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should correctly inverse the combined transformation', () => {
-      const cy: Core = createMockCy(1.5, 25, 30, 100, 50);
+      const cy: GraphViewport = createMockCy(1.5, 25, 30, 100, 50);
       const result: { readonly x: number; readonly y: number; } = toGraphCoords(275, 230, cy);
 
       // graph = (screen - container offset - pan) / zoom
@@ -129,7 +129,7 @@ describe('Coordinate Conversions', () => {
     });
 
     it('should be the inverse of toScreenCoords', () => {
-      const cy: Core = createMockCy(1.75, 42, -17, 83, 29);
+      const cy: GraphViewport = createMockCy(1.75, 42, -17, 83, 29);
       const graphCoords: { readonly x: number; readonly y: number; } = { x: 150, y: -75 };
 
       const screenCoords: { readonly x: number; readonly y: number; } = toScreenCoords(graphCoords.x, graphCoords.y, cy);
@@ -184,7 +184,7 @@ describe('Coordinate Conversions', () => {
       const zoom: 0.4 = 0.4 as const;
       const pan: { readonly x: -9353.98; readonly y: 40.82; } = { x: -9353.98, y: 40.82 } as const;
       const containerRect: { readonly left: 16; readonly top: 242; } = { left: 16, top: 242 } as const;
-      const cy: Core = createMockCy(zoom, pan.x, pan.y, containerRect.left, containerRect.top);
+      const cy: GraphViewport = createMockCy(zoom, pan.x, pan.y, containerRect.left, containerRect.top);
 
       // Simulate a node at a specific graph position
       const nodeGraphPos: { readonly x: 23508.19; readonly y: 126.54; } = { x: 23508.19, y: 126.54 } as const;

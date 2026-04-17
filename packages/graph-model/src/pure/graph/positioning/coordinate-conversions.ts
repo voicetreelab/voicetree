@@ -1,4 +1,10 @@
-import type { Core, Position } from 'cytoscape';
+export type GraphViewportPosition = { readonly x: number; readonly y: number };
+
+export type GraphViewport = {
+  zoom(): number;
+  pan(): GraphViewportPosition;
+  container(): { getBoundingClientRect(): Pick<DOMRectReadOnly, 'left' | 'top'> } | null;
+};
 
 /**
  * Converts graph coordinates to screen coordinates.
@@ -10,10 +16,10 @@ import type { Core, Position } from 'cytoscape';
 export function toScreenCoords(
   graphX: number,
   graphY: number,
-  cy: Core
+  cy: GraphViewport
 ): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
-  const pan: Position = cy.pan();
+  const pan: GraphViewportPosition = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
 
   const result: { readonly x: number; readonly y: number; } = {
@@ -36,10 +42,10 @@ export function toScreenCoords(
 export function toGraphCoords(
   screenX: number,
   screenY: number,
-  cy: Core
+  cy: GraphViewport
 ): { readonly x: number; readonly y: number } {
   const zoom: number = cy.zoom();
-  const pan: Position = cy.pan();
+  const pan: GraphViewportPosition = cy.pan();
   const containerRect: DOMRect = cy.container()!.getBoundingClientRect();
 
   return {

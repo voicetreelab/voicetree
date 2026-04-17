@@ -5,26 +5,42 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { globalIgnores } from 'eslint/config'
 import functional from 'eslint-plugin-functional'
+import { fileURLToPath } from 'node:url'
+
+const repoRootDir = fileURLToPath(new URL('../', import.meta.url))
+const webappDir = fileURLToPath(new URL('./', import.meta.url))
+
+const purePackageCytoscapeMessage =
+  'Cytoscape must stay out of @vt/graph-model and @vt/graph-tools. Keep UI projection code in webapp.'
+
+const businessLayerCytoscapeMessage =
+  'Business-layer files must not reach into Cytoscape via cy.*. Keep this in a projection-layer adapter. Seed scope is src/**/business/** and will expand once BF-139 lands.'
 
 export default tseslint.config([
-  globalIgnores(['dist', 'node_modules', 'dist-electron', '*.config.ts', '.worktrees/**', 'workers/**']),
-  // Config files use tsconfig.node.json
+  globalIgnores([
+    '**/dist',
+    '**/node_modules',
+    'webapp/dist-electron',
+    'webapp/.worktrees/**',
+    'webapp/workers/**',
+  ]),
   {
-    files: ['*.config.ts'],
+    basePath: repoRootDir,
+    files: ['webapp/*.config.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       parserOptions: {
         project: './tsconfig.node.json',
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: webappDir,
       },
     },
   },
   {
-    files: ['**/*.{ts,tsx}'],
-    ignores: ['*.config.ts'],
+    basePath: repoRootDir,
+    files: ['webapp/src/**/*.{ts,tsx}', 'webapp/e2e-tests/**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      ...tseslint.configs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
@@ -33,24 +49,19 @@ export default tseslint.config([
       globals: globals.browser,
       parserOptions: {
         project: './tsconfig.app.json',
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: webappDir,
       },
     },
     rules: {
-      // Unused variables detection
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
         destructuredArrayIgnorePattern: '^_'
       }],
-      // Promise handling - prevent unhandled async bugs
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
-      // Nullish coalescing - prevent || bugs with falsy values
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
-      // Ban parent directory imports (allow same-directory imports)
-      // Ban absolute filesystem paths (e.g., /Users/...)
       'no-restricted-imports': ['error', {
         patterns: [{
           group: ['../*', '../**'],
@@ -60,12 +71,10 @@ export default tseslint.config([
           message: 'Do not use absolute filesystem paths in imports. Use relative or alias imports.'
         }]
       }],
-      // Ban absolute filesystem paths in inline import types (matches /Users, /home, /opt)
       'no-restricted-syntax': ['error', {
         selector: 'TSImportType[argument.literal.value=/^.(Users|home|opt)/]',
         message: 'Do not use absolute filesystem paths in inline import types. Use relative or alias imports.'
       }],
-      // Require explicit type annotations on variables and function returns
       '@typescript-eslint/typedef': ['error', {
         variableDeclaration: true,
         variableDeclarationIgnoreFunction: false,
@@ -77,18 +86,48 @@ export default tseslint.config([
       }],
     },
   },
-  // Functional programming rules for functional architecture files
   {
+    basePath: repoRootDir,
+    files: ['packages/graph-model/**/*.{ts,tsx}', 'packages/graph-tools/**/*.{ts,tsx}'],
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+      functional
+    },
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 2020,
+      sourceType: 'module',
+    },
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: 'cytoscape',
+          message: purePackageCytoscapeMessage,
+        }]
+      }],
+    },
+  },
+  {
+    basePath: repoRootDir,
+    files: ['webapp/src/**/business/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: "MemberExpression[object.type='Identifier'][object.name='cy']",
+        message: businessLayerCytoscapeMessage,
+      }],
+    },
+  },
+  {
+    basePath: repoRootDir,
     files: [
-      '**/pure/**/*.ts',
-      '**/functional/**/*.ts',
-      '**/functional/shell/edge/**/*.ts',
+      'webapp/**/pure/**/*.ts',
+      'webapp/**/functional/**/*.ts',
+      'webapp/**/functional/shell/edge/**/*.ts',
     ],
     plugins: {
       functional
     },
     rules: {
-      // Immutability - no let, use const
       'functional/no-let': 'error',
       'functional/prefer-readonly-type': ['error', {
         allowLocalMutation: false,
@@ -96,25 +135,14 @@ export default tseslint.config([
         ignoreClass: false,
         ignoreInterface: false
       }],
-      // Note: functional/immutable-data requires type info, disabled
       'functional/immutable-data': 'off',
-
-      // No classes or OOP
       'functional/no-classes': 'error',
       'functional/no-this-expressions': 'error',
-
-      // No exceptions (prefer Either/Option)
       'functional/no-throw-statements': 'warn',
       'functional/no-try-statements': 'warn',
-
-      // No mutations - use native ESLint rules instead
       'no-param-reassign': ['error', { props: true }],
       'prefer-const': 'error',
-
-      // Disallow imperative loops (prefer map/filter/reduce)
       'functional/no-loop-statements': 'warn',
-
-      // Functional style
       'functional/functional-parameters': ['error', {
         allowRestParameter: true,
         allowArgumentsKeyword: false,
@@ -122,40 +150,36 @@ export default tseslint.config([
       }]
     }
   },
-  // Special rules for e2e test files and helpers
   {
-    files: ['e2e-tests/**/*.{ts,tsx}'],
+    basePath: repoRootDir,
+    files: ['webapp/e2e-tests/**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: {
         project: './e2e-tests/tsconfig.json',
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: webappDir,
       },
     },
     rules: {
-      // Disable react-hooks rules in test files (Playwright's 'use' is not a React hook)
       'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
-      // Allow empty pattern for Playwright fixture args
       'no-empty-pattern': 'off',
-      // Allow require imports in test files
       '@typescript-eslint/no-require-imports': 'off',
-      // Allow any in test files for mock types
       '@typescript-eslint/no-explicit-any': 'warn',
-      // Relax type annotation requirements in tests
       '@typescript-eslint/typedef': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      // Relax functional rules in e2e-tests
       'functional/no-let': 'off',
       'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'off'
     }
   },
-  // Special rules for integration test files in src
   {
-    files: ['src/**/integration-tests/**/*.test.{ts,tsx}'],
+    basePath: repoRootDir,
+    files: ['webapp/src/**/integration-tests/**/*.test.{ts,tsx}'],
+    plugins: {
+      functional
+    },
     rules: {
-      // Relax functional rules in integration tests (they need mutable state for test setup)
       'functional/no-let': 'off',
       'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'off',

@@ -1,6 +1,10 @@
 {
   "private": true,
   "workspaces": ["webapp", "packages/*"],
+  "scripts": {
+    "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
+    "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs"
+  },
   "devDependencies": {
     "jsdom": "^27.0.0"
   }

@@ -1,0 +1,43 @@
+name: Lint
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'webapp/eslint.config.js'
+      - 'webapp/**'
+      - 'packages/graph-model/**'
+      - 'packages/graph-tools/**'
+      - '.github/workflows/lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'webapp/eslint.config.js'
+      - 'webapp/**'
+      - 'packages/graph-model/**'
+      - 'packages/graph-tools/**'
+      - '.github/workflows/lint.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run repo lint
+        run: npm run lint
