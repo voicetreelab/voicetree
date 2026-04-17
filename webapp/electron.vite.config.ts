@@ -138,8 +138,11 @@ export default defineConfig({
       ]
     },
     optimizeDeps: {
-      // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import
-      exclude: ['ninja-keys']
+      // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import.
+      // Exclude fsevents: it's a native binary required by chokidar v3 (via @vt/graph-model) and
+      // esbuild cannot handle .node files. externalNativePlugin covers the rollup build; this covers
+      // the dev-server optimizeDeps phase.
+      exclude: ['ninja-keys', 'fsevents']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
