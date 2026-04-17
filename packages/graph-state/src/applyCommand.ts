@@ -8,6 +8,7 @@ import {
 } from '@vt/graph-model'
 
 import type {
+    AddEdge,
     AddNode,
     Collapse,
     Command,
@@ -27,6 +28,7 @@ import {
     type EdgeChange,
 } from './apply/folderTreeHelpers'
 import {
+    createEdgesAddedGraphDelta,
     createEdgesRemovedGraphDelta,
     rebuildSourceNodeForRemovedEdge,
 } from './apply/markdownEdits'
@@ -82,6 +84,61 @@ function applyRemoveNode(
             cause: command,
             ...(graphDelta.length > 0 ? { graph: graphDelta } : {}),
             ...(wasSelected ? { selectionRemoved: [command.id] } : {}),
+        },
+    }
+}
+
+function applyAddEdge(
+    state: State,
+    command: AddEdge,
+): { readonly state: State; readonly delta: Delta } {
+    const nextRevision = state.meta.revision + 1
+    const sourceNode = state.graph.nodes[command.source]
+
+    if (!sourceNode) {
+        return {
+            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            delta: { revision: nextRevision, cause: command },
+        }
+    }
+
+    const alreadyExists = sourceNode.outgoingEdges.some(
+        (e) => e.targetId === command.edge.targetId && e.label === command.edge.label,
+    )
+    if (alreadyExists) {
+        return {
+            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            delta: { revision: nextRevision, cause: command },
+        }
+    }
+
+    const updatedSourceNode = { ...sourceNode, outgoingEdges: [...sourceNode.outgoingEdges, command.edge] }
+    const graphMutationDelta: GraphDelta = [{
+        type: 'UpsertNode',
+        nodeToUpsert: updatedSourceNode,
+        previousNode: O.some(sourceNode),
+    }]
+    const graph = applyGraphDeltaToGraph(state.graph, graphMutationDelta)
+
+    const edgeChange: EdgeChange = {
+        source: command.source,
+        targetId: command.edge.targetId,
+        label: command.edge.label,
+    }
+
+    return {
+        state: {
+            graph,
+            roots: state.roots,
+            collapseSet: state.collapseSet,
+            selection: state.selection,
+            layout: state.layout,
+            meta: { ...state.meta, revision: nextRevision },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            graph: createEdgesAddedGraphDelta([edgeChange]),
         },
     }
 }
@@ -326,6 +383,8 @@ export function applyCommandWithDelta(
             return applyAddNode(state, command)
         case 'RemoveNode':
             return applyRemoveNode(state, command)
+        case 'AddEdge':
+            return applyAddEdge(state, command)
         case 'RemoveEdge':
             return applyRemoveEdge(state, command)
         default:

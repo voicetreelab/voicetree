@@ -28,6 +28,7 @@ export interface EdgeChange {
 
 export type GraphDeltaSummary = GraphDelta & {
     readonly edgesRemoved?: readonly EdgeChange[]
+    readonly edgesAdded?: readonly EdgeChange[]
 }
 
 export function normalizePathValue(value: string): string {

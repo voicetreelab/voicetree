@@ -18,6 +18,15 @@ export function createEdgesRemovedGraphDelta(edgesRemoved: readonly EdgeChange[]
     return graphDelta
 }
 
+export function createEdgesAddedGraphDelta(edgesAdded: readonly EdgeChange[]): GraphDelta {
+    const graphDelta = [] as unknown as GraphDeltaSummary
+    Object.defineProperty(graphDelta, 'edgesAdded', {
+        value: edgesAdded,
+        enumerable: true,
+    })
+    return graphDelta
+}
+
 function normalizeMarkdownAfterLinkRemoval(markdown: string): string {
     return markdown
         .replace(/\s+(and|or)\s+([.,;:!?])/g, '$2')
