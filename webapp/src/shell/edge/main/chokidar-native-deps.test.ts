@@ -6,7 +6,7 @@ import chokidar from 'chokidar'
 // See [L4-BF-187]: externalNativePlugin in electron.vite.config.ts is what keeps this green.
 describe('chokidar native deps', () => {
   it('chokidar.watch() constructs and closes without throwing', async () => {
-    const watcher = chokidar.watch('.', { ignoreInitial: true })
+    const watcher: chokidar.FSWatcher = chokidar.watch('.', { ignoreInitial: true })
     expect(watcher).toBeDefined()
     await watcher.close()
   })
