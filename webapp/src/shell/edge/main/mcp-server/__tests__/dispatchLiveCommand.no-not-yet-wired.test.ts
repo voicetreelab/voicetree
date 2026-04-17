@@ -50,9 +50,9 @@ function emptyGraph(): Graph {
 const TMP_ROOT: string = path.join(tmpdir(), `bf186-wired-variants-${process.pid}`)
 
 function buildMinimalExamples(root: string): Record<Command['type'], SerializedCommand> {
-    const folder = `${root}/subdir/`
-    const nodeId = `${root}/note.md`
-    const otherId = `${root}/other.md`
+    const folder: string = `${root}/subdir/`
+    const nodeId: string = `${root}/note.md`
+    const otherId: string = `${root}/other.md`
     return {
         Collapse:     { type: 'Collapse',    folder },
         Expand:       { type: 'Expand',      folder },
