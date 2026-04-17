@@ -184,6 +184,7 @@ webapp/workers/share-worker/.wrangler/**
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
 !webapp/example_folder_fixtures/example_real_large/voicetree-24-2/**/*.md
 !packages/graph-model/tests/**/*.md
+!packages/graph-state/**/*.md
 
 # MCP config
 **/.mcp.json

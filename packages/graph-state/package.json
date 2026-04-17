@@ -1,0 +1,26 @@
+{
+  "name": "@vt/graph-state",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Unified data-layer contract for VoiceTree: State + Command + project/applyCommand signatures. Contract-only (BF-138). Implementation lands in BF-142+.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.d.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/trivial-consumer-smoke.ts"
+  },
+  "dependencies": {
+    "@vt/graph-model": "*",
+    "@vt/graph-tools": "*",
+    "fp-ts": "^2.16.9"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.0.0"
+  }
+}

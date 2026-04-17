@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@vt/graph-model": ["./src/__isolation__/graph-model.d.ts"],
+      "@vt/graph-model/pure/graph": ["./src/__isolation__/graph-model-pure-graph.d.ts"]
+    }
+  }
+}
