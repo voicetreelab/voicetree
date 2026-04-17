@@ -27,6 +27,12 @@ const PROJECTION_SEAM_PATTERNS: readonly string[] = [
     'webapp/src/utils/responsivePadding.ts',
     'webapp/src/utils/visibleViewport.ts',
     'webapp/src/utils/viewportVisibility.ts',
+    // [L2-audit-exempt] Renderer-side projection consumers — cy.* calls here are
+    // architecturally correct (delta → cy), not authoritative state.
+    'webapp/src/shell/edge/UI-edge/graph/layoutProjection.ts',
+    'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts',
+    'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts',
+    'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts',
 ] as const
 
 const CY_LINE_PATTERN: RegExp = /(^|[^A-Za-z0-9_])(cy|this\.cy)\./
@@ -185,6 +191,12 @@ function isProjectionSeam(relativePath: string): boolean {
         || relativePath === 'webapp/src/utils/visibleViewport.ts'
         || relativePath === 'webapp/src/utils/viewportVisibility.ts'
         || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyLiveCommandToRenderer.ts'
+        // [L2-audit-exempt] Renderer-side projection consumers — cy.* here is
+        // architecturally correct (delta → cy), not authoritative state.
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/layoutProjection.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts'
         || isTestScaffolding(relativePath)
     )
 }
