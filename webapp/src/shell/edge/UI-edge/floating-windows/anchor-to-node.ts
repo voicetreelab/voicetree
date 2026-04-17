@@ -264,7 +264,7 @@ function attachDragHandlers(
         isDragging = true;
         windowElement.classList.add('dragging');
 
-        const pan = getLayout().pan ?? { x: 0, y: 0 };
+        const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
 
         // currentLeft/Top are already in screen coordinates (graph * zoom)
         // set by updateWindowPosition via graphToScreenPosition
@@ -286,7 +286,7 @@ function attachDragHandlers(
     const handleMouseMove: (e: MouseEvent) => void = (e: MouseEvent) => {
         if (!isDragging) return;
 
-        const pan = getLayout().pan ?? { x: 0, y: 0 };
+        const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
         const zoom: number = getLayout().zoom ?? 1;
 
         const viewportX: number = e.clientX - dragOffset.x;
