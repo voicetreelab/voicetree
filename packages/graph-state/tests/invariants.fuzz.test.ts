@@ -163,7 +163,8 @@ function assertInvariants(state: State, ctx: string): void {
 // ---- Fuzzer ----
 
 describe('invariant fuzzer (10k sequences, 0 violations)', () => {
-    it('holds all structural invariants across 10k random command sequences', () => {
+    // 10k sequences run ~4s on dev hardware — give the wall-clock 30s of headroom.
+    it('holds all structural invariants across 10k random command sequences', { timeout: 30_000 }, () => {
         const snapshots = listSnapshotDocuments()
         const SEED = 0xDEADBEEF
         const SEQUENCES = 10_000

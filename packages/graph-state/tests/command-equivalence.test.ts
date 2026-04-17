@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyCommandWithDelta } from '../src/applyCommand'
+import { applyCommand, applyCommandWithDelta, emptyState } from '../src/applyCommand'
 import { loadSequence, loadSnapshot, serializeState } from '../src/fixtures'
 import type { Delta, State } from '../src/contract'
 
@@ -61,8 +61,9 @@ function runSequence(fixtureName: string): void {
 }
 
 /**
- * Command-equivalence matrix (L1-I / V-L1-3).
- * One row per Command discriminator. All 11 variants referenced below.
+ * Command-equivalence matrix (L1-I / V-L1-3, extended for L2-BF-167).
+ * One row per Command discriminator. All 15 variants referenced below
+ * (11 from L1 + SetZoom/SetPan/SetPositions/RequestFit from L2-BF-167).
  * Rows marked it.skip are pending BF-150 (AddEdge) / BF-152 (Move, LoadRoot, UnloadRoot).
  */
 describe('command-equivalence matrix', () => {
@@ -125,5 +126,50 @@ describe('command-equivalence matrix', () => {
     // TODO: enable once BF-152 (LoadRoot) lands — 113 starts with LoadRoot
     it.skip('multi-command LoadRoot+AddNode+Collapse+Select: 113', () => {
         runSequence('113-multi-command-load-add-collapse-select')
+    })
+
+    // BF-167 layout commands. No fixtures yet — per-row inline assertions.
+    it("'SetZoom': mutates layout.zoom and bumps revision", () => {
+        const initial = emptyState()
+        const { state, delta } = applyCommandWithDelta(initial, { type: 'SetZoom', zoom: 1.75 })
+        expect(state.layout.zoom).toBe(1.75)
+        expect(state.meta.revision).toBe(initial.meta.revision + 1)
+        expect(delta.layoutChanged?.zoom).toBe(1.75)
+    })
+
+    it("'SetPan': mutates layout.pan and bumps revision", () => {
+        const initial = emptyState()
+        const { state, delta } = applyCommandWithDelta(initial, {
+            type: 'SetPan',
+            pan: { x: 12, y: -7 },
+        })
+        expect(state.layout.pan).toEqual({ x: 12, y: -7 })
+        expect(state.meta.revision).toBe(initial.meta.revision + 1)
+        expect(delta.layoutChanged?.pan).toEqual({ x: 12, y: -7 })
+    })
+
+    it("'SetPositions': merges by nodeId and bumps revision", () => {
+        const initial = applyCommand(emptyState(), {
+            type: 'SetPositions',
+            positions: new Map([['/a.md', { x: 1, y: 1 }]]),
+        })
+        const { state, delta } = applyCommandWithDelta(initial, {
+            type: 'SetPositions',
+            positions: new Map([
+                ['/a.md', { x: 10, y: 10 }],
+                ['/b.md', { x: 2, y: 2 }],
+            ]),
+        })
+        expect(state.layout.positions.get('/a.md')).toEqual({ x: 10, y: 10 })
+        expect(state.layout.positions.get('/b.md')).toEqual({ x: 2, y: 2 })
+        expect(delta.layoutChanged?.positions?.size).toBe(2)
+    })
+
+    it("'RequestFit': records fit and bumps revision", () => {
+        const initial = emptyState()
+        const { state, delta } = applyCommandWithDelta(initial, { type: 'RequestFit', paddingPx: 30 })
+        expect(state.layout.fit).toEqual({ paddingPx: 30 })
+        expect(state.meta.revision).toBe(initial.meta.revision + 1)
+        expect(delta.layoutChanged?.fit).toEqual({ paddingPx: 30 })
     })
 })

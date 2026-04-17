@@ -37,6 +37,10 @@ import {
 } from './apply/markdownEdits'
 import { applyMove } from './apply/move'
 import { applyLoadRoot, applyUnloadRoot } from './apply/roots'
+import { applySetZoom } from './apply/setZoom'
+import { applySetPan } from './apply/setPan'
+import { applySetPositions } from './apply/setPositions'
+import { applyRequestFit } from './apply/requestFit'
 
 function applyAddNode(
     state: State,
@@ -396,6 +400,14 @@ export function applyCommandWithDelta(
             return applyMove(state, command)
         case 'UnloadRoot':
             return applyUnloadRoot(state, command)
+        case 'SetZoom':
+            return applySetZoom(state, command)
+        case 'SetPan':
+            return applySetPan(state, command)
+        case 'SetPositions':
+            return applySetPositions(state, command)
+        case 'RequestFit':
+            return applyRequestFit(state, command)
         case 'LoadRoot':
             throw new Error('LoadRoot requires async disk I/O — use applyCommandAsync instead')
         default:

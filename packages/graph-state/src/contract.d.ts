@@ -88,6 +88,17 @@ export interface Move       { readonly type: 'Move';       readonly id: NodeIdAn
 export interface LoadRoot   { readonly type: 'LoadRoot';   readonly root: RootPath }
 export interface UnloadRoot { readonly type: 'UnloadRoot'; readonly root: RootPath }
 
+/**
+ * BF-167 layout-state commands. Additive per decisions.md §7.
+ * `SetPositions` merges positions by nodeId (last-wins per id). The
+ * `layoutStore` coalesces high-frequency dispatches (zoom/pan at 60fps) into
+ * one delta per frame — see `state/layoutStore.ts`.
+ */
+export interface SetZoom      { readonly type: 'SetZoom';      readonly zoom: number }
+export interface SetPan       { readonly type: 'SetPan';       readonly pan: Position }
+export interface SetPositions { readonly type: 'SetPositions'; readonly positions: ReadonlyMap<NodeIdAndFilePath, Position> }
+export interface RequestFit   { readonly type: 'RequestFit';   readonly paddingPx?: number }
+
 export type Command =
     | Collapse | Expand
     | Select | Deselect
@@ -95,6 +106,7 @@ export type Command =
     | AddEdge | RemoveEdge
     | Move
     | LoadRoot | UnloadRoot
+    | SetZoom | SetPan | SetPositions | RequestFit
 
 // ============================================================================
 // DELTAS (change-notification)
@@ -115,6 +127,18 @@ export interface Delta {
     readonly rootsLoaded?:      readonly RootPath[]
     readonly rootsUnloaded?:    readonly RootPath[]
     readonly positionsMoved?:   ReadonlyMap<NodeIdAndFilePath, Position>
+    /**
+     * BF-167 layout delta. `fit: null` means "fit was cleared this frame";
+     * `fit: { paddingPx }` means "fit requested with this padding". Absence
+     * means no fit change. The single `layoutProjection` subscriber consumes
+     * this and is the only writer of cy.zoom()/cy.pan()/cy.fit().
+     */
+    readonly layoutChanged?: {
+        readonly zoom?:      number
+        readonly pan?:       Position
+        readonly positions?: ReadonlyMap<NodeIdAndFilePath, Position>
+        readonly fit?:       { readonly paddingPx: number } | null
+    }
 }
 
 /** Branded numeric alias for state.meta.revision. Opaque by contract. */
