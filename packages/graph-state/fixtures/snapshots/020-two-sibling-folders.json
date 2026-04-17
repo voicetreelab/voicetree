@@ -1,0 +1,142 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "020-two-sibling-folders",
+  "description": "Sibling folder fixture with tasks/ and notes/.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/notes/retro.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/retro.md",
+          "contentWithoutYamlOrLinks": "# retro\n\nWeekly retro.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/notes/spec.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+          "contentWithoutYamlOrLinks": "# spec\n\nShared reference note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+              "label": "See"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          "contentWithoutYamlOrLinks": "# BF-117\n\nSee [spec]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "bf-117",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md"
+          ]
+        ],
+        [
+          "retro",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/retro.md"
+          ]
+        ],
+        [
+          "spec",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/spec.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "notes",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/notes",
+              "children": [
+                {
+                  "name": "retro.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/notes/retro.md",
+                  "isInGraph": true
+                },
+                {
+                  "name": "spec.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "tasks",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks",
+              "children": [
+                {
+                  "name": "BF-117.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

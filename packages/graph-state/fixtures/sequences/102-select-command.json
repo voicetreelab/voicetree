@@ -1,0 +1,26 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "102-select-command",
+  "description": "Select one node from the flat baseline.",
+  "initial": "003-flat-three-nodes",
+  "commands": [
+    {
+      "type": "Select",
+      "ids": [
+        "/tmp/graph-state-fixtures/root-a/beta.md"
+      ]
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "005-with-selection",
+    "revisionDelta": 1,
+    "deltas": [
+      {
+        "revision": 1,
+        "selectionAdded": [
+          "/tmp/graph-state-fixtures/root-a/beta.md"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "041-context-node-unresolved-link",
+  "description": "Context-node fixture with containedNodeIds, color, additional YAML props, and unresolved links.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/alpha.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "contentWithoutYamlOrLinks": "# Alpha\n\nReferenced node.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/beta.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/beta.md",
+          "contentWithoutYamlOrLinks": "# Beta\n\nReferenced node.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/context.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "missing-target",
+              "label": "Contains a dangling"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/context.md",
+          "contentWithoutYamlOrLinks": "# Context\n\nContains a dangling [missing-target]* link.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "Some",
+              "value": "#FF00AA"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": [
+              [
+                "containedNodeIds",
+                "[\"/tmp/graph-state-fixtures/root-a/alpha.md\",\"/tmp/graph-state-fixtures/root-a/beta.md\"]"
+              ],
+              [
+                "priority",
+                "2"
+              ],
+              [
+                "status",
+                "draft"
+              ]
+            ],
+            "isContextNode": true,
+            "containedNodeIds": [
+              "/tmp/graph-state-fixtures/root-a/alpha.md",
+              "/tmp/graph-state-fixtures/root-a/beta.md"
+            ]
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "missing-target",
+          [
+            "/tmp/graph-state-fixtures/root-a/context.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "alpha",
+          [
+            "/tmp/graph-state-fixtures/root-a/alpha.md"
+          ]
+        ],
+        [
+          "beta",
+          [
+            "/tmp/graph-state-fixtures/root-a/beta.md"
+          ]
+        ],
+        [
+          "context",
+          [
+            "/tmp/graph-state-fixtures/root-a/context.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": [
+        [
+          "missing-target",
+          [
+            "/tmp/graph-state-fixtures/root-a/context.md"
+          ]
+        ]
+      ]
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "alpha.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/alpha.md",
+              "isInGraph": true
+            },
+            {
+              "name": "beta.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/beta.md",
+              "isInGraph": true
+            },
+            {
+              "name": "context.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/context.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "116-nested-collapse",
+  "description": "Collapse parent then child so both folders remain in collapseSet.",
+  "initial": "021-nested-folder",
+  "commands": [
+    {
+      "type": "Collapse",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+    },
+    {
+      "type": "Collapse",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "023-all-collapsed",
+    "revisionDelta": 2
+  }
+}

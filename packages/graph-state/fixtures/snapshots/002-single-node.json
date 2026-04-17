@@ -1,0 +1,64 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "002-single-node",
+  "description": "Single-node snapshot with a loaded root and no edges.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/solo.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/solo.md",
+          "contentWithoutYamlOrLinks": "# solo\n\nOnly node in the graph.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [],
+      "nodeByBaseName": [
+        [
+          "solo",
+          [
+            "/tmp/graph-state-fixtures/root-a/solo.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "solo.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/solo.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

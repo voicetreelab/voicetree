@@ -1,0 +1,16 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "105-remove-node-command",
+  "description": "RemoveNode prunes the extra node back out of the graph.",
+  "initial": "008-add-node-result",
+  "commands": [
+    {
+      "type": "RemoveNode",
+      "id": "/tmp/graph-state-fixtures/root-a/delta.md"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "003-flat-three-nodes",
+    "revisionDelta": 1
+  }
+}

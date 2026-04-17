@@ -1,0 +1,24 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "100-collapse-command",
+  "description": "Single Collapse command against a flat folder fixture.",
+  "initial": "010-flat-folder",
+  "commands": [
+    {
+      "type": "Collapse",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "011-flat-folder-collapsed",
+    "revisionDelta": 1,
+    "deltas": [
+      {
+        "revision": 1,
+        "collapseAdded": [
+          "/tmp/graph-state-fixtures/root-a/tasks/"
+        ]
+      }
+    ]
+  }
+}

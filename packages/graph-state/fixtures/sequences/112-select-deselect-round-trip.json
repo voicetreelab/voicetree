@@ -1,0 +1,24 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "112-select-deselect-round-trip",
+  "description": "Selecting then deselecting returns to the baseline selection-free state.",
+  "initial": "003-flat-three-nodes",
+  "commands": [
+    {
+      "type": "Select",
+      "ids": [
+        "/tmp/graph-state-fixtures/root-a/beta.md"
+      ]
+    },
+    {
+      "type": "Deselect",
+      "ids": [
+        "/tmp/graph-state-fixtures/root-a/beta.md"
+      ]
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "003-flat-three-nodes",
+    "revisionDelta": 2
+  }
+}

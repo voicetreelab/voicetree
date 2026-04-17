@@ -1,0 +1,36 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "001-empty",
+  "description": "Empty state with one loaded root and no graph nodes.",
+  "state": {
+    "graph": {
+      "nodes": {},
+      "incomingEdgesIndex": [],
+      "nodeByBaseName": [],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-empty"
+      ],
+      "folderTree": [
+        {
+          "name": "root-empty",
+          "absolutePath": "/tmp/graph-state-fixtures/root-empty",
+          "children": [],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "022-nested-folder-inner-collapsed",
+  "description": "Nested folder fixture with only the inner epics/ folder collapsed.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/notes/roadmap.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+              "label": "Relates to"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+          "contentWithoutYamlOrLinks": "# roadmap\n\nRelates to [summary]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "label": "Depends on"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          "contentWithoutYamlOrLinks": "# epic-a\n\nDepends on [epic-b]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+          "contentWithoutYamlOrLinks": "# epic-b\n\nLeaf note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/summary.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+              "label": "Summarises"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          "contentWithoutYamlOrLinks": "# summary\n\nSummarises [epic-a]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+          ]
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+          ]
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/roadmap.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "epic-a",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+          ]
+        ],
+        [
+          "epic-b",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md"
+          ]
+        ],
+        [
+          "roadmap",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/roadmap.md"
+          ]
+        ],
+        [
+          "summary",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "notes",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/notes",
+              "children": [
+                {
+                  "name": "roadmap.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "tasks",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks",
+              "children": [
+                {
+                  "name": "epics",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics",
+                  "children": [
+                    {
+                      "name": "epic-a.md",
+                      "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+                      "isInGraph": true
+                    },
+                    {
+                      "name": "epic-b.md",
+                      "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+                      "isInGraph": true
+                    }
+                  ],
+                  "loadState": "not-loaded",
+                  "isWriteTarget": false
+                },
+                {
+                  "name": "summary.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [
+      "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+    ],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

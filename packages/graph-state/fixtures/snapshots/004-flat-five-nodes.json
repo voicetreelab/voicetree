@@ -1,0 +1,176 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "004-flat-five-nodes",
+  "description": "Flat five-node fixture for wider traversal and indexing coverage.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/alpha.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/beta.md",
+              "label": "Tracks"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "contentWithoutYamlOrLinks": "# Alpha\n\nTracks [Beta]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/beta.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/beta.md",
+          "contentWithoutYamlOrLinks": "# Beta\n\nExecution detail.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/delta.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/delta.md",
+          "contentWithoutYamlOrLinks": "# Delta\n\nStaging note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/epsilon.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/epsilon.md",
+          "contentWithoutYamlOrLinks": "# Epsilon\n\nArchive note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/gamma.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/gamma.md",
+          "contentWithoutYamlOrLinks": "# Gamma\n\nLoose note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "/tmp/graph-state-fixtures/root-a/beta.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/alpha.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "alpha",
+          [
+            "/tmp/graph-state-fixtures/root-a/alpha.md"
+          ]
+        ],
+        [
+          "beta",
+          [
+            "/tmp/graph-state-fixtures/root-a/beta.md"
+          ]
+        ],
+        [
+          "delta",
+          [
+            "/tmp/graph-state-fixtures/root-a/delta.md"
+          ]
+        ],
+        [
+          "epsilon",
+          [
+            "/tmp/graph-state-fixtures/root-a/epsilon.md"
+          ]
+        ],
+        [
+          "gamma",
+          [
+            "/tmp/graph-state-fixtures/root-a/gamma.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "alpha.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/alpha.md",
+              "isInGraph": true
+            },
+            {
+              "name": "beta.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/beta.md",
+              "isInGraph": true
+            },
+            {
+              "name": "delta.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/delta.md",
+              "isInGraph": true
+            },
+            {
+              "name": "epsilon.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/epsilon.md",
+              "isInGraph": true
+            },
+            {
+              "name": "gamma.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/gamma.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

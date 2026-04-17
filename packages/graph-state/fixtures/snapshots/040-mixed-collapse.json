@@ -1,0 +1,314 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "040-mixed-collapse",
+  "description": "Mixed-collapse fixture with selection, layout, zoom, pan, fit, and mutatedAt populated.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/notes/inbox.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/inbox.md",
+          "contentWithoutYamlOrLinks": "# inbox\n\nSelected note for visibility tests.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "Some",
+              "value": {
+                "x": 520,
+                "y": 90
+              }
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/notes/roadmap.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+              "label": "Relates to"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+          "contentWithoutYamlOrLinks": "# roadmap\n\nRelates to [summary]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/research/idea.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/research/idea.md",
+          "contentWithoutYamlOrLinks": "# idea\n\nCollapsed sibling folder payload.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "label": "Depends on"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          "contentWithoutYamlOrLinks": "# epic-a\n\nDepends on [epic-b]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "Some",
+              "value": {
+                "x": 260,
+                "y": 180
+              }
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+          "contentWithoutYamlOrLinks": "# epic-b\n\nLeaf note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "Some",
+              "value": {
+                "x": 360,
+                "y": 240
+              }
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/summary.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+              "label": "Summarises"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          "contentWithoutYamlOrLinks": "# summary\n\nSummarises [epic-a]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "Some",
+              "value": {
+                "x": 90,
+                "y": 120
+              }
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+          ]
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+          ]
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/roadmap.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "epic-a",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+          ]
+        ],
+        [
+          "epic-b",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md"
+          ]
+        ],
+        [
+          "idea",
+          [
+            "/tmp/graph-state-fixtures/root-a/research/idea.md"
+          ]
+        ],
+        [
+          "inbox",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/inbox.md"
+          ]
+        ],
+        [
+          "roadmap",
+          [
+            "/tmp/graph-state-fixtures/root-a/notes/roadmap.md"
+          ]
+        ],
+        [
+          "summary",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "notes",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/notes",
+              "children": [
+                {
+                  "name": "inbox.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/notes/inbox.md",
+                  "isInGraph": true
+                },
+                {
+                  "name": "roadmap.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "research",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/research",
+              "children": [
+                {
+                  "name": "idea.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/research/idea.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "tasks",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks",
+              "children": [
+                {
+                  "name": "epics",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics",
+                  "children": [
+                    {
+                      "name": "epic-a.md",
+                      "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+                      "isInGraph": true
+                    },
+                    {
+                      "name": "epic-b.md",
+                      "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+                      "isInGraph": true
+                    }
+                  ],
+                  "loadState": "not-loaded",
+                  "isWriteTarget": false
+                },
+                {
+                  "name": "summary.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [
+      "/tmp/graph-state-fixtures/root-a/research/",
+      "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+    ],
+    "selection": [
+      "/tmp/graph-state-fixtures/root-a/notes/inbox.md"
+    ],
+    "layout": {
+      "positions": [
+        [
+          "/tmp/graph-state-fixtures/root-a/notes/inbox.md",
+          {
+            "x": 520,
+            "y": 90
+          }
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          {
+            "x": 260,
+            "y": 180
+          }
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+          {
+            "x": 360,
+            "y": 240
+          }
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          {
+            "x": 90,
+            "y": 120
+          }
+        ]
+      ],
+      "zoom": 1.2,
+      "pan": {
+        "x": -40,
+        "y": 22
+      },
+      "fit": {
+        "paddingPx": 48
+      }
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 4,
+      "mutatedAt": "2026-04-17T11:00:00.000Z"
+    }
+  }
+}

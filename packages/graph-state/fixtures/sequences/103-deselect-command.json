@@ -1,0 +1,26 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "103-deselect-command",
+  "description": "Clear the selected node from the selection fixture.",
+  "initial": "005-with-selection",
+  "commands": [
+    {
+      "type": "Deselect",
+      "ids": [
+        "/tmp/graph-state-fixtures/root-a/beta.md"
+      ]
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "003-flat-three-nodes",
+    "revisionDelta": 1,
+    "deltas": [
+      {
+        "revision": 1,
+        "selectionRemoved": [
+          "/tmp/graph-state-fixtures/root-a/beta.md"
+        ]
+      }
+    ]
+  }
+}

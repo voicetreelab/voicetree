@@ -1,0 +1,43 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "113-multi-command-load-add-collapse-select",
+  "description": "LoadRoot → AddNode → Collapse → Select in one compound sequence.",
+  "initial": "050-two-roots-root-a-only",
+  "commands": [
+    {
+      "type": "LoadRoot",
+      "root": "/tmp/graph-state-fixtures/root-b"
+    },
+    {
+      "type": "AddNode",
+      "node": {
+        "outgoingEdges": [],
+        "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
+        "contentWithoutYamlOrLinks": "# delta\n\nAdded during the multi-command sequence.\n",
+        "nodeUIMetadata": {
+          "color": {
+            "_tag": "None"
+          },
+          "position": {
+            "_tag": "None"
+          },
+          "additionalYAMLProps": []
+        }
+      }
+    },
+    {
+      "type": "Collapse",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+    },
+    {
+      "type": "Select",
+      "ids": [
+        "/tmp/graph-state-fixtures/root-b/remote.md"
+      ]
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "054-multi-command-final",
+    "revisionDelta": 4
+  }
+}

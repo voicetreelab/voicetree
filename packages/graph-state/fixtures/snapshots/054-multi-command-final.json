@@ -1,0 +1,160 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "054-multi-command-final",
+  "description": "Final state after LoadRoot → AddNode → Collapse → Select.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/overview.md",
+          "contentWithoutYamlOrLinks": "# overview\n\nTop-level summary.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/delta.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
+          "contentWithoutYamlOrLinks": "# delta\n\nAdded during the multi-command sequence.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/seed.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
+          "contentWithoutYamlOrLinks": "# seed\n\nCore task file.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-b/remote.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-b/remote.md",
+          "contentWithoutYamlOrLinks": "# remote\n\nSecondary root note.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [],
+      "nodeByBaseName": [
+        [
+          "delta",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/delta.md"
+          ]
+        ],
+        [
+          "overview",
+          [
+            "/tmp/graph-state-fixtures/root-a/overview.md"
+          ]
+        ],
+        [
+          "remote",
+          [
+            "/tmp/graph-state-fixtures/root-b/remote.md"
+          ]
+        ],
+        [
+          "seed",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/seed.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a",
+        "/tmp/graph-state-fixtures/root-b"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "tasks",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks",
+              "children": [
+                {
+                  "name": "delta.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
+                  "isInGraph": true
+                },
+                {
+                  "name": "seed.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "overview.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/overview.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        },
+        {
+          "name": "root-b",
+          "absolutePath": "/tmp/graph-state-fixtures/root-b",
+          "children": [
+            {
+              "name": "remote.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-b/remote.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": false
+        }
+      ]
+    },
+    "collapseSet": [
+      "/tmp/graph-state-fixtures/root-a/tasks/"
+    ],
+    "selection": [
+      "/tmp/graph-state-fixtures/root-b/remote.md"
+    ],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

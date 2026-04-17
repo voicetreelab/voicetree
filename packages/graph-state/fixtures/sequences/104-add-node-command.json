@@ -1,0 +1,29 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "104-add-node-command",
+  "description": "AddNode grows the flat baseline by one node.",
+  "initial": "003-flat-three-nodes",
+  "commands": [
+    {
+      "type": "AddNode",
+      "node": {
+        "outgoingEdges": [],
+        "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/delta.md",
+        "contentWithoutYamlOrLinks": "# Delta\n\nNew node added for mutation tests.\n",
+        "nodeUIMetadata": {
+          "color": {
+            "_tag": "None"
+          },
+          "position": {
+            "_tag": "None"
+          },
+          "additionalYAMLProps": []
+        }
+      }
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "008-add-node-result",
+    "revisionDelta": 1
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "108-move-command",
+  "description": "Move updates one positioned node inside layout.positions.",
+  "initial": "006-with-layout-positions",
+  "commands": [
+    {
+      "type": "Move",
+      "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+      "to": {
+        "x": 360,
+        "y": 240
+      }
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "007-with-layout-positions-moved",
+    "revisionDelta": 1
+  }
+}

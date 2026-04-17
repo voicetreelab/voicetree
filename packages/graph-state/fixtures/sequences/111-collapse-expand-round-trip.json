@@ -1,0 +1,20 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "111-collapse-expand-round-trip",
+  "description": "Collapsing then expanding a folder returns to the expanded snapshot.",
+  "initial": "010-flat-folder",
+  "commands": [
+    {
+      "type": "Collapse",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+    },
+    {
+      "type": "Expand",
+      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "010-flat-folder",
+    "revisionDelta": 2
+  }
+}

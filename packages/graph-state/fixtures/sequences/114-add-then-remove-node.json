@@ -1,0 +1,33 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "114-add-then-remove-node",
+  "description": "AddNode followed by RemoveNode returns to the flat baseline.",
+  "initial": "003-flat-three-nodes",
+  "commands": [
+    {
+      "type": "AddNode",
+      "node": {
+        "outgoingEdges": [],
+        "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/delta.md",
+        "contentWithoutYamlOrLinks": "# Delta\n\nNew node added for mutation tests.\n",
+        "nodeUIMetadata": {
+          "color": {
+            "_tag": "None"
+          },
+          "position": {
+            "_tag": "None"
+          },
+          "additionalYAMLProps": []
+        }
+      }
+    },
+    {
+      "type": "RemoveNode",
+      "id": "/tmp/graph-state-fixtures/root-a/delta.md"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "003-flat-three-nodes",
+    "revisionDelta": 2
+  }
+}

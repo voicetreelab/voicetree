@@ -1,0 +1,20 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "106-add-edge-command",
+  "description": "AddEdge adds Alpha → Gamma to the flat baseline.",
+  "initial": "003-flat-three-nodes",
+  "commands": [
+    {
+      "type": "AddEdge",
+      "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+      "edge": {
+        "targetId": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "label": ""
+      }
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "009-add-edge-result",
+    "revisionDelta": 1
+  }
+}

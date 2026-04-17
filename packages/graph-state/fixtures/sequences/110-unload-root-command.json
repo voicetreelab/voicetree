@@ -1,0 +1,24 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "110-unload-root-command",
+  "description": "UnloadRoot removes the second loaded root.",
+  "initial": "051-two-roots-loaded",
+  "commands": [
+    {
+      "type": "UnloadRoot",
+      "root": "/tmp/graph-state-fixtures/root-b"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "050-two-roots-root-a-only",
+    "revisionDelta": 1,
+    "deltas": [
+      {
+        "revision": 1,
+        "rootsUnloaded": [
+          "/tmp/graph-state-fixtures/root-b"
+        ]
+      }
+    ]
+  }
+}

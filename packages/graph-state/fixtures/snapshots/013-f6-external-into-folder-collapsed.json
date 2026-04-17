@@ -1,0 +1,147 @@
+{
+  "$schema": "graph-state/snapshot@1",
+  "id": "013-f6-external-into-folder-collapsed",
+  "description": "Collapsed F6 case for external → folder aggregation.",
+  "state": {
+    "graph": {
+      "nodes": {
+        "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+              "label": "Tracks"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/overview.md",
+          "contentWithoutYamlOrLinks": "# Overview\n\nTracks [BF-117]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md": {
+          "outgoingEdges": [
+            {
+              "targetId": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+              "label": "Depends on"
+            }
+          ],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          "contentWithoutYamlOrLinks": "# BF-117\n\nDepends on [BF-118]*.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        },
+        "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md": {
+          "outgoingEdges": [],
+          "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+          "contentWithoutYamlOrLinks": "# BF-118\n\nReady for execution.\n",
+          "nodeUIMetadata": {
+            "color": {
+              "_tag": "None"
+            },
+            "position": {
+              "_tag": "None"
+            },
+            "additionalYAMLProps": []
+          }
+        }
+      },
+      "incomingEdgesIndex": [
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/overview.md"
+          ]
+        ],
+        [
+          "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md"
+          ]
+        ]
+      ],
+      "nodeByBaseName": [
+        [
+          "bf-117",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md"
+          ]
+        ],
+        [
+          "bf-118",
+          [
+            "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md"
+          ]
+        ],
+        [
+          "overview",
+          [
+            "/tmp/graph-state-fixtures/root-a/overview.md"
+          ]
+        ]
+      ],
+      "unresolvedLinksIndex": []
+    },
+    "roots": {
+      "loaded": [
+        "/tmp/graph-state-fixtures/root-a"
+      ],
+      "folderTree": [
+        {
+          "name": "root-a",
+          "absolutePath": "/tmp/graph-state-fixtures/root-a",
+          "children": [
+            {
+              "name": "tasks",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks",
+              "children": [
+                {
+                  "name": "BF-117.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+                  "isInGraph": true
+                },
+                {
+                  "name": "BF-118.md",
+                  "absolutePath": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+                  "isInGraph": true
+                }
+              ],
+              "loadState": "not-loaded",
+              "isWriteTarget": false
+            },
+            {
+              "name": "overview.md",
+              "absolutePath": "/tmp/graph-state-fixtures/root-a/overview.md",
+              "isInGraph": true
+            }
+          ],
+          "loadState": "loaded",
+          "isWriteTarget": true
+        }
+      ]
+    },
+    "collapseSet": [
+      "/tmp/graph-state-fixtures/root-a/tasks/"
+    ],
+    "selection": [],
+    "layout": {
+      "positions": []
+    },
+    "meta": {
+      "schemaVersion": 1,
+      "revision": 0
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "109-load-root-command",
+  "description": "LoadRoot adds the second loaded root.",
+  "initial": "050-two-roots-root-a-only",
+  "commands": [
+    {
+      "type": "LoadRoot",
+      "root": "/tmp/graph-state-fixtures/root-b"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "051-two-roots-loaded",
+    "revisionDelta": 1,
+    "deltas": [
+      {
+        "revision": 1,
+        "rootsLoaded": [
+          "/tmp/graph-state-fixtures/root-b"
+        ]
+      }
+    ]
+  }
+}

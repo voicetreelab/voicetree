@@ -1,0 +1,17 @@
+{
+  "$schema": "graph-state/sequence@1",
+  "id": "107-remove-edge-command",
+  "description": "RemoveEdge removes Alpha → Gamma from the add-edge result.",
+  "initial": "009-add-edge-result",
+  "commands": [
+    {
+      "type": "RemoveEdge",
+      "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+      "targetId": "/tmp/graph-state-fixtures/root-a/gamma.md"
+    }
+  ],
+  "expected": {
+    "finalSnapshot": "003-flat-three-nodes",
+    "revisionDelta": 1
+  }
+}
