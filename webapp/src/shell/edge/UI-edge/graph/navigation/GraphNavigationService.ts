@@ -235,7 +235,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       // [L2-seam-residual] cy-only: visual deselect — no store→cy selection projection exists
       cy.elements(':selected').unselect();
       dispatchSelect([resolvedNodeId]);
-      node.select();
+      node.select(); // [L2-seam-residual] cy-only: visual select — no store→cy selection projection exists
 
       // Flash the node to indicate selection
       node.addClass('highlighted');

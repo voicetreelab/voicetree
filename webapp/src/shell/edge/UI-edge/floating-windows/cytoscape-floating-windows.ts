@@ -264,9 +264,11 @@ export function disposeFloatingWindow(
             }
             // Remove parent position listener
             if (cleanup.parentPositionHandler) {
+                // [L2-seam-residual] cy-only: shadow node ref required for removing parent position event listener
                 const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
                 if (shadowNode.length > 0) {
                     const parentNodeId: string = shadowNode.data('parentNodeId');
+                    // [L2-seam-residual] cy-only: parent node ref required for removing position event listener
                     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
                     if (parentNode.length > 0) {
                         parentNode.off('position', undefined, cleanup.parentPositionHandler);
@@ -282,6 +284,7 @@ export function disposeFloatingWindow(
     }
 
     // Remove shadow node from Cytoscape (this also removes connected edges and position listeners)
+    // [L2-seam-residual] cy-only: shadow node removal is a cy-only operation
     const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
     if (shadowNode.length > 0) {
         shadowNode.remove();

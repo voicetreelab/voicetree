@@ -39,6 +39,18 @@ export function isProjectionSeam(relativePath: string): boolean {
         || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/anchor-to-node.ts'
         || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts'
         || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/select-floating-window-node.ts'
+        // [L2-BF-179] Editor/viewer/floating-window residuals — all remaining cy.* are shadow-node, decoration, or viewport-only.
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/editors/HoverEditor.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/editors/AnchoredEditor.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/headless-badge-overlay.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/create-window-chrome.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/setup-resize-observer.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/update-window-from-zoom.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/terminals/closeTerminal.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/navigation/GraphNavigationService.ts'
         || isTestScaffolding(relativePath)
     )
 }
