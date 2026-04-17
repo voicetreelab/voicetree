@@ -6,7 +6,7 @@
 import type { Either } from 'fp-ts/lib/Either.js'
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from './graph-model-pure-graph'
 
-export type { Graph, GraphNode, Position } from './graph-model-pure-graph'
+export type { Graph, GraphNode, NodeIdAndFilePath, Position } from './graph-model-pure-graph'
 
 export type AbsolutePath = string & { readonly __brand: 'AbsolutePath' }
 
@@ -43,6 +43,13 @@ export declare function loadGraphFromDisk(vaultPaths: readonly string[]): Promis
 export declare function buildGraphFromFiles(
     files: readonly { readonly absolutePath: string; readonly content: string }[],
 ): Graph
+export declare function createEmptyGraph(): Graph
+export declare function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph
+export declare function parseMarkdownToGraphNode(
+    markdown: string,
+    absoluteFilePath: NodeIdAndFilePath,
+    graph: Graph,
+): GraphNode
 
 export interface UpsertNodeDelta {
     readonly type: 'UpsertNode'

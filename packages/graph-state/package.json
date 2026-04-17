@@ -11,7 +11,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx scripts/trivial-consumer-smoke.ts"
+    "smoke": "tsx scripts/trivial-consumer-smoke.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@vt/graph-model": "*",
@@ -21,6 +22,9 @@
   "devDependencies": {
     "typescript": "~5.8.3",
     "tsx": "^4.19.2",
+    "vitest": "^3.2.4",
+    "cytoscape": "^3.33.1",
+    "@types/cytoscape": "^3.21.9",
     "@types/node": "^22.0.0"
   }
 }
