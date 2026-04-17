@@ -13,6 +13,8 @@ import type {
     Command,
     Delta,
     State,
+    StateLayout,
+    StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
 import { getGraph } from '@vt/graph-model'
@@ -24,24 +26,25 @@ interface MutableLiveParts {
     collapseSet: Set<FolderId>
     selection: Set<NodeIdAndFilePath>
     revision: number
+    roots: StateRoots
+    layout: StateLayout
 }
 
 const liveParts: MutableLiveParts = {
     collapseSet: new Set<FolderId>(),
     selection: new Set<NodeIdAndFilePath>(),
     revision: 0,
+    roots: { loaded: new Set(), folderTree: [] },
+    layout: { positions: new Map() },
 }
 
 export function getCurrentLiveState(): State {
     return {
         graph: getGraph(),
-        roots: {
-            loaded: new Set(),
-            folderTree: [],
-        },
+        roots: liveParts.roots,
         collapseSet: new Set(liveParts.collapseSet),
         selection: new Set(liveParts.selection),
-        layout: { positions: new Map() },
+        layout: liveParts.layout,
         meta: {
             schemaVersion: 1,
             revision: liveParts.revision,
@@ -80,6 +83,8 @@ export function applyLiveCommand(cmd: Command): Delta {
         liveParts.collapseSet = new Set(afterPure.collapseSet)
         liveParts.selection = new Set(afterPure.selection)
         liveParts.revision = afterPure.meta.revision
+        liveParts.roots = afterPure.roots
+        liveParts.layout = afterPure.layout
         return deltaPure
     }
 
@@ -152,6 +157,8 @@ export async function applyLiveCommandAsync(cmd: Command): Promise<Delta> {
     liveParts.collapseSet = new Set(state.collapseSet)
     liveParts.selection = new Set(state.selection)
     liveParts.revision = state.meta.revision
+    liveParts.roots = state.roots
+    liveParts.layout = state.layout
     return delta
 }
 
@@ -160,4 +167,6 @@ export function __resetLiveStoreForTests(): void {
     liveParts.collapseSet = new Set()
     liveParts.selection = new Set()
     liveParts.revision = 0
+    liveParts.roots = { loaded: new Set(), folderTree: [] }
+    liveParts.layout = { positions: new Map() }
 }
