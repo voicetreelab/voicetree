@@ -313,7 +313,7 @@ export function collectLayoutPositions(graph: Graph): ReadonlyMap<string, Positi
     return new Map(
         Object.entries(graph.nodes)
             .sort(([left], [right]) => left.localeCompare(right))
-            .flatMap(([nodeId, node]) => (
+            .flatMap(([nodeId, node]: [string, GraphNode]) => (
                 O.isSome(node.nodeUIMetadata.position)
                     ? [[nodeId, node.nodeUIMetadata.position.value] as const]
                     : []
