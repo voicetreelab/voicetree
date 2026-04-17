@@ -121,7 +121,7 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     const visibleNodeIds: Set<string> = new Set(cy.nodes().map(n => n.id()))
 
     // Pure computation: expand plan from graph data
-    const collapseSet = getGraphCollapseSet()
+    const collapseSet: ReadonlySet<string> = getGraphCollapseSet()
     const plan: ExpandPlan = computeExpandPlan(graph, folderId, collapseSet, visibleNodeIds)
 
     cy.batch(() => {
