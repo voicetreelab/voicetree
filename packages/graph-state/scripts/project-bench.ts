@@ -18,6 +18,7 @@ const EDGES_PER_NODE = 3
 const WARMUP_ITERATIONS = 50
 const MEASURED_ITERATIONS = 500
 const MEAN_THRESHOLD_MS = 50
+const P95_THRESHOLD_MS = 3.5 // baseline p95 = 2.965 ms; 3.5 gives 18% headroom on a quiet machine
 const BASELINE_PATH = path.resolve(
     path.dirname(new URL(import.meta.url).pathname),
     '..',
@@ -202,9 +203,17 @@ async function main(): Promise<void> {
 
     await maybeWriteBaseline(meanMs, p95Ms)
 
-    console.log(`mean=${meanMs.toFixed(3)} ms p95=${p95Ms.toFixed(3)} ms`)
+    const stddevMs = Math.sqrt(durations.reduce((sum, d) => sum + (d - meanMs) ** 2, 0) / durations.length)
+    const p99Ms = percentile(durations, 0.99)
+
+    console.log(`mean=${meanMs.toFixed(3)} ms p50=${percentile(durations, 0.5).toFixed(3)} ms p95=${p95Ms.toFixed(3)} ms p99=${p99Ms.toFixed(3)} ms stddev=${stddevMs.toFixed(3)} ms`)
 
     if (meanMs >= MEAN_THRESHOLD_MS) {
+        process.exitCode = 1
+    }
+
+    if (p95Ms >= P95_THRESHOLD_MS) {
+        console.error(`FAIL: p95 ${p95Ms.toFixed(3)} ms >= ${P95_THRESHOLD_MS} ms gate (re-run on a quiet machine before treating as a real regression)`)
         process.exitCode = 1
     }
 }
