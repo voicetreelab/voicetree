@@ -197,6 +197,11 @@ function isProjectionSeam(relativePath: string): boolean {
         || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
         || relativePath === 'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts'
         || relativePath === 'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts'
+        // [L2-audit-exempt-2] Shadow-node / cy-only decoration surfaces — no graph-state equivalent.
+        // Shadow nodes are cytoscape-only renderer concepts (floating-window anchors).
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/anchor-to-node.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/select-floating-window-node.ts'
         || isTestScaffolding(relativePath)
     )
 }
