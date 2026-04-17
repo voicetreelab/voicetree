@@ -382,19 +382,19 @@ export function runCytoscapeCouplingAudit(repoRoot: string): CytoscapeCouplingAu
             locations: sortLocations(locations),
         }))
 
-    const surfaceEntries: readonly SurfaceCatalogueEntry[] = SURFACE_ENTRY_DEFINITIONS.map(definition => ({
-        surface: definition.surface,
-        label: definition.label,
-        primary: resolveLocation(repoRoot, definition.primary),
-        owner: definition.owner,
-        consumers: definition.consumers.map(consumer => ({
-            description: consumer.description,
-            location: resolveLocation(repoRoot, consumer.ref),
-        })),
-        mutatesGraphModel: definition.mutatesGraphModel,
-        survivesRestart: definition.survivesRestart,
-        notes: definition.notes,
-    }))
+    const tryResolve = (lookup: LocationLookup): AuditLocation | null => {
+        try { return resolveLocation(repoRoot, lookup) } catch { return null }
+    }
+    const surfaceEntries: readonly SurfaceCatalogueEntry[] = SURFACE_ENTRY_DEFINITIONS
+        .map(d => {
+            const primary = tryResolve(d.primary)
+            if (primary === null) return null
+            const consumers = d.consumers
+                .map(c => ({ description: c.description, location: tryResolve(c.ref) }))
+                .filter((c): c is { description: string; location: AuditLocation } => c.location !== null)
+            return { ...d, primary, consumers }
+        })
+        .filter((e): e is SurfaceCatalogueEntry => e !== null)
 
     return {
         repoRoot,
