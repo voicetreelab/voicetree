@@ -2,6 +2,8 @@ import type cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
+import { getLayout } from '@vt/graph-state/state/layoutStore';
+
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
 
@@ -146,6 +148,7 @@ export function closeHoverImageViewer(cy: Core): void {
 
     // Restore the node's Cytoscape label
     const nodeId: string = hoverViewerOption.value.imageNodeId;
+    // [L2-seam-residual] cy-only: CSS class manipulation on cy node
     cy.getElementById(nodeId).removeClass('hover-editor-open');
 
     //console.log('[FloatingImageViewerCRUD] Closing hover image viewer');
@@ -193,7 +196,7 @@ export async function openHoverImageViewer(
         // Set position manually (no shadow node to sync with)
         // Position viewer below the node, clearing the node circle icon
         const HOVER_VIEWER_VERTICAL_OFFSET: number = 18;
-        const zoom: number = cy.zoom();
+        const zoom: number = getLayout().zoom ?? 1;
         const graphX: number = nodePos.x;
         const graphY: number = nodePos.y + HOVER_VIEWER_VERTICAL_OFFSET;
 
@@ -209,6 +212,7 @@ export async function openHoverImageViewer(
         viewer.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
 
         // Hide the node's Cytoscape label (viewer shows the name)
+        // [L2-seam-residual] cy-only: CSS class manipulation on cy node
         cy.getElementById(nodeId).addClass('hover-editor-open');
 
         // Close on click outside (but allow clicks on menus that control this viewer)

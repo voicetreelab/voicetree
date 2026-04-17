@@ -4,6 +4,7 @@ import * as O from 'fp-ts/lib/Option.js';
 
 import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
 import {isImageNode} from '@vt/graph-model/pure/graph';
+import { getLayout } from '@vt/graph-state/state/layoutStore';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
 import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
@@ -33,10 +34,12 @@ export function isMouseInHoverZone(
     editorWindow: HTMLElement | null
 ): boolean {
     // Check 1: Over the node? (using Cytoscape's rendered bounding box)
+    // [L2-seam-residual] cy-only: renderedBoundingBox needs cy; layoutStore has graph coords but not rendered screen coords
     const node: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     if (node.length > 0) {
         const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = node.renderedBoundingBox();
         // Get canvas offset since renderedBoundingBox is relative to the canvas
+        // [L2-seam-residual] cy-only: container rect not in layoutStore
         const container: HTMLElement | null = cy.container();
         if (container) {
             const containerRect: DOMRect = container.getBoundingClientRect();
@@ -92,6 +95,7 @@ export function closeHoverEditor(cy: Core): void {
 
     // Restore the node's Cytoscape label
     const nodeId: string = hoverEditorOption.value.contentLinkedToNodeId;
+    // [L2-seam-residual] cy-only: CSS class manipulation on cy node
     cy.getElementById(nodeId).removeClass('hover-editor-open');
 
     //console.log('[FloatingEditorManager-v2] Closing command-hover editor');
@@ -141,7 +145,7 @@ async function openHoverEditor(
         // Position editor below the node, clearing the node circle icon
         // Store graph position in dataset so updateWindowFromZoom can update on zoom changes
         const HOVER_EDITOR_VERTICAL_OFFSET: number = 18;
-        const zoom: number = cy.zoom();
+        const zoom: number = getLayout().zoom ?? 1;
         const graphX: number = nodePos.x;
         const graphY: number = nodePos.y + HOVER_EDITOR_VERTICAL_OFFSET;
 
@@ -157,6 +161,7 @@ async function openHoverEditor(
         editor.ui.windowElement.style.transform = `translateX(-50%) scale(${zoom})`;
 
         // Hide the node's Cytoscape label (editor title bar shows the name)
+        // [L2-seam-residual] cy-only: CSS class manipulation on cy node
         cy.getElementById(nodeId).addClass('hover-editor-open');
 
         // Close on click outside (but allow clicks on menus that control this editor)
@@ -230,7 +235,7 @@ async function openHoverEditor(
  * Non-presentation nodes: existing hover editor behavior (editor below node).
  */
 export function setupCommandHover(cy: Core): void {
-    // Listen for node hover
+    // [L2-seam-residual] cy-only: cy event binding for node hover detection
     cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
         void (async (): Promise<void> => {
             //console.log('[HoverEditor-v2] GraphNode mouseover');

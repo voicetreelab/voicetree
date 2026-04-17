@@ -2,6 +2,8 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
+import { getLayout } from '@vt/graph-state/state/layoutStore';
+
 import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
 import {CIRCLE_SIZE} from '@vt/graph-model/pure/graph/node-presentation/types';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
@@ -86,10 +88,11 @@ export async function createAnchoredFloatingEditor(
  * Navigate to editor neighborhood - pans if zoom is comfortable, zooms to 1.0 if not
  */
 function navigateToEditorNeighborhood(cy: Core, nodeId: NodeIdAndFilePath): void {
+    // [L2-seam-residual] cy-only: cy graph traversal (closedNeighborhood) not in layoutStore
     const contextNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
-    const nodesToCenter: cytoscape.CollectionReturnValue = contextNode.length > 0
-        ? contextNode.closedNeighborhood().filter(ele => !ele.data('isFolderNode')) as cytoscape.CollectionReturnValue
-        : cy.collection();
+    if (contextNode.length === 0) return;
+    const nodesToCenter: cytoscape.CollectionReturnValue = contextNode
+        .closedNeighborhood().filter(ele => !ele.data('isFolderNode')) as cytoscape.CollectionReturnValue;
     cySmartCenter(cy, nodesToCenter);
 }
 
@@ -111,9 +114,10 @@ function anchorEditorToRealNode(cy: Core, editor: EditorData, nodeId: NodeIdAndF
     windowElement.dataset.shadowNodeId = nodeId;
 
     // Initial position sync
-    updateWindowFromZoom(cy, windowElement, cy.zoom());
+    updateWindowFromZoom(cy, windowElement, getLayout().zoom ?? 1);
 
     // Hide the Cy circle — keep ellipse shape so edges stay rendered
+    // [L2-seam-residual] cy-only: visual style mutation on cy node
     const cyNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
     if (cyNode.length > 0) {
         cyNode.style({

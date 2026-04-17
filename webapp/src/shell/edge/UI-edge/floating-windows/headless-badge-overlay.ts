@@ -62,6 +62,7 @@ export function updateHeadlessBadges(): void {
     if (badgeTerminals.length === 0 && badgeElements.size === 0) return;
 
     // Lazy-register zoom listener for badge repositioning
+    // [L2-seam-residual] cy-only: user gesture zooms bypass layoutStore (NavigationGestureService writes cy directly); subscribeLayout alone would miss those events
     if (!zoomListenerRegistered) {
         cy.on('zoom', repositionBadges);
         zoomListenerRegistered = true;
@@ -80,6 +81,7 @@ export function updateHeadlessBadges(): void {
             const nodeId: string | undefined = badgeNodeIds.get(terminalId);
             badgeNodeIds.delete(terminalId);
             if (nodeId && !hasTerminalsOnNode(nodeId)) {
+                // [L2-seam-residual] cy-only: node data (hasRunningTerminal) controls cy node shape styling
                 const node: CollectionReturnValue = cy.getElementById(nodeId);
                 if (node.length > 0) {
                     node.data('hasRunningTerminal', false);
@@ -103,6 +105,7 @@ export function updateHeadlessBadges(): void {
             // Track anchored node and mark it as having a running terminal (shape → square)
             if (O.isSome(terminal.anchoredToNodeId)) {
                 badgeNodeIds.set(terminal.terminalId, terminal.anchoredToNodeId.value);
+                // [L2-seam-residual] cy-only: node data (hasRunningTerminal) controls cy node shape styling
                 const node: CollectionReturnValue = cy.getElementById(terminal.anchoredToNodeId.value);
                 if (node.length > 0) {
                     node.data('hasRunningTerminal', true);
@@ -198,6 +201,7 @@ function repositionBadges(): void {
         return;
     }
 
+    // [L2-seam-residual] cy-only: repositionBadges is called from cy.on('zoom'); user gesture zooms bypass layoutStore so getLayout().zoom would be stale here
     const zoom: number = cy.zoom();
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
 
@@ -205,6 +209,7 @@ function repositionBadges(): void {
         const terminal: TerminalData | undefined = terminals.get(terminalId);
         if (!terminal || !O.isSome(terminal.anchoredToNodeId)) continue;
 
+        // [L2-seam-residual] cy-only: node position and height not in layoutStore (dispatchSetPositions not wired)
         const node: CollectionReturnValue = cy.getElementById(terminal.anchoredToNodeId.value);
         if (node.length === 0) continue;
 
