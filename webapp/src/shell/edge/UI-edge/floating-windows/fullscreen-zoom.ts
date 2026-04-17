@@ -14,6 +14,7 @@ import type { ShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
+import type { StateLayout } from '@vt/graph-state';
 
 // Per-window state for fullscreen zoom restoration
 type PreviousViewport = { zoom: number; pan: { x: number; y: number } };
@@ -104,7 +105,7 @@ export function attachFullscreenZoom(
         } else {
             // Not zoomed in → capture state and zoom in to window
             // Clone pan — getLayout().pan is immutable but spread defensively
-            const layout = getLayout();
+            const layout: StateLayout = getLayout();
             windowViewportStates.set(shadowNodeId, { zoom: layout.zoom ?? 1, pan: { ...(layout.pan ?? { x: 0, y: 0 }) } });
             cyFitIntoVisibleViewport(cy, shadowNode, getResponsivePadding(cy, 3));
 
