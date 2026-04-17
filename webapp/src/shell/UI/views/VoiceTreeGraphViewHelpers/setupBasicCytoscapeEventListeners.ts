@@ -14,6 +14,7 @@ import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsi
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { dispatchSelect, dispatchDeselect } from '@vt/graph-state'
 
 export function setupBasicCytoscapeEventListeners(
   cy: Core,
@@ -126,8 +127,11 @@ export function setupBasicCytoscapeEventListeners(
 
   // Context node highlighting - clear previous and apply new highlights on node select
   cy.on('select', 'node', (e) => {
-    clearContainedHighlights(cy);
     const node: NodeSingular = e.target;
+    if (!node.data('isShadowNode') && !node.data('isFloatingWindow')) {
+      dispatchSelect([node.id()], true);
+    }
+    clearContainedHighlights(cy);
     if (node.data('isContextNode')) {
       void highlightContainedNodes(cy, node.id());
     }
@@ -136,7 +140,9 @@ export function setupBasicCytoscapeEventListeners(
   // Clear context node highlights when node is unselected.
   // Cytoscape automatically deselects nodes when clicking on empty canvas (default behavior).
   // We hook into that to also deselect the active terminal when no nodes remain selected.
-  cy.on('unselect', 'node', () => {
+  cy.on('unselect', 'node', (e) => {
+    const node: NodeSingular = e.target;
+    dispatchDeselect([node.id()]);
     clearContainedHighlights(cy);
     if (cy.$('node:selected').length === 0) {
       setActiveTerminalId(null);

@@ -11,6 +11,7 @@ import * as O from "fp-ts/lib/Option.js";
 import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 import {setActiveTerminalId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {highlightContainedNodes, clearContainedHighlights} from "@/shell/UI/cytoscape-graph-ui/highlightContextNodes";
+import { dispatchSelect, dispatchDeselect, getSelection } from '@vt/graph-state';
 
 /**
  * Select the graph node associated with a floating window.
@@ -24,7 +25,11 @@ export function selectFloatingWindowNode(
     cy: cytoscape.Core,
     fw: FloatingWindowData | FloatingWindowFields
 ): void {
-    cy.$(':selected').unselect();
+    const currentIds = [...getSelection()];
+    if (currentIds.length > 0) {
+        dispatchDeselect(currentIds);
+    }
+    cy.elements(':selected').unselect();
 
     let nodeIdToSelect: NodeIdAndFilePath | undefined;
     if ('type' in fw) {
@@ -43,6 +48,7 @@ export function selectFloatingWindowNode(
     if (nodeIdToSelect) {
         const node: cytoscape.CollectionReturnValue = cy.getElementById(nodeIdToSelect);
         if (node.length > 0) {
+            dispatchSelect([nodeIdToSelect]);
             node.select();
             addRecentlyVisited(nodeIdToSelect);
         }

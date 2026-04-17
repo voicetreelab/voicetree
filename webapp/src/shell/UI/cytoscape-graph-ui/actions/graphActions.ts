@@ -11,15 +11,13 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { getVisibleViewportCenterInGraph } from '@/utils/visibleViewport';
+import { getSelection } from '@vt/graph-state';
 
 /**
- * Get currently selected graph nodes (excluding floating windows)
+ * Get currently selected graph nodes from the selection store.
  */
-const getSelectedGraphNodes: (cy: Core) => string[] = (cy: Core): string[] => {
-  return cy.$(':selected')
-    .nodes()
-    .filter((n) => !n.data('isFloatingWindow'))
-    .map((n) => n.id());
+const getSelectedGraphNodes: () => string[] = (): string[] => {
+  return [...getSelection()];
 };
 
 /**
@@ -30,7 +28,7 @@ const getSelectedGraphNodes: (cy: Core) => string[] = (cy: Core): string[] => {
 export const createNewNodeAction: (cy: Core) => () => void = (
   cy: Core,
 ) => (): void => {
-  const selectedNodes: string[] = getSelectedGraphNodes(cy);
+  const selectedNodes: string[] = getSelectedGraphNodes();
 
   // Editor auto-pinning handled by file watcher in VoiceTreeGraphView
   if (selectedNodes.length > 0) {
@@ -58,7 +56,7 @@ export const createNewNodeAction: (cy: Core) => () => void = (
 export const runTerminalAction: (cy: Core) => () => void = (
   cy: Core,
 ) => (): void => {
-  const selectedNodes: string[] = getSelectedGraphNodes(cy);
+  const selectedNodes: string[] = getSelectedGraphNodes();
 
   if (selectedNodes.length === 0) {
     //console.log('[graphActions] No node selected for terminal');
@@ -82,7 +80,7 @@ export const runTerminalAction: (cy: Core) => () => void = (
 export const deleteSelectedNodesAction: (cy: Core) => () => void = (
   cy: Core,
 ) => (): void => {
-  const selectedNodes: string[] = getSelectedGraphNodes(cy);
+  const selectedNodes: string[] = getSelectedGraphNodes();
 
   if (selectedNodes.length === 0) {
     //console.log('[graphActions] No nodes selected for deletion');

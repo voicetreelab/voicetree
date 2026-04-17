@@ -100,6 +100,8 @@ export default defineConfig({
     base: './',
     resolve: {
       alias: [
+        { find: /^@vt\/graph-state$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/index.ts') },
+        { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/$1') },
         { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
         { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
         { find: '@', replacement: path.resolve(__dirname, './src') },

@@ -23,6 +23,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { signalViewportManipulation } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
+import { isSelected } from '@vt/graph-state';
 
 export class NavigationGestureService {
     private cy: Core;
@@ -268,12 +269,12 @@ export class NavigationGestureService {
         if (floatingWindow.classList.contains('cy-floating-window-editor')) {
             const editor: EditorData | undefined = getEditors().get(floatingWindowId as EditorId);
             if (editor) {
-                return this.cy.getElementById(editor.contentLinkedToNodeId).selected();
+                return isSelected(editor.contentLinkedToNodeId);
             }
         } else if (floatingWindow.classList.contains('cy-floating-window-terminal')) {
             const terminal: TerminalData | undefined = getTerminals().get(floatingWindowId as TerminalId);
             if (terminal) {
-                return this.cy.getElementById(terminal.attachedToContextNodeId).selected();
+                return isSelected(terminal.attachedToContextNodeId);
             }
         }
         return false;

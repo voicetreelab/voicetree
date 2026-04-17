@@ -23,6 +23,7 @@ import { linkMatchScore, getPathComponents } from '@vt/graph-model/pure/graph/ma
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
+import { dispatchDeselect, dispatchSelect, getSelection } from '@vt/graph-state';
 
 const TERMINAL_CONTEXT_TARGET_FRACTION: number = 0.95;
 const TERMINAL_MIN_ZOOM_THRESHOLD: number = 0.7;
@@ -91,7 +92,8 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Get the shadow node from cy for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
 
-    cy.$(':selected').unselect();
+    dispatchDeselect([...getSelection()]);
+    cy.elements(':selected').unselect();
     setActiveTerminalId(terminalId);
 
     // Collect terminal shadow node + its parent (context node)
@@ -223,7 +225,9 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       cyFitWithRelativeZoom(cy, node, fraction);
 
       // Select the node (deselect others first for clean single-selection)
-      cy.$(':selected').unselect();
+      dispatchDeselect([...getSelection()]);
+      cy.elements(':selected').unselect();
+      dispatchSelect([resolvedNodeId]);
       node.select();
 
       // Flash the node to indicate selection
