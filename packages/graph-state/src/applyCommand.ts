@@ -2,378 +2,34 @@ import * as O from 'fp-ts/lib/Option.js'
 
 import {
     applyGraphDeltaToGraph,
-    buildFolderTree,
     createEmptyGraph,
     deleteNodeSimple,
-    parseMarkdownToGraphNode,
-    toAbsolutePath,
-    type AbsolutePath,
-    type FolderTreeNode,
-    type Graph,
     type GraphDelta,
-    type GraphNode,
-    type NodeIdAndFilePath,
 } from '@vt/graph-model'
-import { fromNodeToContentWithWikilinks } from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown'
 
-import type { AddNode, Collapse, Command, Delta, RemoveEdge, RemoveNode, State } from './contract'
-
-interface DirectoryEntryLike {
-    readonly absolutePath: AbsolutePath
-    readonly name: string
-    readonly isDirectory: boolean
-    readonly children?: readonly DirectoryEntryLike[]
-}
-
-interface EdgeChange {
-    readonly source: NodeIdAndFilePath
-    readonly targetId: NodeIdAndFilePath
-    readonly label: string
-}
-
-type GraphDeltaSummary = GraphDelta & {
-    readonly edgesRemoved?: readonly EdgeChange[]
-}
-
-function normalizePathValue(value: string): string {
-    return value.replace(/\\/g, '/')
-}
-
-function pathContains(rootPath: string, candidatePath: string): boolean {
-    const normalizedRoot = normalizePathValue(rootPath).replace(/\/+$/, '')
-    const normalizedCandidate = normalizePathValue(candidatePath)
-    return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
-}
-
-function joinPath(parentPath: AbsolutePath, childName: string): AbsolutePath {
-    const normalizedParent = normalizePathValue(parentPath).replace(/\/+$/, '')
-    return toAbsolutePath(`${normalizedParent}/${childName}`)
-}
-
-function getBasename(value: string): string {
-    const normalizedValue = normalizePathValue(value).replace(/\/+$/, '')
-    const parts = normalizedValue.split('/').filter((part) => part.length > 0)
-    return parts[parts.length - 1] ?? normalizedValue
-}
-
-function toDirectoryEntry(node: FolderTreeNode): DirectoryEntryLike {
-    return {
-        name: node.name,
-        absolutePath: node.absolutePath,
-        isDirectory: true,
-        children: node.children.map((child) => (
-            'children' in child
-                ? toDirectoryEntry(child)
-                : {
-                    name: child.name,
-                    absolutePath: child.absolutePath,
-                    isDirectory: false,
-                } satisfies DirectoryEntryLike
-        )),
-    }
-}
-
-function replaceChild(
-    children: readonly DirectoryEntryLike[],
-    index: number,
-    child: DirectoryEntryLike,
-): readonly DirectoryEntryLike[] {
-    return [
-        ...children.slice(0, index),
-        child,
-        ...children.slice(index + 1),
-    ]
-}
-
-function upsertEntryPath(
-    entry: DirectoryEntryLike,
-    segments: readonly string[],
-): DirectoryEntryLike {
-    const [segment, ...remainingSegments] = segments
-    if (segment === undefined) {
-        return entry
-    }
-
-    const childAbsolutePath = joinPath(entry.absolutePath, segment)
-    const children = entry.children ?? []
-    const existingChildIndex = children.findIndex(
-        (child) => normalizePathValue(child.absolutePath) === normalizePathValue(childAbsolutePath),
-    )
-
-    if (remainingSegments.length === 0) {
-        if (existingChildIndex >= 0) {
-            return entry
-        }
-
-        return {
-            ...entry,
-            children: [
-                ...children,
-                {
-                    name: segment,
-                    absolutePath: childAbsolutePath,
-                    isDirectory: false,
-                } satisfies DirectoryEntryLike,
-            ],
-        }
-    }
-
-    const existingDirectory = existingChildIndex >= 0
-        ? children[existingChildIndex]
-        : {
-            name: segment,
-            absolutePath: childAbsolutePath,
-            isDirectory: true,
-            children: [],
-        } satisfies DirectoryEntryLike
-
-    const updatedDirectory = upsertEntryPath(existingDirectory, remainingSegments)
-
-    if (existingChildIndex >= 0) {
-        if (updatedDirectory === existingDirectory) {
-            return entry
-        }
-
-        return {
-            ...entry,
-            children: replaceChild(children, existingChildIndex, updatedDirectory),
-        }
-    }
-
-    return {
-        ...entry,
-        children: [
-            ...children,
-            updatedDirectory,
-        ],
-    }
-}
-
-function removeEntryPath(
-    entry: DirectoryEntryLike,
-    segments: readonly string[],
-): DirectoryEntryLike {
-    const [segment, ...remainingSegments] = segments
-    if (segment === undefined) {
-        return entry
-    }
-
-    const childAbsolutePath = joinPath(entry.absolutePath, segment)
-    const children = entry.children ?? []
-    const existingChildIndex = children.findIndex(
-        (child) => normalizePathValue(child.absolutePath) === normalizePathValue(childAbsolutePath),
-    )
-
-    if (existingChildIndex < 0) {
-        return entry
-    }
-
-    if (remainingSegments.length === 0) {
-        return {
-            ...entry,
-            children: [
-                ...children.slice(0, existingChildIndex),
-                ...children.slice(existingChildIndex + 1),
-            ],
-        }
-    }
-
-    const existingChild = children[existingChildIndex]
-    if (!existingChild.isDirectory) {
-        return entry
-    }
-
-    const updatedChild = removeEntryPath(existingChild, remainingSegments)
-    return {
-        ...entry,
-        children: replaceChild(children, existingChildIndex, updatedChild),
-    }
-}
-
-function ensureFileInEntry(
-    entry: DirectoryEntryLike,
-    filePath: string,
-): DirectoryEntryLike {
-    if (!entry.isDirectory || !pathContains(entry.absolutePath, filePath)) {
-        return entry
-    }
-
-    const normalizedRoot = normalizePathValue(entry.absolutePath).replace(/\/+$/, '')
-    const normalizedFilePath = normalizePathValue(filePath)
-    const relativePath = normalizedFilePath.slice(normalizedRoot.length + 1)
-    const segments = relativePath.split('/').filter((segment) => segment.length > 0)
-
-    if (segments.length === 0) {
-        return entry
-    }
-
-    return upsertEntryPath(entry, segments)
-}
-
-function removeFileFromEntry(
-    entry: DirectoryEntryLike,
-    filePath: string,
-): DirectoryEntryLike {
-    if (!entry.isDirectory || !pathContains(entry.absolutePath, filePath)) {
-        return entry
-    }
-
-    const normalizedRoot = normalizePathValue(entry.absolutePath).replace(/\/+$/, '')
-    const normalizedFilePath = normalizePathValue(filePath)
-    const relativePath = normalizedFilePath.slice(normalizedRoot.length + 1)
-    const segments = relativePath.split('/').filter((segment) => segment.length > 0)
-
-    if (segments.length === 0) {
-        return entry
-    }
-
-    return removeEntryPath(entry, segments)
-}
-
-function findWriteTargetPath(
-    folderTree: readonly FolderTreeNode[],
-): AbsolutePath | null {
-    for (const node of folderTree) {
-        if (node.isWriteTarget) {
-            return node.absolutePath
-        }
-
-        const nestedWriteTarget = findWriteTargetPath(
-            node.children.filter((child): child is FolderTreeNode => 'children' in child),
-        )
-        if (nestedWriteTarget !== null) {
-            return nestedWriteTarget
-        }
-    }
-
-    return null
-}
-
-function findContainingLoadedRoot(
-    loadedRoots: ReadonlySet<string>,
-    nodeId: string,
-): AbsolutePath | null {
-    const matches = [...loadedRoots]
-        .filter((rootPath) => pathContains(rootPath, nodeId))
-        .sort((left, right) => right.length - left.length)
-
-    return matches[0] ? toAbsolutePath(matches[0]) : null
-}
-
-function updateFolderTreeForAddedNode(
-    roots: State['roots'],
-    nodeId: string,
-    nextGraph: Graph,
-): State['roots'] {
-    const graphFilePaths = new Set(Object.keys(nextGraph.nodes))
-    const writePath = findWriteTargetPath(roots.folderTree)
-    let changed = false
-
-    const folderTree = roots.folderTree.map((rootNode) => {
-        if (!pathContains(rootNode.absolutePath, nodeId)) {
-            return rootNode
-        }
-
-        changed = true
-        const nextEntry = ensureFileInEntry(toDirectoryEntry(rootNode), nodeId)
-        return buildFolderTree(nextEntry, roots.loaded, writePath, graphFilePaths)
-    })
-
-    if (changed) {
-        return {
-            ...roots,
-            folderTree,
-        }
-    }
-
-    const containingRoot = findContainingLoadedRoot(roots.loaded, nodeId)
-    if (containingRoot === null) {
-        return roots
-    }
-
-    const rootEntry = ensureFileInEntry(
-        {
-            name: getBasename(containingRoot),
-            absolutePath: containingRoot,
-            isDirectory: true,
-            children: [],
-        },
-        nodeId,
-    )
-
-    return {
-        ...roots,
-        folderTree: [
-            ...folderTree,
-            buildFolderTree(rootEntry, roots.loaded, writePath, graphFilePaths),
-        ],
-    }
-}
-
-function updateFolderTreeForRemovedNode(
-    roots: State['roots'],
-    nodeId: string,
-    nextGraph: Graph,
-): State['roots'] {
-    const graphFilePaths = new Set(Object.keys(nextGraph.nodes))
-    const writePath = findWriteTargetPath(roots.folderTree)
-
-    return {
-        ...roots,
-        folderTree: roots.folderTree.map((rootNode) => {
-            if (!pathContains(rootNode.absolutePath, nodeId)) {
-                return rootNode
-            }
-
-            const nextEntry = removeFileFromEntry(toDirectoryEntry(rootNode), nodeId)
-            return buildFolderTree(nextEntry, roots.loaded, writePath, graphFilePaths)
-        }),
-    }
-}
-
-function updateLayoutForAddedNode(
-    layout: State['layout'],
-    node: GraphNode,
-): State['layout'] {
-    if (O.isNone(node.nodeUIMetadata.position)) {
-        return layout
-    }
-
-    const nextPosition = node.nodeUIMetadata.position.value
-    const currentPosition = layout.positions.get(node.absoluteFilePathIsID)
-
-    if (
-        currentPosition?.x === nextPosition.x
-        && currentPosition?.y === nextPosition.y
-    ) {
-        return layout
-    }
-
-    const positions = new Map(layout.positions)
-    positions.set(node.absoluteFilePathIsID, nextPosition)
-
-    return {
-        ...layout,
-        positions,
-    }
-}
-
-function updateLayoutForRemovedNode(
-    layout: State['layout'],
-    nodeId: NodeIdAndFilePath,
-): State['layout'] {
-    if (!layout.positions.has(nodeId)) {
-        return layout
-    }
-
-    const positions = new Map(layout.positions)
-    positions.delete(nodeId)
-
-    return {
-        ...layout,
-        positions,
-    }
-}
+import type {
+    AddNode,
+    Collapse,
+    Command,
+    Delta,
+    Deselect,
+    Expand,
+    RemoveEdge,
+    RemoveNode,
+    Select,
+    State,
+} from './contract'
+import {
+    updateFolderTreeForAddedNode,
+    updateFolderTreeForRemovedNode,
+    updateLayoutForAddedNode,
+    updateLayoutForRemovedNode,
+    type EdgeChange,
+} from './apply/folderTreeHelpers'
+import {
+    createEdgesRemovedGraphDelta,
+    rebuildSourceNodeForRemovedEdge,
+} from './apply/markdownEdits'
 
 function applyAddNode(
     state: State,
@@ -396,16 +52,9 @@ function applyAddNode(
             collapseSet: state.collapseSet,
             selection: state.selection,
             layout: updateLayoutForAddedNode(state.layout, node),
-            meta: {
-                ...state.meta,
-                revision: nextRevision,
-            },
+            meta: { ...state.meta, revision: nextRevision },
         },
-        delta: {
-            revision: nextRevision,
-            cause: command,
-            graph: graphDelta,
-        },
+        delta: { revision: nextRevision, cause: command, graph: graphDelta },
     }
 }
 
@@ -426,10 +75,7 @@ function applyRemoveNode(
             collapseSet: state.collapseSet,
             selection: nextSelection,
             layout: updateLayoutForRemovedNode(state.layout, command.id),
-            meta: {
-                ...state.meta,
-                revision: nextRevision,
-            },
+            meta: { ...state.meta, revision: nextRevision },
         },
         delta: {
             revision: nextRevision,
@@ -437,79 +83,6 @@ function applyRemoveNode(
             ...(graphDelta.length > 0 ? { graph: graphDelta } : {}),
             ...(wasSelected ? { selectionRemoved: [command.id] } : {}),
         },
-    }
-}
-
-function createEdgesRemovedGraphDelta(edgesRemoved: readonly EdgeChange[]): GraphDelta {
-    const graphDelta = [] as unknown as GraphDeltaSummary
-    Object.defineProperty(graphDelta, 'edgesRemoved', {
-        value: edgesRemoved,
-        enumerable: true,
-    })
-    return graphDelta
-}
-
-function normalizeMarkdownAfterLinkRemoval(markdown: string): string {
-    return markdown
-        .replace(/\s+(and|or)\s+([.,;:!?])/g, '$2')
-        .replace(/\s+([.,;:!?])/g, '$1')
-        .replace(/,\s*([.,;:!?])/g, '$1')
-        .replace(/[ \t]{2,}/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-}
-
-function removeTargetLinksFromMarkdown(
-    markdown: string,
-    sourceNode: GraphNode,
-    targetId: NodeIdAndFilePath,
-): string {
-    const matches: readonly RegExpMatchArray[] = [...markdown.matchAll(/\[\[[^\]]+\]\]/g)]
-
-    if (matches.length === 0) {
-        return markdown
-    }
-
-    let cursor = 0
-    let nextMarkdown = ''
-
-    matches.forEach((match: RegExpMatchArray, index: number) => {
-        const start = match.index ?? cursor
-        const edge = sourceNode.outgoingEdges[index]
-
-        nextMarkdown += markdown.slice(cursor, start)
-        if (edge?.targetId !== targetId) {
-            nextMarkdown += match[0]
-        }
-
-        cursor = start + match[0].length
-    })
-
-    nextMarkdown += markdown.slice(cursor)
-    return normalizeMarkdownAfterLinkRemoval(nextMarkdown)
-}
-
-function rebuildSourceNodeForRemovedEdge(
-    state: State,
-    sourceNode: GraphNode,
-    targetId: NodeIdAndFilePath,
-): GraphNode {
-    const markdownWithLinks = fromNodeToContentWithWikilinks(sourceNode)
-    const cleanedMarkdown = removeTargetLinksFromMarkdown(
-        markdownWithLinks,
-        sourceNode,
-        targetId,
-    )
-    const reparsedNode = parseMarkdownToGraphNode(
-        cleanedMarkdown,
-        sourceNode.absoluteFilePathIsID,
-        state.graph,
-    )
-
-    return {
-        ...sourceNode,
-        contentWithoutYamlOrLinks: reparsedNode.contentWithoutYamlOrLinks,
-        outgoingEdges: reparsedNode.outgoingEdges,
-        nodeUIMetadata: sourceNode.nodeUIMetadata,
     }
 }
 
@@ -522,17 +95,8 @@ function applyRemoveEdge(
 
     if (!sourceNode) {
         return {
-            state: {
-                ...state,
-                meta: {
-                    ...state.meta,
-                    revision: nextRevision,
-                },
-            },
-            delta: {
-                revision: nextRevision,
-                cause: command,
-            },
+            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            delta: { revision: nextRevision, cause: command },
         }
     }
 
@@ -546,17 +110,8 @@ function applyRemoveEdge(
 
     if (edgesRemoved.length === 0) {
         return {
-            state: {
-                ...state,
-                meta: {
-                    ...state.meta,
-                    revision: nextRevision,
-                },
-            },
-            delta: {
-                revision: nextRevision,
-                cause: command,
-            },
+            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            delta: { revision: nextRevision, cause: command },
         }
     }
 
@@ -579,10 +134,7 @@ function applyRemoveEdge(
             collapseSet: state.collapseSet,
             selection: state.selection,
             layout: state.layout,
-            meta: {
-                ...state.meta,
-                revision: nextRevision,
-            },
+            meta: { ...state.meta, revision: nextRevision },
         },
         delta: {
             revision: nextRevision,
@@ -609,10 +161,7 @@ function applyCollapse(
             collapseSet,
             selection: state.selection,
             layout: state.layout,
-            meta: {
-                ...state.meta,
-                revision: nextRevision,
-            },
+            meta: { ...state.meta, revision: nextRevision },
         },
         delta: {
             revision: nextRevision,
@@ -622,22 +171,141 @@ function applyCollapse(
     }
 }
 
+function applyExpand(
+    state: State,
+    command: Expand,
+): { readonly state: State; readonly delta: Delta } {
+    const wasCollapsed = state.collapseSet.has(command.folder)
+    const nextRevision = state.meta.revision + 1
+    const collapseSet = wasCollapsed
+        ? new Set([...state.collapseSet].filter((id) => id !== command.folder))
+        : state.collapseSet
+
+    return {
+        state: {
+            graph: state.graph,
+            roots: state.roots,
+            collapseSet,
+            selection: state.selection,
+            layout: state.layout,
+            meta: { ...state.meta, revision: nextRevision },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            collapseRemoved: wasCollapsed ? [command.folder] : [],
+        },
+    }
+}
+
+function applySelect(
+    state: State,
+    command: Select,
+): { readonly state: State; readonly delta: Delta } {
+    const nextRevision = state.meta.revision + 1
+    const requested: readonly string[] = command.ids
+    const additive = command.additive === true
+
+    if (additive) {
+        const seen = new Set<string>(state.selection)
+        const newlyAdded: string[] = []
+        const ordered: string[] = [...state.selection]
+        for (const id of requested) {
+            if (!seen.has(id)) {
+                seen.add(id)
+                ordered.push(id)
+                newlyAdded.push(id)
+            }
+        }
+        return {
+            state: {
+                graph: state.graph,
+                roots: state.roots,
+                collapseSet: state.collapseSet,
+                selection: new Set(ordered),
+                layout: state.layout,
+                meta: { ...state.meta, revision: nextRevision },
+            },
+            delta: {
+                revision: nextRevision,
+                cause: command,
+                ...(newlyAdded.length > 0 ? { selectionAdded: newlyAdded } : {}),
+            },
+        }
+    }
+
+    const previousIds = [...state.selection]
+    const desiredSeen = new Set<string>()
+    const desiredOrdered: string[] = []
+    for (const id of requested) {
+        if (!desiredSeen.has(id)) {
+            desiredSeen.add(id)
+            desiredOrdered.push(id)
+        }
+    }
+    const previousSet = new Set(previousIds)
+    const selectionAdded = desiredOrdered.filter((id) => !previousSet.has(id))
+    const selectionRemoved = previousIds.filter((id) => !desiredSeen.has(id))
+
+    return {
+        state: {
+            graph: state.graph,
+            roots: state.roots,
+            collapseSet: state.collapseSet,
+            selection: new Set(desiredOrdered),
+            layout: state.layout,
+            meta: { ...state.meta, revision: nextRevision },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            ...(selectionAdded.length > 0 ? { selectionAdded } : {}),
+            ...(selectionRemoved.length > 0 ? { selectionRemoved } : {}),
+        },
+    }
+}
+
+function applyDeselect(
+    state: State,
+    command: Deselect,
+): { readonly state: State; readonly delta: Delta } {
+    const nextRevision = state.meta.revision + 1
+    const removeSet = new Set(command.ids)
+    const removed: string[] = []
+    const remaining: string[] = []
+    for (const id of state.selection) {
+        if (removeSet.has(id)) {
+            removed.push(id)
+        } else {
+            remaining.push(id)
+        }
+    }
+
+    return {
+        state: {
+            graph: state.graph,
+            roots: state.roots,
+            collapseSet: state.collapseSet,
+            selection: removed.length === 0 ? state.selection : new Set(remaining),
+            layout: state.layout,
+            meta: { ...state.meta, revision: nextRevision },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            ...(removed.length > 0 ? { selectionRemoved: removed } : {}),
+        },
+    }
+}
+
 export function emptyState(): State {
     return {
         graph: createEmptyGraph(),
-        roots: {
-            loaded: new Set(),
-            folderTree: [],
-        },
+        roots: { loaded: new Set(), folderTree: [] },
         collapseSet: new Set(),
         selection: new Set(),
-        layout: {
-            positions: new Map(),
-        },
-        meta: {
-            schemaVersion: 1,
-            revision: 0,
-        },
+        layout: { positions: new Map() },
+        meta: { schemaVersion: 1, revision: 0 },
     }
 }
 
@@ -648,6 +316,12 @@ export function applyCommandWithDelta(
     switch (command.type) {
         case 'Collapse':
             return applyCollapse(state, command)
+        case 'Expand':
+            return applyExpand(state, command)
+        case 'Select':
+            return applySelect(state, command)
+        case 'Deselect':
+            return applyDeselect(state, command)
         case 'AddNode':
             return applyAddNode(state, command)
         case 'RemoveNode':
