@@ -190,9 +190,11 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             expect(payload.meta).toMatchObject({schemaVersion: 1, revision: 7})
             expect(payload.collapseSet).toEqual(['/tmp/vault/tasks/'])
             expect(payload.selection).toEqual(['/tmp/vault/sample.md'])
-            const layout = payload.layout as {positions: Array<[string, {x: number; y: number}]>}
+            const layout: {positions: Array<[string, {x: number; y: number}]>} =
+                payload.layout as {positions: Array<[string, {x: number; y: number}]>}
             expect(layout.positions).toContainEqual(['/tmp/vault/sample.md', {x: 1, y: 2}])
-            const roots = payload.roots as {loaded: string[]; folderTree: unknown[]}
+            const roots: {loaded: string[]; folderTree: unknown[]} =
+                payload.roots as {loaded: string[]; folderTree: unknown[]}
             expect(roots.loaded).toContain('/tmp/vault')
             expect(roots.folderTree.length).toBe(1)
         } finally {

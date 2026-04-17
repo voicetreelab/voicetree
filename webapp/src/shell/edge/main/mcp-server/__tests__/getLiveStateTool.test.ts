@@ -98,12 +98,15 @@ describe('vt_get_live_state tool', () => {
         expect(payload.meta).toMatchObject({ schemaVersion: 1, revision: 3 })
         expect(payload.collapseSet).toEqual(['/tmp/vault/tasks/'])
         expect(payload.selection).toEqual(['/tmp/vault/sample.md'])
-        const roots = payload.roots as { loaded: readonly string[]; folderTree: readonly unknown[] }
+        const roots: { loaded: readonly string[]; folderTree: readonly unknown[] } =
+            payload.roots as { loaded: readonly string[]; folderTree: readonly unknown[] }
         expect(roots.loaded).toContain('/tmp/vault')
         expect(roots.folderTree.length).toBeGreaterThan(0)
-        const layout = payload.layout as { positions: readonly (readonly [string, unknown])[] }
+        const layout: { positions: readonly (readonly [string, unknown])[] } =
+            payload.layout as { positions: readonly (readonly [string, unknown])[] }
         expect(layout.positions).toContainEqual(['/tmp/vault/sample.md', { x: 10, y: 20 }])
-        const graphSerialized = payload.graph as { nodes: Record<string, unknown> }
+        const graphSerialized: { nodes: Record<string, unknown> } =
+            payload.graph as { nodes: Record<string, unknown> }
         expect(Object.keys(graphSerialized.nodes)).toEqual(['/tmp/vault/sample.md'])
     })
 
