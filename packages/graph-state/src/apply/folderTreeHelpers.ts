@@ -226,7 +226,7 @@ function removeFileFromEntry(
     return removeEntryPath(entry, segments)
 }
 
-function findWriteTargetPath(
+export function findWriteTargetPath(
     folderTree: readonly FolderTreeNode[],
 ): AbsolutePath | null {
     for (const node of folderTree) {

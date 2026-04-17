@@ -57,7 +57,7 @@
             "position": {
               "_tag": "Some",
               "value": {
-                "x": 280,
+                "x": 360,
                 "y": 100
               }
             },
@@ -146,7 +146,7 @@
         [
           "/tmp/graph-state-fixtures/root-a/gamma.md",
           {
-            "x": 280,
+            "x": 360,
             "y": 100
           }
         ]

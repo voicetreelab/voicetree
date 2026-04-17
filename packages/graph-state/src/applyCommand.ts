@@ -15,10 +15,13 @@ import type {
     Delta,
     Deselect,
     Expand,
+    LoadRoot,
+    Move,
     RemoveEdge,
     RemoveNode,
     Select,
     State,
+    UnloadRoot,
 } from './contract'
 import {
     updateFolderTreeForAddedNode,
@@ -32,6 +35,8 @@ import {
     createEdgesRemovedGraphDelta,
     rebuildSourceNodeForRemovedEdge,
 } from './apply/markdownEdits'
+import { applyMove } from './apply/move'
+import { applyLoadRoot, applyUnloadRoot } from './apply/roots'
 
 function applyAddNode(
     state: State,
@@ -387,11 +392,24 @@ export function applyCommandWithDelta(
             return applyAddEdge(state, command)
         case 'RemoveEdge':
             return applyRemoveEdge(state, command)
+        case 'Move':
+            return applyMove(state, command)
+        case 'UnloadRoot':
+            return applyUnloadRoot(state, command)
+        case 'LoadRoot':
+            throw new Error('LoadRoot requires async disk I/O — use applyCommandAsync instead')
         default:
-            throw new Error(`applyCommand not implemented for command type "${command.type}"`)
+            throw new Error(`applyCommand not implemented for command type "${(command as Command).type}"`)
     }
 }
 
 export function applyCommand(state: State, command: Command): State {
     return applyCommandWithDelta(state, command).state
+}
+
+export async function applyCommandAsync(state: State, command: Command): Promise<State> {
+    if (command.type === 'LoadRoot') {
+        return (await applyLoadRoot(state, command)).state
+    }
+    return applyCommand(state, command)
 }
