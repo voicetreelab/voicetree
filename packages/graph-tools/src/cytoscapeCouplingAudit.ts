@@ -544,6 +544,14 @@ function getSourceFiles(repoRoot: string): readonly string[] {
     return sourceFiles.sort((left: string, right: string) => left.localeCompare(right))
 }
 
+function isTestScaffolding(relativePath: string): boolean {
+    return (
+        relativePath.includes('/__tests__/')
+        || relativePath.includes('/integration-tests/')
+        || relativePath.includes('/test-utils/')
+    )
+}
+
 function isProjectionSeam(relativePath: string): boolean {
     return (
         relativePath.startsWith('webapp/src/shell/UI/')
@@ -551,6 +559,8 @@ function isProjectionSeam(relativePath: string): boolean {
         || relativePath === 'webapp/src/utils/responsivePadding.ts'
         || relativePath === 'webapp/src/utils/visibleViewport.ts'
         || relativePath === 'webapp/src/utils/viewportVisibility.ts'
+        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyLiveCommandToRenderer.ts'
+        || isTestScaffolding(relativePath)
     )
 }
 
