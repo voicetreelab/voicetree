@@ -63,17 +63,42 @@ describe('recent-deltas-store', () => {
             expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
-        it('should return true for slightly different content (≤ 20 edit distance)', () => {
+        it('should return false for same-length content with a typo', () => {
+            // Echo suppression only skips EXACT echoes of our own write.
+            // A typo means the on-disk content is genuinely different and the
+            // UI must reflect it; we must NOT silently drop the change.
             const delta: NodeDelta = makeUpsertDelta('test-node', 'hello world this is a test')
             markRecentDelta(delta)
 
-            // Content with small differences (typos, minor edits) - should still match
-            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', 'hello world this is a tset'))
-            expect(isOurRecentDelta(incomingDelta)).toBe(true)
+            const incomingDelta: GraphDelta = toGraphDelta(
+                makeUpsertDelta('test-node', 'hello world this is a tset'),
+            )
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
 
         it('should return false for unknown nodeId', () => {
             const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('unknown', 'content'))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        // Regression: agent writes to a node file via external fs tool while the
+        // app just autosaved content of the same length. Echo-suppression must
+        // not silently drop external edits just because lengths happen to match.
+        it('should return false for same-length but completely different content', () => {
+            const ours: string = 'A'.repeat(300)
+            const theirs: string = 'B'.repeat(300)
+            markRecentDelta(makeUpsertDelta('test-node', ours))
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', theirs))
+            expect(isOurRecentDelta(incomingDelta)).toBe(false)
+        })
+
+        it('should return false for near-same-length but different content within 2% length tolerance', () => {
+            const ours: string = 'hello world '.repeat(50) // 600 chars
+            const theirs: string = 'alien content '.repeat(44) // 616 chars, ~2.6% off → border case
+            markRecentDelta(makeUpsertDelta('test-node', ours))
+
+            const incomingDelta: GraphDelta = toGraphDelta(makeUpsertDelta('test-node', theirs))
             expect(isOurRecentDelta(incomingDelta)).toBe(false)
         })
     })

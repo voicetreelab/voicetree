@@ -31,17 +31,16 @@ function normalizeContent(content: string): string {
     return stripBracketedContent(content).replace(/\s+/g, '')
 }
 
-// Tolerance for length comparison - allows small differences in content length
-// to still be recognized as "our" write (handles minor FS/encoding discrepancies)
-const LENGTH_TOLERANCE_RATIO: number = 0.02 // 2%
-
 /**
- * Check if two content lengths are within tolerance.
- * O(1) complexity - replaces O(n²) edit distance for regular nodes.
+ * Check if two normalized contents match exactly.
+ *
+ * O(n) comparison on already-normalized strings — fast enough to run on every
+ * FS event. Length-only heuristics false-positive on same-length but totally
+ * different content, silently dropping external edits (e.g. an agent's fs
+ * write of the same size as the app's last autosave).
  */
-function isLengthWithinTolerance(lenA: number, lenB: number): boolean {
-    const maxLen: number = Math.max(lenA, lenB, 1)
-    return Math.abs(lenA - lenB) / maxLen < LENGTH_TOLERANCE_RATIO
+function isNormalizedContentMatch(normalizedA: string, normalizedB: string): boolean {
+    return normalizedA === normalizedB
 }
 
 /**
@@ -119,13 +118,15 @@ export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
                 const hasMatchingUpsert: boolean = validEntries.some(e => e.delta.type === 'UpsertNode')
                 if (!hasMatchingUpsert) return false
             } else {
-                // Regular nodes: use O(1) length comparison instead of O(n²) edit distance
-                const incomingLen: number = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks).length
+                // Regular nodes: compare normalized content (strips brackets +
+                // whitespace so wikilink resolution and line-ending round-trips
+                // still match, but different content of the same length does NOT).
+                const incomingNormalized: string = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks)
 
                 const hasMatchingUpsert: boolean = validEntries.some(e => {
                     if (e.delta.type !== 'UpsertNode') return false
-                    const storedLen: number = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks).length
-                    return isLengthWithinTolerance(storedLen, incomingLen)
+                    const storedNormalized: string = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks)
+                    return isNormalizedContentMatch(storedNormalized, incomingNormalized)
                 })
                 if (!hasMatchingUpsert) return false
             }
