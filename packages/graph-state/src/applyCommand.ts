@@ -5,6 +5,7 @@ import {
     buildFolderTree,
     createEmptyGraph,
     deleteNodeSimple,
+    parseMarkdownToGraphNode,
     toAbsolutePath,
     type AbsolutePath,
     type FolderTreeNode,
@@ -13,14 +14,25 @@ import {
     type GraphNode,
     type NodeIdAndFilePath,
 } from '@vt/graph-model'
+import { fromNodeToContentWithWikilinks } from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown'
 
-import type { AddNode, Command, Delta, RemoveNode, State } from './contract'
+import type { AddNode, Collapse, Command, Delta, RemoveEdge, RemoveNode, State } from './contract'
 
 interface DirectoryEntryLike {
     readonly absolutePath: AbsolutePath
     readonly name: string
     readonly isDirectory: boolean
     readonly children?: readonly DirectoryEntryLike[]
+}
+
+interface EdgeChange {
+    readonly source: NodeIdAndFilePath
+    readonly targetId: NodeIdAndFilePath
+    readonly label: string
+}
+
+type GraphDeltaSummary = GraphDelta & {
+    readonly edgesRemoved?: readonly EdgeChange[]
 }
 
 function normalizePathValue(value: string): string {
@@ -428,6 +440,188 @@ function applyRemoveNode(
     }
 }
 
+function createEdgesRemovedGraphDelta(edgesRemoved: readonly EdgeChange[]): GraphDelta {
+    const graphDelta = [] as unknown as GraphDeltaSummary
+    Object.defineProperty(graphDelta, 'edgesRemoved', {
+        value: edgesRemoved,
+        enumerable: true,
+    })
+    return graphDelta
+}
+
+function normalizeMarkdownAfterLinkRemoval(markdown: string): string {
+    return markdown
+        .replace(/\s+(and|or)\s+([.,;:!?])/g, '$2')
+        .replace(/\s+([.,;:!?])/g, '$1')
+        .replace(/,\s*([.,;:!?])/g, '$1')
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+}
+
+function removeTargetLinksFromMarkdown(
+    markdown: string,
+    sourceNode: GraphNode,
+    targetId: NodeIdAndFilePath,
+): string {
+    const matches: readonly RegExpMatchArray[] = [...markdown.matchAll(/\[\[[^\]]+\]\]/g)]
+
+    if (matches.length === 0) {
+        return markdown
+    }
+
+    let cursor = 0
+    let nextMarkdown = ''
+
+    matches.forEach((match: RegExpMatchArray, index: number) => {
+        const start = match.index ?? cursor
+        const edge = sourceNode.outgoingEdges[index]
+
+        nextMarkdown += markdown.slice(cursor, start)
+        if (edge?.targetId !== targetId) {
+            nextMarkdown += match[0]
+        }
+
+        cursor = start + match[0].length
+    })
+
+    nextMarkdown += markdown.slice(cursor)
+    return normalizeMarkdownAfterLinkRemoval(nextMarkdown)
+}
+
+function rebuildSourceNodeForRemovedEdge(
+    state: State,
+    sourceNode: GraphNode,
+    targetId: NodeIdAndFilePath,
+): GraphNode {
+    const markdownWithLinks = fromNodeToContentWithWikilinks(sourceNode)
+    const cleanedMarkdown = removeTargetLinksFromMarkdown(
+        markdownWithLinks,
+        sourceNode,
+        targetId,
+    )
+    const reparsedNode = parseMarkdownToGraphNode(
+        cleanedMarkdown,
+        sourceNode.absoluteFilePathIsID,
+        state.graph,
+    )
+
+    return {
+        ...sourceNode,
+        contentWithoutYamlOrLinks: reparsedNode.contentWithoutYamlOrLinks,
+        outgoingEdges: reparsedNode.outgoingEdges,
+        nodeUIMetadata: sourceNode.nodeUIMetadata,
+    }
+}
+
+function applyRemoveEdge(
+    state: State,
+    command: RemoveEdge,
+): { readonly state: State; readonly delta: Delta } {
+    const sourceNode = state.graph.nodes[command.source]
+    const nextRevision = state.meta.revision + 1
+
+    if (!sourceNode) {
+        return {
+            state: {
+                ...state,
+                meta: {
+                    ...state.meta,
+                    revision: nextRevision,
+                },
+            },
+            delta: {
+                revision: nextRevision,
+                cause: command,
+            },
+        }
+    }
+
+    const edgesRemoved: readonly EdgeChange[] = sourceNode.outgoingEdges
+        .filter((edge) => edge.targetId === command.targetId)
+        .map((edge) => ({
+            source: command.source,
+            targetId: command.targetId,
+            label: edge.label,
+        }))
+
+    if (edgesRemoved.length === 0) {
+        return {
+            state: {
+                ...state,
+                meta: {
+                    ...state.meta,
+                    revision: nextRevision,
+                },
+            },
+            delta: {
+                revision: nextRevision,
+                cause: command,
+            },
+        }
+    }
+
+    const updatedSourceNode = rebuildSourceNodeForRemovedEdge(
+        state,
+        sourceNode,
+        command.targetId,
+    )
+    const graphMutationDelta: GraphDelta = [{
+        type: 'UpsertNode',
+        nodeToUpsert: updatedSourceNode,
+        previousNode: O.some(sourceNode),
+    }]
+    const graph = applyGraphDeltaToGraph(state.graph, graphMutationDelta)
+
+    return {
+        state: {
+            graph,
+            roots: state.roots,
+            collapseSet: state.collapseSet,
+            selection: state.selection,
+            layout: state.layout,
+            meta: {
+                ...state.meta,
+                revision: nextRevision,
+            },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            graph: createEdgesRemovedGraphDelta(edgesRemoved),
+        },
+    }
+}
+
+function applyCollapse(
+    state: State,
+    command: Collapse,
+): { readonly state: State; readonly delta: Delta } {
+    const alreadyCollapsed = state.collapseSet.has(command.folder)
+    const nextRevision = state.meta.revision + 1
+    const collapseSet = alreadyCollapsed
+        ? state.collapseSet
+        : new Set([...state.collapseSet, command.folder])
+
+    return {
+        state: {
+            graph: state.graph,
+            roots: state.roots,
+            collapseSet,
+            selection: state.selection,
+            layout: state.layout,
+            meta: {
+                ...state.meta,
+                revision: nextRevision,
+            },
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            collapseAdded: alreadyCollapsed ? [] : [command.folder],
+        },
+    }
+}
+
 export function emptyState(): State {
     return {
         graph: createEmptyGraph(),
@@ -452,10 +646,14 @@ export function applyCommandWithDelta(
     command: Command,
 ): { readonly state: State; readonly delta: Delta } {
     switch (command.type) {
+        case 'Collapse':
+            return applyCollapse(state, command)
         case 'AddNode':
             return applyAddNode(state, command)
         case 'RemoveNode':
             return applyRemoveNode(state, command)
+        case 'RemoveEdge':
+            return applyRemoveEdge(state, command)
         default:
             throw new Error(`applyCommand not implemented for command type "${command.type}"`)
     }

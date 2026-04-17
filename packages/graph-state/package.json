@@ -12,7 +12,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/trivial-consumer-smoke.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "node --import tsx scripts/project-bench.ts"
   },
   "dependencies": {
     "@vt/graph-model": "*",

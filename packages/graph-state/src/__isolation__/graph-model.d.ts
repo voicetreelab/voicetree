@@ -45,6 +45,7 @@ export declare function buildGraphFromFiles(
 ): Graph
 export declare function createEmptyGraph(): Graph
 export declare function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph
+export declare function deleteNodeSimple(graph: Graph, nodeId: NodeIdAndFilePath): GraphDelta
 export declare function parseMarkdownToGraphNode(
     markdown: string,
     absoluteFilePath: NodeIdAndFilePath,

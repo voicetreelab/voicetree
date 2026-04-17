@@ -47,7 +47,6 @@ export {
 } from './applyCommand'
 
 export {
-    project,
     FIXTURES_DIR,
     SNAPSHOTS_DIR,
     SEQUENCES_DIR,
