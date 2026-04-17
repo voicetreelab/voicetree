@@ -81,61 +81,48 @@ export function hasPendingPan(): boolean {
  * Returns true if a pan was executed, false otherwise.
  */
 export function panToTrackedNode(cy: Core): boolean {
-  if (!pendingPan || cy.destroyed()) {
+  if (!pendingPan || cy.destroyed()) { // [L2-seam-residual] cy-only: lifecycle check
     return false;
   }
 
   const { type, targetNodeId } = pendingPan;
 
-  const zoomBefore: number = cy.zoom();
-  const panBefore: { x: number; y: number } = cy.pan();
-  const cyW: number = cy.width();
-  const cyH: number = cy.height();
-  const bb: { x1: number; y1: number; x2: number; y2: number; w: number; h: number } = cy.elements().boundingBox();
-
-  console.warn(
-    `[panToTrackedNode] type=${type}, viewport=${cyW}x${cyH}, zoom=${zoomBefore.toFixed(4)}, pan=(${panBefore.x.toFixed(0)},${panBefore.y.toFixed(0)}), `
-    + `elementsBB: (${bb.x1.toFixed(0)},${bb.y1.toFixed(0)})→(${bb.x2.toFixed(0)},${bb.y2.toFixed(0)}) ${bb.w.toFixed(0)}x${bb.h.toFixed(0)}, `
-    + `nodes=${cy.nodes().length}, edges=${cy.edges().length}`
-  );
-
   if (type === 'large-batch') {
     // Large batch (>30% new nodes): fit all in view with padding
     // Exclude folder compound nodes — their bbox encompasses all children and causes excessive zoom-out
+    // [L2-seam-residual] cy-only: render-layer collection needed for viewport fit
     const nonFolderEles: CollectionReturnValue = cy.elements().filter(ele => !ele.data('isFolderNode')) as CollectionReturnValue;
     const padding: number = getResponsivePadding(cy, 15);
-    console.warn(`[panToTrackedNode] large-batch: cyFitIntoVisibleViewport(all, padding=${padding})`);
     cyFitIntoVisibleViewport(cy, nonFolderEles, padding);
-    console.warn(`[panToTrackedNode] after fit: zoom=${cy.zoom().toFixed(4)}, pan=(${cy.pan().x.toFixed(0)},${cy.pan().y.toFixed(0)})`);
     return true;
   } else if (type === 'small-graph') {
     // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
     // Exclude folder compound nodes — their bbox encompasses all children and inflates the average
+    // [L2-seam-residual] cy-only: render-layer collection needed for viewport fit
     const nonFolderNodes: CollectionReturnValue = cy.nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
-    console.warn(`[panToTrackedNode] small-graph: cyFitCollectionByAverageNodeSize`);
     cyFitCollectionByAverageNodeSize(cy, nonFolderNodes, 0.15);
     return true;
   } else if (type === 'wikilink-target' && targetNodeId) {
+    // [L2-seam-residual] cy-only: element lookup required for neighborhood centering
     const targetNode: CollectionReturnValue = cy.getElementById(targetNodeId);
     if (targetNode.length > 0) {
       // Include target + d=1 neighbors for spatial context (exclude folder compound nodes)
       const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
-      console.warn(`[panToTrackedNode] wikilink-target: centering on ${targetNodeId}`);
       cySmartCenter(cy, nodesToCenter);
       return true;
     }
   } else if (type === 'voice-follow' && targetNodeId) {
+    // [L2-seam-residual] cy-only: element lookup required for centering
     const node: CollectionReturnValue = cy.getElementById(targetNodeId);
     if (node.length > 0) {
-      console.warn(`[panToTrackedNode] voice-follow: centering on ${targetNodeId}`);
       cySmartCenter(cy, node);
       return true;
     }
   } else if (type === 'editor-focus' && targetNodeId) {
+    // [L2-seam-residual] cy-only: element lookup required for centering
     const node: CollectionReturnValue = cy.getElementById(targetNodeId);
     if (node.length > 0) {
       // Pan to keep focused editor in viewport without changing zoom
-      console.warn(`[panToTrackedNode] editor-focus: centering on ${targetNodeId}`);
       cyCenterOnVisibleViewport(cy, node, 200);
       return true;
     }
