@@ -20,9 +20,9 @@ import {
  * no-op and cy will not be cleared here.
  */
 export function clearCytoscapeState(cy: Core): void {
-    const roots = [...getLoadedRoots()];
+    const roots: string[] = [...getLoadedRoots()];
 
-    const unsub = subscribeLoadedRoots((delta) => {
+    const unsub: () => void = subscribeLoadedRoots((delta) => {
         if (delta.graph) {
             applyGraphDeltaToUI(cy, delta.graph);
         }

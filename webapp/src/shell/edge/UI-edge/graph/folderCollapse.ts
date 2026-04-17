@@ -6,7 +6,7 @@ import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } f
 import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
-import { addCollapsedFolder, removeCollapsedFolder, isGraphFolderCollapsed, getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { addCollapsedFolder, removeCollapsedFolder, isGraphFolderCollapsed, getGraphCollapseSet } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 // ── Ephemeral UI state ──
 const expandingFolders: Set<string> = new Set() // H1 guard: prevents collapse during async expand
@@ -121,8 +121,8 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     const visibleNodeIds: Set<string> = new Set(cy.nodes().map(n => n.id()))
 
     // Pure computation: expand plan from graph data
-    const { graphCollapsedFolders } = getFolderTreeState()
-    const plan: ExpandPlan = computeExpandPlan(graph, folderId, graphCollapsedFolders, visibleNodeIds)
+    const collapseSet = getGraphCollapseSet()
+    const plan: ExpandPlan = computeExpandPlan(graph, folderId, collapseSet, visibleNodeIds)
 
     cy.batch(() => {
         // Remove old synthetic edges for this folder
@@ -135,7 +135,7 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
         // Add sub-folder compound nodes
         for (const sf of plan.subFolders) {
             if (!cy.getElementById(sf).length) {
-                const isStillCollapsed: boolean = graphCollapsedFolders.has(sf)
+                const isStillCollapsed: boolean = collapseSet.has(sf)
                 cy.add({
                     group: 'nodes' as const,
                     data: {

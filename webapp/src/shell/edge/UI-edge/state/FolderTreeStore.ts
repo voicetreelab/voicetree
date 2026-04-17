@@ -4,9 +4,19 @@
  * Renderer subscribes via useSyncExternalStore.
  *
  * Follows the same reducer pattern as reduceFolderConfig in transforms.ts.
+ *
+ * graphCollapsedFolders is now a read-only mirror of collapseSetStore
+ * (packages/graph-state). Mutations go through dispatchCollapse/dispatchExpand
+ * via the addCollapsedFolder/removeCollapsedFolder facades below.
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
+import {
+    dispatchCollapse,
+    dispatchExpand,
+    getCollapseSet,
+    subscribeCollapseSet,
+} from '@vt/graph-state/state/collapseSetStore';
 
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;
@@ -110,6 +120,14 @@ function dispatch(action: FolderTreeAction): void {
     }
 }
 
+// Keep graphCollapsedFolders in sync with collapseSetStore (the authoritative source).
+subscribeCollapseSet((newSet) => {
+    currentState = { ...currentState, graphCollapsedFolders: newSet };
+    for (const callback of subscribers) {
+        callback(currentState);
+    }
+});
+
 /**
  * Subscribe to folder tree state changes.
  * @returns unsubscribe function
@@ -160,15 +178,20 @@ export function setSidebarWidth(width: number): void {
 }
 
 export function addCollapsedFolder(folderId: string): void {
-    dispatch({ type: 'ADD_COLLAPSED_FOLDER', folderId });
+    dispatchCollapse(folderId);
 }
 
 export function removeCollapsedFolder(folderId: string): void {
-    dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
+    dispatchExpand(folderId);
 }
 
 export function isGraphFolderCollapsed(folderId: string): boolean {
-    return getFolderTreeState().graphCollapsedFolders.has(folderId);
+    return getCollapseSet().has(folderId);
+}
+
+/** Returns the current collapseSet from graph-state (avoids the graphCollapsedFolders field name). */
+export function getGraphCollapseSet(): ReadonlySet<string> {
+    return getCollapseSet();
 }
 
 // --- Persistence subscriber (side effect isolated from reducer) ---
