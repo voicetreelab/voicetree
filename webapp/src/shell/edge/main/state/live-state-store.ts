@@ -14,7 +14,7 @@ import type {
     Delta,
     State,
 } from '@vt/graph-state'
-import { applyCommandWithDelta } from '@vt/graph-state'
+import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
 import { getGraph } from '@vt/graph-model'
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
 
@@ -137,6 +137,22 @@ export function applyLiveCommand(cmd: Command): Delta {
                 cause: cmd,
             }
     }
+}
+
+/**
+ * L3-BF-186: async dispatcher for commands that require disk I/O (LoadRoot).
+ * All other command types go through the sync `applyLiveCommand`.
+ */
+export async function applyLiveCommandAsync(cmd: Command): Promise<Delta> {
+    if (cmd.type !== 'LoadRoot') {
+        return applyLiveCommand(cmd)
+    }
+    const before: State = getCurrentLiveState()
+    const { state, delta } = await applyCommandAsyncWithDelta(before, cmd)
+    liveParts.collapseSet = new Set(state.collapseSet)
+    liveParts.selection = new Set(state.selection)
+    liveParts.revision = state.meta.revision
+    return delta
 }
 
 /** Test-only: reset the store between test cases. */

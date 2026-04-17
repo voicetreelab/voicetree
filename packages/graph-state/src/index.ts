@@ -49,6 +49,8 @@ export type {
 export {
     applyCommand,
     applyCommandWithDelta,
+    applyCommandAsync,
+    applyCommandAsyncWithDelta,
     emptyState,
 } from './applyCommand'
 

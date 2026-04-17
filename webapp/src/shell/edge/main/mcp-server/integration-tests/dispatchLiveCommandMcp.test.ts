@@ -177,14 +177,15 @@ describe('vt_dispatch_live_command real MCP roundtrip', () => {
                 'utf8',
             )
 
-            // A not-yet-wired command returns the error sentinel and does not bump revision.
-            const notWiredResult: ToolCallResult = await client.callTool({
+            // L3-BF-186: Move (and every other Command variant) is now wired —
+            // dispatch must NOT return the legacy `not-yet-wired` sentinel.
+            const moveResult: ToolCallResult = await client.callTool({
                 name: 'vt_dispatch_live_command',
                 arguments: { command: { type: 'Move', id: '/tmp/x', to: { x: 1, y: 2 } } },
             })
-            const notWiredPayload: Record<string, unknown> = parseTextBlock(notWiredResult)
-            expect(notWiredPayload.error).toBe('not-yet-wired')
-            expect(notWiredPayload.revision).toBe(1) // Collapse bumped; Move did not
+            const movePayload: Record<string, unknown> = parseTextBlock(moveResult)
+            expect(JSON.stringify(movePayload)).not.toContain('not-yet-wired')
+            expect(movePayload.revision).toBe(2) // Collapse = 1, Move = 2
         } finally {
             await client.close()
         }

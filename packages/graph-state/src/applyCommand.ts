@@ -425,3 +425,13 @@ export async function applyCommandAsync(state: State, command: Command): Promise
     }
     return applyCommand(state, command)
 }
+
+export async function applyCommandAsyncWithDelta(
+    state: State,
+    command: Command,
+): Promise<{ readonly state: State; readonly delta: Delta }> {
+    if (command.type === 'LoadRoot') {
+        return applyLoadRoot(state, command)
+    }
+    return applyCommandWithDelta(state, command)
+}

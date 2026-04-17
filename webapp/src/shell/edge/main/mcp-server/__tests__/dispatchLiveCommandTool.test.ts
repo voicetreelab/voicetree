@@ -40,8 +40,8 @@ beforeEach(() => {
 })
 
 describe('vt_dispatch_live_command', () => {
-    it('Collapse adds the folder to collapseSet and bumps revision', () => {
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+    it('Collapse adds the folder to collapseSet and bumps revision', async () => {
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Collapse', folder: '/tmp/vault/tasks/' },
         })
 
@@ -52,9 +52,9 @@ describe('vt_dispatch_live_command', () => {
         expect(state.meta.revision).toBe(1)
     })
 
-    it('Expand removes the folder and emits collapseRemoved', () => {
-        dispatchLiveCommand({ command: { type: 'Collapse', folder: '/tmp/vault/tasks/' } })
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+    it('Expand removes the folder and emits collapseRemoved', async () => {
+        await dispatchLiveCommand({ command: { type: 'Collapse', folder: '/tmp/vault/tasks/' } })
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Expand', folder: '/tmp/vault/tasks/' },
         })
 
@@ -62,9 +62,9 @@ describe('vt_dispatch_live_command', () => {
         expect([...getCurrentLiveState().collapseSet]).not.toContain('/tmp/vault/tasks/')
     })
 
-    it('Select (replace) sets selection and reports previous ids as removed', () => {
-        dispatchLiveCommand({ command: { type: 'Select', ids: ['a'] } })
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+    it('Select (replace) sets selection and reports previous ids as removed', async () => {
+        await dispatchLiveCommand({ command: { type: 'Select', ids: ['a'] } })
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Select', ids: ['b', 'c'] },
         })
 
@@ -73,9 +73,9 @@ describe('vt_dispatch_live_command', () => {
         expect(result.delta.selectionRemoved).toEqual(['a'])
     })
 
-    it('Select (additive) merges ids without removing prior selection', () => {
-        dispatchLiveCommand({ command: { type: 'Select', ids: ['a'] } })
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+    it('Select (additive) merges ids without removing prior selection', async () => {
+        await dispatchLiveCommand({ command: { type: 'Select', ids: ['a'] } })
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Select', ids: ['b'], additive: true },
         })
 
@@ -84,9 +84,9 @@ describe('vt_dispatch_live_command', () => {
         expect(result.delta.selectionRemoved).toBeUndefined()
     })
 
-    it('Deselect removes only the listed ids', () => {
-        dispatchLiveCommand({ command: { type: 'Select', ids: ['a', 'b', 'c'] } })
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+    it('Deselect removes only the listed ids', async () => {
+        await dispatchLiveCommand({ command: { type: 'Select', ids: ['a', 'b', 'c'] } })
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Deselect', ids: ['b'] },
         })
 
@@ -94,15 +94,14 @@ describe('vt_dispatch_live_command', () => {
         expect(result.delta.selectionRemoved).toEqual(['b'])
     })
 
-    it('Move returns not-yet-wired and leaves state untouched', () => {
+    it('Move bumps revision and returns a delta without a not-yet-wired sentinel (L3-BF-186)', async () => {
         const before: number = getCurrentLiveState().meta.revision
-        const result: ReturnType<typeof dispatchLiveCommand> = dispatchLiveCommand({
+        const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Move', id: 'x', to: { x: 1, y: 2 } },
         })
 
-        expect(result.error).toBe('not-yet-wired')
-        expect(result.revision).toBe(before)
-        expect(getCurrentLiveState().meta.revision).toBe(before)
+        expect(JSON.stringify(result)).not.toContain('not-yet-wired')
+        expect(result.revision).toBe(before + 1)
     })
 
     it('dispatchLiveCommandTool wraps the payload in an MCP response', async () => {
@@ -119,9 +118,9 @@ describe('vt_dispatch_live_command', () => {
         expect(delta.collapseAdded).toEqual(['/tmp/vault/x/'])
     })
 
-    it('dispatch → getCurrentLiveState round-trip: Collapse lands in collapseSet (spec verification)', () => {
+    it('dispatch → getCurrentLiveState round-trip: Collapse lands in collapseSet (spec verification)', async () => {
         const folder: string = '/Users/bobbobby/repos/voicetree-public/brain/working-memory/tasks/'
-        dispatchLiveCommand({ command: { type: 'Collapse', folder } })
+        await dispatchLiveCommand({ command: { type: 'Collapse', folder } })
         const roundTrip: ReturnType<typeof getCurrentLiveState> = getCurrentLiveState()
         expect([...roundTrip.collapseSet]).toContain(folder)
     })
