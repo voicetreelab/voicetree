@@ -1,19 +1,37 @@
 import type {Core} from "cytoscape";
 import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance";
+import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
+import {
+    getLoadedRoots,
+    dispatchUnloadRoot,
+    subscribeLoadedRoots,
+} from '@vt/graph-state';
 
 /**
- * Clear all nodes and edges from Cytoscape
+ * Dispatch UnloadRoot for every currently-loaded root, then project the
+ * resulting graph deltas (DeleteNode operations) onto cytoscape.
  *
- * Pure function that clears the entire graph state in Cytoscape.
- * Used when loading a new folder to ensure clean slate.
+ * This replaces the former direct-element-removal pattern: root state is now
+ * authoritative in loadedRootsStore, and cy is cleared as a projection of the
+ * UnloadRoot delta — satisfying V-L2-3 (no inferred root state from cy).
  *
- * @param cy - Cytoscape instance
+ * If the renderer's loadedRootsStore has not yet been populated (e.g. before
+ * the main-process IPC bridge is wired in a later BF), the dispatch is a
+ * no-op and cy will not be cleared here.
  */
 export function clearCytoscapeState(cy: Core): void {
-    //console.log('[clearCytoscapeState] Clearing all cytoscape elements');
-    cy.batch(() => {
-        cy.elements().remove();
+    const roots = [...getLoadedRoots()];
+
+    const unsub = subscribeLoadedRoots((delta) => {
+        if (delta.graph) {
+            applyGraphDeltaToUI(cy, delta.graph);
+        }
     });
+
+    for (const root of roots) {
+        dispatchUnloadRoot(root);
+    }
+
+    unsub();
     syncLargeGraphPerformanceMode(cy);
-    //console.log('[clearCytoscapeState] Cleared. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }

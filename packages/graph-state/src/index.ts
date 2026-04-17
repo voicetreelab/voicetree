@@ -29,7 +29,13 @@ export type {
     Move,
     LoadRoot,
     UnloadRoot,
+    SetZoom,
+    SetPan,
+    SetPositions,
+    RequestFit,
     Delta,
+    FolderId,
+    RootPath,
     ElementSpec,
     NodeElement,
     EdgeElement,
@@ -74,6 +80,41 @@ export {
 } from './fixtures'
 
 export { project } from './project'
+
+export {
+    createLayoutStore,
+} from './state/layoutStore'
+
+export {
+    getSelection,
+    isSelected,
+    dispatchSelect,
+    dispatchDeselect,
+    subscribeSelection,
+    _resetForTests,
+} from './state/selectionStore'
+
+export type {
+    LayoutStore,
+    LayoutStoreOptions,
+    LayoutSubscriber,
+    LayoutDelta,
+    FlushScheduler,
+} from './state/layoutStore'
+
+export {
+    getLoadedRoots,
+    isRootLoaded,
+    dispatchLoadRoot,
+    dispatchUnloadRoot,
+    subscribeLoadedRoots,
+    clearLoadedRoots,
+} from './state/loadedRootsStore'
+
+export type {
+    RootsDelta,
+    LoadedRootsSubscriber,
+} from './state/loadedRootsStore'
 
 export type {
     SnapshotDocument,
