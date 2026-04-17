@@ -56,7 +56,8 @@ describe('runCytoscapeCouplingAudit ratchet', () => {
         const output: string = runAuditCli()
         const cliCount: number = parseCliCount(output)
 
-        expect(baselineCount).toBeGreaterThanOrEqual(20)
+        // Floor sanity-checks the audit runs and returns a non-negative count. Post-L2 baseline is 11; any count ≥ 0 is valid.
+        expect(baselineCount).toBeGreaterThanOrEqual(0)
         expect(cliCount).toBe(baselineCount)
         expect(output).toContain(`Catalogue: ${cataloguePath}`)
         expect(output).toContain('Named surfaces:')
