@@ -3,8 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
   "bin": {
     "vt-graph": "bin/vt-graph.ts"
+  },
+  "dependencies": {
+    "@vt/graph-state": "*"
   },
   "scripts": {
     "test": "vitest run",
