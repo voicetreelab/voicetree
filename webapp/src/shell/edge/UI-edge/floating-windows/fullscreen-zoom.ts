@@ -13,6 +13,7 @@ import type { Core, CollectionReturnValue, BoundingBox12 } from 'cytoscape';
 import type { ShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
+import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 
 // Per-window state for fullscreen zoom restoration
 type PreviousViewport = { zoom: number; pan: { x: number; y: number } };
@@ -39,7 +40,7 @@ function cleanupWindowState(shadowNodeId: ShadowNodeId): void {
  * Returns true if fitting to this node would not significantly change the zoom.
  */
 function isAlreadyFullscreenedOnNode(cy: Core, shadowNode: CollectionReturnValue): boolean {
-    const currentZoom: number = cy.zoom();
+    const currentZoom: number = getLayout().zoom ?? 1;
 
     // Calculate what zoom would be if we fit to this node
     const bb: BoundingBox12 = shadowNode.boundingBox();
@@ -88,12 +89,13 @@ export function attachFullscreenZoom(
                 // Set zoom and pan atomically — cy.animate({ zoom, pan }) doesn't
                 // correctly restore pan when zoom also changes (zoom around center
                 // shifts pan during interpolation).
-                cy.zoom(storedViewport.zoom);
-                cy.pan(storedViewport.pan);
+                dispatchSetZoom(storedViewport.zoom);
+                dispatchSetPan(storedViewport.pan);
                 cleanupWindowState(shadowNodeId);
             } else {
                 // No stored state, zoom out 2x
-                const newZoom: number = Math.max(cy.minZoom(), cy.zoom() / 2);
+                // [L2-seam-residual] cy-only: min-zoom bound
+                const newZoom: number = Math.max(cy.minZoom(), (getLayout().zoom ?? 1) / 2);
                 cy.animate({
                     zoom: newZoom,
                     duration: 300
@@ -101,8 +103,9 @@ export function attachFullscreenZoom(
             }
         } else {
             // Not zoomed in → capture state and zoom in to window
-            // Clone pan — cy.pan() returns a mutable reference to the internal object
-            windowViewportStates.set(shadowNodeId, { zoom: cy.zoom(), pan: { ...cy.pan() } });
+            // Clone pan — getLayout().pan is immutable but spread defensively
+            const layout = getLayout();
+            windowViewportStates.set(shadowNodeId, { zoom: layout.zoom ?? 1, pan: { ...(layout.pan ?? { x: 0, y: 0 }) } });
             cyFitIntoVisibleViewport(cy, shadowNode, getResponsivePadding(cy, 3));
 
             // Add ESC handler only if enabled (terminals yes, editors no due to vim)
@@ -113,8 +116,8 @@ export function attachFullscreenZoom(
                         e.stopPropagation();
                         const viewport: PreviousViewport | undefined = windowViewportStates.get(shadowNodeId);
                         if (viewport) {
-                            cy.zoom(viewport.zoom);
-                            cy.pan(viewport.pan);
+                            dispatchSetZoom(viewport.zoom);
+                            dispatchSetPan(viewport.pan);
                         }
                         cleanupWindowState(shadowNodeId);
                     }
