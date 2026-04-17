@@ -72,6 +72,7 @@ export function createWindowChrome(
     // Add accent bar for editor windows (card-style left colored bar)
     if (typeClass.includes('editor')) {
         const accentNodeId: string = 'contentLinkedToNodeId' in fw ? fw.contentLinkedToNodeId : '';
+        // [L2-seam-residual] cy-only: reading node data('color') — not in graph-state
         const nodeColor: string | undefined = accentNodeId ? cy.getElementById(accentNodeId).data('color') as string | undefined : undefined;
         const accentBar: HTMLDivElement = document.createElement('div');
         accentBar.className = 'cy-floating-window-accent';

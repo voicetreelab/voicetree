@@ -27,6 +27,7 @@ function resolveGraphPosition(
     let graphY: number | undefined;
 
     if (shadowNodeId) {
+        // [L2-seam-residual] cy-only: shadow nodes are synthetic cy elements, not in graph-state positions
         const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
         if (shadowNode.length > 0) {
             const pos: cytoscape.Position = shadowNode.position();

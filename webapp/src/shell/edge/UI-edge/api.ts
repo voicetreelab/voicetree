@@ -33,6 +33,7 @@ import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state"
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import { getLoadedRoots } from '@vt/graph-state';
 
 /**
  * Update floating editors from external FS changes
@@ -65,8 +66,8 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
  * Called from main process when a vault path is removed from the allowlist.
  */
 function fitViewport(): void {
-    const cy: Core = getCyInstance();
-    if (cy.nodes().length > 0) {
+    if (getLoadedRoots().size > 0) {
+        const cy: Core = getCyInstance();
         cyFitIntoVisibleViewport(cy, undefined, getResponsivePadding(cy, 10));
     }
 }

@@ -29,6 +29,7 @@ export function selectFloatingWindowNode(
     if (currentIds.length > 0) {
         dispatchDeselect(currentIds);
     }
+    // [L2-seam-residual] cy-only: renderer-side visual deselect; selection projection not yet wired
     cy.elements(':selected').unselect();
 
     let nodeIdToSelect: NodeIdAndFilePath | undefined;
@@ -46,6 +47,7 @@ export function selectFloatingWindowNode(
     }
 
     if (nodeIdToSelect) {
+        // [L2-seam-residual] cy-only: renderer-side visual select + node existence check in cy
         const node: cytoscape.CollectionReturnValue = cy.getElementById(nodeIdToSelect);
         if (node.length > 0) {
             dispatchSelect([nodeIdToSelect]);

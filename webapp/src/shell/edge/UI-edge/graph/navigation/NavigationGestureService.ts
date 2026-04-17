@@ -14,6 +14,7 @@
  */
 
 import type { Core } from 'cytoscape';
+import { MIN_ZOOM, MAX_ZOOM } from '@/shell/UI/cytoscape-graph-ui/constants';
 import { getEditors } from '@/shell/edge/UI-edge/state/EditorStore';
 import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
 import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
@@ -44,6 +45,8 @@ export class NavigationGestureService {
 
     // Smooth zoom animation state (for discrete mouse wheels)
     private targetZoom: number = 1;
+    private currentZoom: number = 1;  // tracks last-dispatched zoom; updated on every cy.zoom() write
+    private panEnabled: boolean = true; // snapshot of cy.userPanningEnabled(); set in constructor
     private zoomCursorPos: { x: number; y: number } = { x: 0, y: 0 };
     private zoomAnimating: boolean = false;
     private zoomAnimFrameId: number = 0;
@@ -61,6 +64,8 @@ export class NavigationGestureService {
     constructor(cy: Core, container: HTMLElement) {
         this.cy = cy;
         this.container = container;
+        this.currentZoom = cy.zoom();
+        this.panEnabled = cy.userPanningEnabled();
 
         // Bind handlers
         this.handleWheel = this.onWheel.bind(this);
@@ -99,7 +104,7 @@ export class NavigationGestureService {
      * Uses unified zoomAtCursor() for all zoom (userZoomingEnabled: false).
      */
     private onWheel(e: WheelEvent): void {
-        if (!this.cy.userPanningEnabled()) return;
+        if (!this.panEnabled) return;
 
         // Allow native scrolling in UI elements
         const target: Element | null = e.target as Element | null;
@@ -200,20 +205,21 @@ export class NavigationGestureService {
         // Trackpad pinch: apply directly (already smooth from high-frequency deltas)
         if (getIsTrackpadScrolling()) {
             this.cancelZoomAnimation();
-            const newZoom: number = this.cy.zoom() * Math.pow(10, diff);
-            const clampedZoom: number = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), newZoom));
+            const newZoom: number = this.currentZoom * Math.pow(10, diff);
+            const clampedZoom: number = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
             this.cy.zoom({
                 level: clampedZoom,
                 renderedPosition: { x: e.clientX, y: e.clientY }
             });
+            this.currentZoom = clampedZoom;
             return;
         }
 
         // Discrete mouse wheel: accumulate target and animate smoothly
         if (!this.zoomAnimating) {
-            this.targetZoom = this.cy.zoom(); // sync before first delta
+            this.targetZoom = this.currentZoom; // sync before first delta
         }
-        this.targetZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(),
+        this.targetZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
             this.targetZoom * Math.pow(10, diff)));
         this.zoomCursorPos = { x: e.clientX, y: e.clientY };
         if (!this.zoomAnimating) {
@@ -228,7 +234,7 @@ export class NavigationGestureService {
     private startZoomAnimation(): void {
         this.zoomAnimating = true;
         const tick: () => void = (): void => {
-            const current: number = this.cy.zoom();
+            const current: number = this.currentZoom;
             const remaining: number = this.targetZoom - current;
 
             // Stop when close enough (relative threshold scales across zoom range)
@@ -237,6 +243,7 @@ export class NavigationGestureService {
                     level: this.targetZoom,
                     renderedPosition: this.zoomCursorPos
                 });
+                this.currentZoom = this.targetZoom;
                 this.zoomAnimating = false;
                 return;
             }
@@ -246,6 +253,7 @@ export class NavigationGestureService {
                 level: next,
                 renderedPosition: this.zoomCursorPos
             });
+            this.currentZoom = next;
             this.zoomAnimFrameId = requestAnimationFrame(tick);
         };
         this.zoomAnimFrameId = requestAnimationFrame(tick);
@@ -318,7 +326,7 @@ export class NavigationGestureService {
         // Pinch-to-zoom (ctrlKey) should ALWAYS zoom the graph, even if window is focused
         // macOS generates ctrlKey=true for trackpad pinch gestures
         if (e.ctrlKey) {
-            if (!this.cy.userPanningEnabled()) return;
+            if (!this.panEnabled) return;
             e.preventDefault();
             e.stopImmediatePropagation();
             signalViewportManipulation(this.cy);
@@ -329,7 +337,7 @@ export class NavigationGestureService {
         // Horizontal scroll should ALWAYS pan the graph (no horizontal scroll in floating windows)
         const isHorizontalScroll: boolean = Math.abs(e.deltaX) > Math.abs(e.deltaY);
         if (isHorizontalScroll && e.deltaX !== 0) {
-            if (!this.cy.userPanningEnabled()) return;
+            if (!this.panEnabled) return;
             e.preventDefault();
             e.stopImmediatePropagation();
             signalViewportManipulation(this.cy);
@@ -352,7 +360,7 @@ export class NavigationGestureService {
         }
 
         // Unfocused floating window - redirect to graph
-        if (!this.cy.userPanningEnabled()) return;
+        if (!this.panEnabled) return;
 
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -375,7 +383,7 @@ export class NavigationGestureService {
      */
     private onMouseDown(e: MouseEvent): void {
         if (e.button !== 1) return; // Only middle click
-        if (!this.cy.userPanningEnabled()) return;
+        if (!this.panEnabled) return;
 
         this.isPanning = true;
         this.lastPos = { x: e.clientX, y: e.clientY };

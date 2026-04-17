@@ -20,6 +20,7 @@ export function extractObstaclesFromCytoscape(
     cy: cytoscape.Core,
     parentNodeId: NodeIdAndFilePath
 ): readonly ObstacleBBox[] {
+    // [L2-seam-residual] cy-only: closedNeighborhood graph traversal has no graph-state equivalent
     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     if (parentNode.length === 0) return [];
 
@@ -55,6 +56,7 @@ export function extractEdgeSegmentsFromCytoscape(
     cy: cytoscape.Core,
     parentNodeId: NodeIdAndFilePath
 ): readonly EdgeSegment[] {
+    // [L2-seam-residual] cy-only: closedNeighborhood graph traversal has no graph-state equivalent
     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     if (parentNode.length === 0) return [];
 

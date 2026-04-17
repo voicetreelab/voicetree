@@ -80,6 +80,7 @@ export function setupResizeObserver(
         const oldHeight: number = shadowNode.height();
 
         updateShadowNodeDimensions(shadowNode, windowElement);
+        // [L2-seam-residual] cy-only: custom event dispatch; no graph-state equivalent
         cy.trigger('floatingwindow:resize', [{nodeId: shadowNode.id()}]);
 
         // Check if graph dimensions actually changed (user resize vs zoom-induced)
