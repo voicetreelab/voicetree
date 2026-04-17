@@ -1,0 +1,35 @@
+{
+  "baseSeed": 193,
+  "fixtures": [
+    {
+      "name": "synthetic-a1-tree",
+      "root": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/tests/fixtures/roundtrip-vaults/synthetic-a1-tree",
+      "description": "A pure spanning-tree wikilink graph with no undirected cycles.",
+      "expectedArboricity": 1
+    },
+    {
+      "name": "synthetic-a2-cycle",
+      "root": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/tests/fixtures/roundtrip-vaults/synthetic-a2-cycle",
+      "description": "A single core cycle with tree attachments, forcing arboricity 2.",
+      "expectedArboricity": 2
+    },
+    {
+      "name": "synthetic-k5-core",
+      "root": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/tests/fixtures/roundtrip-vaults/synthetic-k5-core",
+      "description": "A K5 clique core plus trees. Exact clique arboricity is 3; the sweep records BF-192's greedy upper bound.",
+      "expectedArboricity": 3
+    },
+    {
+      "name": "synthetic-k9-core",
+      "root": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/tests/fixtures/roundtrip-vaults/synthetic-k9-core",
+      "description": "A K9 clique core plus trees. Exact clique arboricity is 5; the sweep records BF-192's greedy upper bound.",
+      "expectedArboricity": 5
+    },
+    {
+      "name": "synthetic-k15-core",
+      "root": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/tests/fixtures/roundtrip-vaults/synthetic-k15-core",
+      "description": "A K15 clique core plus trees. Exact clique arboricity is 8; the sweep records BF-192's greedy upper bound.",
+      "expectedArboricity": 8
+    }
+  ]
+}
