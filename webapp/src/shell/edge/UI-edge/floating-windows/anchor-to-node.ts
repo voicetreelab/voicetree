@@ -24,6 +24,7 @@ import type {Obstacle} from "@vt/graph-model/pure/graph/positioning/findBestPosi
 import {extractAllObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape";
 import type {SpatialIndex} from "@vt/graph-model/pure/graph/spatial";
 import {extractFromSpatialIndex} from "@vt/graph-model/pure/graph/positioning/spatialAdapters";
+import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 /**
  * Anchor a floating window to a parent node
@@ -51,6 +52,7 @@ export function anchorToNode(
 
     //console.log('[anchorToNode-v2] Anchoring to parentNodeId:', parentNodeId);
 
+    // [L2-seam-residual] cy-only: shadow-node parent lookup
     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     if (parentNode.length === 0) {
         throw new Error(`Parent node "${parentNodeId}" not found in graph. Cannot anchor floating window.`);
@@ -91,6 +93,7 @@ export function anchorToNode(
     );
 
     // Create shadow node (follows parent position via listener below)
+    // [L2-seam-residual] cy-only: shadow-node creation
     const shadowNode: cytoscape.CollectionReturnValue = cy.add({
         group: 'nodes',
         data: {
@@ -126,6 +129,7 @@ export function anchorToNode(
     });
 
     // Create edge from parent (task node) to shadow
+    // [L2-seam-residual] cy-only: shadow-node edge creation
     cy.add({
         group: 'edges',
         data: {
@@ -139,6 +143,7 @@ export function anchorToNode(
     });
 
     // Force render to ensure edge appears immediately (not deferred until pan/zoom)
+    // [L2-seam-residual] cy-only: shadow-node immediate render
     cy.forceRender();
 
     // Set up ResizeObserver (window resize → shadow dimensions)
@@ -259,7 +264,7 @@ function attachDragHandlers(
         isDragging = true;
         windowElement.classList.add('dragging');
 
-        const pan: cytoscape.Position = cy.pan();
+        const pan = getLayout().pan ?? { x: 0, y: 0 };
 
         // currentLeft/Top are already in screen coordinates (graph * zoom)
         // set by updateWindowPosition via graphToScreenPosition
@@ -281,8 +286,8 @@ function attachDragHandlers(
     const handleMouseMove: (e: MouseEvent) => void = (e: MouseEvent) => {
         if (!isDragging) return;
 
-        const pan: cytoscape.Position = cy.pan();
-        const zoom: number = cy.zoom();
+        const pan = getLayout().pan ?? { x: 0, y: 0 };
+        const zoom: number = getLayout().zoom ?? 1;
 
         const viewportX: number = e.clientX - dragOffset.x;
         const viewportY: number = e.clientY - dragOffset.y;
@@ -296,6 +301,7 @@ function attachDragHandlers(
         windowElement.style.top = `${screenPos.y}px`;
 
         // Update shadow node position (in graph coordinates)
+        // [L2-seam-residual] cy-only: shadow-node drag update
         const shadowNode: cytoscape.CollectionReturnValue = cy.getElementById(shadowNodeId);
         if (shadowNode.length > 0) {
             shadowNode.position({ x: graphX, y: graphY });
