@@ -20,6 +20,30 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'fsevents',
 ]
 
+// externalizeDepsPlugin resolves bundled packages (@vt/graph-model, @vt/graph-tools) to absolute
+// paths before rollup sees them, so string matching in external[] fails for their transitive deps.
+// Use a function that matches both raw specifiers and resolved absolute paths, and catches .node
+// native binaries that rollup cannot parse.
+const isMainExternal = (id: string): boolean => {
+  if (id.endsWith('.node')) return true
+  return MAIN_RUNTIME_EXTERNALS.some(
+    dep => id === dep || id.includes(`/node_modules/${dep}/`) || id.includes(`/node_modules/${dep}`)
+  )
+}
+
+// @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
+// The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
+// need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
+const externalNativePlugin = {
+  name: 'externalize-native-modules',
+  enforce: 'pre' as const,
+  resolveId(id: string) {
+    if (id.endsWith('.node') || id === 'fsevents') {
+      return { id, external: true }
+    }
+  }
+}
+
 /**
  * Electron-Vite configuration
  * This is the PRIMARY config for development (npm run electron)
@@ -27,7 +51,7 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
 export default defineConfig({
   main: {
     // Configuration for electron main process
-    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
+    plugins: [externalNativePlugin, externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
       alias: [
@@ -43,13 +67,13 @@ export default defineConfig({
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
         },
-        external: MAIN_RUNTIME_EXTERNALS
+        external: isMainExternal
       }
     }
   },
   preload: {
     // Configuration for preload script
-    plugins: [externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
+    plugins: [externalNativePlugin, externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
     logLevel: 'error',
     resolve: {
       alias: [
@@ -77,6 +101,7 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      externalNativePlugin,
       // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)
       // Must run before tailwindcss plugin
       {
