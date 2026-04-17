@@ -4,12 +4,13 @@
  * Rewritten to use types.ts with flat types and derived IDs.
  * Windows are anchored to invisible shadow nodes and move with graph transformations.
  *
- * NEVER cache cy.zoom() — use getCyInstance().zoom() or cy.zoom() directly. //human
- * cy.zoom() is an O(1) property read. Caching it creates stale-value bugs.
+ * Layout reads use `getLayout()` (layoutStore) not cy.zoom()/cy.pan() directly. //human [updated L2-BF-172]
+ * getLayout() is the L2-migrated source of truth; cy.zoom() reads are seam-residuals only.
  */
 
 import type cytoscape from 'cytoscape';
 import {getWindowTransform, graphToScreenPosition,} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
+import { getLayout, subscribeLayout } from '@vt/graph-state/state/layoutStore';
 import {
     type EditorId,
     type FloatingWindowData,
@@ -145,7 +146,7 @@ export function unregisterFloatingWindow(windowId: string): void {
  * Instead, we scale window positions and dimensions explicitly.
  */
 export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
-    const container: HTMLElement | undefined = cy.container() ?? undefined;
+    const container: HTMLElement | undefined = cy.container() ?? undefined; // [L2-seam-residual] cy-only: DOM container access
     const parent: HTMLElement = container?.parentElement ?? document.body;
 
     let overlay: HTMLElement = parent.querySelector('.cy-floating-overlay') as HTMLElement;
@@ -165,8 +166,9 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
         parent.appendChild(overlay);
 
         const syncTransform: () => void = () => {
-            const pan: cytoscape.Position = cy.pan();
-            const zoom: number = cy.zoom();
+            const layout = getLayout();
+            const pan = layout.pan ?? { x: 0, y: 0 };
+            const zoom = layout.zoom ?? 1;
 
             // Only translate, no scale - windows handle their own sizing
             overlay.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
@@ -202,27 +204,22 @@ export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
             });
         };
 
-        // Pan handler — schedule RAF sync for per-window updates
-        cy.on('pan', () => {
+        // Subscribe to layoutStore for pan/zoom/positions changes (replaces cy.on pan/zoom/position)
+        subscribeLayout((delta) => {
+            if (delta.zoom !== undefined) {
+                suppressInactivityDuringZoom();
+                markZoomActive();
+            }
             scheduleSync();
         });
 
-        // Zoom handler — schedule per-window sync
-        cy.on('zoom', () => {
-            suppressInactivityDuringZoom();
-            markZoomActive();
-            scheduleSync();
-        });
-
-        // Resize handler — always full sync (browser window resize)
-        cy.on('resize', () => {
-            scheduleSync();
-        });
-
-        // Sync floating window positions when nodes move (e.g., during Cola layout animation).
-        // Without this, cards desync from their Cy nodes during/after layout because layout
-        // fires 'position' events on nodes — not 'pan'/'zoom'/'resize' on cy.
-        cy.on('position', 'node', scheduleSync);
+        // ResizeObserver on container replaces cy.on('resize') — container already seam-residual
+        if (container) {
+            const resizeObserver = new ResizeObserver(() => {
+                scheduleSync();
+            });
+            resizeObserver.observe(container);
+        }
 
         // Zoom settle — run full sync once after zoom animation stops
         onZoomEnd(() => {
