@@ -167,6 +167,21 @@ export default defineConfig({
         input: {
           main: path.resolve(__dirname, 'index.html')
         },
+        // @vt/graph-model and @vt/knowledge-graph (bundled inline) export Node.js-only modules
+        // (child_process, fs/promises, @vscode/ripgrep, etc.). Rollup fails in renderer prod build
+        // because Node.js built-ins resolve to __vite-browser-external which lacks named exports.
+        // Externalizing all Node.js built-ins + known Node.js npm packages makes them transparent to
+        // Rollup; tree-shaking eliminates them since no renderer code calls them at runtime.
+        external: (id: string) => {
+          if (id.startsWith('node:')) return true
+          const NODE_BUILTINS = new Set(['assert', 'buffer', 'child_process', 'cluster',
+            'crypto', 'dgram', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 'https',
+            'module', 'net', 'os', 'path', 'punycode', 'querystring', 'readline', 'repl',
+            'stream', 'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util',
+            'v8', 'vm', 'wasi', 'worker_threads', 'zlib'])
+          if (NODE_BUILTINS.has(id.split('/')[0])) return true
+          return ['@vscode/ripgrep'].includes(id)
+        },
         output: {
           manualChunks: {
             'mermaid': ['mermaid']
