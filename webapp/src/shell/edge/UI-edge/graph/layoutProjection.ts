@@ -52,7 +52,7 @@ export function mountLayoutProjection(
         fit:       store.getLayout().fit ?? undefined,
     })
 
-    const unsubscribe = store.subscribeLayout((delta: LayoutDelta) => {
+    const unsubscribe: () => void = store.subscribeLayout((delta: LayoutDelta) => {
         applyLayoutDelta(cy, delta)
     })
 
@@ -78,7 +78,7 @@ export function applyLayoutDelta(
     cy.batch(() => {
         if (delta.positions !== undefined) {
             for (const [id, pos] of delta.positions) {
-                const node = cy.getElementById(id)
+                const node: ReturnType<typeof cy.getElementById> = cy.getElementById(id)
                 if (node.length > 0 && node.isNode()) {
                     node.position({ x: pos.x, y: pos.y })
                 }
