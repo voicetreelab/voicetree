@@ -25,7 +25,7 @@ export function selectFloatingWindowNode(
     cy: cytoscape.Core,
     fw: FloatingWindowData | FloatingWindowFields
 ): void {
-    const currentIds = [...getSelection()];
+    const currentIds: NodeIdAndFilePath[] = [...getSelection()];
     if (currentIds.length > 0) {
         dispatchDeselect(currentIds);
     }
