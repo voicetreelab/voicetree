@@ -1,7 +1,13 @@
-import {existsSync, readdirSync, readFileSync, writeFileSync} from 'fs'
+import {existsSync, readdirSync, writeFileSync} from 'fs'
 import path from 'path'
 
-import { SURFACE_ENTRY_DEFINITIONS, type LocationLookup } from './cytoscapeSurfaceEntries'
+import {SURFACE_ENTRY_DEFINITIONS} from './cytoscapeSurfaceEntries'
+import {type AuditLocation, collectTextMatches, resolveLocation, sortLocations} from './cytoscapeAuditLocationResolver'
+import {isProjectionSeam, PROJECTION_SEAM_PATTERNS} from './cytoscapeAuditSeam'
+import {renderCytoscapeCouplingCatalogue, renderCytoscapeCouplingAuditSummary} from './cytoscapeAuditRenderer'
+
+export type {AuditLocation} from './cytoscapeAuditLocationResolver'
+export {renderCytoscapeCouplingCatalogue, renderCytoscapeCouplingAuditSummary} from './cytoscapeAuditRenderer'
 
 export const CYTOSCAPE_COUPLING_CATALOGUE_RELATIVE_PATH: string =
     'brain/working-memory/tasks/cytoscape-ui-decoupling/coupling-catalogue.md'
@@ -21,39 +27,20 @@ export const ADDITIONAL_COUPLING_SURFACES: readonly string[] = [
     'shadow-node anchoring',
 ] as const
 
-const PROJECTION_SEAM_PATTERNS: readonly string[] = [
-    'webapp/src/shell/UI/**',
-    'webapp/src/shell/web/**',
-    'webapp/src/utils/responsivePadding.ts',
-    'webapp/src/utils/visibleViewport.ts',
-    'webapp/src/utils/viewportVisibility.ts',
-    // [L2-audit-exempt] Renderer-side projection consumers — cy.* calls here are
-    // architecturally correct (delta → cy), not authoritative state.
-    'webapp/src/shell/edge/UI-edge/graph/layoutProjection.ts',
-    'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts',
-    'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts',
-    'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts',
-] as const
-
 const CY_LINE_PATTERN: RegExp = /(^|[^A-Za-z0-9_])(cy|this\.cy)\./
 const CY_SELECTOR_PATTERN: RegExp = /(^|[^A-Za-z0-9_])(cy|this\.cy)\.\$(?:id)?\(/
 const CYTOSCAPE_IMPORT_PATTERN: RegExp = /^\s*import\b.*['"]cytoscape['"]/
-const COMMENT_ONLY_RATCHET_PATTERN: RegExp = /^\/\/\s*(cy|this\.cy)\./
 const EXCLUDED_AUDIT_SOURCE_FILES: readonly string[] = [
     'packages/graph-tools/src/cytoscapeCouplingAudit.ts',
+    'packages/graph-tools/src/cytoscapeAuditSeam.ts',
+    'packages/graph-tools/src/cytoscapeAuditLocationResolver.ts',
+    'packages/graph-tools/src/cytoscapeAuditRenderer.ts',
     'packages/graph-tools/src/cytoscapeSurfaceEntries.ts',
 ] as const
 
 type WorkspaceInfo = {
     readonly name: string
     readonly relativeRoot: string
-}
-
-export type AuditLocation = {
-    readonly relativePath: string
-    readonly absolutePath: string
-    readonly lineNumber: number
-    readonly snippet: string
 }
 
 export type PackageImportCount = {
@@ -92,18 +79,6 @@ export type CytoscapeCouplingAuditReport = {
 
 function normalizeRelativePath(filePath: string): string {
     return filePath.split(path.sep).join('/')
-}
-
-function trimSnippet(snippet: string, maxLength: number = 140): string {
-    const trimmed: string = snippet.trim()
-    if (trimmed.length <= maxLength) {
-        return trimmed
-    }
-    return `${trimmed.slice(0, maxLength - 3)}...`
-}
-
-function escapeTableCell(value: string): string {
-    return value.replace(/\|/g, '\\|')
 }
 
 function isSourceFile(relativePath: string): boolean {
@@ -175,37 +150,6 @@ function getSourceFiles(repoRoot: string): readonly string[] {
     return sourceFiles.sort((left: string, right: string) => left.localeCompare(right))
 }
 
-function isTestScaffolding(relativePath: string): boolean {
-    return (
-        relativePath.includes('/__tests__/')
-        || relativePath.includes('/integration-tests/')
-        || relativePath.includes('/test-utils/')
-    )
-}
-
-function isProjectionSeam(relativePath: string): boolean {
-    return (
-        relativePath.startsWith('webapp/src/shell/UI/')
-        || relativePath.startsWith('webapp/src/shell/web/')
-        || relativePath === 'webapp/src/utils/responsivePadding.ts'
-        || relativePath === 'webapp/src/utils/visibleViewport.ts'
-        || relativePath === 'webapp/src/utils/viewportVisibility.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyLiveCommandToRenderer.ts'
-        // [L2-audit-exempt] Renderer-side projection consumers — cy.* here is
-        // architecturally correct (delta → cy), not authoritative state.
-        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/layoutProjection.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/setupViewSubscriptions.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts'
-        // [L2-audit-exempt-2] Shadow-node / cy-only decoration surfaces — no graph-state equivalent.
-        // Shadow nodes are cytoscape-only renderer concepts (floating-window anchors).
-        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/anchor-to-node.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts'
-        || relativePath === 'webapp/src/shell/edge/UI-edge/floating-windows/select-floating-window-node.ts'
-        || isTestScaffolding(relativePath)
-    )
-}
-
 function getPackageNameForPath(relativePath: string): string {
     if (relativePath.startsWith('webapp/')) {
         return 'webapp'
@@ -215,114 +159,6 @@ function getPackageNameForPath(relativePath: string): string {
         return `@vt/${match[1]}`
     }
     return 'unknown'
-}
-
-function splitLines(content: string): readonly string[] {
-    return content.split(/\r?\n/)
-}
-
-function collectTextMatches(
-    repoRoot: string,
-    relativePath: string,
-    pattern: RegExp,
-    options: {
-        readonly skipBlockComments?: boolean
-    } = {},
-): readonly AuditLocation[] {
-    const absolutePath: string = path.join(repoRoot, relativePath)
-    const lines: readonly string[] = splitLines(readFileSync(absolutePath, 'utf-8'))
-    const matches: AuditLocation[] = []
-    let inBlockComment: boolean = false
-    for (let index: number = 0; index < lines.length; index += 1) {
-        const line: string = lines[index]
-        const trimmed: string = line.trim()
-
-        if (options.skipBlockComments === true) {
-            if (inBlockComment) {
-                if (trimmed.includes('*/')) {
-                    inBlockComment = false
-                }
-                continue
-            }
-            if (trimmed.startsWith('/*')) {
-                if (!trimmed.includes('*/')) {
-                    inBlockComment = true
-                }
-                continue
-            }
-        }
-
-        if (
-            options.skipBlockComments === true
-            && trimmed.startsWith('//')
-            && COMMENT_ONLY_RATCHET_PATTERN.test(trimmed) === false
-        ) {
-            continue
-        }
-
-        pattern.lastIndex = 0
-        if (!pattern.test(line)) {
-            continue
-        }
-
-        matches.push({
-            relativePath,
-            absolutePath,
-            lineNumber: index + 1,
-            snippet: trimSnippet(line),
-        })
-    }
-    return matches
-}
-
-function resolveLocation(repoRoot: string, lookup: LocationLookup): AuditLocation {
-    const absolutePath: string = path.join(repoRoot, lookup.relativePath)
-    const lines: readonly string[] = splitLines(readFileSync(absolutePath, 'utf-8'))
-    const targetOccurrence: number = lookup.occurrence ?? 1
-    let currentOccurrence: number = 0
-    for (let index: number = 0; index < lines.length; index += 1) {
-        if (!lines[index].includes(lookup.contains)) {
-            continue
-        }
-        currentOccurrence += 1
-        if (currentOccurrence !== targetOccurrence) {
-            continue
-        }
-        return {
-            relativePath: lookup.relativePath,
-            absolutePath,
-            lineNumber: index + 1,
-            snippet: trimSnippet(lines[index]),
-        }
-    }
-    throw new Error(`Could not resolve ${lookup.relativePath} containing "${lookup.contains}"`)
-}
-
-function sortLocations(locations: readonly AuditLocation[]): readonly AuditLocation[] {
-    return [...locations].sort((left: AuditLocation, right: AuditLocation) => {
-        const pathCompare: number = left.relativePath.localeCompare(right.relativePath)
-        if (pathCompare !== 0) {
-            return pathCompare
-        }
-        return left.lineNumber - right.lineNumber
-    })
-}
-
-function groupLocationsByFile(locations: readonly AuditLocation[]): ReadonlyMap<string, readonly AuditLocation[]> {
-    const grouped: Map<string, AuditLocation[]> = new Map()
-    for (const location of locations) {
-        const bucket: AuditLocation[] = grouped.get(location.relativePath) ?? []
-        bucket.push(location)
-        grouped.set(location.relativePath, bucket)
-    }
-    const sortedEntries: [string, readonly AuditLocation[]][] = [...grouped.entries()]
-        .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath))
-        .map(([relativePath, bucket]) => [relativePath, sortLocations(bucket)])
-    return new Map(sortedEntries)
-}
-
-function formatLocationLink(location: AuditLocation): string {
-    return `[${location.relativePath}:${location.lineNumber}](<${location.absolutePath}:${location.lineNumber}>)`
 }
 
 export function parseBaselineCountFromCatalogue(markdown: string): number {
@@ -387,7 +223,7 @@ export function runCytoscapeCouplingAudit(repoRoot: string): CytoscapeCouplingAu
             locations: sortLocations(locations),
         }))
 
-    const tryResolve = (lookup: LocationLookup): AuditLocation | null => {
+    const tryResolve = (lookup: Parameters<typeof resolveLocation>[1]): AuditLocation | null => {
         try { return resolveLocation(repoRoot, lookup) } catch { return null }
     }
     const surfaceEntries: readonly SurfaceCatalogueEntry[] = SURFACE_ENTRY_DEFINITIONS
@@ -414,87 +250,6 @@ export function runCytoscapeCouplingAudit(repoRoot: string): CytoscapeCouplingAu
         requiredSurfaces: [...REQUIRED_COUPLING_SURFACES],
         additionalSurfaces: [...ADDITIONAL_COUPLING_SURFACES],
     }
-}
-
-export function renderCytoscapeCouplingCatalogue(report: CytoscapeCouplingAuditReport): string {
-    const lines: string[] = []
-    const groupedOutsideProjectionLocations: ReadonlyMap<string, readonly AuditLocation[]> =
-        groupLocationsByFile(report.outsideProjectionSeamLocations)
-
-    lines.push('# Cytoscape Coupling Catalogue')
-    lines.push('')
-    lines.push('Generated by `npx tsx packages/graph-tools/scripts/audit-cytoscape-coupling.ts --write-catalogue`.')
-    lines.push('')
-    lines.push('## Baseline')
-    lines.push(`- Outside projection seam \`cy.*\` count: ${report.outsideProjectionSeamCount}`)
-    lines.push(`- Catalogue path: \`${report.catalogueRelativePath}\``)
-    lines.push(`- Named surfaces audited: ${report.requiredSurfaces.join(', ')}`)
-    lines.push(`- Additional surfaces flagged: ${report.additionalSurfaces.join(', ')}`)
-    lines.push('')
-    lines.push('## Projection Seam')
-    for (const seamPattern of report.projectionSeamPatterns) {
-        lines.push(`- \`${seamPattern}\``)
-    }
-    lines.push('')
-    lines.push('## Cytoscape Imports By Package')
-    lines.push('| Package | Count | Locations |')
-    lines.push('| --- | ---: | --- |')
-    for (const packageImportCount of report.packageImportCounts) {
-        const renderedLocations: string = packageImportCount.locations.length === 0
-            ? 'none'
-            : packageImportCount.locations.map(formatLocationLink).join('<br>')
-        lines.push(
-            `| ${escapeTableCell(packageImportCount.packageName)} | ${packageImportCount.count} | ${renderedLocations} |`
-        )
-    }
-    lines.push('')
-    lines.push('## Outside Projection Seam `cy.*` Inventory')
-    for (const [relativePath, locations] of groupedOutsideProjectionLocations.entries()) {
-        lines.push(`### \`${relativePath}\` (${locations.length})`)
-        for (const location of locations) {
-            lines.push(`- ${formatLocationLink(location)} - \`${location.snippet}\``)
-        }
-        lines.push('')
-    }
-    lines.push('## Surface Catalogue')
-    lines.push('| Surface | Reference | Current owner | Current consumer(s) | Mutates graph-model? | Survives restart? | Notes |')
-    lines.push('| --- | --- | --- | --- | --- | --- | --- |')
-    for (const surfaceEntry of report.surfaceEntries) {
-        const renderedConsumers: string = surfaceEntry.consumers
-            .map(consumer => `${escapeTableCell(consumer.description)} (${formatLocationLink(consumer.location)})`)
-            .join('<br>')
-        lines.push(
-            `| ${escapeTableCell(`${surfaceEntry.surface}: ${surfaceEntry.label}`)} | ${formatLocationLink(surfaceEntry.primary)} | ${escapeTableCell(surfaceEntry.owner)} | ${renderedConsumers} | ${escapeTableCell(surfaceEntry.mutatesGraphModel)} | ${escapeTableCell(surfaceEntry.survivesRestart)} | ${escapeTableCell(surfaceEntry.notes)} |`
-        )
-    }
-    return lines.join('\n').trimEnd() + '\n'
-}
-
-export function renderCytoscapeCouplingAuditSummary(report: CytoscapeCouplingAuditReport): string {
-    const lines: string[] = []
-    lines.push(`Outside projection seam count: ${report.outsideProjectionSeamCount}`)
-    lines.push(`Catalogue: ${report.catalogueAbsolutePath}`)
-    lines.push('Projection seam:')
-    for (const seamPattern of report.projectionSeamPatterns) {
-        lines.push(`- ${seamPattern}`)
-    }
-    lines.push('Cytoscape imports by package:')
-    for (const packageImportCount of report.packageImportCounts) {
-        lines.push(`- ${packageImportCount.packageName}: ${packageImportCount.count}`)
-    }
-    lines.push('Named surfaces:')
-    for (const surface of report.requiredSurfaces) {
-        lines.push(`- ${surface}`)
-    }
-    lines.push('Additional surfaces:')
-    for (const surface of report.additionalSurfaces) {
-        lines.push(`- ${surface}`)
-    }
-    lines.push('Outside projection seam callsites:')
-    for (const location of report.outsideProjectionSeamLocations) {
-        lines.push(`- ${location.relativePath}:${location.lineNumber} ${location.snippet}`)
-    }
-    return lines.join('\n')
 }
 
 export function writeCytoscapeCouplingCatalogue(report: CytoscapeCouplingAuditReport): void {
