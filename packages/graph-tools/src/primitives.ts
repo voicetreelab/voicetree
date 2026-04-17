@@ -112,9 +112,5 @@ export function resolveLinkTarget(
         }
     }
 
-    if (!normalizedTarget.includes('/')) {
-        return uniqueBasenames.get(path.posix.basename(normalizedTarget))
-    }
-
-    return undefined
+    return uniqueBasenames.get(path.posix.basename(normalizedTarget))
 }
