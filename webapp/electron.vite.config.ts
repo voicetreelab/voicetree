@@ -15,7 +15,9 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'onnxruntime-common',
   'onnxruntime-web',
   'better-sqlite3',
-  'sqlite-vec'
+  'sqlite-vec',
+  'chokidar',
+  'fsevents',
 ]
 
 /**
