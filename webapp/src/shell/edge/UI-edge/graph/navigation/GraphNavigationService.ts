@@ -68,6 +68,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   fitToLastNode(): void {
     if (this.lastCreatedNodeId) {
       const cy: Core = this.cy;
+      // [L2-seam-residual] cy-only: node ref required for cyFitWithRelativeZoom viewport API
       const node: CollectionReturnValue = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
         const fraction: number = O.isSome(getEditorByNodeId(this.lastCreatedNodeId as NodeIdAndFilePath)) ? EDITOR_TARGET_FRACTION : NODE_TARGET_FRACTION;
@@ -90,20 +91,23 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // This preserves the blue activity indicators when cycling between agents.
 
     // Get the shadow node from cy for viewport fitting
+    // [L2-seam-residual] cy-only: shadow node ref required for viewport fitting
     const terminalShadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId);
 
     dispatchDeselect([...getSelection()]);
+    // [L2-seam-residual] cy-only: visual deselect — no store→cy selection projection exists
     cy.elements(':selected').unselect();
     setActiveTerminalId(terminalId);
 
     // Collect terminal shadow node + its parent (context node)
-    let nodesToFit: CollectionReturnValue = cy.collection().union(terminalShadowNode);
+    let nodesToFit: CollectionReturnValue = terminalShadowNode;
 
     // Use anchoredToNodeId (task node) if set, otherwise fall back to attachedToContextNodeId
     const parentNodeId: string | undefined = O.isSome(terminal.anchoredToNodeId)
       ? terminal.anchoredToNodeId.value
       : terminal.attachedToContextNodeId;
     if (parentNodeId) {
+      // [L2-seam-residual] cy-only: parent node ref required for viewport fitting
       const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
       if (parentNode.length > 0) {
         nodesToFit = nodesToFit.union(parentNode);
@@ -191,6 +195,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
   handleSearchSelect(nodeId: string): void {
     //console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
     const cy: Core = this.cy;
+    // [L2-seam-residual] cy-only: node ref required for viewport fit, highlight, and select
     let node: CollectionReturnValue = cy.getElementById(nodeId);
     let resolvedNodeId: string = nodeId;
 
@@ -200,6 +205,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
       const linkComponents: readonly string[] = getPathComponents(nodeId);
       if (linkComponents.length > 0) {
         const match: { node: NodeSingular | null; score: number } = { node: null, score: 0 };
+        // [L2-seam-residual] cy-only: fuzzy ID matching requires node metadata (isShadowNode, etc.)
         cy.nodes().forEach((n: NodeSingular) => {
           if (n.data('isShadowNode') || n.data('isContextNode') || n.data('isFolderNode')) return;
           const score: number = linkMatchScore(nodeId, n.id());
@@ -226,6 +232,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
 
       // Select the node (deselect others first for clean single-selection)
       dispatchDeselect([...getSelection()]);
+      // [L2-seam-residual] cy-only: visual deselect — no store→cy selection projection exists
       cy.elements(':selected').unselect();
       dispatchSelect([resolvedNodeId]);
       node.select();
