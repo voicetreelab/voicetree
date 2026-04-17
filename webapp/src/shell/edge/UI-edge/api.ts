@@ -11,6 +11,7 @@
  */
 
 import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/floating-windows/terminals/launchTerminalOntoUI";
+import {applyLiveCommandToRenderer} from "@/shell/edge/UI-edge/graph/applyLiveCommandToRenderer";
 import {
     updateFloatingEditors
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
@@ -153,6 +154,7 @@ export const uiAPIHandler = {
     onSettingsChanged: (): void => {
         for (const cb of settingsChangeListeners) cb();
     },
+    applyLiveCommand: applyLiveCommandToRenderer,
 };
 
 export type UIAPIType = typeof uiAPIHandler;

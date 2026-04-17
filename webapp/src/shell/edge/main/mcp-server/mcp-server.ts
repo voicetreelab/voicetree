@@ -29,6 +29,7 @@ import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {searchNodesTool as _searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
 import {graphStructureTool} from './graphStructureTool'
+import {registerLiveTools} from './registerLiveTools'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 
@@ -66,6 +67,9 @@ export type {CreateGraphParams, CreateGraphNodeInput} from './createGraphTool'
 export {createGraphTool} from './createGraphTool'
 export type {GraphStructureParams} from './graphStructureTool'
 export {graphStructureTool} from './graphStructureTool'
+export type {DispatchLiveCommandParams, DispatchLiveCommandResult} from './dispatchLiveCommandTool'
+export {dispatchLiveCommandTool} from './dispatchLiveCommandTool'
+export {getLiveStateTool, getLiveState} from './getLiveStateTool'
 
 // ─── Overnight trigger ───────────────────────────────────────────────────────
 
@@ -407,6 +411,8 @@ Task
         },
         async ({folderPath, withSummaries}) => graphStructureTool({folderPath, withSummaries})
     )
+
+    registerLiveTools(server)
 
     return server
 }
