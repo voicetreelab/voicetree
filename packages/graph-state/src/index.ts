@@ -1,14 +1,16 @@
 /**
- * @vt/graph-state — contract types plus fixture-loader helpers.
+ * @vt/graph-state — contract types, fixture-loader helpers, and runtime state primitives.
  *
- * At this level, graph-state exports the BF-138 public contract TYPES plus the
- * BF-141 fixture loader utilities consumed by L1 tests and smoke scripts.
+ * At this level, graph-state exports the BF-138 public contract TYPES, the
+ * BF-141 fixture loader utilities, and the runtime state-machine pieces that
+ * L1 command tasks add incrementally.
  *
  * See:
  * - src/contract.d.ts       — public types + function signatures
  * - decisions.md            — numbered decisions w/ rationale + alternatives
  * - fixture-format.md       — schema consumed by BF-141 (test fixtures)
  * - src/fixtures.ts         — runtime fixture loader / serializer
+ * - src/applyCommand.ts     — runtime command application entrypoints
  */
 export type {
     State,
@@ -39,6 +41,13 @@ export type {
 } from './contract'
 
 export {
+    applyCommand,
+    applyCommandWithDelta,
+    emptyState,
+} from './applyCommand'
+
+export {
+    project,
     FIXTURES_DIR,
     SNAPSHOTS_DIR,
     SEQUENCES_DIR,
@@ -64,6 +73,8 @@ export {
     snapshotStateFromVault,
     toFixtureJson,
 } from './fixtures'
+
+export { project } from './project'
 
 export type {
     SnapshotDocument,
