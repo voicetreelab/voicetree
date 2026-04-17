@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "nodes": 1000,
+  "edges": 3000,
+  "meanMs": 5.364,
+  "p95Ms": 12.849,
+  "machine": "darwin 24.6.0 arm64"
+}
