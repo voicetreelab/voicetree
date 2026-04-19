@@ -6,15 +6,6 @@
  * This ensures the pan happens at the right time regardless of how long layout takes.
  */
 
-import type { Core, CollectionReturnValue } from 'cytoscape';
-import {
-  cyCenterOnVisibleViewport,
-  cyFitCollectionByAverageNodeSize,
-  cyFitIntoVisibleViewport,
-  cySmartCenter,
-  getResponsivePadding
-} from '@/utils/responsivePadding';
-
 export type PendingPanType = 'large-batch' | 'small-graph' | 'wikilink-target' | 'voice-follow' | 'editor-focus' | null;
 
 interface PendingPanState {
@@ -28,8 +19,19 @@ interface PendingPanState {
 let pendingPan: PendingPanState | null = null;
 
 /**
+ * Describes the viewport operation to execute — computed from pending state, applied by the
+ * cy seam (applyPendingPan.ts). Pure data: no cytoscape types here.
+ */
+export type PanAction =
+  | { readonly kind: 'fit-non-folder-elements'; readonly paddingPercent: number }
+  | { readonly kind: 'fit-non-folder-nodes'; readonly targetFraction: number }
+  | { readonly kind: 'smart-center-with-neighbors'; readonly nodeId: string }
+  | { readonly kind: 'smart-center'; readonly nodeId: string }
+  | { readonly kind: 'center-in-viewport'; readonly nodeId: string; readonly duration: number };
+
+/**
  * Set a pending pan to be executed when layout completes.
- * @param type The type of pan to execute ('large-batch' for cy.fit, 'small-graph' for smart zoom)
+ * @param type The type of pan to execute ('large-batch' for viewport fit, 'small-graph' for smart zoom)
  * @param nodeIds The IDs of the new nodes to potentially fit
  * @param totalNodes Total number of nodes in the graph at time of setting
  */
@@ -75,72 +77,35 @@ export function hasPendingPan(): boolean {
 }
 
 /**
- * Pan the viewport to the tracked node without clearing pending state.
- * Can be called multiple times during a layout chain — each layout phase
- * pans to keep the node visible. State is cleared separately by clearPendingPan().
- * Returns true if a pan was executed, false otherwise.
+ * Compute the viewport action for the current pending pan state.
+ * Pure — no cytoscape access. The caller (applyPendingPan seam) applies it to the instance.
+ * Returns null if no pan is pending or if required data is missing.
  */
-export function panToTrackedNode(cy: Core): boolean {
-  if (!pendingPan || cy.destroyed()) { // [L2-seam-residual] cy-only: lifecycle check
-    return false;
-  }
-
+export function computePendingPanAction(): PanAction | null {
+  if (!pendingPan) return null;
   const { type, targetNodeId } = pendingPan;
 
   if (type === 'large-batch') {
-    // Large batch (>30% new nodes): fit all in view with padding
-    // Exclude folder compound nodes — their bbox encompasses all children and causes excessive zoom-out
-    // [L2-seam-residual] cy-only: render-layer collection needed for viewport fit
-    const nonFolderEles: CollectionReturnValue = cy.elements().filter(ele => !ele.data('isFolderNode')) as CollectionReturnValue;
-    const padding: number = getResponsivePadding(cy, 15);
-    cyFitIntoVisibleViewport(cy, nonFolderEles, padding);
-    return true;
-  } else if (type === 'small-graph') {
-    // Fit so average node takes target fraction of viewport (smart zoom: only zooms if needed)
-    // Exclude folder compound nodes — their bbox encompasses all children and inflates the average
-    // [L2-seam-residual] cy-only: render-layer collection needed for viewport fit
-    const nonFolderNodes: CollectionReturnValue = cy.nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
-    cyFitCollectionByAverageNodeSize(cy, nonFolderNodes, 0.15);
-    return true;
-  } else if (type === 'wikilink-target' && targetNodeId) {
-    // [L2-seam-residual] cy-only: element lookup required for neighborhood centering
-    const targetNode: CollectionReturnValue = cy.getElementById(targetNodeId);
-    if (targetNode.length > 0) {
-      // Include target + d=1 neighbors for spatial context (exclude folder compound nodes)
-      const nodesToCenter: CollectionReturnValue = targetNode.closedNeighborhood().nodes().filter(n => !n.data('isFolderNode')) as CollectionReturnValue;
-      cySmartCenter(cy, nodesToCenter);
-      return true;
-    }
-  } else if (type === 'voice-follow' && targetNodeId) {
-    // [L2-seam-residual] cy-only: element lookup required for centering
-    const node: CollectionReturnValue = cy.getElementById(targetNodeId);
-    if (node.length > 0) {
-      cySmartCenter(cy, node);
-      return true;
-    }
-  } else if (type === 'editor-focus' && targetNodeId) {
-    // [L2-seam-residual] cy-only: element lookup required for centering
-    const node: CollectionReturnValue = cy.getElementById(targetNodeId);
-    if (node.length > 0) {
-      // Pan to keep focused editor in viewport without changing zoom
-      cyCenterOnVisibleViewport(cy, node, 200);
-      return true;
-    }
+    // Large batch (>30% new nodes): fit all non-folder elements in view with padding
+    return { kind: 'fit-non-folder-elements', paddingPercent: 15 };
   }
-
-  return false;
-}
-
-/**
- * Consume and execute the pending pan on the given cytoscape instance.
- * Thin wrapper: pans viewport then clears state. Used by external callers
- * that want the original consume-and-clear semantics.
- * Returns true if a pan was executed, false otherwise.
- */
-export function consumePendingPan(cy: Core): boolean {
-  const result: boolean = panToTrackedNode(cy);
-  clearPendingPan();
-  return result;
+  if (type === 'small-graph') {
+    // Fit so average node takes 15% of viewport (smart zoom: only zooms if needed)
+    return { kind: 'fit-non-folder-nodes', targetFraction: 0.15 };
+  }
+  if (type === 'wikilink-target' && targetNodeId) {
+    // Center on target + d=1 neighbors for spatial context (exclude folder compound nodes)
+    return { kind: 'smart-center-with-neighbors', nodeId: targetNodeId };
+  }
+  if (type === 'voice-follow' && targetNodeId) {
+    return { kind: 'smart-center', nodeId: targetNodeId };
+  }
+  if (type === 'editor-focus' && targetNodeId) {
+    // Pan to keep focused editor in viewport without changing zoom.
+    // targetNodeId may be a shadow node (not in graph model) — seam handles cy lookup.
+    return { kind: 'center-in-viewport', nodeId: targetNodeId, duration: 200 };
+  }
+  return null;
 }
 
 /**

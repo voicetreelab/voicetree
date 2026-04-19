@@ -29,7 +29,8 @@ import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spat
 import { isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
-import { panToTrackedNode, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import { computePendingPanAction, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import { applyPendingPan } from './applyPendingPan';
 import { getFocusedEditorNodeId, getFocusedTerminalShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/speech-to-focused';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
@@ -119,7 +120,10 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }
 
     // Pan viewport to tracked node at end of full layout chain, then clear state
-    panToTrackedNode(cy);
+    if (!cy.destroyed()) {
+      const action = computePendingPanAction();
+      if (action) applyPendingPan(cy, action);
+    }
     clearPendingPan();
 
     // If another layout was queued, run it now
