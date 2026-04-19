@@ -30,6 +30,7 @@ import { isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { computePendingPanAction, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
+import type { PanAction } from '@/shell/edge/UI-edge/state/PendingPanStore';
 import { applyPendingPan } from './applyPendingPan';
 import { getFocusedEditorNodeId, getFocusedTerminalShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/speech-to-focused';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
@@ -121,7 +122,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     // Pan viewport to tracked node at end of full layout chain, then clear state
     if (!cy.destroyed()) {
-      const action = computePendingPanAction();
+      const action: PanAction | null = computePendingPanAction();
       if (action) applyPendingPan(cy, action);
     }
     clearPendingPan();
