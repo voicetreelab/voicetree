@@ -23,12 +23,11 @@ import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/e
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
-import { signalViewportManipulation } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
+import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 import { isSelected } from '@vt/graph-state';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 
 export class NavigationGestureService {
-    private cy: Core;
     private container: HTMLElement;
 
     // Middle-mouse pan state
@@ -46,8 +45,8 @@ export class NavigationGestureService {
 
     // Smooth zoom animation state (for discrete mouse wheels)
     private targetZoom: number = 1;
-    private currentZoom: number = 1;  // tracks last-dispatched zoom; updated on every cy.zoom() write
-    private panEnabled: boolean = true; // snapshot of cy.userPanningEnabled(); set in constructor
+    private currentZoom: number = 1;  // tracks last-dispatched zoom; updated on every dispatchSetZoom write
+    private panEnabled: boolean = true; // panning always enabled; userPanningEnabled is always true in this app
     private zoomCursorPos: { x: number; y: number } = { x: 0, y: 0 };
     private zoomAnimating: boolean = false;
     private zoomAnimFrameId: number = 0;
@@ -62,11 +61,9 @@ export class NavigationGestureService {
     private handleFloatingWindowWheel: (e: WheelEvent) => void;
     private unsubSettingsChange: () => void;
 
-    constructor(cy: Core, container: HTMLElement) {
-        this.cy = cy;
+    constructor(_cy: Core, container: HTMLElement) {
         this.container = container;
         this.currentZoom = getLayout().zoom ?? 1;
-        this.panEnabled = cy.userPanningEnabled(); // [L2-seam-residual] cy-only: pan-enabled flag not in layoutStore
 
         // Bind handlers
         this.handleWheel = this.onWheel.bind(this);
@@ -120,14 +117,14 @@ export class NavigationGestureService {
 
         // Trackpad scroll (non-pinch) → pan
         if (isTrackpad && !e.ctrlKey) {
-            signalViewportManipulation(this.cy);
+            signalViewportManipulationCached();
             const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
             dispatchSetPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
             return;
         }
 
         // Mouse wheel or trackpad pinch (ctrlKey) → zoom using Cytoscape-compatible logic
-        signalViewportManipulation(this.cy);
+        signalViewportManipulationCached();
         this.zoomAtCursor(e);
     }
 
@@ -209,11 +206,14 @@ export class NavigationGestureService {
             this.cancelZoomAnimation();
             const newZoom: number = this.currentZoom * Math.pow(10, diff);
             const clampedZoom: number = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-            // [L2-seam-residual] mouse-anchored zoom: renderedPosition not modeled in layoutStore
-            this.cy.zoom({
-                level: clampedZoom,
-                renderedPosition: { x: e.clientX, y: e.clientY }
+            // Cursor-anchored zoom: keep model point under cursor fixed via store dispatch
+            const pinchPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+            const rp: { x: number; y: number } = { x: e.clientX, y: e.clientY };
+            dispatchSetPan({
+                x: (pinchPan.x - rp.x) / this.currentZoom * clampedZoom + rp.x,
+                y: (pinchPan.y - rp.y) / this.currentZoom * clampedZoom + rp.y,
             });
+            dispatchSetZoom(clampedZoom);
             this.currentZoom = clampedZoom;
             return;
         }
@@ -328,7 +328,7 @@ export class NavigationGestureService {
             if (!this.panEnabled) return;
             e.preventDefault();
             e.stopImmediatePropagation();
-            signalViewportManipulation(this.cy);
+            signalViewportManipulationCached();
             this.zoomAtCursor(e);
             return;
         }
@@ -339,7 +339,7 @@ export class NavigationGestureService {
             if (!this.panEnabled) return;
             e.preventDefault();
             e.stopImmediatePropagation();
-            signalViewportManipulation(this.cy);
+            signalViewportManipulationCached();
             const hPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
             dispatchSetPan({ x: hPan.x - e.deltaX, y: hPan.y - e.deltaY });
             return;
@@ -368,7 +368,7 @@ export class NavigationGestureService {
         // Use native detection from main process
         const isTrackpad: boolean = getIsTrackpadScrolling();
 
-        signalViewportManipulation(this.cy);
+        signalViewportManipulationCached();
         if (isTrackpad && !e.ctrlKey) {
             // Trackpad scroll → pan
             const fwPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
@@ -402,7 +402,7 @@ export class NavigationGestureService {
 
         const dx: number = e.clientX - this.lastPos.x;
         const dy: number = e.clientY - this.lastPos.y;
-        signalViewportManipulation(this.cy);
+        signalViewportManipulationCached();
         const mmPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
         dispatchSetPan({ x: mmPan.x + dx, y: mmPan.y + dy });
         this.lastPos = { x: e.clientX, y: e.clientY };

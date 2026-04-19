@@ -72,8 +72,22 @@ function getRenderer(cy: Core): CytoscapeRenderer | undefined {
 export function signalViewportManipulation(cy: Core): void {
     const renderer: CytoscapeRenderer | undefined = getRenderer(cy);
     if (!renderer) return;
-    if (!largeGraphModeActive) return;
+    applyViewportManipulationSignal(renderer);
+}
 
+/**
+ * Same as signalViewportManipulation but uses the cached renderer — no cy
+ * reference needed. Safe to call after initializeCytoscapeInstance has run
+ * (which calls installCollectionCache/installTextureCacheSkip to warm the
+ * cache). No-op if the cache is cold.
+ */
+export function signalViewportManipulationCached(): void {
+    if (!cachedRenderer) return;
+    applyViewportManipulationSignal(cachedRenderer);
+}
+
+function applyViewportManipulationSignal(renderer: CytoscapeRenderer): void {
+    if (!largeGraphModeActive) return;
     renderer.data.wheelZooming = true;
     if (renderer.data.wheelTimeout) clearTimeout(renderer.data.wheelTimeout);
     renderer.data.wheelTimeout = setTimeout(() => {

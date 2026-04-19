@@ -62,7 +62,7 @@ export function updateHeadlessBadges(): void {
     if (badgeTerminals.length === 0 && badgeElements.size === 0) return;
 
     // Lazy-register zoom listener for badge repositioning
-    // [L2-seam-residual] cy-only: user gesture zooms bypass layoutStore (NavigationGestureService writes cy directly); subscribeLayout alone would miss those events
+    // cy-only: cy.on('zoom') fires after layoutProjection applies zoom to cy; subscribeLayout fires before cy.zoom() so badges would reposition before the viewport updates
     if (!zoomListenerRegistered) {
         cy.on('zoom', repositionBadges);
         zoomListenerRegistered = true;
