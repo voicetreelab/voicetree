@@ -1,0 +1,19 @@
+{
+  "flow": "F5",
+  "title": "Toggle selection between two nodes",
+  "intent": "Exercise replace-select, additive-select, and deselect on live node ids.",
+  "exercises": ["selection", "toggle", "live-state parity"],
+  "likelyStatusToday": "drift risk",
+  "judgeFocus": [
+    "Selection snapshots move from the first node to both nodes and back to the second node only.",
+    "Renderer and serialized state remain aligned while selection changes."
+  ],
+  "steps": [
+    { "dispatch": { "type": "Select", "ids": ["{{primaryNodeId}}"] } },
+    { "wait": 120 },
+    { "dispatch": { "type": "Select", "ids": ["{{secondaryNodeId}}"], "additive": true } },
+    { "wait": 120 },
+    { "dispatch": { "type": "Deselect", "ids": ["{{primaryNodeId}}"] } },
+    { "wait": 200 }
+  ]
+}

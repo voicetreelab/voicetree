@@ -1,0 +1,19 @@
+{
+  "flow": "F8",
+  "title": "Unload and reload the active root",
+  "intent": "Exercise root reload as an error-recovery path after live mutations.",
+  "exercises": ["reload", "recovery", "roots"],
+  "likelyStatusToday": "likely broken",
+  "judgeFocus": [
+    "The active root disappears from roots.loaded after unload and returns after reload.",
+    "The graph shell stays mounted across the recovery path and can fit again afterward."
+  ],
+  "steps": [
+    { "dispatch": { "type": "UnloadRoot", "root": "{{rootPath}}" } },
+    { "wait": 250 },
+    { "dispatch": { "type": "LoadRoot", "root": "{{rootPath}}" } },
+    { "wait": 1500 },
+    { "dispatch": { "type": "RequestFit", "paddingPx": 24 } },
+    { "wait": 250 }
+  ]
+}

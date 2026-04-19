@@ -1,0 +1,17 @@
+{
+  "flow": "F4",
+  "title": "Collapse and expand the first available folder",
+  "intent": "Exercise folder-collapse projection plus recovery back to the expanded state.",
+  "exercises": ["collapse", "expand", "projection"],
+  "likelyStatusToday": "known-issue",
+  "judgeFocus": [
+    "The collapsed folder id lands in collapseSet after the first dispatch.",
+    "The same folder disappears from collapseSet after expand and the viewport remains usable."
+  ],
+  "steps": [
+    { "dispatch": { "type": "Collapse", "folder": "{{primaryFolderId}}" } },
+    { "wait": 250 },
+    { "dispatch": { "type": "Expand", "folder": "{{primaryFolderId}}" } },
+    { "wait": 250 }
+  ]
+}

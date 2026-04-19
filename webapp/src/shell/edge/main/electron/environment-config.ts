@@ -14,6 +14,10 @@ export function getConfiguredCdpPort(): string | null {
     return _configuredCdpPort;
 }
 
+function ensureUserDataDirectory(): void {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+}
+
 /**
  * Configure the Electron process environment: fix PATH, set app name,
  * handle fresh-start mode in dev, parse CLI args, suppress security
@@ -36,6 +40,10 @@ export function configureEnvironment(): void {
         const tempDir: string = path.join(os.tmpdir(), `voicetree-fresh-${Date.now()}`);
         app.setPath('userData', tempDir);
     }
+
+    // Chromium writes DevToolsActivePort inside userData when CDP starts. Ensure
+    // the active directory exists before enabling remote debugging.
+    ensureUserDataDirectory();
 
     // Parse CLI arguments for --open-folder (used by "Open Folder in New Instance")
     const openFolderIndex: number = process.argv.indexOf('--open-folder');

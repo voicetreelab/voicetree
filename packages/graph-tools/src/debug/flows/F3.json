@@ -1,0 +1,19 @@
+{
+  "flow": "F3",
+  "title": "Create child and type into the focused editor",
+  "intent": "Exercise the authoring pipeline by creating a child and typing into the editor that opens for it.",
+  "exercises": ["add child", "edit", "flush pipeline"],
+  "likelyStatusToday": "likely broken",
+  "judgeFocus": [
+    "An editor or input becomes focused after the create-child hotkey.",
+    "Typed content appears in subsequent screenshots or serialized state without renderer exceptions."
+  ],
+  "steps": [
+    { "dispatch": { "type": "Select", "ids": ["{{primaryNodeId}}"] } },
+    { "wait": 150 },
+    { "press": "Cmd+N" },
+    { "wait": 700 },
+    { "type": "\nBF-DBG-210 golden-flow edit\n" },
+    { "wait": 400 }
+  ]
+}

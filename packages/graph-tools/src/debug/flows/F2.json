@@ -1,0 +1,17 @@
+{
+  "flow": "F2",
+  "title": "Select node and add child via hotkey",
+  "intent": "Exercise selection wiring plus the add-child hotkey on a live node.",
+  "exercises": ["selection", "add child", "authoring"],
+  "likelyStatusToday": "likely broken",
+  "judgeFocus": [
+    "Selection snapshot contains the requested node before the hotkey fires.",
+    "Post-step screenshots and state show a new child/editor created from the selected node."
+  ],
+  "steps": [
+    { "dispatch": { "type": "Select", "ids": ["{{primaryNodeId}}"] } },
+    { "wait": 150 },
+    { "press": "Cmd+N" },
+    { "wait": 700 }
+  ]
+}

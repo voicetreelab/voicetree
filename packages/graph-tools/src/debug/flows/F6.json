@@ -1,0 +1,17 @@
+{
+  "flow": "F6",
+  "title": "Pan drift-stress sweep",
+  "intent": "Exercise viewport panning in both directions to surface drift between stored and rendered navigation state.",
+  "exercises": ["pan", "viewport", "drift stress"],
+  "likelyStatusToday": "cy-state drift risk",
+  "judgeFocus": [
+    "Serialized layout.pan changes across the sweep without console exceptions.",
+    "Screenshots visibly move the viewport rather than freezing or resetting unexpectedly."
+  ],
+  "steps": [
+    { "dispatch": { "type": "SetPan", "pan": { "x": 180, "y": -90 } } },
+    { "wait": 180 },
+    { "dispatch": { "type": "SetPan", "pan": { "x": -120, "y": 140 } } },
+    { "wait": 180 }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "flow": "F7",
+  "title": "Zoom and fit recovery",
+  "intent": "Exercise explicit zoom mutations followed by a fit recovery to the canonical viewport.",
+  "exercises": ["zoom", "fit", "recovery"],
+  "likelyStatusToday": "cy-state drift risk",
+  "judgeFocus": [
+    "Serialized layout.zoom changes to the requested value before RequestFit.",
+    "Post-fit screenshots recover a legible graph instead of leaving the viewport stranded."
+  ],
+  "steps": [
+    { "dispatch": { "type": "SetZoom", "zoom": 1.45 } },
+    { "wait": 180 },
+    { "dispatch": { "type": "RequestFit", "paddingPx": 32 } },
+    { "wait": 250 }
+  ]
+}

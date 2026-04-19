@@ -1,0 +1,16 @@
+{
+  "flow": "F1",
+  "title": "Bootstrap graph render and fit",
+  "intent": "Confirm the mounted graph shell renders and can execute a viewport fit without crashing.",
+  "exercises": ["bootstrap", "render", "viewport"],
+  "likelyStatusToday": "broken (blank canvas cases)",
+  "judgeFocus": [
+    "Sidebar shell renders instead of the blank project-selection or blank-root state.",
+    "State snapshots keep a non-empty loaded root set before and after RequestFit."
+  ],
+  "steps": [
+    { "waitFor": ".sidebar-wrapper", "timeoutMs": 2000 },
+    { "dispatch": { "type": "RequestFit", "paddingPx": 24 } },
+    { "wait": 300 }
+  ]
+}

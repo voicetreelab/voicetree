@@ -45,10 +45,7 @@ import {
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
 import type { WatcherOptions } from "./file-watcher-setup";
-
-const watcherOptions: WatcherOptions = {
-    usePolling: process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
-};
+import { DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
 import { createEmptyGraph } from '../pure/graph/createGraph';
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "../graph/positions-store";
@@ -70,6 +67,20 @@ export {
 
 // Re-export folder-scanner functions for api.ts
 export { getAvailableFoldersForSelector } from "./folder-scanner";
+
+async function resolveWatcherOptions(): Promise<WatcherOptions> {
+    const maybeProcess: { env?: Record<string, string | undefined> } | undefined =
+        (globalThis as typeof globalThis & {
+            process?: { env?: Record<string, string | undefined> }
+        }).process;
+
+    if (!maybeProcess?.env) {
+        return DEFAULT_WATCHER_OPTIONS;
+    }
+
+    const { resolveNodeWatcherOptions } = await import('./watcher-options.node');
+    return resolveNodeWatcherOptions(maybeProcess.env as NodeJS.ProcessEnv);
+}
 
 export async function initialLoad(): Promise<void> {
     // If already watching a directory, don't reload
@@ -250,6 +261,9 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         }
     }
 
+    // Resolve watcher options lazily so renderer imports never touch process.env.
+    const watcherOptions: WatcherOptions = await resolveWatcherOptions();
+
     // Setup file watcher - watch all paths in allowlist
     await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
 
@@ -301,6 +315,8 @@ async function createNewWorkspaceOnFileLimitExceeded(
         // Should not happen with empty folder, but handle gracefully
         return { success: false };
     }
+
+    const watcherOptions: WatcherOptions = await resolveWatcherOptions();
 
     // Setup file watcher for the new workspace
     const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];

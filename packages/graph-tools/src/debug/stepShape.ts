@@ -1,9 +1,12 @@
+import type { SerializedCommand } from '@vt/graph-state'
+
 export type ClickStep = { click: string }
 export type TypeStep = { type: string; selector?: string }
 export type PressStep = { press: string; selector?: string }
 export type WaitStep = { wait: number }
 export type WaitForStep = { waitFor: string; timeoutMs?: number }
 export type NavigateStep = { navigate: string }
+export type DispatchStep = { dispatch: SerializedCommand }
 
 export type StepSpec =
   | ClickStep
@@ -12,6 +15,7 @@ export type StepSpec =
   | WaitStep
   | WaitForStep
   | NavigateStep
+  | DispatchStep
 
 export type StepValidation =
   | { ok: true; step: StepSpec }
@@ -20,7 +24,24 @@ export type StepValidation =
 export const STEP_SPEC_SELECTOR_NOTE =
   'Selectors are plain CSS selectors. For hover-editor content, use #window-<nodeId>-editor .cm-content rather than #hover-editor.'
 
-const STEP_KEYS = ['click', 'type', 'press', 'wait', 'waitFor', 'navigate'] as const
+const STEP_KEYS = ['click', 'type', 'press', 'wait', 'waitFor', 'navigate', 'dispatch'] as const
+const COMMAND_TYPES = new Set([
+  'Collapse',
+  'Expand',
+  'Select',
+  'Deselect',
+  'AddNode',
+  'RemoveNode',
+  'AddEdge',
+  'RemoveEdge',
+  'Move',
+  'LoadRoot',
+  'UnloadRoot',
+  'SetZoom',
+  'SetPan',
+  'SetPositions',
+  'RequestFit',
+])
 
 function isRecord(input: unknown): input is Record<string, unknown> {
   return typeof input === 'object' && input !== null && !Array.isArray(input)
@@ -74,6 +95,25 @@ function rejectExtraKeys(
     ok: false,
     error: `${stepName} step has unsupported field(s): ${extras.join(', ')}`,
   }
+}
+
+function readSerializedCommand(value: unknown): StepValidation | SerializedCommand {
+  if (!isRecord(value)) {
+    return { ok: false, error: 'dispatch.dispatch must be an object with a string type field' }
+  }
+
+  if (typeof value.type !== 'string') {
+    return { ok: false, error: 'dispatch.dispatch.type must be a non-empty string' }
+  }
+
+  if (!COMMAND_TYPES.has(value.type)) {
+    return {
+      ok: false,
+      error: `dispatch.dispatch.type must be one of: ${[...COMMAND_TYPES].join(', ')}`,
+    }
+  }
+
+  return value as SerializedCommand
 }
 
 export function validateStepSpec(input: unknown): StepValidation {
@@ -147,6 +187,14 @@ export function validateStepSpec(input: unknown): StepValidation {
       const navigate = readNonEmptyString('navigate', 'navigate', input.navigate)
       if (typeof navigate !== 'string') return navigate
       return { ok: true, step: { navigate } }
+    }
+
+    case 'dispatch': {
+      const extraKeys = rejectExtraKeys('dispatch', input, ['dispatch'])
+      if (extraKeys) return extraKeys
+      const command = readSerializedCommand(input.dispatch)
+      if ('ok' in command && command.ok === false) return command
+      return { ok: true, step: { dispatch: command } }
     }
   }
 }

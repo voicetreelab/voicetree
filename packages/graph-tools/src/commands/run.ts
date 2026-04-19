@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { serializeState, type State } from '@vt/graph-state'
+import { hydrateCommand, serializeState, type State } from '@vt/graph-state'
 import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
 import { computeDrift, type DriftData, type FsContentById } from '../debug/drift'
 import { normalizeChord } from '../debug/normalizeChord'
@@ -284,7 +284,17 @@ async function focusTarget(page: SessionPageLike, selector: string): Promise<voi
   }
 }
 
-async function executeStep(page: PageLike, step: StepSpec): Promise<void> {
+async function executeStep(
+  page: PageLike,
+  step: StepSpec,
+  instance: DebugInstance,
+): Promise<void> {
+  if ('dispatch' in step) {
+    const transport = createLiveTransport(instance.mcpPort)
+    await transport.dispatchLiveCommand(hydrateCommand(step.dispatch))
+    return
+  }
+
   if ('click' in step) {
     await page.click(step.click, { timeout: DEFAULT_CLICK_TIMEOUT_MS })
     return
@@ -430,7 +440,7 @@ async function runSteps(
     const observationErrors: string[] = []
 
     try {
-      await executeStep(page, step)
+      await executeStep(page, step, instance)
     } catch (e) {
       output.ok = false
       output.error = String(e)

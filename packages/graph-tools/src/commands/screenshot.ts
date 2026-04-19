@@ -36,7 +36,7 @@ export type ScreenshotResult = {
   cdpPort: number
 }
 
-type ScreenshotOptions = {
+export type ScreenshotOptions = {
   selector?: string
   base64: boolean
   fullPage: boolean
@@ -75,7 +75,7 @@ async function resolveChromium(): Promise<ChromiumLike> {
   }
 }
 
-function parseArgs(argv: string[]): ScreenshotOptions {
+export function parseArgs(argv: string[]): ScreenshotOptions {
   const options: ScreenshotOptions = {
     base64: false,
     fullPage: true,
@@ -93,10 +93,14 @@ function parseArgs(argv: string[]): ScreenshotOptions {
       options.base64 = true
     } else if (arg === '--full-page') {
       options.fullPage = true
-    } else if (arg === '--out') {
+    } else if (arg === '--out' || arg === '--output' || arg === '-o') {
       options.outPath = argv[++i]
     } else if (arg.startsWith('--out=')) {
       options.outPath = arg.slice('--out='.length)
+    } else if (arg.startsWith('--output=')) {
+      options.outPath = arg.slice('--output='.length)
+    } else if (arg.startsWith('-o=')) {
+      options.outPath = arg.slice('-o='.length)
     } else if (arg === '--port') {
       options.port = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--port=')) {

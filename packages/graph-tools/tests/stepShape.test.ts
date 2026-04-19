@@ -28,6 +28,10 @@ describe('validateStepSpec', () => {
       ok: true,
       step: { navigate: 'http://localhost:5173/' },
     })
+    expect(validateStepSpec({ dispatch: { type: 'Select', ids: ['node-a'] } })).toEqual({
+      ok: true,
+      step: { dispatch: { type: 'Select', ids: ['node-a'] } },
+    })
   })
 
   it('rejects non-object steps and ambiguous tags', () => {
@@ -37,7 +41,7 @@ describe('validateStepSpec', () => {
     })
     expect(validateStepSpec({ click: '#a', wait: 1 })).toEqual({
       ok: false,
-      error: 'step must contain exactly one of: click, type, press, wait, waitFor, navigate',
+      error: 'step must contain exactly one of: click, type, press, wait, waitFor, navigate, dispatch',
     })
   })
 
@@ -57,6 +61,10 @@ describe('validateStepSpec', () => {
     expect(validateStepSpec({ press: 'Enter', selector: '#editor', extra: true })).toEqual({
       ok: false,
       error: 'press step has unsupported field(s): extra',
+    })
+    expect(validateStepSpec({ dispatch: { type: 'Teleport', nodeId: 'x' } })).toEqual({
+      ok: false,
+      error: 'dispatch.dispatch.type must be one of: Collapse, Expand, Select, Deselect, AddNode, RemoveNode, AddEdge, RemoveEdge, Move, LoadRoot, UnloadRoot, SetZoom, SetPan, SetPositions, RequestFit',
     })
   })
 })
