@@ -54,6 +54,13 @@ function applyViewportImmediately(cy: Core, eles: CollectionReturnValue, zoom: n
   cy.pan(getViewportPanForElements(cy, eles, zoom));
 }
 
+/** Restore cy viewport to an arbitrary zoom + pan directly (bypasses layoutStore). */
+export function restoreViewportDirectly(cy: Core, zoom: number, pan: { x: number; y: number }): void {
+  cy.stop();
+  cy.zoom(zoom);
+  cy.pan(pan);
+}
+
 /**
  * Calculate responsive padding for cy.fit() based on viewport dimensions
  *

@@ -109,10 +109,13 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     fullscreenIcon.setAttribute('height', '10');
     fullscreenBtn.appendChild(fullscreenIcon);
     if (options.cy && options.shadowNodeId) {
+        const cy = options.cy;
+        const shadowNodeId = options.shadowNodeId;
         attachFullscreenZoom(
-            options.cy,
+            cy,
             fullscreenBtn,
-            options.shadowNodeId,
+            shadowNodeId,
+            () => cy.getElementById(shadowNodeId),
             options.zoomToNeighborhood ?? false
         );
     }

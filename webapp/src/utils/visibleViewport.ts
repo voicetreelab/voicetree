@@ -52,6 +52,11 @@ export function getVisibleViewportMetrics(cy: Core): VisibleViewportMetrics {
   };
 }
 
+/** Read current cy zoom and pan atomically — used as fallback when layoutStore is not yet seeded. */
+export function getCyViewportState(cy: Core): { zoom: number; pan: { x: number; y: number } } {
+  return { zoom: cy.zoom(), pan: cy.pan() };
+}
+
 export function getVisibleViewportCenterInGraph(cy: Core): Position {
   const zoom: number = cy.zoom() || 1;
   const pan: Position = cy.pan();
