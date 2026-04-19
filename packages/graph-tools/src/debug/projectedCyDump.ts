@@ -1,8 +1,7 @@
-import { project, type State } from '@vt/graph-state'
+import { project, type ElementSpec, type State } from '@vt/graph-state'
 import type { CyDump } from './cyStateShape'
 
-export function projectStateToCyDump(state: State): CyDump {
-  const spec = project(state)
+export function elementSpecToCyDump(spec: ElementSpec, state: State): CyDump {
   return {
     nodes: spec.nodes.map((node) => ({
       id: node.id,
@@ -22,4 +21,8 @@ export function projectStateToCyDump(state: State): CyDump {
     },
     selection: [...state.selection].sort((left, right) => left.localeCompare(right)),
   }
+}
+
+export function projectStateToCyDump(state: State): CyDump {
+  return elementSpecToCyDump(project(state), state)
 }

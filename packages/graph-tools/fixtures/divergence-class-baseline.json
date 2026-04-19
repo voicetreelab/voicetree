@@ -1,0 +1,16 @@
+{
+  "$schema": "vt-debug/divergence-class-baseline@1",
+  "description": "Allowed divergence class ids for the W4-A drift soak harness baseline.",
+  "classIds": [
+    "dataVsProjection.edges.extra-in-projection",
+    "dataVsProjection.edges.missing-in-projection",
+    "dataVsProjection.nodes.extra-in-projection",
+    "dataVsProjection.nodes.missing-in-projection",
+    "nodeContentStale.length-mismatch",
+    "projectionVsRendered.edges.missing-in-rendered",
+    "projectionVsRendered.layout.pan-delta",
+    "projectionVsRendered.layout.zoom-delta",
+    "projectionVsRendered.nodes.missing-in-rendered",
+    "projectionVsRendered.selection.items.mismatch"
+  ]
+}

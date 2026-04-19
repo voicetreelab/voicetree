@@ -1,0 +1,5017 @@
+{
+  "generatedAt": "2026-04-19T20:32:15.298Z",
+  "config": {
+    "sequenceCount": 200,
+    "sequenceLength": 4,
+    "seed": 17,
+    "recordedFixtures": [
+      "001-empty",
+      "002-single-node",
+      "003-flat-three-nodes",
+      "004-flat-five-nodes",
+      "005-with-selection",
+      "006-with-layout-positions",
+      "007-with-layout-positions-moved",
+      "008-add-node-result",
+      "009-add-edge-result",
+      "010-flat-folder",
+      "011-flat-folder-collapsed",
+      "012-f6-external-into-folder",
+      "013-f6-external-into-folder-collapsed",
+      "014-f6-folder-to-external",
+      "015-f6-folder-to-external-collapsed",
+      "020-two-sibling-folders",
+      "021-nested-folder",
+      "022-nested-folder-inner-collapsed",
+      "023-all-collapsed",
+      "040-mixed-collapse",
+      "041-context-node-unresolved-link",
+      "050-two-roots-root-a-only",
+      "051-two-roots-loaded",
+      "054-multi-command-final",
+      "080-folder-nodes-real-vault"
+    ],
+    "outDir": "/tmp/vt-debug/stress-full",
+    "divergenceBaselinePath": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/fixtures/divergence-class-baseline.json",
+    "flowBaselinePath": "/Users/bobbobby/repos/voicetree-public/packages/graph-tools/fixtures/int1-baseline.json"
+  },
+  "divergenceClasses": {
+    "observedCount": 10,
+    "observedClassIds": [
+      "dataVsProjection.edges.extra-in-projection",
+      "dataVsProjection.edges.missing-in-projection",
+      "dataVsProjection.nodes.extra-in-projection",
+      "dataVsProjection.nodes.missing-in-projection",
+      "nodeContentStale.length-mismatch",
+      "projectionVsRendered.edges.missing-in-rendered",
+      "projectionVsRendered.layout.pan-delta",
+      "projectionVsRendered.layout.zoom-delta",
+      "projectionVsRendered.nodes.missing-in-rendered",
+      "projectionVsRendered.selection.items.mismatch"
+    ],
+    "baselineCount": 10,
+    "baselineClassIds": [
+      "dataVsProjection.edges.extra-in-projection",
+      "dataVsProjection.edges.missing-in-projection",
+      "dataVsProjection.nodes.extra-in-projection",
+      "dataVsProjection.nodes.missing-in-projection",
+      "nodeContentStale.length-mismatch",
+      "projectionVsRendered.edges.missing-in-rendered",
+      "projectionVsRendered.layout.pan-delta",
+      "projectionVsRendered.layout.zoom-delta",
+      "projectionVsRendered.nodes.missing-in-rendered",
+      "projectionVsRendered.selection.items.mismatch"
+    ],
+    "newClassIds": []
+  },
+  "recordedFixtures": {
+    "total": 25,
+    "projectionVsRenderedEqualCount": 25,
+    "projectionVsRenderedEqualPct": 100,
+    "results": [
+      {
+        "fixtureId": "001-empty",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "002-single-node",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "003-flat-three-nodes",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "004-flat-five-nodes",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "005-with-selection",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "006-with-layout-positions",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "007-with-layout-positions-moved",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "008-add-node-result",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "009-add-edge-result",
+        "projectionVsRenderedEqual": true,
+        "classIds": [],
+        "report": {
+          "dataVsProjection": {
+            "equal": true
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "010-flat-folder",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "011-flat-folder-collapsed",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/tasks/BF-118.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "012-f6-external-into-folder",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "013-f6-external-into-folder-collapsed",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.extra-in-projection",
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "edge:synthetic:/tmp/graph-state-fixtures/root-a/tasks/:in:/tmp/graph-state-fixtures/root-a/overview.md"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+              "edge:/tmp/graph-state-fixtures/root-a/overview.md->/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/tasks/BF-118.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "014-f6-folder-to-external",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "015-f6-folder-to-external-collapsed",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.extra-in-projection",
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "edge:synthetic:/tmp/graph-state-fixtures/root-a/tasks/:out:/tmp/graph-state-fixtures/root-a/overview.md"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/overview.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "020-two-sibling-folders",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/notes/",
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "021-nested-folder",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/notes/",
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "022-nested-folder-inner-collapsed",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.extra-in-projection",
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/notes/",
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+              "edge:synthetic:/tmp/graph-state-fixtures/root-a/tasks/epics/:in:/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/summary.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "023-all-collapsed",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.extra-in-projection",
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/notes/",
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "edge:synthetic:/tmp/graph-state-fixtures/root-a/tasks/:in:/tmp/graph-state-fixtures/root-a/notes/roadmap.md"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+              "edge:/tmp/graph-state-fixtures/root-a/notes/roadmap.md->/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/summary.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "040-mixed-collapse",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.extra-in-projection",
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/notes/",
+              "/tmp/graph-state-fixtures/root-a/research/",
+              "/tmp/graph-state-fixtures/root-a/tasks/",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+              "edge:synthetic:/tmp/graph-state-fixtures/root-a/tasks/epics/:in:/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/research/idea.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
+              "edge:/tmp/graph-state-fixtures/root-a/tasks/summary.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "041-context-node-unresolved-link",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [],
+            "missingInB": [
+              "edge:/tmp/graph-state-fixtures/root-a/context.md->missing-target"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "050-two-roots-root-a-only",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "051-two-roots-loaded",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "054-multi-command-final",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.nodes.extra-in-projection",
+          "dataVsProjection.nodes.missing-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/root-a/tasks/"
+            ],
+            "missingInB": [
+              "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
+              "/tmp/graph-state-fixtures/root-a/tasks/seed.md"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      },
+      {
+        "fixtureId": "080-folder-nodes-real-vault",
+        "projectionVsRenderedEqual": true,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection"
+        ],
+        "report": {
+          "dataVsProjection": {
+            "equal": false,
+            "missingInA": [
+              "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/",
+              "/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/"
+            ],
+            "missingInB": [
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/BF-109-linter-folder-containment.md->X",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/design-proposed-state-shell",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-117-unify-state.md->voicetree-6-4/review-design-refactor",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/BF-118-wire-shell-pure.md->voicetree-6-4/design-proposed-pure-layer",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-current-architecture|Current Architecture Analysis",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-pure-layer|Phase 1 Design: Pure Layer",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-proposed-state-shell|Phases 2-4 Design: State + Shell",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/design-refactoring-plan|Refactoring Plan: 4 Phases",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-architecture-refactor/kanban.md->voicetree-6-4/review-design-refactor|Review: Design Refactor Proposal",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design (parent)",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal (parent)",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/folder-interaction-improvements/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks (parent)",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->BF-NNN-slug",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-architecture-refactor/kanban|Folder Architecture Refactor",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-interaction-improvements/kanban|Folder Interaction Improvements",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->folder-nodes-epic-complete|Implementation notes",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/design|OpenSpec design",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/proposal|OpenSpec proposal",
+              "edge:/tmp/graph-state-fixtures/real-vault-folder-nodes/kanban.md->working-memory/openspec/changes/folder-nodes/tasks|OpenSpec tasks"
+            ],
+            "differing": []
+          },
+          "projectionVsRendered": {
+            "equal": true
+          },
+          "nodeContentStale": []
+        }
+      }
+    ]
+  },
+  "liveSequences": {
+    "total": 200,
+    "projectionVsRenderedEqualSequenceCount": 0,
+    "projectionVsRenderedEqualSequencePct": 0,
+    "projectionVsRenderedEqualStepCount": 0,
+    "projectionVsRenderedEqualStepPct": 0,
+    "failedSequenceCount": 0,
+    "results": [
+      {
+        "sequenceId": "sequence-001",
+        "seed": 17,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-001",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-002",
+        "seed": 18,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-002",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-003",
+        "seed": 19,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-003",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-004",
+        "seed": 20,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-004",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-005",
+        "seed": 21,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-005",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-006",
+        "seed": 22,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-006",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-007",
+        "seed": 23,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-007",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-008",
+        "seed": 24,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-008",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-009",
+        "seed": 25,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-009",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-010",
+        "seed": 26,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-010",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-011",
+        "seed": 27,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-011",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-012",
+        "seed": 28,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-012",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-013",
+        "seed": 29,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-013",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-014",
+        "seed": 30,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-014",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-015",
+        "seed": 31,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-015",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-016",
+        "seed": 32,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-016",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-017",
+        "seed": 33,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-017",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-018",
+        "seed": 34,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-018",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-019",
+        "seed": 35,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-019",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-020",
+        "seed": 36,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-020",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-021",
+        "seed": 37,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-021",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-022",
+        "seed": 38,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-022",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-023",
+        "seed": 39,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-023",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-024",
+        "seed": 40,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-024",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-025",
+        "seed": 41,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-025",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-026",
+        "seed": 42,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-026",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-027",
+        "seed": 43,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-027",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-028",
+        "seed": 44,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-028",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-029",
+        "seed": 45,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-029",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-030",
+        "seed": 46,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-030",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-031",
+        "seed": 47,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-031",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-032",
+        "seed": 48,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-032",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-033",
+        "seed": 49,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-033",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-034",
+        "seed": 50,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-034",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-035",
+        "seed": 51,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-035",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-036",
+        "seed": 52,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-036",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-037",
+        "seed": 53,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-037",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-038",
+        "seed": 54,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-038",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-039",
+        "seed": 55,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-039",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-040",
+        "seed": 56,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-040",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-041",
+        "seed": 57,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-041",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-042",
+        "seed": 58,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-042",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-043",
+        "seed": 59,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-043",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-044",
+        "seed": 60,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-044",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-045",
+        "seed": 61,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-045",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-046",
+        "seed": 62,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-046",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-047",
+        "seed": 63,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-047",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-048",
+        "seed": 64,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-048",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-049",
+        "seed": 65,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-049",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-050",
+        "seed": 66,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-050",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-051",
+        "seed": 67,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-051",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-052",
+        "seed": 68,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-052",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-053",
+        "seed": 69,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-053",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-054",
+        "seed": 70,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-054",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-055",
+        "seed": 71,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-055",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-056",
+        "seed": 72,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-056",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-057",
+        "seed": 73,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-057",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-058",
+        "seed": 74,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-058",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-059",
+        "seed": 75,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-059",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-060",
+        "seed": 76,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-060",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-061",
+        "seed": 77,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-061",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-062",
+        "seed": 78,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-062",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-063",
+        "seed": 79,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-063",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-064",
+        "seed": 80,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-064",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-065",
+        "seed": 81,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-065",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-066",
+        "seed": 82,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-066",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-067",
+        "seed": 83,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-067",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-068",
+        "seed": 84,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-068",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-069",
+        "seed": 85,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-069",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-070",
+        "seed": 86,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-070",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-071",
+        "seed": 87,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-071",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-072",
+        "seed": 88,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-072",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-073",
+        "seed": 89,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-073",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-074",
+        "seed": 90,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-074",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-075",
+        "seed": 91,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-075",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-076",
+        "seed": 92,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-076",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-077",
+        "seed": 93,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-077",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-078",
+        "seed": 94,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-078",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-079",
+        "seed": 95,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-079",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-080",
+        "seed": 96,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-080",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-081",
+        "seed": 97,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-081",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-082",
+        "seed": 98,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-082",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-083",
+        "seed": 99,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-083",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-084",
+        "seed": 100,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-084",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-085",
+        "seed": 101,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-085",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-086",
+        "seed": 102,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-086",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-087",
+        "seed": 103,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-087",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-088",
+        "seed": 104,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-088",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-089",
+        "seed": 105,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-089",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-090",
+        "seed": 106,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-090",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-091",
+        "seed": 107,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-091",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-092",
+        "seed": 108,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-092",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-093",
+        "seed": 109,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-093",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-094",
+        "seed": 110,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-094",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-095",
+        "seed": 111,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-095",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-096",
+        "seed": 112,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-096",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-097",
+        "seed": 113,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-097",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-098",
+        "seed": 114,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-098",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-099",
+        "seed": 115,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-099",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-100",
+        "seed": 116,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-100",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-101",
+        "seed": 117,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-101",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-102",
+        "seed": 118,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-102",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-103",
+        "seed": 119,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-103",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-104",
+        "seed": 120,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-104",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-105",
+        "seed": 121,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-105",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-106",
+        "seed": 122,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-106",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-107",
+        "seed": 123,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-107",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-108",
+        "seed": 124,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-108",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-109",
+        "seed": 125,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-109",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-110",
+        "seed": 126,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-110",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-111",
+        "seed": 127,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-111",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-112",
+        "seed": 128,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-112",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-113",
+        "seed": 129,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-113",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-114",
+        "seed": 130,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-114",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-115",
+        "seed": 131,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-115",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-116",
+        "seed": 132,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-116",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-117",
+        "seed": 133,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-117",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-118",
+        "seed": 134,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-118",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-119",
+        "seed": 135,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-119",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-120",
+        "seed": 136,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-120",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-121",
+        "seed": 137,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-121",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-122",
+        "seed": 138,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-122",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-123",
+        "seed": 139,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-123",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-124",
+        "seed": 140,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-124",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-125",
+        "seed": 141,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-125",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-126",
+        "seed": 142,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-126",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-127",
+        "seed": 143,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-127",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-128",
+        "seed": 144,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-128",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-129",
+        "seed": 145,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-129",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-130",
+        "seed": 146,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-130",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-131",
+        "seed": 147,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-131",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-132",
+        "seed": 148,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-132",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-133",
+        "seed": 149,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-133",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-134",
+        "seed": 150,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-134",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-135",
+        "seed": 151,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-135",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-136",
+        "seed": 152,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-136",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-137",
+        "seed": 153,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-137",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-138",
+        "seed": 154,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-138",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-139",
+        "seed": 155,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-139",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-140",
+        "seed": 156,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-140",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-141",
+        "seed": 157,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-141",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-142",
+        "seed": 158,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-142",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-143",
+        "seed": 159,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-143",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-144",
+        "seed": 160,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-144",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-145",
+        "seed": 161,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-145",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-146",
+        "seed": 162,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-146",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-147",
+        "seed": 163,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-147",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-148",
+        "seed": 164,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-148",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-149",
+        "seed": 165,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-149",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-150",
+        "seed": 166,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-150",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-151",
+        "seed": 167,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-151",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-152",
+        "seed": 168,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-152",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-153",
+        "seed": 169,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-153",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-154",
+        "seed": 170,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-154",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-155",
+        "seed": 171,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-155",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-156",
+        "seed": 172,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-156",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-157",
+        "seed": 173,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-157",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-158",
+        "seed": 174,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-158",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-159",
+        "seed": 175,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-159",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-160",
+        "seed": 176,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-160",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-161",
+        "seed": 177,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-161",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-162",
+        "seed": 178,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-162",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-163",
+        "seed": 179,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-163",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-164",
+        "seed": 180,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-164",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-165",
+        "seed": 181,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-165",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-166",
+        "seed": 182,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-166",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-167",
+        "seed": 183,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-167",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-168",
+        "seed": 184,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-168",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-169",
+        "seed": 185,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-169",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-170",
+        "seed": 186,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-170",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-171",
+        "seed": 187,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-171",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-172",
+        "seed": 188,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-172",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-173",
+        "seed": 189,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-173",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-174",
+        "seed": 190,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-174",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-175",
+        "seed": 191,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-175",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-176",
+        "seed": 192,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-176",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-177",
+        "seed": 193,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-177",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-178",
+        "seed": 194,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-178",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-179",
+        "seed": 195,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-179",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-180",
+        "seed": 196,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-180",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-181",
+        "seed": 197,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-181",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-182",
+        "seed": 198,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-182",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-183",
+        "seed": 199,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-183",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-184",
+        "seed": 200,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-184",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-185",
+        "seed": 201,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-185",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-186",
+        "seed": 202,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-186",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-187",
+        "seed": 203,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-187",
+        "stepCount": 22,
+        "observedStepCount": 22,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-188",
+        "seed": 204,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-188",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-189",
+        "seed": 205,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-189",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-190",
+        "seed": 206,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-190",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-191",
+        "seed": 207,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-191",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-192",
+        "seed": 208,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-192",
+        "stepCount": 16,
+        "observedStepCount": 16,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-193",
+        "seed": 209,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-193",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-194",
+        "seed": 210,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-194",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-195",
+        "seed": 211,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-195",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-196",
+        "seed": 212,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-196",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-197",
+        "seed": 213,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-197",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-198",
+        "seed": 214,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-198",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-199",
+        "seed": 215,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-199",
+        "stepCount": 18,
+        "observedStepCount": 18,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      },
+      {
+        "sequenceId": "sequence-200",
+        "seed": 216,
+        "runDir": "/tmp/vt-debug/stress-full/live/sequence-200",
+        "stepCount": 20,
+        "observedStepCount": 20,
+        "projectionVsRenderedEqualSteps": 0,
+        "projectionVsRenderedEqual": false,
+        "failedSteps": 0,
+        "observationErrorCount": 0,
+        "classIds": [
+          "dataVsProjection.edges.missing-in-projection",
+          "dataVsProjection.nodes.extra-in-projection",
+          "nodeContentStale.length-mismatch",
+          "projectionVsRendered.edges.missing-in-rendered",
+          "projectionVsRendered.layout.pan-delta",
+          "projectionVsRendered.layout.zoom-delta",
+          "projectionVsRendered.nodes.missing-in-rendered",
+          "projectionVsRendered.selection.items.mismatch"
+        ]
+      }
+    ]
+  },
+  "flowScoreboard": {
+    "baselinePassCount": 7,
+    "currentPassCount": 8,
+    "passCountDelta": 1,
+    "regressions": [],
+    "improvements": [
+      "F1"
+    ],
+    "monotonicNonDecreasing": true,
+    "baselineRows": [
+      {
+        "flow": "F1",
+        "pass": false,
+        "reason": "0/3 runs passed; step 1 failed: TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-wrapper') to be visible\u001b[22m\n",
+        "runs": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "flow": "F2",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F3",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F4",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F5",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F6",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F7",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F8",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "currentRows": [
+      {
+        "flow": "F1",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F2",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F3",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F4",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F5",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F6",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F7",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F8",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "currentScoreboardPath": "/tmp/vt-debug/stress-full/flows/scoreboard-20260419-203056471.json"
+  },
+  "gate": {
+    "pass": false,
+    "reasons": [
+      "projectionVsRendered.equal sequence rate 0% < 99%"
+    ]
+  }
+}
