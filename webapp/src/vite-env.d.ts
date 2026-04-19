@@ -177,6 +177,8 @@ declare global {
       console: () => unknown[]
       exceptions: () => unknown[]
       buttons: () => Array<{ nodeId: string; label: string; selector: string }>
+      liveState?: () => { collapseSet: string[]; selection: string[] }
+      applyLiveCommand?: (command: unknown) => Promise<unknown>
       registerDebugButton: (entry: { nodeId: string; label: string; selector: string }) => void
       unregisterDebugButton: (nodeId: string, label: string) => void
       cy?: () => unknown

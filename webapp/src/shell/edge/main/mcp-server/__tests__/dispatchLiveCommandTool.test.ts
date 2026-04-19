@@ -9,10 +9,68 @@ vi.mock('@vt/graph-model', async () => {
     }
 })
 
-vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
-    uiAPI: new Proxy({} as Record<string, unknown>, {
-        get: () => (): void => { /* no-op in tests */ },
+let rendererCollapseSet: Set<string> = new Set()
+let rendererSelection: Set<string> = new Set()
+
+function resetRendererState(): void {
+    rendererCollapseSet = new Set()
+    rendererSelection = new Set()
+}
+
+vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
+    readRendererLiveState: vi.fn(async () => ({
+        collapseSet: new Set(rendererCollapseSet),
+        selection: new Set(rendererSelection),
+    })),
+    applyRendererLiveCommand: vi.fn(async (command: {
+        type: string
+        folder?: string
+        ids?: readonly string[]
+        additive?: boolean
+    }) => {
+        switch (command.type) {
+            case 'Collapse':
+                if (typeof command.folder === 'string') {
+                    rendererCollapseSet = new Set([...rendererCollapseSet, command.folder])
+                }
+                break
+            case 'Expand':
+                if (typeof command.folder === 'string') {
+                    rendererCollapseSet = new Set(
+                        [...rendererCollapseSet].filter((folder) => folder !== command.folder),
+                    )
+                }
+                break
+            case 'Select': {
+                const next: Set<string> =
+                    command.additive === true ? new Set(rendererSelection) : new Set()
+                for (const id of command.ids ?? []) {
+                    next.add(id)
+                }
+                rendererSelection = next
+                break
+            }
+            case 'Deselect': {
+                const next: Set<string> = new Set(rendererSelection)
+                for (const id of command.ids ?? []) {
+                    next.delete(id)
+                }
+                rendererSelection = next
+                break
+            }
+            default:
+                break
+        }
+        return {
+            collapseSet: new Set(rendererCollapseSet),
+            selection: new Set(rendererSelection),
+        }
     }),
+    isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
+        command.type === 'Collapse'
+        || command.type === 'Expand'
+        || command.type === 'Select'
+        || command.type === 'Deselect',
 }))
 
 import { getGraph } from '@vt/graph-model'
@@ -36,6 +94,7 @@ function emptyGraph(): Graph {
 
 beforeEach(() => {
     __resetLiveStoreForTests()
+    resetRendererState()
     vi.mocked(getGraph).mockReturnValue(emptyGraph())
 })
 
@@ -47,7 +106,7 @@ describe('vt_dispatch_live_command', () => {
 
         expect(result.revision).toBe(1)
         expect(result.delta.collapseAdded).toEqual(['/tmp/vault/tasks/'])
-        const state: ReturnType<typeof getCurrentLiveState> = getCurrentLiveState()
+        const state: Awaited<ReturnType<typeof getCurrentLiveState>> = await getCurrentLiveState()
         expect([...state.collapseSet]).toContain('/tmp/vault/tasks/')
         expect(state.meta.revision).toBe(1)
     })
@@ -59,7 +118,7 @@ describe('vt_dispatch_live_command', () => {
         })
 
         expect(result.delta.collapseRemoved).toEqual(['/tmp/vault/tasks/'])
-        expect([...getCurrentLiveState().collapseSet]).not.toContain('/tmp/vault/tasks/')
+        expect([...(await getCurrentLiveState()).collapseSet]).not.toContain('/tmp/vault/tasks/')
     })
 
     it('Select (replace) sets selection and reports previous ids as removed', async () => {
@@ -68,7 +127,7 @@ describe('vt_dispatch_live_command', () => {
             command: { type: 'Select', ids: ['b', 'c'] },
         })
 
-        expect([...getCurrentLiveState().selection].sort()).toEqual(['b', 'c'])
+        expect([...(await getCurrentLiveState()).selection].sort()).toEqual(['b', 'c'])
         expect(result.delta.selectionAdded).toEqual(['b', 'c'])
         expect(result.delta.selectionRemoved).toEqual(['a'])
     })
@@ -79,7 +138,7 @@ describe('vt_dispatch_live_command', () => {
             command: { type: 'Select', ids: ['b'], additive: true },
         })
 
-        expect([...getCurrentLiveState().selection].sort()).toEqual(['a', 'b'])
+        expect([...(await getCurrentLiveState()).selection].sort()).toEqual(['a', 'b'])
         expect(result.delta.selectionAdded).toEqual(['b'])
         expect(result.delta.selectionRemoved).toBeUndefined()
     })
@@ -90,12 +149,12 @@ describe('vt_dispatch_live_command', () => {
             command: { type: 'Deselect', ids: ['b'] },
         })
 
-        expect([...getCurrentLiveState().selection].sort()).toEqual(['a', 'c'])
+        expect([...(await getCurrentLiveState()).selection].sort()).toEqual(['a', 'c'])
         expect(result.delta.selectionRemoved).toEqual(['b'])
     })
 
     it('Move bumps revision and returns a delta without a not-yet-wired sentinel (L3-BF-186)', async () => {
-        const before: number = getCurrentLiveState().meta.revision
+        const before: number = (await getCurrentLiveState()).meta.revision
         const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Move', id: 'x', to: { x: 1, y: 2 } },
         })
@@ -121,7 +180,7 @@ describe('vt_dispatch_live_command', () => {
     it('dispatch → getCurrentLiveState round-trip: Collapse lands in collapseSet (spec verification)', async () => {
         const folder: string = '/Users/bobbobby/repos/voicetree-public/brain/working-memory/tasks/'
         await dispatchLiveCommand({ command: { type: 'Collapse', folder } })
-        const roundTrip: ReturnType<typeof getCurrentLiveState> = getCurrentLiveState()
+        const roundTrip: Awaited<ReturnType<typeof getCurrentLiveState>> = await getCurrentLiveState()
         expect([...roundTrip.collapseSet]).toContain(folder)
     })
 })

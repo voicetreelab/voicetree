@@ -18,6 +18,70 @@ vi.mock('@vt/graph-model', async () => {
     return { ...actual, getGraph: vi.fn() }
 })
 
+let rendererCollapseSet: Set<string> = new Set()
+let rendererSelection: Set<string> = new Set()
+
+function resetRendererState(): void {
+    rendererCollapseSet = new Set()
+    rendererSelection = new Set()
+}
+
+vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
+    readRendererLiveState: vi.fn(async () => ({
+        collapseSet: new Set(rendererCollapseSet),
+        selection: new Set(rendererSelection),
+    })),
+    applyRendererLiveCommand: vi.fn(async (command: {
+        type: string
+        folder?: string
+        ids?: readonly string[]
+        additive?: boolean
+    }) => {
+        switch (command.type) {
+            case 'Collapse':
+                if (typeof command.folder === 'string') {
+                    rendererCollapseSet = new Set([...rendererCollapseSet, command.folder])
+                }
+                break
+            case 'Expand':
+                if (typeof command.folder === 'string') {
+                    rendererCollapseSet = new Set(
+                        [...rendererCollapseSet].filter((folder) => folder !== command.folder),
+                    )
+                }
+                break
+            case 'Select': {
+                const next: Set<string> =
+                    command.additive === true ? new Set(rendererSelection) : new Set()
+                for (const id of command.ids ?? []) {
+                    next.add(id)
+                }
+                rendererSelection = next
+                break
+            }
+            case 'Deselect': {
+                const next: Set<string> = new Set(rendererSelection)
+                for (const id of command.ids ?? []) {
+                    next.delete(id)
+                }
+                rendererSelection = next
+                break
+            }
+            default:
+                break
+        }
+        return {
+            collapseSet: new Set(rendererCollapseSet),
+            selection: new Set(rendererSelection),
+        }
+    }),
+    isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
+        command.type === 'Collapse'
+        || command.type === 'Expand'
+        || command.type === 'Select'
+        || command.type === 'Deselect',
+}))
+
 import { getGraph } from '@vt/graph-model'
 import {
     applyLiveCommandAsync,
@@ -47,6 +111,7 @@ afterAll(async () => {
 
 beforeEach(() => {
     __resetLiveStoreForTests()
+    resetRendererState()
     vi.mocked(getGraph).mockReturnValue(emptyGraph())
 })
 
@@ -148,7 +213,7 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command varian
         it(`${type}: getCurrentLiveState reflects the command`, async () => {
             if (testCase.setup) await testCase.setup()
             await applyLiveCommandAsync(testCase.cmd)
-            testCase.check(getCurrentLiveState())
+            testCase.check(await getCurrentLiveState())
         })
     }
 })

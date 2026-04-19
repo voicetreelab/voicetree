@@ -155,7 +155,9 @@ export const uiAPIHandler = {
     onSettingsChanged: (): void => {
         for (const cb of settingsChangeListeners) cb();
     },
-    applyLiveCommand: applyLiveCommandToRenderer,
+    applyLiveCommand: (command: unknown): void => {
+        void applyLiveCommandToRenderer(command)
+    },
 };
 
 export type UIAPIType = typeof uiAPIHandler;

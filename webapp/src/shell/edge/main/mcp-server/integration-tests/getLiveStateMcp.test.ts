@@ -133,7 +133,7 @@ describe('vt_get_live_state real MCP roundtrip', () => {
         server = await startTestMcpServer()
 
         const graph: Graph = buildFixtureGraph()
-        vi.mocked(getCurrentLiveState).mockReturnValue({
+        vi.mocked(getCurrentLiveState).mockResolvedValue({
             graph,
             roots: {loaded: new Set(), folderTree: []},
             collapseSet: new Set(['/tmp/vault/tasks/']),

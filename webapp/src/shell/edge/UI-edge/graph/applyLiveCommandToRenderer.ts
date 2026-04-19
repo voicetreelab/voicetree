@@ -18,7 +18,7 @@ interface SerializedCommandShape {
     readonly additive?: boolean
 }
 
-export function applyLiveCommandToRenderer(command: unknown): void {
+export async function applyLiveCommandToRenderer(command: unknown): Promise<void> {
     const cmd: SerializedCommandShape = command as SerializedCommandShape
     try {
         switch (cmd.type) {
@@ -29,7 +29,7 @@ export function applyLiveCommandToRenderer(command: unknown): void {
                 return
             case 'Expand':
                 if (typeof cmd.folder === 'string') {
-                    void expandFolder(getCyInstance(), cmd.folder)
+                    await expandFolder(getCyInstance(), cmd.folder)
                 }
                 return
             case 'Select': {

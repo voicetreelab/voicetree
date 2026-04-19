@@ -18,13 +18,10 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 
-import { applyLiveCommand, applyLiveCommandAsync } from '@/shell/edge/main/state/live-state-store'
-import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
+import { applyLiveCommand } from '@/shell/edge/main/state/live-state-store'
 
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
-
-const ASYNC_COMMAND_TYPES: ReadonlySet<Command['type']> = new Set<Command['type']>(['LoadRoot'])
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand
@@ -92,18 +89,7 @@ export async function dispatchLiveCommand(
 ): Promise<DispatchLiveCommandResult> {
     const serializedCommand: SerializedCommand = params.command
     const command: Command = hydrateCommand(serializedCommand)
-
-    const delta: Delta = ASYNC_COMMAND_TYPES.has(command.type)
-        ? await applyLiveCommandAsync(command)
-        : applyLiveCommand(command)
-
-    // Best-effort push to renderer so cytoscape reflects the command.
-    // Fire-and-forget; we do not block the MCP reply on renderer ack.
-    try {
-        uiAPI.applyLiveCommand(serializedCommand)
-    } catch (error) {
-        console.warn('[dispatchLiveCommand] renderer sync failed (non-fatal):', error)
-    }
+    const delta: Delta = await applyLiveCommand(command)
 
     return {
         delta: toSerializableDelta(delta, serializedCommand),

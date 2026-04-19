@@ -9,6 +9,10 @@ import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 import type { VTSettings } from '@vt/graph-model/pure/settings'
 import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
 import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
+import {
+  applyRendererLiveCommand,
+  snapshotRendererLiveState,
+} from '@/shell/edge/renderer/debug/liveState'
 import type { ButtonEntry } from '@/shell/edge/renderer/debug/buttonRegistry'
 import { tryDumpCy } from '@/shell/edge/renderer/debug/vtDebugHelper'
 
@@ -33,6 +37,8 @@ if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
     console: () => ringBuffer.tail(500),
     exceptions: () => ringBuffer.exceptions(),
     buttons: () => buttonSnapshot(),
+    liveState: () => snapshotRendererLiveState(),
+    applyLiveCommand: (command: unknown) => applyRendererLiveCommand(command),
     registerDebugButton: (entry: ButtonEntry) => _register(entry),
     unregisterDebugButton: (nodeId: string, label: string) => _unregister(nodeId, label),
   }

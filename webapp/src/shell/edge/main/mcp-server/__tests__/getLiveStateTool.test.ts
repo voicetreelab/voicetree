@@ -78,7 +78,7 @@ describe('vt_get_live_state tool', () => {
             meta: { schemaVersion: 1, revision: 3 },
         }
 
-        vi.mocked(getCurrentLiveState).mockReturnValue(baseState)
+        vi.mocked(getCurrentLiveState).mockResolvedValue(baseState)
         vi.mocked(getGraph).mockReturnValue(graph)
         vi.mocked(getProjectRootWatchedDirectory).mockReturnValue('/tmp/vault' as never)
         vi.mocked(getVaultPaths).mockResolvedValue(['/tmp/vault'] as never)
@@ -111,9 +111,7 @@ describe('vt_get_live_state tool', () => {
     })
 
     it('returns isError when the enricher throws', async () => {
-        vi.mocked(getCurrentLiveState).mockImplementation(() => {
-            throw new Error('graph not loaded')
-        })
+        vi.mocked(getCurrentLiveState).mockRejectedValue(new Error('graph not loaded'))
 
         const resp: McpToolResponse = await getLiveStateTool()
         expect(resp.isError).toBe(true)

@@ -3,9 +3,10 @@
  * from main-accessible sources + the mutable live parts in `live-state-store`.
  *
  * Responsibilities split:
- *   • `live-state-store.getCurrentLiveState()` — sync, returns `collapseSet`,
- *     `selection`, `revision`, and `graph` but leaves `roots`/`folderTree`/
- *     `layout.positions` as empty placeholders (BF-162 dispatch path).
+ *   • `live-state-store.getCurrentLiveState()` — async, returns renderer-
+ *     canonical `collapseSet`/`selection` plus main-owned `revision` and
+ *     `graph`, but leaves `roots`/`folderTree`/`layout.positions` as
+ *     placeholders.
  *   • `buildLiveStateSnapshot()` (this file, BF-161) — awaits the filesystem-
  *     backed pieces (vault allowlist + directory tree) and overlays
  *     `layout.positions` harvested from the graph.
@@ -70,7 +71,7 @@ async function buildRoots(
 }
 
 export async function buildLiveStateSnapshot(): Promise<State> {
-    const base: State = getCurrentLiveState()
+    const base: State = await getCurrentLiveState()
     const { loaded, folderTree } = await buildRoots(base.graph)
     const positions: ReadonlyMap<NodeIdAndFilePath, Position> =
         collectLayoutPositions(base.graph) as ReadonlyMap<NodeIdAndFilePath, Position>

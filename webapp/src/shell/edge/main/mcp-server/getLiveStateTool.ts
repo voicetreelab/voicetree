@@ -7,8 +7,8 @@
  * the same data layer the shell renders from.
  *
  * State composition is split:
- *   • `live-state-store.getCurrentLiveState()` (sync) — graph + collapseSet +
- *     selection + revision. Shared with BF-162 dispatch path.
+ *   • `live-state-store.getCurrentLiveState()` (async) — graph +
+ *     renderer-canonical collapseSet/selection + revision.
  *   • `buildLiveStateSnapshot()` (async) — overlays roots + folderTree
  *     (reads vault allowlist + getDirectoryTree) and layout.positions
  *     (harvested from graph nodeUIMetadata.position).

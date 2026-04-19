@@ -43,6 +43,7 @@ import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
 import {getHeadlessAgentOutput} from './terminals/headlessAgentManager';
+import {getLiveState as getLiveStateSnapshot} from './mcp-server/getLiveStateTool';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -200,6 +201,7 @@ export const mainAPI = {
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
+  getLiveStateSnapshot,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,

@@ -14,13 +14,32 @@ import '../src/commands/keyboard' // registers 'keyboard'
 import '../src/commands/ls'        // registers 'ls'
 import '../src/commands/log'       // registers 'log'
 import '../src/commands/node'      // registers 'node'
+import '../src/commands/nodeClick' // registers 'node-click'
 import '../src/commands/pageAx'    // registers 'page-ax'
+import '../src/commands/run'       // registers 'run'
 import '../src/commands/screenshot' // registers 'screenshot'
 import '../src/commands/whyBlank'  // registers 'why-blank'
 import { commandRegistry } from '../src/commands/index'
 import type { Response } from '../src/debug/Response'
 
-const [, , subcommand, ...rest] = process.argv
+const argv = process.argv.slice(2)
+
+function resolveCommand(args: string[]): { subcommand: string; rest: string[] } {
+  const [first, second, ...remaining] = args
+  if (first && second) {
+    const twoTokenAlias = `${first}-${second}`
+    if (commandRegistry.has(twoTokenAlias)) {
+      return { subcommand: twoTokenAlias, rest: remaining }
+    }
+  }
+
+  return {
+    subcommand: first ?? '',
+    rest: first ? args.slice(1) : [],
+  }
+}
+
+const { subcommand, rest } = resolveCommand(argv)
 
 function usageError(msg: string): never {
   process.stderr.write(

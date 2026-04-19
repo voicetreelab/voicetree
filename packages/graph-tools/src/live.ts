@@ -6,13 +6,12 @@
  *   - liveApply      → vt_dispatch_live_command → print Delta JSON
  *   - liveView       → dispatch collapse/select + vt_get_live_state → ASCII tree
  */
-import path from 'path'
-
 import {hydrateCommand, serializeState, type SerializedCommand} from '@vt/graph-state'
-import type {Command, Delta, NodeIdAndFilePath} from '@vt/graph-state/contract'
+import type {Command, Delta} from '@vt/graph-state/contract'
 
 import {createLiveTransport, DEFAULT_MCP_PORT} from './liveTransport'
-import {renderGraphView, type ViewFormat, type ViewGraphResult} from './viewGraph'
+import {renderProjectedLiveView} from './projectedLiveView'
+import type {ViewFormat, ViewGraphResult} from './viewGraph'
 import {renderFocus, renderNeighbors, renderPath} from './egoGraph'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -123,7 +122,7 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
         try {
             await transport.dispatchLiveCommand({
                 type: 'Select',
-                ids: selectedIds as NodeIdAndFilePath[],
+                ids: selectedIds,
             })
         } catch (error) {
             process.stderr.write(
@@ -133,9 +132,7 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
     }
 
     const state = await transport.getLiveState()
-    const roots = [...state.roots.loaded]
-
-    if (roots.length === 0) {
+    if (state.roots.loaded.size === 0) {
         return {
             format: options.format ?? 'ascii',
             output: '(no loaded roots in live state)',
@@ -146,24 +143,8 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
         }
     }
 
-    const root = roots[0]
-
-    // Convert absolute collapseSet paths (with trailing slash) to relative paths
-    // that renderGraphView expects (relative to root, no trailing slash).
-    const collapseForRenderer = [...state.collapseSet]
-        .map((folderId) => {
-            const withoutTrailing = folderId.endsWith('/') ? folderId.slice(0, -1) : folderId
-            const rel = path.relative(root, withoutTrailing)
-            return rel
-        })
-        .filter((rel) => rel.length > 0 && !rel.startsWith('..'))
-
-    const selectionForRenderer = [...state.selection]
-
-    return renderGraphView(root, {
+    return renderProjectedLiveView(state, {
         format: options.format ?? 'ascii',
-        collapsedFolders: collapseForRenderer,
-        selectedIds: selectionForRenderer,
     })
 }
 
