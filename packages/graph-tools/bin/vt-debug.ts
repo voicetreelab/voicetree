@@ -6,7 +6,17 @@
 // Wave-3a agents add their command file + ONE import line here.
 
 import '../src/commands/attach'   // registers 'attach'
+import '../src/commands/capture'  // registers 'capture'
+import '../src/commands/diff'     // registers 'diff'
+import '../src/commands/drift'    // registers 'drift'
+import '../src/commands/eval'     // registers 'eval'
+import '../src/commands/keyboard' // registers 'keyboard'
 import '../src/commands/ls'        // registers 'ls'
+import '../src/commands/log'       // registers 'log'
+import '../src/commands/node'      // registers 'node'
+import '../src/commands/pageAx'    // registers 'page-ax'
+import '../src/commands/screenshot' // registers 'screenshot'
+import '../src/commands/whyBlank'  // registers 'why-blank'
 import { commandRegistry } from '../src/commands/index'
 import type { Response } from '../src/debug/Response'
 

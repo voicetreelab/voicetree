@@ -3,8 +3,8 @@
 // project() runs here (Node.js), never in the renderer bundle.
 
 import { parseCyDump, type CyDump, type CySource } from '../debug/cyStateShape'
-import { project } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
+import { projectStateToCyDump } from '../debug/projectedCyDump'
 
 type Response<T> =
   | { ok: true; command: string; result: T }
@@ -27,32 +27,14 @@ function err(msg: string, hint?: string): Response<never> {
 }
 
 async function fetchRendered(page: PageLike): Promise<CyDump> {
-  const raw = await page.evaluate(() => (window as Record<string, unknown>)['__vtDebug__'] &&
-    ((window as Record<string, unknown>)['__vtDebug__'] as Record<string, () => unknown>)['cy']())
+  const raw = await page.evaluate(() => (window as unknown as Record<string, unknown>)['__vtDebug__'] &&
+    ((window as unknown as Record<string, unknown>)['__vtDebug__'] as Record<string, () => unknown>)['cy']())
   return parseCyDump(raw)
 }
 
 async function fetchProjected(getState: StateFetcher): Promise<CyDump> {
   const state = await getState()
-  const spec = project(state)
-  const nodes = spec.nodes.map(n => ({
-    id: n.id,
-    classes: n.classes ?? [],
-    position: n.position ?? { x: 0, y: 0 },
-    visible: true,
-  }))
-  const edges = spec.edges.map(e => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    classes: e.classes ?? [],
-  }))
-  return {
-    nodes,
-    edges,
-    viewport: { zoom: 1, pan: { x: 0, y: 0 } },
-    selection: state.selection ? [...state.selection] : [],
-  }
+  return projectStateToCyDump(state)
 }
 
 export async function cyDump(
