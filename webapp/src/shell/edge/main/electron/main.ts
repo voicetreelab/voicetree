@@ -24,6 +24,7 @@ import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
+import {registerInstance, unregisterInstance} from './instance-discovery';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -78,7 +79,10 @@ void app.whenReady().then(async () => {
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)
-    void startMcpServer();
+    await startMcpServer();
+
+    // Register this instance for vt-debug discovery
+    await registerInstance();
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {
@@ -177,6 +181,9 @@ let isQuitting: boolean = false;
 app.on('before-quit', () => {
     isQuitting = true;
     //console.log('[App] before-quit event - cleaning up resources...');
+    // Remove instance file so vt-debug stops discovering this pid
+    unregisterInstance();
+
     // Clean up server process
     textToTreeServerManager.stop();
 

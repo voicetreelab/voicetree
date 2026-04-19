@@ -9,7 +9,8 @@
   },
   "bin": {
     "vt-graph": "bin/vt-graph.ts",
-    "vt-headless": "bin/vt-headless.ts"
+    "vt-headless": "bin/vt-headless.ts",
+    "vt-debug": "bin/vt-debug.ts"
   },
   "dependencies": {
     "@vt/graph-state": "*",

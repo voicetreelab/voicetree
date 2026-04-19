@@ -173,5 +173,13 @@ declare global {
   interface Window {
     SpeechRecognition?: typeof SpeechRecognition;
     webkitSpeechRecognition?: typeof SpeechRecognition;
+    __vtDebug__?: {
+      console: () => unknown[]
+      exceptions: () => unknown[]
+      buttons: () => Array<{ nodeId: string; label: string; selector: string }>
+      registerDebugButton: (entry: { nodeId: string; label: string; selector: string }) => void
+      unregisterDebugButton: (nodeId: string, label: string) => void
+      cy?: () => unknown
+    }
   }
 }

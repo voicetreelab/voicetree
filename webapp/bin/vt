@@ -12,5 +12,17 @@ while [ -L "$_script" ]; do
 done
 WEBAPP_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
 
-exec "$WEBAPP_DIR/node_modules/.bin/tsx" \
+# Locate tsx: prefer workspace-local, fall back to monorepo-hoisted, then global.
+if [ -x "$WEBAPP_DIR/node_modules/.bin/tsx" ]; then
+    TSX_BIN="$WEBAPP_DIR/node_modules/.bin/tsx"
+elif [ -x "$WEBAPP_DIR/../node_modules/.bin/tsx" ]; then
+    TSX_BIN="$WEBAPP_DIR/../node_modules/.bin/tsx"
+elif command -v tsx >/dev/null 2>&1; then
+    TSX_BIN="$(command -v tsx)"
+else
+    echo "vt: cannot find tsx (checked $WEBAPP_DIR/node_modules/.bin/tsx, $WEBAPP_DIR/../node_modules/.bin/tsx, and PATH)" >&2
+    exit 127
+fi
+
+exec "$TSX_BIN" \
     "$WEBAPP_DIR/src/shell/edge/main/cli/voicetree-cli.ts" "$@"

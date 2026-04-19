@@ -44,6 +44,132 @@ const externalNativePlugin = {
   }
 }
 
+// Renderer-only: Node.js built-ins and Node-only packages leak into the bundle via
+// `@vt/graph-state` -> `@vt/graph-model` barrel re-exports (apply/*.ts, fixtures.ts).
+// Renderer code paths never *call* these at runtime, but the import declarations persist in
+// the output. Browsers cannot resolve bare specifiers like "fs" -> blank renderer.
+// Previously we marked them `external`, but rollup preserves those imports verbatim.
+// Instead, resolve them to a single empty-shim virtual module so imports become no-ops.
+const RENDERER_NODE_SHIM_ID = '\0voicetree:renderer-node-shim'
+const NODE_BUILTINS = new Set([
+  'assert', 'buffer', 'child_process', 'cluster', 'crypto', 'dgram', 'dns', 'domain',
+  'events', 'fs', 'fs/promises', 'http', 'http2', 'https', 'module', 'net', 'os',
+  'path', 'punycode', 'querystring', 'readline', 'repl', 'stream', 'stream/promises',
+  'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util', 'v8', 'vm', 'wasi',
+  'worker_threads', 'zlib',
+])
+const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents', 'normalize-path', 'gray-matter'])
+const rendererNodeShimPlugin = {
+  name: 'renderer-node-shim',
+  enforce: 'pre' as const,
+  resolveId(id: string) {
+    if (id.startsWith('node:')) return RENDERER_NODE_SHIM_ID
+    if (NODE_BUILTINS.has(id)) return RENDERER_NODE_SHIM_ID
+    if (NODE_BUILTINS.has(id.split('/')[0]) && id.startsWith('fs/')) return RENDERER_NODE_SHIM_ID
+    if (NODE_SHIM_PACKAGES.has(id)) return RENDERER_NODE_SHIM_ID
+    return null
+  },
+  load(id: string) {
+    if (id !== RENDERER_NODE_SHIM_ID) return null
+    return `
+const noop = () => {};
+// path.posix shim — used by @vt/graph-state/project.ts (labelForFolder, labelForNode).
+// Must be defined before the proxy handler so the handler can return it.
+const posix = {
+  basename: (p) => { if (typeof p !== 'string') return ''; const s = p.replace(/\\/$/, '').split('/'); return s[s.length - 1] || ''; },
+  dirname: (p) => { if (typeof p !== 'string') return '.'; const i = p.replace(/\\/$/, '').lastIndexOf('/'); return i <= 0 ? '/' : p.slice(0, i); },
+  extname: (p) => { if (typeof p !== 'string') return ''; const m = /\\.[^./]+$/.exec(p); return m ? m[0] : ''; },
+  join: (...args) => args.filter(Boolean).join('/'),
+  resolve: (...args) => args.filter(Boolean).join('/'),
+  relative: (from, to) => typeof to === 'string' ? to : '',
+  normalize: (p) => typeof p === 'string' ? p : '',
+  sep: '/',
+  delimiter: ':',
+};
+const handler = {
+  get(target, prop) {
+    if (prop === '__esModule') return true;
+    if (prop === 'default') return proxy;
+    if (prop === 'promises') return proxy;
+    if (prop === 'posix') return posix;
+    if (typeof prop === 'symbol') return undefined;
+    return target[prop] !== undefined ? target[prop] : noop;
+  }
+};
+const proxy = new Proxy({}, handler);
+export default proxy;
+export { posix };
+// fs / fs/promises
+export const promises = proxy;
+export const access = noop;
+export const mkdir = noop;
+export const stat = noop;
+export const readFile = noop;
+export const writeFile = noop;
+export const readdir = noop;
+export const rm = noop;
+export const rename = noop;
+export const unlink = noop;
+export const copyFile = noop;
+export const open = noop;
+export const mkdtemp = noop;
+export const watch = () => ({ on: noop, close: noop, add: noop });
+export const existsSync = () => false;
+export const readFileSync = () => '';
+export const writeFileSync = noop;
+export const readdirSync = () => [];
+export const statSync = noop;
+export const mkdirSync = noop;
+export const mkdtempSync = () => '';
+export const rmSync = noop;
+export const renameSync = noop;
+export const cpSync = noop;
+export const appendFileSync = noop;
+// path
+export const join = (...args) => args.filter(Boolean).join('/');
+export const resolve = (...args) => args.filter(Boolean).join('/');
+export const dirname = (p) => typeof p === 'string' ? p.replace(/\\/[^/]*$/, '') : '';
+export const basename = (p) => typeof p === 'string' ? p.split('/').pop() : '';
+export const extname = (p) => {
+  if (typeof p !== 'string') return '';
+  const m = /\\.[^./]+$/.exec(p);
+  return m ? m[0] : '';
+};
+export const isAbsolute = (p) => typeof p === 'string' && p.startsWith('/');
+export const relative = (from, to) => typeof to === 'string' ? to : '';
+export const normalize = (p) => typeof p === 'string' ? p : '';
+export const sep = '/';
+export const delimiter = ':';
+// url
+export const fileURLToPath = (u) => typeof u === 'string' ? u : '';
+export const pathToFileURL = (p) => ({ href: typeof p === 'string' ? p : '' });
+export const URL = globalThis.URL;
+export const URLSearchParams = globalThis.URLSearchParams;
+// os
+export const tmpdir = () => '/tmp';
+export const homedir = () => '/';
+export const platform = () => 'browser';
+export const arch = () => 'browser';
+// child_process
+export const spawn = () => ({ stdout: { on: noop }, stderr: { on: noop }, on: () => {} });
+export const execFileSync = () => '';
+export const fork = noop;
+// events / stream / util / buffer
+export class EventEmitter { on(){} off(){} emit(){} once(){} removeListener(){} }
+export const promisify = (fn) => fn;
+export const inspect = (x) => String(x);
+export const format = (...a) => a.join(' ');
+export const Readable = class {};
+export const Writable = class {};
+export const Duplex = class {};
+export const Transform = class {};
+export const Buffer = globalThis.Buffer || class { static from(){ return new Uint8Array(); } };
+// @vscode/ripgrep
+export const rgPath = '';
+`
+  }
+}
+
 /**
  * Electron-Vite configuration
  * This is the PRIMARY config for development (npm run electron)
@@ -101,6 +227,7 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      rendererNodeShimPlugin,
       externalNativePlugin,
       // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)
       // Must run before tailwindcss plugin
@@ -139,10 +266,10 @@ export default defineConfig({
     },
     optimizeDeps: {
       // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import.
-      // Exclude fsevents: it's a native binary required by chokidar v3 (via @vt/graph-model) and
-      // esbuild cannot handle .node files. externalNativePlugin covers the rollup build; this covers
-      // the dev-server optimizeDeps phase.
-      exclude: ['ninja-keys', 'fsevents']
+      // Exclude chokidar/fsevents: chokidar v3 leaks in via @vt/graph-state -> @vt/graph-model
+      // barrel re-exports. rendererNodeShimPlugin shims them at resolve time during dev and prod;
+      // excluding them here prevents esbuild from pre-bundling them before the plugin can intercept.
+      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
@@ -167,21 +294,9 @@ export default defineConfig({
         input: {
           main: path.resolve(__dirname, 'index.html')
         },
-        // @vt/graph-model and @vt/knowledge-graph (bundled inline) export Node.js-only modules
-        // (child_process, fs/promises, @vscode/ripgrep, etc.). Rollup fails in renderer prod build
-        // because Node.js built-ins resolve to __vite-browser-external which lacks named exports.
-        // Externalizing all Node.js built-ins + known Node.js npm packages makes them transparent to
-        // Rollup; tree-shaking eliminates them since no renderer code calls them at runtime.
-        external: (id: string) => {
-          if (id.startsWith('node:')) return true
-          const NODE_BUILTINS = new Set(['assert', 'buffer', 'child_process', 'cluster',
-            'crypto', 'dgram', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 'https',
-            'module', 'net', 'os', 'path', 'punycode', 'querystring', 'readline', 'repl',
-            'stream', 'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util',
-            'v8', 'vm', 'wasi', 'worker_threads', 'zlib'])
-          if (NODE_BUILTINS.has(id.split('/')[0])) return true
-          return ['@vscode/ripgrep'].includes(id)
-        },
+        // rendererNodeShimPlugin (above) resolves Node built-ins + Node-only packages to an
+        // empty virtual module, so imports that leak in via `@vt/graph-state`->`@vt/graph-model`
+        // barrel re-exports compile to no-ops instead of unresolvable bare specifiers.
         output: {
           manualChunks: {
             'mermaid': ['mermaid']

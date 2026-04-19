@@ -7,6 +7,36 @@ import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
 import type { VTSettings } from '@vt/graph-model/pure/settings'
+import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
+import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
+import type { ButtonEntry } from '@/shell/edge/renderer/debug/buttonRegistry'
+import { tryDumpCy } from '@/shell/edge/renderer/debug/vtDebugHelper'
+
+// Install debug capture BEFORE React bootstrap — catches startup errors (thrown useEffects,
+// module-load ReferenceErrors) that would be invisible if devtools attached after the crash.
+if (typeof window !== 'undefined' && !('__vtDebug__' in window)) {
+  ringBuffer.hook(console)
+  window.addEventListener('error', e =>
+    ringBuffer.pushException({
+      message: e.message,
+      stack: (e.error as Error | undefined)?.stack,
+      atIso: new Date().toISOString(),
+    }))
+  window.addEventListener('unhandledrejection', e =>
+    ringBuffer.pushException({
+      message: String((e.reason as { message?: string } | undefined)?.message ?? e.reason),
+      stack: (e.reason as { stack?: string } | undefined)?.stack,
+      atIso: new Date().toISOString(),
+    }))
+  ;(window as Record<string, unknown>)['__vtDebug__'] = {
+    cy: () => tryDumpCy(),
+    console: () => ringBuffer.tail(500),
+    exceptions: () => ringBuffer.exceptions(),
+    buttons: () => buttonSnapshot(),
+    registerDebugButton: (entry: ButtonEntry) => _register(entry),
+    unregisterDebugButton: (nodeId: string, label: string) => _unregister(nodeId, label),
+  }
+}
 
 // Add platform class to document for platform-specific CSS (e.g., scrollbar handling)
 // Windows: scrollbars take physical space, macOS: overlay scrollbars

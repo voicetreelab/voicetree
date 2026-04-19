@@ -6,6 +6,14 @@ import {app} from 'electron';
 import fixPath from 'fix-path';
 import {setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
 
+// Port string passed to --remote-debugging-port, null if CDP not enabled.
+// '0' means ephemeral — resolve the actual port later via DevToolsActivePort.
+let _configuredCdpPort: string | null = null;
+
+export function getConfiguredCdpPort(): string | null {
+    return _configuredCdpPort;
+}
+
 /**
  * Configure the Electron process environment: fix PATH, set app name,
  * handle fresh-start mode in dev, parse CLI args, suppress security
@@ -53,14 +61,21 @@ export function configureEnvironment(): void {
         app.commandLine.appendSwitch('disable-renderer-backgrounding');
     }
 
+    // Auto-enable CDP in development so vt-debug can attach without manual setup
+    if (process.env.NODE_ENV === 'development' && process.env.ENABLE_PLAYWRIGHT_DEBUG === undefined) {
+        process.env.ENABLE_PLAYWRIGHT_DEBUG = '1';
+    }
+
     // Enable remote debugging for Playwright MCP connections
     // This allows external Playwright instances to connect via CDP (Chrome DevTools Protocol)
     // Port configurable via PLAYWRIGHT_MCP_CDP_ENDPOINT (e.g. http://localhost:9223) to avoid collisions between worktrees
     if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-        let cdpPort: string = '9222';
+        // Default '0' = ephemeral; OS picks a port and writes it to DevToolsActivePort post-launch.
+        // Explicit overrides (PLAYWRIGHT_MCP_CDP_ENDPOINT or .cdp-port file) take precedence.
+        let cdpPort: string = '0';
         const cdpEndpoint: string | undefined = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
         if (cdpEndpoint) {
-            try { cdpPort = new URL(cdpEndpoint).port || '9222'; } catch { /* default */ }
+            try { cdpPort = new URL(cdpEndpoint).port || '0'; } catch { /* keep ephemeral */ }
         } else {
             // Fallback: read .cdp-port file written by on-worktree-created.sh hook
             try {
@@ -68,8 +83,9 @@ export function configureEnvironment(): void {
                 if (/^\d+$/.test(filePort)) {
                     cdpPort = filePort;
                 }
-            } catch { /* file doesn't exist, use default */ }
+            } catch { /* file doesn't exist, use ephemeral */ }
         }
+        _configuredCdpPort = cdpPort;
         app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
     }
 }
