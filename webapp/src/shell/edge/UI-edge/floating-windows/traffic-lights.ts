@@ -109,8 +109,8 @@ export function createTrafficLights(options: TrafficLightOptions): HTMLDivElemen
     fullscreenIcon.setAttribute('height', '10');
     fullscreenBtn.appendChild(fullscreenIcon);
     if (options.cy && options.shadowNodeId) {
-        const cy = options.cy;
-        const shadowNodeId = options.shadowNodeId;
+        const cy: Core = options.cy;
+        const shadowNodeId: ShadowNodeId = options.shadowNodeId;
         attachFullscreenZoom(
             cy,
             fullscreenBtn,

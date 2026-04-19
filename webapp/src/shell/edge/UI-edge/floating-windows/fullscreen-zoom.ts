@@ -14,6 +14,7 @@ import type { ShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { cyFitIntoVisibleViewport, getResponsivePadding, restoreViewportDirectly } from '@/utils/responsivePadding';
 import { getVisibleViewportMetrics, getCyViewportState, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getLayout, dispatchSetZoom, dispatchSetPan, flushLayout } from '@vt/graph-state/state/layoutStore';
+import type { StateLayout } from '@vt/graph-state';
 import { MIN_ZOOM } from '@/shell/UI/cytoscape-graph-ui/constants';
 
 // Per-window state for fullscreen zoom restoration — keyed by ShadowNodeId (stable across remounts)
@@ -115,7 +116,7 @@ export function attachFullscreenZoom(
             // Not zoomed in → capture current viewport state and zoom in to window.
             // [L2-seam-residual] cy fallback: layoutStore.zoom/pan uninitialized until first gesture;
             // getCyViewportState reads actual cy values as the authoritative pre-fullscreen state.
-            const layout = getLayout();
+            const layout: StateLayout = getLayout();
             const savedZoom: number = layout.zoom ?? getCyViewportState(cy).zoom;
             const savedPan: { x: number; y: number } = layout.pan ?? getCyViewportState(cy).pan;
             windowViewportStates.set(shadowNodeId, { zoom: savedZoom, pan: { ...savedPan } });
