@@ -8,10 +8,9 @@ The system is expressive enough to restructure itself at runtime, and because ag
 Think of it as a game engine for agentic systems. Unity gives you GameObjects, a lifecycle, and an API you write C# against. 
 Voicetree gives you nodes, edges, lifecycles, and hooks - but your agents can also write against it, meaning the systems you build can improve themselves.
 
-Your building an agentic factory for increasingly automating your job, so you can move up to higher levels of abstraction, building the system that builds itself. Build the self-building factory.
+You are now building an agentic factory, so you can move up to higher levels of abstraction, building the system that builds itself. Build the self-building factory.
 
    (claim, p=0.4 - Markdown hypergraphs have become the de-facto programming language for agent cognition system swarms (augmented brains) in 2027)
-
 
 
 ![Voicetree Demo](meta/core_loop_only_agents.gif)
