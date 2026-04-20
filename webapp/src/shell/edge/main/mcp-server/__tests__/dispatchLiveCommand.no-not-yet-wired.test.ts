@@ -25,6 +25,9 @@ vi.mock('@vt/graph-model', async () => {
     return {
         ...actual,
         getGraph: vi.fn(),
+        getProjectRootWatchedDirectory: vi.fn(() => null),
+        getVaultPaths: vi.fn(async () => []),
+        getReadPaths: vi.fn(async () => []),
     }
 })
 
@@ -32,6 +35,22 @@ vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
     uiAPI: new Proxy({} as Record<string, unknown>, {
         get: () => (): void => { /* no-op in tests */ },
     }),
+}))
+
+vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
+    readRendererLiveState: vi.fn(async () => ({
+        collapseSet: new Set(),
+        selection: new Set(),
+    })),
+    applyRendererLiveCommand: vi.fn(async () => ({
+        collapseSet: new Set(),
+        selection: new Set(),
+    })),
+    isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
+        command.type === 'Collapse'
+        || command.type === 'Expand'
+        || command.type === 'Select'
+        || command.type === 'Deselect',
 }))
 
 import { getGraph } from '@vt/graph-model'

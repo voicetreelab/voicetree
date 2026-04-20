@@ -5,18 +5,29 @@
  * the live store) and mirrors the mutation onto cytoscape + folder/selection
  * stores so the UI reflects MCP-originated commands in real time.
  *
- * Scope: Collapse / Expand / Select / Deselect (the 4 wired commands in L1).
- * Other commands are ignored here — main already returned `not-yet-wired`.
+ * Scope: renderer-owned selection/collapse commands plus viewport layout
+ * commands that must be mirrored into the layoutStore so layoutProjection can
+ * drive cy synchronously before the harness snapshots the step.
  */
 import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state'
 import { collapseFolder, expandFolder } from '@/shell/edge/UI-edge/graph/folderCollapse'
 import { applyNodeSelectionSideEffects } from '@/shell/edge/UI-edge/graph/applyNodeSelectionSideEffects'
+import {
+    dispatchRequestFit,
+    dispatchSetPan,
+    dispatchSetZoom,
+    flushLayout,
+} from '@vt/graph-state/state/layoutStore'
+import type { Position } from '@vt/graph-model/pure/graph'
 
 interface SerializedCommandShape {
     readonly type: string
     readonly folder?: string
     readonly ids?: readonly string[]
     readonly additive?: boolean
+    readonly zoom?: number
+    readonly pan?: Position
+    readonly paddingPx?: number
 }
 
 export async function applyLiveCommandToRenderer(command: unknown): Promise<void> {
@@ -64,6 +75,20 @@ export async function applyLiveCommandToRenderer(command: unknown): Promise<void
                 }
                 return
             }
+            case 'SetZoom':
+                if (typeof cmd.zoom !== 'number') return
+                dispatchSetZoom(cmd.zoom)
+                flushLayout()
+                return
+            case 'SetPan':
+                if (!cmd.pan) return
+                dispatchSetPan({ x: cmd.pan.x, y: cmd.pan.y })
+                flushLayout()
+                return
+            case 'RequestFit':
+                dispatchRequestFit(cmd.paddingPx)
+                flushLayout()
+                return
             default:
                 return
         }

@@ -67,11 +67,21 @@ interface TestServer {
 
 let mockCollapseSet: string[] = []
 let mockRevision: number = FIXTURE_SERIALIZED_STATE.meta.revision
+let mockRootsLoaded: string[] = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
+let mockZoom: number | undefined
 
 function buildCurrentState() {
     return {
         ...FIXTURE_SERIALIZED_STATE,
+        roots: {
+            ...FIXTURE_SERIALIZED_STATE.roots,
+            loaded: [...mockRootsLoaded],
+        },
         collapseSet: [...mockCollapseSet],
+        layout: {
+            ...FIXTURE_SERIALIZED_STATE.layout,
+            ...(mockZoom !== undefined ? {zoom: mockZoom} : {}),
+        },
         meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: mockRevision},
     }
 }
@@ -92,19 +102,44 @@ async function startTestServer(): Promise<TestServer> {
             'Dispatches a live command',
             {command: z.object({type: z.string()}).passthrough()},
             async ({command}) => {
-                const cmd = command as {type: string; folder?: string}
+                const cmd = command as {
+                    type: string
+                    folder?: string
+                    root?: string
+                    zoom?: number
+                }
+                const delta = {
+                    revision: mockRevision,
+                    cause: command,
+                } as {
+                    revision: number
+                    cause: unknown
+                    collapseAdded?: string[]
+                    rootsUnloaded?: string[]
+                    layoutChanged?: {zoom?: number}
+                }
+
                 if (cmd.type === 'Collapse' && cmd.folder) {
                     if (!mockCollapseSet.includes(cmd.folder)) {
                         mockCollapseSet = [...mockCollapseSet, cmd.folder]
                     }
                     mockRevision += 1
+                    delta.revision = mockRevision
+                    delta.collapseAdded = [cmd.folder]
                 }
-                const delta = {
-                    revision: mockRevision,
-                    cause: command,
-                    ...(cmd.type === 'Collapse' && cmd.folder
-                        ? {collapseAdded: [cmd.folder]}
-                        : {}),
+
+                if (cmd.type === 'UnloadRoot' && cmd.root) {
+                    mockRootsLoaded = mockRootsLoaded.filter((root) => root !== cmd.root)
+                    mockRevision += 1
+                    delta.revision = mockRevision
+                    delta.rootsUnloaded = [cmd.root]
+                }
+
+                if (cmd.type === 'SetZoom' && typeof cmd.zoom === 'number') {
+                    mockZoom = cmd.zoom
+                    mockRevision += 1
+                    delta.revision = mockRevision
+                    delta.layoutChanged = {zoom: cmd.zoom}
                 }
                 return {
                     content: [{
@@ -159,6 +194,8 @@ describe('createLiveTransport — MCP roundtrip', () => {
     beforeEach(async () => {
         mockCollapseSet = []
         mockRevision = FIXTURE_SERIALIZED_STATE.meta.revision
+        mockRootsLoaded = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
+        mockZoom = undefined
         server = await startTestServer()
     })
 
@@ -191,6 +228,30 @@ describe('createLiveTransport — MCP roundtrip', () => {
         expect(delta.cause).toEqual({type: 'Collapse', folder: TASKS_FOLDER})
     })
 
+    it('dispatchLiveCommand() preserves rootsUnloaded from the MCP delta', async () => {
+        const transport = createLiveTransport(server.port)
+        const delta = await transport.dispatchLiveCommand({
+            type: 'UnloadRoot',
+            root: VAULT_ROOT,
+        })
+
+        expect(delta.revision).toBe(4)
+        expect(delta.rootsUnloaded).toEqual([VAULT_ROOT])
+        expect(delta.cause).toEqual({type: 'UnloadRoot', root: VAULT_ROOT})
+    })
+
+    it('dispatchLiveCommand() preserves layoutChanged from the MCP delta', async () => {
+        const transport = createLiveTransport(server.port)
+        const delta = await transport.dispatchLiveCommand({
+            type: 'SetZoom',
+            zoom: 1.45,
+        })
+
+        expect(delta.revision).toBe(4)
+        expect(delta.layoutChanged).toEqual({zoom: 1.45})
+        expect(delta.cause).toEqual({type: 'SetZoom', zoom: 1.45})
+    })
+
     it('round-trip: Collapse → getLiveState shows folder in collapseSet + revision bumped', async () => {
         const transport = createLiveTransport(server.port)
 
@@ -203,5 +264,17 @@ describe('createLiveTransport — MCP roundtrip', () => {
         const stateAfter = await transport.getLiveState()
         expect(stateAfter.collapseSet.has(TASKS_FOLDER)).toBe(true)
         expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
+    })
+
+    it('round-trip: UnloadRoot → getLiveState removes the root from roots.loaded', async () => {
+        const transport = createLiveTransport(server.port)
+
+        expect((await transport.getLiveState()).roots.loaded.has(VAULT_ROOT)).toBe(true)
+
+        await transport.dispatchLiveCommand({type: 'UnloadRoot', root: VAULT_ROOT})
+
+        const stateAfter = await transport.getLiveState()
+        expect(stateAfter.roots.loaded.has(VAULT_ROOT)).toBe(false)
+        expect(stateAfter.meta.revision).toBe(4)
     })
 })

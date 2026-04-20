@@ -15,7 +15,13 @@ import type { Graph } from '@vt/graph-model/pure/graph'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')
-    return { ...actual, getGraph: vi.fn() }
+    return {
+        ...actual,
+        getGraph: vi.fn(),
+        getProjectRootWatchedDirectory: vi.fn(() => null),
+        getVaultPaths: vi.fn(async () => []),
+        getReadPaths: vi.fn(async () => []),
+    }
 })
 
 let rendererCollapseSet: Set<string> = new Set()
@@ -79,7 +85,10 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
         command.type === 'Collapse'
         || command.type === 'Expand'
         || command.type === 'Select'
-        || command.type === 'Deselect',
+        || command.type === 'Deselect'
+        || command.type === 'SetZoom'
+        || command.type === 'SetPan'
+        || command.type === 'RequestFit',
 }))
 
 import { getGraph } from '@vt/graph-model'
@@ -88,6 +97,7 @@ import {
     getCurrentLiveState,
     __resetLiveStoreForTests,
 } from '@/shell/edge/main/state/live-state-store'
+import { applyRendererLiveCommand } from '@/shell/edge/main/state/renderer-live-state-proxy'
 
 function emptyGraph(): Graph {
     return {
@@ -112,6 +122,7 @@ afterAll(async () => {
 beforeEach(() => {
     __resetLiveStoreForTests()
     resetRendererState()
+    vi.clearAllMocks()
     vi.mocked(getGraph).mockReturnValue(emptyGraph())
 })
 
@@ -216,4 +227,23 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command varian
             testCase.check(await getCurrentLiveState())
         })
     }
+
+    it('forwards viewport commands to the renderer live-state proxy', async () => {
+        await applyLiveCommandAsync({ type: 'SetZoom', zoom: 2.0 })
+        await applyLiveCommandAsync({ type: 'SetPan', pan: { x: 100, y: 50 } })
+        await applyLiveCommandAsync({ type: 'RequestFit', paddingPx: 20 })
+
+        expect(vi.mocked(applyRendererLiveCommand)).toHaveBeenNthCalledWith(1, {
+            type: 'SetZoom',
+            zoom: 2.0,
+        })
+        expect(vi.mocked(applyRendererLiveCommand)).toHaveBeenNthCalledWith(2, {
+            type: 'SetPan',
+            pan: { x: 100, y: 50 },
+        })
+        expect(vi.mocked(applyRendererLiveCommand)).toHaveBeenNthCalledWith(3, {
+            type: 'RequestFit',
+            paddingPx: 20,
+        })
+    })
 })

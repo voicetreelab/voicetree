@@ -29,6 +29,7 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
 
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
     getCurrentLiveState: vi.fn(),
+    rootsWereExplicitlySet: vi.fn().mockReturnValue(false),
     applyLiveCommand: vi.fn(),
 }))
 

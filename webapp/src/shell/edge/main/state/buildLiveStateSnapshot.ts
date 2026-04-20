@@ -33,18 +33,17 @@ import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
 import * as O from 'fp-ts/lib/Option.js'
 
-import { getCurrentLiveState } from './live-state-store'
+import { getCurrentLiveState, rootsWereExplicitlySet } from './live-state-store'
 
 async function buildRoots(
     graph: Graph,
+    liveLoadedRoots: ReadonlySet<string>,
 ): Promise<{ loaded: ReadonlySet<string>; folderTree: readonly FolderTreeNode[] }> {
     const projectRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (!projectRoot) {
-        return { loaded: new Set<string>(), folderTree: [] }
+        return { loaded: liveLoadedRoots, folderTree: [] }
     }
 
-    const vaultPaths: readonly FilePath[] = await getVaultPaths()
-    const readPaths: readonly FilePath[] = await getReadPaths()
     const writePathOption: O.Option<FilePath> = await getWritePath()
     const writePath: AbsolutePath | null = O.isSome(writePathOption)
         ? toAbsolutePath(writePathOption.value)
@@ -53,8 +52,14 @@ async function buildRoots(
     const graphFilePaths: ReadonlySet<string> = new Set(
         Object.keys(graph.nodes) as readonly NodeIdAndFilePath[],
     )
-
-    const loaded: ReadonlySet<string> = new Set<string>([...readPaths, ...vaultPaths])
+    const fallbackRoots: ReadonlySet<string> =
+        !rootsWereExplicitlySet() && liveLoadedRoots.size === 0
+            ? new Set<string>([
+                ...(await getReadPaths()),
+                ...(await getVaultPaths()),
+            ])
+            : liveLoadedRoots
+    const loaded: ReadonlySet<string> = fallbackRoots
 
     try {
         const directoryEntry: DirectoryEntry = await getDirectoryTree(projectRoot)
@@ -72,7 +77,7 @@ async function buildRoots(
 
 export async function buildLiveStateSnapshot(): Promise<State> {
     const base: State = await getCurrentLiveState()
-    const { loaded, folderTree } = await buildRoots(base.graph)
+    const { loaded, folderTree } = await buildRoots(base.graph, base.roots.loaded)
     const positions: ReadonlyMap<NodeIdAndFilePath, Position> =
         collectLayoutPositions(base.graph) as ReadonlyMap<NodeIdAndFilePath, Position>
 

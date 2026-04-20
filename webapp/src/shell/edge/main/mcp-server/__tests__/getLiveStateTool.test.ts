@@ -8,8 +8,8 @@ vi.mock('@vt/graph-model', async () => {
         ...actual,
         getGraph: vi.fn(),
         getProjectRootWatchedDirectory: vi.fn(),
-        getVaultPaths: vi.fn(),
         getReadPaths: vi.fn(),
+        getVaultPaths: vi.fn(),
         getWritePath: vi.fn(),
         getDirectoryTree: vi.fn(),
     }
@@ -17,17 +17,18 @@ vi.mock('@vt/graph-model', async () => {
 
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
     getCurrentLiveState: vi.fn(),
+    rootsWereExplicitlySet: vi.fn(),
 }))
 
 import {
     getGraph,
     getProjectRootWatchedDirectory,
-    getVaultPaths,
     getReadPaths,
+    getVaultPaths,
     getWritePath,
     getDirectoryTree,
 } from '@vt/graph-model'
-import { getCurrentLiveState } from '@/shell/edge/main/state/live-state-store'
+import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { getLiveStateTool } from '@/shell/edge/main/mcp-server/getLiveStateTool'
 import type { State } from '@vt/graph-state'
 
@@ -64,14 +65,17 @@ function buildFixtureGraph(): Graph {
 describe('vt_get_live_state tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(getReadPaths).mockResolvedValue([])
+        vi.mocked(getVaultPaths).mockResolvedValue([])
+        vi.mocked(rootsWereExplicitlySet).mockReturnValue(false)
     })
 
-    it('returns SerializedState matching the live store + enriched roots/positions', async () => {
+    it('returns SerializedState matching the live store + enriched folder tree/positions', async () => {
         const graph: Graph = buildFixtureGraph()
 
         const baseState: State = {
             graph,
-            roots: { loaded: new Set(), folderTree: [] },
+            roots: { loaded: new Set(['/tmp/vault']), folderTree: [] },
             collapseSet: new Set(['/tmp/vault/tasks/']),
             selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
             layout: { positions: new Map() },
@@ -81,8 +85,7 @@ describe('vt_get_live_state tool', () => {
         vi.mocked(getCurrentLiveState).mockResolvedValue(baseState)
         vi.mocked(getGraph).mockReturnValue(graph)
         vi.mocked(getProjectRootWatchedDirectory).mockReturnValue('/tmp/vault' as never)
-        vi.mocked(getVaultPaths).mockResolvedValue(['/tmp/vault'] as never)
-        vi.mocked(getReadPaths).mockResolvedValue([])
+        vi.mocked(rootsWereExplicitlySet).mockReturnValue(true)
         vi.mocked(getWritePath).mockResolvedValue(O.some('/tmp/vault') as never)
         vi.mocked(getDirectoryTree).mockResolvedValue({
             absolutePath: '/tmp/vault' as never,
@@ -100,7 +103,7 @@ describe('vt_get_live_state tool', () => {
         expect(payload.selection).toEqual(['/tmp/vault/sample.md'])
         const roots: { loaded: readonly string[]; folderTree: readonly unknown[] } =
             payload.roots as { loaded: readonly string[]; folderTree: readonly unknown[] }
-        expect(roots.loaded).toContain('/tmp/vault')
+        expect(roots.loaded).toEqual(['/tmp/vault'])
         expect(roots.folderTree.length).toBeGreaterThan(0)
         const layout: { positions: readonly (readonly [string, unknown])[] } =
             payload.layout as { positions: readonly (readonly [string, unknown])[] }
@@ -108,6 +111,70 @@ describe('vt_get_live_state tool', () => {
         const graphSerialized: { nodes: Record<string, unknown> } =
             payload.graph as { nodes: Record<string, unknown> }
         expect(Object.keys(graphSerialized.nodes)).toEqual(['/tmp/vault/sample.md'])
+    })
+
+    it('preserves an explicitly emptied live root set instead of rebuilding roots.loaded from vault config', async () => {
+        const graph: Graph = buildFixtureGraph()
+
+        vi.mocked(getCurrentLiveState).mockResolvedValue({
+            graph,
+            roots: { loaded: new Set(), folderTree: [] },
+            collapseSet: new Set(),
+            selection: new Set(),
+            layout: { positions: new Map() },
+            meta: { schemaVersion: 1, revision: 4 },
+        })
+        vi.mocked(getGraph).mockReturnValue(graph)
+        vi.mocked(getProjectRootWatchedDirectory).mockReturnValue('/tmp/vault' as never)
+        vi.mocked(rootsWereExplicitlySet).mockReturnValue(true)
+        vi.mocked(getReadPaths).mockResolvedValue([])
+        vi.mocked(getVaultPaths).mockResolvedValue(['/tmp/vault'] as never)
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/tmp/vault') as never)
+        vi.mocked(getDirectoryTree).mockResolvedValue({
+            absolutePath: '/tmp/vault' as never,
+            name: 'vault',
+            isDirectory: true,
+            children: [],
+        })
+
+        const payload: Record<string, unknown> = parse(await getLiveStateTool())
+        const roots: { loaded: readonly string[]; folderTree: readonly unknown[] } =
+            payload.roots as { loaded: readonly string[]; folderTree: readonly unknown[] }
+
+        expect(roots.loaded).toEqual([])
+        expect(roots.folderTree.length).toBeGreaterThan(0)
+    })
+
+    it('bootstraps roots.loaded from configured vault roots before any explicit LoadRoot/UnloadRoot command', async () => {
+        const graph: Graph = buildFixtureGraph()
+
+        vi.mocked(getCurrentLiveState).mockResolvedValue({
+            graph,
+            roots: { loaded: new Set(), folderTree: [] },
+            collapseSet: new Set(),
+            selection: new Set(),
+            layout: { positions: new Map() },
+            meta: { schemaVersion: 1, revision: 0 },
+        })
+        vi.mocked(getGraph).mockReturnValue(graph)
+        vi.mocked(getProjectRootWatchedDirectory).mockReturnValue('/tmp/vault' as never)
+        vi.mocked(rootsWereExplicitlySet).mockReturnValue(false)
+        vi.mocked(getReadPaths).mockResolvedValue([])
+        vi.mocked(getVaultPaths).mockResolvedValue(['/tmp/vault'] as never)
+        vi.mocked(getWritePath).mockResolvedValue(O.some('/tmp/vault') as never)
+        vi.mocked(getDirectoryTree).mockResolvedValue({
+            absolutePath: '/tmp/vault' as never,
+            name: 'vault',
+            isDirectory: true,
+            children: [],
+        })
+
+        const payload: Record<string, unknown> = parse(await getLiveStateTool())
+        const roots: { loaded: readonly string[]; folderTree: readonly unknown[] } =
+            payload.roots as { loaded: readonly string[]; folderTree: readonly unknown[] }
+
+        expect(roots.loaded).toEqual(['/tmp/vault'])
+        expect(roots.folderTree.length).toBeGreaterThan(0)
     })
 
     it('returns isError when the enricher throws', async () => {

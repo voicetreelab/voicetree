@@ -1,5 +1,6 @@
 import { resolveDebugInstance } from '../debug/portResolution'
 import { normalizeChord } from '../debug/normalizeChord'
+import { pressChord } from '../debug/pressChord'
 import { err, ok } from '../debug/Response'
 import { openDebugSession, type PageLike } from '../debug/playwrightSession'
 import type { Response } from '../debug/Response'
@@ -281,7 +282,7 @@ async function keyboardPress(opts: PressOpts): Promise<Response<KeyboardResult>>
       await focusTarget(page, opts.selector)
     }
     const normalizedChord = normalizeChord(opts.chord)
-    await page.keyboard.press(normalizedChord)
+    await pressChord(page, normalizedChord)
     return ok('keyboard press', {
       focusAfter: await readActiveElement(page),
       normalizedChord,

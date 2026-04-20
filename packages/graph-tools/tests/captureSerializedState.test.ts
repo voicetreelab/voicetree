@@ -37,7 +37,7 @@ function buildGraph(nodeIds: readonly NodeIdAndFilePath[]): Graph {
 }
 
 describe('captureSerializedState helpers', () => {
-  it('emits collapseSet, selection, roots.loaded, layout.pan, and layout.zoom with the expected shape', () => {
+  it('emits collapseSet, selection, roots.loaded, layout.pan, and layout.zoom from serialized/overlay state', () => {
     const ROOT_A = '/tmp/vt-capture/root-a'
     const ROOT_B = '/tmp/vt-capture/root-b'
     const NODE_A = `${ROOT_A}/a.md` as NodeIdAndFilePath
@@ -100,8 +100,8 @@ describe('captureSerializedState helpers', () => {
     expect(captured.collapseSet).toEqual([FOLDER])
     expect(captured.selection).toEqual([NODE_B, NODE_A])
     expect(captured.roots.loaded).toEqual([ROOT_B])
-    expect(captured.layout.zoom).toBe(2.25)
-    expect(captured.layout.pan).toEqual({ x: 120, y: -40 })
+    expect(captured.layout.zoom).toBe(1.75)
+    expect(captured.layout.pan).toEqual({ x: 15, y: -5 })
     expect(captured.layout.positions).toContainEqual([NODE_A, { x: 10, y: 20 }])
     expect(captured.layout.positions).toContainEqual([NODE_B, { x: 30, y: 40 }])
   })

@@ -4,6 +4,7 @@ import { hydrateCommand, serializeState, type Delta, type State } from '@vt/grap
 import { type DebugInstance } from '../debug/discover'
 import { computeDrift, type DriftData, type FsContentById } from '../debug/drift'
 import { normalizeChord } from '../debug/normalizeChord'
+import { pressChord } from '../debug/pressChord'
 import { openDebugSession, type PageLike as SessionPageLike } from '../debug/playwrightSession'
 import { resolveDebugInstance } from '../debug/portResolution'
 import { projectStateToCyDump } from '../debug/projectedCyDump'
@@ -193,12 +194,19 @@ export function buildCapturedSerializedState(
   rendered: CyDump | null,
 ): SerializedStateSnapshot {
   const serialized = serializeState(state)
+  const overlayZoom = overlay?.layout.zoom
+  const overlayPan = overlay?.layout.pan
 
   const layout = {
     ...serialized.layout,
-    ...(overlay?.layout.zoom !== undefined ? { zoom: overlay.layout.zoom } : {}),
-    ...(overlay?.layout.pan !== undefined ? { pan: overlay.layout.pan } : {}),
-    ...(rendered ? { zoom: rendered.viewport.zoom, pan: rendered.viewport.pan } : {}),
+    ...(overlayZoom !== undefined ? { zoom: overlayZoom } : {}),
+    ...(overlayPan !== undefined ? { pan: overlayPan } : {}),
+    ...(serialized.layout.zoom === undefined && overlayZoom === undefined && rendered
+      ? { zoom: rendered.viewport.zoom }
+      : {}),
+    ...(serialized.layout.pan === undefined && overlayPan === undefined && rendered
+      ? { pan: rendered.viewport.pan }
+      : {}),
   }
 
   if (!overlay) {
@@ -465,7 +473,7 @@ async function executeStep(
     if (step.selector) {
       await focusTarget(page, step.selector)
     }
-    await page.keyboard.press(normalizeChord(step.press))
+    await pressChord(page, normalizeChord(step.press))
     return null
   }
 

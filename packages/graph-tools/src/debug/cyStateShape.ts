@@ -33,10 +33,45 @@ function safeNum(v: unknown, fallback = 0): number {
   return typeof v === 'number' && isFinite(v) ? v : fallback
 }
 
+function parseStructuredCyDump(raw: Record<string, unknown>): CyDump {
+  const rawNodes = Array.isArray(raw.nodes) ? (raw.nodes as Record<string, unknown>[]) : []
+  const rawEdges = Array.isArray(raw.edges) ? (raw.edges as Record<string, unknown>[]) : []
+  const viewport = (raw.viewport as Record<string, unknown>) ?? {}
+  const pan = (viewport.pan as Record<string, unknown>) ?? {}
+
+  return {
+    nodes: rawNodes.map(n => ({
+      id: String(n.id ?? ''),
+      classes: Array.isArray(n.classes) ? n.classes.map(String) : splitClasses(n.classes),
+      position: {
+        x: safeNum((n.position as Record<string, unknown> | undefined)?.x),
+        y: safeNum((n.position as Record<string, unknown> | undefined)?.y),
+      },
+      visible: n.visible !== false,
+    })),
+    edges: rawEdges.map(e => ({
+      id: String(e.id ?? ''),
+      source: String(e.source ?? ''),
+      target: String(e.target ?? ''),
+      classes: Array.isArray(e.classes) ? e.classes.map(String) : splitClasses(e.classes),
+    })),
+    viewport: {
+      zoom: safeNum(viewport.zoom, 1),
+      pan: { x: safeNum(pan.x), y: safeNum(pan.y) },
+    },
+    selection: Array.isArray(raw.selection) ? raw.selection.map(String) : [],
+  }
+}
+
 // Parse raw cy.json() output (unknown shape from CDP evaluate) into typed CyDump.
 // The only caller that uses CyDump from the CLI side; the renderer builds it directly.
 export function parseCyDump(raw: unknown): CyDump {
   const r = raw as Record<string, unknown>
+
+  if (Array.isArray(r.nodes) && Array.isArray(r.edges) && typeof r.viewport === 'object' && r.viewport !== null) {
+    return parseStructuredCyDump(r)
+  }
+
   const els = (r.elements as Record<string, unknown>) ?? {}
   const rawNodes = Array.isArray(els.nodes) ? (els.nodes as Record<string, unknown>[]) : []
   const rawEdges = Array.isArray(els.edges) ? (els.edges as Record<string, unknown>[]) : []

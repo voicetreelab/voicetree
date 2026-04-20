@@ -13,7 +13,7 @@ import type {
     StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
-import { getGraph } from '@vt/graph-model'
+import { getGraph, getProjectRootWatchedDirectory, getReadPaths, getVaultPaths } from '@vt/graph-model'
 
 import {
     applyRendererLiveCommand,
@@ -32,6 +32,21 @@ const liveParts: MutableLiveParts = {
     roots: { loaded: new Set(), folderTree: [] },
     layout: { positions: new Map() },
 }
+let hasExplicitRootState = false
+
+function sameLoadedRoots(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+    if (left.size !== right.size) {
+        return false
+    }
+
+    for (const root of left) {
+        if (!right.has(root)) {
+            return false
+        }
+    }
+
+    return true
+}
 
 function commitMainOwnedState(state: State): void {
     liveParts.revision = state.meta.revision
@@ -39,7 +54,32 @@ function commitMainOwnedState(state: State): void {
     liveParts.layout = state.layout
 }
 
+async function bootstrapRootsFromProjectConfig(): Promise<void> {
+    if (hasExplicitRootState || liveParts.roots.loaded.size > 0) {
+        return
+    }
+
+    if (!getProjectRootWatchedDirectory()) {
+        return
+    }
+
+    const loadedRoots = new Set<string>([
+        ...(await getReadPaths()),
+        ...(await getVaultPaths()),
+    ])
+
+    if (loadedRoots.size === 0) {
+        return
+    }
+
+    liveParts.roots = {
+        loaded: loadedRoots,
+        folderTree: liveParts.roots.folderTree,
+    }
+}
+
 export async function getCurrentLiveState(): Promise<State> {
+    await bootstrapRootsFromProjectConfig()
     const rendererState: Awaited<ReturnType<typeof readRendererLiveState>> =
         await readRendererLiveState()
 
@@ -56,6 +96,27 @@ export async function getCurrentLiveState(): Promise<State> {
     }
 }
 
+export function rootsWereExplicitlySet(): boolean {
+    return hasExplicitRootState
+}
+
+export function syncWatchedProjectRoot(root: string | null): void {
+    if (hasExplicitRootState) {
+        return
+    }
+
+    const nextLoaded: ReadonlySet<string> = root ? new Set([root]) : new Set()
+    if (sameLoadedRoots(liveParts.roots.loaded, nextLoaded)) {
+        return
+    }
+
+    liveParts.revision += 1
+    liveParts.roots = {
+        loaded: nextLoaded,
+        folderTree: [],
+    }
+}
+
 export async function applyLiveCommand(cmd: Command): Promise<Delta> {
     const before: State = await getCurrentLiveState()
     const { state, delta }: { state: State; delta: Delta } =
@@ -65,6 +126,10 @@ export async function applyLiveCommand(cmd: Command): Promise<Delta> {
 
     if (isRendererOwnedLiveCommand(cmd)) {
         await applyRendererLiveCommand(cmd)
+    }
+
+    if (cmd.type === 'LoadRoot' || cmd.type === 'UnloadRoot') {
+        hasExplicitRootState = true
     }
 
     commitMainOwnedState(state)
@@ -78,6 +143,7 @@ export async function applyLiveCommandAsync(cmd: Command): Promise<Delta> {
 
 /** Test-only: reset the store between test cases. */
 export function __resetLiveStoreForTests(): void {
+    hasExplicitRootState = false
     liveParts.revision = 0
     liveParts.roots = { loaded: new Set(), folderTree: [] }
     liveParts.layout = { positions: new Map() }

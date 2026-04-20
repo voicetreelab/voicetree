@@ -21,6 +21,15 @@ interface SerializableDelta {
     readonly collapseRemoved?: readonly string[]
     readonly selectionAdded?: readonly string[]
     readonly selectionRemoved?: readonly string[]
+    readonly rootsLoaded?: readonly string[]
+    readonly rootsUnloaded?: readonly string[]
+    readonly positionsMoved?: readonly (readonly [string, {x: number; y: number}])[]
+    readonly layoutChanged?: {
+        readonly zoom?: number
+        readonly pan?: {x: number; y: number}
+        readonly positions?: readonly (readonly [string, {x: number; y: number}])[]
+        readonly fit?: {readonly paddingPx: number} | null
+    }
 }
 
 interface DispatchResult {
@@ -90,6 +99,29 @@ export function createLiveTransport(port: number = DEFAULT_MCP_PORT): LiveTransp
                 ...(result.delta.collapseRemoved ? {collapseRemoved: result.delta.collapseRemoved} : {}),
                 ...(result.delta.selectionAdded ? {selectionAdded: result.delta.selectionAdded} : {}),
                 ...(result.delta.selectionRemoved ? {selectionRemoved: result.delta.selectionRemoved} : {}),
+                ...(result.delta.rootsLoaded ? {rootsLoaded: result.delta.rootsLoaded} : {}),
+                ...(result.delta.rootsUnloaded ? {rootsUnloaded: result.delta.rootsUnloaded} : {}),
+                ...(result.delta.positionsMoved
+                    ? {positionsMoved: new Map(result.delta.positionsMoved)}
+                    : {}),
+                ...(result.delta.layoutChanged
+                    ? {
+                        layoutChanged: {
+                            ...(result.delta.layoutChanged.zoom !== undefined
+                                ? {zoom: result.delta.layoutChanged.zoom}
+                                : {}),
+                            ...(result.delta.layoutChanged.pan !== undefined
+                                ? {pan: result.delta.layoutChanged.pan}
+                                : {}),
+                            ...(result.delta.layoutChanged.positions !== undefined
+                                ? {positions: new Map(result.delta.layoutChanged.positions)}
+                                : {}),
+                            ...(result.delta.layoutChanged.fit !== undefined
+                                ? {fit: result.delta.layoutChanged.fit}
+                                : {}),
+                        },
+                    }
+                    : {}),
             }
         },
     }
