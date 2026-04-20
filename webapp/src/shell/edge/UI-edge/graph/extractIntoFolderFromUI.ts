@@ -3,6 +3,7 @@ import { computeExtractIntoFolderGraphDelta } from '@vt/graph-model/pure/graph/g
 import type { Core } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import type {} from '@/shell/electron'
+import { addCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 export async function extractIntoFolderFromUI(
     selectedNodeIds: readonly NodeIdAndFilePath[],
@@ -20,15 +21,16 @@ export async function extractIntoFolderFromUI(
 
     const writePathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWritePath()
     const writePath: string = writePathOption ? O.getOrElse(() => '')(writePathOption) : ''
-    const graphDelta: GraphDelta = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writePath)
+    const { delta: graphDelta, newFolderId } = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writePath)
 
-    if (graphDelta.length === 0) {
+    if (graphDelta.length === 0 || newFolderId === null) {
         console.error('[extractIntoFolderFromUI] No valid extract delta generated')
         return
     }
 
     try {
         await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta)
+        addCollapsedFolder(newFolderId)
     } catch (error: unknown) {
         console.error('[extractIntoFolderFromUI] Failed to apply graph delta:', error)
     }

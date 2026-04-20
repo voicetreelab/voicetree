@@ -46,21 +46,22 @@ describe('computeExtractIntoFolderGraphDelta', () => {
             '/tmp/vault/overview.md': createTestNode('/tmp/vault/overview.md', { position: { x: 300, y: 100 } })
         })
 
-        const delta = computeExtractIntoFolderGraphDelta(
+        const { delta, newFolderId } = computeExtractIntoFolderGraphDelta(
             ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
             graph,
             '/tmp/vault'
         )
 
         expect(delta.length).toBeGreaterThan(0)
+        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
 
         const upsertIds = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
             .map((nodeDelta) => nodeDelta.nodeToUpsert.absoluteFilePathIsID)
 
-        expect(upsertIds.some((nodeId) => nodeId.includes('/extract_') && nodeId.endsWith('/alpha.md'))).toBe(true)
-        expect(upsertIds.some((nodeId) => nodeId.includes('/extract_') && nodeId.endsWith('/beta.md'))).toBe(true)
-        expect(upsertIds.some((nodeId) => nodeId.includes('/extract_') && nodeId.endsWith('.md') && nodeId.includes('/hub_'))).toBe(true)
+        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}alpha.md`)).toBe(true)
+        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}beta.md`)).toBe(true)
+        expect(upsertIds.some((nodeId) => nodeId.startsWith(newFolderId!) && nodeId.endsWith('.md') && nodeId.includes('/hub_'))).toBe(true)
 
         const deletedIds = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'DeleteNode' }> => nodeDelta.type === 'DeleteNode')
@@ -83,7 +84,7 @@ describe('computeExtractIntoFolderGraphDelta', () => {
             })
         })
 
-        const delta = computeExtractIntoFolderGraphDelta(
+        const { delta } = computeExtractIntoFolderGraphDelta(
             ['/tmp/vault/docs/', '/tmp/vault/overview.md'],
             graph,
             '/tmp/vault'

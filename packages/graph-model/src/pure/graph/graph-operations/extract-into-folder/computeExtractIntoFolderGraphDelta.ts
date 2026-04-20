@@ -12,6 +12,11 @@ export interface ExtractIntoFolderSelectionSupport {
     readonly supportedSelectionCount: number
 }
 
+export interface ComputeExtractIntoFolderGraphDeltaResult {
+    readonly delta: GraphDelta
+    readonly newFolderId: NodeIdAndFilePath | null
+}
+
 function getSelectedItemParent(selectedItemId: NodeIdAndFilePath): string | null {
     return selectedItemId.endsWith('/')
         ? getFolderParent(selectedItemId.slice(0, -1))
@@ -179,19 +184,20 @@ export function computeExtractIntoFolderGraphDelta(
     selectedItemIds: readonly NodeIdAndFilePath[],
     graph: Graph,
     writePath: string
-): GraphDelta {
+): ComputeExtractIntoFolderGraphDeltaResult {
     const selectionSupport: ExtractIntoFolderSelectionSupport = getExtractIntoFolderSelectionSupport(selectedItemIds)
     if (!selectionSupport.canExtract) {
-        return []
+        return { delta: [], newFolderId: null }
     }
 
     const extractionBasePath: string = selectionSupport.commonParentPath ?? normalizeNodePath(writePath)
     if (extractionBasePath.length === 0) {
-        return []
+        return { delta: [], newFolderId: null }
     }
 
     const { folderName, hubNoteName } = createExtractionNames()
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
+    const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 
     const movedNodeIdMap: Map<NodeIdAndFilePath, NodeIdAndFilePath> = new Map()
     const selectedFolderIds: readonly NodeIdAndFilePath[] = selectedItemIds.filter((selectedItemId) => selectedItemId.endsWith('/'))
@@ -215,7 +221,7 @@ export function computeExtractIntoFolderGraphDelta(
     })
 
     if (movedNodeIdMap.size === 0) {
-        return []
+        return { delta: [], newFolderId: null }
     }
 
     const selectedItemTargetIds: Map<NodeIdAndFilePath, NodeIdAndFilePath> = new Map()
@@ -237,7 +243,7 @@ export function computeExtractIntoFolderGraphDelta(
     })
 
     if (selectedItemTargetIds.size < 2) {
-        return []
+        return { delta: [], newFolderId: null }
     }
 
     const targetRedirects: Map<NodeIdAndFilePath, NodeIdAndFilePath> = new Map(movedNodeIdMap)
@@ -267,7 +273,7 @@ export function computeExtractIntoFolderGraphDelta(
     })
 
     if (movedNodes.length === 0) {
-        return []
+        return { delta: [], newFolderId: null }
     }
 
     const incomingEdges = getIncomingEdgesToSubgraph(Array.from(movedNodeIdMap.keys()), graph)
@@ -335,14 +341,17 @@ export function computeExtractIntoFolderGraphDelta(
         deletedNode: O.some(oldNode)
     }))
 
-    return [
-        ...movedNodeUpserts,
-        ...externalNodeUpserts,
-        {
-            type: 'UpsertNode' as const,
-            nodeToUpsert: hubNote,
-            previousNode: O.none
-        },
-        ...movedNodeDeletes
-    ]
+    return {
+        delta: [
+            ...movedNodeUpserts,
+            ...externalNodeUpserts,
+            {
+                type: 'UpsertNode' as const,
+                nodeToUpsert: hubNote,
+                previousNode: O.none
+            },
+            ...movedNodeDeletes
+        ],
+        newFolderId
+    }
 }
