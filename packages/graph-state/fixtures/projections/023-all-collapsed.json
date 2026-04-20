@@ -11,7 +11,8 @@
           "isFolderNode": true,
           "folderLabel": "notes",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },
@@ -33,6 +34,7 @@
           "folderLabel": "tasks",
           "loadState": "not-loaded",
           "isWriteTarget": false,
+          "content": "",
           "collapsed": true,
           "childCount": 2
         },

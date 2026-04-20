@@ -11,7 +11,8 @@
           "isFolderNode": true,
           "folderLabel": "notes",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },
@@ -32,7 +33,8 @@
           "isFolderNode": true,
           "folderLabel": "tasks",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },
@@ -45,6 +47,7 @@
           "folderLabel": "epics",
           "loadState": "not-loaded",
           "isWriteTarget": false,
+          "content": "",
           "collapsed": true,
           "childCount": 2
         },

@@ -2,7 +2,7 @@ import path from 'path'
 
 import * as O from 'fp-ts/lib/Option.js'
 
-import type { FolderTreeNode, GraphNode } from '@vt/graph-model'
+import { getFolderNotePath, type FolderTreeNode, type GraphNode } from '@vt/graph-model'
 
 import type { EdgeElement, ElementSpec, FolderId, NodeElement, State } from './contract'
 
@@ -216,12 +216,22 @@ function dataForNode(state: State, nodeId: string, node: GraphNode): Readonly<Re
     }
 }
 
-function dataForFolder(info: FolderProjectionInfo, collapsed: boolean): Readonly<Record<string, unknown>> {
+function dataForFolder(
+    info: FolderProjectionInfo,
+    collapsed: boolean,
+    graph: State['graph'],
+): Readonly<Record<string, unknown>> {
+    const folderNoteId = getFolderNotePath(graph, info.id)
+    const content = folderNoteId
+        ? graph.nodes[folderNoteId]?.contentWithoutYamlOrLinks ?? ''
+        : ''
+
     return {
         isFolderNode: true,
         folderLabel: info.label,
         loadState: info.loadState,
         isWriteTarget: info.isWriteTarget,
+        content,
         ...(collapsed ? { collapsed: true, childCount: info.directChildCount } : {}),
     }
 }
@@ -244,7 +254,7 @@ export function project(state: State): ElementSpec {
 
     const visibleFolderIds = new Set(visibleFolders.map((info) => info.id))
 
-    const nodeEntries: Array<readonly [string, GraphNode]> = Object.entries(state.graph.nodes)
+    const nodeEntries: Array<readonly [string, GraphNode]> = Object.entries<GraphNode>(state.graph.nodes)
         .map(([nodeId, node]) => [nodeId, node] as const)
         .sort(([left], [right]) => left.localeCompare(right))
         .filter(([, node]) => isProjectableGraphNode(node))
@@ -265,7 +275,7 @@ export function project(state: State): ElementSpec {
             id: info.id,
             ...(info.parent && visibleFolderIds.has(info.parent) ? { parent: info.parent } : {}),
             label: info.label,
-            data: dataForFolder(info, collapsed),
+            data: dataForFolder(info, collapsed, state.graph),
             kind: collapsed ? 'folder-collapsed' : 'folder',
         })
     }

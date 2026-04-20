@@ -11,7 +11,8 @@
           "isFolderNode": true,
           "folderLabel": "tasks",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },

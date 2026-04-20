@@ -266,7 +266,8 @@
           "isFolderNode": true,
           "folderLabel": "folder-architecture-refactor",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },
@@ -357,7 +358,8 @@
           "isFolderNode": true,
           "folderLabel": "folder-interaction-improvements",
           "loadState": "not-loaded",
-          "isWriteTarget": false
+          "isWriteTarget": false,
+          "content": ""
         },
         "kind": "folder"
       },
