@@ -7,7 +7,9 @@ import {
     agentSpawn,
     agentWait,
 } from './commands/agent.ts'
+import {runSessionCommand} from './commands/session.ts'
 import {runVaultCommand} from './commands/vault.ts'
+import {runViewCommand} from './commands/view.ts'
 import {error} from './output.ts'
 
 type GlobalOptions = {
@@ -306,6 +308,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'vault':
             await runVaultCommand(commandArgs.slice(1))
+            return
+        case 'session':
+            await runSessionCommand(commandArgs.slice(1))
+            return
+        case 'view':
+            await runViewCommand(commandArgs.slice(1))
             return
         case 'search':
             await dispatchSearchCommand(port, terminalId, commandArgs.slice(1))
