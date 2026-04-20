@@ -20,6 +20,7 @@ import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
 import { mountCollapseRoutes } from './routes/collapse.ts'
 import { createGraphRoutes } from './routes/graph.ts'
+import { mountSessionStateRoutes } from './routes/sessionState.ts'
 import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
 import { SessionRegistry } from './session/registry.ts'
@@ -150,6 +151,7 @@ export async function startDaemon(
   }
 
   mountSessionRoutes(app, registry)
+  mountSessionStateRoutes(app, registry)
   mountCollapseRoutes(app, registry)
 
   app.get('/health', (c) => {

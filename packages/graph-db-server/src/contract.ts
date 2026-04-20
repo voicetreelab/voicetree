@@ -47,6 +47,47 @@ export const CollapseStateResponseSchema = z.object({
 })
 export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
 
+// --- BF-214 session-projection ---
+// Wire format for GET /sessions/:sessionId/state. Mirrors SerializedState from
+// @vt/graph-state (the JSON-safe form: Sets → sorted string arrays, Maps →
+// sorted tuple arrays). Inner graph-node and folder-tree shapes are validated
+// loosely — @vt/graph-model and @vt/graph-state own those contracts.
+const PositionSchema = z.object({ x: z.number(), y: z.number() })
+const StringTuplePairsSchema = z.array(
+  z.tuple([z.string(), z.array(z.string())]),
+)
+
+export const LiveStateSnapshotSchema = z.object({
+  graph: z
+    .object({
+      nodes: z.record(z.string(), z.unknown()),
+      incomingEdgesIndex: StringTuplePairsSchema,
+      nodeByBaseName: StringTuplePairsSchema,
+      unresolvedLinksIndex: StringTuplePairsSchema,
+    })
+    .passthrough(),
+  roots: z.object({
+    loaded: z.array(z.string()),
+    folderTree: z.array(z.unknown()),
+  }),
+  collapseSet: z.array(z.string()),
+  selection: z.array(z.string()),
+  layout: z.object({
+    positions: z.array(z.tuple([z.string(), PositionSchema])),
+    zoom: z.number().optional(),
+    pan: PositionSchema.optional(),
+    fit: z
+      .union([z.object({ paddingPx: z.number() }), z.null()])
+      .optional(),
+  }),
+  meta: z.object({
+    schemaVersion: z.literal(1),
+    revision: z.number().int().nonnegative(),
+    mutatedAt: z.string().optional(),
+  }),
+})
+export type LiveStateSnapshot = z.infer<typeof LiveStateSnapshotSchema>
+
 // --- P2 / vault ---
 export const VaultStateSchema = z.object({
   vaultPath: z.string(),
