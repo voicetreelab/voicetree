@@ -92,6 +92,7 @@ async function buildRunSummary(runDir: string, runIndex: number, stepCount: numb
       ok: output.ok,
       error: output.error,
       observationErrors: output.observationErrors,
+      screenshotPath: output.screenshot,
       consoleErrors,
       consoleWarnings,
       stateGraphNodeCount: nodeCount,

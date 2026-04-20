@@ -6,6 +6,7 @@ export interface StepOutputSummary {
   readonly ok: boolean
   readonly error?: string
   readonly observationErrors?: string[]
+  readonly screenshotPath?: string
   readonly stateGraphNodeCount?: number
   readonly stateRootsLoaded?: string[]
   readonly domProbes?: Readonly<Record<string, unknown>>
@@ -70,6 +71,21 @@ export function buildJudgePrompt(bundle: FlowBundle): string {
   lines.push(`## Steps (${bundle.steps.length} total)`)
   for (let i = 0; i < bundle.steps.length; i += 1) {
     lines.push(`Step ${i + 1}: ${JSON.stringify(bundle.steps[i])}`)
+  }
+  lines.push('')
+  lines.push('## Step screenshots (read via file path — you have Read tool access)')
+  let hasScreenshots = false
+  for (const run of bundle.runSummaries) {
+    const screenshotSteps = run.stepOutputs.filter(output => output.screenshotPath !== undefined)
+    if (screenshotSteps.length === 0) continue
+    hasScreenshots = true
+    lines.push(`### Run ${run.runIndex}`)
+    for (const output of screenshotSteps) {
+      lines.push(`step-${String(output.stepIndex + 1).padStart(2, '0')}: ${output.screenshotPath}`)
+    }
+  }
+  if (!hasScreenshots) {
+    lines.push('(none captured)')
   }
   lines.push('')
   lines.push('## Mechanical Result')

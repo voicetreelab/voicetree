@@ -29,6 +29,7 @@ const MINIMAL_BUNDLE: FlowBundle = {
           step: { waitFor: '.sidebar-wrapper', timeoutMs: 2000 },
           ok: false,
           error: 'TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.',
+          screenshotPath: '/tmp/vt-debug/flows/F1-123/run-01/step-01.png',
           stateGraphNodeCount: 2,
           stateRootsLoaded: ['/path/to/root'],
           domProbes: {
@@ -80,6 +81,41 @@ describe('buildJudgePrompt', () => {
     expect(prompt).toContain('Dom probes:')
     expect(prompt).toContain('"floatingEditors"')
     expect(prompt).toContain('"selectedNodeHasEditor": false')
+  })
+
+  it('includes screenshot paths before the mechanical result section', () => {
+    const screenshotBundle: FlowBundle = {
+      ...MINIMAL_BUNDLE,
+      runSummaries: [
+        {
+          runIndex: 1,
+          pass: false,
+          stepOutputs: [
+            {
+              stepIndex: 0,
+              step: { waitFor: '.sidebar-wrapper', timeoutMs: 2000 },
+              ok: true,
+              screenshotPath: '/tmp/vt-debug/flows/F1-123/run-01/step-01.png',
+            },
+            {
+              stepIndex: 1,
+              step: { dispatch: { type: 'RequestFit', paddingPx: 24 } },
+              ok: true,
+              screenshotPath: '/tmp/vt-debug/flows/F1-123/run-01/step-02.png',
+            },
+          ],
+        },
+      ],
+    }
+    const prompt = buildJudgePrompt(screenshotBundle)
+    const screenshotsIndex = prompt.indexOf('## Step screenshots (read via file path')
+    const mechanicalIndex = prompt.indexOf('## Mechanical Result')
+
+    expect(screenshotsIndex).toBeGreaterThan(-1)
+    expect(screenshotsIndex).toBeLessThan(mechanicalIndex)
+    expect(prompt).toContain('### Run 1')
+    expect(prompt).toContain('step-01: /tmp/vt-debug/flows/F1-123/run-01/step-01.png')
+    expect(prompt).toContain('step-02: /tmp/vt-debug/flows/F1-123/run-01/step-02.png')
   })
 
   it('includes JSON schema shape in prompt', () => {
