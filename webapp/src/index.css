@@ -137,7 +137,7 @@
     @apply border-border outline-ring/50;
   }
   html, body, #root {
-    overflow: hidden;
+    overflow: clip;
   }
   body {
     @apply bg-background text-foreground;
