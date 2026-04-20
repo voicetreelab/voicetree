@@ -1,324 +1,491 @@
 {
-  "ts": "2026-04-19T09:00:00.000Z",
-  "harness_run": {
-    "scoreboard": {
-      "generatedAt": "2026-04-19T08:58:05.432Z",
-      "pre_registered_baseline": "≤3/8 pass (Ayu prediction B, conf 0.75)",
-      "runConfig": {
-        "judgeFlakeRuns": 3,
-        "observationFlags": [
-          "--screenshot-each",
-          "--console-each",
-          "--state-each",
-          "--stop-on-error=false"
-        ]
-      },
-      "rows": [
-        {
-          "flow": "F1",
-          "pass": false,
-          "reason": "0/3 runs passed; step 1 failed: TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-wrapper') to be visible\u001b[22m\n",
-          "runs": [false, false, false]
-        },
-        {
-          "flow": "F2",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F3",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F4",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F5",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F6",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F7",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        },
-        {
-          "flow": "F8",
-          "pass": true,
-          "reason": "3/3 runs passed",
-          "runs": [true, true, true]
-        }
-      ],
-      "bundleDirs": {
-        "F1": "/tmp/vt-debug/flows/F1-20260419-085657410",
-        "F2": "/tmp/vt-debug/flows/F2-20260419-085657410",
-        "F3": "/tmp/vt-debug/flows/F3-20260419-085657410",
-        "F4": "/tmp/vt-debug/flows/F4-20260419-085657410",
-        "F5": "/tmp/vt-debug/flows/F5-20260419-085657410",
-        "F6": "/tmp/vt-debug/flows/F6-20260419-085657410",
-        "F7": "/tmp/vt-debug/flows/F7-20260419-085657410",
-        "F8": "/tmp/vt-debug/flows/F8-20260419-085657410"
-      }
-    }
+  "generatedAt": "2026-04-19T08:58:05.432Z",
+  "pre_registered_baseline": "≤3/8 pass (Ayu prediction B, conf 0.75)",
+  "runConfig": {
+    "judgeFlakeRuns": 3,
+    "observationFlags": [
+      "--screenshot-each",
+      "--console-each",
+      "--state-each",
+      "--stop-on-error=false"
+    ]
   },
-  "judge_verdicts": [
+  "semanticPassCount": 0,
+  "semanticPassThreshold": 0,
+  "mechanicalPassCount": 7,
+  "gate": "PASS",
+  "perFlow": [
     {
       "flow": "F1",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F1-20260419-085657410",
+      "mechanical": {
+        "flow": "F1",
+        "pass": false,
+        "reason": "0/3 runs passed; step 1 failed: TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-wrapper') to be visible\u001b[22m\n",
+        "runs": [
+          false,
+          false,
+          false
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "The flow intent is to confirm the mounted graph shell renders and can execute a viewport fit without crashing. All 3 runs fail on the sidebar render gate (step 1), so there is no mounted shell to fit against. State hydration alone does not constitute a rendered, fit-capable shell. Every run also emits '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' warnings pointing at a renderer-side Select command error that plausibly explains the missing sidebar.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "waitFor .sidebar-wrapper (2000ms timeout): selector never visible in any of the 3 runs. Sidebar shell is not rendering — primary judge focus point (sidebar renders instead of blank state) violated."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "dispatch RequestFit(paddingPx=24): delivered without error. State snapshot retained roots.loaded=1 and graph.nodes=24 — second focus point (non-empty loaded root set) met mechanically."
-        },
-        {
-          "step": 3,
-          "pass": true,
-          "reason": "wait 300ms: post-fit state snapshot still reports roots.loaded=1, graph.nodes=24 — non-empty loaded root set preserved."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "waitFor .sidebar-wrapper (2000ms timeout): selector never visible in any of the 3 runs. Sidebar shell is not rendering — primary judge focus point (sidebar renders instead of blank state) violated."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "dispatch RequestFit(paddingPx=24): delivered without error. State snapshot retained roots.loaded=1 and graph.nodes=24 — second focus point (non-empty loaded root set) met mechanically."
+            },
+            {
+              "step": 3,
+              "pass": true,
+              "reason": "wait 300ms: post-fit state snapshot still reports roots.loaded=1, graph.nodes=24 — non-empty loaded root set preserved."
+            }
+          ],
+          "overall_reason": "The flow intent is to confirm the mounted graph shell renders and can execute a viewport fit without crashing. All 3 runs fail on the sidebar render gate (step 1), so there is no mounted shell to fit against. State hydration alone does not constitute a rendered, fit-capable shell. Every run also emits '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' warnings pointing at a renderer-side Select command error that plausibly explains the missing sidebar."
         }
-      ],
-      "overall_reason": "The flow intent is to confirm the mounted graph shell renders and can execute a viewport fit without crashing. All 3 runs fail on the sidebar render gate (step 1), so there is no mounted shell to fit against. State hydration alone does not constitute a rendered, fit-capable shell. Every run also emits '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' warnings pointing at a renderer-side Select command error that plausibly explains the missing sidebar."
+      }
     },
     {
       "flow": "F2",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F2-20260419-085657410",
+      "mechanical": {
+        "flow": "F2",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "Renderer logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' on every step in every run. graph.nodes count=24 pinned from Step 1 through Step 4 across all 3 runs — Cmd+N hotkey produced no new child or editor. Both focus points unmet: selection snapshot before hotkey was never captured (Select failed), and no new child/editor appeared in post-step state.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch Select: returned ok at runner level but renderer rejected it — '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged in every run. Selection never captured."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "wait 150ms: passive wait step. Failed-Select warnings carry over but wait itself is benign."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "press Cmd+N: no selected node to parent from (Select failed); renderer Select still failing; graph.nodes count remains pinned at 24 across all 3 runs — no child created."
-        },
-        {
-          "step": 4,
-          "pass": false,
-          "reason": "wait 700ms: post-settle state still 24 nodes; no child or editor appeared. Focus point (new child/editor created from selected node) unmet."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch Select: returned ok at runner level but renderer rejected it — '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged in every run. Selection never captured."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "wait 150ms: passive wait step. Failed-Select warnings carry over but wait itself is benign."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "press Cmd+N: no selected node to parent from (Select failed); renderer Select still failing; graph.nodes count remains pinned at 24 across all 3 runs — no child created."
+            },
+            {
+              "step": 4,
+              "pass": false,
+              "reason": "wait 700ms: post-settle state still 24 nodes; no child or editor appeared. Focus point (new child/editor created from selected node) unmet."
+            }
+          ],
+          "overall_reason": "Renderer logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' on every step in every run. graph.nodes count=24 pinned from Step 1 through Step 4 across all 3 runs — Cmd+N hotkey produced no new child or editor. Both focus points unmet: selection snapshot before hotkey was never captured (Select failed), and no new child/editor appeared in post-step state."
         }
-      ],
-      "overall_reason": "Renderer logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' on every step in every run. graph.nodes count=24 pinned from Step 1 through Step 4 across all 3 runs — Cmd+N hotkey produced no new child or editor. Both focus points unmet: selection snapshot before hotkey was never captured (Select failed), and no new child/editor appeared in post-step state."
+      }
     },
     {
       "flow": "F3",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F3-20260419-085657410",
+      "mechanical": {
+        "flow": "F3",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "Mechanical PASS is a false positive. Every step in every run emitted '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. graph.nodes count=24 pinned across all 18 step evaluations (6 steps × 3 runs) — Cmd+N produced no new node. No serialized state shows the typed payload 'BF-DBG-210 golden-flow edit'. Neither judge focus point met: editor never became focused after the create-child hotkey, typed content is absent from state, and renderer exceptions were present throughout.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
-        },
-        {
-          "step": 2,
-          "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
-        },
-        {
-          "step": 4,
-          "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
-        },
-        {
-          "step": 5,
-          "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
-        },
-        {
-          "step": 6,
-          "pass": false,
-          "reason": "<verdict node does not specify step-level detail>"
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            },
+            {
+              "step": 2,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            },
+            {
+              "step": 4,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            },
+            {
+              "step": 5,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            },
+            {
+              "step": 6,
+              "pass": false,
+              "reason": "<verdict node does not specify step-level detail>"
+            }
+          ],
+          "overall_reason": "Mechanical PASS is a false positive. Every step in every run emitted '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. graph.nodes count=24 pinned across all 18 step evaluations (6 steps × 3 runs) — Cmd+N produced no new node. No serialized state shows the typed payload 'BF-DBG-210 golden-flow edit'. Neither judge focus point met: editor never became focused after the create-child hotkey, typed content is absent from state, and renderer exceptions were present throughout."
         }
-      ],
-      "overall_reason": "Mechanical PASS is a false positive. Every step in every run emitted '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. graph.nodes count=24 pinned across all 18 step evaluations (6 steps × 3 runs) — Cmd+N produced no new node. No serialized state shows the typed payload 'BF-DBG-210 golden-flow edit'. Neither judge focus point met: editor never became focused after the create-child hotkey, typed content is absent from state, and renderer exceptions were present throughout."
+      }
     },
     {
       "flow": "F4",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F4-20260419-085657410",
+      "mechanical": {
+        "flow": "F4",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after Collapse; folder id absent after Expand) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window Collapse/Expand dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch Collapse: no collapseSet field in any state snapshot across all 3 runs. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged on every run. First focus point (folder id lands in collapseSet) not observable."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "wait 250ms: clean passive sleep — state counts stable, no teardown."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "dispatch Expand: no collapseSet field in any state snapshot to confirm folder removed from set. Same renderer-pipeline error on all 3 runs. Second focus point (folder disappears from collapseSet after expand) not observable."
-        },
-        {
-          "step": 4,
-          "pass": true,
-          "reason": "wait 250ms: state counts stable; viewport model not torn down."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch Collapse: no collapseSet field in any state snapshot across all 3 runs. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged on every run. First focus point (folder id lands in collapseSet) not observable."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "wait 250ms: clean passive sleep — state counts stable, no teardown."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "dispatch Expand: no collapseSet field in any state snapshot to confirm folder removed from set. Same renderer-pipeline error on all 3 runs. Second focus point (folder disappears from collapseSet after expand) not observable."
+            },
+            {
+              "step": 4,
+              "pass": true,
+              "reason": "wait 250ms: state counts stable; viewport model not torn down."
+            }
+          ],
+          "overall_reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after Collapse; folder id absent after Expand) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window Collapse/Expand dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL."
         }
-      ],
-      "overall_reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after Collapse; folder id absent after Expand) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window Collapse/Expand dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL."
+      }
     },
     {
       "flow": "F5",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F5-20260419-085657410",
+      "mechanical": {
+        "flow": "F5",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "Every step across all 3 runs logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. State snapshots record only roots.loaded count=1 and graph.nodes count=24 — zero selection field present. Renderer explicitly rejected every Select/Deselect dispatch. Both focus points unmet: selection snapshots never moved from first node to both nodes to secondary only, and renderer-serialized state alignment was never demonstrated. Mechanical 3/3 PASS reflects only that dispatches returned without throwing, not that commands observably took effect.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch Select primary: accepted at runner level but '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged — no selection state captured in snapshot."
-        },
-        {
-          "step": 2,
-          "pass": false,
-          "reason": "wait 120ms: renderer-apply error persists; no primary-only selection visible in state."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "dispatch Select secondary (additive): renderer apply failed; no both-selected state captured in snapshot."
-        },
-        {
-          "step": 4,
-          "pass": false,
-          "reason": "wait 120ms: renderer-apply error persists; selection state unchanged from initial (no selection field present in snapshot)."
-        },
-        {
-          "step": 5,
-          "pass": false,
-          "reason": "dispatch Deselect primary: renderer apply failed; cannot verify secondary-only collapse because no prior Selects took effect."
-        },
-        {
-          "step": 6,
-          "pass": false,
-          "reason": "wait 200ms: end-state 'secondary only' never demonstrated — selection alignment between renderer and serialized state unverifiable."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch Select primary: accepted at runner level but '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged — no selection state captured in snapshot."
+            },
+            {
+              "step": 2,
+              "pass": false,
+              "reason": "wait 120ms: renderer-apply error persists; no primary-only selection visible in state."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "dispatch Select secondary (additive): renderer apply failed; no both-selected state captured in snapshot."
+            },
+            {
+              "step": 4,
+              "pass": false,
+              "reason": "wait 120ms: renderer-apply error persists; selection state unchanged from initial (no selection field present in snapshot)."
+            },
+            {
+              "step": 5,
+              "pass": false,
+              "reason": "dispatch Deselect primary: renderer apply failed; cannot verify secondary-only collapse because no prior Selects took effect."
+            },
+            {
+              "step": 6,
+              "pass": false,
+              "reason": "wait 200ms: end-state 'secondary only' never demonstrated — selection alignment between renderer and serialized state unverifiable."
+            }
+          ],
+          "overall_reason": "Every step across all 3 runs logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. State snapshots record only roots.loaded count=1 and graph.nodes count=24 — zero selection field present. Renderer explicitly rejected every Select/Deselect dispatch. Both focus points unmet: selection snapshots never moved from first node to both nodes to secondary only, and renderer-serialized state alignment was never demonstrated. Mechanical 3/3 PASS reflects only that dispatches returned without throwing, not that commands observably took effect."
         }
-      ],
-      "overall_reason": "Every step across all 3 runs logged '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}'. State snapshots record only roots.loaded count=1 and graph.nodes count=24 — zero selection field present. Renderer explicitly rejected every Select/Deselect dispatch. Both focus points unmet: selection snapshots never moved from first node to both nodes to secondary only, and renderer-serialized state alignment was never demonstrated. Mechanical 3/3 PASS reflects only that dispatches returned without throwing, not that commands observably took effect."
+      }
     },
     {
       "flow": "F6",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F6-20260419-085657410",
+      "mechanical": {
+        "flow": "F6",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "Flow F6 intent is to verify viewport panning propagates to serialized state and visible screenshots. State snapshots expose only roots.loaded count=1 and graph.nodes count=24 — no layout.pan field present in any run. No screenshot evidence of viewport movement provided in run bundle summary. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires on every step (x2 per step), violating the 'without console exceptions' clause of first focus point. Mechanical 3/3 PASS is semantically unverified.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch SetPan(x:180, y:-90): no layout.pan field in state snapshot — cannot verify pan value propagated to serialized state. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged (x2)."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "wait 180ms: benign passive wait — state counts stable."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "dispatch SetPan(x:-120, y:140): no layout.pan field in state snapshot; no screenshot evidence of viewport movement provided in run bundle summary. Select dispatch error persists."
-        },
-        {
-          "step": 4,
-          "pass": true,
-          "reason": "wait 180ms: benign passive wait; state counts stable."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch SetPan(x:180, y:-90): no layout.pan field in state snapshot — cannot verify pan value propagated to serialized state. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged (x2)."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "wait 180ms: benign passive wait — state counts stable."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "dispatch SetPan(x:-120, y:140): no layout.pan field in state snapshot; no screenshot evidence of viewport movement provided in run bundle summary. Select dispatch error persists."
+            },
+            {
+              "step": 4,
+              "pass": true,
+              "reason": "wait 180ms: benign passive wait; state counts stable."
+            }
+          ],
+          "overall_reason": "Flow F6 intent is to verify viewport panning propagates to serialized state and visible screenshots. State snapshots expose only roots.loaded count=1 and graph.nodes count=24 — no layout.pan field present in any run. No screenshot evidence of viewport movement provided in run bundle summary. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires on every step (x2 per step), violating the 'without console exceptions' clause of first focus point. Mechanical 3/3 PASS is semantically unverified."
         }
-      ],
-      "overall_reason": "Flow F6 intent is to verify viewport panning propagates to serialized state and visible screenshots. State snapshots expose only roots.loaded count=1 and graph.nodes count=24 — no layout.pan field present in any run. No screenshot evidence of viewport movement provided in run bundle summary. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires on every step (x2 per step), violating the 'without console exceptions' clause of first focus point. Mechanical 3/3 PASS is semantically unverified."
+      }
     },
     {
       "flow": "F7",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F7-20260419-085657410",
+      "mechanical": {
+        "flow": "F7",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "Flow F7 requires affirmative evidence for zoom value serialization (layout.zoom=1.45) and post-fit viewport legibility. Run evidence only dumps roots.loaded and graph.nodes counts — no layout.zoom value ever emitted, no screenshots or viewport bounds captured in the run bundle. SetZoom and RequestFit dispatches were accepted without error but both focus points are unverifiable. Per rubric: 'A mechanical all-steps-ok is NOT sufficient if the judge focus points are not satisfied.' The Select-related console warnings are unrelated to this flow's pass/fail determination.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch SetZoom(1.45): no layout.zoom telemetry in state snapshot — zoom value propagation to serialized state unverifiable. First focus point (layout.zoom changes to requested value) not satisfied."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "wait 180ms: stable state — no teardown observed."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "dispatch RequestFit(paddingPx=32): no viewport bounds or screenshot captured in run evidence — post-fit legibility unverifiable. Second focus point (post-fit screenshots recover legible graph) not satisfied."
-        },
-        {
-          "step": 4,
-          "pass": true,
-          "reason": "wait 250ms: stable state counts; no teardown."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch SetZoom(1.45): no layout.zoom telemetry in state snapshot — zoom value propagation to serialized state unverifiable. First focus point (layout.zoom changes to requested value) not satisfied."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "wait 180ms: stable state — no teardown observed."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "dispatch RequestFit(paddingPx=32): no viewport bounds or screenshot captured in run evidence — post-fit legibility unverifiable. Second focus point (post-fit screenshots recover legible graph) not satisfied."
+            },
+            {
+              "step": 4,
+              "pass": true,
+              "reason": "wait 250ms: stable state counts; no teardown."
+            }
+          ],
+          "overall_reason": "Flow F7 requires affirmative evidence for zoom value serialization (layout.zoom=1.45) and post-fit viewport legibility. Run evidence only dumps roots.loaded and graph.nodes counts — no layout.zoom value ever emitted, no screenshots or viewport bounds captured in the run bundle. SetZoom and RequestFit dispatches were accepted without error but both focus points are unverifiable. Per rubric: 'A mechanical all-steps-ok is NOT sufficient if the judge focus points are not satisfied.' The Select-related console warnings are unrelated to this flow's pass/fail determination."
         }
-      ],
-      "overall_reason": "Flow F7 requires affirmative evidence for zoom value serialization (layout.zoom=1.45) and post-fit viewport legibility. Run evidence only dumps roots.loaded and graph.nodes counts — no layout.zoom value ever emitted, no screenshots or viewport bounds captured in the run bundle. SetZoom and RequestFit dispatches were accepted without error but both focus points are unverifiable. Per rubric: 'A mechanical all-steps-ok is NOT sufficient if the judge focus points are not satisfied.' The Select-related console warnings are unrelated to this flow's pass/fail determination."
+      }
     },
     {
       "flow": "F8",
-      "pass": false,
-      "per_step": [
-        {
-          "step": 1,
+      "bundleDir": "/tmp/vt-debug/flows/F8-20260419-085657410",
+      "mechanical": {
+        "flow": "F8",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      "semantic": {
+        "pass": false,
+        "reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after UnloadRoot (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet.",
+        "judgeVerdict": {
           "pass": false,
-          "reason": "dispatch UnloadRoot: roots.loaded count=1 and graph.nodes count=24 persist identically after dispatch — no state change observed. First focus point (active root disappears from roots.loaded after unload) violated in all 3 runs."
-        },
-        {
-          "step": 2,
-          "pass": true,
-          "reason": "wait 250ms: benign passive wait — state counts stable."
-        },
-        {
-          "step": 3,
-          "pass": false,
-          "reason": "dispatch LoadRoot: cannot validate as reload because prior UnloadRoot had no observable effect; roots.loaded still pinned at 1. Recovery path not exercised — cannot confirm root returns after reload."
-        },
-        {
-          "step": 4,
-          "pass": true,
-          "reason": "wait 1500ms: state counts stable; no teardown during extended settle window."
-        },
-        {
-          "step": 5,
-          "pass": false,
-          "reason": "dispatch RequestFit: no viewport or zoom evidence to confirm fit actually occurred; renderer is in degraded command-application state (persistent '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' warnings). Second focus point (graph shell stays mounted and can fit again) unverified."
-        },
-        {
-          "step": 6,
-          "pass": true,
-          "reason": "wait 250ms: benign passive wait; state counts stable."
+          "per_step": [
+            {
+              "step": 1,
+              "pass": false,
+              "reason": "dispatch UnloadRoot: roots.loaded count=1 and graph.nodes count=24 persist identically after dispatch — no state change observed. First focus point (active root disappears from roots.loaded after unload) violated in all 3 runs."
+            },
+            {
+              "step": 2,
+              "pass": true,
+              "reason": "wait 250ms: benign passive wait — state counts stable."
+            },
+            {
+              "step": 3,
+              "pass": false,
+              "reason": "dispatch LoadRoot: cannot validate as reload because prior UnloadRoot had no observable effect; roots.loaded still pinned at 1. Recovery path not exercised — cannot confirm root returns after reload."
+            },
+            {
+              "step": 4,
+              "pass": true,
+              "reason": "wait 1500ms: state counts stable; no teardown during extended settle window."
+            },
+            {
+              "step": 5,
+              "pass": false,
+              "reason": "dispatch RequestFit: no viewport or zoom evidence to confirm fit actually occurred; renderer is in degraded command-application state (persistent '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' warnings). Second focus point (graph shell stays mounted and can fit again) unverified."
+            },
+            {
+              "step": 6,
+              "pass": true,
+              "reason": "wait 250ms: benign passive wait; state counts stable."
+            }
+          ],
+          "overall_reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after UnloadRoot (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet."
         }
-      ],
-      "overall_reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after UnloadRoot (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet."
+      }
     }
   ],
-  "final_pass_count": "0/8",
-  "pre_registered_baseline": "≤3/8 pass (Ayu prediction B, conf 0.75)",
-  "judge_flake_runs": 3
+  "legacy": {
+    "mechanicalPass": 7,
+    "rows": [
+      {
+        "flow": "F1",
+        "pass": false,
+        "reason": "0/3 runs passed; step 1 failed: TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.sidebar-wrapper') to be visible\u001b[22m\n",
+        "runs": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "flow": "F2",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F3",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F4",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F5",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F6",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F7",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "flow": "F8",
+        "pass": true,
+        "reason": "3/3 runs passed",
+        "runs": [
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "bundleDirs": {
+      "F1": "/tmp/vt-debug/flows/F1-20260419-085657410",
+      "F2": "/tmp/vt-debug/flows/F2-20260419-085657410",
+      "F3": "/tmp/vt-debug/flows/F3-20260419-085657410",
+      "F4": "/tmp/vt-debug/flows/F4-20260419-085657410",
+      "F5": "/tmp/vt-debug/flows/F5-20260419-085657410",
+      "F6": "/tmp/vt-debug/flows/F6-20260419-085657410",
+      "F7": "/tmp/vt-debug/flows/F7-20260419-085657410",
+      "F8": "/tmp/vt-debug/flows/F8-20260419-085657410"
+    }
+  }
 }

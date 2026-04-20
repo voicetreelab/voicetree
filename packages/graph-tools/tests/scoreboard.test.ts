@@ -9,10 +9,17 @@ import {
   createScoreboard,
   evaluateRunResult,
 } from '../src/debug/scoreboard'
+import type { JudgeVerdict } from '../src/debug/judge'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
 
 describe('scoreboard helpers', () => {
+  const passingJudgeVerdict: JudgeVerdict = {
+    pass: true,
+    per_step: [{ step: 1, pass: true, reason: 'semantic pass' }],
+    overall_reason: 'semantic pass',
+  }
+
   it('treats a full green bundle as a passing attempt', () => {
     const attempt = evaluateRunResult({
       ok: true,
@@ -99,21 +106,44 @@ describe('scoreboard helpers', () => {
       runs: [true, false, true],
     })
 
-    const scoreboard = createScoreboard([row], { F2: '/tmp/F2' })
+    const scoreboard = createScoreboard([row], { F2: '/tmp/F2' }, {
+      semanticPassThreshold: 1,
+      semanticVerdicts: new Map([['F2', passingJudgeVerdict]]),
+    })
     expect(scoreboard.pre_registered_baseline).toBe(PRE_REGISTERED_BASELINE)
     expect(scoreboard.runConfig.judgeFlakeRuns).toBe(3)
+    expect(scoreboard.semanticPassCount).toBe(1)
+    expect(scoreboard.semanticPassThreshold).toBe(1)
+    expect(scoreboard.mechanicalPassCount).toBe(1)
+    expect(scoreboard.gate).toBe('PASS')
   })
 
-  it('ships a pending baseline fixture with the locked preregistration field', () => {
+  it('ships a semantic-first baseline fixture with preserved judge verdicts', () => {
     const fixturePath = path.resolve(testDir, '../fixtures/int1-baseline.json')
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
+      semanticPassCount: number
+      semanticPassThreshold: number
+      mechanicalPassCount: number
       pre_registered_baseline: string
       runConfig: { judgeFlakeRuns: number }
-      status: string
+      perFlow: Array<{
+        flow: string
+        semantic: {
+          judgeVerdict: JudgeVerdict | null
+        }
+      }>
+      legacy: {
+        mechanicalPass: number
+      }
     }
 
     expect(fixture.pre_registered_baseline).toBe(PRE_REGISTERED_BASELINE)
     expect(fixture.runConfig.judgeFlakeRuns).toBe(3)
-    expect(fixture.status).toBe('pending-live-run')
+    expect(fixture.semanticPassCount).toBe(0)
+    expect(fixture.semanticPassThreshold).toBe(0)
+    expect(fixture.mechanicalPassCount).toBe(7)
+    expect(fixture.legacy.mechanicalPass).toBe(7)
+    expect(fixture.perFlow).toHaveLength(8)
+    expect(fixture.perFlow.every(flow => flow.semantic.judgeVerdict !== null)).toBe(true)
   })
 })

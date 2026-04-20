@@ -11,6 +11,7 @@ import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '
 import { computeDrift, type DriftReport } from '../src/debug/drift'
 import { err, ok } from '../src/debug/Response'
 import type { Response } from '../src/debug/Response'
+import { createScoreboard, type FlowScoreboard, type ScoreboardRow } from '../src/debug/scoreboard'
 import {
   createDivergenceClassBaseline,
   classifyDriftReport,
@@ -25,7 +26,7 @@ import {
   resolveStressSequence,
 } from '../src/debug/stress/stressSpec'
 import { elementSpecToCyDump, projectStateToCyDump } from '../src/debug/projectedCyDump'
-import type { FlowScoreboard } from '../src/debug/scoreboard'
+import type { JudgeVerdict } from '../src/debug/judge'
 import type { RunResult } from '../src/commands/run'
 
 const DEFAULT_OUT_DIR = '/tmp/vt-debug/stress'
@@ -348,12 +349,19 @@ function childFlowArgs(outDir: string, fixtureOut: string, instance: DebugInstan
 }
 
 function parseResponse<T>(stdout: string): Response<T> | null {
-  if (stdout.trim() === '') return null
-  try {
-    return JSON.parse(stdout) as Response<T>
-  } catch {
-    return null
+  const trimmed = stdout.trim()
+  if (trimmed === '') return null
+
+  const candidates = [trimmed, ...trimmed.split('\n').map(line => line.trim()).filter(Boolean).slice(-1)]
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as Response<T>
+    } catch {
+      // Try the next candidate.
+    }
   }
+
+  return null
 }
 
 function snapshotFsContentById(state: State): Record<string, string> {
@@ -510,26 +518,105 @@ function collectObservedClassIds(stress: StressResult): string[] {
   ])
 }
 
-function extractScoreboard(value: unknown): FlowScoreboard {
-  if (
-    typeof value === 'object'
+type LegacyFlowScoreboard = {
+  readonly generatedAt: string | null
+  readonly pre_registered_baseline: string
+  readonly runConfig: {
+    readonly judgeFlakeRuns: number
+    readonly observationFlags: readonly string[]
+  }
+  readonly rows: readonly ScoreboardRow[]
+  readonly bundleDirs: Record<string, string>
+  readonly status?: 'pending-live-run'
+  readonly note?: string
+}
+
+type LegacyJudgeVerdict = JudgeVerdict & {
+  readonly flow: string
+}
+
+function isLegacyFlowScoreboard(value: unknown): value is LegacyFlowScoreboard {
+  return typeof value === 'object'
     && value !== null
     && Array.isArray((value as { rows?: unknown }).rows)
-  ) {
-    return value as FlowScoreboard
+    && typeof (value as { bundleDirs?: unknown }).bundleDirs === 'object'
+    && (value as { bundleDirs?: unknown }).bundleDirs !== null
+}
+
+function normalizeLegacyFlowScoreboard(
+  scoreboard: LegacyFlowScoreboard,
+  judgeVerdicts: readonly LegacyJudgeVerdict[] = [],
+): FlowScoreboard {
+  const semanticVerdicts = new Map<string, JudgeVerdict>(
+    judgeVerdicts.map(verdict => [
+      verdict.flow,
+      {
+        pass: verdict.pass,
+        per_step: verdict.per_step,
+        overall_reason: verdict.overall_reason,
+      },
+    ]),
+  )
+
+  const normalized = createScoreboard(scoreboard.rows, scoreboard.bundleDirs, {
+    semanticPassThreshold: 0,
+    semanticVerdicts,
+  })
+
+  return {
+    ...normalized,
+    generatedAt: scoreboard.generatedAt,
+    pre_registered_baseline: scoreboard.pre_registered_baseline,
+    runConfig: scoreboard.runConfig,
+    status: scoreboard.status,
+    note: scoreboard.note,
+  }
+}
+
+function isFlowScoreboard(value: unknown): value is FlowScoreboard {
+  return typeof value === 'object'
+    && value !== null
+    && Array.isArray((value as { perFlow?: unknown }).perFlow)
+    && typeof (value as { semanticPassCount?: unknown }).semanticPassCount === 'number'
+    && typeof (value as { semanticPassThreshold?: unknown }).semanticPassThreshold === 'number'
+}
+
+function extractScoreboard(value: unknown): FlowScoreboard {
+  if (isFlowScoreboard(value)) {
+    return value
   }
 
-  const nested = value as { harness_run?: { scoreboard?: FlowScoreboard } }
-  if (nested.harness_run?.scoreboard && Array.isArray(nested.harness_run.scoreboard.rows)) {
+  if (isLegacyFlowScoreboard(value)) {
+    return normalizeLegacyFlowScoreboard(value)
+  }
+
+  const nested = value as {
+    harness_run?: { scoreboard?: unknown }
+    judge_verdicts?: unknown
+  }
+
+  if (isFlowScoreboard(nested.harness_run?.scoreboard)) {
     return nested.harness_run.scoreboard
+  }
+
+  if (isLegacyFlowScoreboard(nested.harness_run?.scoreboard)) {
+    const judgeVerdicts = Array.isArray(nested.judge_verdicts)
+      ? nested.judge_verdicts.filter(
+        (entry): entry is LegacyJudgeVerdict =>
+          typeof entry === 'object'
+          && entry !== null
+          && typeof (entry as { flow?: unknown }).flow === 'string',
+      )
+      : []
+    return normalizeLegacyFlowScoreboard(nested.harness_run.scoreboard, judgeVerdicts)
   }
 
   throw new Error('unable to extract a flow scoreboard from the baseline file')
 }
 
 function compareScoreboards(baseline: FlowScoreboard, current: FlowScoreboard) {
-  const baselineRows = new Map(baseline.rows.map(row => [row.flow, row] as const))
-  const currentRows = new Map(current.rows.map(row => [row.flow, row] as const))
+  const baselineRows = new Map(baseline.perFlow.map(row => [row.flow, row] as const))
+  const currentRows = new Map(current.perFlow.map(row => [row.flow, row] as const))
   const flowIds = uniqueSorted([...baselineRows.keys(), ...currentRows.keys()])
   const regressions: string[] = []
   const improvements: string[] = []
@@ -538,26 +625,26 @@ function compareScoreboards(baseline: FlowScoreboard, current: FlowScoreboard) {
     const baselineRow = baselineRows.get(flowId)
     const currentRow = currentRows.get(flowId)
 
-    if (baselineRow?.pass === true && currentRow?.pass !== true) {
+    if (baselineRow?.semantic.pass === true && currentRow?.semantic.pass !== true) {
       regressions.push(flowId)
     }
-    if (baselineRow?.pass !== true && currentRow?.pass === true) {
+    if (baselineRow?.semantic.pass !== true && currentRow?.semantic.pass === true) {
       improvements.push(flowId)
     }
   }
 
-  const baselinePassCount = baseline.rows.filter(row => row.pass).length
-  const currentPassCount = current.rows.filter(row => row.pass).length
+  const baselineSemanticPassCount = baseline.semanticPassCount
+  const currentSemanticPassCount = current.semanticPassCount
 
   return {
-    baselinePassCount,
-    currentPassCount,
-    passCountDelta: currentPassCount - baselinePassCount,
+    baselineSemanticPassCount,
+    currentSemanticPassCount,
+    semanticPassCountDelta: currentSemanticPassCount - baselineSemanticPassCount,
     regressions,
     improvements,
     monotonicNonDecreasing:
       regressions.length === 0
-      && currentPassCount >= baselinePassCount,
+      && currentSemanticPassCount >= baselineSemanticPassCount,
   }
 }
 
@@ -728,14 +815,14 @@ async function handler(argv: string[]): Promise<Response<unknown>> {
     },
     flowScoreboard: flowScoreboard
       ? {
-          baselinePassCount: flowScoreboard.comparison.baselinePassCount,
-          currentPassCount: flowScoreboard.comparison.currentPassCount,
-          passCountDelta: flowScoreboard.comparison.passCountDelta,
+          baselineSemanticPassCount: flowScoreboard.comparison.baselineSemanticPassCount,
+          currentSemanticPassCount: flowScoreboard.comparison.currentSemanticPassCount,
+          semanticPassCountDelta: flowScoreboard.comparison.semanticPassCountDelta,
           regressions: flowScoreboard.comparison.regressions,
           improvements: flowScoreboard.comparison.improvements,
           monotonicNonDecreasing: flowScoreboard.comparison.monotonicNonDecreasing,
-          baselineRows: flowScoreboard.baseline.rows,
-          currentRows: flowScoreboard.current.rows,
+          baselinePerFlow: flowScoreboard.baseline.perFlow,
+          currentPerFlow: flowScoreboard.current.perFlow,
           currentScoreboardPath: flowScoreboard.currentScoreboardPath,
         }
       : {
@@ -758,7 +845,7 @@ async function handler(argv: string[]): Promise<Response<unknown>> {
     divergenceClassCount: stress.observedClassIds.length,
     projectionVsRenderedEqualSequencePct: percent(liveEqualSequenceCount, liveSequences.length),
     projectionVsRenderedEqualStepPct: percent(liveEqualStepCount, liveObservedStepCount),
-    flowScoreboardDelta: flowScoreboard?.comparison.passCountDelta ?? null,
+    flowScoreboardDelta: flowScoreboard?.comparison.semanticPassCountDelta ?? null,
   })
 }
 

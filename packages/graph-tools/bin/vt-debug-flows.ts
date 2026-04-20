@@ -19,11 +19,13 @@ import { err, ok } from '../src/debug/Response'
 import type { Response } from '../src/debug/Response'
 import {
   buildScoreboardRow,
+  computeGate,
   createScoreboard,
   evaluateRunResult,
   type FlowAttempt,
   type FlowScoreboard,
 } from '../src/debug/scoreboard'
+import { parseJudgeResponse, type JudgeVerdict } from '../src/debug/judge'
 import type { RunResult } from '../src/commands/run'
 import { createLiveTransport } from '../src/liveTransport'
 
@@ -40,6 +42,7 @@ const VT_DEBUG_BIN = path.resolve(SCRIPT_DIR, './vt-debug.ts')
 type RunnerOptions = {
   outDir: string
   fixtureOut: string
+  writeBaseline: boolean
   port?: number
   pid?: number
   vault?: string
@@ -60,13 +63,14 @@ type ExecResult = {
 type RunAllResult = {
   scoreboard: FlowScoreboard
   scoreboardPath: string
-  fixturePath: string
+  fixturePath: string | null
+  baselineWritten: boolean
 }
 
 function usage(message?: string): Response<never> {
   return err(
     'flows',
-    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--port <n> | --pid <n> | --vault <path>]`,
+    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--write-baseline] [--port <n> | --pid <n> | --vault <path>]`,
   )
 }
 
@@ -98,6 +102,7 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
 
   let outDir = DEFAULT_OUT_DIR
   let fixtureOut = DEFAULT_FIXTURE_OUT
+  let writeBaseline = false
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
@@ -127,6 +132,11 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
 
       if (arg.startsWith('--fixture-out=')) {
         fixtureOut = path.resolve(readFlagValue('--fixture-out', arg.slice('--fixture-out='.length)))
+        continue
+      }
+
+      if (arg === '--write-baseline') {
+        writeBaseline = true
         continue
       }
 
@@ -171,7 +181,7 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
     return usage(String(error))
   }
 
-  const options: RunnerOptions = { outDir, fixtureOut, port, pid, vault }
+  const options: RunnerOptions = { outDir, fixtureOut, writeBaseline, port, pid, vault }
 
   if (command === 'list') {
     return { command, options }
@@ -194,6 +204,62 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
 async function writeJson(filePath: string, data: unknown): Promise<void> {
   await fs.mkdir(path.dirname(filePath), { recursive: true })
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8')
+}
+
+async function readJsonSafe<T>(filePath: string): Promise<T | null> {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8')
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+function extractSemanticPassThreshold(value: unknown): number | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const record = value as Record<string, unknown>
+  if (typeof record.semanticPassThreshold === 'number') {
+    return record.semanticPassThreshold
+  }
+
+  const harnessRun = record.harness_run
+  if (typeof harnessRun !== 'object' || harnessRun === null) {
+    return null
+  }
+
+  const scoreboard = (harnessRun as { scoreboard?: unknown }).scoreboard
+  if (typeof scoreboard !== 'object' || scoreboard === null) {
+    return null
+  }
+
+  return typeof (scoreboard as { semanticPassThreshold?: unknown }).semanticPassThreshold === 'number'
+    ? (scoreboard as { semanticPassThreshold: number }).semanticPassThreshold
+    : null
+}
+
+async function loadSemanticPassThreshold(fixtureOut: string): Promise<number> {
+  const existingFixture = await readJsonSafe<unknown>(fixtureOut)
+  return extractSemanticPassThreshold(existingFixture) ?? 0
+}
+
+async function loadSemanticVerdicts(flowIds: readonly FlowId[], outDir: string): Promise<Map<string, JudgeVerdict>> {
+  const semanticVerdicts = new Map<string, JudgeVerdict>()
+  const verdictDir = path.resolve(outDir)
+
+  for (const flowId of flowIds) {
+    const verdictPath = path.join(verdictDir, `judge-${flowId}.json`)
+    try {
+      const raw = await fs.readFile(verdictPath, 'utf8')
+      semanticVerdicts.set(flowId, parseJudgeResponse(raw))
+    } catch {
+      // No colocated semantic verdict for this run yet.
+    }
+  }
+
+  return semanticVerdicts
 }
 
 async function execFileResult(args: readonly string[]): Promise<ExecResult> {
@@ -349,15 +415,27 @@ async function runFlowSet(
     bundleDirs[definition.flow] = result.bundleDir
   }
 
-  const scoreboard = createScoreboard(rows, bundleDirs)
+  const semanticPassThreshold = await loadSemanticPassThreshold(options.fixtureOut)
+  const semanticVerdicts = await loadSemanticVerdicts(
+    definitions.map(definition => definition.flow),
+    options.outDir,
+  )
+  const scoreboard = createScoreboard(rows, bundleDirs, {
+    semanticPassThreshold,
+    semanticVerdicts,
+  })
   const scoreboardPath = path.join(options.outDir, `scoreboard-${timestamp}.json`)
   await writeJson(scoreboardPath, scoreboard)
-  await writeJson(options.fixtureOut, scoreboard)
+
+  if (options.writeBaseline) {
+    await writeJson(options.fixtureOut, scoreboard)
+  }
 
   return {
     scoreboard,
     scoreboardPath,
-    fixturePath: options.fixtureOut,
+    fixturePath: options.writeBaseline ? options.fixtureOut : null,
+    baselineWritten: options.writeBaseline,
   }
 }
 
@@ -396,6 +474,39 @@ async function handler(argv: string[]): Promise<Response<unknown>> {
   return ok('flows', result)
 }
 
+function isRunAllResult(value: unknown): value is RunAllResult {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const record = value as Record<string, unknown>
+  return typeof record.scoreboardPath === 'string'
+    && typeof record.baselineWritten === 'boolean'
+    && typeof record.scoreboard === 'object'
+    && record.scoreboard !== null
+}
+
+function printScoreboardSummary(scoreboard: FlowScoreboard): void {
+  const totalFlows = scoreboard.perFlow.length
+  process.stdout.write(
+    `semanticPass: ${scoreboard.semanticPassCount}/${totalFlows} threshold=${scoreboard.semanticPassThreshold} gate=${scoreboard.gate}\n`,
+  )
+  process.stdout.write(`mechanicalPass: ${scoreboard.mechanicalPassCount}/${totalFlows}\n`)
+}
+
 const result = await handler(process.argv.slice(2))
+if (result.ok && isRunAllResult(result.result)) {
+  printScoreboardSummary(result.result.scoreboard)
+}
 process.stdout.write(JSON.stringify(result) + '\n')
-process.exit(result.ok ? 0 : result.exitCode ?? 1)
+
+const exitCode = result.ok
+  ? isRunAllResult(result.result) && computeGate(
+    result.result.scoreboard.semanticPassCount,
+    result.result.scoreboard.semanticPassThreshold,
+  ) === 'FAIL'
+    ? 1
+    : 0
+  : result.exitCode ?? 1
+
+process.exit(exitCode)
