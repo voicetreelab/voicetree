@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
+import type { ElementSpec, NodeElement } from '@vt/graph-state'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
@@ -40,6 +41,36 @@ function del(nodeId: string): DeleteNode {
 
 function applyDeltaToUI(cy: Core, delta: GraphDelta) {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
+function applySpecToUI(cy: Core, spec: ElementSpec) {
+    return applyGraphDeltaToUI(cy, spec)
+}
+
+function folderSpecNode(
+    kind: 'folder' | 'folder-collapsed',
+    overrides: Partial<NodeElement> = {},
+): NodeElement {
+    return {
+        id: '/vault/topic/',
+        kind,
+        label: 'Topic',
+        data: {
+            content: '# Topic\n\nbody',
+            folderLabel: 'Topic',
+            ...(kind === 'folder-collapsed' ? { collapsed: true, childCount: 2 } : {}),
+            ...overrides.data,
+        },
+        ...overrides,
+    }
+}
+
+function specWithNodes(...nodes: NodeElement[]): ElementSpec {
+    return {
+        nodes,
+        edges: [],
+        revision: 1,
+    }
 }
 
 function syncFolderTree(rootPath: string = '/vault'): void {
@@ -347,6 +378,43 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
             expect(cy.getElementById('/vault/auth/internal/').data('collapsed')).toBe(true)
             expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+        })
+    })
+
+    describe('Folder node content projection', () => {
+        it('inserts folder nodes with content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            const folderNode: cytoscape.CollectionReturnValue = cy.getElementById('/vault/topic/')
+            expect(folderNode.data('content')).toBe('# Topic\n\nbody')
+            expect(folderNode.data('isFolderNode')).toBe(true)
+        })
+
+        it('updates existing folder node content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            applySpecToUI(
+                cy,
+                specWithNodes(
+                    folderSpecNode('folder', {
+                        data: {
+                            content: '# Topic\n\nupdated',
+                            folderLabel: 'Topic',
+                        },
+                    }),
+                ),
+            )
+
+            expect(cy.getElementById('/vault/topic/').data('content')).toBe('# Topic\n\nupdated')
+        })
+
+        it('inserts collapsed folder nodes with content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder-collapsed')))
+
+            const folderNode: cytoscape.CollectionReturnValue = cy.getElementById('/vault/topic/')
+            expect(folderNode.data('content')).toBe('# Topic\n\nbody')
+            expect(folderNode.data('collapsed')).toBe(true)
+            expect(folderNode.data('childCount')).toBe(2)
         })
     })
 

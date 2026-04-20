@@ -212,6 +212,7 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                         group: 'nodes' as const,
                         data: {
                             ...baseData,
+                            content: getSpecNodeContent(specNode) ?? '',
                             isFolderNode: true,
                             folderLabel: asString(specNode.data['folderLabel']) ?? nodeDisplayLabel(specNode),
                             ...(collapsed
@@ -262,6 +263,7 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                     'folderLabel',
                     asString(specNode.data['folderLabel']) ?? nodeDisplayLabel(specNode),
                 )
+                existing.data('content', getSpecNodeContent(specNode) ?? '')
                 if (collapsed) {
                     existing.data('collapsed', true)
                     existing.data('childCount', specNode.data['childCount'] ?? 0)
