@@ -41,7 +41,7 @@ Early-beta: powerful but rough. We (the startup/lab building it) use Voicetree d
 ## API summary
 A lightweight API (agent-first, local-only) for a set of operations on these primitives and their lifecycles (for all the interactions you would want for human-in-the-loop agent orchestration: defining workflows, context switching between agent+human contexts, seeing progress as graph etc.)
 
-  - CRUD of of agents with an in-memory markdown hypergraph **based** database.
+  - CRUD of agents with an in-memory markdown hypergraph **based** database.
     - This includes agent context state (agents can send messages to other agents)
     - lifecycle hooks, letting you program & trigger automations
   - Graph search, visualisation & navigation. ASCII for the agents, pixels for the human. (Yes this has a UI)
@@ -50,13 +50,13 @@ A lightweight API (agent-first, local-only) for a set of operations on these pri
 
 ---
 
-This primitives + rules provide essentially a turing-complete computer at a higher level of abstraction where you have cognition as a function. That of an a agentic systems. 
+These primitives + rules provide essentially a turing-complete computer at a higher level of abstraction where you have cognition as a function — that of an agentic system. 
 
 ---
 
 **Obsidian meets Claude Code**
 
-Voicetree is an interactive graph-view where nodes are either markdown notes, 
+Voicetree is an interactive graph-view where nodes are either markdown notes, folders, or terminal-based agents.
 
 Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
 Agents are also able to edit and create their own nodes.
@@ -99,7 +99,7 @@ You can spawn coding agents on a node, the contents of that node will become the
 The graph structure allows for context retrieval to be targeted to only what is most relevant rather than dumping entire conversation history - avoiding the 30-60% performance degradation from context rot[^1].
 
 Agents can build their own subgraphs, decomposing their tasks into small connected chunks of work. You can glance at the high-level structure and progress of these, and zoom in to the details of what matters most.
-For example, ask a Voicetree agent to divide their plan into nodes of data-model, architecture, pure logic, edge logic, UI components, and integration. This lets you carefully track the planing to implementation for what matters most: the high level changes & core logic.
+For example, ask a Voicetree agent to divide their plan into nodes of data-model, architecture, pure logic, edge logic, UI components, and integration. This lets you carefully track the planning to implementation for what matters most: the high level changes & core logic.
 
 Agents can then spawn and orchestrate their own parallel subagents to work through these dependency graphs. In Voicetree, subagents are just native terminals so you have full transparency and control over them unlike with other CLI agents.
 
