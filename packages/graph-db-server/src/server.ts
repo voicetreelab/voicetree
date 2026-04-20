@@ -18,6 +18,7 @@ import {
 } from './contract.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
+import { mountCollapseRoutes } from './routes/collapse.ts'
 import { createGraphRoutes } from './routes/graph.ts'
 import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
@@ -149,6 +150,7 @@ export async function startDaemon(
   }
 
   mountSessionRoutes(app, registry)
+  mountCollapseRoutes(app, registry)
 
   app.get('/health', (c) => {
     const body = HealthResponseSchema.parse({

@@ -48,6 +48,27 @@ describe('collapseSetStore — dispatchExpand', () => {
     })
 })
 
+describe('collapseSetStore — explicit target set', () => {
+    it('returns an updated explicit set without mutating the singleton store', () => {
+        const sessionSet = new Set<string>()
+
+        const next = dispatchCollapse(sessionSet, '/vault/tasks/')
+
+        expect(next).not.toBe(sessionSet)
+        expect(next.has('/vault/tasks/')).toBe(true)
+        expect(getCollapseSet().size).toBe(0)
+    })
+
+    it('returns an expanded explicit set without mutating the singleton store', () => {
+        const sessionSet = new Set<string>(['/vault/tasks/', '/vault/docs/'])
+
+        const next = dispatchExpand(sessionSet, '/vault/tasks/')
+
+        expect([...next]).toEqual(['/vault/docs/'])
+        expect(getCollapseSet().size).toBe(0)
+    })
+})
+
 describe('collapseSetStore — subscribeCollapseSet', () => {
     it('fires once per dispatchCollapse', () => {
         const received: ReadonlySet<string>[] = []

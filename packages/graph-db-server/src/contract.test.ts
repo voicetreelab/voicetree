@@ -5,10 +5,12 @@ import {
   CONTRACT_VERSION,
   SessionCreateResponseSchema,
   SessionInfoSchema,
+  CollapseStateResponseSchema,
   type HealthResponse,
   type ShutdownResponse,
   type SessionCreateResponse,
   type SessionInfo,
+  type CollapseStateResponse,
 } from './contract.ts'
 
 describe('contract', () => {
@@ -113,5 +115,13 @@ describe('contract', () => {
         selectionSize: 0,
       }),
     ).toThrow()
+  })
+
+  test('CollapseStateResponse round-trips a valid sample', () => {
+    const sample: CollapseStateResponse = {
+      collapseSet: ['docs', 'notes'],
+    }
+    const parsed = CollapseStateResponseSchema.parse(sample)
+    expect(parsed).toEqual(sample)
   })
 })

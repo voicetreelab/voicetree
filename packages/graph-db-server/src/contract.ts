@@ -41,6 +41,12 @@ export const SessionInfoSchema = z.object({
 })
 export type SessionInfo = z.infer<typeof SessionInfoSchema>
 
+// --- BF-215 collapse ---
+export const CollapseStateResponseSchema = z.object({
+  collapseSet: z.array(z.string()),
+})
+export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
+
 // --- P2 / vault ---
 export const VaultStateSchema = z.object({
   vaultPath: z.string(),
