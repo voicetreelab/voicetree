@@ -1,7 +1,7 @@
 ## 1. Phase FA — Algorithm + rendering (FA-100..FA-103, unblocked)
 
-- [ ] 1.1 FA-100 — Author fixture vault at `packages/graph-tools/fixtures/folder-aware-fixture/` per design.md layout (13 nodes across 3 folders + root)
-- [ ] 1.2 FA-101 — Add folder-alignment scoring in `collapseBoundary.ts`: derive `alignedFolderPath` on each candidate; apply `+0.05` cohesion bonus to folder-aligned louvain candidates in `compareCandidates`; use `GraphNode.kind === 'folder'` as folder predicate in `buildFolderCandidates`
+- [x] 1.1 FA-100 — Author fixture vault at `packages/graph-tools/fixtures/folder-aware-fixture/` per design.md layout (13 nodes across 3 folders + root) — `a118de90`
+- [x] 1.2 FA-101 — Add folder-alignment scoring in `collapseBoundary.ts`: derive `alignedFolderPath` on each candidate; apply `+0.05` cohesion bonus to folder-aligned louvain candidates in `compareCandidates`; use `GraphNode.kind === 'folder'` as folder predicate in `buildFolderCandidates` — `6e720fae`
 - [x] 1.3 FA-102 — Add `pinnedFolderIds?: readonly string[]` to `AutoViewOptions`; implement pre-pass in `autoView.ts` that injects pinned folders as already-selected clusters before `findCollapseBoundary`; exclude pinned nodes from all other candidate pools
 - [x] 1.4 FA-103 — Change `formatCollapsedSummary` in `autoView.ts` to emit folder basename + trailing slash when `alignedFolderPath` is set; implement sibling-collision disambiguation (`parent/basename/` form)
 - [x] 1.5 Vitest: pure unit coverage — scoring bonus behaviour, pre-pass correctness, label disambiguation (3 test files, ≥15 assertions total)
