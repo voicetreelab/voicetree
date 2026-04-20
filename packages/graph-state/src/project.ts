@@ -70,13 +70,33 @@ function isProjectableGraphNode(node: GraphNode | undefined): node is GraphNode 
     return node !== undefined
 }
 
+function countRecursiveProjectableFileDescendants(
+    folder: FolderTreeNode,
+    graphNodes: Readonly<Record<string, GraphNode>>,
+): number {
+    let count = 0
+
+    for (const child of folder.children) {
+        if ('children' in child) {
+            count += countRecursiveProjectableFileDescendants(child, graphNodes)
+            continue
+        }
+
+        if (child.isInGraph && isProjectableGraphNode(graphNodes[child.absolutePath])) {
+            count += 1
+        }
+    }
+
+    return count
+}
+
 function countDirectProjectableChildren(
     folder: FolderTreeNode,
     graphNodes: Readonly<Record<string, GraphNode>>,
 ): number {
     return folder.children.filter((child) => {
         if ('children' in child) {
-            return true
+            return countRecursiveProjectableFileDescendants(child, graphNodes) > 0
         }
         return child.isInGraph && isProjectableGraphNode(graphNodes[child.absolutePath])
     }).length
@@ -88,6 +108,10 @@ function collectFolderProjectionInfo(
     parent: FolderId | undefined,
     out: FolderProjectionInfo[],
 ): void {
+    if (countRecursiveProjectableFileDescendants(folder, graphNodes) === 0) {
+        return
+    }
+
     const folderId = folderIdFromAbsolutePath(folder.absolutePath)
     out.push({
         id: folderId,
