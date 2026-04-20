@@ -31,6 +31,10 @@ type CommandResult = {
     stdout: string
 }
 
+function parseStdoutJson<T>(result: CommandResult): T {
+    return JSON.parse(result.stdout) as T
+}
+
 async function createHarness(): Promise<Harness> {
     const root: string = await mkdtemp(join(tmpdir(), 'vt-cli-view-'))
     const appSupportPath: string = join(root, 'app-support')
@@ -77,6 +81,13 @@ async function captureCommand(invoke: () => Promise<void>): Promise<CommandResul
         stderr: stderrChunks.join(''),
         exitCode,
     }
+}
+
+async function runViewJson(argv: string[]): Promise<unknown> {
+    const result: CommandResult = await captureCommand(() => runViewCommand(argv))
+    expect(result.exitCode).toBeNull()
+    expect(result.stderr).toBe('')
+    return parseStdoutJson(result)
 }
 
 function setStdoutIsTTY(value: boolean): void {
@@ -268,6 +279,140 @@ describe('runViewCommand', () => {
             layout: {
                 pan: {x: 4, y: 9},
             },
+        })
+    })
+
+    it('collapses a folder and shows it in the pinned session snapshot', async () => {
+        const {sessionId}: {sessionId: string} = await createClient().createSession()
+
+        await expect(
+            runViewJson(['collapse', 'docs', '--vault', harness.vault, '--session', sessionId]),
+        ).resolves.toEqual({
+            collapseSet: ['docs'],
+        })
+
+        await expect(
+            runViewJson(['show', '--vault', harness.vault, '--session', sessionId]),
+        ).resolves.toMatchObject({
+            collapseSet: ['docs'],
+            selection: [],
+        })
+    })
+
+    it('expands a folder by removing it from the collapse set', async () => {
+        const client: GraphDbClient = createClient()
+        const {sessionId}: {sessionId: string} = await client.createSession()
+        await client.collapse(sessionId, 'docs')
+
+        await expect(
+            runViewJson(['expand', 'docs', '--vault', harness.vault, '--session', sessionId]),
+        ).resolves.toEqual({
+            collapseSet: [],
+        })
+        await expect(client.getSessionState(sessionId)).resolves.toMatchObject({
+            collapseSet: [],
+        })
+    })
+
+    it('sets selection for a pinned session', async () => {
+        const {sessionId}: {sessionId: string} = await createClient().createSession()
+
+        await expect(
+            runViewJson([
+                'selection',
+                'set',
+                'alpha',
+                'beta',
+                '--vault',
+                harness.vault,
+                '--session',
+                sessionId,
+            ]),
+        ).resolves.toEqual({
+            selection: ['alpha', 'beta'],
+        })
+    })
+
+    it('adds nodes to the existing selection', async () => {
+        const client: GraphDbClient = createClient()
+        const {sessionId}: {sessionId: string} = await client.createSession()
+        await client.setSelection(sessionId, {
+            nodeIds: ['alpha', 'beta'],
+            mode: 'replace',
+        })
+
+        await expect(
+            runViewJson([
+                'selection',
+                'add',
+                'gamma',
+                '--vault',
+                harness.vault,
+                '--session',
+                sessionId,
+            ]),
+        ).resolves.toEqual({
+            selection: ['alpha', 'beta', 'gamma'],
+        })
+    })
+
+    it('removes nodes from the existing selection', async () => {
+        const client: GraphDbClient = createClient()
+        const {sessionId}: {sessionId: string} = await client.createSession()
+        await client.setSelection(sessionId, {
+            nodeIds: ['alpha', 'beta', 'gamma'],
+            mode: 'replace',
+        })
+
+        await expect(
+            runViewJson([
+                'selection',
+                'remove',
+                'alpha',
+                '--vault',
+                harness.vault,
+                '--session',
+                sessionId,
+            ]),
+        ).resolves.toEqual({
+            selection: ['beta', 'gamma'],
+        })
+    })
+
+    it('mints a fresh session for each show invocation when no session is provided', async () => {
+        const client: GraphDbClient = createClient()
+
+        expect((await client.health()).sessionCount).toBe(0)
+        await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
+            collapseSet: [],
+            selection: [],
+        })
+        expect((await client.health()).sessionCount).toBe(1)
+
+        await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
+            collapseSet: [],
+            selection: [],
+        })
+        expect((await client.health()).sessionCount).toBe(2)
+    })
+
+    it('shares state across view commands when a session is pinned', async () => {
+        const {sessionId}: {sessionId: string} = await createClient().createSession()
+
+        await runViewJson([
+            'selection',
+            'set',
+            'shared-node',
+            '--vault',
+            harness.vault,
+            '--session',
+            sessionId,
+        ])
+
+        await expect(
+            runViewJson(['show', '--vault', harness.vault, '--session', sessionId]),
+        ).resolves.toMatchObject({
+            selection: ['shared-node'],
         })
     })
 })

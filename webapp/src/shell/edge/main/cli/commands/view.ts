@@ -1,6 +1,14 @@
 import {readFile} from 'node:fs/promises'
 import {resolve as resolvePath} from 'node:path'
-import {ensureDaemon, GraphDbClient, type LayoutResponse} from '@vt/graph-db-client'
+import {
+    ensureDaemon,
+    GraphDbClient,
+    type CollapseStateResponse,
+    type LayoutResponse,
+    type LiveStateSnapshot,
+    type SelectionMode,
+    type SelectionResponse,
+} from '@vt/graph-db-client'
 import {isJsonMode} from '../output.ts'
 import {resolveVault} from '../util/detectVault.ts'
 import {ArgValidationError, handleCliError} from '../util/exitCodes.ts'
@@ -15,19 +23,55 @@ type LayoutPositions = Record<string, Position>
 
 type LayoutSubcommand = 'set-pan' | 'set-positions' | 'set-zoom'
 
-type ParsedViewCommand = {
-    branch: 'layout'
+type ParsedViewBase = {
     forceJson: boolean
-    positionsFile?: string
     sessionFlag?: string
-    subcommand: LayoutSubcommand
     vaultFlag?: string
+}
+
+type ParsedLayoutCommand = ParsedViewBase & {
+    branch: 'layout'
+    positionsFile?: string
+    subcommand: LayoutSubcommand
     x?: number
     y?: number
     zoom?: number
 }
 
+type ParsedCollapseCommand = ParsedViewBase & {
+    branch: 'collapse'
+    folderId: string
+}
+
+type ParsedExpandCommand = ParsedViewBase & {
+    branch: 'expand'
+    folderId: string
+}
+
+type ParsedSelectionCommand = ParsedViewBase & {
+    branch: 'selection'
+    mode: SelectionMode
+    nodeIds: string[]
+}
+
+type ParsedShowCommand = ParsedViewBase & {
+    branch: 'show'
+}
+
+type ParsedViewCommand =
+    | ParsedLayoutCommand
+    | ParsedCollapseCommand
+    | ParsedExpandCommand
+    | ParsedSelectionCommand
+    | ParsedShowCommand
+
 const VIEW_USAGE: string = `Usage:
+  vt view collapse <folderId> [--vault <path>] [--session <id>] [--json]
+  vt view expand <folderId> [--vault <path>] [--session <id>] [--json]
+  vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view selection add <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view selection remove <nodeIds...> [--vault <path>] [--session <id>] [--json]
+  vt view show [--vault <path>] [--session <id>] [--json]
   vt view layout set-pan <x> <y> [--vault <path>] [--session <id>] [--json]
   vt view layout set-zoom <zoom> [--vault <path>] [--session <id>] [--json]
   vt view layout set-positions <positions-json-file> [--vault <path>] [--session <id>] [--json]`
@@ -61,6 +105,37 @@ function parseNumberArg(value: string, label: 'x' | 'y' | 'zoom'): number {
     }
 
     return parsed
+}
+
+function requireSingleValue(
+    args: string[],
+    label: string,
+    commandLabel: string,
+): string {
+    if (args.length === 0) {
+        validationError(`Missing required ${label} for \`${commandLabel}\`.`)
+    }
+
+    if (args.length > 1) {
+        validationError(`Too many positional arguments for \`${commandLabel}\`.`)
+    }
+
+    return args[0]
+}
+
+function parseSelectionMode(value: string | undefined): SelectionMode {
+    switch (value) {
+        case 'set':
+            return 'replace'
+        case 'add':
+            return 'add'
+        case 'remove':
+            return 'remove'
+        case undefined:
+            validationError('Missing required selection subcommand.')
+        default:
+            validationError(`Unknown selection subcommand: ${value}`)
+    }
 }
 
 function parseViewCommand(argv: string[]): ParsedViewCommand {
@@ -99,61 +174,113 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         positionalArgs.push(arg)
     }
 
-    const [rawBranch, rawSubcommand, ...rest] = positionalArgs
+    const [rawBranch, ...rest] = positionalArgs
     if (!rawBranch) {
         throw new ArgValidationError(VIEW_USAGE)
+    }
+
+    if (rawBranch === 'collapse') {
+        return {
+            branch: 'collapse',
+            folderId: requireSingleValue(rest, '<folderId>', 'collapse'),
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'expand') {
+        return {
+            branch: 'expand',
+            folderId: requireSingleValue(rest, '<folderId>', 'expand'),
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'selection') {
+        const [rawMode, ...nodeIds] = rest
+        const mode: SelectionMode = parseSelectionMode(rawMode)
+        if (nodeIds.length === 0) {
+            validationError(`Missing required <nodeIds...> for \`selection ${rawMode}\`.`)
+        }
+
+        return {
+            branch: 'selection',
+            mode,
+            nodeIds,
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'show') {
+        if (rest.length > 0) {
+            validationError('`show` does not accept positional arguments.')
+        }
+
+        return {
+            branch: 'show',
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
     }
 
     if (rawBranch !== 'layout') {
         validationError(`Unknown view subcommand: ${rawBranch}`)
     }
 
+    const [rawSubcommand, ...layoutArgs] = rest
+
     switch (rawSubcommand) {
         case 'set-pan':
-            if (rest.length < 2) {
+            if (layoutArgs.length < 2) {
                 validationError('Missing required <x> <y> for `layout set-pan`.')
             }
-            if (rest.length > 2) {
+            if (layoutArgs.length > 2) {
                 validationError('Too many positional arguments for `layout set-pan`.')
             }
 
             return {
                 branch: 'layout',
                 subcommand: 'set-pan',
-                x: parseNumberArg(rest[0], 'x'),
-                y: parseNumberArg(rest[1], 'y'),
+                x: parseNumberArg(layoutArgs[0], 'x'),
+                y: parseNumberArg(layoutArgs[1], 'y'),
                 vaultFlag,
                 sessionFlag: session,
                 forceJson,
             }
         case 'set-zoom':
-            if (rest.length === 0) {
+            if (layoutArgs.length === 0) {
                 validationError('Missing required <zoom> for `layout set-zoom`.')
             }
-            if (rest.length > 1) {
+            if (layoutArgs.length > 1) {
                 validationError('Too many positional arguments for `layout set-zoom`.')
             }
 
             return {
                 branch: 'layout',
                 subcommand: 'set-zoom',
-                zoom: parseNumberArg(rest[0], 'zoom'),
+                zoom: parseNumberArg(layoutArgs[0], 'zoom'),
                 vaultFlag,
                 sessionFlag: session,
                 forceJson,
             }
         case 'set-positions':
-            if (rest.length === 0) {
+            if (layoutArgs.length === 0) {
                 validationError('Missing required <positions-json-file> for `layout set-positions`.')
             }
-            if (rest.length > 1) {
+            if (layoutArgs.length > 1) {
                 validationError('Too many positional arguments for `layout set-positions`.')
             }
 
             return {
                 branch: 'layout',
                 subcommand: 'set-positions',
-                positionsFile: resolvePath(rest[0]),
+                positionsFile: resolvePath(layoutArgs[0]),
                 vaultFlag,
                 sessionFlag: session,
                 forceJson,
@@ -264,21 +391,124 @@ function formatLayout(data: LayoutResponse): string {
     ].join('\n')
 }
 
-async function runLayoutCommand(parsed: ParsedViewCommand): Promise<void> {
-    const mutation: {pan?: Position; positions?: LayoutPositions; zoom?: number} =
-        await buildLayoutMutation(parsed)
-    const vault: string = resolveVault({flag: parsed.vaultFlag})
+function formatCollapseState(data: CollapseStateResponse): string {
+    if (data.collapseSet.length === 0) {
+        return 'Collapse Set:\n  (none)'
+    }
+
+    const entries: string[] = [...data.collapseSet]
+        .sort((left: string, right: string): number => left.localeCompare(right))
+        .map((folderId: string): string => `  - ${folderId}`)
+
+    return ['Collapse Set:', ...entries].join('\n')
+}
+
+function formatSelection(data: SelectionResponse): string {
+    if (data.selection.length === 0) {
+        return 'Selection:\n  (none)'
+    }
+
+    return ['Selection:', ...data.selection.map((nodeId: string): string => `  - ${nodeId}`)].join('\n')
+}
+
+function formatViewState(data: LiveStateSnapshot): string {
+    const collapseEntries: string[] =
+        data.collapseSet.length === 0
+            ? ['Collapse Set:', '  (none)']
+            : ['Collapse Set:', ...[...data.collapseSet].sort().map((folderId: string): string => `  - ${folderId}`)]
+    const selectionEntries: string[] =
+        data.selection.length === 0
+            ? ['Selection:', '  (none)']
+            : ['Selection:', ...data.selection.map((nodeId: string): string => `  - ${nodeId}`)]
+    const positionEntries: string[] =
+        data.layout.positions.length === 0
+            ? ['Positions:', '  (none)']
+            : [
+                  'Positions:',
+                  ...[...data.layout.positions]
+                      .sort(([left], [right]): number => left.localeCompare(right))
+                      .map(
+                          ([nodeId, position]): string =>
+                              `  - ${nodeId}: (${position.x}, ${position.y})`,
+                      ),
+              ]
+
+    return [
+        `Graph Nodes: ${Object.keys(data.graph.nodes).length}`,
+        `Loaded Roots: ${data.roots.loaded.length}`,
+        `Folder Roots: ${data.roots.folderTree.length}`,
+        ...collapseEntries,
+        ...selectionEntries,
+        `Pan: ${
+            data.layout.pan ? `(${data.layout.pan.x}, ${data.layout.pan.y})` : '(unset)'
+        }`,
+        `Zoom: ${data.layout.zoom ?? '(unset)'}`,
+        ...positionEntries,
+        `Revision: ${data.meta.revision}`,
+    ].join('\n')
+}
+
+async function createSessionClient(vaultFlag: string | undefined): Promise<GraphDbClient> {
+    const vault: string = resolveVault({flag: vaultFlag})
     const {port}: {port: number} = await ensureDaemon(vault)
-    const client = new GraphDbClient({
+    return new GraphDbClient({
         baseUrl: `http://127.0.0.1:${port}`,
     })
-    const sessionId: string = await resolveSessionId({
-        flag: parsed.sessionFlag,
+}
+
+async function resolveCommandSessionId(
+    client: GraphDbClient,
+    sessionFlag: string | undefined,
+): Promise<string> {
+    return await resolveSessionId({
+        flag: sessionFlag,
         env: process.env.VT_SESSION,
         client,
     })
+}
+
+async function runLayoutCommand(parsed: ParsedLayoutCommand): Promise<void> {
+    const mutation: {pan?: Position; positions?: LayoutPositions; zoom?: number} =
+        await buildLayoutMutation(parsed)
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
 
     emitResult(await client.updateLayout(sessionId, mutation), formatLayout, parsed.forceJson)
+}
+
+async function runCollapseCommand(parsed: ParsedCollapseCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+
+    emitResult(await client.collapse(sessionId, parsed.folderId), formatCollapseState, parsed.forceJson)
+}
+
+async function runExpandCommand(parsed: ParsedExpandCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+
+    emitResult(await client.expand(sessionId, parsed.folderId), formatCollapseState, parsed.forceJson)
+}
+
+async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+
+    emitResult(
+        await client.setSelection(sessionId, {
+            mode: parsed.mode,
+            nodeIds: parsed.nodeIds,
+        }),
+        formatSelection,
+        parsed.forceJson,
+    )
+}
+
+async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+
+    emitResult(await client.getSessionState(sessionId), formatViewState, parsed.forceJson)
 }
 
 export async function runViewCommand(argv: string[]): Promise<void> {
@@ -289,7 +519,18 @@ export async function runViewCommand(argv: string[]): Promise<void> {
             case 'layout':
                 await runLayoutCommand(parsed)
                 return
-            // BF-219 adds collapse/expand/selection/show branches here
+            case 'collapse':
+                await runCollapseCommand(parsed)
+                return
+            case 'expand':
+                await runExpandCommand(parsed)
+                return
+            case 'selection':
+                await runSelectionCommand(parsed)
+                return
+            case 'show':
+                await runShowCommand(parsed)
+                return
         }
     } catch (err) {
         handleCliError(err)
