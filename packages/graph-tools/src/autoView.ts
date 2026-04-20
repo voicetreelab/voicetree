@@ -73,6 +73,8 @@ interface AutoHeaderOptions {
     readonly autoClusterCount: number
 }
 
+type ClusterDisplayLabelMap = ReadonlyMap<string, string>
+
 type SpineEntry =
     | {readonly kind: 'folder'; readonly folderPath: string; readonly sortKey: string}
     | {readonly kind: 'summary'; readonly cluster: CollapseCluster; readonly sortKey: string}
@@ -216,13 +218,14 @@ export function renderAutoView(
                   },
               )
     const clusters: readonly CollapseCluster[] = [...pinnedClusters, ...autoClusters]
+    const displayLabelByClusterId: ClusterDisplayLabelMap = buildClusterDisplayLabelMap(clusters)
     const visibleEntityCount: number = countVisibleEntities(graph.nodes.length, clusters)
-    const body: string = renderTreeCoverBody(graph, clusters)
+    const body: string = renderTreeCoverBody(graph, clusters, displayLabelByClusterId)
     const header: string = buildAutoHeader(graph, clusters, budget, visibleEntityCount, {
         pinningRequested: requestedPinnedIds.length > 0,
         pinnedClusterCount: pinnedClusters.length,
         autoClusterCount: autoClusters.length,
-    })
+    }, displayLabelByClusterId)
     const footer: string = buildAutoFooter(clusters)
 
     return {output: footer.length > 0 ? `${header}\n${body}\n${footer}` : `${header}\n${body}`, format: 'tree-cover'}
@@ -234,6 +237,7 @@ function buildAutoHeader(
     budget: number,
     visibleEntityCount: number,
     options: AutoHeaderOptions,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
 ): string {
     const collapsedNodeCount: number = clusters.reduce((sum, cluster) => sum + cluster.nodeIds.length, 0)
     const visibleNodeCount: number = graph.nodes.length - collapsedNodeCount
@@ -250,7 +254,7 @@ function buildAutoHeader(
 
     for (const cluster of clusters) {
         lines.push(
-            `# cluster: ${formatCollapsedSummary(cluster)} cohesion=${cluster.cohesion.toFixed(2)} reason=${cluster.strategy}`,
+            `# cluster: ${formatCollapsedSummary(cluster, displayLabelByClusterId)} cohesion=${cluster.cohesion.toFixed(2)} reason=${cluster.strategy}`,
         )
     }
 
@@ -266,9 +270,13 @@ function buildAutoFooter(clusters: readonly CollapseCluster[]): string {
     ].join('\n')
 }
 
-function renderTreeCoverBody(graph: AutoViewGraph, clusters: readonly CollapseCluster[]): string {
-    const spine: string = renderSpine(graph, clusters)
-    const forests: readonly string[] = renderForests(graph, clusters)
+function renderTreeCoverBody(
+    graph: AutoViewGraph,
+    clusters: readonly CollapseCluster[],
+    displayLabelByClusterId: ClusterDisplayLabelMap,
+): string {
+    const spine: string = renderSpine(graph, clusters, displayLabelByClusterId)
+    const forests: readonly string[] = renderForests(graph, clusters, displayLabelByClusterId)
     return [
         '═══ SPINE (folder hierarchy, no content edges) ═══',
         spine,
@@ -277,7 +285,11 @@ function renderTreeCoverBody(graph: AutoViewGraph, clusters: readonly CollapseCl
     ].join('\n')
 }
 
-function renderSpine(graph: AutoViewGraph, clusters: readonly CollapseCluster[]): string {
+function renderSpine(
+    graph: AutoViewGraph,
+    clusters: readonly CollapseCluster[],
+    displayLabelByClusterId: ClusterDisplayLabelMap,
+): string {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
     const visibleFilesByFolder = new Map<string, AutoViewNode[]>()
     const summariesByAnchor = new Map<string, CollapseCluster[]>()
@@ -308,7 +320,16 @@ function renderSpine(graph: AutoViewGraph, clusters: readonly CollapseCluster[])
     }
 
     const lines: string[] = [`▢ ${graph.rootName}/`]
-    renderFolderEntries('', '', false, lines, childFoldersByParent, visibleFilesByFolder, summariesByAnchor)
+    renderFolderEntries(
+        '',
+        '',
+        false,
+        lines,
+        childFoldersByParent,
+        visibleFilesByFolder,
+        summariesByAnchor,
+        displayLabelByClusterId,
+    )
     return lines.join('\n')
 }
 
@@ -320,6 +341,7 @@ function renderFolderEntries(
     childFoldersByParent: ReadonlyMap<string, readonly string[]>,
     visibleFilesByFolder: ReadonlyMap<string, readonly AutoViewNode[]>,
     summariesByAnchor: ReadonlyMap<string, readonly CollapseCluster[]>,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
 ): void {
     const childFolders: readonly string[] = [...(childFoldersByParent.get(folderPath) ?? [])]
         .sort((left, right) => path.posix.basename(left).localeCompare(path.posix.basename(right)))
@@ -335,7 +357,7 @@ function renderFolderEntries(
         ...summaries.map(cluster => ({
             kind: 'summary' as const,
             cluster,
-            sortKey: cluster.label.replace(/\/$/, ''),
+            sortKey: resolveClusterDisplayLabel(cluster, displayLabelByClusterId).replace(/\/$/, ''),
         })),
         ...files.map(node => ({
             kind: 'file' as const,
@@ -350,11 +372,20 @@ function renderFolderEntries(
         const childPrefix: string = isRoot ? '' : prefix + (isLast ? '    ' : '│   ')
         if (entry.kind === 'folder') {
             out.push(`${prefix}${branch}▢ ${path.posix.basename(entry.folderPath)}/`)
-            renderFolderEntries(entry.folderPath, childPrefix, false, out, childFoldersByParent, visibleFilesByFolder, summariesByAnchor)
+            renderFolderEntries(
+                entry.folderPath,
+                childPrefix,
+                false,
+                out,
+                childFoldersByParent,
+                visibleFilesByFolder,
+                summariesByAnchor,
+                displayLabelByClusterId,
+            )
             return
         }
         if (entry.kind === 'summary') {
-            out.push(`${prefix}${branch}${formatCollapsedSummary(entry.cluster)}`)
+            out.push(`${prefix}${branch}${formatCollapsedSummary(entry.cluster, displayLabelByClusterId)}`)
             const expandCommand: string | undefined = formatExpandCommand(entry.cluster)
             if (expandCommand) {
                 out.push(`${childPrefix}  ${expandCommand}`)
@@ -376,7 +407,11 @@ function compareSpineEntries(left: SpineEntry, right: SpineEntry): number {
     return left.sortKey.localeCompare(right.sortKey)
 }
 
-function renderForests(graph: AutoViewGraph, clusters: readonly CollapseCluster[]): readonly string[] {
+function renderForests(
+    graph: AutoViewGraph,
+    clusters: readonly CollapseCluster[],
+    displayLabelByClusterId: ClusterDisplayLabelMap,
+): readonly string[] {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
     const clusterById = new Map<string, CollapseCluster>(clusters.map(cluster => [cluster.id, cluster]))
     const sections: string[] = []
@@ -399,7 +434,9 @@ function renderForests(graph: AutoViewGraph, clusters: readonly CollapseCluster[
         if (groupedTargets.size === 0) return
 
         const sourceIds: readonly string[] = [...groupedTargets.keys()].sort((left, right) =>
-            entitySortKey(left, graph.nodeById, clusterById).localeCompare(entitySortKey(right, graph.nodeById, clusterById)),
+            entitySortKey(left, graph.nodeById, clusterById, displayLabelByClusterId).localeCompare(
+                entitySortKey(right, graph.nodeById, clusterById, displayLabelByClusterId),
+            ),
         )
 
         let edgeCount = 0
@@ -411,11 +448,11 @@ function renderForests(graph: AutoViewGraph, clusters: readonly CollapseCluster[
         lines.push(`═══ COVER FOREST ${index + 1} (|E|=${edgeCount}) ═══`)
 
         for (const sourceId of sourceIds) {
-            lines.push(`● ${renderForestEntity(sourceId, graph.nodeById, clusterById)}`)
+            lines.push(`● ${renderForestEntity(sourceId, graph.nodeById, clusterById, displayLabelByClusterId)}`)
             const targets: readonly string[] = groupedTargets.get(sourceId) ?? []
             targets.forEach((targetId, targetIndex) => {
                 const branch: string = targetIndex === targets.length - 1 ? '└── ' : '├── '
-                lines.push(`${branch}⇢ ${renderForestEntity(targetId, graph.nodeById, clusterById)}`)
+                lines.push(`${branch}⇢ ${renderForestEntity(targetId, graph.nodeById, clusterById, displayLabelByClusterId)}`)
             })
             lines.push('')
         }
@@ -430,10 +467,11 @@ function renderForestEntity(
     entityId: string,
     nodeById: ReadonlyMap<string, AutoViewNode>,
     clusterById: ReadonlyMap<string, CollapseCluster>,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
 ): string {
     const cluster: CollapseCluster | undefined = clusterById.get(entityId)
     if (cluster) {
-        return formatCollapsedSummary(cluster)
+        return formatCollapsedSummary(cluster, displayLabelByClusterId)
     }
     const node: AutoViewNode | undefined = nodeById.get(entityId)
     if (!node) {
@@ -446,16 +484,21 @@ function entitySortKey(
     entityId: string,
     nodeById: ReadonlyMap<string, AutoViewNode>,
     clusterById: ReadonlyMap<string, CollapseCluster>,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
 ): string {
     const cluster: CollapseCluster | undefined = clusterById.get(entityId)
     if (cluster) {
-        return cluster.label
+        return resolveClusterDisplayLabel(cluster, displayLabelByClusterId)
     }
     return nodeById.get(entityId)?.title ?? entityId
 }
 
-function formatCollapsedSummary(cluster: CollapseCluster): string {
-    return `▢ ${cluster.label} [collapsed: ${cluster.nodeIds.length} nodes, ${cluster.incomingEdgeCount} edges in, ${cluster.outgoingEdgeCount} edges out]`
+function formatCollapsedSummary(
+    cluster: CollapseCluster,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
+): string {
+    const displayLabel: string = resolveClusterDisplayLabel(cluster, displayLabelByClusterId)
+    return `▢ ${displayLabel} [collapsed: ${cluster.nodeIds.length} nodes, ${cluster.incomingEdgeCount} edges in, ${cluster.outgoingEdgeCount} edges out]`
 }
 
 function formatExpandCommand(cluster: CollapseCluster): string | undefined {
@@ -469,6 +512,66 @@ function buildClusterByNodeId(clusters: readonly CollapseCluster[]): ReadonlyMap
         cluster.nodeIds.forEach(nodeId => clusterByNodeId.set(nodeId, cluster))
     }
     return clusterByNodeId
+}
+
+export function buildClusterDisplayLabelMap(
+    clusters: readonly CollapseCluster[],
+): ClusterDisplayLabelMap {
+    const displayLabelByClusterId = new Map<string, string>(clusters.map(cluster => [cluster.id, cluster.label]))
+    const clustersByBasename = new Map<string, CollapseCluster[]>()
+
+    for (const cluster of clusters) {
+        if (!cluster.alignedFolderPath) {
+            continue
+        }
+        const basename: string = path.posix.basename(cluster.alignedFolderPath)
+        const bucket: CollapseCluster[] = clustersByBasename.get(basename) ?? []
+        bucket.push(cluster)
+        clustersByBasename.set(basename, bucket)
+    }
+
+    for (const [basename, alignedClusters] of clustersByBasename) {
+        if (alignedClusters.length === 1) {
+            displayLabelByClusterId.set(alignedClusters[0]!.id, `${basename}/`)
+            continue
+        }
+
+        const disambiguatedLabels: readonly string[] = buildMinimumDisambiguatingFolderLabels(alignedClusters)
+        alignedClusters.forEach((cluster, index) => {
+            displayLabelByClusterId.set(cluster.id, disambiguatedLabels[index]!)
+        })
+    }
+
+    return displayLabelByClusterId
+}
+
+function buildMinimumDisambiguatingFolderLabels(
+    clusters: readonly CollapseCluster[],
+): readonly string[] {
+    const segmentLists: readonly (readonly string[])[] = clusters.map(cluster =>
+        splitFolderPathSegments(cluster.alignedFolderPath ?? cluster.label.replace(/\/$/, '')),
+    )
+    const maxDepth: number = segmentLists.reduce((max, segments) => Math.max(max, segments.length), 0)
+
+    for (let depth = 1; depth <= maxDepth; depth += 1) {
+        const labels: readonly string[] = segmentLists.map(segments => `${segments.slice(-depth).join('/')}/`)
+        if (new Set(labels).size === labels.length) {
+            return labels
+        }
+    }
+
+    return clusters.map(cluster => `${cluster.alignedFolderPath ?? cluster.label.replace(/\/$/, '')}/`)
+}
+
+function splitFolderPathSegments(folderPath: string): readonly string[] {
+    return folderPath.split('/').filter(segment => segment.length > 0)
+}
+
+function resolveClusterDisplayLabel(
+    cluster: CollapseCluster,
+    displayLabelByClusterId: ClusterDisplayLabelMap,
+): string {
+    return displayLabelByClusterId.get(cluster.id) ?? cluster.label
 }
 
 function buildFolderSeeds(graph: AutoViewGraph): readonly FolderSeed[] {
