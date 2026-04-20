@@ -16,6 +16,14 @@ export const ShutdownResponseSchema = z.object({
 })
 export type ShutdownResponse = z.infer<typeof ShutdownResponseSchema>
 
+// --- P3 / graph + watcher ---
+export const GraphStateSchema = z
+  .object({
+    nodes: z.record(z.string(), z.unknown()),
+  })
+  .passthrough()
+export type GraphState = z.infer<typeof GraphStateSchema>
+
 // --- P4 / sessions ---
 // --- BF-213 session-registry ---
 const SessionIdSchema = z.string().uuid()

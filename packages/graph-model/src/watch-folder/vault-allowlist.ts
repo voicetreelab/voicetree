@@ -27,6 +27,7 @@ import {
     getProjectRootWatchedDirectory,
     setProjectRootWatchedDirectory,
     getWatcher,
+    emitReadPathsChanged,
 } from "../state/watch-folder-store";
 import {
     applyGraphDeltaToMemState,
@@ -238,6 +239,8 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
         readPaths: newReadPaths
     });
 
+    emitReadPathsChanged(await getVaultPaths());
+
     // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
     // which calls removeReadPath() after setWritePath()
 
@@ -300,6 +303,8 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         writePath: currentWritePath,
         readPaths: newReadPaths
     });
+
+    emitReadPathsChanged(await getVaultPaths());
 
     const currentWatcher: FSWatcher | null = getWatcher();
     if (currentWatcher) {
@@ -394,6 +399,8 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         writePath: config.writePath,
         readPaths: newReadPaths
     });
+
+    emitReadPathsChanged(await getVaultPaths());
 
     await broadcastVaultState();
     return { success: true };

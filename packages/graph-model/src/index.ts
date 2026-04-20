@@ -92,6 +92,8 @@ export {
     setWatcher,
     getProjectRootWatchedDirectory,
     setProjectRootWatchedDirectory,
+    onReadPathsChanged,
+    emitReadPathsChanged,
     getStartupFolderOverride,
     setStartupFolderOverride,
     getOnFolderSwitchCleanup,

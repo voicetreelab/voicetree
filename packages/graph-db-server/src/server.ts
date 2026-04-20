@@ -1,9 +1,15 @@
 import { mkdir } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
-import { setProjectRootWatchedDirectory } from '@vt/graph-model'
+import {
+  getVaultPaths,
+  initGraphModel,
+  onReadPathsChanged,
+  setVaultPath,
+} from '@vt/graph-model'
 import { Hono } from 'hono'
 import {
   CONTRACT_VERSION,
@@ -12,9 +18,11 @@ import {
 } from './contract.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
+import { createGraphRoutes } from './routes/graph.ts'
 import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
 import { SessionRegistry } from './session/registry.ts'
+import { mountWatcher, type Watcher } from './watcher.ts'
 
 export type DaemonHandle = {
   port: number
@@ -26,6 +34,7 @@ export type StartDaemonOptions = {
   vault: string
   port?: number
   logLevel?: 'info' | 'debug'
+  appSupportPath?: string
   idleTimeoutMs?: number
   // Called after /shutdown finishes its teardown (server close, lock release,
   // port-file delete). The bin sets this to process.exit(0); tests leave it
@@ -34,6 +43,22 @@ export type StartDaemonOptions = {
 }
 
 const LOOPBACK_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
+
+function defaultAppSupportPath(): string {
+  if (process.platform === 'darwin') {
+    return join(homedir(), 'Library', 'Application Support', 'Voicetree')
+  }
+  if (process.platform === 'win32') {
+    return join(
+      process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
+      'Voicetree',
+    )
+  }
+  return join(
+    process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
+    'Voicetree',
+  )
+}
 
 export async function startDaemon(
   opts: StartDaemonOptions,
@@ -57,10 +82,55 @@ export async function startDaemon(
 
   const lockHandle = lockResult
   const startMs = Date.now()
-  setProjectRootWatchedDirectory(vault)
+  initGraphModel({
+    appSupportPath:
+      opts.appSupportPath ??
+      process.env.VOICETREE_APP_SUPPORT ??
+      defaultAppSupportPath(),
+  })
+  setVaultPath(vault)
   const app = new Hono()
   const registry = new SessionRegistry()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
+  let watcher: Watcher
+  try {
+    watcher = mountWatcher(await getVaultPaths(), vault)
+  } catch (err) {
+    await lockHandle.release()
+    throw err
+  }
+  let watcherStopped = false
+  let remountChain: Promise<void> = Promise.resolve()
+
+  const queueWatcherRemount = (watchPaths: readonly string[]): void => {
+    remountChain = remountChain
+      .then(async () => {
+        if (watcherStopped) {
+          return
+        }
+        await watcher.unmount()
+        if (!watcherStopped) {
+          watcher = mountWatcher(watchPaths, vault)
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('graphd watcher remount failed:', error)
+      })
+  }
+
+  const unsubscribeReadPaths = onReadPathsChanged((watchPaths) => {
+    queueWatcherRemount(watchPaths)
+  })
+
+  const stopWatcher = async (): Promise<void> => {
+    if (watcherStopped) {
+      return
+    }
+    watcherStopped = true
+    unsubscribeReadPaths()
+    await remountChain
+    await watcher.unmount()
+  }
 
   let idleSessionTimer: ReturnType<typeof setInterval> | null = setInterval(
     () => {
@@ -100,6 +170,7 @@ export async function startDaemon(
           try {
             clearIdleSessionTimer()
             await closeServer()
+            await stopWatcher()
           } finally {
             await lockHandle.release()
             await deletePortFile(vault)
@@ -111,6 +182,7 @@ export async function startDaemon(
     return c.json(body)
   })
 
+  app.route('/graph', createGraphRoutes())
   mountVaultRoutes(app)
 
   let listenResolve: (port: number) => void
@@ -139,6 +211,7 @@ export async function startDaemon(
       })
   } catch (err) {
     clearIdleSessionTimer()
+    await stopWatcher().catch(() => {})
     await lockHandle.release()
     throw err
   }
@@ -162,6 +235,7 @@ export async function startDaemon(
     assignedPort = await listenPromise
   } catch (err) {
     clearIdleSessionTimer()
+    await stopWatcher().catch(() => {})
     await lockHandle.release()
     throw err
   }
@@ -176,6 +250,7 @@ export async function startDaemon(
     try {
       clearIdleSessionTimer()
       await closeServer()
+      await stopWatcher()
     } finally {
       await lockHandle.release()
       await deletePortFile(vault)

@@ -33,6 +33,26 @@ export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (d
     projectRootWatchedDirectory = dir;
 };
 
+type ReadPathsChangedListener = (readPaths: readonly FilePath[]) => void
+const readPathListeners = new Set<ReadPathsChangedListener>()
+
+export const onReadPathsChanged: (listener: ReadPathsChangedListener) => (() => void) = (
+    listener: ReadPathsChangedListener,
+): (() => void) => {
+    readPathListeners.add(listener)
+    return (): void => {
+        readPathListeners.delete(listener)
+    }
+}
+
+export const emitReadPathsChanged: (readPaths: readonly FilePath[]) => void = (
+    readPaths: readonly FilePath[],
+): void => {
+    for (const listener of readPathListeners) {
+        listener(readPaths)
+    }
+}
+
 // CLI argument override for opening a specific folder on startup (used by "Open Folder in New Instance")
 let startupFolderOverride: string | null = null;
 
@@ -61,6 +81,7 @@ export const setOnFolderSwitchCleanup: (cleanup: (() => void) | null) => void = 
 export const clearWatchFolderState: () => void = (): void => {
     watcher = null;
     projectRootWatchedDirectory = null;
+    readPathListeners.clear();
     startupFolderOverride = null;
     onFolderSwitchCleanup = null;
 };
