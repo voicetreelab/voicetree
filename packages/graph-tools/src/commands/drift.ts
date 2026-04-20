@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import type { State } from '@vt/graph-state'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { computeDrift, type DriftData, type FsContentById } from '../debug/drift'
 import { openDebugSession, type PageLike } from '../debug/playwrightSession'
 import { projectStateToCyDump } from '../debug/projectedCyDump'
@@ -49,10 +49,10 @@ function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: num
     const arg = argv[i]
     if (arg === '--deep') {
       deep = true
-    } else if (arg === '--port') {
+    } else if (arg === '--port' || arg === '--cdpPort') {
       port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -81,9 +81,7 @@ async function driftHandler(argv: string[]): Promise<Response<unknown>> {
     return parsed
   }
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
 
   if (!pick.ok) {
     return err('drift', pick.message, pick.hint, 2)

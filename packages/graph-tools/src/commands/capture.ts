@@ -2,7 +2,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { serializeState } from '@vt/graph-state'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { err, ok } from '../debug/Response'
 import type { Response } from '../debug/Response'
 import { parseCyDump, type CyDump } from '../debug/cyStateShape'
@@ -97,10 +97,10 @@ function parseArgs(argv: string[]): CaptureArgs {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--port') {
+    if (arg === '--port' || arg === '--cdpPort') {
       args.port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      args.port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      args.port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       args.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -131,9 +131,7 @@ function buildCapturePath(timestamp: string, args: CaptureArgs): string {
 
 async function captureHandler(argv: string[]): Promise<Response<unknown>> {
   const args = parseArgs(argv)
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: args.port,
     pid: args.pid,
     vault: args.vault,

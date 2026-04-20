@@ -1,25 +1,26 @@
 import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
 import path from 'node:path'
-import {callMcpTool} from '../mcp-client.ts'
-import {error, output, isJsonMode} from '../output.ts'
+import {callMcpTool} from '@/shell/edge/main/cli/mcp-client.ts'
+import {error, output, isJsonMode} from '@/shell/edge/main/cli/output.ts'
 import {
     getGraphStructure,
     lintGraph,
     formatLintReportHuman,
     formatLintReportJson,
+    renderAutoView,
+    renderGraphView,
     DEFAULT_LINT_CONFIG,
-} from '@vt/graph-tools'
-import type {LintConfig} from '@vt/graph-tools'
-import {buildIndex, search, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
-import {
     buildFilesystemAuthoringPlan,
+    type ViewFormat,
+    type LintConfig,
     type FilesystemAuthoringInput,
     type FilesystemAuthoringFix,
     type FilesystemAuthoringPlanEntry,
     type FilesystemAuthoringReportEntry,
     type FilesystemAuthoringValidationError,
     type StructureManifest,
-} from '../../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
+} from '@vt/graph-tools/node'
+import {buildIndex, search, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
 
 type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -228,10 +229,10 @@ function parseGraphIndexArgs(args: string[]): string {
 }
 
 function parseGraphSearchArgs(args: string[]): {vaultPath: string; query: string; topK: number} {
-    let topK = 10
+    let topK: number = 10
     const positionalArgs: string[] = []
 
-    for (let index = 0; index < args.length; index += 1) {
+    for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
         if (arg === '--top-k') {
             topK = parsePositiveInteger(getRequiredValue(args, index + 1, '--top-k'), '--top-k')
@@ -401,7 +402,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let color: string | undefined
     const inputFilePaths: string[] = []
     let manifestPath: string | undefined
-    let validateOnly = false
+    let validateOnly: boolean = false
 
     for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
@@ -599,7 +600,7 @@ function applyFilesystemPlan(
             : {}),
     }))
 
-    const cleanupTempArtifacts = (entries: readonly {stagePath: string; backupPath?: string}[]): void => {
+    const cleanupTempArtifacts: (entries: readonly {stagePath: string; backupPath?: string}[]) => void = (entries) => {
         for (const entry of entries) {
             graphFilesystemOps.rmSync(entry.stagePath, {force: true})
             if (entry.backupPath) {
@@ -608,12 +609,7 @@ function applyFilesystemPlan(
         }
     }
 
-    const rollbackAppliedEntries = (
-        entries: readonly {
-            path: string
-            backupPath?: string
-        }[]
-    ): void => {
+    const rollbackAppliedEntries: (entries: readonly {path: string; backupPath?: string}[]) => void = (entries) => {
         for (const entry of [...entries].reverse()) {
             if (entry.backupPath) {
                 graphFilesystemOps.renameSync(entry.backupPath, entry.path)
@@ -802,7 +798,7 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         const externalParentRef: string | undefined = parsedArgs.parentPath
             ? validateExternalParent(parsedArgs.parentPath, parsedArgs.inputFilePaths)
             : undefined
-        const planResult = buildFilesystemAuthoringPlan({
+        const planResult: ReturnType<typeof buildFilesystemAuthoringPlan> = buildFilesystemAuthoringPlan({
             inputs: filesystemInputs,
             ...(parsedArgs.manifest ? {manifest: parsedArgs.manifest} : {}),
             agentName: process.env.AGENT_NAME,
@@ -933,6 +929,109 @@ export async function graphStructure(port: number, terminalId: string | undefine
         }
     } catch (toolError: unknown) {
         error(`graph_structure failed: ${getErrorMessage(toolError)}`)
+    }
+}
+
+export async function graphView(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+    void port
+    void terminalId
+
+    let folderPath: string | undefined
+    let format: ViewFormat = 'ascii'
+    let showCrossEdges: boolean = true
+    const collapsedFolders: string[] = []
+    const selectedIds: string[] = []
+    let autoExplicit: boolean | undefined
+    let explicitRender: boolean = false
+    let budget: number = 30
+    let budgetExplicit: boolean = false
+
+    for (let i: number = 0; i < args.length; i += 1) {
+        const arg: string = args[i]
+        if (arg === '--auto') { autoExplicit = true; continue }
+        if (arg === '--no-auto') { autoExplicit = false; continue }
+        if (arg === '--budget') {
+            const next: string | undefined = args[i + 1]
+            if (!next || next.startsWith('--')) error('--budget requires a value')
+            const parsed: number = Number.parseInt(next, 10)
+            if (!Number.isInteger(parsed) || parsed < 1) error('--budget requires a positive integer')
+            budget = parsed
+            budgetExplicit = true
+            i += 1
+            continue
+        }
+        if (arg.startsWith('--budget=')) {
+            const parsed: number = Number.parseInt(arg.slice('--budget='.length), 10)
+            if (!Number.isInteger(parsed) || parsed < 1) error('--budget requires a positive integer')
+            budget = parsed
+            budgetExplicit = true
+            continue
+        }
+        if (arg === '--mermaid') { format = 'mermaid'; explicitRender = true; continue }
+        if (arg === '--ascii') { format = 'ascii'; explicitRender = true; continue }
+        if (arg.startsWith('--format=')) {
+            const value: string = arg.slice('--format='.length)
+            if (value !== 'ascii' && value !== 'mermaid') error(`Unknown format: ${value}`)
+            format = value
+            explicitRender = true
+            continue
+        }
+        if (arg === '--no-cross-edges') { showCrossEdges = false; explicitRender = true; continue }
+        if (arg === '--collapse') {
+            const next: string | undefined = args[i + 1]
+            if (!next || next.startsWith('--')) error('--collapse requires a folder argument')
+            collapsedFolders.push(next)
+            explicitRender = true
+            i += 1
+            continue
+        }
+        if (arg.startsWith('--collapse=')) {
+            collapsedFolders.push(arg.slice('--collapse='.length))
+            explicitRender = true
+            continue
+        }
+        if (arg === '--select') {
+            const next: string | undefined = args[i + 1]
+            if (!next || next.startsWith('--')) error('--select requires a node id argument')
+            selectedIds.push(next)
+            explicitRender = true
+            i += 1
+            continue
+        }
+        if (arg.startsWith('--select=')) {
+            selectedIds.push(arg.slice('--select='.length))
+            explicitRender = true
+            continue
+        }
+        if (arg.startsWith('--')) error(`Unknown argument: ${arg}`)
+        if (folderPath !== undefined) error(`Unexpected argument: ${arg}`)
+        folderPath = arg
+    }
+
+    const autoMode: boolean = autoExplicit ?? !explicitRender
+    const resolvedFolderPath: string = folderPath ?? process.cwd()
+
+    try {
+        if (autoMode) {
+            if (explicitRender) {
+                error('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
+            }
+            const {output: out} = renderAutoView(resolvedFolderPath, {budget})
+            console.log(out)
+            return
+        }
+
+        if (budgetExplicit) {
+            error('--budget can only be used with the default auto view or --auto')
+        }
+
+        const result: ReturnType<typeof renderGraphView> = renderGraphView(resolvedFolderPath, {format, showCrossEdges, collapsedFolders, selectedIds})
+        console.log(result.output)
+        if (format === 'ascii') {
+            console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
+        }
+    } catch (toolError: unknown) {
+        error(`graph view failed: ${getErrorMessage(toolError)}`)
     }
 }
 

@@ -1,5 +1,6 @@
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { openDebugSession } from '../debug/playwrightSession'
 import { ok, err } from '../debug/Response'
 import type { Response } from '../debug/Response'
@@ -45,10 +46,10 @@ async function attachHandler(argv: string[]): Promise<Response<unknown>> {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--port') {
+    if (arg === '--port' || arg === '--cdpPort') {
       port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -60,9 +61,7 @@ async function attachHandler(argv: string[]): Promise<Response<unknown>> {
     }
   }
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault })
 
   if (!pick.ok) {
     return err('attach', pick.message, pick.hint, 2)

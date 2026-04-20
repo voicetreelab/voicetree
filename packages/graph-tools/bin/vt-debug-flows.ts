@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../src/debug/discover'
+import { type DebugInstance } from '../src/debug/discover'
 import {
   FLOW_IDS,
   deriveFlowRuntimeContext,
@@ -26,6 +26,7 @@ import {
   type FlowScoreboard,
 } from '../src/debug/scoreboard'
 import { parseJudgeResponse, type JudgeVerdict } from '../src/debug/judge'
+import { resolveDebugInstance } from '../src/debug/portResolution'
 import type { RunResult } from '../src/commands/run'
 import { createLiveTransport } from '../src/liveTransport'
 
@@ -70,7 +71,7 @@ type RunAllResult = {
 function usage(message?: string): Response<never> {
   return err(
     'flows',
-    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--write-baseline] [--port <n> | --pid <n> | --vault <path>]`,
+    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--write-baseline] [--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]`,
   )
 }
 
@@ -140,14 +141,14 @@ function parseArgs(argv: string[]): ParsedArgs | Response<never> {
         continue
       }
 
-      if (arg === '--port') {
+      if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', flagArgs[index + 1])
         index += 1
         continue
       }
 
-      if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
         continue
       }
 
@@ -289,9 +290,7 @@ async function execFileResult(args: readonly string[]): Promise<ExecResult> {
 }
 
 async function resolveTargetInstance(options: RunnerOptions): Promise<DebugInstance | Response<never>> {
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
     vault: options.vault,

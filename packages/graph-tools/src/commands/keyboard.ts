@@ -1,4 +1,4 @@
-import { readInstancesDir, filterLive, pickInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { normalizeChord } from '../debug/normalizeChord'
 import { err, ok } from '../debug/Response'
 import { openDebugSession, type PageLike } from '../debug/playwrightSession'
@@ -68,7 +68,7 @@ function usage(message?: string): Response<never> {
     [
       "type <text> [--selector <css>] [--delay-ms <ms>]",
       "press <chord> [--selector <css>]",
-      "[--port <n> | --pid <n> | --vault <path>]",
+      "[--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]",
     ].join(' '),
   )
 }
@@ -107,10 +107,10 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
         delayMs = parseNumber('--delay-ms', argv[++i])
       } else if (arg.startsWith('--delay-ms=')) {
         delayMs = parseNumber('--delay-ms', arg.slice('--delay-ms='.length))
-      } else if (arg === '--port') {
+      } else if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
       } else if (arg === '--pid') {
         pid = parseNumber('--pid', argv[++i])
       } else if (arg.startsWith('--pid=')) {
@@ -153,10 +153,10 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
         selector = readFlagValue('--selector', argv[++i])
       } else if (arg.startsWith('--selector=')) {
         selector = readFlagValue('--selector', arg.slice('--selector='.length))
-      } else if (arg === '--port') {
+      } else if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
       } else if (arg === '--pid') {
         pid = parseNumber('--pid', argv[++i])
       } else if (arg.startsWith('--pid=')) {
@@ -223,9 +223,7 @@ async function focusTarget(page: PageLike, selector: string): Promise<void> {
 }
 
 async function resolveTarget(opts: CommonOpts) {
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port: opts.port, pid: opts.pid, vault: opts.vault })
+  const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, vault: opts.vault })
   if (!pick.ok) {
     return { ok: false as const, response: err('keyboard', pick.message, pick.hint, 2) }
   }

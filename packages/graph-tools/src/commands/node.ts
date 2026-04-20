@@ -1,7 +1,8 @@
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { ok, err } from '../debug/Response'
 import type { Response } from '../debug/Response'
 import { createLiveTransport } from '../liveTransport'
@@ -380,10 +381,10 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--port') {
+    if (arg === '--port' || arg === '--cdpPort') {
       port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -393,21 +394,19 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     } else if (arg.startsWith('--vault=')) {
       vault = arg.slice('--vault='.length)
     } else if (arg.startsWith('--')) {
-      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--pid N|--vault PATH]', 2)
+      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
     } else if (!nodeId) {
       nodeId = arg
     } else {
-      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--pid N|--vault PATH]', 2)
+      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
     }
   }
 
   if (!nodeId) {
-    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--pid N|--vault PATH]', 2)
+    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
   }
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault })
   if (!pick.ok) {
     return err('node', pick.message, pick.hint, 2)
   }

@@ -2,7 +2,8 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import { err, ok } from '../debug/Response'
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import type { Response } from '../debug/Response'
 import { registerCommand } from './index'
 
@@ -329,15 +330,15 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
       continue
     }
 
-    if (parsingFlags && arg === '--port') {
+    if (parsingFlags && (arg === '--port' || arg === '--cdpPort')) {
       const parsed = parseIntFlag('eval', '--port', argv[++i])
       if (typeof parsed !== 'number') return parsed
       port = parsed
       continue
     }
 
-    if (parsingFlags && arg.startsWith('--port=')) {
-      const parsed = parseIntFlag('eval', '--port', arg.slice('--port='.length))
+    if (parsingFlags && (arg.startsWith('--port=') || arg.startsWith('--cdpPort='))) {
+      const parsed = parseIntFlag('eval', '--port', arg.slice(arg.indexOf('=') + 1))
       if (typeof parsed !== 'number') return parsed
       port = parsed
       continue
@@ -380,7 +381,7 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   }
 
   if (sourceParts.length === 0) {
-    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--pid N|--vault PATH]')
+    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--vault PATH]')
   }
 
   return {
@@ -431,9 +432,7 @@ async function evalHandler(argv: string[]): Promise<Response<unknown>> {
   const parsed = parseEvalOptions(argv)
   if ('ok' in parsed) return parsed
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: parsed.port,
     pid: parsed.pid,
     vault: parsed.vault,

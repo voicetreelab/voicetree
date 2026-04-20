@@ -24,6 +24,25 @@ import type { Response } from '../src/debug/Response'
 
 const argv = process.argv.slice(2)
 
+function helpText(): string {
+  return [
+    'Usage: vt-debug <command> [args]',
+    '',
+    'Shared selector flags:',
+    '  --port <N>      Target a specific registered dev session by CDP/MCP port.',
+    '  --cdpPort <N>   Backward-compatible alias for --port.',
+    '  --pid <N>       Target a specific registered dev process.',
+    '  --vault <path>  Target a specific registered dev vault path.',
+    '',
+    'Auto-launch:',
+    '  If no selector is provided and no dev session is registered, vt-debug launches',
+    '  `npm --prefix webapp run electron:debug` on a free CDP port and prints that port to stderr.',
+    '  Only registered dev sessions with a live /json/version endpoint are considered; packaged prod is ignored.',
+    '',
+    `Commands: ${[...commandRegistry.keys()].sort().join(', ')}`,
+  ].join('\n')
+}
+
 function resolveCommand(args: string[]): { subcommand: string; rest: string[] } {
   const [first, second, ...remaining] = args
   if (first && second) {
@@ -40,6 +59,11 @@ function resolveCommand(args: string[]): { subcommand: string; rest: string[] } 
 }
 
 const { subcommand, rest } = resolveCommand(argv)
+
+if (argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') {
+  process.stdout.write(`${helpText()}\n`)
+  process.exit(0)
+}
 
 function usageError(msg: string): never {
   process.stderr.write(

@@ -8,6 +8,22 @@ import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOn
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store';
 import {recordAppUsage} from './notification-scheduler';
+import {registerDebugAutoSetup} from './debug-auto-setup';
+
+const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS = 15000;
+
+async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): Promise<void> {
+    if (!autoSetupComplete) {
+        return;
+    }
+
+    await Promise.race([
+        autoSetupComplete,
+        new Promise<void>((resolve) => {
+            setTimeout(resolve, DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS);
+        })
+    ]);
+}
 
 // Conditionally load trackpad detection (macOS only, optional dependency)
 let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
@@ -71,6 +87,8 @@ export function createWindow(deps: {
     // Set global main window reference (used by handlers)
     setMainWindow(mainWindow);
 
+    const debugAutoSetupComplete: Promise<void> | null = registerDebugAutoSetup(mainWindow);
+
     // Pipe renderer console logs to electron terminal
     mainWindow.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
         // Filter out Electron security warnings in dev mode
@@ -107,14 +125,18 @@ export function createWindow(deps: {
 
     // Control window visibility after content is ready
     mainWindow.once('ready-to-show', () => {
-        if (process.env.MINIMIZE_TEST === '1') {
-            // For e2e-tests: show window without stealing focus, then minimize
-            mainWindow.showInactive();
-            mainWindow.hide() // THIS IS THE FINAL THING THAT ACTUALLY WORKED?????????
-            // mainWindow.minimize(); // THIS IS ANNOYING IT CAUSES VISUAL ANMIATION
-        } else {
-            mainWindow.show();
-        }
+        void (async () => {
+            await waitForDebugAutoSetup(debugAutoSetupComplete);
+
+            if (process.env.MINIMIZE_TEST === '1') {
+                // For e2e-tests: show window without stealing focus, then minimize
+                mainWindow.showInactive();
+                mainWindow.hide() // THIS IS THE FINAL THING THAT ACTUALLY WORKED?????????
+                // mainWindow.minimize(); // THIS IS ANNOYING IT CAUSES VISUAL ANMIATION
+            } else {
+                mainWindow.show();
+            }
+        })();
     });
 
     // Track user activity for re-engagement notifications

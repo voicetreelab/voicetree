@@ -1,7 +1,8 @@
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { ok, err } from '../debug/Response'
 import type { Response } from '../debug/Response'
 
@@ -70,10 +71,10 @@ function parseArgs(argv: string[]): PageAxArgs {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--port') {
+    if (arg === '--port' || arg === '--cdpPort') {
       parsed.port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      parsed.port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      parsed.port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       parsed.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -147,9 +148,7 @@ async function snapshotPageAx(
 async function pageAxHandler(argv: string[]): Promise<Response<unknown>> {
   const { port, pid, vault, selector } = parseArgs(argv)
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault })
 
   if (!pick.ok) {
     return err('page-ax', pick.message, pick.hint, 2)

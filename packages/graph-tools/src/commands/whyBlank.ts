@@ -2,7 +2,8 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { project, type State } from '@vt/graph-state'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { ok, err } from '../debug/Response'
 import {
   diagnose,
@@ -107,10 +108,10 @@ function parseArgs(argv: string[]): ParsedArgs {
   try {
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i]
-      if (arg === '--port') {
+      if (arg === '--port' || arg === '--cdpPort') {
         port = parseIntFlag(argv[++i] ?? '', '--port')
-      } else if (arg.startsWith('--port=')) {
-        port = parseIntFlag(arg.slice('--port='.length), '--port')
+      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseIntFlag(arg.slice(arg.indexOf('=') + 1), '--port')
       } else if (arg === '--pid') {
         pid = parseIntFlag(argv[++i] ?? '', '--pid')
       } else if (arg.startsWith('--pid=')) {
@@ -143,7 +144,7 @@ function parseArgs(argv: string[]): ParsedArgs {
         return {
           ok: false,
           message: `unknown argument "${arg}"`,
-          hint: 'supported flags: --port, --pid, --vault, --seed',
+          hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed',
         }
       }
     }
@@ -151,7 +152,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     return {
       ok: false,
       message: String(e),
-      hint: 'supported flags: --port, --pid, --vault, --seed',
+      hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed',
     }
   }
 
@@ -387,9 +388,7 @@ async function whyBlankHandler(argv: string[]): Promise<Response<unknown>> {
     return err('why-blank', parsed.message, parsed.hint, 2)
   }
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
   if (!pick.ok) {
     return err('why-blank', pick.message, pick.hint, 2)
   }

@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url'
 
 import { loadProjection, loadSnapshot, type State } from '@vt/graph-state'
 
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../src/debug/discover'
+import { type DebugInstance } from '../src/debug/discover'
 import { computeDrift, type DriftReport } from '../src/debug/drift'
+import { resolveDebugInstance } from '../src/debug/portResolution'
 import { err, ok } from '../src/debug/Response'
 import type { Response } from '../src/debug/Response'
 import { createScoreboard, type FlowScoreboard, type ScoreboardRow } from '../src/debug/scoreboard'
@@ -93,7 +94,7 @@ type StressResult = {
 function usage(message?: string): Response<never> {
   return err(
     'stress',
-    message ?? 'usage: vt-debug-stress [--out <dir>] [--result-out <file>] [--baseline <file>] [--flow-baseline <file>] [--sequences <n>] [--sequence-length <n>] [--seed <n>] [--write-baseline] [--skip-flows] [--port <n> | --pid <n> | --vault <path>]',
+    message ?? 'usage: vt-debug-stress [--out <dir>] [--result-out <file>] [--baseline <file>] [--flow-baseline <file>] [--sequences <n>] [--sequence-length <n>] [--seed <n>] [--write-baseline] [--skip-flows] [--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]',
   )
 }
 
@@ -201,13 +202,13 @@ function parseArgs(argv: string[]): RunnerOptions | Response<never> {
         skipFlows = true
         continue
       }
-      if (arg === '--port') {
+      if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', argv[index + 1])
         index += 1
         continue
       }
-      if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
         continue
       }
       if (arg === '--pid') {
@@ -294,9 +295,7 @@ async function execFileResult(args: readonly string[]): Promise<ExecResult> {
 }
 
 async function resolveTargetInstance(options: RunnerOptions): Promise<DebugInstance | Response<never>> {
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
     vault: options.vault,

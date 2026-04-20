@@ -89,7 +89,20 @@ export {
     type FormatDecision,
 } from './selectFormat'
 
-export { renderAutoView } from './autoView'
+export {
+    renderAutoView,
+    type AutoViewOptions,
+} from './autoView'
+
+export {
+    findCollapseBoundary,
+    countVisibleEntities,
+    type CollapseBoundaryNode,
+    type CollapseBoundaryGraph,
+    type CollapseCluster,
+    type CollapseStrategy,
+    type FindCollapseBoundaryOptions,
+} from './collapseBoundary'
 
 export {
     createHeadlessServer,

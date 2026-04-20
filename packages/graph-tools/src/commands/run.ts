@@ -1,10 +1,11 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { hydrateCommand, serializeState, type Delta, type State } from '@vt/graph-state'
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
 import { computeDrift, type DriftData, type FsContentById } from '../debug/drift'
 import { normalizeChord } from '../debug/normalizeChord'
 import { openDebugSession, type PageLike as SessionPageLike } from '../debug/playwrightSession'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { projectStateToCyDump } from '../debug/projectedCyDump'
 import { err, ok } from '../debug/Response'
 import type { Response } from '../debug/Response'
@@ -230,7 +231,7 @@ function usage(message?: string): Response<never> {
       '--state-each',
       '--stop-on-error=false',
       '--out <dir>',
-      '[--port <n> | --pid <n> | --vault <path>]',
+      '[--port <n> | --cdpPort <n> | --pid <n> | --vault <path>]',
       `selectors: ${STEP_SPEC_SELECTOR_NOTE}`,
     ].join(' '),
   )
@@ -289,10 +290,10 @@ export function parseRunArgs(argv: string[]): RunOptions | Response<never> {
         outDir = path.resolve(readFlagValue('--out', argv[++i]))
       } else if (arg.startsWith('--out=')) {
         outDir = path.resolve(readFlagValue('--out', arg.slice('--out='.length)))
-      } else if (arg === '--port') {
+      } else if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
       } else if (arg === '--pid') {
         pid = parseNumber('--pid', argv[++i])
       } else if (arg.startsWith('--pid=')) {
@@ -389,9 +390,7 @@ async function loadSteps(specSource: string): Promise<LoadedSteps | Response<nev
 }
 
 async function resolveTarget(options: RunOptions) {
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, { port: options.port, pid: options.pid, vault: options.vault })
+  const pick = await resolveDebugInstance({ port: options.port, pid: options.pid, vault: options.vault })
   if (!pick.ok) {
     return { ok: false as const, response: err('run', pick.message, pick.hint, 2) }
   }

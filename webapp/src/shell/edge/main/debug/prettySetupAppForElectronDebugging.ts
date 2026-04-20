@@ -6,6 +6,7 @@ import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { SavedProject } from '@vt/graph-model/pure/project/types';
 import * as path from 'path';
 import { app } from 'electron';
+import fsSync from 'fs';
 
 export interface DebugSetupResult {
     terminalsSpawned: string[];
@@ -15,19 +16,34 @@ export interface DebugSetupResult {
 
 // Default test project folder name (in public/ for dev, extraResources for prod)
 const DEFAULT_TEST_PROJECT = 'example_small';
+const DEBUG_PROJECT_DIR_ENV = 'VT_DEBUG_PROJECT_DIR';
 
 /**
  * Get the example_small test fixture path.
  * In dev: webapp/public/example_small
  * In prod: resources/example_small (requires extraResources in package.json)
  */
-function getTestProjectPath(): string {
+function getFallbackTestProjectPath(): string {
     const appPath = app.getAppPath();
     if (app.isPackaged) {
         return path.join(process.resourcesPath, DEFAULT_TEST_PROJECT);
     } else {
         return path.join(appPath, 'public', DEFAULT_TEST_PROJECT);
     }
+}
+
+function resolveDebugProjectPath(env: NodeJS.ProcessEnv = process.env): string {
+    const overridePath = env[DEBUG_PROJECT_DIR_ENV]?.trim();
+
+    if (overridePath) {
+        if (fsSync.existsSync(overridePath)) {
+            return overridePath;
+        }
+
+        console.warn(`[DebugSetup] ${DEBUG_PROJECT_DIR_ENV} does not exist, falling back:`, overridePath);
+    }
+
+    return getFallbackTestProjectPath();
 }
 
 /**
@@ -44,18 +60,19 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
 
     // If no nodes loaded, auto-load the test project
     if (nodeIds.length === 0) {
-        const testProjectPath = getTestProjectPath();
+        const testProjectPath = resolveDebugProjectPath();
+        const projectName = path.basename(testProjectPath);
 
         console.log('[DebugSetup] No project loaded, auto-loading:', testProjectPath);
 
         // Create and save a real project (same flow as UI)
         const project: SavedProject = {
-            id: `debug-example-small`,
+            id: `debug-${projectName}`,
             path: testProjectPath,
-            name: 'example_small',
+            name: projectName,
             type: 'folder',
             lastOpened: Date.now(),
-            voicetreeInitialized: true  // example_small is already a voicetree folder
+            voicetreeInitialized: true
         };
         await saveProject(project);
         console.log('[DebugSetup] Saved project:', project.id);

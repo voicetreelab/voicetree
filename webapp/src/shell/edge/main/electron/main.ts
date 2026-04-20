@@ -123,25 +123,6 @@ void app.whenReady().then(async () => {
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
-    // Auto-setup debug environment when Playwright debug mode is enabled
-    if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-        const mainWindow: BrowserWindow = BrowserWindow.getAllWindows()[0];
-        if (mainWindow) {
-            mainWindow.webContents.once('did-finish-load', () => {
-                void import('@/shell/edge/main/debug/prettySetupAppForElectronDebugging')
-                    .then(({ prettySetupAppForElectronDebugging }) =>
-                        prettySetupAppForElectronDebugging()
-                    )
-                    .then((result) => {
-                        console.log('[Startup] Playwright debug auto-setup complete:', JSON.stringify(result));
-                    })
-                    .catch((err: Error) => {
-                        console.error('[Startup] Playwright debug auto-setup failed:', err);
-                    });
-            });
-        }
-    }
-
     // Silently migrate layoutConfig nodeSpacing from old default (70) to new default (120)
     await migrateLayoutConfigIfNeeded();
 

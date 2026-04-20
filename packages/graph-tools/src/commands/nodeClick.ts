@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
 import { mergeButtons, type ButtonCandidate, type ButtonInfo, type RegistryButtonCandidate } from '../debug/mergeButtons'
 import { openDebugSession } from '../debug/playwrightSession'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { err, ok } from '../debug/Response'
 import type { Response } from '../debug/Response'
 import { registerCommand } from './index'
@@ -320,7 +321,7 @@ function usage(message?: string): Response<never> {
   return err(
     'node-click',
     message ?? 'usage: vt-debug node click <id> <label|index>',
-    'usage: vt-debug node click <id> <label|index> [--port N|--pid N|--vault PATH]',
+    'usage: vt-debug node click <id> <label|index> [--port N|--cdpPort N|--pid N|--vault PATH]',
     2,
   )
 }
@@ -440,10 +441,10 @@ function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
   try {
     for (let i = 0; i < argv.length; i += 1) {
       const arg = argv[i]
-      if (arg === '--port') {
+      if (arg === '--port' || arg === '--cdpPort') {
         port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=')) {
-        port = parseNumber('--port', arg.slice('--port='.length))
+      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
       } else if (arg === '--pid') {
         pid = parseNumber('--pid', argv[++i])
       } else if (arg.startsWith('--pid=')) {
@@ -592,9 +593,7 @@ async function nodeClickHandler(argv: string[]): Promise<Response<unknown>> {
   const options = parseArgs(argv)
   if ('ok' in options) return options
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
     vault: options.vault,

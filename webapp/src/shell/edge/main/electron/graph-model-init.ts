@@ -47,7 +47,7 @@ export function initializeGraphModel(): void {
         onWatchingStarted(info): void {
             const mainWindow = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('watching:started', info)
+                mainWindow.webContents.send('watching-started', info)
             }
         },
         onFolderCleared(): void {

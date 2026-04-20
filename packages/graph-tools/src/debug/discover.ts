@@ -24,23 +24,34 @@ export type PickResult =
 // Pure core
 // ---------------------------------------------------------------------------
 
+export function filterInstancesBySelector(
+    liveFiles: DebugInstance[],
+    opts: PickOpts = {},
+): DebugInstance[] {
+    if (opts.port !== undefined) {
+        return liveFiles.filter(
+            i => i.cdpPort === opts.port || i.mcpPort === opts.port,
+        );
+    }
+
+    if (opts.pid !== undefined) {
+        return liveFiles.filter(i => i.pid === opts.pid);
+    }
+
+    if (opts.vault !== undefined) {
+        const resolved = path.resolve(opts.vault);
+        return liveFiles.filter(i => path.resolve(i.vaultPath).startsWith(resolved));
+    }
+
+    return liveFiles;
+}
+
 /** Select one DebugInstance from a list of live files, applying opt filters.
  *
  * Filter precedence: --port > --pid > --vault > single-live > ambiguous error.
  */
 export function pickInstance(liveFiles: DebugInstance[], opts: PickOpts = {}): PickResult {
-    let candidates = liveFiles;
-
-    if (opts.port !== undefined) {
-        candidates = candidates.filter(
-            i => i.cdpPort === opts.port || i.mcpPort === opts.port,
-        );
-    } else if (opts.pid !== undefined) {
-        candidates = candidates.filter(i => i.pid === opts.pid);
-    } else if (opts.vault !== undefined) {
-        const resolved = path.resolve(opts.vault);
-        candidates = candidates.filter(i => path.resolve(i.vaultPath).startsWith(resolved));
-    }
+    const candidates = filterInstancesBySelector(liveFiles, opts);
 
     if (candidates.length === 1) {
         return { ok: true, instance: candidates[0] };
@@ -126,4 +137,8 @@ export async function filterLive(instances: DebugInstance[]): Promise<DebugInsta
             return false;
         }
     });
+}
+
+export async function listLiveInstances(dir?: string): Promise<DebugInstance[]> {
+    return filterLive(await readInstancesDir(dir));
 }

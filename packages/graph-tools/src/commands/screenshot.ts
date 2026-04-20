@@ -2,7 +2,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { registerCommand } from './index'
-import { readInstancesDir, filterLive, pickInstance, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import { ok, err } from '../debug/Response'
 import type { Response } from '../debug/Response'
 
@@ -101,10 +102,10 @@ export function parseArgs(argv: string[]): ScreenshotOptions {
       options.outPath = arg.slice('--output='.length)
     } else if (arg.startsWith('-o=')) {
       options.outPath = arg.slice('-o='.length)
-    } else if (arg === '--port') {
+    } else if (arg === '--port' || arg === '--cdpPort') {
       options.port = parseInt(argv[++i] ?? '', 10)
-    } else if (arg.startsWith('--port=')) {
-      options.port = parseInt(arg.slice('--port='.length), 10)
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      options.port = parseInt(arg.slice(arg.indexOf('=') + 1), 10)
     } else if (arg === '--pid') {
       options.pid = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--pid=')) {
@@ -194,9 +195,7 @@ async function captureScreenshot(
 async function screenshotHandler(argv: string[]): Promise<Response<unknown>> {
   const options = parseArgs(argv)
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: options.port,
     pid: options.pid,
     vault: options.vault,

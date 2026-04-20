@@ -32,11 +32,12 @@ Commands:
   agent close     Close an agent terminal
   agent send      Send a message to an agent terminal
   agent output    Read buffered agent output
+  graph view      Render a folder as tree-cover with progressive-disclosure collapse (default)
   graph create    Create progress nodes in the graph
   graph index     Build a local semantic search index for a vault
   graph search    Search a local semantic search index for a vault
   graph unseen    Get unseen nodes near your context
-  graph structure Get graph structure as ASCII tree from a folder
+  graph structure Get graph structure as plain ASCII tree (legacy)
   graph lint      Lint graph for complexity violations and warnings
   graph rename    Rename a file and update all references
   graph mv        Move a file or folder and update all references
@@ -217,6 +218,15 @@ async function dispatchGraphCommand(
                 'Graph commands are not available in this build yet'
             )
             await graphStructure(port, terminalId, args)
+            return
+        }
+        case 'view': {
+            const graphView: CommandHandler = await loadDeferredHandler(
+                './commands/graph.ts',
+                'graphView',
+                'Graph commands are not available in this build yet'
+            )
+            await graphView(port, terminalId, args)
             return
         }
         case 'lint': {

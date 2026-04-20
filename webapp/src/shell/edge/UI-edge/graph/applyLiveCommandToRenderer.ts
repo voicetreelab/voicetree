@@ -10,6 +10,7 @@
  */
 import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state'
 import { collapseFolder, expandFolder } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { applyNodeSelectionSideEffects } from '@/shell/edge/UI-edge/graph/applyNodeSelectionSideEffects'
 
 interface SerializedCommandShape {
     readonly type: string
@@ -35,12 +36,22 @@ export async function applyLiveCommandToRenderer(command: unknown): Promise<void
             case 'Select': {
                 if (!Array.isArray(cmd.ids)) return
                 const cy: ReturnType<typeof getCyInstance> = getCyInstance()
+                const selectedIds: string[] = []
                 if (cmd.additive !== true) {
                     cy.$(':selected').unselect()
                 }
                 for (const id of cmd.ids) {
                     const el: ReturnType<typeof cy.getElementById> = cy.getElementById(id)
-                    if (el.length > 0) el.select()
+                    if (el.length > 0) {
+                        el.select()
+                        selectedIds.push(id)
+                    }
+                }
+                if (cmd.additive !== true && selectedIds.length === 1) {
+                    await applyNodeSelectionSideEffects({
+                        cy,
+                        nodeId: selectedIds[0],
+                    })
                 }
                 return
             }

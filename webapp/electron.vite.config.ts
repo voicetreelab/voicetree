@@ -8,6 +8,7 @@ import path from 'path'
 // Detect if building for tests (npm run test:*, build:test, etc.)
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
+const devServerHost: true | string = process.env.DEV_SERVER_HOST || true
 const MAIN_RUNTIME_EXTERNALS: string[] = [
   'electron-trackpad-detect',
   '@huggingface/transformers',
@@ -274,7 +275,7 @@ export default defineConfig({
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
       strictPort: false,
-      host: true,
+      host: devServerHost,
       hmr: false, // Disable HMR - use electron:watch script if you want hot reload
       watch: {
         ignored: [

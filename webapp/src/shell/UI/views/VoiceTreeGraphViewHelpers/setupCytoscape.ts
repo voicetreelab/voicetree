@@ -3,13 +3,10 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@vt/graph-model/pure/graph';
-import {isImageNode} from '@vt/graph-model/pure/graph';
-import * as O from 'fp-ts/lib/Option.js';
-import { createAnchoredFloatingEditor } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
-import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import {applyNodeSelectionSideEffects} from '@/shell/edge/UI-edge/graph/applyNodeSelectionSideEffects';
 import {handleAddNodeAtPosition} from "@/shell/edge/UI-edge/floating-windows/editors/OpenHoverEditor";
 
 export interface SetupCytoscapeParams {
@@ -51,20 +48,11 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
         const node: NodeSingular = event.target;
         const nodeId: string = node.id();
 
-        // Emit node selected event
-        onNodeSelected(nodeId);
-
-        // Don't open floating editor for image nodes
-        if (isImageNode(nodeId)) {
-            return;
-        }
-
-        // Skip if editor already exists for this node
-        if (O.isSome(getEditorByNodeId(nodeId))) {
-            return;
-        }
-
-        void createAnchoredFloatingEditor(cy, nodeId, false);
+        void applyNodeSelectionSideEffects({
+            cy,
+            nodeId,
+            onNodeSelected,
+        });
     });
 
     // Setup vertical menu (right-click on canvas)

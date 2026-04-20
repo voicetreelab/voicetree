@@ -3,7 +3,8 @@ import { fileURLToPath, pathToFileURL } from 'url'
 
 import { err, ok } from '../debug/Response'
 import { createLiveTransport } from '../liveTransport'
-import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
+import { type DebugInstance } from '../debug/discover'
+import { resolveDebugInstance } from '../debug/portResolution'
 import type { Response } from '../debug/Response'
 import { registerCommand } from './index'
 
@@ -187,12 +188,12 @@ function parseLogOptions(argv: string[]): Response<never> | LogOptions {
       const parsed = parseIntFlag('log', '--since-ms', arg.slice('--since-ms='.length))
       if (typeof parsed !== 'number') return parsed
       options.sinceMs = parsed
-    } else if (arg === '--port') {
+    } else if (arg === '--port' || arg === '--cdpPort') {
       const parsed = parseIntFlag('log', '--port', argv[++i])
       if (typeof parsed !== 'number') return parsed
       options.port = parsed
-    } else if (arg.startsWith('--port=')) {
-      const parsed = parseIntFlag('log', '--port', arg.slice('--port='.length))
+    } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
+      const parsed = parseIntFlag('log', '--port', arg.slice(arg.indexOf('=') + 1))
       if (typeof parsed !== 'number') return parsed
       options.port = parsed
     } else if (arg === '--pid') {
@@ -350,9 +351,7 @@ async function logHandler(argv: string[]): Promise<Response<unknown>> {
   const parsed = parseLogOptions(argv)
   if ('ok' in parsed) return parsed
 
-  const all = await readInstancesDir()
-  const live = await filterLive(all)
-  const pick = pickInstance(live, {
+  const pick = await resolveDebugInstance({
     port: parsed.port,
     pid: parsed.pid,
     vault: parsed.vault,

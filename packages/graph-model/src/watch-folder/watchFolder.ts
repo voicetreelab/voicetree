@@ -45,7 +45,7 @@ import {
 } from "./vault-allowlist";
 import { setupWatcher } from "./file-watcher-setup";
 import type { WatcherOptions } from "./file-watcher-setup";
-import { DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
+import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
 import { createEmptyGraph } from '../pure/graph/createGraph';
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "../graph/positions-store";
@@ -78,8 +78,9 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
         return DEFAULT_WATCHER_OPTIONS;
     }
 
-    const { resolveNodeWatcherOptions } = await import('./watcher-options.node');
-    return resolveNodeWatcherOptions(maybeProcess.env as NodeJS.ProcessEnv);
+    return createWatcherOptions(
+        maybeProcess.env.HEADLESS_TEST === '1' || maybeProcess.env.NODE_ENV === 'test'
+    );
 }
 
 export async function initialLoad(): Promise<void> {

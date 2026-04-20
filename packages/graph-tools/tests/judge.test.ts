@@ -120,6 +120,45 @@ describe('buildJudgePrompt', () => {
     expect(prompt).toContain('step-02: /tmp/vt-debug/flows/F1-123/run-01/step-02.png')
   })
 
+  it('lists all absolute screenshot paths and omits the none-captured fallback when screenshots exist', () => {
+    const screenshotBundle: FlowBundle = {
+      ...MINIMAL_BUNDLE,
+      runSummaries: [
+        {
+          runIndex: 1,
+          pass: true,
+          stepOutputs: [
+            {
+              stepIndex: 0,
+              step: { waitFor: '.sidebar-wrapper', timeoutMs: 2000 },
+              ok: true,
+              screenshotPath: '/tmp/vt-debug/flows/F2-20260420-101010/run-01/step-01.png',
+            },
+            {
+              stepIndex: 1,
+              step: { dispatch: { type: 'RequestFit', paddingPx: 24 } },
+              ok: true,
+              screenshotPath: '/tmp/vt-debug/flows/F2-20260420-101010/run-01/step-02.png',
+            },
+            {
+              stepIndex: 2,
+              step: { wait: 300 },
+              ok: true,
+              screenshotPath: '/tmp/vt-debug/flows/F2-20260420-101010/run-01/step-03.png',
+            },
+          ],
+        },
+      ],
+    }
+
+    const prompt = buildJudgePrompt(screenshotBundle)
+
+    expect(prompt).toContain('step-01: /tmp/vt-debug/flows/F2-20260420-101010/run-01/step-01.png')
+    expect(prompt).toContain('step-02: /tmp/vt-debug/flows/F2-20260420-101010/run-01/step-02.png')
+    expect(prompt).toContain('step-03: /tmp/vt-debug/flows/F2-20260420-101010/run-01/step-03.png')
+    expect(prompt).not.toContain('(none captured)')
+  })
+
   it('includes JSON schema shape in prompt', () => {
     const prompt = buildJudgePrompt(MINIMAL_BUNDLE)
     expect(prompt).toContain('"pass": boolean')

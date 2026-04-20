@@ -49,16 +49,32 @@ const PROTECTED_HOME_DIRS: readonly string[] = [
 
 const MAX_DEPTH: number = 4;
 
+type RuntimeProcess = {
+    readonly platform?: NodeJS.Platform;
+    readonly env?: NodeJS.ProcessEnv;
+};
+
+function getRuntimeProcess(): RuntimeProcess | undefined {
+    return (globalThis as typeof globalThis & {
+        process?: RuntimeProcess;
+    }).process;
+}
+
 /**
  * Returns the Obsidian config file path for the current platform.
  */
 function getObsidianConfigPath(): string {
     const home: string = os.homedir();
-    switch (process.platform) {
+    const runtimeProcess: RuntimeProcess | undefined = getRuntimeProcess();
+
+    // This module is re-exported from the @vt/graph-model barrel, which the renderer
+    // imports for pure graph helpers. Guard bare process access so the barrel stays
+    // safe to evaluate in browser contexts where process is not defined.
+    switch (runtimeProcess?.platform) {
         case 'darwin':
             return path.join(home, 'Library', 'Application Support', 'obsidian', 'obsidian.json');
         case 'win32':
-            return path.join(process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'obsidian', 'obsidian.json');
+            return path.join(runtimeProcess?.env?.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'obsidian', 'obsidian.json');
         default: // linux
             return path.join(home, '.config', 'obsidian', 'obsidian.json');
     }

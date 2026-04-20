@@ -37,7 +37,8 @@ function usage(): string {
   return [
     'Usage: vt-graph <lint|hygiene|structure|view|apply|rename|mv|state|live> [args]',
     '       vt-graph hygiene <vault> [--rule <id>] [--json]',
-    '       vt-graph view <vault> [--auto] [--mermaid] [--collapse F]... [--select X]...',
+    '       vt-graph view <vault> [--budget N] [--no-auto|--ascii|--mermaid] [--collapse F]... [--select X]...',
+    '         (default: tree-cover; auto-collapses coherent subgraphs once visible entities exceed budget — default 30)',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph state dump <root> [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
@@ -165,32 +166,59 @@ async function main(): Promise<void> {
       let showCrossEdges: boolean = true
       const collapsedFolders: string[] = []
       const selectedIds: string[] = []
-      let autoMode = false
+      let autoExplicit: boolean | undefined
+      let explicitRender = false
+      let budget = 30
+      let budgetExplicit = false
 
       for (let i = 0; i < args.length; i++) {
         const arg = args[i]
-        if (arg === '--auto') { autoMode = true; continue }
-        if (arg === '--mermaid') { format = 'mermaid'; continue }
-        if (arg === '--ascii') { format = 'ascii'; continue }
+        if (arg === '--auto') { autoExplicit = true; continue }
+        if (arg === '--no-auto') { autoExplicit = false; continue }
+        if (arg === '--budget') {
+          const next = getRequiredValue(args, i + 1, '--budget')
+          const parsed = Number.parseInt(next, 10)
+          if (!Number.isInteger(parsed) || parsed < 1) {
+            fail('--budget requires a positive integer')
+          }
+          budget = parsed
+          budgetExplicit = true
+          i += 1
+          continue
+        }
+        if (arg.startsWith('--budget=')) {
+          const parsed = Number.parseInt(arg.slice('--budget='.length), 10)
+          if (!Number.isInteger(parsed) || parsed < 1) {
+            fail('--budget requires a positive integer')
+          }
+          budget = parsed
+          budgetExplicit = true
+          continue
+        }
+        if (arg === '--mermaid') { format = 'mermaid'; explicitRender = true; continue }
+        if (arg === '--ascii') { format = 'ascii'; explicitRender = true; continue }
         if (arg.startsWith('--format=')) {
           const value: string = arg.slice('--format='.length)
           if (value !== 'ascii' && value !== 'mermaid') {
             fail(`Unknown format: ${value}`)
           }
           format = value
+          explicitRender = true
           continue
         }
-        if (arg === '--no-cross-edges') { showCrossEdges = false; continue }
+        if (arg === '--no-cross-edges') { showCrossEdges = false; explicitRender = true; continue }
         if (arg === '--collapse') {
           const next: string | undefined = args[++i]
           if (!next || next.startsWith('--')) {
             fail('--collapse requires a folder argument')
           }
           collapsedFolders.push(next)
+          explicitRender = true
           continue
         }
         if (arg.startsWith('--collapse=')) {
           collapsedFolders.push(arg.slice('--collapse='.length))
+          explicitRender = true
           continue
         }
         if (arg === '--select') {
@@ -199,10 +227,12 @@ async function main(): Promise<void> {
             fail('--select requires a node id argument')
           }
           selectedIds.push(next)
+          explicitRender = true
           continue
         }
         if (arg.startsWith('--select=')) {
           selectedIds.push(arg.slice('--select='.length))
+          explicitRender = true
           continue
         }
         if (arg.startsWith('--')) {
@@ -214,10 +244,21 @@ async function main(): Promise<void> {
         folderPath = arg
       }
 
+      // Default to --auto unless the user opted out or passed an explicit render flag
+      // (--ascii, --mermaid, --format=, --collapse, --select, --no-cross-edges).
+      const autoMode = autoExplicit ?? !explicitRender
+
       if (autoMode) {
-        const {output} = renderAutoView(folderPath || process.cwd())
+        if (explicitRender) {
+          fail('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
+        }
+        const {output} = renderAutoView(folderPath || process.cwd(), {budget})
         console.log(output)
         break
+      }
+
+      if (budgetExplicit) {
+        fail('--budget can only be used with the default auto view or --auto')
       }
 
       const result = renderGraphView(folderPath || process.cwd(), {format, showCrossEdges, collapsedFolders, selectedIds})
