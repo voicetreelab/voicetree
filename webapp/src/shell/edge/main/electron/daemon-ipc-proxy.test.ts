@@ -11,7 +11,9 @@ const mockEnsureDaemonClientForVault = vi.fn()
 const mockGetCurrentLiveState = vi.fn()
 const mockGetDirectoryTree = vi.fn()
 const mockGetExternalReadPaths = vi.fn()
+const mockGetLocalGraph = vi.fn()
 const mockGetProjectRootWatchedDirectory = vi.fn()
+const mockSetLocalGraph = vi.fn()
 const mockGetStarredFolders = vi.fn()
 const mockGetWritePath = vi.fn()
 const mockGetActiveDaemonConnection = vi.fn()
@@ -50,6 +52,11 @@ vi.mock('@/shell/edge/main/graph/watch_folder/starred-folders', () => ({
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
   getCurrentLiveState: mockGetCurrentLiveState,
   rootsWereExplicitlySet: mockRootsWereExplicitlySet,
+}))
+
+vi.mock('@/shell/edge/main/state/graph-store', () => ({
+  getGraph: mockGetLocalGraph,
+  setGraph: mockSetLocalGraph,
 }))
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
@@ -117,6 +124,12 @@ describe('daemon IPC proxy', () => {
     vi.clearAllMocks()
     mockGetProjectRootWatchedDirectory.mockReturnValue('/vault')
     mockGetExternalReadPaths.mockReturnValue([])
+    mockGetLocalGraph.mockReturnValue({
+      nodes: {},
+      incomingEdgesIndex: new Map(),
+      nodeByBaseName: new Map(),
+      unresolvedLinksIndex: new Map(),
+    })
     mockGetStarredFolders.mockResolvedValue([])
     mockGetWritePath.mockResolvedValue(O.none)
     mockGetActiveDaemonConnection.mockReturnValue(null)
@@ -258,6 +271,7 @@ describe('daemon IPC proxy', () => {
       writePath: '/vault',
     })
     expect(client.addReadPath).toHaveBeenCalledWith('/vault/docs')
+    expect(mockSetLocalGraph).toHaveBeenCalledTimes(1)
     expect(mockBroadcastGraphDeltaToUI).toHaveBeenCalledTimes(1)
     expect(mockUiAPI.syncVaultState).toHaveBeenCalledWith({
       readPaths: ['/vault/docs'],
@@ -283,5 +297,34 @@ describe('daemon IPC proxy', () => {
 
     await expect(proxy.setWritePathThroughDaemon('/vault/out')).rejects.toBe(error)
     expect(mockBroadcastGraphDeltaToUI).not.toHaveBeenCalled()
+  })
+
+  it('refreshes the main graph store from the daemon snapshot', async () => {
+    const client = {
+      getGraph: vi.fn().mockResolvedValue({
+        nodes: {
+          '/vault/a.md': makeNode('/vault/a.md', 'fresh'),
+        },
+      }),
+      getVault: vi.fn().mockResolvedValue({
+        vaultPath: '/vault',
+        readPaths: ['/vault'],
+        writePath: '/vault',
+      }),
+    }
+    mockEnsureDaemonClientForVault.mockResolvedValue({ client })
+
+    const proxy = await import('./daemon-ipc-proxy')
+    await proxy.refreshMainGraphFromDaemon('/vault')
+
+    expect(mockEnsureDaemonClientForVault).toHaveBeenCalledWith('/vault', {
+      timeoutMs: 15_000,
+    })
+    expect(mockSetLocalGraph).toHaveBeenCalledTimes(1)
+    expect(mockUiAPI.syncVaultState).toHaveBeenCalledWith({
+      readPaths: ['/vault'],
+      starredFolders: [],
+      writePath: '/vault',
+    })
   })
 })

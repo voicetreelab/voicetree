@@ -68,6 +68,10 @@ export {
 // Re-export folder-scanner functions for api.ts
 export { getAvailableFoldersForSelector } from "./folder-scanner";
 
+export interface WatchFolderLoadOptions {
+    mountWatcher?: boolean;
+}
+
 async function resolveWatcherOptions(): Promise<WatcherOptions> {
     const maybeProcess: { env?: Record<string, string | undefined> } | undefined =
         (globalThis as typeof globalThis & {
@@ -83,7 +87,7 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
     );
 }
 
-export async function initialLoad(): Promise<void> {
+export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise<void> {
     // If already watching a directory, don't reload
     // This prevents race conditions when startFileWatching() is called before markFrontendReady()
     if (getProjectRootWatchedDirectory() !== null) {
@@ -93,7 +97,7 @@ export async function initialLoad(): Promise<void> {
     // Check for CLI-specified folder first (from "Open Folder in New Instance")
     const startupFolder: string | null = getStartupFolderOverride();
     if (startupFolder !== null) {
-        await loadFolder(startupFolder);
+        await loadFolder(startupFolder, options);
         return;
     }
 
@@ -101,7 +105,7 @@ export async function initialLoad(): Promise<void> {
     // Re-check after yield - startFileWatching may have set projectRootWatchedDirectory during the await
     if (getProjectRootWatchedDirectory() !== null) return;
     if (O.isSome(lastDirectory)) {
-        await loadFolder(lastDirectory.value);
+        await loadFolder(lastDirectory.value, options);
     }
     // No fallback - ProjectSelectionScreen handles first-run experience
 }
@@ -179,7 +183,10 @@ async function resolveOrCreateConfig(
     };
 }
 
-export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success: boolean }> {
+export async function loadFolder(
+    watchedFolderPath: FilePath,
+    options: WatchFolderLoadOptions = {},
+): Promise<{ success: boolean }> {
     // Save current graph positions before switching folders
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
     if (previousRoot) {
@@ -238,7 +245,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
             return createNewWorkspaceOnFileLimitExceeded(
                 watchedFolderPath,
                 fileCount,
-                config.readPaths
+                config.readPaths,
+                options,
             );
         }
         return { success: false };
@@ -255,7 +263,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
                 return createNewWorkspaceOnFileLimitExceeded(
                     watchedFolderPath,
                     fileCount,
-                    config.readPaths
+                    config.readPaths,
+                    options,
                 );
             }
             // Log but continue with remaining paths for non-fatal errors
@@ -264,11 +273,13 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         }
     }
 
-    // Resolve watcher options lazily so renderer imports never touch process.env.
-    const watcherOptions: WatcherOptions = await resolveWatcherOptions();
+    if (options.mountWatcher !== false) {
+        // Resolve watcher options lazily so renderer imports never touch process.env.
+        const watcherOptions: WatcherOptions = await resolveWatcherOptions();
 
-    // Setup file watcher - watch all paths in allowlist
-    await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
+        // Setup file watcher - watch all paths in allowlist
+        await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
+    }
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -293,7 +304,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
 async function createNewWorkspaceOnFileLimitExceeded(
     watchedFolderPath: FilePath,
     fileCount: number,
-    existingReadPaths: readonly string[]
+    existingReadPaths: readonly string[],
+    options: WatchFolderLoadOptions = {},
 ): Promise<{ success: boolean }> {
     const newSubfolderPath: string = await createDatedSubfolder(watchedFolderPath);
 
@@ -319,11 +331,13 @@ async function createNewWorkspaceOnFileLimitExceeded(
         return { success: false };
     }
 
-    const watcherOptions: WatcherOptions = await resolveWatcherOptions();
+    if (options.mountWatcher !== false) {
+        const watcherOptions: WatcherOptions = await resolveWatcherOptions();
 
-    // Setup file watcher for the new workspace
-    const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];
-    await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
+        // Setup file watcher for the new workspace
+        const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];
+        await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
+    }
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(watchedFolderPath);
@@ -347,7 +361,10 @@ export function isWatching(): boolean {
 
 // API functions for file watching operations
 
-export async function startFileWatching(directoryPath?: string): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
+export async function startFileWatching(
+    directoryPath?: string,
+    options: WatchFolderLoadOptions = {},
+): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
     // Get selected directory (either from param or via dialog)
     const getDirectory: () => Promise<string | null> = async (): Promise<string | null> => {
         if (directoryPath) {
@@ -377,7 +394,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
         return { success: false, error };
     }
 
-    await loadFolder(selectedDirectory);
+    await loadFolder(selectedDirectory, options);
     return { success: true, directory: selectedDirectory };
 }
 
@@ -399,8 +416,10 @@ export function getWatchStatus(): { readonly isWatching: boolean; readonly direc
     return status;
 }
 
-export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    await initialLoad();
+export async function loadPreviousFolder(
+    options: WatchFolderLoadOptions = {},
+): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
+    await initialLoad(options);
     const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (watchedDir) {
         return { success: true, directory: watchedDir };
@@ -413,6 +432,6 @@ export async function loadPreviousFolder(): Promise<{ readonly success: boolean;
  * Called by renderer when frontend is ready to receive graph data.
  * Triggers initial folder load - main process decides what folder to load.
  */
-export async function markFrontendReady(): Promise<void> {
-    await initialLoad();
+export async function markFrontendReady(options: WatchFolderLoadOptions = {}): Promise<void> {
+    await initialLoad(options);
 }

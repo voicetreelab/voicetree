@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createEmptyGraph } from '../pure/graph/createGraph'
 import { setGraph } from '../state/graph-store'
-import { clearWatchFolderState } from '../state/watch-folder-store'
+import { clearWatchFolderState, getWatcher } from '../state/watch-folder-store'
 import { initGraphModel } from '../types'
 import { saveVaultConfigForDirectory } from './voicetree-config-io'
 import { loadFolder, stopFileWatching } from './watchFolder'
@@ -61,5 +61,15 @@ describe('watchFolder daemon bootstrap callback', () => {
     await expect(loadFolder(projectRoot)).rejects.toThrow(
       'daemon bootstrap failed',
     )
+  })
+
+  test('can load without mounting a local watcher', async () => {
+    ensureDaemonForVault.mockResolvedValue(undefined)
+
+    await expect(
+      loadFolder(projectRoot, { mountWatcher: false }),
+    ).resolves.toEqual({ success: true })
+    expect(getWatcher()).toBeNull()
+    expect(ensureDaemonForVault).toHaveBeenCalledWith(projectRoot)
   })
 })

@@ -23,6 +23,7 @@ import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
 import { broadcastGraphDeltaToUI } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
 import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starred-folders'
+import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 
@@ -270,6 +271,15 @@ async function syncRendererFromDaemon(
   uiAPI.syncExternalFolderTrees(treePayload.externalTrees)
 }
 
+async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
+  const previousGraph = getLocalGraph()
+  const nextGraph = await getNormalizedDaemonGraph(client)
+  const vaultState = await client.getVault()
+
+  setLocalGraph(nextGraph)
+  await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
+}
+
 async function ensureRendererSession(client: DaemonClient): Promise<string> {
   if (rendererSessionId) {
     try {
@@ -390,9 +400,11 @@ async function runVaultMutation(
   mutate: (client: DaemonClient) => Promise<VaultState>,
 ): Promise<VaultState> {
   const { client } = await getDaemonClientForCurrentVault()
-  const previousGraph = lastDaemonGraph ?? await getNormalizedDaemonGraph(client)
+  const previousGraph = getLocalGraph()
   const vaultState = await mutate(client)
   const nextGraph = await getNormalizedDaemonGraph(client)
+
+  setLocalGraph(nextGraph)
   await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
   return vaultState
 }
@@ -445,6 +457,14 @@ export async function removeReadPathThroughDaemon(path: string): Promise<VaultSt
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation((client) => client.setWritePath(path))
+}
+
+export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> {
+  const connection = vault
+    ? await ensureDaemonClientForVault(vault, { timeoutMs: MAIN_DAEMON_TIMEOUT_MS })
+    : await getDaemonClientForCurrentVault()
+
+  await syncMainGraphFromDaemonClient(connection.client)
 }
 
 export function __resetDaemonIpcProxyStateForTests(): void {
