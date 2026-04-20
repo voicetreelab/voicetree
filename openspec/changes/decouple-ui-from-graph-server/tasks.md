@@ -47,9 +47,9 @@
 
 - [x] 5.1 Implement `GraphDbClient` class in `packages/graph-db-client/src/index.ts` — typed methods for every endpoint, derives types from the contract module
 - [x] 5.2 Implement port discovery: read `<vault>/.voicetree/graphd.port`, verify `/health` before issuing
-- [ ] 5.3 Implement auto-launch helper: spawn `vt-graphd --vault <path>` detached, poll /health up to 5s, then proceed
+- [x] 5.3 Implement auto-launch helper: spawn `vt-graphd --vault <path>` detached, poll /health up to 5s, then proceed
 - [x] 5.4 Vitest: client roundtrip against in-process daemon for every endpoint
-- [ ] 5.5 Vitest: client cold-start spawns daemon, gets a working connection
+- [x] 5.5 Vitest: client cold-start spawns daemon, gets a working connection
 
 ## 6. Phase 6 — CLI parity subcommands
 

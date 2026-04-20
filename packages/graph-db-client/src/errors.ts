@@ -15,3 +15,10 @@ export class DaemonUnreachableError extends Error {
     this.name = 'DaemonUnreachableError'
   }
 }
+
+export class DaemonLaunchTimeout extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DaemonLaunchTimeout'
+  }
+}

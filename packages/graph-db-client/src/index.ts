@@ -1,6 +1,11 @@
 export { GraphDbClient } from './GraphDbClient.ts'
-export { GraphDbClientError, DaemonUnreachableError } from './errors.ts'
+export {
+  DaemonLaunchTimeout,
+  DaemonUnreachableError,
+  GraphDbClientError,
+} from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
+export { ensureDaemon, type EnsureDaemonResult } from './autoLaunch.ts'
 
 export {
   CONTRACT_VERSION,
