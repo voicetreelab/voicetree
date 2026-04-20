@@ -47,8 +47,11 @@ async function isHealthyForVault(
   }
 }
 
-async function buildConnection(vault: string): Promise<CachedDaemonConnection> {
-  const bootstrap = await ensureDaemon(vault)
+async function buildConnection(
+  vault: string,
+  opts?: { timeoutMs?: number },
+): Promise<CachedDaemonConnection> {
+  const bootstrap = await ensureDaemon(vault, opts)
   const client = new GraphDbClient({
     baseUrl: `http://127.0.0.1:${bootstrap.port}`,
   })
@@ -71,6 +74,7 @@ async function buildConnection(vault: string): Promise<CachedDaemonConnection> {
 
 export async function ensureDaemonClientForVault(
   vault: string,
+  opts?: { timeoutMs?: number },
 ): Promise<CachedDaemonConnection> {
   const resolvedVault = await assertVaultDirectory(vault)
 
@@ -88,7 +92,7 @@ export async function ensureDaemonClientForVault(
     return await inflightConnection
   }
 
-  const pending = buildConnection(resolvedVault)
+  const pending = buildConnection(resolvedVault, opts)
   inflightConnection = pending
   inflightVault = resolvedVault
 

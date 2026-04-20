@@ -8,10 +8,9 @@
 import {
     applyGraphDeltaToDBThroughMemAndUI
 } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
-import {getGraph, getNode} from '@/shell/edge/main/state/graph-store'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, setWritePath, addReadPath, removeReadPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folder-scanner'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
@@ -43,7 +42,6 @@ import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
 import {getHeadlessAgentOutput} from './terminals/headlessAgentManager';
-import {getLiveState as getLiveStateSnapshot} from './mcp-server/getLiveStateTool';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -57,6 +55,14 @@ import {
   copyNodeToFolder,
 } from './graph/watch_folder/starred-folders';
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
+import {
+  addReadPathThroughDaemon as addReadPath,
+  getGraphFromDaemon as getGraph,
+  getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
+  getNodeFromDaemon as getNode,
+  removeReadPathThroughDaemon as removeReadPath,
+  setWritePathThroughDaemon as setWritePath,
+} from './electron/daemon-ipc-proxy';
 import path from 'path';
 
 /**
