@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import * as graphTools from '../src/index'
+import * as graphTools from '../src/node'
 import {buildMarkdownBody as legacyBuildMarkdownBody} from '../../../webapp/src/shell/edge/main/mcp-server/addProgressNodeTool'
 
 type BuildMarkdownBodyParams = {
