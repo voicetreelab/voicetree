@@ -12,6 +12,11 @@ export async function getNodeFromMainToUI(nodeId: string): Promise<GraphNode> {
     return node;
 }
 
+export async function getNodeFromMainToUIOrNull(nodeId: string): Promise<GraphNode | null> {
+    const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
+    return node ?? null;
+}
+
 /**
  * Get the absolute file path for a node.
  *

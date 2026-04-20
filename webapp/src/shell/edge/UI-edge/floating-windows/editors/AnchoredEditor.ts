@@ -2,6 +2,7 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
+import { getFolderNotePath } from '@vt/graph-model';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
@@ -47,11 +48,28 @@ export async function createAnchoredFloatingEditor(
             return;
         }
 
+        let editorContentNodeId: NodeIdAndFilePath = nodeId;
+        if (nodeId.endsWith('/')) {
+            const graph = await window.electronAPI?.main.getGraph();
+            const folderNoteId: NodeIdAndFilePath | undefined = graph
+                ? getFolderNotePath(graph, nodeId)
+                : undefined;
+            if (folderNoteId) {
+                editorContentNodeId = folderNoteId;
+            }
+        }
+
+        const existingResolvedEditor: O.Option<EditorData> = getEditorByNodeId(editorContentNodeId);
+        if (O.isSome(existingResolvedEditor)) {
+            navigateToEditorNeighborhood(cy, nodeId);
+            return;
+        }
+
         // Create floating editor window with anchoredToNodeId set
         const editor: EditorData | undefined = await createFloatingEditor(
             cy,
-            nodeId,
-            nodeId, // Anchor to the same node we're editing
+            editorContentNodeId,
+            nodeId, // Anchor to the clicked node, including folder cy nodes
             focusAtEnd
         );
 
@@ -64,7 +82,7 @@ export async function createAnchoredFloatingEditor(
         // FIFO auto-pin: add to queue, close oldest if over limit
         // Agent nodes bypass the queue entirely - they remain open until manually closed
         if (isAutoPin && !isAgentNode) {
-            const oldestToClose: NodeIdAndFilePath | null = addToAutoPinQueue(nodeId);
+            const oldestToClose: NodeIdAndFilePath | null = addToAutoPinQueue(editorContentNodeId);
             if (oldestToClose !== null) {
                 const oldestEditor: O.Option<EditorData> = getEditorByNodeId(oldestToClose);
                 if (O.isSome(oldestEditor)) {

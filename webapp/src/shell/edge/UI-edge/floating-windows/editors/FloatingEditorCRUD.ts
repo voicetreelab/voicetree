@@ -21,7 +21,7 @@ import {
 import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import {getNodeFromMainToUI} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
+import {getNodeFromMainToUIOrNull} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown';
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
 import {
@@ -70,7 +70,7 @@ export async function createFloatingEditor(
 
     // Fetch settings and node content in parallel
     const [node, settings] = await Promise.all([
-        getNodeFromMainToUI(nodeId),
+        getNodeFromMainToUIOrNull(nodeId),
         window.electronAPI!.main.loadSettings()
     ]);
 
@@ -88,6 +88,11 @@ export async function createFloatingEditor(
     if (node) {
         content = fromNodeToContentWithWikilinks(node);
         title = `${getNodeTitle(node)}`;
+    } else {
+        content = '';
+        title = nodeId.endsWith('/')
+            ? nodeId.replace(/\/$/, '').split('/').pop() ?? nodeId
+            : nodeId;
     }
 
     // Create EditorData using factory function
