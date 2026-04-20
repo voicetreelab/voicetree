@@ -2,7 +2,7 @@ import type { EdgeSingular, NodeSingular, SingularElementReturnValue } from 'cyt
 
 export function isLayoutParticipantNode(node: NodeSingular): boolean {
   if (node.data('isContextNode')) return false;
-  return true;
+  return !node.data('isFolderNode') || Boolean(node.data('collapsed'));
 }
 
 export function isLayoutParticipantEdge(edge: EdgeSingular): boolean {

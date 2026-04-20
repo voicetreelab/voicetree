@@ -43,8 +43,21 @@ ColaLayout.prototype.run = function(){
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parentNodes: any = nodes.filter(isParent);
 
+    // Expanded folders are visual outlines only; sending them to webcola as groups
+    // adds containment constraints that distort child layout.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const groupParentNodes: any = parentNodes.filter((node: any) => node.data('isFolderNode') !== true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ungroupedParentNodes: any = parentNodes.subtract(groupParentNodes);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nonparentNodes: any = nodes.subtract(parentNodes);
+
+    ungroupedParentNodes.forEach(function(node: any){
+        node.scratch().cola = node.scratch().cola ?? {
+            fixed: node.locked()
+        };
+    });
 
     // TODO: Investigate bounding box offset causing graph flicker when adding nodes
     // The bb.x1/bb.y1 offset transformation causes nodes to jump positions when the bounding box
@@ -349,7 +362,7 @@ ColaLayout.prototype.run = function(){
     }
 
     // add compound nodes to cola
-    adaptor.groups( buildColaGroups(parentNodes, nonparentNodes, options) );
+    adaptor.groups( buildColaGroups(groupParentNodes, nonparentNodes, options) );
 
     // get the edge length setting mechanism
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -42,9 +42,11 @@ describe('ColaLayout', () => {
     tick: ReturnType<typeof vi.fn>;
   };
   let capturedLinks: unknown[];
+  let capturedGroups: unknown[];
 
   beforeEach(() => {
     capturedLinks = [];
+    capturedGroups = [];
 
     // Create mock adaptor that captures the links passed to it
     mockAdaptor = {
@@ -53,7 +55,10 @@ describe('ColaLayout', () => {
         capturedLinks = links;
         return mockAdaptor;
       }),
-      groups: vi.fn().mockReturnThis(),
+      groups: vi.fn().mockImplementation((groups: unknown[]) => {
+        capturedGroups = groups;
+        return mockAdaptor;
+      }),
       size: vi.fn().mockReturnThis(),
       linkDistance: vi.fn().mockReturnThis(),
       avoidOverlaps: vi.fn().mockReturnThis(),
@@ -202,5 +207,37 @@ describe('ColaLayout', () => {
     const link: { source: number; target: number } = capturedLinks[0] as { source: number; target: number };
     expect(link.source).toBe(0);
     expect(link.target).toBe(1);
+  });
+
+  it('should exclude folder compounds from layout groups but keep non-folder compounds', () => {
+    cy = cytoscape({
+      headless: true,
+      styleEnabled: true,
+      elements: [
+        { data: { id: 'cluster-parent', label: 'Cluster Parent' } },
+        { data: { id: 'cluster-child', label: 'Cluster Child', parent: 'cluster-parent' } },
+        { data: { id: 'folder-parent', label: 'Folder Parent', isFolderNode: true, folderLabel: 'Folder' } },
+        { data: { id: 'folder-child-1', label: 'Folder Child 1', parent: 'folder-parent' } },
+        { data: { id: 'folder-child-2', label: 'Folder Child 2', parent: 'folder-parent' } },
+        { data: { id: 'folder-child-3', label: 'Folder Child 3', parent: 'folder-parent' } },
+        { data: { id: 'folder-child-4', label: 'Folder Child 4', parent: 'folder-parent' } },
+        { data: { id: 'folder-child-5', label: 'Folder Child 5', parent: 'folder-parent' } },
+      ],
+    });
+
+    const layout: ColaLayoutInstance = new (ColaLayout as unknown as ColaLayoutConstructor)({
+      cy,
+      eles: cy.elements(),
+      animate: false,
+      maxSimulationTime: 100,
+    });
+    layout.run();
+
+    expect(mockAdaptor.groups).toHaveBeenCalled();
+    expect(capturedGroups).toHaveLength(1);
+
+    const group: { leaves: number[]; groups: number[] } = capturedGroups[0] as { leaves: number[]; groups: number[] };
+    expect(group.leaves).toEqual([0]);
+    expect(group.groups).toEqual([]);
   });
 });

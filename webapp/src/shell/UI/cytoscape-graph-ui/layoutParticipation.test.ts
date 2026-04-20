@@ -17,6 +17,7 @@ describe('layoutParticipation', () => {
         { data: { id: 'regular' } },
         { data: { id: 'context', isContextNode: true } },
         { data: { id: 'folder-expanded', isFolderNode: true } },
+        { data: { id: 'folder-child', parent: 'folder-expanded' } },
         { data: { id: 'folder-collapsed', isFolderNode: true, collapsed: true } },
         { data: { id: 'edge-ok', source: 'regular', target: 'folder-collapsed' } },
         { data: { id: 'edge-blocked', source: 'regular', target: 'folder-expanded' } },
@@ -26,25 +27,25 @@ describe('layoutParticipation', () => {
     });
   });
 
-  it('includes folder nodes in layout regardless of collapsed state', () => {
+  it('excludes expanded folder compounds from layout participation but keeps collapsed folder proxies', () => {
     expect(isLayoutParticipantNode(cy.$id('regular') as NodeSingular)).toBe(true);
     expect(isLayoutParticipantNode(cy.$id('context') as NodeSingular)).toBe(false);
-    expect(isLayoutParticipantNode(cy.$id('folder-expanded') as NodeSingular)).toBe(true);
+    expect(isLayoutParticipantNode(cy.$id('folder-expanded') as NodeSingular)).toBe(false);
     expect(isLayoutParticipantNode(cy.$id('folder-collapsed') as NodeSingular)).toBe(true);
   });
 
   it('only includes edges whose endpoints both participate', () => {
     expect(isLayoutParticipantEdge(cy.$id('edge-ok') as EdgeSingular)).toBe(true);
-    expect(isLayoutParticipantEdge(cy.$id('edge-blocked') as EdgeSingular)).toBe(true);
+    expect(isLayoutParticipantEdge(cy.$id('edge-blocked') as EdgeSingular)).toBe(false);
     expect(isLayoutParticipantEdge(cy.$id('edge-synthetic') as EdgeSingular)).toBe(false);
     expect(isLayoutParticipantEdge(cy.$id('edge-indicator') as EdgeSingular)).toBe(false);
     expect(isLayoutParticipantElement(cy.$id('folder-collapsed') as NodeSingular)).toBe(true);
-    expect(isLayoutParticipantElement(cy.$id('edge-blocked') as EdgeSingular)).toBe(true);
+    expect(isLayoutParticipantElement(cy.$id('edge-blocked') as EdgeSingular)).toBe(false);
     expect(isLayoutParticipantElement(cy.$id('edge-synthetic') as EdgeSingular)).toBe(false);
   });
 
-  it('treats expanded folder compounds as layout participants (B5)', () => {
-    expect(isLayoutParticipantNode(cy.$id('folder-expanded') as NodeSingular)).toBe(true);
+  it('treats projected folder-collapsed nodes as regular layout nodes', () => {
+    expect(isLayoutParticipantNode(cy.$id('folder-expanded') as NodeSingular)).toBe(false);
     expect(isLayoutParticipantNode(cy.$id('folder-collapsed') as NodeSingular)).toBe(true);
     expect(isLayoutParticipantNode(cy.$id('context') as NodeSingular)).toBe(false);
   });
