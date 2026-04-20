@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
@@ -97,10 +97,13 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
   'ensureDaemon — cold-start spawn path',
   () => {
     let harness: Harness
+    let handles: DaemonHandle[]
     let originalAppSupportPath: string | undefined
+    const extraRoots: string[] = []
 
     beforeEach(async () => {
       harness = await createHarness()
+      handles = []
       originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
       process.env.VOICETREE_APP_SUPPORT = harness.appSupportPath
       clearWatchFolderState()
@@ -108,6 +111,9 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
     })
 
     afterEach(async () => {
+      for (const handle of handles) {
+        await handle.stop().catch(() => {})
+      }
       clearWatchFolderState()
       setGraph(createEmptyGraph())
       if (originalAppSupportPath === undefined) {
@@ -115,6 +121,11 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
       } else {
         process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
       }
+      await Promise.all(
+        extraRoots.splice(0).map((root) =>
+          rm(root, { recursive: true, force: true }),
+        ),
+      )
       await rm(harness.root, { recursive: true, force: true })
     })
 
@@ -138,6 +149,8 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
       expect(result.launched).toBe(true)
       expect(result.port).toBeGreaterThan(0)
+      expect(result.port).not.toBe(3001)
+      expect(result.port).not.toBe(3002)
       expect(result.pid).toBeTypeOf('number')
 
       await expect(access(portFile)).resolves.toBeUndefined()
@@ -157,6 +170,32 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
       expect(await waitUntilMissing(portFile, 5000)).toBe(true)
       expect(await waitUntilMissing(lockFile, 5000)).toBe(true)
+    })
+
+    test('ignores a stale port file that points at another vault daemon', async () => {
+      const otherHarness = await createHarness()
+      extraRoots.push(otherHarness.root)
+
+      const otherHandle = await startDaemon({ vault: otherHarness.vault })
+      handles.push(otherHandle)
+
+      await mkdir(join(harness.vault, '.voicetree'), { recursive: true })
+      await writeFile(
+        join(harness.vault, '.voicetree', 'graphd.port'),
+        `${otherHandle.port}\n`,
+        'utf8',
+      )
+
+      const result = await ensureDaemon(harness.vault, { timeoutMs: 8000 })
+      expect(result.launched).toBe(true)
+      expect(result.port).not.toBe(otherHandle.port)
+
+      const client = new GraphDbClient({
+        baseUrl: `http://127.0.0.1:${result.port}`,
+      })
+      await expect(client.health()).resolves.toMatchObject({
+        vault: harness.vault,
+      })
     })
   },
 )

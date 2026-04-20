@@ -16,6 +16,7 @@ import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-client-config'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
+import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
 import { loadSettings } from '@vt/graph-model'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
 
@@ -128,6 +129,9 @@ export function initializeGraphModel(): void {
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)
+        },
+        ensureDaemonForVault(vaultPath: string): Promise<void> {
+            return ensureDaemonClientForVault(vaultPath).then(() => undefined)
         },
         getOnboardingDirectory(): string {
             return getOnboardingDirectory()

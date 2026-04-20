@@ -219,6 +219,8 @@ export async function loadFolder(watchedFolderPath: FilePath): Promise<{ success
         console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error);
     });
 
+    await getCallbacks().ensureDaemonForVault?.(watchedFolderPath)
+
     // Clear graph in memory before loading paths
     setGraph(createEmptyGraph());
 

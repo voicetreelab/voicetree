@@ -21,10 +21,23 @@ function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
 }
 
-async function probeHealth(port: number): Promise<boolean> {
+async function probeHealth(vault: string, port: number): Promise<boolean> {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/health`)
-    return response.ok
+    if (!response.ok) {
+      return false
+    }
+
+    const body = (await response.json()) as unknown
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      typeof body.vault !== 'string'
+    ) {
+      return false
+    }
+
+    return body.vault === resolve(vault)
   } catch {
     return false
   }
@@ -47,21 +60,28 @@ export async function ensureDaemon(
   vault: string,
   opts?: { timeoutMs?: number; bin?: string },
 ): Promise<EnsureDaemonResult> {
+  const resolvedVault = resolve(vault)
   const timeoutMs = opts?.timeoutMs ?? 5000
 
   // 1. Reuse path: short-wait for existing port file, then /health-verify.
   let existingPort: number | null = null
   try {
-    existingPort = await discoverPort(vault, { timeoutMs: 500 })
+    existingPort = await discoverPort(resolvedVault, { timeoutMs: 500 })
   } catch (err) {
     if (!(err instanceof DaemonUnreachableError)) throw err
   }
-  if (existingPort !== null && (await probeHealth(existingPort))) {
+  if (
+    existingPort !== null &&
+    (await probeHealth(resolvedVault, existingPort))
+  ) {
     return { port: existingPort, pid: null, launched: false }
   }
 
   // 2. Spawn detached + unref'd. Propagate sync spawn errors (EACCES/EPERM).
-  const { cmd, args } = resolveCommand(vault, process.env.VT_GRAPHD_BIN ?? opts?.bin)
+  const { cmd, args } = resolveCommand(
+    resolvedVault,
+    process.env.VT_GRAPHD_BIN ?? opts?.bin,
+  )
   let child: ChildProcess = spawn(cmd, args, { detached: true, stdio: 'ignore' })
   child.unref()
   const spawnedPid = child.pid ?? null
@@ -77,8 +97,8 @@ export async function ensureDaemon(
   while (Date.now() < deadline) {
     if (spawnError) throw spawnError
 
-    const port = await readPortFile(vault)
-    if (port !== null && (await probeHealth(port))) {
+    const port = await readPortFile(resolvedVault)
+    if (port !== null && (await probeHealth(resolvedVault, port))) {
       return { port, pid: spawnedPid, launched: true }
     }
 
@@ -90,6 +110,6 @@ export async function ensureDaemon(
 
   if (spawnError) throw spawnError
   throw new DaemonLaunchTimeout(
-    `vt-graphd did not become ready within ${timeoutMs}ms for vault ${vault}`,
+    `vt-graphd did not become ready within ${timeoutMs}ms for vault ${resolvedVault}`,
   )
 }

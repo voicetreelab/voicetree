@@ -42,6 +42,7 @@ export interface GraphModelCallbacks {
   // App-specific setup callbacks (Electron)
   enableMcpIntegration?: () => Promise<void>  // replaces mcp-server/mcp-client-config
   ensureProjectSetup?: (projectPath: string) => Promise<void>  // replaces electron/tools-setup
+  ensureDaemonForVault?: (vaultPath: string) => Promise<void>
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup
 }
 
