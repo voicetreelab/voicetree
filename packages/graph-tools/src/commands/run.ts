@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { hydrateCommand, serializeState, type State } from '@vt/graph-state'
+import { hydrateCommand, serializeState, type Delta, type State } from '@vt/graph-state'
 import { filterLive, pickInstance, readInstancesDir, type DebugInstance } from '../debug/discover'
 import { computeDrift, type DriftData, type FsContentById } from '../debug/drift'
 import { normalizeChord } from '../debug/normalizeChord'
@@ -44,6 +44,7 @@ type FloatingEditorRect = {
 }
 
 type DomProbes = {
+  cyNodeCount: number
   floatingEditors: string[]
   floatingEditorRects: FloatingEditorRect[]
   selectedNodeHasEditor: boolean
@@ -91,6 +92,130 @@ export type RunResult = {
     dir: string
     stepCount: number
     outputs: RunStepOutput[]
+  }
+}
+
+type SerializedStateSnapshot = ReturnType<typeof serializeState>
+
+export type StateCaptureOverlay = {
+  collapseSet: string[]
+  selection: string[]
+  rootsLoaded: string[]
+  layout: {
+    zoom?: number
+    pan?: { x: number; y: number }
+  }
+}
+
+function sortStrings(values: readonly string[]): string[] {
+  return [...values].sort((left, right) => left.localeCompare(right))
+}
+
+function removeValues(values: readonly string[], removed: readonly string[] | undefined): string[] {
+  if (!removed || removed.length === 0) return [...values]
+  const removedSet = new Set(removed)
+  return values.filter(value => !removedSet.has(value))
+}
+
+function appendUnique(values: readonly string[], added: readonly string[] | undefined): string[] {
+  if (!added || added.length === 0) return [...values]
+
+  const next = [...values]
+  const seen = new Set(next)
+  for (const value of added) {
+    if (seen.has(value)) continue
+    next.push(value)
+    seen.add(value)
+  }
+  return next
+}
+
+function updateOrderedValues(
+  values: readonly string[],
+  removed: readonly string[] | undefined,
+  added: readonly string[] | undefined,
+): string[] {
+  return appendUnique(removeValues(values, removed), added)
+}
+
+export function createStateCaptureOverlay(state: State): StateCaptureOverlay {
+  return {
+    collapseSet: sortStrings([...state.collapseSet]),
+    selection: [...state.selection],
+    rootsLoaded: sortStrings([...state.roots.loaded]),
+    layout: {
+      ...(state.layout.zoom !== undefined ? { zoom: state.layout.zoom } : {}),
+      ...(state.layout.pan !== undefined ? { pan: state.layout.pan } : {}),
+    },
+  }
+}
+
+export function applyDeltaToStateCaptureOverlay(
+  overlay: StateCaptureOverlay,
+  delta: Delta | null | undefined,
+): StateCaptureOverlay {
+  if (!delta) return overlay
+
+  const next: StateCaptureOverlay = {
+    collapseSet: updateOrderedValues(
+      overlay.collapseSet,
+      delta.collapseRemoved,
+      delta.collapseAdded,
+    ),
+    selection: updateOrderedValues(
+      overlay.selection,
+      delta.selectionRemoved,
+      delta.selectionAdded,
+    ),
+    rootsLoaded: updateOrderedValues(
+      overlay.rootsLoaded,
+      delta.rootsUnloaded,
+      delta.rootsLoaded,
+    ),
+    layout: {
+      ...overlay.layout,
+      ...(delta.layoutChanged?.zoom !== undefined ? { zoom: delta.layoutChanged.zoom } : {}),
+      ...(delta.layoutChanged?.pan !== undefined ? { pan: delta.layoutChanged.pan } : {}),
+    },
+  }
+
+  return {
+    ...next,
+    collapseSet: sortStrings(next.collapseSet),
+    rootsLoaded: sortStrings(next.rootsLoaded),
+  }
+}
+
+export function buildCapturedSerializedState(
+  state: State,
+  overlay: StateCaptureOverlay | null | undefined,
+  rendered: CyDump | null,
+): SerializedStateSnapshot {
+  const serialized = serializeState(state)
+
+  const layout = {
+    ...serialized.layout,
+    ...(overlay?.layout.zoom !== undefined ? { zoom: overlay.layout.zoom } : {}),
+    ...(overlay?.layout.pan !== undefined ? { pan: overlay.layout.pan } : {}),
+    ...(rendered ? { zoom: rendered.viewport.zoom, pan: rendered.viewport.pan } : {}),
+  }
+
+  if (!overlay) {
+    return {
+      ...serialized,
+      layout,
+    }
+  }
+
+  return {
+    ...serialized,
+    roots: {
+      ...serialized.roots,
+      loaded: [...overlay.rootsLoaded],
+    },
+    collapseSet: [...overlay.collapseSet],
+    selection: [...overlay.selection],
+    layout,
   }
 }
 
@@ -313,21 +438,20 @@ async function executeStep(
   page: PageLike,
   step: StepSpec,
   instance: DebugInstance,
-): Promise<void> {
+): Promise<Delta | null> {
   if ('dispatch' in step) {
     const transport = createLiveTransport(instance.mcpPort)
-    await transport.dispatchLiveCommand(hydrateCommand(step.dispatch))
-    return
+    return transport.dispatchLiveCommand(hydrateCommand(step.dispatch))
   }
 
   if ('click' in step) {
     await page.click(step.click, { timeout: DEFAULT_CLICK_TIMEOUT_MS })
-    return
+    return null
   }
 
   if ('tapNode' in step) {
     await executeTapNodeStep(page, step.tapNode)
-    return
+    return null
   }
 
   if ('type' in step) {
@@ -335,7 +459,7 @@ async function executeStep(
       await focusTarget(page, step.selector)
     }
     await page.keyboard.type(step.type)
-    return
+    return null
   }
 
   if ('press' in step) {
@@ -343,22 +467,23 @@ async function executeStep(
       await focusTarget(page, step.selector)
     }
     await page.keyboard.press(normalizeChord(step.press))
-    return
+    return null
   }
 
   if ('wait' in step) {
     await new Promise(resolve => setTimeout(resolve, step.wait))
-    return
+    return null
   }
 
   if ('waitFor' in step) {
     await page.waitForSelector(step.waitFor, {
       timeout: step.timeoutMs ?? DEFAULT_WAIT_FOR_TIMEOUT_MS,
     })
-    return
+    return null
   }
 
   await page.goto(step.navigate)
+  return null
 }
 
 async function fetchRendered(page: SessionPageLike): Promise<CyDump> {
@@ -374,6 +499,14 @@ async function fetchRendered(page: SessionPageLike): Promise<CyDump> {
   }
 
   return parseCyDump(raw)
+}
+
+async function tryFetchRendered(page: SessionPageLike): Promise<CyDump | null> {
+  try {
+    return await fetchRendered(page)
+  } catch {
+    return null
+  }
 }
 
 async function snapshotFsContent(state: State): Promise<FsContentById> {
@@ -547,8 +680,13 @@ async function captureDomProbes(page: SessionPageLike): Promise<DomProbes> {
 
     const root = document.getElementById('root')
     const sidebarWrapper = document.querySelector('.sidebar-wrapper')
+    const cyNodeCount =
+      typeof window.cytoscapeInstance?.nodes === 'function'
+        ? window.cytoscapeInstance.nodes().length
+        : 0
 
     return {
+      cyNodeCount,
       floatingEditors: floatingEditorElements.map(element => element.id),
       floatingEditorRects,
       selectedNodeHasEditor,
@@ -558,21 +696,22 @@ async function captureDomProbes(page: SessionPageLike): Promise<DomProbes> {
   })()`)
 }
 
-async function captureSerializedState(instance: DebugInstance, page: SessionPageLike): Promise<unknown> {
+async function captureSerializedState(
+  instance: DebugInstance,
+  page: SessionPageLike,
+  overlay?: StateCaptureOverlay | null,
+): Promise<unknown> {
   const transport = createLiveTransport(instance.mcpPort)
-  const [state, domProbes] = await Promise.all([
-    transport.getLiveState().then(serializeState),
+  const [state, domProbes, rendered] = await Promise.all([
+    transport.getLiveState(),
     captureDomProbes(page),
+    tryFetchRendered(page),
   ])
 
-  if (typeof state === 'object' && state !== null && !Array.isArray(state)) {
-    return {
-      ...(state as Record<string, unknown>),
-      domProbes,
-    }
+  return {
+    ...buildCapturedSerializedState(state, overlay, rendered),
+    domProbes,
   }
-
-  return { state, domProbes }
 }
 
 async function captureDrift(instance: DebugInstance, page: SessionPageLike): Promise<unknown> {
@@ -604,14 +743,28 @@ async function runSteps(
   options: RunOptions,
 ): Promise<RunStepOutput[]> {
   const outputs: RunStepOutput[] = []
+  let captureOverlay: StateCaptureOverlay | null = null
+
+  if (options.stateEach) {
+    try {
+      const transport = createLiveTransport(instance.mcpPort)
+      captureOverlay = createStateCaptureOverlay(await transport.getLiveState())
+    } catch {
+      captureOverlay = null
+    }
+  }
 
   for (let i = 0; i < steps.length; i += 1) {
     const step = steps[i]
     const output: RunStepOutput = { step, ok: true }
     const observationErrors: string[] = []
+    let stepDelta: Delta | null = null
 
     try {
-      await executeStep(page, step, instance)
+      stepDelta = await executeStep(page, step, instance)
+      if (captureOverlay) {
+        captureOverlay = applyDeltaToStateCaptureOverlay(captureOverlay, stepDelta)
+      }
     } catch (e) {
       output.ok = false
       output.error = String(e)
@@ -652,7 +805,7 @@ async function runSteps(
     if (options.stateEach) {
       const result = await captureJsonObservation(
         `${baseName}.state.json`,
-        () => captureSerializedState(instance, page),
+        () => captureSerializedState(instance, page, captureOverlay),
       )
       output.state = result.path
       if (result.error) {
