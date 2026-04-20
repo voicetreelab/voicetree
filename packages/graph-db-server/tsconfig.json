@@ -13,5 +13,5 @@
     "baseUrl": ".",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "bin/**/*.ts"]
 }
