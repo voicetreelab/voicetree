@@ -38,6 +38,7 @@ export function applyPositions(graph: Graph): Graph {
 
     // Create ghost root node with outgoing edges to all root nodes
     const ghostRootNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: GHOST_ROOT_ID,
         outgoingEdges: rootNodes.map(targetId => ({ targetId, label: '' })),
         contentWithoutYamlOrLinks: '',

@@ -42,6 +42,7 @@ export interface Edge {
  */
 export interface GraphNode {
     // CORE GRAPH STRUCTURE
+    readonly kind: 'leaf' | 'folder'
     readonly outgoingEdges: readonly Edge[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
     readonly absoluteFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath to watched folder
@@ -244,6 +245,9 @@ export type BuildGraphFromFiles = (files: readonly { readonly absolutePath: stri
 export { buildGraphFromFiles } from './buildGraphFromFiles'
 import { buildGraphFromFiles } from './buildGraphFromFiles'
 void (buildGraphFromFiles satisfies BuildGraphFromFiles)
+
+// === FOLDER NOTE RESOLUTION ===
+export { getFolderNotePath } from './folder-note/getFolderNotePath'
 
 // === FOLDER COLLAPSE PURE LAYER (BF-116) ===
 export type { OriginalEdgeRef, SyntheticEdgeSpec, ExpandPlan } from './folderCollapse'

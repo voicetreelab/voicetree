@@ -315,6 +315,7 @@ export function computeExtractIntoFolderGraphDelta(
 
     const hubNoteId: NodeIdAndFilePath = joinNodePath(newFolderPath, hubNoteName)
     const hubNote: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: hubNoteId,
         outgoingEdges: Array.from(selectedItemTargetIds.values()).map((targetId) => ({
             targetId,

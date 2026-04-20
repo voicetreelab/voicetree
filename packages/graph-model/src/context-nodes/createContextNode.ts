@@ -145,6 +145,7 @@ export async function createContextNode(
     // The terminal's shadow node will create a cytoscape edge to this context node
     const parsedNode: GraphNode = parseMarkdownToGraphNode(content, contextNodeId, currentGraph)
     const contextNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: contextNodeId,
         outgoingEdges: parsedNode.outgoingEdges,
         contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,

@@ -45,6 +45,7 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
 
   // Create the task node with parsed content and position
   const taskNode: GraphNode = {
+    kind: 'leaf',
     absoluteFilePathIsID: nodeId,
     outgoingEdges: parsedNode.outgoingEdges,
     contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,

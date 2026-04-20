@@ -64,6 +64,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
 `
     const parsedQuestionNode: GraphNode = parseMarkdownToGraphNode(questionContent, questionNodeId, currentGraph)
     const questionNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: questionNodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: parsedQuestionNode.contentWithoutYamlOrLinks,

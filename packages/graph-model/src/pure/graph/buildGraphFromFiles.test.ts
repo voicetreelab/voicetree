@@ -265,6 +265,7 @@ describe('buildGraphFromFiles', () => {
     ])
 
     const node: GraphNode = graph.nodes['/test/with-yaml.md']
+    expect(node.kind).toBe('leaf')
     expect(getNodeTitle(node)).toBe('YAML Node')
     // Content should not include the YAML frontmatter
     expect(node.contentWithoutYamlOrLinks).not.toContain('color: purple')

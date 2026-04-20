@@ -65,6 +65,7 @@ export async function createContextNodeFromSelectedNodes(
 
   // Create context node with position near task node
   const contextNode: GraphNode = {
+    kind: 'leaf',
     absoluteFilePathIsID: contextNodeId,
     outgoingEdges: parsedNode.outgoingEdges,
     contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,

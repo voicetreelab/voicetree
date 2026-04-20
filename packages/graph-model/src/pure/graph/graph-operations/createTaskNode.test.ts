@@ -9,6 +9,7 @@ const createTestNode: (id: string, edges?: readonly Edge[], content?: string) =>
   edges: readonly Edge[] = [],
   content: string = 'test content'
 ): GraphNode => ({
+  kind: 'leaf',
   absoluteFilePathIsID: id as NodeIdAndFilePath,
   outgoingEdges: edges,
   contentWithoutYamlOrLinks: content,
@@ -24,7 +25,9 @@ const createGraphFromNodes: (nodes: Record<NodeIdAndFilePath, GraphNode>) => Gra
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): Graph => ({
   nodes,
-  incomingEdgesIndex: buildIncomingEdgesIndex(nodes)
+  incomingEdgesIndex: buildIncomingEdgesIndex(nodes),
+  nodeByBaseName: new Map(),
+  unresolvedLinksIndex: new Map()
 })
 
 describe('createTaskNode', () => {

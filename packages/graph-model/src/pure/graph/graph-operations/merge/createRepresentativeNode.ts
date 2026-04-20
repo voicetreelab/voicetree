@@ -161,6 +161,7 @@ ${allContent}`
     const externalOutgoingEdges: readonly Edge[] = getExternalOutgoingEdges(nodesToMerge)
 
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: newNodeId,
         outgoingEdges: externalOutgoingEdges,
         contentWithoutYamlOrLinks: content,

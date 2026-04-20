@@ -63,6 +63,7 @@ export function fromCreateChildToUpsertNode(
 
     // Create the new node, merging parsed metadata with calculated position
     const newNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: uniqueNodeId,
         outgoingEdges: parsedNode.outgoingEdges,
         contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
@@ -153,6 +154,7 @@ export function createNewNodeNoParent(pos: Position, writePath: string, graph: G
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: nodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: '# ',

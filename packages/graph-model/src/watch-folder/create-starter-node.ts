@@ -50,6 +50,7 @@ export async function createStarterNode(vaultPath: string): Promise<Graph> {
 
     // Create the node
     const newNode: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: nodeId,
         outgoingEdges: [],
         contentWithoutYamlOrLinks: content,
