@@ -27,6 +27,7 @@ import {
 } from '../src/debug/scoreboard'
 import { parseJudgeResponse, type JudgeVerdict } from '../src/debug/judge'
 import { resolveDebugInstance } from '../src/debug/portResolution'
+import { waitForLiveStateWithRoots } from '../src/debug/waitForLiveRoots'
 import type { RunResult } from '../src/commands/run'
 import { createLiveTransport } from '../src/liveTransport'
 
@@ -342,7 +343,7 @@ async function executeFlowAttempt(
 
   try {
     const transport = createLiveTransport(instance.mcpPort)
-    const state = await transport.getLiveState()
+    const state = await waitForLiveStateWithRoots(transport)
     const context = deriveFlowRuntimeContext(state)
     const resolved = resolveFlowDefinition(definition, context)
     const specPath = path.join(runDir, 'flow.json')
