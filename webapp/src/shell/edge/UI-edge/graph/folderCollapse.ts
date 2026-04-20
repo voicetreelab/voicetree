@@ -6,7 +6,14 @@ import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } f
 import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import type {} from '@/shell/electron'
-import { addCollapsedFolder, removeCollapsedFolder, isGraphFolderCollapsed, getGraphCollapseSet } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import {
+    addCollapsedFolder,
+    addCollapsedFolderLocally,
+    removeCollapsedFolder,
+    removeCollapsedFolderLocally,
+    isGraphFolderCollapsed,
+    getGraphCollapseSet,
+} from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 // ── Ephemeral UI state ──
 const expandingFolders: Set<string> = new Set() // H1 guard: prevents collapse during async expand
@@ -27,11 +34,13 @@ interface SyntheticEdgeRecord {
 
 const syntheticEdgeRegistry: Map<string, SyntheticEdgeRecord[]> = new Map<string, SyntheticEdgeRecord[]>()
 
+type CollapseSyncMode = 'daemon' | 'local'
+
 export const isFolderCollapsed: (folderId: string) => boolean = (folderId) =>
     isGraphFolderCollapsed(folderId)
 
 // ── Collapse ──
-export function collapseFolder(cy: Core, folderId: string): void {
+export function collapseFolder(cy: Core, folderId: string, syncMode: CollapseSyncMode = 'daemon'): void {
     if (expandingFolders.has(folderId)) return // H1: skip if expand is in-flight
     const folder: CollectionReturnValue = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return
@@ -84,11 +93,20 @@ export function collapseFolder(cy: Core, folderId: string): void {
         folder.children().remove()
     })
 
-    addCollapsedFolder(folderId)
+    if (syncMode === 'local') {
+        addCollapsedFolderLocally(folderId)
+        return
+    }
+
+    void addCollapsedFolder(folderId)
 }
 
 // ── Expand ──
-export async function expandFolder(cy: Core, folderId: string): Promise<void> {
+export async function expandFolder(
+    cy: Core,
+    folderId: string,
+    syncMode: CollapseSyncMode = 'daemon',
+): Promise<void> {
     const folder: CollectionReturnValue = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return
     if (expandingFolders.has(folderId)) return // H1: already expanding
@@ -177,8 +195,16 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
         }
     })
 
-    removeCollapsedFolder(folderId)
-    expandingFolders.delete(folderId) // H1: clear expanding guard
+    try {
+        if (syncMode === 'local') {
+            removeCollapsedFolderLocally(folderId)
+            return
+        }
+
+        await removeCollapsedFolder(folderId)
+    } finally {
+        expandingFolders.delete(folderId) // H1: clear expanding guard
+    }
 }
 
 // ── Toggle ──

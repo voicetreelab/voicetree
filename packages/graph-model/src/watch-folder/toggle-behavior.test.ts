@@ -13,6 +13,8 @@
  * the current implementation.
  */
 
+/* vt-allow-direct-daemon-mutation-import: graph-model owns these primitives; this file tests them directly */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'

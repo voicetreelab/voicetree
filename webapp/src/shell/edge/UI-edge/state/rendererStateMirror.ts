@@ -22,10 +22,10 @@ import {
     type State,
 } from '@vt/graph-state'
 
-import { getCollapseSet } from '@vt/graph-state/state/collapseSetStore'
 import { getSelection } from '@vt/graph-state/state/selectionStore'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
+    getGraphCollapseSet,
     getFolderTreeState,
     subscribeFolderTree,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
@@ -50,8 +50,8 @@ let lastSyncedFolderTree: FolderTreeNode | null = getFolderTreeState().tree
 let hasFreshFolderTree: boolean = lastSyncedFolderTree !== null
 let folderTreeFromMain: FolderTreeNode | null = null
 let loadedRootsFromMain: ReadonlySet<string> | null = null
-let isFetchingFolderTreeFromMain = false
-let shouldRefetchFolderTreeFromMain = false
+let isFetchingFolderTreeFromMain: boolean = false
+let shouldRefetchFolderTreeFromMain: boolean = false
 
 function updatePositionsFromDelta(delta: GraphDelta): void {
     for (const op of delta) {
@@ -140,7 +140,7 @@ function buildStateFromMirror(): State {
         ...base,
         graph: mirror.graph,
         roots: buildRootsFromFolderTree(),
-        collapseSet: getCollapseSet(),
+        collapseSet: getGraphCollapseSet(),
         selection: getSelection(),
         layout: {
             ...base.layout,

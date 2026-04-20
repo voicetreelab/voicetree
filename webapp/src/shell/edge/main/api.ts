@@ -62,6 +62,7 @@ import {
   getNodeFromDaemon as getNode,
   removeReadPathThroughDaemon as removeReadPath,
   setWritePathThroughDaemon as setWritePath,
+  syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
 import path from 'path';
 
@@ -208,6 +209,7 @@ export const mainAPI = {
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
   getLiveStateSnapshot,
+  syncRendererSessionStateWithDaemon,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,

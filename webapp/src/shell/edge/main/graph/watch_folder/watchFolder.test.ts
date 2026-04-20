@@ -14,18 +14,22 @@
  * - Only rely on existing or future APIs/exported functions
  */
 
+/* vt-allow-direct-daemon-mutation-import: low-level watch-folder behaviour test */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import { initGraphModel } from '@vt/graph-model'
+import {
+  addReadPath,
+  initGraphModel,
+  removeReadPath,
+  setWritePath,
+} from '@vt/graph-model'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
   getWritePath,
-  setWritePath,
-  addReadPath,
-  removeReadPath,
   loadFolder,
   stopFileWatching,
   getVaultPath,

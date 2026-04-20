@@ -16,6 +16,108 @@ const purePackageCytoscapeMessage =
 const businessLayerCytoscapeMessage =
   'Business-layer files must not reach into Cytoscape via cy.*. Keep this in a projection-layer adapter. Seed scope is src/**/business/** and will expand once BF-139 lands.'
 
+const daemonMutationAllowComment = 'vt-allow-direct-daemon-mutation-import'
+const daemonMutationFixturePattern =
+  /(^|[/\\])(?:__fixtures__|fixtures)[/\\]allowed-daemon-mutation-imports[/\\]/
+const daemonMutationSpecifiersByModule = {
+  '@vt/graph-model': new Set(['setWritePath', 'addReadPath', 'removeReadPath']),
+  '@vt/graph-state': new Set(['dispatchCollapse', 'dispatchExpand']),
+  '@vt/graph-state/state/collapseSetStore': new Set([
+    'dispatchCollapse',
+    'dispatchExpand',
+  ]),
+}
+
+function normalizeFilePath(filename) {
+  return filename.replaceAll('\\', '/')
+}
+
+function isDaemonPackageFile(filename) {
+  return /(^|\/)packages\/graph-db-server\//.test(normalizeFilePath(filename))
+}
+
+function hasDaemonMutationAllowComment(sourceCode) {
+  return sourceCode
+    .getAllComments()
+    .some(comment => comment.value.includes(daemonMutationAllowComment))
+}
+
+function getForbiddenDaemonMutationNames(node) {
+  const source = node.source?.value
+  if (typeof source !== 'string') {
+    return []
+  }
+
+  const forbiddenSpecifiers = daemonMutationSpecifiersByModule[source]
+  if (!forbiddenSpecifiers) {
+    return []
+  }
+
+  return node.specifiers
+    .filter(specifier =>
+      specifier.type === 'ImportSpecifier' || specifier.type === 'ExportSpecifier')
+    .map(specifier =>
+      specifier.type === 'ImportSpecifier'
+        ? specifier.imported.name
+        : specifier.local.name)
+    .filter(name => forbiddenSpecifiers.has(name))
+}
+
+const daemonBoundaryLintPlugin = {
+  rules: {
+    'no-direct-daemon-mutation-imports': {
+      meta: {
+        type: 'problem',
+        schema: [],
+        messages: {
+          forbidden:
+            '{{name}} is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
+        },
+      },
+      create(context) {
+        const filename = context.filename ?? context.getFilename()
+        const sourceCode = context.sourceCode ?? context.getSourceCode()
+        if (
+          isDaemonPackageFile(filename)
+          || daemonMutationFixturePattern.test(filename)
+          || hasDaemonMutationAllowComment(sourceCode)
+        ) {
+          return {}
+        }
+
+        return {
+          ImportDeclaration(node) {
+            if (node.importKind === 'type') {
+              return
+            }
+
+            for (const name of getForbiddenDaemonMutationNames(node)) {
+              context.report({
+                node,
+                messageId: 'forbidden',
+                data: { name },
+              })
+            }
+          },
+          ExportNamedDeclaration(node) {
+            if (!node.source) {
+              return
+            }
+
+            for (const name of getForbiddenDaemonMutationNames(node)) {
+              context.report({
+                node,
+                messageId: 'forbidden',
+                data: { name },
+              })
+            }
+          },
+        }
+      },
+    },
+  },
+}
+
 export default tseslint.config([
   globalIgnores([
     '**/dist',
@@ -24,6 +126,25 @@ export default tseslint.config([
     'webapp/.worktrees/**',
     'webapp/workers/**',
   ]),
+  {
+    basePath: repoRootDir,
+    files: [
+      'packages/**/*.{ts,tsx}',
+      'webapp/src/**/*.{ts,tsx}',
+      'webapp/e2e-tests/**/*.{ts,tsx}',
+    ],
+    plugins: {
+      'vt-boundary': daemonBoundaryLintPlugin,
+    },
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 2020,
+      sourceType: 'module',
+    },
+    rules: {
+      'vt-boundary/no-direct-daemon-mutation-imports': 'error',
+    },
+  },
   {
     basePath: repoRootDir,
     files: ['webapp/*.config.ts'],

@@ -5,19 +5,13 @@
  *
  * Follows the same reducer pattern as reduceFolderConfig in transforms.ts.
  *
- * graphCollapsedFolders is now a read-only mirror of collapseSetStore
- * (packages/graph-state). Mutations go through dispatchCollapse/dispatchExpand
- * via the addCollapsedFolder/removeCollapsedFolder facades below.
+ * graphCollapsedFolders is renderer-owned state mirrored into the daemon
+ * session through main RPC. Reads stay local; mutations go through the
+ * addCollapsedFolder/removeCollapsedFolder facades below.
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
 import type { SerializedState } from '@vt/graph-state';
-import {
-    dispatchCollapse,
-    dispatchExpand,
-    getCollapseSet,
-    subscribeCollapseSet,
-} from '@vt/graph-state/state/collapseSetStore';
 import type {} from '@/shell/electron';
 
 export interface FolderTreeState {
@@ -66,10 +60,16 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
         case 'SET_WIDTH':
             return { ...state, sidebarWidth: action.width };
         case 'ADD_COLLAPSED_FOLDER': {
+            if (state.graphCollapsedFolders.has(action.folderId)) {
+                return state;
+            }
             const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders, action.folderId]);
             return { ...state, graphCollapsedFolders };
         }
         case 'REMOVE_COLLAPSED_FOLDER': {
+            if (!state.graphCollapsedFolders.has(action.folderId)) {
+                return state;
+            }
             const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders].filter((id: string) => id !== action.folderId));
             return { ...state, graphCollapsedFolders };
         }
@@ -111,8 +111,8 @@ const INITIAL_STATE: FolderTreeState = {
 };
 
 let currentState: FolderTreeState = INITIAL_STATE;
-let isFetchingFolderTreeFromMain = false;
-let shouldRefetchFolderTreeFromMain = false;
+let isFetchingFolderTreeFromMain: boolean = false;
+let shouldRefetchFolderTreeFromMain: boolean = false;
 
 type FolderTreeCallback = (state: FolderTreeState) => void;
 const subscribers: Set<FolderTreeCallback> = new Set();
@@ -124,13 +124,19 @@ function dispatch(action: FolderTreeAction): void {
     }
 }
 
-// Keep graphCollapsedFolders in sync with collapseSetStore (the authoritative source).
-subscribeCollapseSet((newSet) => {
-    currentState = { ...currentState, graphCollapsedFolders: newSet };
-    for (const callback of subscribers) {
-        callback(currentState);
+async function syncRendererSessionStateWithDaemon(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    const syncRendererSessionState: (() => Promise<unknown>) | undefined =
+        window.electronAPI?.main?.syncRendererSessionStateWithDaemon as (() => Promise<unknown>) | undefined;
+    if (typeof syncRendererSessionState !== 'function') return;
+
+    try {
+        await syncRendererSessionState();
+    } catch (error) {
+        console.error('[FolderTreeStore] Failed to sync collapseSet with daemon session:', error);
     }
-});
+}
 
 /**
  * Subscribe to folder tree state changes.
@@ -193,21 +199,31 @@ export function setSidebarWidth(width: number): void {
     dispatch({ type: 'SET_WIDTH', width });
 }
 
-export function addCollapsedFolder(folderId: string): void {
-    dispatchCollapse(folderId);
+export function addCollapsedFolderLocally(folderId: string): void {
+    dispatch({ type: 'ADD_COLLAPSED_FOLDER', folderId });
 }
 
-export function removeCollapsedFolder(folderId: string): void {
-    dispatchExpand(folderId);
+export async function addCollapsedFolder(folderId: string): Promise<void> {
+    addCollapsedFolderLocally(folderId);
+    await syncRendererSessionStateWithDaemon();
+}
+
+export function removeCollapsedFolderLocally(folderId: string): void {
+    dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
+}
+
+export async function removeCollapsedFolder(folderId: string): Promise<void> {
+    removeCollapsedFolderLocally(folderId);
+    await syncRendererSessionStateWithDaemon();
 }
 
 export function isGraphFolderCollapsed(folderId: string): boolean {
-    return getCollapseSet().has(folderId);
+    return currentState.graphCollapsedFolders.has(folderId);
 }
 
 /** Returns the current collapseSet from graph-state (avoids the graphCollapsedFolders field name). */
 export function getGraphCollapseSet(): ReadonlySet<string> {
-    return getCollapseSet();
+    return currentState.graphCollapsedFolders;
 }
 
 export async function initializeFromMainIfEmpty(): Promise<void> {

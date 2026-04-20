@@ -18,9 +18,9 @@ import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/gra
 import type { FolderTreeNode } from '@vt/graph-model'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 import {
-    addCollapsedFolder,
+    addCollapsedFolderLocally,
     getFolderTreeState,
-    removeCollapsedFolder,
+    removeCollapsedFolderLocally,
     syncFolderTreeFromMain,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
@@ -39,11 +39,11 @@ function del(nodeId: string): DeleteNode {
     return { type: 'DeleteNode', nodeId, deletedNode: O.none }
 }
 
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): void {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 
-function applySpecToUI(cy: Core, spec: ElementSpec) {
+function applySpecToUI(cy: Core, spec: ElementSpec): void {
     return applyGraphDeltaToUI(cy, spec)
 }
 
@@ -127,7 +127,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     afterEach(() => {
         cy.destroy()
         getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
-            removeCollapsedFolder(folderId)
+            removeCollapsedFolderLocally(folderId)
         })
         syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
@@ -251,7 +251,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 starredFolders: [],
             })
             syncFolderTree('/vault')
-            addCollapsedFolder('/vault/auth/internal/')
+            addCollapsedFolderLocally('/vault/auth/internal/')
 
             const directChild: GraphNode = {
                 absoluteFilePathIsID: '/vault/auth/login-flow.md',
@@ -297,7 +297,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('projects synced folder roots before VaultPathStore is synced', () => {
             syncFolderTree('/vault')
-            addCollapsedFolder('/vault/auth/internal/')
+            addCollapsedFolderLocally('/vault/auth/internal/')
 
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',
@@ -333,7 +333,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('keeps using the synced folder root across sequential deltas before VaultPathStore is synced', () => {
             syncFolderTree('/vault')
-            addCollapsedFolder('/vault/auth/internal/')
+            addCollapsedFolderLocally('/vault/auth/internal/')
 
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',

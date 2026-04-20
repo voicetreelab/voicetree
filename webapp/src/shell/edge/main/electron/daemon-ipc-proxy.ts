@@ -488,6 +488,12 @@ export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState>
   return snapshot
 }
 
+export async function syncRendererSessionStateWithDaemon(): Promise<string> {
+  const { client } = await getDaemonClientForCurrentVault()
+  const localState = await getCurrentLiveState()
+  return await syncRendererSessionState(client, localState)
+}
+
 export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation((client) => client.addReadPath(path))
 }

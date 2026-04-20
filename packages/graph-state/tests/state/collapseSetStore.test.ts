@@ -1,3 +1,5 @@
+/* vt-allow-direct-daemon-mutation-import: graph-state primitive behaviour test */
+
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import {

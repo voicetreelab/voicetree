@@ -252,6 +252,48 @@ describe('daemon IPC proxy', () => {
     expect(result.roots.folderTree).toEqual([makeFolderTree('/vault')])
   })
 
+  it('syncs renderer session state on demand without fetching a daemon snapshot', async () => {
+    const client = {
+      createSession: vi.fn().mockResolvedValue({ sessionId: 'session-on-demand' }),
+      collapse: vi.fn().mockResolvedValue({ collapseSet: ['/vault/docs/'] }),
+      expand: vi.fn(),
+      setSelection: vi.fn(),
+      updateLayout: vi.fn(),
+    }
+    mockEnsureDaemonClientForVault.mockResolvedValue({ client })
+    mockGetCurrentLiveState.mockResolvedValue({
+      graph: {
+        nodes: {},
+        incomingEdgesIndex: new Map(),
+        nodeByBaseName: new Map(),
+        unresolvedLinksIndex: new Map(),
+      },
+      roots: {
+        loaded: new Set(['/vault']),
+        folderTree: [],
+      },
+      collapseSet: new Set(['/vault/docs/']),
+      selection: new Set(),
+      layout: {
+        positions: new Map(),
+      },
+      meta: {
+        schemaVersion: 1,
+        revision: 1,
+      },
+    })
+
+    const proxy = await import('./daemon-ipc-proxy')
+    const sessionId = await proxy.syncRendererSessionStateWithDaemon()
+
+    expect(sessionId).toBe('session-on-demand')
+    expect(client.createSession).toHaveBeenCalledTimes(1)
+    expect(client.collapse).toHaveBeenCalledWith(
+      'session-on-demand',
+      '/vault/docs/',
+    )
+  })
+
   it('pushes daemon-backed graph and vault refreshes after addReadPath', async () => {
     const previousGraph = {
       nodes: {

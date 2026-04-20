@@ -4,6 +4,8 @@
  * TDD: Write tests first, verify they fail, then implement fix.
  */
 
+/* vt-allow-direct-daemon-mutation-import: low-level vault-allowlist behaviour test */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -21,8 +23,6 @@ vi.mock('electron', () => ({
 // Import after mocks are set up
 import {
   getVaultPaths,
-  setWritePath,
-  addReadPath,
   loadAndMergeVaultPath,
   type LoadVaultPathResult,
 } from './vault-allowlist'
@@ -38,7 +38,7 @@ import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
 import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
-import { initGraphModel } from '@vt/graph-model'
+import { addReadPath, initGraphModel, setWritePath } from '@vt/graph-model'
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
   uiAPI: {

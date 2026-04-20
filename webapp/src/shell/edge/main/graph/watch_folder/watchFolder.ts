@@ -1,6 +1,5 @@
 import type { FilePath } from '@vt/graph-model'
 import {
-    addReadPath,
     clearVaultPath,
     createDatedVoiceTreeFolder,
     createSubfolder,
@@ -14,9 +13,7 @@ import {
     loadFolder as loadFolderImpl,
     loadPreviousFolder as loadPreviousFolderImpl,
     markFrontendReady as markFrontendReadyImpl,
-    removeReadPath,
     setVaultPath,
-    setWritePath,
     startFileWatching as startFileWatchingImpl,
     stopFileWatching as stopFileWatchingImpl,
     type WatchFolderLoadOptions,
@@ -117,9 +114,6 @@ export {
     getVaultPaths,
     getReadPaths,
     getWritePath,
-    setWritePath,
-    addReadPath,
-    removeReadPath,
     getVaultPath,
     setVaultPath,
     clearVaultPath,

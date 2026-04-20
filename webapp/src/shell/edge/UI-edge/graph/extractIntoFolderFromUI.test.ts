@@ -4,7 +4,7 @@ import type { Core } from 'cytoscape'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
 import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
 import { extractIntoFolderFromUI } from '@/shell/edge/UI-edge/graph/extractIntoFolderFromUI'
-import { getGraphCollapseSet, removeCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { getGraphCollapseSet, removeCollapsedFolderLocally } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 function createTestNode(id: string): GraphNode {
     return {
@@ -32,7 +32,7 @@ function getNewFolderIdFromDelta(delta: GraphDelta): string {
 
 describe('extractIntoFolderFromUI', () => {
     afterEach(() => {
-        ;[...getGraphCollapseSet()].forEach(removeCollapsedFolder)
+        ;[...getGraphCollapseSet()].forEach(removeCollapsedFolderLocally)
         vi.restoreAllMocks()
         // @ts-expect-error test cleanup
         window.electronAPI = undefined
@@ -44,7 +44,7 @@ describe('extractIntoFolderFromUI', () => {
             '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md')
         })
         let appliedDelta: GraphDelta | null = null
-        const applyGraphDelta = vi.fn(async (delta: GraphDelta) => {
+        const applyGraphDelta: ReturnType<typeof vi.fn<[GraphDelta], Promise<void>>> = vi.fn(async (delta: GraphDelta): Promise<void> => {
             appliedDelta = delta
         })
 
