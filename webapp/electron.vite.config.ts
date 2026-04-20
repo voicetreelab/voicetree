@@ -58,7 +58,7 @@ const NODE_BUILTINS = new Set([
   'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util', 'v8', 'vm', 'wasi',
   'worker_threads', 'zlib',
 ])
-const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents', 'normalize-path', 'gray-matter'])
+const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents'])
 const rendererNodeShimPlugin = {
   name: 'renderer-node-shim',
   enforce: 'pre' as const,
