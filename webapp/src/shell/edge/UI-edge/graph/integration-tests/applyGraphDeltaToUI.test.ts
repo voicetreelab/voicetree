@@ -14,8 +14,14 @@ import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
+import type { FolderTreeNode } from '@vt/graph-model'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
-import { getFolderTreeState, removeCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import {
+    addCollapsedFolder,
+    getFolderTreeState,
+    removeCollapsedFolder,
+    syncFolderTreeFromMain,
+} from '@/shell/edge/UI-edge/state/FolderTreeStore'
 import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
 
 // Mock engagement prompts to avoid jsdom's missing dialog.showModal()
@@ -34,6 +40,45 @@ function del(nodeId: string): DeleteNode {
 
 function applyDeltaToUI(cy: Core, delta: GraphDelta) {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
+function syncFolderTree(rootPath: string = '/vault'): void {
+    const tree: FolderTreeNode = {
+        name: 'vault',
+        absolutePath: rootPath,
+        loadState: 'loaded',
+        isWriteTarget: true,
+        children: [
+            {
+                name: 'auth',
+                absolutePath: `${rootPath}/auth`,
+                loadState: 'loaded',
+                isWriteTarget: true,
+                children: [
+                    {
+                        name: 'login-flow.md',
+                        absolutePath: `${rootPath}/auth/login-flow.md`,
+                        isInGraph: true,
+                    },
+                    {
+                        name: 'internal',
+                        absolutePath: `${rootPath}/auth/internal`,
+                        loadState: 'loaded',
+                        isWriteTarget: true,
+                        children: [
+                            {
+                                name: 'refresh-token.md',
+                                absolutePath: `${rootPath}/auth/internal/refresh-token.md`,
+                                isInGraph: true,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    }
+
+    syncFolderTreeFromMain(tree)
 }
 
 describe('applyGraphDeltaToUI - Integration', () => {
@@ -168,12 +213,14 @@ describe('applyGraphDeltaToUI - Integration', () => {
     })
 
     describe('Recursive folder chains within loaded roots', () => {
-        it('creates nested folder parents within the loaded root and defaults nested subfolders to collapsed', () => {
+        it('creates nested folder parents within the loaded root and projects collapsed folders from the collapse store', () => {
             syncVaultStateFromMain({
                 readPaths: [],
                 writePath: '/vault',
                 starredFolders: [],
             })
+            syncFolderTree('/vault')
+            addCollapsedFolder('/vault/auth/internal/')
 
             const directChild: GraphNode = {
                 absoluteFilePathIsID: '/vault/auth/login-flow.md',
@@ -217,7 +264,10 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(getFolderTreeState().graphCollapsedFolders.has('/vault/auth/internal/')).toBe(true)
         })
 
-        it('falls back to the delta root before VaultPathStore is synced', () => {
+        it('projects synced folder roots before VaultPathStore is synced', () => {
+            syncFolderTree('/vault')
+            addCollapsedFolder('/vault/auth/internal/')
+
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',
                 contentWithoutYamlOrLinks: '# Readme',
@@ -250,7 +300,10 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
         })
 
-        it('keeps using the inferred root across sequential deltas before VaultPathStore is synced', () => {
+        it('keeps using the synced folder root across sequential deltas before VaultPathStore is synced', () => {
+            syncFolderTree('/vault')
+            addCollapsedFolder('/vault/auth/internal/')
+
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',
                 contentWithoutYamlOrLinks: '# Readme',
