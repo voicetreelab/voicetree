@@ -2,6 +2,7 @@ import { getGraph } from '@/shell/edge/main/state/graph-store';
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/project-store';
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { SavedProject } from '@vt/graph-model/pure/project/types';
 import * as path from 'path';
@@ -17,6 +18,11 @@ export interface DebugSetupResult {
 // Default test project folder name (in public/ for dev, extraResources for prod)
 const DEFAULT_TEST_PROJECT = 'example_small';
 const DEBUG_PROJECT_DIR_ENV = 'VT_DEBUG_PROJECT_DIR';
+const DEBUG_REAL_AGENTS_ENV = 'VT_DEBUG_REAL_AGENTS';
+const FAKE_AGENT_NAME = 'Fake Agent';
+const FAKE_AGENT_COMMAND_FRAGMENT = 'tools/vt-fake-agent/dist/index.js';
+const AGENT_PROMPT_VAR = process.platform === 'win32' ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
+const DEFAULT_FAKE_AGENT_COMMAND = `node ${FAKE_AGENT_COMMAND_FRAGMENT} "${AGENT_PROMPT_VAR}"`;
 
 /**
  * Get the example_small test fixture path.
@@ -44,6 +50,36 @@ function resolveDebugProjectPath(env: NodeJS.ProcessEnv = process.env): string {
     }
 
     return getFallbackTestProjectPath();
+}
+
+type AgentCommandConfig = {
+    readonly name: string;
+    readonly command: string;
+};
+
+function findFakeAgentCommand(agents: readonly AgentCommandConfig[] | undefined): string | undefined {
+    return agents?.find((agent: AgentCommandConfig) =>
+        agent.name === FAKE_AGENT_NAME || agent.command.includes(FAKE_AGENT_COMMAND_FRAGMENT)
+    )?.command;
+}
+
+async function resolvePrettySetupAgentCommand(env: NodeJS.ProcessEnv = process.env): Promise<string | undefined | null> {
+    if (env[DEBUG_REAL_AGENTS_ENV]?.trim() === '1') {
+        return undefined;
+    }
+
+    const settings = await loadSettings();
+    const fakeAgentCommand = findFakeAgentCommand(settings.agents);
+
+    if (fakeAgentCommand) {
+        return fakeAgentCommand;
+    }
+
+    console.error(
+        `[DebugSetup] Fake agent command not found in settings.agents. Refusing to auto-spawn real agents during vt-debug boot. ` +
+        `Restore the fake agent (${DEFAULT_FAKE_AGENT_COMMAND}) or set ${DEBUG_REAL_AGENTS_ENV}=1 to opt in to real agents.`
+    );
+    return null;
 }
 
 /**
@@ -103,12 +139,17 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
     }
 
     const terminalIds: string[] = [];
+    const agentCommand = await resolvePrettySetupAgentCommand();
+
+    if (agentCommand === null) {
+        return { terminalsSpawned: [], nodeCount: nodeIds.length, projectLoaded };
+    }
 
     try {
-        // 1. Spawn parent terminal (undefined command = use first agent from settings)
+        // 1. Spawn parent terminal (fake agent by default; real agents require explicit opt-in)
         const { terminalId: parentTerminalId } = await spawnTerminalWithContextNode(
             candidates[0],
-            undefined,
+            agentCommand,
             undefined, true, false
         );
         terminalIds.push(parentTerminalId);
@@ -117,7 +158,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         if (candidates.length > 1) {
             const { terminalId: childTerminalId } = await spawnTerminalWithContextNode(
                 candidates[1],
-                undefined,
+                agentCommand,
                 undefined, true, false,
                 undefined,  // selectedNodeIds
                 undefined,  // spawnDirectory
@@ -130,7 +171,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         if (candidates.length > 2) {
             const { terminalId } = await spawnTerminalWithContextNode(
                 candidates[2],
-                undefined,
+                agentCommand,
                 undefined, true, false
             );
             terminalIds.push(terminalId);
