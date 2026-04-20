@@ -7,6 +7,7 @@ import {
     agentSpawn,
     agentWait,
 } from './commands/agent.ts'
+import {runVaultCommand} from './commands/vault.ts'
 import {error} from './output.ts'
 
 type GlobalOptions = {
@@ -302,6 +303,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'graph':
             await dispatchGraphCommand(port, terminalId, subcommand, rest)
+            return
+        case 'vault':
+            await runVaultCommand(commandArgs.slice(1))
             return
         case 'search':
             await dispatchSearchCommand(port, terminalId, commandArgs.slice(1))
