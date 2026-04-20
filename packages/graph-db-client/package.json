@@ -1,0 +1,22 @@
+{
+  "name": "@vt/graph-db-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed HTTP client for vt-graphd. P1 skeleton — implementation lands in BF-217 (P5).",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vt/graph-db-server": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.0.0"
+  }
+}

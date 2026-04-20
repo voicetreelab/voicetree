@@ -1,0 +1,28 @@
+{
+  "name": "@vt/graph-db-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless daemon (vt-graphd) that owns canonical vault state for one vault. P1 skeleton: contract + lock + portFile.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts",
+    "./lock": "./src/lock.ts",
+    "./portFile": "./src/portFile.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4.12.12",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.0.0"
+  }
+}
