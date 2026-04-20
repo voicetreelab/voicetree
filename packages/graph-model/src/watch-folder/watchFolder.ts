@@ -403,8 +403,8 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
     if (currentWatcher) {
         await currentWatcher.close();
         setWatcher(null);
-        setProjectRootWatchedDirectory(null);
     }
+    setProjectRootWatchedDirectory(null);
     return { success: true };
 }
 

@@ -4,7 +4,6 @@ const {
     mockBootstrapDaemonVaultFromLocalState,
     mockGetProjectRootWatchedDirectory,
     mockMarkFrontendReady,
-    mockSetProjectRootWatchedDirectory,
     mockStartDaemonGraphSync,
     mockStartFileWatching,
     mockStopDaemonGraphSync,
@@ -15,7 +14,6 @@ const {
     mockBootstrapDaemonVaultFromLocalState: vi.fn(),
     mockGetProjectRootWatchedDirectory: vi.fn(),
     mockMarkFrontendReady: vi.fn(),
-    mockSetProjectRootWatchedDirectory: vi.fn(),
     mockStartDaemonGraphSync: vi.fn(),
     mockStartFileWatching: vi.fn(),
     mockStopDaemonGraphSync: vi.fn(),
@@ -30,7 +28,6 @@ vi.mock('@vt/graph-model', async () => {
         ...actual,
         getProjectRootWatchedDirectory: mockGetProjectRootWatchedDirectory,
         markFrontendReady: mockMarkFrontendReady,
-        setProjectRootWatchedDirectory: mockSetProjectRootWatchedDirectory,
         startFileWatching: mockStartFileWatching,
         stopFileWatching: mockStopFileWatching,
     }
@@ -92,7 +89,6 @@ describe('watchFolder daemon sync bridge', () => {
         expect(result).toEqual({ success: true })
         expect(mockStopDaemonGraphSync).toHaveBeenCalledTimes(1)
         expect(mockStopFileWatching).toHaveBeenCalledTimes(1)
-        expect(mockSetProjectRootWatchedDirectory).toHaveBeenCalledWith(null)
         expect(mockSyncWatchedProjectRoot).toHaveBeenCalledWith(null)
     })
 

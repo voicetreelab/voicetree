@@ -15,7 +15,6 @@ import {
     loadPreviousFolder as loadPreviousFolderImpl,
     markFrontendReady as markFrontendReadyImpl,
     removeReadPath,
-    setProjectRootWatchedDirectory,
     setVaultPath,
     setWritePath,
     startFileWatching as startFileWatchingImpl,
@@ -79,7 +78,6 @@ export async function startFileWatching(
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     await stopDaemonGraphSync()
     const result = await stopFileWatchingImpl()
-    setProjectRootWatchedDirectory(null)
     if (result.success) {
         syncWatchedProjectRoot(null)
     }

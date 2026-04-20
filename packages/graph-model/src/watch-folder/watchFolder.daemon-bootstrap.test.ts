@@ -4,7 +4,11 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createEmptyGraph } from '../pure/graph/createGraph'
 import { setGraph } from '../state/graph-store'
-import { clearWatchFolderState, getWatcher } from '../state/watch-folder-store'
+import {
+  clearWatchFolderState,
+  getProjectRootWatchedDirectory,
+  getWatcher,
+} from '../state/watch-folder-store'
 import { initGraphModel } from '../types'
 import { saveVaultConfigForDirectory } from './voicetree-config-io'
 import { loadFolder, stopFileWatching } from './watchFolder'
@@ -45,7 +49,12 @@ describe('watchFolder daemon bootstrap callback', () => {
     await stopFileWatching()
     clearWatchFolderState()
     setGraph(createEmptyGraph())
-    await rm(root, { recursive: true, force: true })
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 50,
+    })
   })
 
   test('boots the daemon for the watched project root during loadFolder', async () => {
@@ -71,5 +80,15 @@ describe('watchFolder daemon bootstrap callback', () => {
     ).resolves.toEqual({ success: true })
     expect(getWatcher()).toBeNull()
     expect(ensureDaemonForVault).toHaveBeenCalledWith(projectRoot)
+  })
+
+  test('clears the loaded root when daemon-backed watching stops', async () => {
+    ensureDaemonForVault.mockResolvedValue(undefined)
+
+    await loadFolder(projectRoot, { mountWatcher: false })
+    expect(getProjectRootWatchedDirectory()).toBe(projectRoot)
+
+    await expect(stopFileWatching()).resolves.toEqual({ success: true })
+    expect(getProjectRootWatchedDirectory()).toBeNull()
   })
 })

@@ -48,7 +48,6 @@ type SessionSyncCache = {
 }
 
 let cachedVault: string | null = null
-let lastDaemonGraph: Graph | null = null
 let rendererSessionId: string | null = null
 let sessionSyncCache: SessionSyncCache | null = null
 
@@ -121,7 +120,6 @@ function resetCachesForVault(vault: string): void {
   }
 
   cachedVault = vault
-  lastDaemonGraph = null
   rendererSessionId = null
   sessionSyncCache = null
 }
@@ -196,7 +194,6 @@ async function getNormalizedDaemonGraph(client: DaemonClient): Promise<Graph> {
         ? (rawGraph.nodes as Record<string, unknown>)
         : {},
   })
-  lastDaemonGraph = graph
   return graph
 }
 
@@ -475,8 +472,6 @@ export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState>
   const hydrated = hydrateState(snapshot)
   const vaultState = await client.getVault()
 
-  lastDaemonGraph = hydrated.graph
-
   if (rootsWereExplicitlySet() || localState.roots.loaded.size > 0) {
     snapshot.roots = await buildSerializedRoots(
       hydrated.graph,
@@ -529,7 +524,6 @@ export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> 
 
 export function __resetDaemonIpcProxyStateForTests(): void {
   cachedVault = null
-  lastDaemonGraph = null
   rendererSessionId = null
   sessionSyncCache = null
 }
