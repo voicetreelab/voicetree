@@ -41,14 +41,14 @@
 - [x] 4.7 Implement `PUT /sessions/:sessionId/layout` accepting partial `{ positions, pan, zoom }`
 - [x] 4.8 Implement idle-timeout cleanup tick (default 24h, configurable)
 - [x] 4.9 Vitest: two sessions hold different collapseSets; mutations on one don't affect the other
-- [ ] 4.10 Vitest: pinned-session sharing — two clients with same sessionId see each other's mutations
+- [x] 4.10 Vitest: pinned-session sharing — two clients with same sessionId see each other's mutations
 
 ## 5. Phase 5 — Typed daemon client
 
-- [ ] 5.1 Implement `GraphDbClient` class in `packages/graph-db-client/src/index.ts` — typed methods for every endpoint, derives types from the contract module
-- [ ] 5.2 Implement port discovery: read `<vault>/.voicetree/graphd.port`, verify `/health` before issuing
+- [x] 5.1 Implement `GraphDbClient` class in `packages/graph-db-client/src/index.ts` — typed methods for every endpoint, derives types from the contract module
+- [x] 5.2 Implement port discovery: read `<vault>/.voicetree/graphd.port`, verify `/health` before issuing
 - [ ] 5.3 Implement auto-launch helper: spawn `vt-graphd --vault <path>` detached, poll /health up to 5s, then proceed
-- [ ] 5.4 Vitest: client roundtrip against in-process daemon for every endpoint
+- [x] 5.4 Vitest: client roundtrip against in-process daemon for every endpoint
 - [ ] 5.5 Vitest: client cold-start spawns daemon, gets a working connection
 
 ## 6. Phase 6 — CLI parity subcommands

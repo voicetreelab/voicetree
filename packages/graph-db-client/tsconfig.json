@@ -9,9 +9,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "noEmit": true,
-    "rootDir": ".",
     "baseUrl": ".",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

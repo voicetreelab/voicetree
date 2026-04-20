@@ -1,18 +1,37 @@
+export { GraphDbClient } from './GraphDbClient.ts'
+export { GraphDbClientError, DaemonUnreachableError } from './errors.ts'
+export { readPortFile, discoverPort } from './portDiscovery.ts'
+
 export {
   CONTRACT_VERSION,
+  AddReadPathRequestSchema,
+  CollapseStateResponseSchema,
+  GraphStateSchema,
   HealthResponseSchema,
+  LayoutPartialSchema,
+  LayoutResponseSchema,
+  LiveStateSnapshotSchema,
+  SelectionModeSchema,
+  SelectionRequestSchema,
+  SelectionResponseSchema,
+  SessionCreateResponseSchema,
+  SessionInfoSchema,
+  SetWritePathRequestSchema,
   ShutdownResponseSchema,
+  VaultStateSchema,
+  type AddReadPathRequest,
+  type CollapseStateResponse,
+  type GraphState,
   type HealthResponse,
+  type LayoutPartial,
+  type LayoutResponse,
+  type LiveStateSnapshot,
+  type SelectionMode,
+  type SelectionRequest,
+  type SelectionResponse,
+  type SessionCreateResponse,
+  type SessionInfo,
+  type SetWritePathRequest,
   type ShutdownResponse,
+  type VaultState,
 } from '@vt/graph-db-server/contract'
-
-import type { HealthResponse } from '@vt/graph-db-server/contract'
-
-export class GraphDbClient {
-  constructor(private readonly baseUrl: string) {}
-
-  async health(): Promise<HealthResponse> {
-    void this.baseUrl
-    throw new Error('NOT_IMPLEMENTED_UNTIL_BF_217')
-  }
-}
