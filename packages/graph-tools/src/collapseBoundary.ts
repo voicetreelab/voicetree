@@ -9,6 +9,7 @@ export interface CollapseBoundaryNode {
     readonly relPath: string
     readonly folderPath: string
     readonly outgoingIds: readonly string[]
+    readonly kind?: 'file' | 'folder'
 }
 
 export interface CollapseBoundaryGraph {
@@ -22,6 +23,7 @@ export interface CollapseCluster {
     readonly strategy: CollapseStrategy
     readonly nodeIds: readonly string[]
     readonly anchorFolderPath: string
+    readonly alignedFolderPath?: string
     readonly representativeRelPath: string
     readonly internalEdgeCount: number
     readonly incomingEdgeCount: number
@@ -53,6 +55,16 @@ interface SelectionResult {
     readonly clusters: readonly Candidate[]
     readonly finalEntityCount: number
 }
+
+interface ClusterStats {
+    readonly internalEdgeCount: number
+    readonly incomingEdgeCount: number
+    readonly outgoingEdgeCount: number
+    readonly boundaryEdgeCount: number
+    readonly cohesion: number
+}
+
+const FOLDER_ALIGNMENT_BONUS = 0.05
 
 /**
  * Count visible entities (expanded nodes + cluster summaries).
@@ -201,20 +213,16 @@ function normalizeSelectableId(value: string): string {
     return value.replace(/\\/g, '/').replace(/\.md$/i, '')
 }
 
-
 function buildFolderCandidates(graph: NormalizedGraph): readonly Candidate[] {
-    const nodeIdsByFolder = new Map<string, string[]>()
-    for (const node of graph.nodes) {
-        for (const folderPath of ancestorFolders(node.folderPath)) {
-            const ids: string[] = nodeIdsByFolder.get(folderPath) ?? []
-            ids.push(node.id)
-            nodeIdsByFolder.set(folderPath, ids)
-        }
-    }
+    const folderPaths: readonly string[] = resolveFolderCandidatePaths(graph)
 
     const candidates: Candidate[] = []
-    for (const [folderPath, nodeIds] of nodeIdsByFolder) {
-        if (folderPath.length === 0 || nodeIds.length < 2) continue
+    for (const folderPath of folderPaths) {
+        if (folderPath.length === 0) continue
+        const nodeIds: readonly string[] = graph.nodes
+            .filter(node => isNodeUnderFolder(node, folderPath))
+            .map(node => node.id)
+        if (nodeIds.length < 2) continue
         if (isOversizedCluster(nodeIds.length, graph.nodes.length)) continue
         if (nodeIds.some(nodeId => graph.protectedIds.has(nodeId))) continue
         const stats = computeClusterStats(nodeIds, graph.edges)
@@ -225,6 +233,7 @@ function buildFolderCandidates(graph: NormalizedGraph): readonly Candidate[] {
             strategy: 'folder-first',
             nodeIds,
             anchorFolderPath: parentFolderPath(folderPath),
+            alignedFolderPath: folderPath,
             representativeRelPath: representative?.relPath ?? '',
             internalEdgeCount: stats.internalEdgeCount,
             incomingEdgeCount: stats.incomingEdgeCount,
@@ -246,12 +255,14 @@ function buildLouvainCandidates(graph: NormalizedGraph): readonly Candidate[] {
         const representative: CollapseBoundaryNode | undefined = pickRepresentative(graph, nodeIds)
         const label: string = representative?.title ?? `cluster-${index + 1}`
         const stats = computeClusterStats(nodeIds, graph.edges)
+        const alignedFolderPath: string | undefined = detectAlignedFolderPath(graph, nodeIds)
         candidates.push({
             id: `louvain:${index + 1}`,
             label,
             strategy: 'louvain',
             nodeIds,
             anchorFolderPath: longestCommonFolderPrefix(nodeIds.map(nodeId => graph.nodeById.get(nodeId)?.folderPath ?? '')),
+            alignedFolderPath,
             representativeRelPath: representative?.relPath ?? '',
             internalEdgeCount: stats.internalEdgeCount,
             incomingEdgeCount: stats.incomingEdgeCount,
@@ -296,8 +307,10 @@ function greedilySelectCandidates(
 }
 
 function compareCandidates(left: Candidate, right: Candidate): number {
-    if (left.cohesion !== right.cohesion) {
-        return right.cohesion - left.cohesion
+    const leftEffectiveCohesion: number = effectiveCohesion(left)
+    const rightEffectiveCohesion: number = effectiveCohesion(right)
+    if (leftEffectiveCohesion !== rightEffectiveCohesion) {
+        return rightEffectiveCohesion - leftEffectiveCohesion
     }
     if (left.nodeIds.length !== right.nodeIds.length) {
         return right.nodeIds.length - left.nodeIds.length
@@ -308,10 +321,14 @@ function compareCandidates(left: Candidate, right: Candidate): number {
     return left.sortLabel.localeCompare(right.sortLabel)
 }
 
+function effectiveCohesion(candidate: Candidate): number {
+    return candidate.alignedFolderPath ? candidate.cohesion + FOLDER_ALIGNMENT_BONUS : candidate.cohesion
+}
+
 function computeClusterStats(
     nodeIds: readonly string[],
     edges: readonly DirectedEdge[],
-): Omit<CollapseCluster, 'id' | 'label' | 'strategy' | 'nodeIds' | 'anchorFolderPath'> {
+): ClusterStats {
     const nodeSet: ReadonlySet<string> = new Set(nodeIds)
     let internalEdgeCount = 0
     let incomingEdgeCount = 0
@@ -532,4 +549,74 @@ function longestCommonFolderPrefix(folderPaths: readonly string[]): string {
         break
     }
     return sharedSegments.join('/')
+}
+
+function resolveFolderCandidatePaths(graph: NormalizedGraph): readonly string[] {
+    const explicitFolderPaths: readonly string[] = graph.nodes
+        .filter((node): node is CollapseBoundaryNode & {readonly kind: 'folder'} => node.kind === 'folder')
+        .map(node => normalizeFolderSeedPath(node.relPath))
+        .filter(Boolean)
+    if (explicitFolderPaths.length > 0) {
+        return [...new Set(explicitFolderPaths)].sort((left, right) => left.localeCompare(right))
+    }
+
+    const hasMissingKindMetadata: boolean = graph.nodes.some(node => node.kind === undefined)
+    if (!hasMissingKindMetadata) {
+        return []
+    }
+
+    const legacyFolderPaths = new Set<string>()
+    for (const node of graph.nodes) {
+        for (const folderPath of ancestorFolders(node.folderPath)) {
+            legacyFolderPaths.add(folderPath)
+        }
+    }
+    return [...legacyFolderPaths].sort((left, right) => left.localeCompare(right))
+}
+
+function normalizeFolderSeedPath(relPath: string): string {
+    return normalizeSelectableId(relPath).replace(/\/+$/g, '')
+}
+
+function detectAlignedFolderPath(
+    graph: NormalizedGraph,
+    nodeIds: readonly string[],
+): string | undefined {
+    const commonPrefix: string = longestCommonFolderPrefix(
+        nodeIds.map(nodeId => folderPathForAlignment(graph.nodeById.get(nodeId))),
+    )
+    if (commonPrefix.length === 0) {
+        return undefined
+    }
+    return nodeIds.every(nodeId => {
+        const node: CollapseBoundaryNode | undefined = graph.nodeById.get(nodeId)
+        return node !== undefined && isNodeUnderFolder(node, commonPrefix)
+    })
+        ? commonPrefix
+        : undefined
+}
+
+function folderPathForAlignment(node: CollapseBoundaryNode | undefined): string {
+    if (!node) {
+        return ''
+    }
+    if (node.kind === 'folder') {
+        return normalizeFolderSeedPath(node.relPath)
+    }
+    return node.folderPath
+}
+
+function isNodeUnderFolder(node: CollapseBoundaryNode, folderPath: string): boolean {
+    if (folderPath.length === 0) {
+        return false
+    }
+    if (node.kind === 'folder') {
+        const nodeFolderPath: string = normalizeFolderSeedPath(node.relPath)
+        return isSamePathOrDescendant(nodeFolderPath, folderPath) && nodeFolderPath !== folderPath
+    }
+    return isSamePathOrDescendant(node.folderPath, folderPath)
+}
+
+function isSamePathOrDescendant(candidatePath: string, folderPath: string): boolean {
+    return candidatePath === folderPath || candidatePath.startsWith(`${folderPath}/`)
 }
