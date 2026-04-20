@@ -1,5 +1,7 @@
-import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync} from 'fs'
+import {tmpdir} from 'node:os'
 import path from 'node:path'
+import {ensureDaemon, GraphDbClient, type GraphState} from '@vt/graph-db-client'
 import {callMcpTool} from '@/shell/edge/main/cli/mcp-client.ts'
 import {error, output, isJsonMode} from '@/shell/edge/main/cli/output.ts'
 import {
@@ -20,7 +22,9 @@ import {
     type FilesystemAuthoringValidationError,
     type StructureManifest,
 } from '@vt/graph-tools/node'
-import {buildIndex, search, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
+import {buildIndex, fromNodeToMarkdownContent, search, type GraphNode, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
+import {resolveVault} from '../util/detectVault.ts'
+import {handleCliError} from '../util/exitCodes.ts'
 
 type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -139,6 +143,8 @@ const defaultGraphFilesystemOps: GraphFilesystemOps = {
 
 let graphFilesystemOps: GraphFilesystemOps = defaultGraphFilesystemOps
 
+const NONE_OPTION: {readonly _tag: 'None'} = {_tag: 'None'}
+
 export function setGraphFilesystemOpsForTest(overrides?: Partial<GraphFilesystemOps>): void {
     graphFilesystemOps = {
         ...defaultGraphFilesystemOps,
@@ -158,6 +164,153 @@ function titleToFilename(title: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
+}
+
+function normalizeAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
+    if (value instanceof Map) {
+        return new Map(
+            [...value.entries()].map(([key, entryValue]) => [
+                String(key),
+                typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
+            ]),
+        )
+    }
+
+    if (!isRecord(value)) {
+        return new Map()
+    }
+
+    return new Map(
+        Object.entries(value).map(([key, entryValue]) => [
+            key,
+            typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
+        ]),
+    )
+}
+
+function canonicalizePath(filePath: string): string {
+    try {
+        return realpathSync(filePath)
+    } catch {
+        return path.resolve(filePath)
+    }
+}
+
+function isPathInsideRoot(rootPath: string, candidatePath: string): boolean {
+    const relativePath: string = path.relative(canonicalizePath(rootPath), canonicalizePath(candidatePath))
+    return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+}
+
+function assertGraphRootExists(folderPath: string): void {
+    if (!existsSync(folderPath)) {
+        throw new Error(`ENOENT: no such file or directory, scandir '${folderPath}'`)
+    }
+
+    if (!statSync(folderPath).isDirectory()) {
+        throw new Error(`ENOTDIR: not a directory, scandir '${folderPath}'`)
+    }
+}
+
+function resolveGraphVault(folderPath: string): string {
+    try {
+        return resolveVault({cwd: folderPath})
+    } catch {
+        return resolveVault({cwd: process.cwd()})
+    }
+}
+
+function hydrateGraphNode(absoluteFilePath: string, rawNode: unknown): GraphNode {
+    const nodeRecord: Record<string, unknown> = isRecord(rawNode) ? rawNode : {}
+    const metadataRecord: Record<string, unknown> = isRecord(nodeRecord.nodeUIMetadata)
+        ? nodeRecord.nodeUIMetadata
+        : {}
+
+    const outgoingEdges: GraphNode['outgoingEdges'] = Array.isArray(nodeRecord.outgoingEdges)
+        ? nodeRecord.outgoingEdges
+            .filter(
+                (edge: unknown): edge is {targetId: string; label?: string} =>
+                    isRecord(edge) && typeof edge.targetId === 'string',
+            )
+            .map((edge: {targetId: string; label?: string}) => ({
+                targetId: edge.targetId,
+                label: typeof edge.label === 'string' ? edge.label : '',
+            }))
+        : []
+
+    const containedNodeIds: readonly string[] | undefined = Array.isArray(metadataRecord.containedNodeIds)
+        ? metadataRecord.containedNodeIds.filter((value: unknown): value is string => typeof value === 'string')
+        : undefined
+
+    return {
+        kind: nodeRecord.kind === 'folder' ? 'folder' : 'leaf',
+        absoluteFilePathIsID: typeof nodeRecord.absoluteFilePathIsID === 'string'
+            ? nodeRecord.absoluteFilePathIsID
+            : absoluteFilePath,
+        outgoingEdges,
+        contentWithoutYamlOrLinks: typeof nodeRecord.contentWithoutYamlOrLinks === 'string'
+            ? nodeRecord.contentWithoutYamlOrLinks
+            : '',
+        nodeUIMetadata: {
+            color: (metadataRecord.color ?? NONE_OPTION) as GraphNode['nodeUIMetadata']['color'],
+            position: (metadataRecord.position ?? NONE_OPTION) as GraphNode['nodeUIMetadata']['position'],
+            additionalYAMLProps: normalizeAdditionalYAMLProps(metadataRecord.additionalYAMLProps),
+            ...(metadataRecord.isContextNode === true ? {isContextNode: true} : {}),
+            ...(containedNodeIds ? {containedNodeIds} : {}),
+        },
+    }
+}
+
+function materializeGraphSnapshot(
+    graph: GraphState,
+    folderPath: string,
+): {cleanupPath: string; snapshotRoot: string} {
+    const cleanupPath: string = mkdtempSync(path.join(tmpdir(), 'vt-graph-daemon-'))
+    const canonicalFolderPath: string = canonicalizePath(folderPath)
+    const snapshotRoot: string = path.join(cleanupPath, path.basename(canonicalFolderPath))
+    mkdirSync(snapshotRoot, {recursive: true})
+    const nodeEntries: Array<readonly [string, unknown]> = Object.entries(graph.nodes)
+        .filter(([absoluteFilePath]: readonly [string, unknown]) => isPathInsideRoot(folderPath, absoluteFilePath))
+        .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath))
+
+    for (const [absoluteFilePath, rawNode] of nodeEntries) {
+        const relativeFilePath: string = path.relative(canonicalFolderPath, canonicalizePath(absoluteFilePath))
+        if (relativeFilePath.startsWith('..') || path.isAbsolute(relativeFilePath)) {
+            continue
+        }
+
+        const snapshotFilePath: string = path.join(snapshotRoot, relativeFilePath)
+        mkdirSync(path.dirname(snapshotFilePath), {recursive: true})
+        writeFileSync(
+            snapshotFilePath,
+            fromNodeToMarkdownContent(hydrateGraphNode(absoluteFilePath, rawNode)),
+            'utf8',
+        )
+    }
+
+    return {cleanupPath, snapshotRoot}
+}
+
+async function withDaemonGraphSnapshot<T>(
+    folderPath: string,
+    run: (snapshotRoot: string) => Promise<T> | T,
+): Promise<T> {
+    assertGraphRootExists(folderPath)
+    const vault: string = resolveGraphVault(folderPath)
+    const {port}: {port: number} = await ensureDaemon(vault)
+    const client = new GraphDbClient({
+        baseUrl: `http://127.0.0.1:${port}`,
+    })
+    const graph: GraphState = await client.getGraph()
+    const {cleanupPath, snapshotRoot}: {cleanupPath: string; snapshotRoot: string} = materializeGraphSnapshot(
+        graph,
+        folderPath,
+    )
+
+    try {
+        return await run(snapshotRoot)
+    } finally {
+        rmSync(cleanupPath, {recursive: true, force: true})
+    }
 }
 
 function getRequiredValue(args: string[], index: number, flag: string): string {
@@ -915,7 +1068,12 @@ export async function graphStructure(port: number, terminalId: string | undefine
     }
 
     try {
-        const result: ReturnType<typeof getGraphStructure> = getGraphStructure(folderPath, {withSummaries})
+        const resolvedFolderPath: string = path.resolve(folderPath)
+        const result: ReturnType<typeof getGraphStructure> = await withDaemonGraphSnapshot(
+            resolvedFolderPath,
+            (snapshotRoot: string): ReturnType<typeof getGraphStructure> =>
+                getGraphStructure(snapshotRoot, {withSummaries}),
+        )
 
         if (result.nodeCount === 0) {
             output({message: '0 nodes found', folderPath, withSummaries})
@@ -928,7 +1086,7 @@ export async function graphStructure(port: number, terminalId: string | undefine
             }
         }
     } catch (toolError: unknown) {
-        error(`graph_structure failed: ${getErrorMessage(toolError)}`)
+        handleCliError(toolError)
     }
 }
 
@@ -1012,26 +1170,33 @@ export async function graphView(port: number, terminalId: string | undefined, ar
     const resolvedFolderPath: string = folderPath ?? process.cwd()
 
     try {
-        if (autoMode) {
-            if (explicitRender) {
-                error('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
+        await withDaemonGraphSnapshot(path.resolve(resolvedFolderPath), (snapshotRoot: string): void => {
+            if (autoMode) {
+                if (explicitRender) {
+                    error('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
+                }
+                const {output: out} = renderAutoView(snapshotRoot, {budget})
+                console.log(out)
+                return
             }
-            const {output: out} = renderAutoView(resolvedFolderPath, {budget})
-            console.log(out)
-            return
-        }
 
-        if (budgetExplicit) {
-            error('--budget can only be used with the default auto view or --auto')
-        }
+            if (budgetExplicit) {
+                error('--budget can only be used with the default auto view or --auto')
+            }
 
-        const result: ReturnType<typeof renderGraphView> = renderGraphView(resolvedFolderPath, {format, showCrossEdges, collapsedFolders, selectedIds})
-        console.log(result.output)
-        if (format === 'ascii') {
-            console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
-        }
+            const result: ReturnType<typeof renderGraphView> = renderGraphView(snapshotRoot, {
+                format,
+                showCrossEdges,
+                collapsedFolders,
+                selectedIds,
+            })
+            console.log(result.output)
+            if (format === 'ascii') {
+                console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
+            }
+        })
     } catch (toolError: unknown) {
-        error(`graph view failed: ${getErrorMessage(toolError)}`)
+        handleCliError(toolError)
     }
 }
 
@@ -1110,7 +1275,11 @@ export async function graphLintCommand(port: number, terminalId: string | undefi
     }
 
     try {
-        const report: ReturnType<typeof lintGraph> = lintGraph(folderPath, config)
+        const resolvedFolderPath: string = path.resolve(folderPath)
+        const report: ReturnType<typeof lintGraph> = await withDaemonGraphSnapshot(
+            resolvedFolderPath,
+            (snapshotRoot: string): ReturnType<typeof lintGraph> => lintGraph(snapshotRoot, config),
+        )
 
         if (isJsonMode()) {
             console.log(formatLintReportJson(report))
@@ -1118,6 +1287,6 @@ export async function graphLintCommand(port: number, terminalId: string | undefi
             console.log(formatLintReportHuman(report))
         }
     } catch (lintError: unknown) {
-        error(`graph lint failed: ${getErrorMessage(lintError)}`)
+        handleCliError(lintError)
     }
 }
