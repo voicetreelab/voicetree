@@ -189,6 +189,7 @@ webapp/workers/share-worker/.wrangler/**
 
 # MCP config
 **/.mcp.json
+!/.mcp.json
 
 # Wrangler
 **/.wrangler/**
