@@ -37,8 +37,8 @@
 - [ ] 4.3 Implement `DELETE /sessions/:sessionId`
 - [ ] 4.4 Implement `GET /sessions/:sessionId/state` — assemble live-state projection (graph + vault + folder-tree-walk + session collapseSet/selection/layout); reuse `buildLiveStateSnapshot` logic
 - [x] 4.5 Implement `POST /sessions/:sessionId/collapse/:folderId` and `DELETE` counterpart, calling `dispatchCollapse`/`dispatchExpand` from `@vt/graph-state` against the session's collapseSet
-- [ ] 4.6 Implement `POST /sessions/:sessionId/selection` with `{ nodeIds, mode: 'replace'|'add'|'remove' }`
-- [ ] 4.7 Implement `PUT /sessions/:sessionId/layout` accepting partial `{ positions, pan, zoom }`
+- [x] 4.6 Implement `POST /sessions/:sessionId/selection` with `{ nodeIds, mode: 'replace'|'add'|'remove' }`
+- [x] 4.7 Implement `PUT /sessions/:sessionId/layout` accepting partial `{ positions, pan, zoom }`
 - [ ] 4.8 Implement idle-timeout cleanup tick (default 24h, configurable)
 - [x] 4.9 Vitest: two sessions hold different collapseSets; mutations on one don't affect the other
 - [ ] 4.10 Vitest: pinned-session sharing — two clients with same sessionId see each other's mutations

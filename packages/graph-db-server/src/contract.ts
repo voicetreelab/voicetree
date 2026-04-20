@@ -47,6 +47,49 @@ export const CollapseStateResponseSchema = z.object({
 })
 export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
 
+// --- BF-216 selection + layout ---
+export const SelectionModeSchema = z.enum(['replace', 'add', 'remove'])
+export type SelectionMode = z.infer<typeof SelectionModeSchema>
+
+export const SelectionRequestSchema = z.object({
+  nodeIds: z.array(z.string()),
+  mode: SelectionModeSchema,
+})
+export type SelectionRequest = z.infer<typeof SelectionRequestSchema>
+
+export const SelectionResponseSchema = z.object({
+  selection: z.array(z.string()),
+})
+export type SelectionResponse = z.infer<typeof SelectionResponseSchema>
+
+const SessionLayoutPositionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+})
+
+const SessionViewportSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+})
+
+const SessionLayoutSchema = z.object({
+  positions: z.record(z.string(), SessionLayoutPositionSchema),
+  pan: SessionViewportSchema,
+  zoom: z.number(),
+})
+
+export const LayoutPartialSchema = z.object({
+  positions: z.record(z.string(), SessionLayoutPositionSchema).optional(),
+  pan: SessionViewportSchema.optional(),
+  zoom: z.number().optional(),
+})
+export type LayoutPartial = z.infer<typeof LayoutPartialSchema>
+
+export const LayoutResponseSchema = z.object({
+  layout: SessionLayoutSchema,
+})
+export type LayoutResponse = z.infer<typeof LayoutResponseSchema>
+
 // --- BF-214 session-projection ---
 // Wire format for GET /sessions/:sessionId/state. Mirrors SerializedState from
 // @vt/graph-state (the JSON-safe form: Sets → sorted string arrays, Maps →

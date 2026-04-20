@@ -6,11 +6,20 @@ import {
   SessionCreateResponseSchema,
   SessionInfoSchema,
   CollapseStateResponseSchema,
+  SelectionModeSchema,
+  SelectionRequestSchema,
+  SelectionResponseSchema,
+  LayoutPartialSchema,
+  LayoutResponseSchema,
   type HealthResponse,
   type ShutdownResponse,
   type SessionCreateResponse,
   type SessionInfo,
   type CollapseStateResponse,
+  type SelectionRequest,
+  type SelectionResponse,
+  type LayoutPartial,
+  type LayoutResponse,
 } from './contract.ts'
 
 describe('contract', () => {
@@ -123,5 +132,75 @@ describe('contract', () => {
     }
     const parsed = CollapseStateResponseSchema.parse(sample)
     expect(parsed).toEqual(sample)
+  })
+
+  test('Selection schemas round-trip valid payloads', () => {
+    const request: SelectionRequest = {
+      nodeIds: ['a', 'b'],
+      mode: 'replace',
+    }
+    const response: SelectionResponse = {
+      selection: ['a', 'b'],
+    }
+
+    expect(SelectionModeSchema.parse('add')).toBe('add')
+    expect(SelectionRequestSchema.parse(request)).toEqual(request)
+    expect(SelectionResponseSchema.parse(response)).toEqual(response)
+  })
+
+  test('Selection schemas reject invalid modes and non-string ids', () => {
+    expect(() =>
+      SelectionRequestSchema.parse({
+        nodeIds: ['a'],
+        mode: 'noop',
+      }),
+    ).toThrow()
+    expect(() =>
+      SelectionRequestSchema.parse({
+        nodeIds: [1],
+        mode: 'replace',
+      }),
+    ).toThrow()
+  })
+
+  test('Layout schemas round-trip valid payloads', () => {
+    const patch: LayoutPartial = {
+      positions: {
+        a: { x: 1, y: 2 },
+      },
+      pan: { x: 3, y: 4 },
+      zoom: 1.5,
+    }
+    const response: LayoutResponse = {
+      layout: {
+        positions: {
+          a: { x: 1, y: 2 },
+        },
+        pan: { x: 3, y: 4 },
+        zoom: 1.5,
+      },
+    }
+
+    expect(LayoutPartialSchema.parse(patch)).toEqual(patch)
+    expect(LayoutResponseSchema.parse(response)).toEqual(response)
+  })
+
+  test('Layout schemas reject malformed numeric fields', () => {
+    expect(() =>
+      LayoutPartialSchema.parse({
+        positions: {
+          a: { x: '1', y: 2 },
+        },
+      }),
+    ).toThrow()
+    expect(() =>
+      LayoutResponseSchema.parse({
+        layout: {
+          positions: {},
+          pan: { x: 0, y: '1' },
+          zoom: 1,
+        },
+      }),
+    ).toThrow()
   })
 })
