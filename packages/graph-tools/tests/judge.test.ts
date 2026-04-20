@@ -33,6 +33,7 @@ const MINIMAL_BUNDLE: FlowBundle = {
           stateGraphNodeCount: 2,
           stateRootsLoaded: ['/path/to/root'],
           domProbes: {
+            cyNodeCount: 27,
             floatingEditors: ['window-node-a-editor'],
             selectedNodeHasEditor: false,
           },
@@ -79,6 +80,7 @@ describe('buildJudgePrompt', () => {
   it('includes domProbes blocks when present', () => {
     const prompt = buildJudgePrompt(MINIMAL_BUNDLE)
     expect(prompt).toContain('Dom probes:')
+    expect(prompt).toContain('"cyNodeCount": 27')
     expect(prompt).toContain('"floatingEditors"')
     expect(prompt).toContain('"selectedNodeHasEditor": false')
   })

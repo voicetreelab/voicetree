@@ -1,0 +1,20 @@
+{
+  "flow": "F10",
+  "title": "Click Add Child on tapped node creates + auto-pins visible child",
+  "intent": "Regression guard for Wave-6 add-child bug (commit 5f02337f) — exercise the createNewChildNodeFromUI path end-to-end via the editor toolbar.",
+  "exercises": ["tap", "click toolbar button", "createNewChildNodeFromUI", "auto-pin", "dom probes"],
+  "likelyStatusToday": "should PASS against commit 5f02337f (matches Cho's live delta=1 observation); fails pre-5f02337f",
+  "judgeFocus": [
+    "domProbes.cyNodeCount is greater than the cyNodeCount captured at step 1 (delta >= 1).",
+    "floatingEditors contains an editor id for the newly-created child node, not only the tapped node.",
+    "selectedNodeHasEditor remains true after the child is created and selected."
+  ],
+  "steps": [
+    { "dispatch": { "type": "RequestFit", "paddingPx": 80 } },
+    { "wait": 300 },
+    { "tapNode": "{{primaryNodeId}}" },
+    { "wait": 400 },
+    { "click": "[id='window-{{primaryNodeId}}-editor'] button[title='Add Child']" },
+    { "wait": 1500 }
+  ]
+}

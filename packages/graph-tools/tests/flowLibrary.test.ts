@@ -3,16 +3,34 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveFlowRuntimeContext,
   loadAllFlowDefinitions,
+  loadFlowDefinition,
   resolveFlowDefinition,
   type FlowDefinition,
 } from '../src/debug/flows/index'
 
 describe('flow library', () => {
-  it('loads all nine authored golden flows', async () => {
+  it('loads all ten authored golden flows', async () => {
     const flows = await loadAllFlowDefinitions()
 
-    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'])
+    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'])
     expect(flows.every(flow => flow.steps.length > 0)).toBe(true)
+  })
+
+  it('loads the authored F10 add-child regression flow with validated steps', async () => {
+    const flow = await loadFlowDefinition('F10')
+
+    expect(flow).toMatchObject({
+      flow: 'F10',
+      title: 'Click Add Child on tapped node creates + auto-pins visible child',
+      steps: [
+        { dispatch: { type: 'RequestFit', paddingPx: 80 } },
+        { wait: 300 },
+        { tapNode: '{{primaryNodeId}}' },
+        { wait: 400 },
+        { click: "[id='window-{{primaryNodeId}}-editor'] button[title='Add Child']" },
+        { wait: 1500 },
+      ],
+    })
   })
 
   it('derives a deterministic runtime context from live state', () => {
