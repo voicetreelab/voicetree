@@ -1,9 +1,13 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { connect } from 'node:net'
-import { startDaemon, type DaemonHandle } from './server.ts'
+import {
+  startDaemon,
+  type DaemonHandle,
+  type StartDaemonOptions,
+} from './server.ts'
 import { acquireLock } from './lock.ts'
 import { readPortFile } from './portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from './contract.ts'
@@ -31,11 +35,12 @@ describe('startDaemon', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     for (const h of handles) await h.stop().catch(() => {})
     await rm(vault, { recursive: true, force: true })
   })
 
-  const start = async (opts: { port?: number } = {}) => {
+  const start = async (opts: Omit<StartDaemonOptions, 'vault'> = {}) => {
     const h = await startDaemon({ vault, ...opts })
     handles.push(h)
     return h
@@ -109,6 +114,79 @@ describe('startDaemon', () => {
     expect('release' in claim).toBe(true)
     if ('release' in claim) await claim.release()
     handles = [] // already torn down
+  })
+
+  test('idle cleanup tick prunes sessions and clearInterval runs during shutdown', async () => {
+    const realSetInterval = globalThis.setInterval.bind(globalThis)
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+    let idleCleanupTickRegistered = false
+    let triggerIdleCleanup: () => void = () => {
+      throw new Error('expected idle cleanup tick to be registered')
+    }
+    let intervalHandle: ReturnType<typeof setInterval> | null = null
+
+    vi.spyOn(globalThis, 'setInterval').mockImplementation(
+      ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+        if (typeof handler === 'function') {
+          idleCleanupTickRegistered = true
+          triggerIdleCleanup = () =>
+            (handler as (...callbackArgs: unknown[]) => void)(...args)
+        }
+        intervalHandle = realSetInterval(
+          handler as (...callbackArgs: unknown[]) => void,
+          timeout,
+          ...args,
+        )
+        return intervalHandle
+      }) as unknown as typeof setInterval,
+    )
+
+    let callbackFired = false
+    const shutdownComplete = new Promise<void>((resolve) => {
+      void start({
+        idleTimeoutMs: 0,
+        onShutdownComplete: () => {
+          callbackFired = true
+          resolve()
+        },
+      })
+    })
+
+    while (handles.length === 0) await new Promise((r) => setTimeout(r, 5))
+    const handle = handles[0]
+
+    const createResponse = await fetch(`http://127.0.0.1:${handle.port}/sessions`, {
+      method: 'POST',
+    })
+    expect(createResponse.status).toBe(201)
+
+    const healthBeforePurge = HealthResponseSchema.parse(
+      await (
+        await fetch(`http://127.0.0.1:${handle.port}/health`)
+      ).json(),
+    )
+    expect(healthBeforePurge.sessionCount).toBe(1)
+
+    expect(idleCleanupTickRegistered).toBe(true)
+    triggerIdleCleanup()
+
+    const healthAfterPurge = HealthResponseSchema.parse(
+      await (
+        await fetch(`http://127.0.0.1:${handle.port}/health`)
+      ).json(),
+    )
+    expect(healthAfterPurge.sessionCount).toBe(0)
+
+    const shutdownResponse = await fetch(`http://127.0.0.1:${handle.port}/shutdown`, {
+      method: 'POST',
+    })
+    expect(shutdownResponse.status).toBe(200)
+    await shutdownComplete
+
+    expect(callbackFired).toBe(true)
+    expect(intervalHandle).not.toBeNull()
+    expect(clearIntervalSpy).toHaveBeenCalledWith(intervalHandle)
+    handles = []
   })
 
   const nonLoopback = firstNonLoopbackIPv4()

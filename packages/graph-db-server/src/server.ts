@@ -11,6 +11,8 @@ import {
 } from './contract.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
+import { mountSessionRoutes } from './routes/sessions.ts'
+import { SessionRegistry } from './session/registry.ts'
 
 export type DaemonHandle = {
   port: number
@@ -22,6 +24,7 @@ export type StartDaemonOptions = {
   vault: string
   port?: number
   logLevel?: 'info' | 'debug'
+  idleTimeoutMs?: number
   // Called after /shutdown finishes its teardown (server close, lock release,
   // port-file delete). The bin sets this to process.exit(0); tests leave it
   // unset so vitest workers survive.
@@ -53,13 +56,33 @@ export async function startDaemon(
   const lockHandle = lockResult
   const startMs = Date.now()
   const app = new Hono()
+  const registry = new SessionRegistry()
+  const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
+
+  let idleSessionTimer: ReturnType<typeof setInterval> | null = setInterval(
+    () => {
+      registry.purgeIdle(idleTimeoutMs)
+    },
+    60_000,
+  )
+  idleSessionTimer.unref()
+
+  const clearIdleSessionTimer = () => {
+    if (!idleSessionTimer) {
+      return
+    }
+    clearInterval(idleSessionTimer)
+    idleSessionTimer = null
+  }
+
+  mountSessionRoutes(app, registry)
 
   app.get('/health', (c) => {
     const body = HealthResponseSchema.parse({
       version: CONTRACT_VERSION,
       vault,
       uptimeSeconds: Math.floor((Date.now() - startMs) / 1000),
-      sessionCount: 0,
+      sessionCount: registry.size(),
     })
     return c.json(body)
   })
@@ -72,6 +95,7 @@ export async function startDaemon(
       queueMicrotask(() => {
         void (async () => {
           try {
+            clearIdleSessionTimer()
             await closeServer()
           } finally {
             await lockHandle.release()
@@ -92,6 +116,7 @@ export async function startDaemon(
   })
 
   let server: Server
+  let closeServer: () => Promise<void>
   try {
     server = serve(
       {
@@ -101,7 +126,14 @@ export async function startDaemon(
       },
       (info: AddressInfo) => listenResolve(info.port),
     ) as Server
+    closeServer = () =>
+      new Promise<void>((res, rej) => {
+        server.close((err) => (err ? rej(err) : res()))
+        // Drop keep-alive idle sockets so close() resolves promptly.
+        ;(server as unknown as { closeIdleConnections?: () => void }).closeIdleConnections?.()
+      })
   } catch (err) {
+    clearIdleSessionTimer()
     await lockHandle.release()
     throw err
   }
@@ -124,18 +156,12 @@ export async function startDaemon(
   try {
     assignedPort = await listenPromise
   } catch (err) {
+    clearIdleSessionTimer()
     await lockHandle.release()
     throw err
   }
 
   await writePortFile(vault, assignedPort)
-
-  const closeServer = () =>
-    new Promise<void>((res, rej) => {
-      server.close((err) => (err ? rej(err) : res()))
-      // Drop keep-alive idle sockets so close() resolves promptly.
-      ;(server as unknown as { closeIdleConnections?: () => void }).closeIdleConnections?.()
-    })
 
   let stopped = false
   const stop = async (): Promise<void> => {
@@ -143,6 +169,7 @@ export async function startDaemon(
     stopped = true
     shuttingDown = true
     try {
+      clearIdleSessionTimer()
       await closeServer()
     } finally {
       await lockHandle.release()

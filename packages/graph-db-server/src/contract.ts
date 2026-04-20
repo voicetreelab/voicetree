@@ -15,3 +15,20 @@ export const ShutdownResponseSchema = z.object({
   ok: z.literal(true),
 })
 export type ShutdownResponse = z.infer<typeof ShutdownResponseSchema>
+
+// --- P4 / sessions ---
+// --- BF-213 session-registry ---
+const SessionIdSchema = z.string().uuid()
+
+export const SessionCreateResponseSchema = z.object({
+  sessionId: SessionIdSchema,
+})
+export type SessionCreateResponse = z.infer<typeof SessionCreateResponseSchema>
+
+export const SessionInfoSchema = z.object({
+  id: SessionIdSchema,
+  lastAccessedAt: z.number().int().nonnegative(),
+  collapseSetSize: z.number().int().nonnegative(),
+  selectionSize: z.number().int().nonnegative(),
+})
+export type SessionInfo = z.infer<typeof SessionInfoSchema>

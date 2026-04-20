@@ -3,8 +3,12 @@ import {
   HealthResponseSchema,
   ShutdownResponseSchema,
   CONTRACT_VERSION,
+  SessionCreateResponseSchema,
+  SessionInfoSchema,
   type HealthResponse,
   type ShutdownResponse,
+  type SessionCreateResponse,
+  type SessionInfo,
 } from './contract.ts'
 
 describe('contract', () => {
@@ -76,5 +80,38 @@ describe('contract', () => {
 
   test('ShutdownResponse rejects ok !== true literal', () => {
     expect(() => ShutdownResponseSchema.parse({ ok: false })).toThrow()
+  })
+
+  test('SessionCreateResponse round-trips a valid sample', () => {
+    const sample: SessionCreateResponse = {
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+    }
+    const parsed = SessionCreateResponseSchema.parse(sample)
+    expect(parsed).toEqual(sample)
+  })
+
+  test('SessionInfo round-trips a valid sample', () => {
+    const sample: SessionInfo = {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      lastAccessedAt: 42,
+      collapseSetSize: 1,
+      selectionSize: 2,
+    }
+    const parsed = SessionInfoSchema.parse(sample)
+    expect(parsed).toEqual(sample)
+  })
+
+  test('Session schemas reject invalid ids and negative counts', () => {
+    expect(() =>
+      SessionCreateResponseSchema.parse({ sessionId: 'not-a-uuid' }),
+    ).toThrow()
+    expect(() =>
+      SessionInfoSchema.parse({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        lastAccessedAt: -1,
+        collapseSetSize: 0,
+        selectionSize: 0,
+      }),
+    ).toThrow()
   })
 })

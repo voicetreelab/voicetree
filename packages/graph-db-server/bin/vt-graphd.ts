@@ -2,11 +2,28 @@
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/server.ts'
 
-type Args = { vault: string; logLevel: 'info' | 'debug' }
+type Args = {
+  vault: string
+  logLevel: 'info' | 'debug'
+  idleTimeoutMs?: number
+}
+
+function parseIdleTimeoutMs(value: string | undefined): number {
+  if (!value) {
+    die('missing required value for --idle-timeout-ms <milliseconds>')
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    die(`invalid --idle-timeout-ms: ${value}`)
+  }
+  return parsed
+}
 
 function parseArgs(argv: string[]): Args {
   let vault: string | null = null
   let logLevel: 'info' | 'debug' = 'info'
+  let idleTimeoutMs: number | undefined
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--vault') {
@@ -15,9 +32,11 @@ function parseArgs(argv: string[]): Args {
       const v = argv[++i]
       if (v === 'info' || v === 'debug') logLevel = v
       else die(`invalid --log-level: ${v}`)
+    } else if (a === '--idle-timeout-ms') {
+      idleTimeoutMs = parseIdleTimeoutMs(argv[++i])
     } else if (a === '--help' || a === '-h') {
       process.stdout.write(
-        'Usage: vt-graphd --vault <path> [--log-level info|debug]\n',
+        'Usage: vt-graphd --vault <path> [--log-level info|debug] [--idle-timeout-ms milliseconds]\n',
       )
       process.exit(0)
     } else {
@@ -25,7 +44,7 @@ function parseArgs(argv: string[]): Args {
     }
   }
   if (!vault) die('missing required --vault <path>')
-  return { vault: resolve(vault!), logLevel }
+  return { vault: resolve(vault!), logLevel, idleTimeoutMs }
 }
 
 function die(msg: string): never {
@@ -41,6 +60,7 @@ async function main() {
     handle = await startDaemon({
       vault: args.vault,
       logLevel: args.logLevel,
+      idleTimeoutMs: args.idleTimeoutMs,
       onShutdownComplete: () => process.exit(0),
     })
   } catch (err) {
