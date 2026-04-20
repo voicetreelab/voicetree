@@ -7,6 +7,7 @@ import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNew
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
@@ -17,11 +18,16 @@ import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHan
  * This test reproduces the real user scenario where labels appear empty in production
  * despite unit tests passing.
  */
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+  return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
 describe('Edge Labels - Full Pipeline Integration Test', () => {
   let tempDir: string
   let cy: Core
 
   beforeEach(async () => {
+      resetRendererStateMirror()
     // Create temp vault directory
     tempDir = path.join(process.cwd(), 'test-fixtures', `temp-vault-${Date.now()}`)
     await fs.mkdir(tempDir, { recursive: true })
@@ -114,7 +120,7 @@ Setup instructions.`
     console.log('✓ Step 5: Verified edge has label in GraphDelta')
 
     // STEP 4: Apply delta to Cytoscape UI
-    applyGraphDeltaToUI(cy, delta)
+    applyDeltaToUI(cy, delta)
 
     console.log('✓ Step 6: Applied GraphDelta to Cytoscape UI')
     console.log('  Cytoscape nodes:', cy.nodes().length)
@@ -155,7 +161,7 @@ _Links:_
     if (E.isLeft(loadResult2)) throw new Error('Expected Right')
     const graph: Graph = loadResult2.right
     const delta: GraphDelta = mapNewGraphToDelta(graph)
-    applyGraphDeltaToUI(cy, delta)
+    applyDeltaToUI(cy, delta)
 
     // Node IDs are absolute paths
     const mainId: string = path.join(tempDir, 'main.md')

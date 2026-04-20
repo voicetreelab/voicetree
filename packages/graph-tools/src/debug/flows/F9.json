@@ -1,0 +1,16 @@
+{
+  "flow": "F9",
+  "title": "Tap existing node mounts visible editor",
+  "intent": "Tap a node and confirm the floating editor appears within the viewport.",
+  "exercises": ["tap", "editor visibility", "dom probes"],
+  "likelyStatusToday": "expected to fail before B1 lands",
+  "judgeFocus": [
+    "floatingEditors length is greater than zero after the tap.",
+    "selectedNodeHasEditor is true for the tapped node.",
+    "At least one floatingEditorRects entry intersects the viewport."
+  ],
+  "steps": [
+    { "tapNode": "{{primaryNodeId}}" },
+    { "wait": 400 }
+  ]
+}

@@ -24,12 +24,37 @@ const DEFAULT_CLICK_TIMEOUT_MS = 2000
 interface PageLike extends SessionPageLike {
   click(selector: string, options?: { timeout?: number }): Promise<void>
   goto(url: string): Promise<unknown>
+  mouse: {
+    click(x: number, y: number): Promise<void>
+  }
   screenshot(options: { path: string; type?: 'png'; fullPage?: boolean }): Promise<Buffer>
   waitForSelector(
     selector: string,
     options?: { timeout?: number },
   ): Promise<unknown>
 }
+
+type FloatingEditorRect = {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+  intersectsViewport: boolean
+}
+
+type DomProbes = {
+  floatingEditors: string[]
+  floatingEditorRects: FloatingEditorRect[]
+  selectedNodeHasEditor: boolean
+  rootClientHeightPx: number
+  sidebarWrapperVisible: boolean
+}
+
+type TapNodePlan =
+  | { ok: true; strategy: 'mouse'; x: number; y: number }
+  | { ok: true; strategy: 'emit' }
+  | { ok: false; error: string }
 
 type RunOptions = {
   specSource: string
@@ -300,6 +325,11 @@ async function executeStep(
     return
   }
 
+  if ('tapNode' in step) {
+    await executeTapNodeStep(page, step.tapNode)
+    return
+  }
+
   if ('type' in step) {
     if (step.selector) {
       await focusTarget(page, step.selector)
@@ -364,6 +394,76 @@ async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8')
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function planTapNode(page: SessionPageLike, nodeId: string): Promise<TapNodePlan> {
+  return page.evaluate<TapNodePlan>(String.raw`(() => {
+    const targetId = ${JSON.stringify(nodeId)}
+    const cy = window.cytoscapeInstance
+    if (!cy) {
+      return { ok: false, error: 'window.cytoscapeInstance unavailable' }
+    }
+
+    const node = cy.getElementById(targetId)
+    if (!node || typeof node.length !== 'number' || node.length === 0) {
+      return { ok: false, error: 'tapNode target not found: ' + targetId }
+    }
+
+    const rendered = typeof node.renderedPosition === 'function' ? node.renderedPosition() : null
+    const containerRect = typeof cy.container === 'function'
+      ? cy.container()?.getBoundingClientRect() ?? null
+      : null
+
+    const safe = value => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
+    const x = safe(containerRect?.left) + safe(rendered?.x)
+    const y = safe(containerRect?.top) + safe(rendered?.y)
+    const withinViewport = x >= 0 && y >= 0 && x <= window.innerWidth && y <= window.innerHeight
+
+    if (withinViewport) {
+      return { ok: true, strategy: 'mouse', x, y }
+    }
+
+    return { ok: true, strategy: 'emit' }
+  })()`)
+}
+
+async function emitTapOnNode(page: SessionPageLike, nodeId: string): Promise<void> {
+  const result = await page.evaluate<{ ok: boolean; error?: string }>(String.raw`(() => {
+    const targetId = ${JSON.stringify(nodeId)}
+    const cy = window.cytoscapeInstance
+    if (!cy) {
+      return { ok: false, error: 'window.cytoscapeInstance unavailable' }
+    }
+    const node = cy.getElementById(targetId)
+    if (!node || typeof node.length !== 'number' || node.length === 0 || typeof node.emit !== 'function') {
+      return { ok: false, error: 'tapNode target not found: ' + targetId }
+    }
+    node.emit('tap')
+    return { ok: true }
+  })()`)
+
+  if (!result.ok) {
+    throw new Error(result.error ?? `tapNode fallback failed for ${nodeId}`)
+  }
+}
+
+async function executeTapNodeStep(page: PageLike, nodeId: string): Promise<void> {
+  const plan = await planTapNode(page, nodeId)
+  if (!plan.ok) {
+    throw new Error(plan.error)
+  }
+
+  if (plan.strategy === 'mouse') {
+    await page.mouse.click(plan.x, plan.y)
+  } else {
+    await emitTapOnNode(page, nodeId)
+  }
+
+  await sleep(400)
+}
+
 async function captureScreenshot(page: PageLike, filePath: string): Promise<string> {
   await page.screenshot({ path: filePath, type: 'png', fullPage: true })
   return filePath
@@ -399,9 +499,80 @@ async function captureConsoleTail(page: SessionPageLike): Promise<unknown> {
   return consoleTail
 }
 
-async function captureSerializedState(instance: DebugInstance): Promise<unknown> {
+async function captureDomProbes(page: SessionPageLike): Promise<DomProbes> {
+  return page.evaluate<DomProbes>(String.raw`(() => {
+    const safe = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
+    const intersectsViewport = rect =>
+      rect.right > 0 &&
+      rect.bottom > 0 &&
+      rect.left < window.innerWidth &&
+      rect.top < window.innerHeight
+    const isVisible = element => {
+      if (!(element instanceof HTMLElement)) return false
+      const style = window.getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        safe(rect.width) > 0 &&
+        safe(rect.height) > 0
+      )
+    }
+
+    const floatingEditorElements = Array.from(
+      document.querySelectorAll('[id^="window-"][id$="-editor"]'),
+    ).filter(element => element instanceof HTMLElement)
+
+    const floatingEditorRects = floatingEditorElements.map(element => {
+      const rect = element.getBoundingClientRect()
+      return {
+        id: element.id,
+        x: safe(rect.left),
+        y: safe(rect.top),
+        w: safe(rect.width),
+        h: safe(rect.height),
+        intersectsViewport: intersectsViewport(rect),
+      }
+    })
+
+    const rectById = new Map(floatingEditorRects.map(rect => [rect.id, rect]))
+    const selectedNodeIds =
+      typeof window.cytoscapeInstance?.$ === 'function'
+        ? window.cytoscapeInstance.$(':selected').map(node => node.id())
+        : []
+
+    const selectedNodeHasEditor =
+      selectedNodeIds.length > 0 &&
+      selectedNodeIds.every(nodeId => rectById.get('window-' + nodeId + '-editor')?.intersectsViewport === true)
+
+    const root = document.getElementById('root')
+    const sidebarWrapper = document.querySelector('.sidebar-wrapper')
+
+    return {
+      floatingEditors: floatingEditorElements.map(element => element.id),
+      floatingEditorRects,
+      selectedNodeHasEditor,
+      rootClientHeightPx: root instanceof HTMLElement ? root.clientHeight : 0,
+      sidebarWrapperVisible: isVisible(sidebarWrapper),
+    }
+  })()`)
+}
+
+async function captureSerializedState(instance: DebugInstance, page: SessionPageLike): Promise<unknown> {
   const transport = createLiveTransport(instance.mcpPort)
-  return serializeState(await transport.getLiveState())
+  const [state, domProbes] = await Promise.all([
+    transport.getLiveState().then(serializeState),
+    captureDomProbes(page),
+  ])
+
+  if (typeof state === 'object' && state !== null && !Array.isArray(state)) {
+    return {
+      ...(state as Record<string, unknown>),
+      domProbes,
+    }
+  }
+
+  return { state, domProbes }
 }
 
 async function captureDrift(instance: DebugInstance, page: SessionPageLike): Promise<unknown> {
@@ -481,7 +652,7 @@ async function runSteps(
     if (options.stateEach) {
       const result = await captureJsonObservation(
         `${baseName}.state.json`,
-        () => captureSerializedState(instance),
+        () => captureSerializedState(instance, page),
       )
       output.state = result.path
       if (result.error) {

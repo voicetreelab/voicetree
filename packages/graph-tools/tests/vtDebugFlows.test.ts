@@ -26,7 +26,7 @@ describe('vt-debug-flows CLI', () => {
     }
 
     expect(parsed.ok).toBe(true)
-    expect(parsed.result.flowIds).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'])
+    expect(parsed.result.flowIds).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'])
     expect(parsed.result.flows.every(flow => flow.stepCount > 0)).toBe(true)
   })
 })

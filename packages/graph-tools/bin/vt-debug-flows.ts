@@ -66,7 +66,7 @@ type RunAllResult = {
 function usage(message?: string): Response<never> {
   return err(
     'flows',
-    message ?? 'usage: vt-debug-flows <list|run-all|run <F1..F8>> [--out <dir>] [--fixture-out <file>] [--port <n> | --pid <n> | --vault <path>]',
+    message ?? `usage: vt-debug-flows <list|run-all|run <${FLOW_IDS.join('|')}>> [--out <dir>] [--fixture-out <file>] [--port <n> | --pid <n> | --vault <path>]`,
   )
 }
 

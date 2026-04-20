@@ -12,6 +12,7 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 import { getFolderTreeState, removeCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
@@ -31,10 +32,15 @@ function del(nodeId: string): DeleteNode {
     return { type: 'DeleteNode', nodeId, deletedNode: O.none }
 }
 
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+    return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
 describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
 
     beforeEach(() => {
+        resetRendererStateMirror()
         // Initialize headless cytoscape
         cy = cytoscape({
             headless: true,
@@ -77,7 +83,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, parentDelta)
+            applyDeltaToUI(cy, parentDelta)
 
             // Create child node with edge to parent
             const childNode: GraphNode = {
@@ -105,7 +111,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Applying the delta
-            applyGraphDeltaToUI(cy, childDelta)
+            applyDeltaToUI(cy, childDelta)
 
             // THEN: Both nodes should exist
             expect(cy.getElementById('parent').length).toBe(1)
@@ -151,7 +157,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Orphan node should exist
             expect(cy.getElementById('orphan').length).toBe(1)
@@ -193,7 +199,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [upsert(directChild), upsert(nestedChild)])
+            applyDeltaToUI(cy, [upsert(directChild), upsert(nestedChild)])
 
             expect(cy.getElementById('/vault/').length).toBe(0)
             expect(cy.getElementById('/vault/auth/').length).toBe(1)
@@ -236,7 +242,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [upsert(rootFile), upsert(nestedChild)])
+            applyDeltaToUI(cy, [upsert(rootFile), upsert(nestedChild)])
 
             expect(cy.getElementById('/vault/auth/').length).toBe(1)
             expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
@@ -281,8 +287,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [upsert(rootFile), upsert(directChild)])
-            applyGraphDeltaToUI(cy, [upsert(nestedChild)])
+            applyDeltaToUI(cy, [upsert(rootFile), upsert(directChild)])
+            applyDeltaToUI(cy, [upsert(nestedChild)])
 
             expect(cy.getElementById('/vault/auth/').length).toBe(1)
             expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
@@ -315,7 +321,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, addDelta)
+            applyDeltaToUI(cy, addDelta)
             expect(cy.getElementById('to-delete').length).toBe(1)
 
             // WHEN: Deleting the node
@@ -327,7 +333,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, deleteDelta)
+            applyDeltaToUI(cy, deleteDelta)
 
             // THEN: GraphNode should be removed
             expect(cy.getElementById('to-delete').length).toBe(0)
@@ -358,7 +364,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, addDelta)
+            applyDeltaToUI(cy, addDelta)
 
             const originalPos: cytoscape.Position = cy.getElementById('node-to-update').position()
             expect(originalPos.x).toBe(100)
@@ -386,7 +392,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             ]
 
-            applyGraphDeltaToUI(cy, updateDelta)
+            applyDeltaToUI(cy, updateDelta)
 
             // THEN: Content should be updated
             const node: cytoscape.CollectionReturnValue = cy.getElementById('node-to-update')
@@ -456,7 +462,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(node3)
             ]
 
-            applyGraphDeltaToUI(cy, bulkDelta)
+            applyDeltaToUI(cy, bulkDelta)
 
             // THEN: All nodes should exist
             expect(cy.getElementById('bulk-1').length).toBe(1)
@@ -504,7 +510,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(nodeToDelete)
             ]
 
-            applyGraphDeltaToUI(cy, setupDelta)
+            applyDeltaToUI(cy, setupDelta)
 
             expect(cy.nodes()).toHaveLength(2)
 
@@ -540,7 +546,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 del('to-delete')
             ]
 
-            applyGraphDeltaToUI(cy, mixedDelta)
+            applyDeltaToUI(cy, mixedDelta)
 
             // THEN: Should have 2 nodes (existing updated + new, deleted removed)
             expect(cy.nodes()).toHaveLength(2)
@@ -593,10 +599,10 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(child)
             ]
 
-            applyGraphDeltaToUI(cy, delta1)
+            applyDeltaToUI(cy, delta1)
 
             // WHEN: Applying the same delta again (upsert parent again)
-            applyGraphDeltaToUI(cy, delta1)
+            applyDeltaToUI(cy, delta1)
 
             // THEN: Should only have one edge
             const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
@@ -644,7 +650,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // THEN: Should not throw "Can not create second element with ID" error
-            expect(() => applyGraphDeltaToUI(cy, deltaWithDuplicateNode)).not.toThrow()
+            expect(() => applyDeltaToUI(cy, deltaWithDuplicateNode)).not.toThrow()
 
             // AND: Should only have one edge
             const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
@@ -686,7 +692,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(child),
                 upsert(parent)
             ]
-            applyGraphDeltaToUI(cy, delta1)
+            applyDeltaToUI(cy, delta1)
 
             // Delta 2: Parent file change causes parent to be re-sent
             const delta2: GraphDelta = [
@@ -694,7 +700,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // THEN: Should not throw "Can not create second element with ID" error
-            expect(() => applyGraphDeltaToUI(cy, delta2)).not.toThrow()
+            expect(() => applyDeltaToUI(cy, delta2)).not.toThrow()
 
             // AND: Should only have one edge
             const edges: cytoscape.EdgeCollection = cy.edges(`[id = "parent->child"]`)
@@ -735,7 +741,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Creating nodes with labeled edge
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Edge should have the label
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -777,7 +783,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Creating nodes with empty label edge
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Edge should not have label set (undefined)
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -819,7 +825,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Creating edge with underscores in label
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Edge label should have underscores replaced with spaces
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -861,7 +867,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Creating edge with multiple underscores
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: All underscores should be replaced with spaces
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -903,7 +909,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             ]
 
             // WHEN: Creating edge without underscores
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Label should remain unchanged
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -937,7 +943,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [upsert(parent), upsert(child)])
+            applyDeltaToUI(cy, [upsert(parent), upsert(child)])
 
             // Verify initial label
             const edge: cytoscape.CollectionReturnValue = cy.getElementById('parent->child')
@@ -949,7 +955,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [{ targetId: 'child', label: 'is_prerequisite_for' }]
             }
 
-            applyGraphDeltaToUI(cy, [upsert(updatedParent)])
+            applyDeltaToUI(cy, [upsert(updatedParent)])
 
             // THEN: Edge label should be updated to the new value
             expect(edge.data('label')).toBe('is prerequisite for')
@@ -974,7 +980,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            applyGraphDeltaToUI(cy, [upsert(parent)])
+            applyDeltaToUI(cy, [upsert(parent)])
 
             // AND: A shadow node (floating window anchor) with edge from parent
             // This simulates what anchorToNode() creates for terminals/editors
@@ -1002,7 +1008,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Parent is updated (e.g., file changed on disk)
             // The graph model knows nothing about shadow nodes, so outgoingEdges is empty
-            applyGraphDeltaToUI(cy, [upsert(parent)])
+            applyDeltaToUI(cy, [upsert(parent)])
 
             // THEN: Edge to shadow node should be preserved (not removed)
             expect(cy.edges().length).toBe(1)
@@ -1020,10 +1026,10 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // CASE 1: Edge created when child arrives in same delta as parent update (race condition fix)
             // Simulates: parent delta arrived first (edge skipped), now child delta includes parent
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]), previousNode: O.none }])
+            applyDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]), previousNode: O.none }])
             expect(cy.edges().length).toBe(0) // Edge skipped - child doesn't exist yet
 
-            applyGraphDeltaToUI(cy, [
+            applyDeltaToUI(cy, [
                 { type: 'UpsertNode', nodeToUpsert: makeNode('child'), previousNode: O.none },
                 { type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]), previousNode: O.none } // Parent re-sent with child
             ])
@@ -1031,12 +1037,12 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('parent->child').length).toBe(1)
 
             // CASE 2: Edge persists when node updated but link remains (what old "race condition protection" tried to cover)
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' }, previousNode: O.none }])
+            applyDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' }, previousNode: O.none }])
             expect(cy.edges().length).toBe(1) // Edge still exists
             expect(cy.getElementById('parent').data('label')).toBe('Parent Updated') // Label derived from updated content
 
             // CASE 3: Edge removed when wikilink deleted from markdown
-            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []), previousNode: O.none }]) // No more edges
+            applyDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []), previousNode: O.none }]) // No more edges
             expect(cy.edges().length).toBe(0) // Edge removed
             expect(cy.getElementById('parent').length).toBe(1) // Parent still exists
             expect(cy.getElementById('child').length).toBe(1) // Child still exists
@@ -1070,7 +1076,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 previousNode: O.none
             }))
 
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: All nodes should have their colors applied
             validColors.forEach((color, i) => {
@@ -1105,7 +1111,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 previousNode: O.none
             }))
 
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: All nodes should have undefined color (invalid colors filtered out)
             invalidColors.forEach((_, i) => {
@@ -1133,7 +1139,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(originalNode)
             ]
 
-            applyGraphDeltaToUI(cy, createDelta)
+            applyDeltaToUI(cy, createDelta)
             expect(cy.getElementById('color-update').data('color')).toBe('#ff0000')
 
             // WHEN: Updating with invalid color
@@ -1154,7 +1160,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(updatedNode)
             ]
 
-            applyGraphDeltaToUI(cy, updateDelta)
+            applyDeltaToUI(cy, updateDelta)
 
             // THEN: Color should be set to undefined (invalid color filtered)
             expect(cy.getElementById('color-update').data('color')).toBeUndefined()
@@ -1181,7 +1187,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [upsert(nodeWithScientificNotation)]
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Node should exist
             const node: cytoscape.CollectionReturnValue = cy.getElementById('14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md')
@@ -1211,7 +1217,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [upsert(nodeWithSmallScientificNotation)]
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             // THEN: Position should be correctly parsed
             const node: cytoscape.CollectionReturnValue = cy.getElementById('5_Immediate_Test_Observation_No_Output.md')
@@ -1234,7 +1240,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const delta: GraphDelta = [upsert(nodeWithLargeNotation)]
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
 
             const node: cytoscape.CollectionReturnValue = cy.getElementById('large-notation.md')
             const pos: cytoscape.Position = node.position()
@@ -1268,7 +1274,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(originalNode)
             ]
 
-            applyGraphDeltaToUI(cy, createDelta)
+            applyDeltaToUI(cy, createDelta)
 
             const node: cytoscape.CollectionReturnValue = cy.getElementById('test-node')
             expect(node.length).toBe(1)
@@ -1299,7 +1305,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 upsert(updatedNode)
             ]
 
-            applyGraphDeltaToUI(cy, updateDelta)
+            applyDeltaToUI(cy, updateDelta)
 
             // THEN: Node should have breathing animation (cyan/appended content animation)
             expect(node.data('breathingActive')).toBe(true)

@@ -44,8 +44,49 @@ export function mountLayoutProjection(
     cy: Core,
     store: LayoutStore,
 ): LayoutProjectionMount {
+    let applyingProjection = false
+
+    const syncViewportToStore = (): void => {
+        const zoom: number = cy.zoom()
+        const pan: { x: number; y: number } = cy.pan()
+        const layout = store.getLayout()
+
+        if (layout.zoom !== zoom) {
+            store.dispatchSetZoom(zoom)
+        }
+
+        if (layout.pan?.x !== pan.x || layout.pan?.y !== pan.y) {
+            store.dispatchSetPan({ x: pan.x, y: pan.y })
+        }
+    }
+
+    const applyProjectedDelta = (delta: {
+        readonly zoom?: number
+        readonly pan?: { readonly x: number; readonly y: number }
+        readonly positions?: ReadonlyMap<string, { readonly x: number; readonly y: number }>
+        readonly fit?: { readonly paddingPx: number } | null | undefined
+    }): void => {
+        applyingProjection = true
+        try {
+            applyLayoutDelta(cy, delta)
+        } finally {
+            applyingProjection = false
+        }
+
+        // Direct cy.fit()/pan()/zoom() calls remain in the app; mirror the actual
+        // live viewport back into layoutStore so floating overlays stay anchored.
+        syncViewportToStore()
+    }
+
+    const handleViewport = (): void => {
+        if (applyingProjection) return
+        syncViewportToStore()
+    }
+
+    cy.on('viewport', handleViewport)
+
     // Hydrate cy from current layout snapshot (covers reload-into-loaded).
-    applyLayoutDelta(cy, {
+    applyProjectedDelta({
         zoom:      store.getLayout().zoom,
         pan:       store.getLayout().pan,
         positions: store.getLayout().positions as ReadonlyMap<string, { x: number; y: number }>,
@@ -53,10 +94,15 @@ export function mountLayoutProjection(
     })
 
     const unsubscribe: () => void = store.subscribeLayout((delta: LayoutDelta) => {
-        applyLayoutDelta(cy, delta)
+        applyProjectedDelta(delta)
     })
 
-    return { unmount: unsubscribe }
+    return {
+        unmount: () => {
+            unsubscribe()
+            cy.off('viewport', handleViewport)
+        }
+    }
 }
 
 /**

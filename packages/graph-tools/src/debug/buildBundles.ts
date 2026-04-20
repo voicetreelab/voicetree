@@ -28,7 +28,13 @@ function extractConsole(consoleData: unknown): { errors: string[]; warnings: str
   return { errors: errors.slice(0, 5), warnings: warnings.slice(0, 3) }
 }
 
-function extractState(stateData: unknown): { nodeCount?: number; rootsLoaded?: string[] } {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function extractState(
+  stateData: unknown,
+): { nodeCount?: number; rootsLoaded?: string[]; domProbes?: Readonly<Record<string, unknown>> } {
   if (typeof stateData !== 'object' || stateData === null) return {}
   const s = stateData as Record<string, unknown>
   const graph = s.graph as Record<string, unknown> | undefined
@@ -38,7 +44,8 @@ function extractState(stateData: unknown): { nodeCount?: number; rootsLoaded?: s
     : undefined
   const loaded = roots?.loaded
   const rootsLoaded = Array.isArray(loaded) ? (loaded as string[]) : undefined
-  return { nodeCount, rootsLoaded }
+  const domProbes = isRecord(s.domProbes) ? s.domProbes : undefined
+  return { nodeCount, rootsLoaded, domProbes }
 }
 
 async function readJsonSafe(filePath: string): Promise<unknown> {
@@ -77,7 +84,7 @@ async function buildRunSummary(runDir: string, runIndex: number, stepCount: numb
     const consoleData = await readJsonSafe(consolePath)
     const stateData = await readJsonSafe(statePath)
     const { errors: consoleErrors, warnings: consoleWarnings } = extractConsole(consoleData)
-    const { nodeCount, rootsLoaded } = extractState(stateData)
+    const { nodeCount, rootsLoaded, domProbes } = extractState(stateData)
 
     stepOutputs.push({
       stepIndex: i,
@@ -89,6 +96,7 @@ async function buildRunSummary(runDir: string, runIndex: number, stepCount: numb
       consoleWarnings,
       stateGraphNodeCount: nodeCount,
       stateRootsLoaded: rootsLoaded,
+      domProbes,
     })
   }
 

@@ -23,6 +23,7 @@ export interface GraphViewDisposeDependencies {
     cy: Core;
     handleResize: () => void;
     cleanupGraphSubscription: (() => void) | null;
+    layoutProjectionUnmount: (() => void) | null;
     viewSubscriptionCleanups: ViewSubscriptionCleanups | null;
     hotkeyManager: HotkeyManager;
     gestureService: NavigationGestureService;
@@ -48,6 +49,10 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
     // Cleanup graph subscription
     if (deps.cleanupGraphSubscription) {
         deps.cleanupGraphSubscription();
+    }
+
+    if (deps.layoutProjectionUnmount) {
+        deps.layoutProjectionUnmount();
     }
 
     // Cleanup view subscriptions (terminals, navigation, pinned editors)

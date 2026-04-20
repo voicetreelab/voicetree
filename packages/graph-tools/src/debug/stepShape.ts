@@ -1,6 +1,7 @@
 import type { SerializedCommand } from '@vt/graph-state'
 
 export type ClickStep = { click: string }
+export type TapNodeStep = { tapNode: string }
 export type TypeStep = { type: string; selector?: string }
 export type PressStep = { press: string; selector?: string }
 export type WaitStep = { wait: number }
@@ -10,6 +11,7 @@ export type DispatchStep = { dispatch: SerializedCommand }
 
 export type StepSpec =
   | ClickStep
+  | TapNodeStep
   | TypeStep
   | PressStep
   | WaitStep
@@ -24,7 +26,7 @@ export type StepValidation =
 export const STEP_SPEC_SELECTOR_NOTE =
   'Selectors are plain CSS selectors. For hover-editor content, use #window-<nodeId>-editor .cm-content rather than #hover-editor.'
 
-const STEP_KEYS = ['click', 'type', 'press', 'wait', 'waitFor', 'navigate', 'dispatch'] as const
+const STEP_KEYS = ['click', 'tapNode', 'type', 'press', 'wait', 'waitFor', 'navigate', 'dispatch'] as const
 const COMMAND_TYPES = new Set([
   'Collapse',
   'Expand',
@@ -148,6 +150,14 @@ export function validateStepSpec(input: unknown): StepValidation {
       const selector = readOptionalSelector('type', input)
       if (selector && typeof selector !== 'string') return selector
       return { ok: true, step: selector ? { type: text, selector } : { type: text } }
+    }
+
+    case 'tapNode': {
+      const extraKeys = rejectExtraKeys('tapNode', input, ['tapNode'])
+      if (extraKeys) return extraKeys
+      const tapNode = readNonEmptyString('tapNode', 'tapNode', input.tapNode)
+      if (typeof tapNode !== 'string') return tapNode
+      return { ok: true, step: { tapNode } }
     }
 
     case 'press': {

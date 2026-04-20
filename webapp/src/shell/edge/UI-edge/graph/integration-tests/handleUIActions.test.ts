@@ -19,6 +19,7 @@ import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 
 // Mock posthog
@@ -47,11 +48,16 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', asyn
     }
 })
 
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+    return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
 describe('createNewChildNodeFromUI - Integration', () => {
     let cy: Core
     let mockGraph: Graph
 
     beforeEach(() => {
+        resetRendererStateMirror()
         // Create a minimal graph with 2 nodes
         // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
         mockGraph = createGraph({
@@ -106,7 +112,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         const mockApplyDelta: (delta: GraphDelta) => Promise<void> = vi.fn().mockImplementation(async (delta: GraphDelta) => {
             mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
             // Apply the delta to the cytoscape instance after getNode can see the new graph state.
-            applyGraphDeltaToUI(cy, delta)
+            applyDeltaToUI(cy, delta)
             return undefined
         })
 
@@ -262,12 +268,12 @@ describe('modifyNodeContentFromUI - Integration', () => {
                     getGraph: vi.fn().mockReturnValue(mockGraph),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
                         mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                         return undefined
                     }),
                     applyGraphDeltaToDBThroughMemAndUIExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
                         mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                         return undefined
                     }),
                     getNode: vi.fn().mockImplementation((nodeId: string) => mockGraph.nodes[nodeId])

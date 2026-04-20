@@ -82,6 +82,10 @@ function getSingleton(): LayoutStore {
     return singleton
 }
 
+export function getLayoutStoreSingleton(): LayoutStore {
+    return getSingleton()
+}
+
 export function getLayout(): StateLayout {
     return getSingleton().getLayout()
 }

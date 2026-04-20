@@ -8,10 +8,10 @@ import {
 } from '../src/debug/flows/index'
 
 describe('flow library', () => {
-  it('loads all eight authored golden flows', async () => {
+  it('loads all nine authored golden flows', async () => {
     const flows = await loadAllFlowDefinitions()
 
-    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'])
+    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'])
     expect(flows.every(flow => flow.steps.length > 0)).toBe(true)
   })
 
@@ -62,6 +62,7 @@ describe('flow library', () => {
       likelyStatusToday: 'drift risk',
       judgeFocus: ['selection snapshots'],
       steps: [
+        { tapNode: '{{primaryNodeId}}' },
         { dispatch: { type: 'Select', ids: ['{{primaryNodeId}}'] } },
         { dispatch: { type: 'Collapse', folder: '{{primaryFolderId}}' } },
         { dispatch: { type: 'LoadRoot', root: '{{rootPath}}' } },
@@ -76,6 +77,7 @@ describe('flow library', () => {
     })
 
     expect(resolved.steps).toEqual([
+      { tapNode: '/tmp/vault/a.md' },
       { dispatch: { type: 'Select', ids: ['/tmp/vault/a.md'] } },
       { dispatch: { type: 'Collapse', folder: '/tmp/vault/notes/' } },
       { dispatch: { type: 'LoadRoot', root: '/tmp/vault' } },

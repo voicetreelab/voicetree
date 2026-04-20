@@ -29,12 +29,17 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import { initGraphModel, setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-model'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
 let tempVault: string = ''
+
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+    return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
 
 // Use vi.hoisted() for values that need to be available when vi.mock factory runs
 const { ipcMain } = vi.hoisted(() => {
@@ -169,6 +174,7 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
+        resetRendererStateMirror()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
         await ensureHandlersImported()
@@ -267,7 +273,7 @@ Child content`
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         syncMockGraph(delta)
                         // Also update cytoscape UI since file watching is mocked
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -457,7 +463,7 @@ Child content`
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
                         syncMockGraph(delta)
                         // Also update cytoscape UI since file watching is mocked
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }

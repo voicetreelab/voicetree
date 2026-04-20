@@ -8,6 +8,10 @@ describe('validateStepSpec', () => {
       ok: true,
       step: { click: '#toolbar button' },
     })
+    expect(validateStepSpec({ tapNode: 'node-a' })).toEqual({
+      ok: true,
+      step: { tapNode: 'node-a' },
+    })
     expect(validateStepSpec({ type: 'hello', selector: '#window-node-editor .cm-content' })).toEqual({
       ok: true,
       step: { type: 'hello', selector: '#window-node-editor .cm-content' },
@@ -41,11 +45,15 @@ describe('validateStepSpec', () => {
     })
     expect(validateStepSpec({ click: '#a', wait: 1 })).toEqual({
       ok: false,
-      error: 'step must contain exactly one of: click, type, press, wait, waitFor, navigate, dispatch',
+      error: 'step must contain exactly one of: click, tapNode, type, press, wait, waitFor, navigate, dispatch',
     })
   })
 
   it('rejects malformed field values and unexpected keys', () => {
+    expect(validateStepSpec({ tapNode: '' })).toEqual({
+      ok: false,
+      error: 'tapNode.tapNode must be a non-empty string',
+    })
     expect(validateStepSpec({ type: '', selector: '#editor' })).toEqual({
       ok: false,
       error: 'type.type must be a non-empty string',

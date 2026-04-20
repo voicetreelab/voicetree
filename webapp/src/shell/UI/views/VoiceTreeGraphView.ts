@@ -77,6 +77,8 @@ import {
 import {disposeGraphView} from './disposeGraphView';
 import {closeSelectedWindow as closeSelectedWindowFn} from './closeSelectedWindow';
 import {setupGraphViewEventListeners} from './setupGraphViewEventListeners';
+import {mountLayoutProjection} from '@/shell/edge/UI-edge/graph/layoutProjection';
+import {getLayoutStoreSingleton} from '@vt/graph-state/state/layoutStore';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -106,6 +108,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
+    private layoutProjectionUnmount: (() => void) | null = null;
 
     // Settings change listener cleanup
     private cleanupSettingsListener: (() => void) | null = null;
@@ -259,6 +262,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             showFps: this.options.showFps
         });
         this.cy = cy;
+        const projection = mountLayoutProjection(this.cy, getLayoutStoreSingleton());
+        this.layoutProjectionUnmount = projection.unmount;
 
         // Guard against canvas shrinking during layout instability (e.g. WebGL context loss cascade)
         guardCytoscapeResize(this.cy);
@@ -475,6 +480,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             cy: this.cy,
             handleResize: this.handleResize,
             cleanupGraphSubscription: this.cleanupGraphSubscription,
+            layoutProjectionUnmount: this.layoutProjectionUnmount,
             viewSubscriptionCleanups: this.viewSubscriptionCleanups,
             cleanupSettingsListener: this.cleanupSettingsListener,
             hotkeyManager: this.hotkeyManager,
@@ -491,6 +497,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Null out references after disposal
         this.cleanupGraphSubscription = null;
+        this.layoutProjectionUnmount = null;
         this.cleanupSettingsListener = null;
         this.viewSubscriptionCleanups = null;
         // Call parent dispose

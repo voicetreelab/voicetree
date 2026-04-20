@@ -7,6 +7,7 @@ import type {GraphDelta, UpsertNodeDelta} from '@vt/graph-model/pure/graph';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
+import {projectDelta} from '@/shell/edge/UI-edge/state/rendererStateMirror';
 import {extractRecentNodesFromDelta} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
@@ -46,8 +47,10 @@ export function subscribeToGraphUpdates(
         setLoadingState(false);
         setEmptyStateVisible(false);
 
-        // applyGraphDeltaToUI handles auto-pinning editors for new external nodes
-        applyGraphDeltaToUI(cy, delta);
+        // applyGraphDeltaToUI handles auto-pinning editors for new external nodes.
+        // BF-L5-202b: renderer folds delta into the State mirror + projects
+        // through `project(state)` so cy reflects the true ElementSpec.
+        applyGraphDeltaToUI(cy, projectDelta(delta));
 
         // Track last created node for "fit to last node" hotkey (Space)
         const lastUpsertedNode: UpsertNodeDelta | undefined = extractRecentNodesFromDelta(delta)[0];

@@ -8,6 +8,7 @@ export interface StepOutputSummary {
   readonly observationErrors?: string[]
   readonly stateGraphNodeCount?: number
   readonly stateRootsLoaded?: string[]
+  readonly domProbes?: Readonly<Record<string, unknown>>
   readonly consoleErrors?: string[]
   readonly consoleWarnings?: string[]
 }
@@ -106,6 +107,13 @@ export function buildJudgePrompt(bundle: FlowBundle): string {
 
       if (output.stateGraphNodeCount !== undefined) {
         lines.push(`    State: graph.nodes count=${output.stateGraphNodeCount}`)
+      }
+
+      if (output.domProbes !== undefined) {
+        lines.push('    Dom probes:')
+        for (const line of JSON.stringify(output.domProbes, null, 2).split('\n')) {
+          lines.push(`      ${line}`)
+        }
       }
     }
   }

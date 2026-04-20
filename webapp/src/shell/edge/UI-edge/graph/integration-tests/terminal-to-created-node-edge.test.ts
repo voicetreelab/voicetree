@@ -13,7 +13,8 @@ import type { Core, EdgeCollection } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import type { GraphNode, UpsertNodeDelta } from '@vt/graph-model/pure/graph'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import type { GraphDelta, GraphNode, UpsertNodeDelta } from '@vt/graph-model/pure/graph'
 import { addTerminal, clearTerminals } from '@/shell/edge/UI-edge/state/TerminalStore'
 import { createTerminalData, getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types'
@@ -27,10 +28,15 @@ function upsert(node: GraphNode): UpsertNodeDelta {
     return { type: 'UpsertNode', nodeToUpsert: node, previousNode: O.none }
 }
 
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+    return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
 describe('Terminal to created node edges', () => {
     let cy: Core
 
     beforeEach(() => {
+        resetRendererStateMirror()
         cy = cytoscape({
             headless: true,
             elements: []
@@ -77,7 +83,7 @@ describe('Terminal to created node edges', () => {
                 isContextNode: false
             }
         }
-        applyGraphDeltaToUI(cy, [upsert(parentNode)])
+        applyDeltaToUI(cy, [upsert(parentNode)])
 
         // WHEN: A new node is created with agent_name: Sam (matching terminal title prefix)
         const nodeCreatedByAgent: GraphNode = {
@@ -91,7 +97,7 @@ describe('Terminal to created node edges', () => {
                 isContextNode: false
             }
         }
-        applyGraphDeltaToUI(cy, [upsert(nodeCreatedByAgent)])
+        applyDeltaToUI(cy, [upsert(nodeCreatedByAgent)])
 
         // THEN: A dotted edge should exist from terminal shadow to the new node
         const progressEdges: EdgeCollection = cy.edges(`[source = "${shadowNodeId}"][target = "progress-node.md"]`)
@@ -134,7 +140,7 @@ describe('Terminal to created node edges', () => {
                 isContextNode: false
             }
         }
-        applyGraphDeltaToUI(cy, [upsert(nodeCreatedByDifferentAgent)])
+        applyDeltaToUI(cy, [upsert(nodeCreatedByDifferentAgent)])
 
         // THEN: No edge should exist from terminal shadow to the new node
         const progressEdges: EdgeCollection = cy.edges(`[source = "${shadowNodeId}"][target = "other-progress.md"]`)
@@ -174,7 +180,7 @@ describe('Terminal to created node edges', () => {
                 isContextNode: false
             }
         }
-        applyGraphDeltaToUI(cy, [upsert(nodeWithoutAgentName)])
+        applyDeltaToUI(cy, [upsert(nodeWithoutAgentName)])
 
         // THEN: No edge should exist from terminal shadow to the new node
         const progressEdges: EdgeCollection = cy.edges(`[source = "${shadowNodeId}"][target = "manual-node.md"]`)

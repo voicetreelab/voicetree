@@ -17,15 +17,21 @@ import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { Graph, GraphDelta, GraphNode, UpsertNodeDelta } from '@vt/graph-model/pure/graph'
 import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph'
 import { fromCreateChildToUpsertNode } from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import path from 'path'
 
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+  return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
 describe('Node Positioning Spacing - Integration', () => {
   let cy: Core
 
   beforeEach(() => {
+      resetRendererStateMirror()
     // Initialize headless cytoscape
     cy = cytoscape({
       headless: true,
@@ -55,7 +61,7 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // AND: Convert graph to delta and apply to UI
     const delta: GraphDelta = mapNewGraphToDelta(graph)
-    applyGraphDeltaToUI(cy, delta)
+    applyDeltaToUI(cy, delta)
 
     // THEN: All nodes should have positions
     const nodes: NodeCollection = cy.nodes()
@@ -126,7 +132,7 @@ describe('Node Positioning Spacing - Integration', () => {
 
     // AND: Apply graph to cytoscape UI
     const delta: GraphDelta = mapNewGraphToDelta(graph)
-    applyGraphDeltaToUI(cy, delta)
+    applyDeltaToUI(cy, delta)
 
     // WHEN: Pick a parent node that has children (to ensure it has a position)
     const parentNodeId: string | undefined = Object.keys(graph.nodes).find(nodeId => {

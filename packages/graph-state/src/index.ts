@@ -85,6 +85,7 @@ export { project } from './project'
 
 export {
     createLayoutStore,
+    getLayoutStoreSingleton,
     getLayout,
     dispatchSetZoom,
     dispatchSetPan,

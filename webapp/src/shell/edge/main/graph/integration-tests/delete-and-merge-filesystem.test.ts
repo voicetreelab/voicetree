@@ -29,11 +29,16 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import { initGraphModel, setProjectRootWatchedDirectory } from '@vt/graph-model'
 
 // State managed by mocked globals
 let currentGraph: Graph | null = null
 let tempVault: string = ''
+
+function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+    return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
 
 // Mock Electron's ipcMain - use vi.hoisted to avoid "Cannot access before initialization" error
 const { ipcMain } = vi.hoisted(() => {
@@ -197,6 +202,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
+        resetRendererStateMirror()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
@@ -248,7 +254,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
                     getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -315,7 +321,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
                     getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -386,7 +392,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
                     getNode: mainAPI.getNode,
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -464,7 +470,7 @@ describe('Merge Operation - Filesystem Integration', () => {
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -533,7 +539,7 @@ describe('Merge Operation - Filesystem Integration', () => {
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -615,7 +621,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }
@@ -671,7 +677,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
                     getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
                     applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
                         await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyGraphDeltaToUI(cy, delta)
+                        applyDeltaToUI(cy, delta)
                     }
                 }
             }

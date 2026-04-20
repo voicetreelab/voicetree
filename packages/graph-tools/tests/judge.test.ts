@@ -31,6 +31,10 @@ const MINIMAL_BUNDLE: FlowBundle = {
           error: 'TimeoutError: page.waitForSelector: Timeout 2000ms exceeded.',
           stateGraphNodeCount: 2,
           stateRootsLoaded: ['/path/to/root'],
+          domProbes: {
+            floatingEditors: ['window-node-a-editor'],
+            selectedNodeHasEditor: false,
+          },
         },
       ],
     },
@@ -69,6 +73,13 @@ describe('buildJudgePrompt', () => {
   it('includes run evidence with error', () => {
     const prompt = buildJudgePrompt(MINIMAL_BUNDLE)
     expect(prompt).toContain('TimeoutError')
+  })
+
+  it('includes domProbes blocks when present', () => {
+    const prompt = buildJudgePrompt(MINIMAL_BUNDLE)
+    expect(prompt).toContain('Dom probes:')
+    expect(prompt).toContain('"floatingEditors"')
+    expect(prompt).toContain('"selectedNodeHasEditor": false')
   })
 
   it('includes JSON schema shape in prompt', () => {
