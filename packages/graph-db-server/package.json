@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.13",
+    "@vt/graph-model": "*",
     "hono": "^4.12.12",
     "zod": "^4.3.6"
   },

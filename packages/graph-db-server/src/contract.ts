@@ -32,3 +32,21 @@ export const SessionInfoSchema = z.object({
   selectionSize: z.number().int().nonnegative(),
 })
 export type SessionInfo = z.infer<typeof SessionInfoSchema>
+
+// --- P2 / vault ---
+export const VaultStateSchema = z.object({
+  vaultPath: z.string(),
+  readPaths: z.array(z.string()),
+  writePath: z.string(),
+})
+export type VaultState = z.infer<typeof VaultStateSchema>
+
+export const AddReadPathRequestSchema = z.object({
+  path: z.string(),
+})
+export type AddReadPathRequest = z.infer<typeof AddReadPathRequestSchema>
+
+export const SetWritePathRequestSchema = z.object({
+  path: z.string(),
+})
+export type SetWritePathRequest = z.infer<typeof SetWritePathRequestSchema>

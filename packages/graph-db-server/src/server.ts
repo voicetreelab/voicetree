@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
+import { setProjectRootWatchedDirectory } from '@vt/graph-model'
 import { Hono } from 'hono'
 import {
   CONTRACT_VERSION,
@@ -11,6 +12,7 @@ import {
 } from './contract.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
+import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
 import { SessionRegistry } from './session/registry.ts'
 
@@ -55,6 +57,7 @@ export async function startDaemon(
 
   const lockHandle = lockResult
   const startMs = Date.now()
+  setProjectRootWatchedDirectory(vault)
   const app = new Hono()
   const registry = new SessionRegistry()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
@@ -107,6 +110,8 @@ export async function startDaemon(
     }
     return c.json(body)
   })
+
+  mountVaultRoutes(app)
 
   let listenResolve: (port: number) => void
   let listenReject: (err: Error) => void
