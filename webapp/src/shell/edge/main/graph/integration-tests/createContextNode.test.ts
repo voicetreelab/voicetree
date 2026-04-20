@@ -39,6 +39,7 @@ import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
 import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
+import { saveVaultConfigForDirectory } from '@vt/graph-model'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -140,6 +141,33 @@ describe('createContextNode - Integration Tests', () => {
         // Should have Node Contents section
         expect(fileContent).toContain('## Node Contents')
       }
+    })
+
+    it('should resolve a basename-only parent node id when it uniquely matches the graph', async () => {
+      const absoluteParentNodeId: NodeIdAndFilePath = path.join(
+        EXAMPLE_SMALL_PATH,
+        '5_Immediate_Test_Observation_No_Output.md'
+      )
+
+      parentNodeBackups.set(
+        absoluteParentNodeId,
+        await fs.readFile(absoluteParentNodeId, 'utf-8')
+      )
+
+      await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
+        writePath: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
+        readPaths: [],
+      })
+
+      const contextNodeId: string = await createContextNode(
+        '5_Immediate_Test_Observation_No_Output.md'
+      )
+      createdContextNodeId = contextNodeId
+
+      expect(contextNodeId).toContain(path.basename(absoluteParentNodeId, '.md'))
+
+      const fileContent: string = await fs.readFile(contextNodeId, 'utf-8')
+      expect(fileContent).toContain(absoluteParentNodeId)
     })
 
     it('should include parent node and related nodes in context', async () => {

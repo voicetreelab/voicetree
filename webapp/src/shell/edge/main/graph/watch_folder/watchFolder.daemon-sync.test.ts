@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
+    mockBootstrapDaemonVaultFromLocalState,
     mockGetProjectRootWatchedDirectory,
     mockMarkFrontendReady,
     mockSetProjectRootWatchedDirectory,
@@ -11,6 +12,7 @@ const {
     mockSyncWatchedProjectRoot,
     mockIsDaemonGraphSyncActive,
 } = vi.hoisted(() => ({
+    mockBootstrapDaemonVaultFromLocalState: vi.fn(),
     mockGetProjectRootWatchedDirectory: vi.fn(),
     mockMarkFrontendReady: vi.fn(),
     mockSetProjectRootWatchedDirectory: vi.fn(),
@@ -38,6 +40,10 @@ vi.mock('@/shell/edge/main/electron/daemon-watch-sync', () => ({
     isDaemonGraphSyncActive: mockIsDaemonGraphSyncActive,
     startDaemonGraphSync: mockStartDaemonGraphSync,
     stopDaemonGraphSync: mockStopDaemonGraphSync,
+}))
+
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    bootstrapDaemonVaultFromLocalState: mockBootstrapDaemonVaultFromLocalState,
 }))
 
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
@@ -73,6 +79,7 @@ describe('watchFolder daemon sync bridge', () => {
         expect(mockStartFileWatching).toHaveBeenCalledWith('/tmp/project-root', {
             mountWatcher: false,
         })
+        expect(mockBootstrapDaemonVaultFromLocalState).toHaveBeenCalledWith('/tmp/project-root')
         expect(mockStartDaemonGraphSync).toHaveBeenCalledWith('/tmp/project-root')
         expect(mockSyncWatchedProjectRoot).toHaveBeenCalledWith('/tmp/project-root')
     })
@@ -97,6 +104,7 @@ describe('watchFolder daemon sync bridge', () => {
         expect(mockMarkFrontendReady).toHaveBeenCalledWith({
             mountWatcher: false,
         })
+        expect(mockBootstrapDaemonVaultFromLocalState).toHaveBeenCalledWith('/tmp/project-root')
         expect(mockStartDaemonGraphSync).toHaveBeenCalledWith('/tmp/project-root')
         expect(mockSyncWatchedProjectRoot).toHaveBeenCalledWith('/tmp/project-root')
     })

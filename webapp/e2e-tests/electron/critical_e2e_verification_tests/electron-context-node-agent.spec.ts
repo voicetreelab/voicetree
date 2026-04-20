@@ -184,6 +184,19 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 3: Verify watch directory (auto-loaded from config) ===');
     const watchDir = FIXTURE_VAULT_PATH;
     console.log(`✓ Watch directory: ${watchDir}`);
+    const vaultPath = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const result = await api.main.getWritePath();
+      if (result && typeof result === 'object' && '_tag' in result) {
+        return (result as { _tag: string; value?: string })._tag === 'Some'
+          ? (result as { value: string }).value
+          : null;
+      }
+      return null;
+    });
+    expect(vaultPath).toBeTruthy();
+    console.log(`✓ Vault path: ${vaultPath}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
@@ -197,11 +210,15 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log(`✓ Context node created: ${contextNodeId}`);
     expect(contextNodeId).toBeTruthy();
-    expect(contextNodeId).toMatch(/^ctx-nodes\//);
+    const contextNodePath = path.isAbsolute(contextNodeId)
+      ? contextNodeId
+      : path.join(vaultPath!, contextNodeId);
+    const contextNodeRelativePath = path.relative(vaultPath!, contextNodePath);
+    expect(contextNodeRelativePath).toMatch(/^ctx-nodes\//);
 
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
     // This verifies the context aggregation logic works - Node 3 content should be included
-    const contextFilePath = path.join(watchDir, contextNodeId);
+    const contextFilePath = contextNodePath;
 
     // Wait for context node file to be written (with retry)
     // The file write happens asynchronously after createContextNode returns
@@ -237,7 +254,6 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 5: Set up terminal data listener BEFORE spawning ===');
 
     // Compute paths in Node context, pass as strings to browser
-    const contextNodePath = path.join(watchDir, contextNodeId);
     const initialSpawnDir = path.join(watchDir, '../');
     console.log(`Context node absolute path: ${contextNodePath}`);
     console.log(`Initial spawn directory: ${initialSpawnDir}`);
@@ -411,9 +427,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // Find and click the stats toggle button using JavaScript to bypass overlay issues
     // The cytoscape-navigator overlay intercepts pointer events so we use dispatchEvent
     await appWindow.evaluate(() => {
-      // Find button by text content "Stats" (the button doesn't have a title attribute)
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const button = buttons.find(btn => btn.textContent?.trim() === 'Stats') as HTMLButtonElement;
+      const button = document.querySelector('button[aria-label="Stats"]') as HTMLButtonElement | null;
       if (button) {
         button.click(); // Programmatic click bypasses pointer event interception
       } else {

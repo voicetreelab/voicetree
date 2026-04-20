@@ -28,6 +28,7 @@ import {
     startDaemonGraphSync,
     stopDaemonGraphSync,
 } from '@/shell/edge/main/electron/daemon-watch-sync'
+import { bootstrapDaemonVaultFromLocalState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/state/live-state-store'
 
 const DAEMON_LOAD_OPTIONS: WatchFolderLoadOptions = {
@@ -45,6 +46,7 @@ async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<vo
         return
     }
 
+    await bootstrapDaemonVaultFromLocalState(loadedDirectory)
     await startDaemonGraphSync(loadedDirectory)
     syncLoadedRoot(loadedDirectory)
 }

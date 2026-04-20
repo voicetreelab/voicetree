@@ -11,6 +11,7 @@ const mockEnsureDaemonClientForVault = vi.fn()
 const mockGetCurrentLiveState = vi.fn()
 const mockGetDirectoryTree = vi.fn()
 const mockGetExternalReadPaths = vi.fn()
+const mockGetReadPaths = vi.fn()
 const mockGetLocalGraph = vi.fn()
 const mockGetProjectRootWatchedDirectory = vi.fn()
 const mockSetLocalGraph = vi.fn()
@@ -33,6 +34,7 @@ vi.mock('@vt/graph-model', async () => {
     buildFolderTree: mockBuildFolderTree,
     getDirectoryTree: mockGetDirectoryTree,
     getExternalReadPaths: mockGetExternalReadPaths,
+    getReadPaths: mockGetReadPaths,
     getProjectRootWatchedDirectory: mockGetProjectRootWatchedDirectory,
     getWritePath: mockGetWritePath,
   }
@@ -124,6 +126,7 @@ describe('daemon IPC proxy', () => {
     vi.clearAllMocks()
     mockGetProjectRootWatchedDirectory.mockReturnValue('/vault')
     mockGetExternalReadPaths.mockReturnValue([])
+    mockGetReadPaths.mockResolvedValue([])
     mockGetLocalGraph.mockReturnValue({
       nodes: {},
       incomingEdgesIndex: new Map(),
@@ -149,7 +152,15 @@ describe('daemon IPC proxy', () => {
     const client = {
       getGraph: vi.fn().mockResolvedValue({
         nodes: {
-          '/vault/a.md': makeNode('/vault/a.md', 'hello'),
+          '/vault/a.md': {
+            ...makeNode('/vault/a.md', 'hello'),
+            nodeUIMetadata: {
+              ...makeNode('/vault/a.md', 'hello').nodeUIMetadata,
+              additionalYAMLProps: {
+                agent_name: 'Wendy',
+              },
+            },
+          },
         },
       }),
     }
@@ -162,6 +173,10 @@ describe('daemon IPC proxy', () => {
       timeoutMs: 15_000,
     })
     expect(graph.nodes['/vault/a.md']).toBeDefined()
+    expect(graph.nodes['/vault/a.md']?.nodeUIMetadata.additionalYAMLProps).toBeInstanceOf(Map)
+    expect(
+      graph.nodes['/vault/a.md']?.nodeUIMetadata.additionalYAMLProps.get('agent_name'),
+    ).toBe('Wendy')
     expect(graph.incomingEdgesIndex).toBeInstanceOf(Map)
     expect(graph.nodeByBaseName).toBeInstanceOf(Map)
     expect(graph.unresolvedLinksIndex).toBeInstanceOf(Map)
@@ -326,5 +341,33 @@ describe('daemon IPC proxy', () => {
       starredFolders: [],
       writePath: '/vault',
     })
+  })
+
+  it('bootstraps the daemon vault state from local watch-folder config before syncing', async () => {
+    mockGetReadPaths.mockResolvedValue(['/vault/docs'])
+    mockGetWritePath.mockResolvedValue(O.some('/vault/out'))
+
+    const client = {
+      addReadPath: vi.fn().mockResolvedValue({
+        vaultPath: '/vault',
+        readPaths: ['/vault/docs'],
+        writePath: '/vault/out',
+      }),
+      setWritePath: vi.fn().mockResolvedValue({
+        vaultPath: '/vault',
+        readPaths: [],
+        writePath: '/vault/out',
+      }),
+    }
+    mockEnsureDaemonClientForVault.mockResolvedValue({ client, vault: '/vault' })
+
+    const proxy = await import('./daemon-ipc-proxy')
+    await proxy.bootstrapDaemonVaultFromLocalState('/vault')
+
+    expect(mockEnsureDaemonClientForVault).toHaveBeenCalledWith('/vault', {
+      timeoutMs: 15_000,
+    })
+    expect(client.setWritePath).toHaveBeenCalledWith('/vault/out')
+    expect(client.addReadPath).toHaveBeenCalledWith('/vault/docs')
   })
 })

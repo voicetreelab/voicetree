@@ -69,12 +69,14 @@ function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
         internalFolderId,
         beforeCollapseVisibleFolderDescendants: [internalFolderId],
         beforeCollapseVisibleRegularDescendants: sortIds([
+            path.join(vaultPath, 'auth', 'internal', 'refresh-token.md'),
             path.join(vaultPath, 'auth', 'jwt-token.md'),
             path.join(vaultPath, 'auth', 'login-flow.md'),
             path.join(vaultPath, 'auth', 'session-manager.md'),
         ]),
         afterExpandVisibleFolderDescendants: [internalFolderId],
         afterExpandVisibleRegularDescendants: sortIds([
+            path.join(vaultPath, 'auth', 'internal', 'refresh-token.md'),
             path.join(vaultPath, 'auth', 'jwt-token.md'),
             path.join(vaultPath, 'auth', 'login-flow.md'),
             path.join(vaultPath, 'auth', 'session-manager.md'),

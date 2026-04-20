@@ -1,12 +1,18 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { DaemonLaunchTimeout, DaemonUnreachableError } from './errors.ts'
 import { discoverPort, readPortFile } from './portDiscovery.ts'
 
+const requireFromHere = createRequire(import.meta.url)
+const TSX_IMPORT_PATH = requireFromHere.resolve('tsx')
+const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server')
+
+// Resolve from the installed workspace package, not from import.meta.url.
+// In the bundled Electron main process, import.meta.url points into dist output.
 const FALLBACK_BIN_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../graph-db-server/bin/vt-graphd.ts',
+  dirname(GRAPH_DB_SERVER_ENTRYPOINT),
+  '../bin/vt-graphd.ts',
 )
 
 export interface EnsureDaemonResult {
@@ -15,7 +21,7 @@ export interface EnsureDaemonResult {
   launched: boolean
 }
 
-type CommandSpec = { cmd: string; args: string[] }
+type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
@@ -43,6 +49,18 @@ async function probeHealth(vault: string, port: number): Promise<boolean> {
   }
 }
 
+function buildChildEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+
+  // When called from Electron, use the Electron binary in Node mode so cold
+  // starts do not depend on whatever `node` happens to be on PATH.
+  if (process.versions.electron) {
+    env.ELECTRON_RUN_AS_NODE = '1'
+  }
+
+  return env
+}
+
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
   const trimmed = override?.trim()
   if (trimmed) {
@@ -51,8 +69,9 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
     return { cmd, args: [...rest, '--vault', vault] }
   }
   return {
-    cmd: 'node',
-    args: ['--import', 'tsx', FALLBACK_BIN_PATH, '--vault', vault],
+    cmd: process.execPath,
+    args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
+    env: buildChildEnv(),
   }
 }
 
@@ -78,11 +97,15 @@ export async function ensureDaemon(
   }
 
   // 2. Spawn detached + unref'd. Propagate sync spawn errors (EACCES/EPERM).
-  const { cmd, args } = resolveCommand(
+  const { cmd, args, env } = resolveCommand(
     resolvedVault,
     process.env.VT_GRAPHD_BIN ?? opts?.bin,
   )
-  let child: ChildProcess = spawn(cmd, args, { detached: true, stdio: 'ignore' })
+  let child: ChildProcess = spawn(cmd, args, {
+    detached: true,
+    env,
+    stdio: 'ignore',
+  })
   child.unref()
   const spawnedPid = child.pid ?? null
 

@@ -53,6 +53,39 @@ async function getSemanticRelevantNodes(
     }
 }
 
+function resolveParentNodeId(
+    currentGraph: Graph,
+    requestedParentNodeId: NodeIdAndFilePath,
+    preferredRoot?: string
+): NodeIdAndFilePath {
+    if (currentGraph.nodes[requestedParentNodeId]) {
+        return requestedParentNodeId
+    }
+
+    const matches: readonly NodeIdAndFilePath[] = Object.keys(currentGraph.nodes)
+        .filter((nodeId): boolean => path.basename(nodeId) === requestedParentNodeId) as readonly NodeIdAndFilePath[]
+
+    if (matches.length === 1) {
+        return matches[0]
+    }
+
+    if (preferredRoot) {
+        const preferredMatches: readonly NodeIdAndFilePath[] = matches.filter((nodeId): boolean =>
+            nodeId.startsWith(preferredRoot + '/')
+        ) as readonly NodeIdAndFilePath[]
+
+        if (preferredMatches.length === 1) {
+            return preferredMatches[0]
+        }
+    }
+
+    if (matches.length > 1) {
+        throw new Error(`Node ${requestedParentNodeId} is ambiguous in graph`)
+    }
+
+    throw new Error(`Node ${requestedParentNodeId} not found in graph`)
+}
+
 /**
  * Creates a context node for a given parent node.
  *
@@ -70,11 +103,13 @@ export async function createContextNode(
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
-
-    // Validate parent node exists
-    if (!currentGraph.nodes[parentNodeId]) {
-        throw new Error(`Node ${parentNodeId} not found in graph`)
-    }
+    const writePathOption: O.Option<string> = await getWritePath()
+    const writePath: string = O.getOrElse(() => '')(writePathOption)
+    const resolvedParentNodeId: NodeIdAndFilePath = resolveParentNodeId(
+        currentGraph,
+        parentNodeId,
+        O.isSome(writePathOption) ? writePathOption.value : undefined
+    )
 
     // 2. PURE: Extract subgraph within distance
     const settings: VTSettings = await loadSettings()
@@ -82,7 +117,7 @@ export async function createContextNode(
 
     // Reuse contextNodeMaxDistance for vector search top_k
     const contextVectorSearchTopK: number = maxDistance
-    const parentNode: GraphNode = currentGraph.nodes[parentNodeId]
+    const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]
 
     // Get semantically relevant nodes via vector search (with 1s timeout)
     const semanticNodeIds: readonly NodeIdAndFilePath[] = await getSemanticRelevantNodes(
@@ -94,21 +129,21 @@ export async function createContextNode(
     const subgraph: Graph = semanticNodeIds.length > 0
         ? getUnionSubgraphByDistance(
             currentGraph,
-            [parentNodeId, ...semanticNodeIds],
+            [resolvedParentNodeId, ...semanticNodeIds],
             maxDistance
         )
-        : getSubgraphByDistance(currentGraph, parentNodeId, maxDistance)
+        : getSubgraphByDistance(currentGraph, resolvedParentNodeId, maxDistance)
 
     // 3. PURE: Convert subgraph to ASCII visualization
     // Make edges bidirectional so parents are shown as "children" in the tree.
     // This ensures nodes reachable via incoming edges (parents) appear in the ASCII tree,
     // not just nodes reachable via outgoing edges (children).
     const bidirectionalSubgraph: Graph = makeBidirectionalEdges(subgraph)
-    const asciiTree: string = graphToAscii(bidirectionalSubgraph, parentNodeId)
+    const asciiTree: string = graphToAscii(bidirectionalSubgraph, resolvedParentNodeId)
 
     // 4. EDGE: Generate unique context node ID
     const timestamp: number = Date.now()
-    const parentIdWithoutExtension: string = parentNodeId.replace(/\.md$/, '')
+    const parentIdWithoutExtension: string = resolvedParentNodeId.replace(/\.md$/, '')
     // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
     // Note: nodeIds are now relative to projectRootWatchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
     const alreadyInContextFolder: boolean = parentIdWithoutExtension.includes(`/${CONTEXT_NODES_FOLDER}/`)
@@ -116,8 +151,6 @@ export async function createContextNode(
 
     // Get write path (absolute) to properly construct context node path
     // Context nodes go in {writePath}/ctx-nodes/
-    const writePathOption: O.Option<string> = await getWritePath()
-    const writePath: string = O.getOrElse(() => '')(writePathOption)
     const candidateContextNodeId: string = alreadyInContextFolder
         ? `${parentIdWithoutExtension}_context_${timestamp}.md`
         : `${writePath}/${CONTEXT_NODES_FOLDER}/${path.basename(parentIdWithoutExtension)}_context_${timestamp}.md`
@@ -132,7 +165,7 @@ export async function createContextNode(
     // Context node is orphaned (no edges to task node) - terminal shadow will connect to it
     const contextMaxChars: number = settings.contextMaxChars
     const content: string = buildContextNodeContent(
-        parentNodeId,
+        resolvedParentNodeId,
         parentTitle,
         maxDistance,
         asciiTree,

@@ -20,6 +20,8 @@ import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-dae
 import { loadSettings } from '@vt/graph-model'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
 
+const GRAPH_MODEL_DAEMON_TIMEOUT_MS = 15_000
+
 export function initializeGraphModel(): void {
     const callbacks: GraphModelCallbacks = {
         // Core graph broadcasting
@@ -131,7 +133,9 @@ export function initializeGraphModel(): void {
             return ensureProjectDotVoicetree(projectPath)
         },
         ensureDaemonForVault(vaultPath: string): Promise<void> {
-            return ensureDaemonClientForVault(vaultPath).then(() => undefined)
+            return ensureDaemonClientForVault(vaultPath, {
+                timeoutMs: GRAPH_MODEL_DAEMON_TIMEOUT_MS,
+            }).then(() => undefined)
         },
         getOnboardingDirectory(): string {
             return getOnboardingDirectory()

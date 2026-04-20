@@ -171,11 +171,15 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log(`✓ Context node created: ${contextNodeId}`);
     expect(contextNodeId).toBeTruthy();
-    expect(contextNodeId).toMatch(/^ctx-nodes\//);
+    const contextNodePath = path.isAbsolute(contextNodeId)
+      ? contextNodeId
+      : path.join(vaultPath, contextNodeId);
+    const contextNodeRelativePath = path.relative(vaultPath, contextNodePath);
+    expect(contextNodeRelativePath).toMatch(/^ctx-nodes\//);
 
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
     // This verifies the context aggregation logic works - Node 3 content should be included
-    const contextFilePath = path.join(vaultPath, contextNodeId);
+    const contextFilePath = contextNodePath;
     const contextFileContent = await fs.readFile(contextFilePath, 'utf-8');
     expect(contextFileContent).toContain('SECRET_E2E_NEEDLE: VOICETREE_CTX_12345');
     console.log('✓ Verified context node file contains needle from Node 3 ancestor');
@@ -183,7 +187,6 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 5: Set up terminal data listener BEFORE spawning ===');
 
     // Compute paths in Node context, pass as strings to browser
-    const contextNodePath = path.join(vaultPath, contextNodeId);
     const initialSpawnDir = path.join(vaultPath, '../');
     console.log(`Context node absolute path: ${contextNodePath}`);
     console.log(`Initial spawn directory: ${initialSpawnDir}`);

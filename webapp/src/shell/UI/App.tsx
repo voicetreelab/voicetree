@@ -13,10 +13,29 @@ import type { VTSettings } from "@vt/graph-model/pure/settings/types";
 
 type AppView = 'project-selection' | 'graph-view';
 
+function getProjectNameFromPath(projectPath: string): string {
+    const parts: string[] = projectPath.split(/[/\\]/);
+    return parts[parts.length - 1] ?? projectPath;
+}
+
+function createFallbackProject(projectPath: string): SavedProject {
+    return {
+        id: `auto:${projectPath}`,
+        path: projectPath,
+        name: getProjectNameFromPath(projectPath),
+        type: 'folder',
+        lastOpened: Date.now(),
+        voicetreeInitialized: true,
+    };
+}
+
 function App(): JSX.Element {
+    const [electronReady, setElectronReady] = useState<boolean>(() => window.electronAPI !== undefined);
     // App navigation state
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
+    const hasBootstrappedStartupProjectRef = useRef(false);
+    const skipNextStartWatchingRef = useRef<string | null>(null);
 
     // Use the folder watcher hook for file watching
     const {
@@ -33,6 +52,17 @@ function App(): JSX.Element {
 
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
+
+    const openProjectFromDirectory: (directory: string) => Promise<void> = useCallback(async (directory: string): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        const projects: SavedProject[] = await window.electronAPI.main.loadProjects();
+        const matchingProject: SavedProject | undefined = projects.find((project) => project.path === directory);
+
+        skipNextStartWatchingRef.current = directory;
+        setCurrentProject(matchingProject ?? createFallbackProject(directory));
+        setCurrentView('graph-view');
+    }, []);
 
     // Handle project selection
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
@@ -73,6 +103,26 @@ function App(): JSX.Element {
         return () => window.removeEventListener('toggle-stats-panel', handleToggleStats);
     }, []);
 
+    useEffect(() => {
+        if (electronReady) return;
+
+        if (window.electronAPI !== undefined) {
+            setElectronReady(true);
+            return;
+        }
+
+        const intervalId: number = window.setInterval(() => {
+            if (window.electronAPI !== undefined) {
+                setElectronReady(true);
+                window.clearInterval(intervalId);
+            }
+        }, 50);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [electronReady]);
+
     // Listen for stats panel close event (dispatched when clicking on graph canvas)
     useEffect(() => {
         const handleCloseStats: () => void = (): void => setIsStatsPanelOpen(false);
@@ -85,35 +135,62 @@ function App(): JSX.Element {
         document.documentElement.toggleAttribute('data-stats-panel-open', isStatsPanelOpen);
     }, [isStatsPanelOpen]);
 
+    // Recover programmatic loads even if they happened before React attached IPC listeners.
+    useEffect(() => {
+        if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
+
+        hasBootstrappedStartupProjectRef.current = true;
+        let cancelled = false;
+
+        void (async () => {
+            try {
+                const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } =
+                    await window.electronAPI!.main.getWatchStatus();
+
+                if (cancelled) return;
+                if (watchStatus.isWatching && watchStatus.directory) {
+                    await openProjectFromDirectory(watchStatus.directory);
+                    return;
+                }
+
+                const previousFolderResult: { readonly success: boolean; readonly directory?: string } =
+                    await window.electronAPI!.main.loadPreviousFolder();
+
+                if (cancelled) return;
+                if (previousFolderResult.success && previousFolderResult.directory) {
+                    await openProjectFromDirectory(previousFolderResult.directory);
+                }
+            } catch (err) {
+                console.error('[App] Failed to bootstrap startup project:', err);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [electronReady, openProjectFromDirectory]);
+
     // Listen for watching-started event from main process (e.g., when prettySetupAppForElectronDebugging loads a project)
     // This switches the UI to graph view when a project is loaded programmatically
     useEffect(() => {
-        if (!window.electronAPI?.onWatchingStarted) return;
+        if (!electronReady || !window.electronAPI?.onWatchingStarted) return;
 
         const cleanup: (() => void) = window.electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
-            // Only switch view if we're still on project selection screen
-            if (currentView === 'project-selection') {
-                // Look up the saved project by path (prettySetup saves it before starting file watching)
-                void (async () => {
-                    const projects: SavedProject[] = await window.electronAPI!.main.loadProjects();
-                    const matchingProject: SavedProject | undefined = projects.find((p: SavedProject) => p.path === data.directory);
-                    if (matchingProject) {
-                        setCurrentProject(matchingProject);
-                        setCurrentView('graph-view');
-                    } else {
-                        console.warn('[App] watching-started for unknown project:', data.directory);
-                    }
-                })();
-            }
+            void openProjectFromDirectory(data.directory);
         });
 
         return cleanup;
-    }, [currentView]);
+    }, [electronReady, openProjectFromDirectory]);
 
     // Start watching the project folder when entering graph view
     // Always call startFileWatching - loadFolder handles the reload case (e.g., after cmd-r)
     useEffect(() => {
         if (currentView === 'graph-view' && currentProject && window.electronAPI) {
+            if (skipNextStartWatchingRef.current === currentProject.path) {
+                skipNextStartWatchingRef.current = null;
+                return;
+            }
+
             // Start file watching for the selected project
             void window.electronAPI.main.startFileWatching(currentProject.path);
         }

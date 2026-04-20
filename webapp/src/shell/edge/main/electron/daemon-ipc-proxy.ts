@@ -8,6 +8,7 @@ import {
   createEmptyGraph,
   getDirectoryTree,
   getExternalReadPaths,
+  getReadPaths,
   getProjectRootWatchedDirectory,
   getWritePath,
   mapNewGraphToDelta,
@@ -101,6 +102,19 @@ async function getCurrentVaultOrThrow(): Promise<string> {
   return vault
 }
 
+async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
+  readPaths: string[]
+  writePath: string
+}> {
+  const readPaths = [...(await getReadPaths())]
+  const writePath = await getWritePath()
+
+  return {
+    readPaths,
+    writePath: O.isSome(writePath) ? writePath.value : vault,
+  }
+}
+
 function resetCachesForVault(vault: string): void {
   if (cachedVault === vault) {
     return
@@ -128,7 +142,39 @@ async function getDaemonClientForCurrentVault(): Promise<{
 function normalizeGraphNodes(
   nodes: Record<string, unknown>,
 ): Record<NodeIdAndFilePath, GraphNode> {
-  return nodes as Record<NodeIdAndFilePath, GraphNode>
+  return Object.fromEntries(
+    Object.entries(nodes).map(([nodeId, rawNode]) => {
+      const node = rawNode as GraphNode & {
+        nodeUIMetadata?: GraphNode['nodeUIMetadata'] & {
+          additionalYAMLProps?: unknown
+        }
+      }
+
+      const additionalYAMLProps = node.nodeUIMetadata?.additionalYAMLProps
+      const revivedAdditionalYAMLProps =
+        additionalYAMLProps instanceof Map
+          ? additionalYAMLProps
+          : new Map(
+              Object.entries(
+                typeof additionalYAMLProps === 'object' &&
+                  additionalYAMLProps !== null
+                  ? (additionalYAMLProps as Record<string, string>)
+                  : {},
+              ),
+            )
+
+      return [
+        nodeId,
+        {
+          ...node,
+          nodeUIMetadata: {
+            ...node.nodeUIMetadata,
+            additionalYAMLProps: revivedAdditionalYAMLProps,
+          },
+        },
+      ]
+    }),
+  ) as Record<NodeIdAndFilePath, GraphNode>
 }
 
 function normalizeDaemonGraph(raw: { nodes: Record<string, unknown> }): Graph {
@@ -457,6 +503,20 @@ export async function removeReadPathThroughDaemon(path: string): Promise<VaultSt
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation((client) => client.setWritePath(path))
+}
+
+export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
+  const connection = vault
+    ? await ensureDaemonClientForVault(vault, { timeoutMs: MAIN_DAEMON_TIMEOUT_MS })
+    : await getDaemonClientForCurrentVault()
+
+  const desiredVaultState = await getDesiredVaultStateForBootstrap(connection.vault)
+
+  await connection.client.setWritePath(desiredVaultState.writePath)
+
+  for (const readPath of desiredVaultState.readPaths) {
+    await connection.client.addReadPath(readPath)
+  }
 }
 
 export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> {
