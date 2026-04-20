@@ -10,21 +10,10 @@ import {
   onReadPathsChanged,
   setVaultPath,
 } from '@vt/graph-model'
-import { Hono } from 'hono'
-import {
-  CONTRACT_VERSION,
-  HealthResponseSchema,
-  ShutdownResponseSchema,
-} from './contract.ts'
+import { CONTRACT_VERSION } from './contract.ts'
+import { createDaemonApp } from './daemonApp.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
-import { mountCollapseRoutes } from './routes/collapse.ts'
-import { createGraphRoutes } from './routes/graph.ts'
-import { mountLayoutRoutes } from './routes/layout.ts'
-import { mountSelectionRoutes } from './routes/selection.ts'
-import { mountSessionStateRoutes } from './routes/sessionState.ts'
-import { mountVaultRoutes } from './routes/vault.ts'
-import { mountSessionRoutes } from './routes/sessions.ts'
 import { SessionRegistry } from './session/registry.ts'
 import { mountWatcher, type Watcher } from './watcher.ts'
 
@@ -93,7 +82,6 @@ export async function startDaemon(
       defaultAppSupportPath(),
   })
   setVaultPath(vault)
-  const app = new Hono()
   const registry = new SessionRegistry()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
   let watcher: Watcher
@@ -105,6 +93,7 @@ export async function startDaemon(
   }
   let watcherStopped = false
   let remountChain: Promise<void> = Promise.resolve()
+  let shuttingDown = false
 
   const queueWatcherRemount = (watchPaths: readonly string[]): void => {
     remountChain = remountChain
@@ -152,26 +141,19 @@ export async function startDaemon(
     idleSessionTimer = null
   }
 
-  mountSessionRoutes(app, registry)
-  mountSessionStateRoutes(app, registry)
-  mountCollapseRoutes(app, registry)
-  mountSelectionRoutes(app, registry)
-  mountLayoutRoutes(app, registry)
-
-  app.get('/health', (c) => {
-    const body = HealthResponseSchema.parse({
+  const app = createDaemonApp({
+    registry,
+    readHealth: () => ({
       version: CONTRACT_VERSION,
       vault,
       uptimeSeconds: Math.floor((Date.now() - startMs) / 1000),
       sessionCount: registry.size(),
-    })
-    return c.json(body)
-  })
+    }),
+    onShutdown: () => {
+      if (shuttingDown) {
+        return
+      }
 
-  let shuttingDown = false
-  app.post('/shutdown', (c) => {
-    const body = ShutdownResponseSchema.parse({ ok: true })
-    if (!shuttingDown) {
       shuttingDown = true
       queueMicrotask(() => {
         void (async () => {
@@ -186,12 +168,8 @@ export async function startDaemon(
           }
         })()
       })
-    }
-    return c.json(body)
+    },
   })
-
-  app.route('/graph', createGraphRoutes())
-  mountVaultRoutes(app)
 
   let listenResolve: (port: number) => void
   let listenReject: (err: Error) => void
