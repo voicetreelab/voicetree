@@ -34,9 +34,7 @@ You are now building an agentic factory, so you can move up to higher levels of 
 
 
 ----   
-This tool is in early-beta and is powerful, but heavily in development and rough around the edges
-
-We're (the startup / lab developing this) predominantly now using this as an AI-forecasting & research tool, so development is spiky, but we would welcome external contribution to this OS prroject.
+Early-beta: powerful but rough. We (the startup/lab building it) use Voicetree daily as our AI-forecasting and research tool — development is spiky as a result, and external contributors are very welcome.
 
 ----
 
@@ -47,10 +45,8 @@ A lightweight API (agent-first, local-only) for a set of operations on these pri
     - This includes agent context state (agents can send messages to other agents)
     - lifecycle hooks, letting you program & trigger automations
   - Graph search, visualisation & navigation. ASCII for the agents, pixels for the human. (Yes this has a UI)
-  - agent orchestratoin tools, such as
-    - run(Agent,node) // default behaviour is collect nearby nodes as context and send_message(agent, local_graph(node)) it into the spawned agen
-
-//<todo> document full api spec... - yes it's that kind of beta </todo>
+  - agent orchestration tools, such as
+    - run(Agent,node) // default behaviour is collect nearby nodes as context and send_message(agent, local_graph(node)) it into the spawned agent
 
 ---
 
