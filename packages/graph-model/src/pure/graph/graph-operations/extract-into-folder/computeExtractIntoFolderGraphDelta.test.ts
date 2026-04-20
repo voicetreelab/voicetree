@@ -13,6 +13,7 @@ function createTestNode(
     }
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         outgoingEdges: options?.outgoingEdges ?? [],
         contentWithoutYamlOrLinks: options?.contentWithoutYamlOrLinks ?? `# ${id}`,

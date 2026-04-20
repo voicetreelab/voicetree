@@ -185,7 +185,8 @@ function seededRandom(seed: number): () => number {
  */
 function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFilePath[]): GraphNode {
   return {
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges: outgoingEdges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `# ${id}\n\nContent for ${id}`,
     nodeUIMetadata: {

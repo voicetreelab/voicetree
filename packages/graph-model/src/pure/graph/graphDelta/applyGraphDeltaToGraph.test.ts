@@ -13,6 +13,7 @@ function makeNode(
     edges: readonly { readonly targetId: NodeIdAndFilePath; readonly label: string }[] = []
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: content,
         outgoingEdges: edges,

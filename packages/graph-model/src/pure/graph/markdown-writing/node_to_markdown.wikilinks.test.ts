@@ -7,6 +7,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('wikilinks appending', () => {
     it('should append wikilinks after content', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
@@ -30,6 +31,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should not append wikilinks when outgoingEdges is empty', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -50,6 +52,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should not duplicate wikilinks already in content as [link]*', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [child1.md]* for details.',
         outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
@@ -89,6 +92,7 @@ describe('fromNodeToMarkdownContent', () => {
       // Edge was created with targetId: "linked-node.md" (with extension)
       // These refer to the same node but deduplication fails due to literal string match
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [linked-node]* for details.',
         outgoingEdges: [{ targetId: 'linked-node.md', label: '' }],
@@ -116,6 +120,7 @@ describe('fromNodeToMarkdownContent', () => {
       // Scenario: User typed [[foo]] but node is in subfolder "subfolder/foo.md"
       // Edge targetId has full path, content has short relative form
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nSee [foo]* for details.',
         outgoingEdges: [{ targetId: 'subfolder/foo.md', label: '' }],

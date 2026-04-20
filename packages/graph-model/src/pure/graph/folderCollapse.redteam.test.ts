@@ -17,7 +17,10 @@ import { computeExpandPlan } from './folderCollapse'
 // ── Test helpers (same as existing test) ──
 
 function makeNode(overrides: Partial<GraphNode> & { outgoingEdges?: GraphNode['outgoingEdges'] } = {}): GraphNode {
+    const { kind = 'leaf', ...restOverrides } = overrides
+
     return {
+        kind,
         absoluteFilePathIsID: '',
         contentWithoutYamlOrLinks: '',
         outgoingEdges: [],
@@ -27,7 +30,7 @@ function makeNode(overrides: Partial<GraphNode> & { outgoingEdges?: GraphNode['o
             additionalYAMLProps: new Map(),
             isContextNode: false
         },
-        ...overrides
+        ...restOverrides
     }
 }
 

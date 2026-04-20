@@ -10,6 +10,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-edge-operations', () => {
   const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: string, edges: readonly Edge[] = []): GraphNode => ({
+    kind: 'leaf',
     absoluteFilePathIsID: id,
     outgoingEdges: edges,
     contentWithoutYamlOrLinks: 'test content',

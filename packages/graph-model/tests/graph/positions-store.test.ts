@@ -24,6 +24,7 @@ function makeTmpDir(): string {
 
 function makeNode(id: string, position: O.Option<Position>): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges: [],

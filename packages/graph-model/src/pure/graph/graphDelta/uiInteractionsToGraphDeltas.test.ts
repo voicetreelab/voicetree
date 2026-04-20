@@ -13,6 +13,7 @@ import { fromCreateChildToUpsertNode, generateChildNodeId } from './uiInteractio
 
 function createTestNode(nodeId: string, edgeCount: number = 0): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: nodeId,
         contentWithoutYamlOrLinks: '# Test',
         outgoingEdges: Array.from({ length: edgeCount }, (_, i) => ({

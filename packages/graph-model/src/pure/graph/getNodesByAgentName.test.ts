@@ -9,6 +9,7 @@ function createMockNode(nodeId: string, agentName?: string): GraphNode {
         additionalYAMLProps.set('agent_name', agentName)
     }
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: nodeId,
         contentWithoutYamlOrLinks: 'test content',
         outgoingEdges: [],

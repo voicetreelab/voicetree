@@ -26,6 +26,7 @@ import type { GraphNode, Edge } from '..'
 
 const createNode: (id: string, content?: string, edges?: readonly { readonly targetId: string; readonly label: string }[]) => GraphNode =
   (id: string, content: string = '', edges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode => ({
+    kind: 'leaf',
     absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: edges,

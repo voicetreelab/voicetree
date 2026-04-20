@@ -32,6 +32,7 @@ function createTestNode(
     content = '# Node'
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         outgoingEdges,
         contentWithoutYamlOrLinks: content,
@@ -344,7 +345,8 @@ describe('Rename Node - Integration Tests', () => {
 
             const initialGraph: Graph = createGraph({
                 'ctx-nodes/context.md': {
-                    absoluteFilePathIsID: 'ctx-nodes/context.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'ctx-nodes/context.md',
                     outgoingEdges: [createEdge(oldId)],
                     contentWithoutYamlOrLinks: '# Context\n\n[target]*',
                     nodeUIMetadata: {

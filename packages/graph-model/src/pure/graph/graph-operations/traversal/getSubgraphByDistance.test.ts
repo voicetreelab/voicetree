@@ -6,7 +6,8 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('getSubgraphByDistance', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -248,7 +249,8 @@ describe('getSubgraphByDistance', () => {
 
   describe('context node filtering', () => {
     const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-      absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
       outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
       contentWithoutYamlOrLinks: `content of ${id}`,
       nodeUIMetadata: {
@@ -509,7 +511,8 @@ describe('getSubgraphByDistance', () => {
 
   describe('bridging edge edge cases', () => {
     const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-      absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
       outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
       contentWithoutYamlOrLinks: `content of ${id}`,
       nodeUIMetadata: {
@@ -684,7 +687,8 @@ describe('getSubgraphByDistance', () => {
 
 describe('getUnionSubgraphByDistance', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
@@ -696,7 +700,8 @@ describe('getUnionSubgraphByDistance', () => {
   })
 
   const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {

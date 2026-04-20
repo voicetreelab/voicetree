@@ -12,6 +12,7 @@ function createNode(
     content = '# Node'
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         outgoingEdges,
         contentWithoutYamlOrLinks: content,
@@ -200,7 +201,8 @@ describe('computeMergeGraphDelta', () => {
             'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node 1'),
             'node2.md': createNode('node2.md', [], { x: 100, y: 100 }, '# Regular Node 2'),
             'context.md': {
-                absoluteFilePathIsID: 'context.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'context.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Context Node',
                 nodeUIMetadata: {
@@ -240,7 +242,8 @@ describe('computeMergeGraphDelta', () => {
         const graph: Graph = createGraph({
             'node1.md': createNode('node1.md', [], { x: 0, y: 0 }, '# Regular Node'),
             'context.md': {
-                absoluteFilePathIsID: 'context.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'context.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Context Node',
                 nodeUIMetadata: {
@@ -265,7 +268,8 @@ describe('computeMergeGraphDelta', () => {
     it('should delete context nodes even when only context nodes are selected (no merge node created)', () => {
         const graph: Graph = createGraph({
             'context1.md': {
-                absoluteFilePathIsID: 'context1.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'context1.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Context 1',
                 nodeUIMetadata: {
@@ -276,7 +280,8 @@ describe('computeMergeGraphDelta', () => {
                 }
             },
             'context2.md': {
-                absoluteFilePathIsID: 'context2.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'context2.md',
                 outgoingEdges: [],
                 contentWithoutYamlOrLinks: '# Context 2',
                 nodeUIMetadata: {

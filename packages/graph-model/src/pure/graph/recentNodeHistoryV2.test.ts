@@ -13,6 +13,7 @@ import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from './'
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string, title: string, contentExtra: string = ''): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${title}\n\nSome content${contentExtra}`,
         outgoingEdges: [],
@@ -162,7 +163,8 @@ describe('recentNodeHistoryV2', () => {
         it('excludes context nodes from recent history', () => {
             // Create a context node (isContextNode: true)
             const contextNode: GraphNode = {
-                absoluteFilePathIsID: 'ctx-nodes/context.md',
+        kind: 'leaf',
+        absoluteFilePathIsID: 'ctx-nodes/context.md',
                 contentWithoutYamlOrLinks: '# Context\n\nContext content',
                 outgoingEdges: [],
                 nodeUIMetadata: {

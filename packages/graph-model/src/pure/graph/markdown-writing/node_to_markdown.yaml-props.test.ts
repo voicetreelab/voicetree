@@ -11,6 +11,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('additionalYAMLProps', () => {
     it('should write string properties from additionalYAMLProps', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -34,6 +35,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write numeric string properties', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -57,6 +59,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write boolean string properties', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -80,6 +83,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write JSON array properties from additionalYAMLProps', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -104,6 +108,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write JSON object properties from additionalYAMLProps', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -128,6 +133,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should write additionalYAMLProps together with color (position excluded)', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -155,6 +161,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should handle empty additionalYAMLProps', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -178,6 +185,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('containedNodeIds', () => {
     it('should write containedNodeIds array to frontmatter', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'context.md',
         contentWithoutYamlOrLinks: '# Context Node',
         outgoingEdges: [],
@@ -225,6 +233,7 @@ containedNodeIds:
 
     it('should not write containedNodeIds when undefined', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'regular.md',
         contentWithoutYamlOrLinks: '# Regular Node',
         outgoingEdges: [],

@@ -13,6 +13,7 @@ import type { GraphDelta, GraphNode } from '..'
 // Helper to create a minimal GraphNode for testing
 function createTestNode(id: string): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: '# Test',
         outgoingEdges: [],

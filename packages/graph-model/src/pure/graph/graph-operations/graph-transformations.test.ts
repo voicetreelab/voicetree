@@ -6,6 +6,7 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('graph-transformations', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
+    kind: 'leaf',
     absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,

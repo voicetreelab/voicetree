@@ -6,7 +6,8 @@ import type { Edge } from '..'
 
 describe('extractLinkedNodeIds', () => {
   const createNode: (id: string) => GraphNode = (id: string): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: '',
     outgoingEdges: [],
     nodeUIMetadata: {

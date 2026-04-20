@@ -6,7 +6,8 @@ import * as O from 'fp-ts/lib/Option.js'
 
 describe('getNodeIdsInTraversalOrder', () => {
   const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {

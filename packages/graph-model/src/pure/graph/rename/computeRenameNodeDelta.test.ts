@@ -13,6 +13,7 @@ function makeNode(
     edges: readonly { readonly targetId: NodeIdAndFilePath; readonly label: string }[] = []
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: content,
         outgoingEdges: edges,
@@ -64,7 +65,8 @@ describe('computeRenameNodeDelta', () => {
             const oldNodeId: NodeIdAndFilePath = 'folder/old_name.md'
             const newNodeId: NodeIdAndFilePath = 'folder/new_title.md'
             const node: GraphNode = {
-                absoluteFilePathIsID: oldNodeId,
+        kind: 'leaf',
+        absoluteFilePathIsID: oldNodeId,
                 contentWithoutYamlOrLinks: '# Title',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -239,7 +241,8 @@ describe('computeRenameNodeDelta', () => {
 
             const targetNode: GraphNode = makeNode(oldNodeId, '# Target')
             const contextNode: GraphNode = {
-                absoluteFilePathIsID: contextNodeId,
+        kind: 'leaf',
+        absoluteFilePathIsID: contextNodeId,
                 contentWithoutYamlOrLinks: 'Links to [target]*',
                 outgoingEdges: [{ targetId: oldNodeId, label: '' }],
                 nodeUIMetadata: {

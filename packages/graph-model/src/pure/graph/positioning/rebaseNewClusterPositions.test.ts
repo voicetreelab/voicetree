@@ -6,6 +6,7 @@ import { rebaseNewClusterPositions } from './rebaseNewClusterPositions'
 
 function createNodeWithPosition(id: string, position: O.Option<Position>): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: '',
         outgoingEdges: [],

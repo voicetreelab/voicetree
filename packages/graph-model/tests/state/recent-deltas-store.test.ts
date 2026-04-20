@@ -10,7 +10,8 @@ import {
 } from '../../src/state/recent-deltas-store'
 
 const makeNode: (nodeId: string, content: string) => GraphNode = (nodeId, content) => ({
-    absoluteFilePathIsID: nodeId,
+        kind: 'leaf',
+        absoluteFilePathIsID: nodeId,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {

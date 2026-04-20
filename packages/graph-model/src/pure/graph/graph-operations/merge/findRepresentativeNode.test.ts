@@ -11,6 +11,7 @@ function createNode(
     content = '# Node'
 ): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         outgoingEdges,
         contentWithoutYamlOrLinks: content,

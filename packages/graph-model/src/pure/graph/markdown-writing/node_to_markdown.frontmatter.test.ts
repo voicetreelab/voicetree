@@ -7,6 +7,7 @@ describe('fromNodeToMarkdownContent', () => {
   describe('frontmatter generation', () => {
     it('should generate frontmatter from nodeUIMetadata color', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -28,6 +29,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter with only color when position is none', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -50,6 +52,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should NOT generate position in frontmatter (stored in positions.json)', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -72,6 +75,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should exclude position even with float values', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -93,6 +97,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should include only color when nodeUIMetadata has both color and position', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -116,6 +121,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter when content has no prior frontmatter', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content\n\nJust plain content',
         outgoingEdges: [],
@@ -139,6 +145,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate minimal frontmatter', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -160,6 +167,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should generate frontmatter with only color, not position', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
@@ -182,6 +190,7 @@ describe('fromNodeToMarkdownContent', () => {
 
     it('should restore wikilinks from [link]* notation', () => {
       const node: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test\n\nThis has [other-note]* and [another]* links.',
         outgoingEdges: [],

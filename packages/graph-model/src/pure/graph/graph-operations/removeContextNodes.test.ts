@@ -6,6 +6,7 @@ import { removeContextNodes } from './removeContextNodes'
 
 function createNode(id: string, edges: readonly string[] = []): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
@@ -20,6 +21,7 @@ function createNode(id: string, edges: readonly string[] = []): GraphNode {
 
 function createContextNode(id: string, edges: readonly string[] = []): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),

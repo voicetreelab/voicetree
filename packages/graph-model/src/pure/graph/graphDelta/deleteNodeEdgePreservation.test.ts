@@ -16,6 +16,7 @@ import { deleteNodeMaintainingTransitiveEdges } from '../graph-operations/remove
 
 function createNode(id: string, outgoingEdges: readonly { readonly targetId: string; readonly label: string }[] = []): GraphNode {
     return {
+        kind: 'leaf',
         absoluteFilePathIsID: id,
         contentWithoutYamlOrLinks: `# ${id}`,
         outgoingEdges,

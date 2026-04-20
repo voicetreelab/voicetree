@@ -81,6 +81,7 @@ Content with complex frontmatter`
     it('should write and parse additionalYAMLProps alongside color (position excluded from write)', () => {
       // Position is still parsed from YAML (for migration), but no longer written
       const node1: GraphNode = {
+        kind: 'leaf',
         absoluteFilePathIsID: 'test.md',
         contentWithoutYamlOrLinks: '# Test Node\n\nContent here',
         outgoingEdges: [],

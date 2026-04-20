@@ -10,7 +10,8 @@ function createNode(
   content = ''
 ): GraphNode {
   return {
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     outgoingEdges,
     contentWithoutYamlOrLinks: content,
     nodeUIMetadata: {

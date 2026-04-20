@@ -5,6 +5,7 @@ import { buildIncomingEdgesIndex } from './incomingEdgesIndex'
 import * as O from 'fp-ts/lib/Option.js'
 
 const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: string, edges: readonly Edge[] = []): GraphNode => ({
+  kind: 'leaf',
   absoluteFilePathIsID: id,
   outgoingEdges: edges,
   contentWithoutYamlOrLinks: 'test content',
@@ -18,7 +19,9 @@ const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: 
 
 const createGraphFromNodes: (nodes: Record<NodeIdAndFilePath, GraphNode>) => Graph = (nodes: Record<NodeIdAndFilePath, GraphNode>): Graph => ({
   nodes,
-  incomingEdgesIndex: buildIncomingEdgesIndex(nodes)
+  incomingEdgesIndex: buildIncomingEdgesIndex(nodes),
+  nodeByBaseName: new Map(),
+  unresolvedLinksIndex: new Map()
 })
 
 describe('findMostConnectedNode', () => {

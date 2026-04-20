@@ -15,7 +15,10 @@ import {
 // ── Test helpers ──
 
 function makeNode(overrides: Partial<GraphNode> & { outgoingEdges?: GraphNode['outgoingEdges'] } = {}): GraphNode {
+    const { kind = 'leaf', ...restOverrides } = overrides
+
     return {
+        kind,
         absoluteFilePathIsID: '',
         contentWithoutYamlOrLinks: '',
         outgoingEdges: [],
@@ -25,7 +28,7 @@ function makeNode(overrides: Partial<GraphNode> & { outgoingEdges?: GraphNode['o
             additionalYAMLProps: new Map(),
             isContextNode: false
         },
-        ...overrides
+        ...restOverrides
     }
 }
 

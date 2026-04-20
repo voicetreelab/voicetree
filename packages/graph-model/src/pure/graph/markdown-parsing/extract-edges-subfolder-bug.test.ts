@@ -5,7 +5,8 @@ import type { GraphNode, Edge } from '..'
 
 describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
@@ -26,7 +27,8 @@ describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', 
 
 describe('findBestMatchingNode - full path match requirement', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
@@ -106,7 +108,8 @@ describe('getPathComponents', () => {
 
 describe('extractEdges - empty wikilink handling', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
@@ -165,7 +168,8 @@ describe('extractEdges - empty wikilink handling', () => {
 
 describe('findBestMatchingNode - stale absolute path healing (Bug 2 Option B)', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
@@ -213,7 +217,8 @@ describe('findBestMatchingNode - stale absolute path healing (Bug 2 Option B)', 
 
 describe('extractEdges - subfolder bug reproduction', () => {
   const createNode: (id: string, content?: string) => GraphNode = (id: string, content = ''): GraphNode => ({
-    absoluteFilePathIsID: id,
+        kind: 'leaf',
+        absoluteFilePathIsID: id,
     contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
