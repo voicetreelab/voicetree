@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * FolderTreeStore — Graph Collapse State
  *
@@ -7,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types'
+import type { SerializedState } from '@vt/graph-state'
 import {
     folderTreeReducer,
     subscribeFolderTree,
@@ -25,7 +27,13 @@ import {
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 function makeFolderTreeNode(label: string): FolderTreeNode {
-    return { label } as unknown as FolderTreeNode
+    return {
+        name: label,
+        absolutePath: `/tmp/${label}` as FolderTreeNode['absolutePath'],
+        children: [],
+        loadState: 'loaded',
+        isWriteTarget: false,
+    }
 }
 
 // ── ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
@@ -179,10 +187,12 @@ describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', 
 describe('FolderTreeStore dispatchers and persistence', () => {
     beforeEach(() => {
         localStorage.clear()
+        Reflect.deleteProperty(window, 'electronAPI')
     })
 
     afterEach(() => {
         localStorage.clear()
+        Reflect.deleteProperty(window, 'electronAPI')
         vi.resetModules()
         vi.restoreAllMocks()
     })
@@ -226,6 +236,46 @@ describe('FolderTreeStore dispatchers and persistence', () => {
         expect(store.getFolderTreeState().sidebarWidth).toBe(280)
         expect(localStorage.getItem('folderTree.isOpen')).toBe('false')
         expect(localStorage.getItem('folderTree.sidebarWidth')).toBe('280')
+    })
+
+    it('should initialize the folder tree from the main snapshot when empty', async () => {
+        vi.resetModules()
+
+        const tree = makeFolderTreeNode('root')
+        const snapshot: SerializedState = {
+            graph: {
+                nodes: {},
+                incomingEdgesIndex: [],
+                nodeByBaseName: [],
+                unresolvedLinksIndex: [],
+            },
+            roots: {
+                loaded: [tree.absolutePath],
+                folderTree: [tree],
+            },
+            collapseSet: [],
+            selection: [],
+            layout: { positions: [] },
+            meta: {
+                schemaVersion: 1,
+                revision: 0,
+            },
+        }
+        const store = await import('@/shell/edge/UI-edge/state/FolderTreeStore')
+        const getLiveStateSnapshot = vi.fn().mockResolvedValue(snapshot)
+
+        window.electronAPI = {
+            main: {
+                getLiveStateSnapshot,
+            },
+        } as unknown as Window['electronAPI']
+
+        await store.initializeFromMainIfEmpty()
+
+        await vi.waitFor(() => {
+            expect(store.getFolderTreeState().tree).toEqual(tree)
+        })
+        expect(getLiveStateSnapshot).toHaveBeenCalledTimes(1)
     })
 })
 

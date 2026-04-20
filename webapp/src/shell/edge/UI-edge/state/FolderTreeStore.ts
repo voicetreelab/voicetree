@@ -11,12 +11,14 @@
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
+import type { SerializedState } from '@vt/graph-state';
 import {
     dispatchCollapse,
     dispatchExpand,
     getCollapseSet,
     subscribeCollapseSet,
 } from '@vt/graph-state/state/collapseSetStore';
+import type {} from '@/shell/electron';
 
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;
@@ -109,6 +111,8 @@ const INITIAL_STATE: FolderTreeState = {
 };
 
 let currentState: FolderTreeState = INITIAL_STATE;
+let isFetchingFolderTreeFromMain = false;
+let shouldRefetchFolderTreeFromMain = false;
 
 type FolderTreeCallback = (state: FolderTreeState) => void;
 const subscribers: Set<FolderTreeCallback> = new Set();
@@ -145,6 +149,18 @@ export function subscribeFolderTree(callback: FolderTreeCallback): () => void {
  */
 export function getFolderTreeState(): FolderTreeState {
     return currentState;
+}
+
+function getLiveStateSnapshotFromMain():
+    | (() => Promise<SerializedState>)
+    | undefined {
+    if (typeof window === 'undefined') return undefined;
+    return window.electronAPI?.main?.getLiveStateSnapshot as (() => Promise<SerializedState>) | undefined;
+}
+
+function coerceFolderTreeFromMain(snapshot: SerializedState): FolderTreeNode | null {
+    const root: SerializedState['roots']['folderTree'][number] | undefined = snapshot.roots.folderTree[0];
+    return root ? root as FolderTreeNode : null;
 }
 
 // --- Action dispatchers (thin wrappers over dispatch) ---
@@ -194,6 +210,39 @@ export function getGraphCollapseSet(): ReadonlySet<string> {
     return getCollapseSet();
 }
 
+export async function initializeFromMainIfEmpty(): Promise<void> {
+    if (currentState.tree !== null) return;
+
+    const getLiveStateSnapshot: (() => Promise<SerializedState>) | undefined =
+        getLiveStateSnapshotFromMain();
+    if (typeof getLiveStateSnapshot !== 'function') return;
+
+    if (isFetchingFolderTreeFromMain) {
+        shouldRefetchFolderTreeFromMain = true;
+        return;
+    }
+
+    isFetchingFolderTreeFromMain = true;
+
+    try {
+        const snapshot: SerializedState = await getLiveStateSnapshot();
+        const tree: FolderTreeNode | null = coerceFolderTreeFromMain(snapshot);
+        if (tree) {
+            syncFolderTreeFromMain(tree);
+        }
+    } catch {
+        // Leave the store empty outside Electron or if the snapshot fetch fails.
+    } finally {
+        isFetchingFolderTreeFromMain = false;
+        if (shouldRefetchFolderTreeFromMain) {
+            shouldRefetchFolderTreeFromMain = false;
+            if (currentState.tree === null) {
+                void initializeFromMainIfEmpty();
+            }
+        }
+    }
+}
+
 // --- Persistence subscriber (side effect isolated from reducer) ---
 
 subscribeFolderTree((state: FolderTreeState) => {
@@ -204,3 +253,5 @@ subscribeFolderTree((state: FolderTreeState) => {
         // localStorage unavailable
     }
 });
+
+void initializeFromMainIfEmpty();
