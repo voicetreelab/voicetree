@@ -38,28 +38,6 @@ export type { NodeSearchHit, SearchBackend } from './search/types'
 export { SearchIndexNotFoundError } from './search/types'
 export { buildIndex, search, upsertNode, deleteNode } from './search/index-backend'
 export {
-    FOLDER_VISIBILITY_DB_RELATIVE_PATH,
-    FOLDER_VISIBILITY_SCHEMA_VERSION,
-    closeFolderVisibilityDb,
-    openFolderVisibilityDb,
-    resolveFolderVisibilityDbPath,
-    runSchemaMigrations,
-    type FolderVisibilityDatabase,
-} from './sqlite/folderVisibilitySqlite'
-export {
-    ActiveViewDeleteError,
-    ViewNotFoundError,
-    cloneView,
-    createView,
-    deleteView,
-    ensureDefaultView,
-    getActiveViewId,
-    listViews,
-    switchActiveView,
-    type CreatedView,
-    type ViewRecord,
-} from './sqlite/viewsRepository'
-export {
     createViewsStore,
     emitViewSwitched,
     onViewSwitched,

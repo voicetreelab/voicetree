@@ -151,13 +151,17 @@ describe('daemon watcher remounts', () => {
   test('stops watching a read path removed at runtime', async () => {
     const alpha = join(await mkdtemp(join(tmpdir(), 'graphd-bf212-alpha-')), 'alpha')
     const beta = join(await mkdtemp(join(tmpdir(), 'graphd-bf212-beta-')), 'beta')
-    const harness = await createHarness([alpha, beta])
+    const harness = await createHarness()
     rootsToDelete.push(harness.root)
     rootsToDelete.push(join(alpha, '..'))
     rootsToDelete.push(join(beta, '..'))
+    await mkdir(alpha, { recursive: true })
+    await mkdir(beta, { recursive: true })
 
     const handle = await startDaemon({ vault: harness.vault })
     handles.push(handle)
+    expect((await addReadPath(alpha)).success).toBe(true)
+    expect((await addReadPath(beta)).success).toBe(true)
 
     const firstFile = join(alpha, 'before-remove.md')
     await writeFile(firstFile, '# Before Remove\n\nalpha live\n', 'utf8')
@@ -175,13 +179,15 @@ describe('daemon watcher remounts', () => {
 
   test('shutdown cleans up daemon-owned watcher handles after the watcher has been exercised', async () => {
     const docs = join(await mkdtemp(join(tmpdir(), 'graphd-bf212-docs-')), 'docs')
-    const harness = await createHarness([docs])
+    const harness = await createHarness()
     rootsToDelete.push(harness.root)
     rootsToDelete.push(join(docs, '..'))
+    await mkdir(docs, { recursive: true })
 
     const baselineHandles = new Set(getActiveHandles())
     const handle = await startDaemon({ vault: harness.vault })
     handles.push(handle)
+    expect((await addReadPath(docs)).success).toBe(true)
 
     const filePath = join(docs, 'shutdown-proof.md')
     await writeFile(filePath, '# Shutdown Proof\n\nwatcher is live\n', 'utf8')

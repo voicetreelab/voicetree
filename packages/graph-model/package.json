@@ -5,7 +5,9 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./pure/*": "./src/pure/*"
+    "./pure/*": "./src/pure/*",
+    "./sqlite/folderVisibilitySqlite": "./src/sqlite/folderVisibilitySqlite.ts",
+    "./sqlite/viewsRepository": "./src/sqlite/viewsRepository.ts"
   },
   "scripts": {
     "test": "vitest run",

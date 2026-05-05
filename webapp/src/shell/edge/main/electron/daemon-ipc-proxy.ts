@@ -8,7 +8,6 @@ import {
   createEmptyGraph,
   getDirectoryTree,
   getExternalReadPaths,
-  getReadPaths,
   getProjectRootWatchedDirectory,
   getWritePath,
   mapNewGraphToDelta,
@@ -105,11 +104,10 @@ async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
   readPaths: string[]
   writePath: string
 }> {
-  const readPaths = [...(await getReadPaths())]
   const writePath = await getWritePath()
 
   return {
-    readPaths,
+    readPaths: [],
     writePath: O.isSome(writePath) ? writePath.value : vault,
   }
 }

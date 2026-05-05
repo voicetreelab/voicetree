@@ -5,14 +5,16 @@ import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
 import {
-  closeFolderVisibilityDb,
-  ensureDefaultView,
   getVaultPaths,
   initGraphModel,
   onReadPathsChanged,
-  openFolderVisibilityDb,
   setVaultPath,
 } from '@vt/graph-model'
+import {
+  closeFolderVisibilityDb,
+  openFolderVisibilityDb,
+} from '@vt/graph-model/sqlite/folderVisibilitySqlite'
+import { ensureDefaultView } from '@vt/graph-model/sqlite/viewsRepository'
 import { CONTRACT_VERSION } from './contract.ts'
 import { createDaemonApp } from './daemonApp.ts'
 import { acquireLock } from './lock.ts'

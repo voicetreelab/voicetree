@@ -1,12 +1,4 @@
 import type { FolderVisibilityDatabase } from '../sqlite/folderVisibilitySqlite'
-import {
-    closeFolderVisibilityDb,
-    openFolderVisibilityDb,
-} from '../sqlite/folderVisibilitySqlite'
-import {
-    ensureDefaultView,
-    getActiveViewId,
-} from '../sqlite/viewsRepository'
 import type { FilePath } from '../pure/graph'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
@@ -23,6 +15,14 @@ type FolderVisibilityStoreAndDerivation = FolderVisibilityStoreApi & {
     deriveWatchRoots(map: FolderVisibilityState): Set<string>
 }
 
+async function loadFolderVisibilityDbModule(): Promise<typeof import('../sqlite/folderVisibilitySqlite')> {
+    return await import('../sqlite/folderVisibilitySqlite')
+}
+
+async function loadViewsRepository(): Promise<typeof import('../sqlite/viewsRepository')> {
+    return await import('../sqlite/viewsRepository')
+}
+
 async function loadFolderVisibilityStore(): Promise<FolderVisibilityStoreApi> {
     return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreApi
 }
@@ -33,6 +33,8 @@ async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDeriva
 
 export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promise<readonly FilePath[]> {
     const store = await loadFolderVisibilityStore()
+    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
     const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)
@@ -53,6 +55,8 @@ export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promi
  */
 export async function getWatchRootsForActiveView(vaultPath: FilePath): Promise<readonly string[]> {
     const store = await loadStoreWithDerivation()
+    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
     const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)
@@ -72,6 +76,8 @@ export async function setActiveViewFolderState(
     state: FolderState,
 ): Promise<void> {
     const store = await loadFolderVisibilityStore()
+    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
     const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)

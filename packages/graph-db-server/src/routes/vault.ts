@@ -127,7 +127,10 @@ export function mountVaultRoutes(app: Hono): void {
     // shape/existence here but defer any mounted-root restriction.
     const result = await addReadPath(validatedPath.path)
     if (!result.success) {
-      if (result.error === 'Path already in readPaths') {
+      if (
+        result.error === 'Path already in readPaths' ||
+        result.error === 'Path already expanded'
+      ) {
         return c.json(
           ReadPathsResponseSchema.parse({
             readPaths: [...(await getReadPaths())],

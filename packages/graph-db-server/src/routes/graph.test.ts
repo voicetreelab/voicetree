@@ -100,12 +100,19 @@ describe('GET /graph', () => {
 
   test('includes a newly written markdown file from an existing read path', async () => {
     const readPath = join(await mkdtemp(join(tmpdir(), 'graphd-bf212-readpath-')), 'docs')
-    const harness = await createHarness([readPath])
+    const harness = await createHarness()
     rootsToDelete.push(harness.root)
     rootsToDelete.push(join(readPath, '..'))
+    await mkdir(readPath, { recursive: true })
 
     const handle = await startDaemon({ vault: harness.vault })
     handles.push(handle)
+    const addResponse = await fetch(`http://127.0.0.1:${handle.port}/vault/read-paths`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: readPath }),
+    })
+    expect(addResponse.status).toBe(200)
 
     const filePath = join(readPath, 'foo.md')
     await writeFile(filePath, '# Foo\n\nwatch me\n', 'utf8')

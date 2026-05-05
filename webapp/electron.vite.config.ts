@@ -35,11 +35,12 @@ const isMainExternal = (id: string): boolean => {
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
 // need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'better-sqlite3', 'sqlite-vec', 'chokidar'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,
   resolveId(id: string) {
-    if (id.endsWith('.node') || id === 'fsevents') {
+    if (id.endsWith('.node') || PRE_EXTERNAL_NATIVE_DEPS.has(id)) {
       return { id, external: true }
     }
   }
@@ -59,7 +60,7 @@ const NODE_BUILTINS = new Set([
   'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util', 'v8', 'vm', 'wasi',
   'worker_threads', 'zlib',
 ])
-const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents'])
+const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents', 'better-sqlite3', 'sqlite-vec'])
 const rendererNodeShimPlugin = {
   name: 'renderer-node-shim',
   enforce: 'pre' as const,
@@ -155,6 +156,8 @@ export const arch = () => 'browser';
 export const spawn = () => ({ stdout: { on: noop }, stderr: { on: noop }, on: () => {} });
 export const execFileSync = () => '';
 export const fork = noop;
+// crypto
+export const randomUUID = () => '00000000-0000-0000-0000-000000000000';
 // events / stream / util / buffer
 export class EventEmitter { on(){} off(){} emit(){} once(){} removeListener(){} }
 export const promisify = (fn) => fn;
@@ -270,7 +273,7 @@ export default defineConfig({
       // Exclude chokidar/fsevents: chokidar v3 leaks in via @vt/graph-state -> @vt/graph-model
       // barrel re-exports. rendererNodeShimPlugin shims them at resolve time during dev and prod;
       // excluding them here prevents esbuild from pre-bundling them before the plugin can intercept.
-      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep']
+      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep', 'better-sqlite3', 'sqlite-vec']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),

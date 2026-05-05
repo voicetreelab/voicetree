@@ -54,11 +54,26 @@ function buildChildEnv(): NodeJS.ProcessEnv {
 
   // When called from Electron, use the Electron binary in Node mode so cold
   // starts do not depend on whatever `node` happens to be on PATH.
-  if (process.versions.electron) {
+  if (
+    process.versions.electron &&
+    process.env.NODE_ENV !== 'test' &&
+    process.env.HEADLESS_TEST !== '1'
+  ) {
     env.ELECTRON_RUN_AS_NODE = '1'
   }
 
   return env
+}
+
+function resolveRuntimeCommand(): string {
+  if (
+    process.versions.electron &&
+    (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
+  ) {
+    return process.env.npm_node_execpath ?? process.env.NODE_BINARY ?? 'node'
+  }
+
+  return process.execPath
 }
 
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
@@ -69,7 +84,7 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
     return { cmd, args: [...rest, '--vault', vault] }
   }
   return {
-    cmd: process.execPath,
+    cmd: resolveRuntimeCommand(),
     args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
     env: buildChildEnv(),
   }
