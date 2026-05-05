@@ -3,7 +3,6 @@ import path from 'node:path'
 import type {FSEvent, GraphDelta, Graph} from '@vt/graph-model/pure/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/pure/graph';
 import {markdownToTitle} from '@vt/graph-model/pure/graph/markdown-parsing/markdown-to-title'
-import {deleteNode, upsertNode} from '../search/index-backend'
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {getVaultPaths} from '../watch-folder/vault-allowlist'
@@ -55,6 +54,7 @@ async function updateSearchIndexForFSEvent(fsEvent: FSEvent): Promise<void> {
     }
 
     if ('type' in fsEvent && fsEvent.type === 'Delete') {
+        const { deleteNode } = await import('../search/index-backend')
         await deleteNode(vaultPath, fsEvent.absolutePath)
         return
     }
@@ -63,6 +63,7 @@ async function updateSearchIndexForFSEvent(fsEvent: FSEvent): Promise<void> {
         return
     }
 
+    const { upsertNode } = await import('../search/index-backend')
     const title: string = markdownToTitle(fsEvent.content, fsEvent.absolutePath)
     await upsertNode(vaultPath, fsEvent.absolutePath, fsEvent.content, title)
 }

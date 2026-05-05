@@ -16,9 +16,9 @@ import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model';
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWritePath} from '@vt/graph-model';
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {

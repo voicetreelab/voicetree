@@ -5,6 +5,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
+    "test": "node --test system-api.test.cjs",
     "install": "node-gyp rebuild",
     "build": "node-gyp rebuild",
     "clean": "node-gyp clean"

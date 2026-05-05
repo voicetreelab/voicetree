@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-model'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {sendTextToTerminal} from './send-text-to-terminal'
 

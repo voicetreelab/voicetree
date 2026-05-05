@@ -11,7 +11,7 @@ import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import * as O from 'fp-ts/lib/Option.js'
 
 export interface RunAgentOnSelectedParams {
@@ -76,7 +76,6 @@ export async function runAgentOnSelectedNodes(
       undefined, // Auto-assign terminal count
       false,     // Don't skip fit animation
       false,     // Start pinned
-      false,     // Not in new worktree
       selectedNodeIds
     )
 

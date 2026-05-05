@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import { buildIncomingEdgesIndex } from '@vt/graph-model/pure/graph/graph-operations/incomingEdgesIndex'
+
+vi.mock('@/shell/edge/main/state/graph-store', () => ({
+  getGraph: vi.fn()
+}))
+
+vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
+  getWritePath: vi.fn()
+}))
+
+vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
+  spawnTerminalWithContextNode: vi.fn()
+}))
+
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+  applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
+}))
+
+import { runAgentOnSelectedNodes } from './runAgentOnSelectedNodes'
+import { getGraph } from '@/shell/edge/main/state/graph-store'
+import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
+import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
+
+function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
+  return {
+    kind: 'leaf',
+    absoluteFilePathIsID: id,
+    outgoingEdges: [],
+    contentWithoutYamlOrLinks: content,
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+      isContextNode: false
+    }
+  }
+}
+
+function createGraph(nodes: Record<NodeIdAndFilePath, GraphNode>): Graph {
+  return {
+    nodes,
+    incomingEdgesIndex: buildIncomingEdgesIndex(nodes),
+    nodeByBaseName: new Map(),
+    unresolvedLinksIndex: new Map()
+  }
+}
+
+describe('runAgentOnSelectedNodes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes selected nodes to spawnTerminalWithContextNode, not as spawnDirectory', async () => {
+    const selectedNodeIds: readonly NodeIdAndFilePath[] = [
+      '/vault/a.md' as NodeIdAndFilePath,
+      '/vault/b.md' as NodeIdAndFilePath
+    ]
+    const graph: Graph = createGraph({
+      [selectedNodeIds[0]]: createNode(selectedNodeIds[0], '# A'),
+      [selectedNodeIds[1]]: createNode(selectedNodeIds[1], '# B')
+    })
+
+    vi.mocked(getGraph).mockReturnValue(graph)
+    vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+    vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+      terminalId: 'agent-1',
+      contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath
+    })
+
+    const result = await runAgentOnSelectedNodes({
+      selectedNodeIds,
+      taskDescription: 'Check these nodes',
+      position: { x: 10, y: 20 }
+    })
+
+    expect(result.terminalId).toBe('agent-1')
+    expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalledTimes(1)
+
+    const taskNodeId: NodeIdAndFilePath = result.taskNodeId
+    expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(
+      taskNodeId,
+      undefined,
+      undefined,
+      false,
+      false,
+      selectedNodeIds
+    )
+  })
+})

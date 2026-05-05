@@ -22,6 +22,12 @@ export interface EnsureDaemonResult {
 }
 
 type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
+type RuntimeVersions = NodeJS.ProcessVersions & { electron?: string }
+type RuntimeCommandInput = {
+  env?: NodeJS.ProcessEnv
+  execPath?: string
+  versions?: Partial<RuntimeVersions>
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
@@ -49,20 +55,17 @@ async function probeHealth(vault: string, port: number): Promise<boolean> {
   }
 }
 
-function buildChildEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env }
+export function resolveDaemonRuntimeCommand(
+  input: RuntimeCommandInput = {},
+): string {
+  const env = input.env ?? process.env
+  const versions = input.versions ?? process.versions
 
-  // When called from Electron, use the Electron binary in Node mode so native
-  // modules match the ABI they were rebuilt for by the Electron test/dev flow.
-  if (process.versions.electron) {
-    env.ELECTRON_RUN_AS_NODE = '1'
+  if (versions.electron) {
+    return env.VT_GRAPHD_NODE_BIN?.trim() || env.npm_node_execpath?.trim() || 'node'
   }
 
-  return env
-}
-
-function resolveRuntimeCommand(): string {
-  return process.execPath
+  return input.execPath ?? process.execPath
 }
 
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
@@ -73,9 +76,9 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
     return { cmd, args: [...rest, '--vault', vault] }
   }
   return {
-    cmd: resolveRuntimeCommand(),
+    cmd: resolveDaemonRuntimeCommand(),
     args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
-    env: buildChildEnv(),
+    env: { ...process.env },
   }
 }
 
@@ -108,14 +111,22 @@ export async function ensureDaemon(
   let child: ChildProcess = spawn(cmd, args, {
     detached: true,
     env,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'pipe'],
   })
   child.unref()
+  child.stderr?.unref?.()
   const spawnedPid = child.pid ?? null
 
   let spawnError: NodeJS.ErrnoException | null = null
+  let stderr = ''
   child.on('error', (err) => {
     spawnError = err as NodeJS.ErrnoException
+  })
+  child.stderr?.on('data', (chunk: Buffer | string) => {
+    stderr = `${stderr}${chunk.toString()}`
+    if (stderr.length > 4000) {
+      stderr = stderr.slice(-4000)
+    }
   })
 
   // 3. Poll for port file + /health (lock-coalesces: whoever's port file lands first wins).
@@ -136,7 +147,10 @@ export async function ensureDaemon(
   }
 
   if (spawnError) throw spawnError
+  const stderrSuffix = stderr.trim()
+    ? `\nvt-graphd stderr:\n${stderr.trim()}`
+    : ''
   throw new DaemonLaunchTimeout(
-    `vt-graphd did not become ready within ${timeoutMs}ms for vault ${resolvedVault}`,
+    `vt-graphd did not become ready within ${timeoutMs}ms for vault ${resolvedVault}${stderrSuffix}`,
   )
 }
