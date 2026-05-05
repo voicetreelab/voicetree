@@ -1,0 +1,363 @@
+"""
+Debug logging system for VoiceTree workflow stages
+Logs input/output variables to individual files for each stage
+
+In cloud function environments (stateless), logs go to stdout via Python logging
+which integrates with Google Cloud Logging automatically.
+"""
+
+import json
+import sys
+import os
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+# Configure a dedicated logger for debug output
+debug_logger = logging.getLogger("voicetree.debug")
+debug_logger.setLevel(logging.DEBUG)
+
+
+def _is_cloud_function() -> bool:
+    """Detect if running in a Google Cloud Function environment."""
+    # K_SERVICE is set by Cloud Functions/Cloud Run
+    # FUNCTION_TARGET is set by functions-framework
+    return bool(os.environ.get("K_SERVICE") or os.environ.get("FUNCTION_TARGET"))
+
+
+# Cloud function mode flag - determined at import time
+CLOUD_FUNCTION_MODE = _is_cloud_function()
+
+
+def get_debug_directory() -> Path:
+    """Get the debug directory from environment or use sensible defaults."""
+    # First check for explicit debug directory configuration
+    if debug_dir := os.environ.get('VOICETREE_DEBUG_DIR'):
+        return Path(debug_dir)
+
+    # For PyInstaller bundles, use a subdirectory next to the executable
+    if getattr(sys, 'frozen', False):
+        # sys.executable in frozen mode points to the actual executable
+        # Put logs in a 'debug_logs' folder next to the executable
+        exe_dir = Path(sys.executable).parent
+        return exe_dir / "debug_logs"
+
+    # For development, use local directory
+    return Path(__file__).parent.parent / "debug_logs"
+
+# Lazy initialization - don't create directory on import
+DEBUG_DIR = get_debug_directory()
+
+def ensure_debug_dir_exists():
+    """Create debug directory only when needed. No-op in cloud function mode."""
+    if CLOUD_FUNCTION_MODE:
+        return
+    if not DEBUG_DIR.exists():
+        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+
+def clear_debug_logs() -> None:
+    """
+    Clear all existing debug log files.
+
+    Note: This should only be called manually when starting a new benchmarker session.
+    Individual transcript runs will append to existing logs to preserve the full history.
+    No-op in cloud function mode (logs are in Cloud Logging).
+    """
+    if CLOUD_FUNCTION_MODE:
+        debug_logger.info("[debug] clear_debug_logs called - no-op in cloud function mode")
+        return
+
+    if DEBUG_DIR.exists():
+        for file in DEBUG_DIR.glob("*.txt"):
+            file.unlink()
+    print(f"Cleared debug logs in {DEBUG_DIR}")
+
+def log_stage_input_output(stage_name: str, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
+    """
+    Log the state before and after a workflow stage execution
+
+    Args:
+        stage_name: Name of the stage (e.g., "segmentation", "relationship_analysis")
+        inputs: State dictionary before the stage executes
+        outputs: State dictionary after the stage executes
+    """
+    timestamp = datetime.now().strftime("%H:%M:%S")
+
+    # Format the log entry
+    log_entry = f"""
+==========================================
+{stage_name.upper()} STAGE DEBUG - {timestamp}
+==========================================
+
+STATE BEFORE:
+{format_variables(inputs)}
+
+STATE AFTER:
+{format_variables(outputs)}
+
+==========================================
+"""
+
+    if CLOUD_FUNCTION_MODE:
+        # In cloud functions, use structured logging to stdout
+        debug_logger.info(f"[{stage_name}] stage_input_output", extra={
+            "stage_name": stage_name,
+            "timestamp": timestamp,
+            "log_type": "stage_io",
+            "details": log_entry
+        })
+    else:
+        # Local mode: write to file
+        ensure_debug_dir_exists()
+        log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry + "\n")
+
+
+def format_variables(variables: dict[str, Any]) -> str:
+    """
+    Format variables for readable logging
+
+    Args:
+        variables: Dictionary of variables to format
+
+    Returns:
+        Formatted string representation
+    """
+    formatted_lines = []
+
+    for key, value in variables.items():
+        if key in ["current_stage", "error_message"]:
+            # Skip internal workflow variables
+            continue
+
+        if isinstance(value, str):
+            # Truncate very long strings
+            if len(value) > 3000:
+                formatted_value = value[:3000] + "...[DEBUG_TRUNCATED]"
+            else:
+                formatted_value = value
+            formatted_lines.append(f"  {key}: {repr(formatted_value)}")
+
+        elif isinstance(value, list):
+            # Format lists nicely - show ALL items without truncation
+            if len(value) == 0:
+                formatted_lines.append(f"  {key}: []")
+            else:
+                # Show all items in the list
+                formatted_lines.append(f"  {key}: [{len(value)} items]")
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        formatted_lines.append(f"    {i}: {format_dict_compact(item)}")
+                    elif hasattr(item, 'model_dump'):
+                        # Handle Pydantic models
+                        formatted_lines.append(f"    {i}: {format_dict_compact(item.model_dump())}")
+                    else:
+                        formatted_lines.append(f"    {i}: {repr(item)}")
+                formatted_lines.append("  ]")
+
+        elif isinstance(value, dict):
+            # Format dictionaries compactly
+            formatted_lines.append(f"  {key}: {format_dict_compact(value)}")
+
+        else:
+            # Other types (numbers, booleans, etc.)
+            formatted_lines.append(f"  {key}: {repr(value)}")
+
+    return "\n".join(formatted_lines) if formatted_lines else "  (no variables)"
+
+def format_dict_compact(d: dict[str, Any]) -> str:
+    """
+    Format a dictionary showing all items
+
+    Args:
+        d: Dictionary to format
+
+    Returns:
+        Compact string representation
+    """
+    if not d:
+        return "{}"
+
+    # Handle Pydantic models by converting to dict
+    if hasattr(d, 'model_dump'):
+        d = d.model_dump()
+
+    items = list(d.items())
+    # Show all items without truncation
+    formatted_items = []
+    for k, v in items:
+        if isinstance(v, str) and len(v) > 3000:
+            v_str = repr(v[:3000] + "...[DEBUG_TRUNCATED]")
+        else:
+            v_str = repr(v)
+        formatted_items.append(f"{repr(k)}: {v_str}")
+    return "{" + ", ".join(formatted_items) + "}"
+
+def log_transcript_processing(transcript_text: str, file_source: str = "unknown") -> None:
+    """
+    Log the initial transcript being processed
+
+    Args:
+        transcript_text: The transcript text
+        file_source: Source file path or description
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+==========================================
+TRANSCRIPT INPUT - {timestamp}
+==========================================
+
+SOURCE: {file_source}
+LENGTH: {len(transcript_text)} characters
+WORD COUNT: {len(transcript_text.split())} words
+
+CONTENT:
+{transcript_text}
+
+==========================================
+"""
+
+    if CLOUD_FUNCTION_MODE:
+        # In cloud functions, use structured logging
+        debug_logger.info("[transcript] input", extra={
+            "log_type": "transcript_input",
+            "source": file_source,
+            "length": len(transcript_text),
+            "word_count": len(transcript_text.split()),
+            "content_preview": transcript_text[:500] if len(transcript_text) > 500 else transcript_text
+        })
+    else:
+        # Local mode: write to file with separator
+        ensure_debug_dir_exists()
+        log_file = DEBUG_DIR / "00_transcript_input.txt"
+        separator = f"""
+
+##########################################################
+# NEW TRANSCRIPT EXECUTION - {timestamp}
+##########################################################
+
+"""
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(separator)
+            f.write(log_entry)
+
+
+def log_llm_io(stage_name: str, prompt: str, response: Any, model_name: str = "unknown") -> None:
+    """
+    Log the actual LLM prompt and response for debugging
+
+    Args:
+        stage_name: Name of the stage (e.g., "single_abstraction_optimizer")
+        prompt: The full prompt sent to the LLM
+        response: The LLM response (can be string or structured object)
+        model_name: The model that was used
+    """
+    timestamp = datetime.now().strftime("%H:%M:%S")
+
+    # Format response based on type
+    if hasattr(response, 'model_dump'):
+        # Pydantic model
+        response_str = json.dumps(response.model_dump(), indent=2)
+    elif isinstance(response, dict):
+        response_str = json.dumps(response, indent=2)
+    else:
+        response_str = str(response)
+
+    log_entry = f"""
+==========================================
+{stage_name.upper()} LLM I/O - {timestamp}
+==========================================
+
+MODEL: {model_name}
+
+PROMPT SENT TO LLM:
+------------------
+{prompt}
+------------------
+
+LLM RESPONSE:
+------------
+{response_str}
+------------
+
+==========================================
+"""
+
+    if CLOUD_FUNCTION_MODE:
+        # In cloud functions, use structured logging
+        # Truncate prompt for cloud logs to avoid excessive log size
+        prompt_preview = prompt[:2000] if len(prompt) > 2000 else prompt
+        response_preview = response_str[:2000] if len(response_str) > 2000 else response_str
+        debug_logger.info(f"[{stage_name}] llm_io", extra={
+            "stage_name": stage_name,
+            "log_type": "llm_io",
+            "model": model_name,
+            "prompt_length": len(prompt),
+            "prompt_preview": prompt_preview,
+            "response_preview": response_preview
+        })
+    else:
+        # Local mode: write to file
+        ensure_debug_dir_exists()
+        log_file = DEBUG_DIR / f"{stage_name}_llm_io.txt"
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry + "\n")
+
+
+def create_debug_summary() -> None:
+    """
+    Create a summary of all debug logs
+    """
+    if CLOUD_FUNCTION_MODE:
+        # In cloud functions, just log that summary was requested
+        debug_logger.info("[debug] summary requested - check Cloud Logging for debug entries", extra={
+            "log_type": "summary"
+        })
+        return
+
+    try:
+        ensure_debug_dir_exists()
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        summary_file = DEBUG_DIR / "99_debug_summary.txt"
+
+        log_files = sorted([f for f in DEBUG_DIR.glob("*.txt") if f.name != "99_debug_summary.txt"])
+
+        summary_content = f"""
+==========================================
+WORKFLOW DEBUG SUMMARY - {timestamp}
+==========================================
+
+Available Debug Logs:
+"""
+
+        for log_file in log_files:
+            file_size = log_file.stat().st_size
+            summary_content += f"  - {log_file.name} ({file_size} bytes)\n"
+
+        summary_content += f"""
+Total Debug Files: {len(log_files)}
+
+To investigate the workflow issue:
+
+1. Start with 00_transcript_input.txt to see ALL transcript inputs (logs accumulate across runs)
+2. Check segmentation_debug.txt to see if chunks are correct
+3. Check relationship_analysis_debug.txt to see if relationships are found
+4. Check integration_decision_debug.txt to see if decisions make sense
+
+NOTE: Debug logs now accumulate across multiple runs. Look for separator lines
+with timestamps to distinguish between different executions.
+
+Look for where the content starts to diverge from the original transcript.
+
+==========================================
+"""
+
+        with open(summary_file, "w", encoding="utf-8") as f:
+            f.write(summary_content)
+
+    except Exception:
+        # Silently fail if we can't create summary
+        pass

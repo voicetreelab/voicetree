@@ -1,0 +1,8 @@
+functions-framework==3.*
+langgraph==0.2.57
+google-genai>=1.20.0
+pydantic==2.10.3
+python-dotenv==1.0.1
+flask==3.1.0
+upstash-ratelimit>=1.0.0
+upstash-redis>=0.15.0
