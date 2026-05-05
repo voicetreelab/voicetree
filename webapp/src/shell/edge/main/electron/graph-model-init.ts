@@ -7,7 +7,13 @@
 
 import { app, dialog } from 'electron'
 import * as O from 'fp-ts/lib/Option.js'
-import { getWritePath, initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
+import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
+import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import { configureRootIO } from '@vt/graph-state'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
+import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
@@ -17,16 +23,19 @@ import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-clien
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
-import { loadSettings } from '@vt/graph-model'
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
 
-const GRAPH_MODEL_DAEMON_TIMEOUT_MS = 15_000
+const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
 
 export function initializeGraphModel(): void {
+    configureRootIO({
+        getDirectoryTree,
+        loadGraphFromDisk,
+    })
+
     const callbacks: GraphModelCallbacks = {
         // Core graph broadcasting
         onGraphDelta(delta: GraphDelta): void {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('graph:stateChanged', delta)
             }
@@ -35,7 +44,7 @@ export function initializeGraphModel(): void {
             uiAPI.updateFloatingEditorsFromExternal(delta)
         },
         onGraphCleared(): void {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('graph:clear')
             }
@@ -48,13 +57,13 @@ export function initializeGraphModel(): void {
 
         // Watch folder events
         onWatchingStarted(info): void {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('watching-started', info)
             }
         },
         onFolderCleared(): void {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('folder:cleared')
             }
@@ -62,15 +71,15 @@ export function initializeGraphModel(): void {
 
         // Dialogs
         async openFolderDialog(): Promise<string | undefined> {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (!mainWindow) return undefined
-            const result = await dialog.showOpenDialog(mainWindow, {
+            const result: Electron.OpenDialogReturnValue = await dialog.showOpenDialog(mainWindow, {
                 properties: ['openDirectory']
             })
             return result.canceled ? undefined : result.filePaths[0]
         },
         async showInfoDialog(title: string, message: string): Promise<void> {
-            const mainWindow = getMainWindow()
+            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (!mainWindow) return
             await dialog.showMessageBox(mainWindow, { type: 'info', title, message })
         },
@@ -80,7 +89,11 @@ export function initializeGraphModel(): void {
             uiAPI.fitViewport()
         },
         syncVaultState(state): void {
-            uiAPI.syncVaultState(state)
+            uiAPI.syncVaultState({
+                readPaths: [...state.vaultPaths],
+                writePath: state.writePath,
+                starredFolders: [...state.starredFolders],
+            })
         },
         syncFolderTree(tree): void {
             uiAPI.syncFolderTree(tree)
@@ -111,15 +124,15 @@ export function initializeGraphModel(): void {
             void tellSTTServerToLoadDirectory(dirPath)
         },
         async semanticSearch(query: string, topK: number): Promise<readonly string[]> {
-            const writePath = await getWritePath()
+            const writePath: O.Option<string> = await getWritePath()
             if (O.isNone(writePath)) {
                 return []
             }
 
             try {
-                const { search } = await import('@vt/graph-model')
-                const hits = await search(writePath.value, query, topK)
-                return hits.map(hit => hit.nodePath)
+                const { search }: typeof import('@vt/graph-model') = await import('@vt/graph-model')
+                const hits: readonly { nodePath: string }[] = await search(writePath.value, query, topK)
+                return hits.map((hit: { nodePath: string }) => hit.nodePath)
             } catch {
                 return []
             }
