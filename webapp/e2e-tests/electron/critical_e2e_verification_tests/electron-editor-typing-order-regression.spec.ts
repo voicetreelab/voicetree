@@ -145,10 +145,12 @@ const test = base.extend<{
     await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
     await window.waitForFunction(
       () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
+      undefined,
       { timeout: 15_000 },
     );
     await window.waitForFunction(
       () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
+      undefined,
       { timeout: 10_000 },
     );
     await use(window);

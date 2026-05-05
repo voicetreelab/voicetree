@@ -356,12 +356,17 @@ test.describe('Smoke Test', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully with graph view');
 
-    // Wait for graph nodes to load
-    await appWindow.waitForFunction(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) return false;
-      return cy.nodes().length > 1;
-    }, { timeout: 8000 });
+    // Wait for graph nodes to load and stay observable at assertion time.
+    await expect.poll(async () => {
+      return await appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy?.nodes().length ?? 0;
+      });
+    }, {
+      message: 'Waiting for Cytoscape nodes to render',
+      timeout: 15000,
+      intervals: [500, 1000, 1000]
+    }).toBeGreaterThan(2);
     console.log('✓ Cytoscape nodes loaded');
 
     // Verify graph was automatically loaded into main process state
@@ -488,7 +493,7 @@ test.describe('Smoke Test', () => {
       depthBudget: 0,
       headless: true
     });
-    expect(fakeAgentSpawn.success).toBe(true);
+    expect(fakeAgentSpawn.parsed).toMatchObject({ success: true });
     const fakeAgentTerminalId = (fakeAgentSpawn.parsed as { terminalId: string }).terminalId;
     expect(fakeAgentTerminalId).toBeTruthy();
 

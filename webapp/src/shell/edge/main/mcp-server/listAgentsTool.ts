@@ -11,6 +11,7 @@ import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getAgentNodes} from './agentNodeIndex'
 import * as O from 'fp-ts/lib/Option.js'
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
@@ -39,7 +40,12 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         const agentName: string | undefined = record.terminalData.agentName
 
         // Find nodes created by this agent via agent_name matching (scoped to spawn time)
-        const newNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName, record.spawnedAt)
+        const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)
+        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName, record.spawnedAt)
+        const newNodesById: Map<string, {nodeId: string; title: string}> = new Map(
+            [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
+        )
+        const newNodes: Array<{nodeId: string; title: string}> = [...newNodesById.values()]
 
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
