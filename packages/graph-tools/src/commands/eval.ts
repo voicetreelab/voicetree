@@ -30,6 +30,7 @@ type EvalOptions = {
   port?: number
   pid?: number
   vault?: string
+  forceNew?: boolean
   source: string
 }
 
@@ -319,6 +320,7 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
   const sourceParts: string[] = []
   let parsingFlags = true
 
@@ -372,6 +374,11 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
       continue
     }
 
+    if (parsingFlags && arg === '--new') {
+      forceNew = true
+      continue
+    }
+
     if (parsingFlags && arg.startsWith('--')) {
       return err('eval', `unknown argument: ${arg}`, 'use -- before expressions that start with --')
     }
@@ -381,13 +388,14 @@ function parseEvalOptions(argv: string[]): ErrorResponse | EvalOptions {
   }
 
   if (sourceParts.length === 0) {
-    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--vault PATH]')
+    return err('eval', 'no JavaScript expression given', 'usage: vt-debug eval <js> [--port N|--cdpPort N|--pid N|--vault PATH|--new]')
   }
 
   return {
     port,
     pid,
     vault,
+    forceNew,
     source: sourceParts.join(' '),
   }
 }
@@ -436,6 +444,7 @@ async function evalHandler(argv: string[]): Promise<Response<unknown>> {
     port: parsed.port,
     pid: parsed.pid,
     vault: parsed.vault,
+    forceNew: parsed.forceNew,
   })
 
   if (!pick.ok) {

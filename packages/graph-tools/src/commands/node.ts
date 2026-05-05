@@ -377,6 +377,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
   let nodeId: string | undefined
 
   for (let i = 0; i < argv.length; i++) {
@@ -393,20 +394,22 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
       vault = argv[++i]
     } else if (arg.startsWith('--vault=')) {
       vault = arg.slice('--vault='.length)
+    } else if (arg === '--new') {
+      forceNew = true
     } else if (arg.startsWith('--')) {
-      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
+      return err('node', `unknown flag: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
     } else if (!nodeId) {
       nodeId = arg
     } else {
-      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
+      return err('node', `unexpected argument: ${arg}`, 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
     }
   }
 
   if (!nodeId) {
-    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH]', 2)
+    return err('node', 'missing node id', 'usage: vt-debug node <id> [--port N|--cdpPort N|--pid N|--vault PATH|--new]', 2)
   }
 
-  const pick = await resolveDebugInstance({ port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
   if (!pick.ok) {
     return err('node', pick.message, pick.hint, 2)
   }

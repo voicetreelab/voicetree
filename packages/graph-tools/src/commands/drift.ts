@@ -39,16 +39,19 @@ async function snapshotFsContent(state: State): Promise<FsContentById> {
   return Object.fromEntries(entries)
 }
 
-function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: number; vault?: string; deep: boolean } {
+function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: number; vault?: string; forceNew?: boolean; deep: boolean } {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
   let deep = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--deep') {
       deep = true
+    } else if (arg === '--new') {
+      forceNew = true
     } else if (arg === '--port' || arg === '--cdpPort') {
       port = parseInt(argv[++i] ?? '', 10)
     } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
@@ -72,7 +75,7 @@ function parseArgs(argv: string[]): Response<never> | { port?: number; pid?: num
     }
   }
 
-  return { port, pid, vault, deep }
+  return { port, pid, vault, forceNew, deep }
 }
 
 async function driftHandler(argv: string[]): Promise<Response<unknown>> {
@@ -81,7 +84,7 @@ async function driftHandler(argv: string[]): Promise<Response<unknown>> {
     return parsed
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault, forceNew: parsed.forceNew })
 
   if (!pick.ok) {
     return err('drift', pick.message, pick.hint, 2)

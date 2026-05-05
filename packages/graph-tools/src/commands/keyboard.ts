@@ -23,6 +23,7 @@ type CommonOpts = {
   port?: number
   pid?: number
   vault?: string
+  forceNew?: boolean
 }
 
 type TypeOpts = CommonOpts & {
@@ -96,6 +97,7 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -120,6 +122,8 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
         vault = readFlagValue('--vault', argv[++i])
       } else if (arg.startsWith('--vault=')) {
         vault = readFlagValue('--vault', arg.slice('--vault='.length))
+      } else if (arg === '--new') {
+        forceNew = true
       } else if (arg.startsWith('--')) {
         return usage(`unknown argument: ${arg}`)
       } else {
@@ -137,7 +141,7 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
     return usage('keyboard type requires text')
   }
 
-  return { text, selector, delayMs, port, pid, vault }
+  return { text, selector, delayMs, port, pid, vault, forceNew }
 }
 
 function parsePressArgs(argv: string[]): PressOpts | Response<never> {
@@ -146,6 +150,7 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -166,6 +171,8 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
         vault = readFlagValue('--vault', argv[++i])
       } else if (arg.startsWith('--vault=')) {
         vault = readFlagValue('--vault', arg.slice('--vault='.length))
+      } else if (arg === '--new') {
+        forceNew = true
       } else if (arg.startsWith('--')) {
         return usage(`unknown argument: ${arg}`)
       } else {
@@ -180,7 +187,7 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
     return usage('keyboard press requires one chord argument')
   }
 
-  return { chord: positional[0], selector, port, pid, vault }
+  return { chord: positional[0], selector, port, pid, vault, forceNew }
 }
 
 async function readActiveElement(page: PageLike): Promise<ActiveElementInfo> {
@@ -224,7 +231,7 @@ async function focusTarget(page: PageLike, selector: string): Promise<void> {
 }
 
 async function resolveTarget(opts: CommonOpts) {
-  const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, vault: opts.vault })
+  const pick = await resolveDebugInstance({ port: opts.port, pid: opts.pid, vault: opts.vault, forceNew: opts.forceNew })
   if (!pick.ok) {
     return { ok: false as const, response: err('keyboard', pick.message, pick.hint, 2) }
   }

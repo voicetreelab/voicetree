@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { DebugInstance } from '../src/debug/discover'
-import { resolveDebugInstance, type ResolveDebugInstanceDeps } from '../src/debug/portResolution'
+import { resolveDebugInstance, type LaunchedChild, type ResolveDebugInstanceDeps } from '../src/debug/portResolution'
 import { parseArgs as parseScreenshotArgs } from '../src/commands/screenshot'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
@@ -25,7 +25,7 @@ function buildInstance(overrides: Partial<DebugInstance> = {}): DebugInstance {
 function buildDeps(overrides: Partial<ResolveDebugInstanceDeps> = {}) {
   return {
     allocatePort: vi.fn(async () => 9333),
-    launchDevSession: vi.fn(async () => undefined),
+    launchDevSession: vi.fn(async (): Promise<LaunchedChild> => ({ exited: false, exitCode: null, output: [] })),
     listInstances: vi.fn(async () => [] as DebugInstance[]),
     now: vi.fn(() => 0),
     probeCdpPort: vi.fn(async () => true),
@@ -38,7 +38,7 @@ function buildDeps(overrides: Partial<ResolveDebugInstanceDeps> = {}) {
 }
 
 describe('resolveDebugInstance', () => {
-  it('reuses the only registered dev instance silently when its CDP endpoint responds', async () => {
+  it('warns when a session exists and no selector given', async () => {
     const instance = buildInstance()
     const deps = buildDeps({
       listInstances: vi.fn(async () => [instance]),
@@ -46,10 +46,41 @@ describe('resolveDebugInstance', () => {
 
     const result = await resolveDebugInstance({}, deps)
 
+    expect(result).toMatchObject({
+      ok: false,
+      message: 'existing dev session found (9222)',
+    })
+    expect(deps.launchDevSession).not.toHaveBeenCalled()
+  })
+
+  it('reuses session when targeted with --port', async () => {
+    const instance = buildInstance()
+    const deps = buildDeps({
+      listInstances: vi.fn(async () => [instance]),
+    })
+
+    const result = await resolveDebugInstance({ port: 9222 }, deps)
+
     expect(result).toEqual({ ok: true, instance })
     expect(deps.probeCdpPort).toHaveBeenCalledWith(instance.cdpPort)
     expect(deps.launchDevSession).not.toHaveBeenCalled()
-    expect(deps.stderr.write).not.toHaveBeenCalled()
+  })
+
+  it('launches fresh session with --new even when one exists', async () => {
+    const existing = buildInstance({ pid: 1111, cdpPort: 9222 })
+    const launched = buildInstance({ pid: 5252, mcpPort: 3200, cdpPort: 9333 })
+    const deps = buildDeps({
+      allocatePort: vi.fn(async () => launched.cdpPort),
+      listInstances: vi
+        .fn<() => Promise<DebugInstance[]>>()
+        .mockResolvedValueOnce([existing])
+        .mockResolvedValueOnce([existing, launched]),
+    })
+
+    const result = await resolveDebugInstance({ forceNew: true }, deps)
+
+    expect(result).toEqual({ ok: true, instance: launched })
+    expect(deps.launchDevSession).toHaveBeenCalledWith(launched.cdpPort)
   })
 
   it('auto-launches a dev session on a free port when no registered instances exist', async () => {
@@ -72,7 +103,7 @@ describe('resolveDebugInstance', () => {
     )
   })
 
-  it('requires --port when multiple dev instances are running', async () => {
+  it('warns when multiple dev instances are running', async () => {
     const deps = buildDeps({
       listInstances: vi.fn(async () => [
         buildInstance({ pid: 1111, cdpPort: 9222 }),
@@ -84,7 +115,7 @@ describe('resolveDebugInstance', () => {
 
     expect(result).toMatchObject({
       ok: false,
-      message: '--port required (multiple dev instances running: 9222, 9333)',
+      message: 'existing dev sessions found (9222, 9333)',
     })
     expect(deps.probeCdpPort).not.toHaveBeenCalled()
     expect(deps.launchDevSession).not.toHaveBeenCalled()

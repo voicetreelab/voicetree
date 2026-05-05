@@ -14,6 +14,7 @@ export type PickOpts = {
     port?: number;   // match cdpPort or mcpPort
     pid?: number;
     vault?: string;  // match resolved vaultPath prefix
+    forceNew?: boolean;  // --new: skip existing instances, always launch fresh
 };
 
 export type PickResult =

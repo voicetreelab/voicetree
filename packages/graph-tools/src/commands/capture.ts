@@ -16,6 +16,7 @@ type CaptureArgs = {
   port?: number
   pid?: number
   vault?: string
+  forceNew?: boolean
   tag?: string
   out?: string
 }
@@ -109,6 +110,8 @@ function parseArgs(argv: string[]): CaptureArgs {
       args.vault = argv[++i]
     } else if (arg.startsWith('--vault=')) {
       args.vault = arg.slice('--vault='.length)
+    } else if (arg === '--new') {
+      args.forceNew = true
     } else if (arg === '--tag') {
       args.tag = argv[++i]
     } else if (arg.startsWith('--tag=')) {
@@ -135,6 +138,7 @@ async function captureHandler(argv: string[]): Promise<Response<unknown>> {
     port: args.port,
     pid: args.pid,
     vault: args.vault,
+    forceNew: args.forceNew,
   })
 
   if (!pick.ok) {

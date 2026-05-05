@@ -63,6 +63,7 @@ type PageAxArgs = {
   port?: number
   pid?: number
   vault?: string
+  forceNew?: boolean
   selector?: string
 }
 
@@ -87,6 +88,8 @@ function parseArgs(argv: string[]): PageAxArgs {
       parsed.selector = argv[++i]
     } else if (arg.startsWith('--selector=')) {
       parsed.selector = arg.slice('--selector='.length)
+    } else if (arg === '--new') {
+      parsed.forceNew = true
     }
   }
 
@@ -146,9 +149,9 @@ async function snapshotPageAx(
 }
 
 async function pageAxHandler(argv: string[]): Promise<Response<unknown>> {
-  const { port, pid, vault, selector } = parseArgs(argv)
+  const { port, pid, vault, forceNew, selector } = parseArgs(argv)
 
-  const pick = await resolveDebugInstance({ port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
 
   if (!pick.ok) {
     return err('page-ax', pick.message, pick.hint, 2)

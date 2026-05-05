@@ -45,6 +45,7 @@ export type ScreenshotOptions = {
   port?: number
   pid?: number
   vault?: string
+  forceNew?: boolean
 }
 
 function extractChromium(pw: unknown): ChromiumLike {
@@ -114,6 +115,8 @@ export function parseArgs(argv: string[]): ScreenshotOptions {
       options.vault = argv[++i]
     } else if (arg.startsWith('--vault=')) {
       options.vault = arg.slice('--vault='.length)
+    } else if (arg === '--new') {
+      options.forceNew = true
     }
   }
 
@@ -199,6 +202,7 @@ async function screenshotHandler(argv: string[]): Promise<Response<unknown>> {
     port: options.port,
     pid: options.pid,
     vault: options.vault,
+    forceNew: options.forceNew,
   })
 
   if (!pick.ok) {

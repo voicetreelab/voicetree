@@ -437,6 +437,7 @@ function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
 
   try {
     for (let i = 0; i < argv.length; i += 1) {

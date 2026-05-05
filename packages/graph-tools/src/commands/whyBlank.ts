@@ -59,7 +59,7 @@ type CommandError = {
 }
 
 type ParsedArgs =
-  | { ok: true; port?: number; pid?: number; vault?: string; seed?: SeedScenario }
+  | { ok: true; port?: number; pid?: number; vault?: string; forceNew?: boolean; seed?: SeedScenario }
   | { ok: false; message: string; hint?: string }
 
 function extractChromium(pw: unknown): ChromiumLike {
@@ -103,6 +103,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew: boolean | undefined
   let seed: SeedScenario | undefined
 
   try {
@@ -140,11 +141,13 @@ function parseArgs(argv: string[]): ParsedArgs {
           }
         }
         seed = value as SeedScenario
+      } else if (arg === '--new') {
+        forceNew = true
       } else {
         return {
           ok: false,
           message: `unknown argument "${arg}"`,
-          hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed',
+          hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed, --new',
         }
       }
     }
@@ -152,11 +155,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     return {
       ok: false,
       message: String(e),
-      hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed',
+      hint: 'supported flags: --port, --cdpPort, --pid, --vault, --seed, --new',
     }
   }
 
-  return { ok: true, port, pid, vault, seed }
+  return { ok: true, port, pid, vault, forceNew, seed }
 }
 
 function summarizeState(state: State): BlankState {
@@ -388,7 +391,7 @@ async function whyBlankHandler(argv: string[]): Promise<Response<unknown>> {
     return err('why-blank', parsed.message, parsed.hint, 2)
   }
 
-  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault })
+  const pick = await resolveDebugInstance({ port: parsed.port, pid: parsed.pid, vault: parsed.vault, forceNew: parsed.forceNew })
   if (!pick.ok) {
     return err('why-blank', pick.message, pick.hint, 2)
   }

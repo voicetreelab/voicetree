@@ -9,9 +9,15 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const AUTO_LAUNCH_TIMEOUT_MS = 30_000
 const AUTO_LAUNCH_POLL_MS = 250
 
+export type LaunchedChild = {
+  exited: boolean
+  exitCode: number | null
+  output: string[]
+}
+
 export type ResolveDebugInstanceDeps = {
   allocatePort?: () => Promise<number>
-  launchDevSession?: (port: number) => Promise<void>
+  launchDevSession?: (port: number) => Promise<LaunchedChild>
   listInstances?: () => Promise<DebugInstance[]>
   now?: () => number
   probeCdpPort?: (port: number) => Promise<boolean>
@@ -73,7 +79,11 @@ async function allocatePort(): Promise<number> {
   })
 }
 
-async function launchDevSession(port: number): Promise<void> {
+const MAX_OUTPUT_LINES = 50
+
+async function launchDevSession(port: number): Promise<LaunchedChild> {
+  const handle: LaunchedChild = { exited: false, exitCode: null, output: [] }
+
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
       process.platform === 'win32' ? 'npm.cmd' : 'npm',
@@ -81,7 +91,7 @@ async function launchDevSession(port: number): Promise<void> {
       {
         cwd: REPO_ROOT,
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
         env: {
           ...process.env,
           ENABLE_PLAYWRIGHT_DEBUG: '1',
@@ -91,12 +101,44 @@ async function launchDevSession(port: number): Promise<void> {
       },
     )
 
+    const collectLine = (line: string) => {
+      handle.output.push(line)
+      if (handle.output.length > MAX_OUTPUT_LINES) {
+        handle.output.shift()
+      }
+    }
+
+    let stdoutRemainder = ''
+    child.stdout!.on('data', (chunk: Buffer) => {
+      const text = stdoutRemainder + chunk.toString()
+      const lines = text.split('\n')
+      stdoutRemainder = lines.pop() ?? ''
+      for (const line of lines) collectLine(line)
+    })
+
+    let stderrRemainder = ''
+    child.stderr!.on('data', (chunk: Buffer) => {
+      const text = stderrRemainder + chunk.toString()
+      const lines = text.split('\n')
+      stderrRemainder = lines.pop() ?? ''
+      for (const line of lines) collectLine(line)
+    })
+
+    child.once('close', (code) => {
+      if (stdoutRemainder) collectLine(stdoutRemainder)
+      if (stderrRemainder) collectLine(stderrRemainder)
+      handle.exited = true
+      handle.exitCode = code
+    })
+
     child.once('error', reject)
     child.once('spawn', () => {
       child.unref()
       resolve()
     })
   })
+
+  return handle
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -126,11 +168,23 @@ function singleInstanceUnavailable(instance: DebugInstance): PickResult {
 
 async function waitForAutoLaunchedInstance(
   port: number,
+  child: LaunchedChild,
   deps: Required<ResolveDebugInstanceDeps>,
 ): Promise<PickResult> {
   const deadline = deps.now() + AUTO_LAUNCH_TIMEOUT_MS
 
   while (deps.now() <= deadline) {
+    if (child.exited) {
+      const output = child.output.join('\n')
+      return {
+        ok: false,
+        message: `auto-launched dev session exited with code ${child.exitCode ?? 'unknown'}`,
+        hint: output.length > 0
+          ? `captured output:\n${output}`
+          : 'no output captured — the process may have crashed immediately',
+      }
+    }
+
     const instances = await deps.listInstances()
     const candidate = instances.find(instance => instance.cdpPort === port)
     if (candidate && await isInspectableInstance(candidate, deps.probeCdpPort)) {
@@ -143,10 +197,13 @@ async function waitForAutoLaunchedInstance(
     await deps.sleep(AUTO_LAUNCH_POLL_MS)
   }
 
+  const output = child.output.join('\n')
   return {
     ok: false,
     message: `timed out waiting for auto-launched dev session on port ${port} to register`,
-    hint: 'run vt-debug ls to inspect registered dev sessions',
+    hint: output.length > 0
+      ? `captured output (may reveal the issue):\n${output}`
+      : 'run vt-debug ls to inspect registered dev sessions',
   }
 }
 
@@ -188,24 +245,16 @@ export async function resolveDebugInstance(
     return pick
   }
 
-  if (instances.length === 1) {
-    const [instance] = instances
-    if (await isInspectableInstance(instance, resolvedDeps.probeCdpPort)) {
-      return { ok: true, instance }
-    }
-    return singleInstanceUnavailable(instance)
-  }
-
-  if (instances.length > 1) {
+  if (!opts.forceNew && instances.length >= 1) {
     return {
       ok: false,
-      message: `--port required (multiple dev instances running: ${formatPortList(instances)})`,
-      hint: 'run vt-debug ls and re-run with --port <cdp-port>',
+      message: `existing dev session${instances.length > 1 ? 's' : ''} found (${formatPortList(instances)})`,
+      hint: `re-run with --port ${instances[0].cdpPort} to reuse, or --new to launch a fresh session (preferred if testing new code)`,
       instances,
     }
   }
 
   const port = await resolvedDeps.allocatePort()
-  await resolvedDeps.launchDevSession(port)
-  return waitForAutoLaunchedInstance(port, resolvedDeps)
+  const child = await resolvedDeps.launchDevSession(port)
+  return waitForAutoLaunchedInstance(port, child, resolvedDeps)
 }
