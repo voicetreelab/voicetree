@@ -11,8 +11,8 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
-import {getWritePath} from "../watch-folder/vault-allowlist";
 import {getCallbacks} from '@vt/graph-model'
+import { resolveContextWritePath } from './contextWritePath'
 
 /**
  * Get semantically relevant nodes via vector search with timeout.
@@ -103,12 +103,11 @@ export async function createContextNode(
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
-    const writePathOption: O.Option<string> = await getWritePath()
-    const writePath: string = O.getOrElse(() => '')(writePathOption)
+    const writePath: string = await resolveContextWritePath(parentNodeId)
     const resolvedParentNodeId: NodeIdAndFilePath = resolveParentNodeId(
         currentGraph,
         parentNodeId,
-        O.isSome(writePathOption) ? writePathOption.value : undefined
+        writePath || undefined
     )
 
     // 2. PURE: Extract subgraph within distance

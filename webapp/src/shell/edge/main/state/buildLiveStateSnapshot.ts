@@ -23,9 +23,9 @@ import type {
     DirectoryEntry,
     FolderTreeNode,
 } from '@vt/graph-model'
-import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
+import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'

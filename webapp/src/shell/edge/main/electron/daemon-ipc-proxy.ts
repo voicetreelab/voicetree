@@ -1,14 +1,15 @@
 import * as O from 'fp-ts/lib/Option.js'
 
 import { buildFolderTree, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
-import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import path from 'node:path'
+import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
+import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
 import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
-import { getStarredFolders } from '@vt/graph-db-server/watch-folder/starred-folders'
+import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starredFolders'
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -32,6 +33,21 @@ type FolderTreeSyncPayload = Awaited<ReturnType<typeof buildFolderTreeSyncPayloa
 type NodePosition = GraphNode['nodeUIMetadata']['position']
 
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
+
+function resolveLocalWritePath(projectPath: string, writePath: string): string {
+  return path.isAbsolute(writePath)
+    ? writePath
+    : path.join(projectPath, writePath)
+}
+
+async function getConfiguredWritePathForCurrentVault(): Promise<string | null> {
+  const vault: string | null = getProjectRootWatchedDirectory()
+  if (!vault) {
+    return null
+  }
+  const config = await getVaultConfigForDirectory(vault)
+  return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
+}
 
 type SessionSyncCache = {
   readonly collapseSet: ReadonlySet<string>
@@ -121,9 +137,9 @@ async function getCurrentVaultOrThrow(): Promise<string> {
     return activeConnection.vault
   }
 
-  const writePath: O.Option<string> = await getWritePath()
-  if (O.isSome(writePath)) {
-    return writePath.value
+  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
+  if (writePath) {
+    return writePath
   }
 
   const vault: string | null = getProjectRootWatchedDirectory()
@@ -137,11 +153,11 @@ async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
   readPaths: string[]
   writePath: string
 }> {
-  const writePath: O.Option<string> = await getWritePath()
+  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
 
   return {
     readPaths: [],
-    writePath: O.isSome(writePath) ? writePath.value : vault,
+    writePath: writePath ?? vault,
   }
 }
 

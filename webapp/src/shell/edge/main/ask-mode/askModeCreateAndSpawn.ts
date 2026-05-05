@@ -18,7 +18,7 @@ import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {createContextNodeFromQuestion} from '@vt/graph-db-server/context-nodes/createContextNodeFromQuestion';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
+import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {

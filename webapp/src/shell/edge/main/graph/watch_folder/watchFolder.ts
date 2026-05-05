@@ -2,6 +2,9 @@ import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks, type FilePath } from '@vt/graph-model'
+import { getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
+import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model'
+import type { ParsedQuery } from '@vt/graph-model'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import {
     getProjectRootWatchedDirectory,
@@ -9,7 +12,6 @@ import {
     getOnFolderSwitchCleanup,
     setProjectRootWatchedDirectory,
 } from '@/shell/edge/main/state/watch-folder-store'
-import { getAvailableFoldersForSelector } from '@vt/graph-db-server/watch-folder/folder-scanner'
 import { initializeProject } from '@vt/graph-db-server/project/project-initializer'
 import { createDatedSubfolder } from '@vt/graph-db-server/project/project-utils'
 import {
@@ -32,13 +34,73 @@ import {
 } from '@/shell/edge/main/electron/graph-daemon'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/state/live-state-store'
 import type { VaultState } from '@vt/graph-db-client'
+import {
+    getSubfoldersWithModifiedAt,
+    isValidSubdirectory,
+} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 
 const DAEMON_LOAD_TIMEOUT_MS: number = 15_000
 
-export { getAvailableFoldersForSelector }
-
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
+}
+
+export async function getAvailableFoldersForSelector(
+    searchQuery: string,
+): Promise<readonly AvailableFolderItem[]> {
+    const projectRoot: string | null = getProjectRootWatchedDirectory()
+    if (!projectRoot) {
+        return []
+    }
+
+    const loadedPaths: readonly AbsolutePath[] =
+        (await getVaultPaths()).map((p: string) => toAbsolutePath(p))
+    const parsed: ParsedQuery = parseSearchQuery(searchQuery)
+
+    if (parsed.isAbsolute && parsed.basePath) {
+        try {
+            const stat = await fs.stat(parsed.basePath)
+            if (!stat.isDirectory()) {
+                return []
+            }
+        } catch {
+            return []
+        }
+
+        const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
+            await getSubfoldersWithModifiedAt(toAbsolutePath(parsed.basePath))
+        return getAvailableFolders(
+            toAbsolutePath(parsed.basePath),
+            loadedPaths,
+            subfolders,
+            searchQuery,
+            parsed.filterText,
+        )
+    }
+
+    let scanRoot: AbsolutePath
+    let filterText: string
+    if (parsed.basePath) {
+        const targetPath: string = path.join(projectRoot, parsed.basePath)
+        if (!(await isValidSubdirectory(projectRoot, targetPath))) {
+            return []
+        }
+        scanRoot = toAbsolutePath(targetPath)
+        filterText = parsed.filterText
+    } else {
+        scanRoot = toAbsolutePath(projectRoot)
+        filterText = searchQuery
+    }
+
+    const subfolders: readonly { path: AbsolutePath; modifiedAt: number }[] =
+        await getSubfoldersWithModifiedAt(scanRoot)
+    return getAvailableFolders(
+        toAbsolutePath(projectRoot),
+        loadedPaths,
+        subfolders,
+        searchQuery,
+        filterText,
+    )
 }
 
 async function pathIsDirectory(directoryPath: string): Promise<boolean> {

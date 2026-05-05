@@ -11,8 +11,8 @@ import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
-import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
-import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -136,6 +136,10 @@ export function initializeGraphModel(): void {
             } catch {
                 return []
             }
+        },
+        async getWritePath(): Promise<string | null> {
+            const writePath: O.Option<string> = await getWritePath()
+            return O.isSome(writePath) ? writePath.value : null
         },
 
         // App-specific setup

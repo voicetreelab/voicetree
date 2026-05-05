@@ -36,6 +36,9 @@ export interface GraphModelCallbacks {
   // Backend notification
   notifyWriteDirectory?: (dirPath: string) => void  // replaces backend-api.tellSTTServerToLoadDirectory
 
+  // Active vault paths
+  getWritePath?: () => Promise<string | null>
+
   // Semantic search (for context nodes)
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>
 

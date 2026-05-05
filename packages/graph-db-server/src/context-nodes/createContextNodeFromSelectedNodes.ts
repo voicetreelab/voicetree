@@ -16,7 +16,7 @@ import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '../graph/applyGraphDelta'
 import { ensureUniqueNodeId } from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
-import {getWritePath} from "../watch-folder/vault-allowlist";
+import { resolveContextWritePath } from './contextWritePath'
 
 /**
  * Creates a context node from explicitly selected nodes.
@@ -47,8 +47,7 @@ export async function createContextNodeFromSelectedNodes(
 
   // Generate unique context node ID
   const timestamp: number = Date.now()
-  const writePathOption: O.Option<string> = await getWritePath()
-  const writePath: string = O.getOrElse(() => '')(writePathOption)
+  const writePath: string = await resolveContextWritePath(taskNodeId)
   const candidateContextNodeId: string = `${writePath}/${CONTEXT_NODES_FOLDER}/task_context_${timestamp}.md`
   const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
   const contextNodeId: string = ensureUniqueNodeId(candidateContextNodeId, existingIds)

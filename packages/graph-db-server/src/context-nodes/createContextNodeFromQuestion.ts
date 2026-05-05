@@ -10,7 +10,7 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
-import {getWritePath} from "../watch-folder/vault-allowlist";
+import { resolveContextWritePath } from './contextWritePath'
 
 /** Truncate a title to at most 5 words */
 function truncateToFiveWords(text: string): string {
@@ -47,8 +47,7 @@ export async function createContextNodeFromQuestion(
     )
 
     const timestamp: number = Date.now()
-    const writePathOption: O.Option<string> = await getWritePath()
-    const writePath: string = O.getOrElse(() => '')(writePathOption)
+    const writePath: string = await resolveContextWritePath(validNodeIds[0])
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
 
     // 1. Create standalone question node (no parent)
