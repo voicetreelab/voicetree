@@ -5,7 +5,6 @@ import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {
     formatLintReportHuman,
-    getGraphStructure,
     lintGraph,
     renderAutoView,
     renderGraphView,
@@ -186,16 +185,10 @@ describe('graph daemon migration', () => {
     })
 
     it('routes graph structure through daemon graph snapshots with parity to the disk helper', async () => {
-        const expected = getGraphStructure(docsRoot(), {withSummaries: false})
-        const expectedStdout: string = [
-            `${expected.nodeCount} nodes in docs`,
-            '',
-            expected.ascii,
-            ...(expected.orphanCount > 0 ? ['', `Orphans: ${expected.orphanCount}`] : []),
-        ].join('\n')
+        const expectedStdout: string = renderAutoView(docsRoot()).output
 
         const result: CommandResult = await captureCommand(() =>
-            main(['graph', 'structure', 'docs', '--no-summaries']),
+            main(['graph', 'structure', 'docs']),
         )
 
         expect(result.exitCode).toBeNull()
