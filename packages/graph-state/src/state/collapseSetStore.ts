@@ -1,18 +1,13 @@
 /**
- * Singleton store for graph-level folder collapse state.
- *
- * Single source of truth for collapseSet, mirroring the role of
- * state.collapseSet in the full graph-state contract (contract.d.ts:69).
- *
- * Renderer-safe: no Node.js deps. Collapse/Expand logic is inlined
- * (identical to applyCollapse/applyExpand in applyCommand.ts) to avoid
- * pulling roots.ts (disk I/O) into the renderer bundle.
- *
- * Follows the same module-level singleton pattern as
- * graph-model/src/state/recent-deltas-store.ts.
+ * Phase 1 legacy shim: no-arg callers keep the existing singleton behavior,
+ * while view-aware callers derive collapsed folders from folderVisibilityStore.
  */
-
 import type { FolderId } from '../contract'
+import { deriveLegacyFromFolderVisibility, stripTrailingSlash } from './folderVisibility/derive'
+import { getFolderVisibility, setFolderState } from './folderVisibilityStore'
+import type { FolderState } from './folderVisibility/types'
+
+const DEFAULT_VIEW_ID = 'main'
 
 type CollapseSetCallback = (set: ReadonlySet<FolderId>) => void
 
@@ -45,7 +40,10 @@ function expandFrom(
     return new Set([...target].filter((id) => id !== folder))
 }
 
-export function getCollapseSet(): ReadonlySet<FolderId> {
+export function getCollapseSet(viewId?: string): ReadonlySet<FolderId> {
+    if (viewId !== undefined) {
+        return deriveLegacyFromFolderVisibility(getFolderVisibility(viewId)).collapseSet
+    }
     return collapseSet
 }
 
@@ -63,6 +61,7 @@ export function dispatchCollapse(
         return collapseInto(folderOrTarget, maybeFolder as FolderId)
     }
 
+    writeFolderState(folderOrTarget, 'collapsed')
     const next = collapseInto(collapseSet, folderOrTarget)
     if (next !== collapseSet) {
         collapseSet = next
@@ -84,6 +83,7 @@ export function dispatchExpand(
         return expandFrom(folderOrTarget, maybeFolder as FolderId)
     }
 
+    writeFolderState(folderOrTarget, 'expanded')
     const next = expandFrom(collapseSet, folderOrTarget)
     if (next !== collapseSet) {
         collapseSet = next
@@ -103,4 +103,19 @@ export function subscribeCollapseSet(cb: CollapseSetCallback): () => void {
 export function clearCollapseSet(): void {
     collapseSet = new Set()
     subscribers.clear()
+}
+
+function writeFolderState(folder: FolderId, state: FolderState): void {
+    try {
+        setFolderState(DEFAULT_VIEW_ID, stripTrailingSlash(folder), state)
+    } catch (error) {
+        if (!isUnconfiguredStoreError(error)) {
+            throw error
+        }
+    }
+}
+
+function isUnconfiguredStoreError(error: unknown): boolean {
+    return error instanceof Error
+        && error.message === 'folderVisibilityStore is not configured with a sqlite database'
 }

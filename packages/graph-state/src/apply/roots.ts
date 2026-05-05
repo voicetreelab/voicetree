@@ -12,18 +12,53 @@ import {
 } from '@vt/graph-model'
 
 import type { Delta, LoadRoot, State, UnloadRoot } from '../contract'
+import { applySetFolderState } from './folderVisibility'
+import type { SetFolderState } from './folderVisibility'
 import { findWriteTargetPath } from './folderTreeHelpers'
+
+const DEFAULT_VIEW_ID = 'main'
+
+function applyLegacyFolderStateCommand(
+    state: State,
+    command: SetFolderState,
+): State {
+    try {
+        return applySetFolderState(state, command)
+    } catch (error) {
+        if (!isUnconfiguredStoreError(error)) {
+            throw error
+        }
+        return {
+            ...state,
+            meta: {
+                ...state.meta,
+                revision: state.meta.revision + 1,
+            },
+        }
+    }
+}
+
+function isUnconfiguredStoreError(error: unknown): boolean {
+    return error instanceof Error
+        && error.message === 'folderVisibilityStore is not configured with a sqlite database'
+}
 
 export async function applyLoadRoot(
     state: State,
     command: LoadRoot,
 ): Promise<{ readonly state: State; readonly delta: Delta }> {
     const root = command.root
-    const nextRevision = state.meta.revision + 1
+    const visibilityState = applyLegacyFolderStateCommand(state, {
+        type: 'SetFolderState',
+        viewId: DEFAULT_VIEW_ID,
+        path: root,
+        state: 'expanded',
+    })
+    const nextRevision = visibilityState.meta.revision
 
     if (state.roots.loaded.has(root)) {
         return {
-            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            state: { ...state, meta: visibilityState.meta },
             delta: { revision: nextRevision, cause: command, rootsLoaded: [] },
         }
     }
@@ -64,7 +99,7 @@ export async function applyLoadRoot(
             ...state,
             graph,
             roots: { loaded: newLoaded, folderTree },
-            meta: { ...state.meta, revision: nextRevision },
+            meta: visibilityState.meta,
         },
         delta: {
             revision: nextRevision,
@@ -80,11 +115,17 @@ export function applyUnloadRoot(
     command: UnloadRoot,
 ): { readonly state: State; readonly delta: Delta } {
     const root = command.root
-    const nextRevision = state.meta.revision + 1
+    const visibilityState = applyLegacyFolderStateCommand(state, {
+        type: 'SetFolderState',
+        viewId: DEFAULT_VIEW_ID,
+        path: root,
+        state: 'hidden',
+    })
+    const nextRevision = visibilityState.meta.revision
 
     if (!state.roots.loaded.has(root)) {
         return {
-            state: { ...state, meta: { ...state.meta, revision: nextRevision } },
+            state: { ...state, meta: visibilityState.meta },
             delta: { revision: nextRevision, cause: command, rootsUnloaded: [] },
         }
     }
@@ -123,7 +164,7 @@ export function applyUnloadRoot(
             collapseSet: nextCollapseSet,
             selection: nextSelection,
             layout: { ...state.layout, positions },
-            meta: { ...state.meta, revision: nextRevision },
+            meta: visibilityState.meta,
         },
         delta: {
             revision: nextRevision,

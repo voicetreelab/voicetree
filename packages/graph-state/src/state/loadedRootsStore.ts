@@ -1,24 +1,13 @@
 /**
- * Singleton store for loaded-roots state.
- *
- * Single source of truth for which vault/folder roots are loaded, mirroring
- * state.roots.loaded in the full graph-state contract (contract.d.ts:56-60).
- *
- * Holds a full internal State so that LoadRoot (async, disk I/O) and
- * UnloadRoot (sync, removes all nodes under the root) can use the existing
- * applyLoadRoot / applyCommandWithDelta reducers without duplication.
- *
- * The subscriber delta includes `graph` so callers (e.g. clearCytoscapeState)
- * can project the DeleteNode operations onto cytoscape without inferring root
- * identity from cy state (V-L2-3).
- *
- * Follows the module-level singleton pattern of collapseSetStore.ts.
+ * Phase 1 legacy shim: no-arg callers keep the existing singleton behavior,
+ * while view-aware callers derive loaded roots from folderVisibilityStore.
  */
-
 import type { Delta, RootPath, State, Unsubscribe } from '../contract'
 import { emptyState } from '../emptyState'
 import { applyCommandWithDelta } from '../applyCommand'
 import { applyLoadRoot } from '../apply/roots'
+import { deriveImplicitRoots } from './folderVisibility/implicitRoots'
+import { getFolderVisibility } from './folderVisibilityStore'
 
 export type RootsDelta = Pick<Delta, 'rootsLoaded' | 'rootsUnloaded' | 'graph'>
 export type LoadedRootsSubscriber = (delta: RootsDelta) => void
@@ -32,12 +21,15 @@ function notify(delta: RootsDelta): void {
     }
 }
 
-export function getLoadedRoots(): ReadonlySet<RootPath> {
+export function getLoadedRoots(viewId?: string): ReadonlySet<RootPath> {
+    if (viewId !== undefined) {
+        return deriveImplicitRoots(getFolderVisibility(viewId))
+    }
     return state.roots.loaded
 }
 
-export function isRootLoaded(root: RootPath): boolean {
-    return state.roots.loaded.has(root)
+export function isRootLoaded(root: RootPath, viewId?: string): boolean {
+    return getLoadedRoots(viewId).has(root)
 }
 
 /**

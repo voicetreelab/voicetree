@@ -37,10 +37,45 @@ import {
 } from './apply/markdownEdits'
 import { applyMove } from './apply/move'
 import { applyLoadRoot, applyUnloadRoot } from './apply/roots'
+import { applySetFolderState } from './apply/folderVisibility'
 import { applySetZoom } from './apply/setZoom'
 import { applySetPan } from './apply/setPan'
 import { applySetPositions } from './apply/setPositions'
 import { applyRequestFit } from './apply/requestFit'
+import { stripTrailingSlash } from './state/folderVisibility/derive'
+import type { SetFolderState } from './apply/folderVisibility'
+
+const DEFAULT_VIEW_ID = 'main'
+
+interface OutgoingEdgeRef {
+    readonly targetId: string
+    readonly label: string
+}
+
+function applyLegacyFolderStateCommand(
+    state: State,
+    command: SetFolderState,
+): State {
+    try {
+        return applySetFolderState(state, command)
+    } catch (error) {
+        if (!isUnconfiguredStoreError(error)) {
+            throw error
+        }
+        return {
+            ...state,
+            meta: {
+                ...state.meta,
+                revision: state.meta.revision + 1,
+            },
+        }
+    }
+}
+
+function isUnconfiguredStoreError(error: unknown): boolean {
+    return error instanceof Error
+        && error.message === 'folderVisibilityStore is not configured with a sqlite database'
+}
 
 function applyAddNode(
     state: State,
@@ -112,7 +147,7 @@ function applyAddEdge(
     }
 
     const alreadyExists = sourceNode.outgoingEdges.some(
-        (e) => e.targetId === command.edge.targetId && e.label === command.edge.label,
+        (e: OutgoingEdgeRef) => e.targetId === command.edge.targetId && e.label === command.edge.label,
     )
     if (alreadyExists) {
         return {
@@ -167,8 +202,8 @@ function applyRemoveEdge(
     }
 
     const edgesRemoved: readonly EdgeChange[] = sourceNode.outgoingEdges
-        .filter((edge) => edge.targetId === command.targetId)
-        .map((edge) => ({
+        .filter((edge: OutgoingEdgeRef) => edge.targetId === command.targetId)
+        .map((edge: OutgoingEdgeRef) => ({
             source: command.source,
             targetId: command.targetId,
             label: edge.label,
@@ -214,8 +249,14 @@ function applyCollapse(
     state: State,
     command: Collapse,
 ): { readonly state: State; readonly delta: Delta } {
+    const visibilityState = applyLegacyFolderStateCommand(state, {
+        type: 'SetFolderState',
+        viewId: DEFAULT_VIEW_ID,
+        path: stripTrailingSlash(command.folder),
+        state: 'collapsed',
+    })
     const alreadyCollapsed = state.collapseSet.has(command.folder)
-    const nextRevision = state.meta.revision + 1
+    const nextRevision = visibilityState.meta.revision
     const collapseSet = alreadyCollapsed
         ? state.collapseSet
         : new Set([...state.collapseSet, command.folder])
@@ -227,7 +268,7 @@ function applyCollapse(
             collapseSet,
             selection: state.selection,
             layout: state.layout,
-            meta: { ...state.meta, revision: nextRevision },
+            meta: visibilityState.meta,
         },
         delta: {
             revision: nextRevision,
@@ -241,8 +282,14 @@ function applyExpand(
     state: State,
     command: Expand,
 ): { readonly state: State; readonly delta: Delta } {
+    const visibilityState = applyLegacyFolderStateCommand(state, {
+        type: 'SetFolderState',
+        viewId: DEFAULT_VIEW_ID,
+        path: stripTrailingSlash(command.folder),
+        state: 'expanded',
+    })
     const wasCollapsed = state.collapseSet.has(command.folder)
-    const nextRevision = state.meta.revision + 1
+    const nextRevision = visibilityState.meta.revision
     const collapseSet = wasCollapsed
         ? new Set([...state.collapseSet].filter((id) => id !== command.folder))
         : state.collapseSet
@@ -254,7 +301,7 @@ function applyExpand(
             collapseSet,
             selection: state.selection,
             layout: state.layout,
-            meta: { ...state.meta, revision: nextRevision },
+            meta: visibilityState.meta,
         },
         delta: {
             revision: nextRevision,
