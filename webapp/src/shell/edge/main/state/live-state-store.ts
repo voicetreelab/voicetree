@@ -13,7 +13,9 @@ import type {
     StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
-import { getGraph, getProjectRootWatchedDirectory, getReadPaths, getVaultPaths } from '@vt/graph-model'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getReadPaths, getVaultPaths } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 
 import {
     applyRendererLiveCommand,
@@ -32,7 +34,7 @@ const liveParts: MutableLiveParts = {
     roots: { loaded: new Set(), folderTree: [] },
     layout: { positions: new Map() },
 }
-let hasExplicitRootState = false
+let hasExplicitRootState: boolean = false
 
 function sameLoadedRoots(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
     if (left.size !== right.size) {
@@ -63,7 +65,7 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    const loadedRoots = new Set<string>([
+    const loadedRoots: Set<string> = new Set<string>([
         ...(await getReadPaths()),
         ...(await getVaultPaths()),
     ])

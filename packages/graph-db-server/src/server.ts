@@ -4,17 +4,17 @@ import { join, resolve } from 'node:path'
 import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
-import {
-  getVaultPaths,
-  initGraphModel,
-  onReadPathsChanged,
-  setVaultPath,
-} from '@vt/graph-model'
+import { initGraphModel } from '@vt/graph-model'
+import { configureRootIO } from '@vt/graph-state'
+import { getVaultPaths, setVaultPath } from './watch-folder/vault-allowlist.ts'
+import { loadGraphFromDisk } from './graph/loadGraphFromDisk.ts'
+import { getDirectoryTree } from './watch-folder/folder-scanner.ts'
+import { onReadPathsChanged } from './state/watch-folder-store.ts'
 import {
   closeFolderVisibilityDb,
   openFolderVisibilityDb,
-} from '@vt/graph-model/sqlite/folderVisibilitySqlite'
-import { ensureDefaultView } from '@vt/graph-model/sqlite/viewsRepository'
+} from './views/folderVisibilitySqlite.ts'
+import { ensureDefaultView } from './views/viewsRepository.ts'
 import { CONTRACT_VERSION } from './contract.ts'
 import { createDaemonApp } from './daemonApp.ts'
 import { acquireLock } from './lock.ts'
@@ -85,6 +85,10 @@ export async function startDaemon(
       opts.appSupportPath ??
       process.env.VOICETREE_APP_SUPPORT ??
       defaultAppSupportPath(),
+  })
+  configureRootIO({
+    getDirectoryTree,
+    loadGraphFromDisk,
   })
   setVaultPath(vault)
   try {

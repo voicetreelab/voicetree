@@ -16,11 +16,6 @@
  */
 import {
     buildFolderTree,
-    getDirectoryTree,
-    getProjectRootWatchedDirectory,
-    getReadPaths,
-    getVaultPaths,
-    getWritePath,
     toAbsolutePath,
 } from '@vt/graph-model'
 import type {
@@ -28,6 +23,9 @@ import type {
     DirectoryEntry,
     FolderTreeNode,
 } from '@vt/graph-model'
+import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'

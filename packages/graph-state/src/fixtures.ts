@@ -8,8 +8,6 @@ import normalizePath from 'normalize-path'
 
 import {
     buildFolderTree,
-    getDirectoryTree,
-    loadGraphFromDisk,
     toAbsolutePath,
 } from '@vt/graph-model'
 
@@ -22,6 +20,8 @@ import {
     type SerializedCommand,
     type SerializedState,
 } from './fixtures/serialization'
+import { getRootIO } from './rootIO'
+import type { RootIO } from './rootIO'
 
 // Re-export the entire serialization layer so consumers can keep importing
 // from `@vt/graph-state/fixtures` (or the package root). Split out at
@@ -292,6 +292,7 @@ export async function buildStateFromVault(
         await copyVaultToCanonicalRoot(normalizedSource, normalizedCanonical)
     }
 
+    const { loadGraphFromDisk, getDirectoryTree }: RootIO = getRootIO()
     const loadResult = await loadGraphFromDisk([normalizedCanonical])
     if (E.isLeft(loadResult)) {
         throw new Error(`Failed to load vault fixture from ${sourceVaultPath}: ${JSON.stringify(loadResult.left)}`)

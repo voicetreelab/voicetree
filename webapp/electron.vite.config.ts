@@ -46,6 +46,21 @@ const externalNativePlugin = {
   }
 }
 
+const graphStateFixtureFilenameShimPlugin = {
+  name: 'graph-state-fixture-filename-shim',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (!id.includes('/packages/graph-state/src/fixtures.ts')) {
+      return null
+    }
+
+    return code
+      .replace('const __filename = fileURLToPath(import.meta.url)', 'const graphStateFixturesFilename = fileURLToPath(import.meta.url)')
+      .replace('const __dirname = path.dirname(__filename)', 'const graphStateFixturesDirname = path.dirname(graphStateFixturesFilename)')
+      .replaceAll('__dirname', 'graphStateFixturesDirname')
+  }
+}
+
 // Renderer-only: Node.js built-ins and Node-only packages leak into the bundle via
 // `@vt/graph-state` -> `@vt/graph-model` barrel re-exports (apply/*.ts, fixtures.ts).
 // Renderer code paths never *call* these at runtime, but the import declarations persist in
@@ -181,7 +196,11 @@ export const rgPath = '';
 export default defineConfig({
   main: {
     // Configuration for electron main process
-    plugins: [externalNativePlugin, externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
+    plugins: [
+      graphStateFixtureFilenameShimPlugin,
+      externalNativePlugin,
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+    ],
     logLevel: 'error',
     resolve: {
       alias: [
@@ -203,7 +222,11 @@ export default defineConfig({
   },
   preload: {
     // Configuration for preload script
-    plugins: [externalNativePlugin, externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] })],
+    plugins: [
+      graphStateFixtureFilenameShimPlugin,
+      externalNativePlugin,
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+    ],
     logLevel: 'error',
     resolve: {
       alias: [
@@ -302,8 +325,8 @@ export default defineConfig({
         // empty virtual module, so imports that leak in via `@vt/graph-state`->`@vt/graph-model`
         // barrel re-exports compile to no-ops instead of unresolvable bare specifiers.
         output: {
-          manualChunks: {
-            'mermaid': ['mermaid']
+          manualChunks(id) {
+            if (id.includes('/node_modules/mermaid/')) return 'mermaid'
           }
         }
       },

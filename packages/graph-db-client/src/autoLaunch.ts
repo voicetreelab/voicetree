@@ -27,6 +27,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
 async function probeHealth(vault: string, port: number): Promise<boolean> {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/health`)
@@ -34,12 +38,8 @@ async function probeHealth(vault: string, port: number): Promise<boolean> {
       return false
     }
 
-    const body = (await response.json()) as unknown
-    if (
-      typeof body !== 'object' ||
-      body === null ||
-      typeof body.vault !== 'string'
-    ) {
+    const body: unknown = await response.json()
+    if (!isRecord(body) || typeof body.vault !== 'string') {
       return false
     }
 
@@ -52,13 +52,9 @@ async function probeHealth(vault: string, port: number): Promise<boolean> {
 function buildChildEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env }
 
-  // When called from Electron, use the Electron binary in Node mode so cold
-  // starts do not depend on whatever `node` happens to be on PATH.
-  if (
-    process.versions.electron &&
-    process.env.NODE_ENV !== 'test' &&
-    process.env.HEADLESS_TEST !== '1'
-  ) {
+  // When called from Electron, use the Electron binary in Node mode so native
+  // modules match the ABI they were rebuilt for by the Electron test/dev flow.
+  if (process.versions.electron) {
     env.ELECTRON_RUN_AS_NODE = '1'
   }
 
@@ -66,13 +62,6 @@ function buildChildEnv(): NodeJS.ProcessEnv {
 }
 
 function resolveRuntimeCommand(): string {
-  if (
-    process.versions.electron &&
-    (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
-  ) {
-    return process.env.npm_node_execpath ?? process.env.NODE_BINARY ?? 'node'
-  }
-
   return process.execPath
 }
 

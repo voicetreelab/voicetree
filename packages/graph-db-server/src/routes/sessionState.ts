@@ -1,16 +1,14 @@
 import type { Hono } from 'hono'
 import {
   buildFolderTree,
-  getDirectoryTree,
-  getGraph,
-  getProjectRootWatchedDirectory,
-  getReadPaths,
-  getVaultPaths,
-  getWritePath,
   toAbsolutePath,
   type AbsolutePath,
   type FolderTreeNode,
 } from '@vt/graph-model'
+import { getGraph } from '../state/graph-store.ts'
+import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import { getReadPaths, getVaultPaths, getWritePath } from '../watch-folder/vault-allowlist.ts'
+import { getDirectoryTree } from '../watch-folder/folder-scanner.ts'
 import { serializeState } from '@vt/graph-state'
 import {
   LiveStateSnapshotSchema,

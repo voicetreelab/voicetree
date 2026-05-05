@@ -3,21 +3,23 @@ import {
     clearVaultPath,
     createDatedVoiceTreeFolder,
     createSubfolder,
-    getAvailableFoldersForSelector,
-    getProjectRootWatchedDirectory,
-    getReadPaths,
     getVaultPath,
     getVaultPaths,
+    getReadPaths,
     getWritePath,
+    setVaultPath,
+} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {
     initialLoad as initialLoadImpl,
     loadFolder as loadFolderImpl,
     loadPreviousFolder as loadPreviousFolderImpl,
     markFrontendReady as markFrontendReadyImpl,
-    setVaultPath,
     startFileWatching as startFileWatchingImpl,
     stopFileWatching as stopFileWatchingImpl,
     type WatchFolderLoadOptions,
-} from '@vt/graph-model'
+    getAvailableFoldersForSelector,
+} from '@vt/graph-db-server/watch-folder/watchFolder'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 
 import {
     isDaemonGraphSyncActive,
@@ -55,7 +57,7 @@ export async function initialLoad(): Promise<void> {
 export async function loadFolder(
     watchedFolderPath: FilePath,
 ): Promise<{ readonly success: boolean }> {
-    const result = await loadFolderImpl(watchedFolderPath, DAEMON_LOAD_OPTIONS)
+    const result: { readonly success: boolean } = await loadFolderImpl(watchedFolderPath, DAEMON_LOAD_OPTIONS)
     if (result.success) {
         await startDaemonSyncForLoadedDirectory(watchedFolderPath)
     }
@@ -65,7 +67,7 @@ export async function loadFolder(
 export async function startFileWatching(
     directoryPath?: string,
 ): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    const result = await startFileWatchingImpl(directoryPath, DAEMON_LOAD_OPTIONS)
+    const result: { readonly success: boolean; readonly directory?: string; readonly error?: string } = await startFileWatchingImpl(directoryPath, DAEMON_LOAD_OPTIONS)
     if (result.success && result.directory) {
         await startDaemonSyncForLoadedDirectory(result.directory)
     }
@@ -74,7 +76,7 @@ export async function startFileWatching(
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     await stopDaemonGraphSync()
-    const result = await stopFileWatchingImpl()
+    const result: { readonly success: boolean; readonly error?: string } = await stopFileWatchingImpl()
     if (result.success) {
         syncWatchedProjectRoot(null)
     }
@@ -98,7 +100,7 @@ export async function loadPreviousFolder(): Promise<{
     readonly directory?: string
     readonly error?: string
 }> {
-    const result = await loadPreviousFolderImpl(DAEMON_LOAD_OPTIONS)
+    const result: { readonly success: boolean; readonly directory?: string; readonly error?: string } = await loadPreviousFolderImpl(DAEMON_LOAD_OPTIONS)
     if (result.success && result.directory) {
         await startDaemonSyncForLoadedDirectory(result.directory)
     }

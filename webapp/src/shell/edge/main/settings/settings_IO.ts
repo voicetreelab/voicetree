@@ -1,4 +1,4 @@
-// Re-export shim — actual implementation in @vt/graph-model
+// Re-export shim — actual implementation in @vt/graph-db-server
 export {
     loadSettings,
     saveSettings,
@@ -7,4 +7,4 @@ export {
     migrateLayoutConfigIfNeeded,
     migrateStarredFoldersIfNeeded,
     migrateStarredFoldersBrainRename,
-} from '@vt/graph-model'
+} from '@vt/graph-db-server/settings/settings_IO'

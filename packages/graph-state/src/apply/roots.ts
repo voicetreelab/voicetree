@@ -5,9 +5,6 @@ import {
     applyGraphDeltaToGraph,
     buildFolderTree,
     deleteNodeSimple,
-    getDirectoryTree,
-    loadGraphFromDisk,
-    toAbsolutePath,
     type GraphDelta,
 } from '@vt/graph-model'
 
@@ -15,6 +12,8 @@ import type { Delta, LoadRoot, State, UnloadRoot } from '../contract'
 import { applySetFolderState } from './folderVisibility'
 import type { SetFolderState } from './folderVisibility'
 import { findWriteTargetPath } from './folderTreeHelpers'
+import { getRootIO } from '../rootIO'
+import type { RootIO } from '../rootIO'
 
 const DEFAULT_VIEW_ID = 'main'
 
@@ -63,6 +62,7 @@ export async function applyLoadRoot(
         }
     }
 
+    const { loadGraphFromDisk, getDirectoryTree }: RootIO = getRootIO()
     const loadResult = await loadGraphFromDisk([root])
     if (E.isLeft(loadResult)) {
         throw new Error(`LoadRoot failed for "${root}": ${JSON.stringify(loadResult.left)}`)

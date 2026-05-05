@@ -6,9 +6,13 @@
   ],
   "scripts": {
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
-    "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs"
+    "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs",
+    "lint:blackbox-tests": "bash scripts/lint-blackbox-tests.sh"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/typescript-checker": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "jsdom": "^27.0.0"
   },
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"

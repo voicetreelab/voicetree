@@ -167,6 +167,15 @@ export {
     applySetFolderState,
 } from './apply/folderVisibility'
 
+export {
+    configureRootIO,
+    clearRootIOForTests,
+} from './rootIO'
+
+export type {
+    RootIO,
+} from './rootIO'
+
 export type {
     SetFolderState,
 } from './apply/folderVisibility'

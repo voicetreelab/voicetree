@@ -1,4 +1,4 @@
-// Re-export shim — actual implementation in @vt/graph-model
+// Re-export shim — actual implementation in @vt/graph-db-server
 export {
     loadGraphFromDisk,
     loadVaultPathAdditively,
@@ -7,4 +7,4 @@ export {
     extractLinkTargets,
     resolveLinkTarget,
     resolveLinkedNodesInWatchedFolder,
-} from '@vt/graph-model'
+} from '@vt/graph-db-server/graph/loadGraphFromDisk'

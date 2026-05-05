@@ -1,4 +1,4 @@
-import { getGraph } from '@vt/graph-model'
+import { getGraph } from '../state/graph-store.ts'
 import { Hono } from 'hono'
 import { GraphStateSchema } from '../contract.ts'
 

@@ -1,4 +1,4 @@
-// Re-export shim — actual implementation in @vt/graph-model
+// Re-export shim — actual implementation in @vt/graph-db-server
 export {
     getWatcher,
     setWatcher,
@@ -9,4 +9,4 @@ export {
     getOnFolderSwitchCleanup,
     setOnFolderSwitchCleanup,
     clearWatchFolderState,
-} from '@vt/graph-model'
+} from '@vt/graph-db-server/state/watch-folder-store'

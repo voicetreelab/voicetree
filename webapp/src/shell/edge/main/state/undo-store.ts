@@ -1,4 +1,4 @@
-// Re-export shim — actual implementation in @vt/graph-model
+// Re-export shim — actual implementation in @vt/graph-db-server
 export {
     getUndoState,
     resetUndoState,
@@ -7,4 +7,4 @@ export {
     popRedoDelta,
     canUndo,
     canRedo,
-} from '@vt/graph-model'
+} from '@vt/graph-db-server/state/undo-store'

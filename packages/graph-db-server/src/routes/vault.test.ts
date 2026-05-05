@@ -2,11 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  clearWatchFolderState,
-  createEmptyGraph,
-  setGraph,
-} from '@vt/graph-model'
+import { createEmptyGraph } from '@vt/graph-model'
+import { clearWatchFolderState } from '../state/watch-folder-store.ts'
+import { setGraph } from '../state/graph-store.ts'
 import { startDaemon, type DaemonHandle } from '../server.ts'
 
 async function makeTempDir(prefix: string): Promise<string> {

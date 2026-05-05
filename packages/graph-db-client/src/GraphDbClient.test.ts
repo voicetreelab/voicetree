@@ -2,11 +2,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import {
-  clearWatchFolderState,
-  createEmptyGraph,
-  setGraph,
-} from '@vt/graph-model'
+import { createEmptyGraph } from '@vt/graph-model'
+import { clearWatchFolderState } from '../../graph-db-server/src/state/watch-folder-store.ts'
+import { setGraph } from '../../graph-db-server/src/state/graph-store.ts'
 import { type DaemonHandle, startDaemon } from '../../graph-db-server/src/server.ts'
 import { GraphDbClient } from './GraphDbClient.ts'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'

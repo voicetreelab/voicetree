@@ -1,4 +1,4 @@
-// Re-export shim — actual implementation in @vt/graph-model
+// Re-export shim — actual implementation in @vt/graph-db-server
 export {
     resolveWritePath,
     type ResolvedVaultConfig,
@@ -14,4 +14,4 @@ export {
     createDatedVoiceTreeFolder,
     clearVaultPath,
     createSubfolder,
-} from '@vt/graph-model'
+} from '@vt/graph-db-server/watch-folder/vault-allowlist'

@@ -1,14 +1,14 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { initGraphModel } from '@vt/graph-model'
 import {
   addReadPath,
-  getProjectRootWatchedDirectory,
   getReadPaths,
   getWritePath,
-  initGraphModel,
   removeReadPath,
   setWritePath,
-} from '@vt/graph-model'
+} from '../watch-folder/vault-allowlist.ts'
+import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import {

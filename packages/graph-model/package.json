@@ -5,29 +5,30 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./pure/*": "./src/pure/*",
-    "./sqlite/folderVisibilitySqlite": "./src/sqlite/folderVisibilitySqlite.ts",
-    "./sqlite/viewsRepository": "./src/sqlite/viewsRepository.ts"
+    "./pure/agentTabs": "./src/pure/agentTabs/index.ts",
+    "./pure/folders": "./src/pure/folders/index.ts",
+    "./pure/graph": "./src/pure/graph/index.ts",
+    "./pure/graph/markdown-parsing": "./src/pure/graph/markdown-parsing/index.ts",
+    "./pure/graph/positioning": "./src/pure/graph/positioning/index.ts",
+    "./pure/graph/spatial": "./src/pure/graph/spatial/index.ts",
+    "./pure/graph/undo": "./src/pure/graph/undo/index.ts",
+    "./pure/project": "./src/pure/project/index.ts",
+    "./pure/settings": "./src/pure/settings/index.ts",
+    "./pure/*": "./src/pure/*.ts"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vt/graph-tools": "*",
-    "knowledge-graph": "*",
     "fp-ts": "^2.16.9",
-    "better-sqlite3": "^12.8.0",
-    "chokidar": "^3.6.0",
-    "normalize-path": "^3.0.0",
-    "@vscode/ripgrep": "^1.15.9",
     "gray-matter": "^4.0.3",
+    "normalize-path": "^3.0.0",
     "rbush": "^4.0.1"
   },
   "devDependencies": {
     "vitest": "^3.2.4",
     "typescript": "~5.8.3",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/normalize-path": "^3.0.2",
     "@types/rbush": "^4.0.0",

@@ -3,12 +3,12 @@ import { extname } from 'node:path'
 import chokidar from 'chokidar'
 import type { FSWatcher } from 'chokidar'
 import {
-  handleFSEventWithStateAndUISides,
   isImageNode,
-  readFileWithRetry,
   type FSDelete,
   type FSUpdate,
 } from '@vt/graph-model'
+import { handleFSEventWithStateAndUISides } from './graph/handleFSEvent.ts'
+import { readFileWithRetry } from './watch-folder/file-watcher-setup.ts'
 
 export type Watcher = { unmount(): Promise<void> }
 
