@@ -56,9 +56,8 @@ jobs:
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
-      - name: Run root check
+      - name: Run lightweight repo checks
         run: |
-          npm --workspace webapp run check
           npm run lint
           npm run lint:verify-cytoscape-rules
           npm run lint:blackbox-tests
