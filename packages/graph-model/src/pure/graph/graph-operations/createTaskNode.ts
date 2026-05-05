@@ -10,6 +10,7 @@ export interface TaskNodeCreationParams {
   readonly graph: Graph
   readonly writePath: string
   readonly position: Position
+  readonly initialStatus?: string
 }
 
 /**
@@ -20,7 +21,7 @@ export interface TaskNodeCreationParams {
  * @returns GraphDelta containing the new task node
  */
 export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
-  const { taskDescription, selectedNodeIds, graph, writePath, position } = params
+  const { taskDescription, selectedNodeIds, graph, writePath, position, initialStatus } = params
 
   // Generate unique node ID
   const timestamp: number = Date.now()
@@ -43,6 +44,12 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   // Parse to extract edges from wikilinks
   const parsedNode: GraphNode = parseMarkdownToGraphNode(markdownContent, nodeId, graph)
 
+  // Merge optional initial YAML props (e.g. status='claimed') into parsed props.
+  // Lets callers create the node already-claimed, avoiding a redundant second write.
+  const additionalYAMLProps: ReadonlyMap<string, string> = initialStatus
+    ? new Map([...parsedNode.nodeUIMetadata.additionalYAMLProps, ['status', initialStatus]])
+    : parsedNode.nodeUIMetadata.additionalYAMLProps
+
   // Create the task node with parsed content and position
   const taskNode: GraphNode = {
     kind: 'leaf',
@@ -51,7 +58,8 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
     contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
     nodeUIMetadata: {
       ...parsedNode.nodeUIMetadata,
-      position: O.some(position)
+      position: O.some(position),
+      additionalYAMLProps
     }
   }
 
