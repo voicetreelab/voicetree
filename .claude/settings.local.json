@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "mcp__voicetree__create_graph",
-      "mcp__voicetree__search_nodes"
+      "mcp__voicetree__search_nodes",
+      "Bash(openspec instructions *)"
     ]
   },
   "hooks": {
@@ -28,7 +29,6 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/webapp/.claude/hooks/stop-quality-check.cjs\""
           }
-
         ]
       }
     ]
