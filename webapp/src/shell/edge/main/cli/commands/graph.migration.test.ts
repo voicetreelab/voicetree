@@ -1,13 +1,14 @@
 import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest'
-import {GraphDbClient} from '@vt/graph-db-client'
+import {afterAll, beforeAll, describe, expect, it, vi, type MockInstance} from 'vitest'
+import {GraphDbClient, type GraphState} from '@vt/graph-db-client'
 import {
     formatLintReportHuman,
     lintGraph,
     renderAutoView,
     renderGraphView,
+    type ViewGraphResult,
 } from '@vt/graph-tools/node'
 import {
     clearWatchFolderState,
@@ -16,8 +17,9 @@ import {
     saveVaultConfigForDirectory,
     setGraph,
 } from '@vt/graph-model'
+// eslint-disable-next-line no-restricted-imports
 import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
-import {main} from '../voicetree-cli.ts'
+import {main} from '@/shell/edge/main/cli/voicetree-cli.ts'
 
 class ExitCalled extends Error {
     constructor(public readonly code: number) {
@@ -73,14 +75,14 @@ async function waitFor<T>(
 async function captureCommand(invoke: () => Promise<void>): Promise<CommandResult> {
     const stdoutLines: string[] = []
     const stderrChunks: string[] = []
-    const logSpy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]): void => {
+    const logSpy: MockInstance<typeof console.log> = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]): void => {
         stdoutLines.push(args.map((value: unknown): string => String(value)).join(' '))
     })
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
+    const stderrSpy: MockInstance<typeof process.stderr.write> = vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
         stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk))
         return true
     }) as typeof process.stderr.write)
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+    const exitSpy: MockInstance<typeof process.exit> = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
         throw new ExitCalled(code ?? 0)
     }) as typeof process.exit)
 
@@ -156,7 +158,7 @@ describe('graph daemon migration', () => {
         process.chdir(harness.vault)
 
         await waitFor(async () => {
-            const graph = await createClient().getGraph()
+            const graph: GraphState = await createClient().getGraph()
             return Object.keys(graph.nodes).length === 3 ? graph : null
         })
     }, 10000)
@@ -197,7 +199,7 @@ describe('graph daemon migration', () => {
     })
 
     it('routes explicit graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
-        const expected = renderGraphView(docsRoot(), {
+        const expected: ViewGraphResult = renderGraphView(docsRoot(), {
             format: 'ascii',
             collapsedFolders: ['nested'],
             selectedIds: ['root'],
