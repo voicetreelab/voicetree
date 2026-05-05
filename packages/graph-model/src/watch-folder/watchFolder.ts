@@ -31,7 +31,6 @@ import {
     getStartupFolderOverride,
     getOnFolderSwitchCleanup,
 } from "../state/watch-folder-store";
-
 // Import from extracted modules
 import {
     getLastDirectory,
@@ -45,6 +44,7 @@ import {
 } from "./vault-allowlist";
 import { setActiveViewFolderState } from "./folder-visibility-active-view";
 import { setupWatcher } from "./file-watcher-setup";
+import { setupStateChangeSubscriptions } from "./watcher-rebuild";
 import type { WatcherOptions } from "./file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
 import { createEmptyGraph } from '../pure/graph/createGraph';
@@ -278,6 +278,9 @@ export async function loadFolder(
 
         // Setup file watcher - watch all paths in allowlist
         await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
+
+        // Subscribe to folder-visibility and view-switch events to rebuild watcher on state change
+        await setupStateChangeSubscriptions(watchedFolderPath);
     }
 
     // Save as last directory for auto-start on next launch

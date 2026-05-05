@@ -36,12 +36,30 @@ interface FolderVisibilityRow {
 
 let database: FolderVisibilityDatabase | undefined
 
+export type FolderStateChangedListener = () => void
+
+const folderStateChangedListeners = new Set<FolderStateChangedListener>()
+
+export function onFolderStateChanged(listener: FolderStateChangedListener): () => void {
+    folderStateChangedListeners.add(listener)
+    return (): void => {
+        folderStateChangedListeners.delete(listener)
+    }
+}
+
+function emitFolderStateChanged(): void {
+    for (const listener of folderStateChangedListeners) {
+        listener()
+    }
+}
+
 export function configureFolderVisibilityStore(db: FolderVisibilityDatabase): void {
     database = db
 }
 
 export function clearFolderVisibilityStoreForTests(): void {
     database = undefined
+    folderStateChangedListeners.clear()
 }
 
 export function getFolderVisibility(viewId: string): FolderVisibilityState {
@@ -61,6 +79,7 @@ export function setFolderState(
         ON CONFLICT(view_id, path) DO UPDATE SET state = excluded.state
     `))
     statement.run(viewId, normalizePath(path), state)
+    emitFolderStateChanged()
 }
 
 export function setFolderStateBatch(
@@ -79,6 +98,7 @@ export function setFolderStateBatch(
         }
     })
     applyUpdates(updates)
+    emitFolderStateChanged()
 }
 
 export function own(viewId: string, path: AbsolutePath): FolderState {

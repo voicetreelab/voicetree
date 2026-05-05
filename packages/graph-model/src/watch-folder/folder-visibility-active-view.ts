@@ -19,10 +19,16 @@ type FolderVisibilityStoreApi = {
     setFolderState(viewId: string, path: string, state: FolderState): void
 }
 
-const graphStatePackageName = '@vt/graph-state'
+type FolderVisibilityStoreAndDerivation = FolderVisibilityStoreApi & {
+    deriveWatchRoots(map: FolderVisibilityState): Set<string>
+}
 
 async function loadFolderVisibilityStore(): Promise<FolderVisibilityStoreApi> {
-    return await import(graphStatePackageName) as FolderVisibilityStoreApi
+    return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreApi
+}
+
+async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDerivation> {
+    return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreAndDerivation
 }
 
 export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promise<readonly FilePath[]> {
@@ -35,6 +41,25 @@ export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promi
         return [...store.getFolderVisibility(activeViewId)]
             .filter(([, state]) => state === 'expanded')
             .map(([folderPath]) => folderPath)
+    } finally {
+        store.clearFolderVisibilityStoreForTests()
+        closeFolderVisibilityDb(db)
+    }
+}
+
+/**
+ * Get the topmost expanded folder paths for the active view (watch roots).
+ * Uses deriveWatchRoots so nested expanded folders don't add redundant mounts.
+ */
+export async function getWatchRootsForActiveView(vaultPath: FilePath): Promise<readonly string[]> {
+    const store = await loadStoreWithDerivation()
+    const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
+    try {
+        ensureDefaultView(db)
+        store.configureFolderVisibilityStore(db)
+        const activeViewId: string = getActiveViewId(db)
+        const map = store.getFolderVisibility(activeViewId)
+        return [...store.deriveWatchRoots(map)]
     } finally {
         store.clearFolderVisibilityStoreForTests()
         closeFolderVisibilityDb(db)

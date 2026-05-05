@@ -154,11 +154,13 @@ export {
     setFolderStateBatch,
     own,
     effective,
+    onFolderStateChanged,
 } from './state/folderVisibilityStore'
 
 export type {
     FolderVisibilityDatabase,
     FolderVisibilityUpdate,
+    FolderStateChangedListener,
 } from './state/folderVisibilityStore'
 
 export {
