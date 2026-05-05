@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { findFileByName } from './findFileByName';
+import { findFileByName } from '@vt/graph-model';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';

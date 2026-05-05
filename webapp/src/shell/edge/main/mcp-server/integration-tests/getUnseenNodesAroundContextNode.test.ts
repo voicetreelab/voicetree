@@ -23,9 +23,8 @@ vi.mock('electron', () => ({
   }
 }))
 
-import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
-import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import { createContextNode, getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-model'
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
@@ -35,9 +34,7 @@ import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { NodeIdAndFilePath, FSUpdate, Graph, GraphDelta } from '@vt/graph-model/pure/graph'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
-} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import { initGraphModel } from '@vt/graph-model'
 
 describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
@@ -53,7 +50,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
         // Load the graph from disk
         const loadResult: E.Either<
-            import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+            import('@vt/graph-model').FileLimitExceededError,
             Graph
         > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
         if (E.isLeft(loadResult)) throw new Error('Expected Right')
@@ -154,7 +151,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the context node
             const loadResult1: E.Either<
-                import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+                import('@vt/graph-model').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
@@ -170,7 +167,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the new node
             const loadResult2: E.Either<
-                import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+                import('@vt/graph-model').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')
@@ -197,7 +194,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph to include the context node
             const loadResult: E.Either<
-                import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+                import('@vt/graph-model').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult)) throw new Error('Expected Right')
@@ -247,7 +244,7 @@ describe('getUnseenNodesAroundContextNode - Integration Tests', () => {
 
             // Reload graph
             const loadResult1: E.Either<
-                import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+                import('@vt/graph-model').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult1)) throw new Error('Expected Right')
@@ -271,7 +268,7 @@ This is the actual content without frontmatter.`
 
             // Reload graph
             const loadResult2: E.Either<
-                import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce').FileLimitExceededError,
+                import('@vt/graph-model').FileLimitExceededError,
                 Graph
             > = await loadGraphFromDisk([EXAMPLE_SMALL_PATH], EXAMPLE_SMALL_PATH)
             if (E.isLeft(loadResult2)) throw new Error('Expected Right')

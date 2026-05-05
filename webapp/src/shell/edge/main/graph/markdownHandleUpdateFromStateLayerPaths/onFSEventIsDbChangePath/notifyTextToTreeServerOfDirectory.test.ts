@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { notifyTextToTreeServerOfDirectory } from './notifyTextToTreeServerOfDirectory';
+import { notifyTextToTreeServerOfDirectory } from '@vt/graph-model';
 import { initGraphModel } from '@vt/graph-model';
 
 describe('notifyTextToTreeServerOfDirectory', () => {

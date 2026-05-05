@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode'
+import { createContextNode } from '@vt/graph-model'
 
 // Mock electron app to provide getPath for settings
 vi.mock('electron', () => ({
@@ -27,7 +27,7 @@ vi.mock('electron', () => ({
     getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
   }
 }))
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@vt/graph-model'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
@@ -37,7 +37,7 @@ import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import type { FileLimitExceededError } from '@vt/graph-model'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/graph-model'
 

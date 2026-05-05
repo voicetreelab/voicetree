@@ -25,15 +25,13 @@ import {
   getVaultPaths,
   loadAndMergeVaultPath,
   type LoadVaultPathResult,
-} from './vault-allowlist'
+  saveVaultConfigForDirectory,
+} from '@vt/graph-model'
 import {
   setProjectRootWatchedDirectory,
   clearWatchFolderState,
   setWatcher,
 } from '@/shell/edge/main/state/watch-folder-store'
-import {
-  saveVaultConfigForDirectory,
-} from './voicetree-config-io'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'

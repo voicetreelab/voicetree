@@ -19,9 +19,13 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     resetAuditRetryCount: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn()
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn(),
+    }
+})
 
 // Mock settings
 vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
@@ -38,7 +42,7 @@ import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {parse as mermaidParse} from '@mermaid-js/parser'
 
 type McpToolResponse = {

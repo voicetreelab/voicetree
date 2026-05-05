@@ -26,8 +26,8 @@ vi.mock('electron', () => ({
 import {
   getVaultConfigForDirectory,
   saveVaultConfigForDirectory,
-} from './voicetree-config-io'
-import { resolveWritePath } from './vault-allowlist'
+  resolveWritePath,
+} from '@vt/graph-model'
 import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
 import { initGraphModel } from '@vt/graph-model'
 

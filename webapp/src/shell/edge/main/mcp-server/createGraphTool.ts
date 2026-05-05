@@ -26,7 +26,7 @@ import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {

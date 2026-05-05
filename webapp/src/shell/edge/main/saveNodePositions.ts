@@ -2,7 +2,7 @@ import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphNode, GraphDelta} from "@vt/graph-model/pure/graph";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getTerminalRecords} from "@/shell/edge/main/terminals/terminal-registry";
-import {applyGraphDeltaToDBThroughMemAndUI} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI";
+import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-model';
 import * as O from "fp-ts/lib/Option.js";
 
 /**

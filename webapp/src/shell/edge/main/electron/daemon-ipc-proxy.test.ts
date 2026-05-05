@@ -37,19 +37,10 @@ vi.mock('@vt/graph-model', async () => {
     getReadPaths: mockGetReadPaths,
     getProjectRootWatchedDirectory: mockGetProjectRootWatchedDirectory,
     getWritePath: mockGetWritePath,
+    broadcastGraphDeltaToUI: mockBroadcastGraphDeltaToUI,
+    getStarredFolders: mockGetStarredFolders,
   }
 })
-
-vi.mock(
-  '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI',
-  () => ({
-    broadcastGraphDeltaToUI: mockBroadcastGraphDeltaToUI,
-  }),
-)
-
-vi.mock('@/shell/edge/main/graph/watch_folder/starred-folders', () => ({
-  getStarredFolders: mockGetStarredFolders,
-}))
 
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
   getCurrentLiveState: mockGetCurrentLiveState,

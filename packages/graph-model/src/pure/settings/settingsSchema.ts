@@ -35,7 +35,7 @@ type SettingsSchema = {
 // Platform logic
 // ============================================================================
 
-const isMac: boolean = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
+const isMac: boolean = typeof process !== 'undefined' && process.platform === 'darwin';
 const isWindows: boolean = typeof process !== 'undefined' && process.platform === 'win32';
 const homeDir: string = typeof process !== 'undefined' && process.env.HOME ? process.env.HOME : '';
 const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
@@ -187,6 +187,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
 
     // ── Advanced (default section — no need to specify) ──────────────────
     contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
+    enableSemanticContext:  { default: false, label: 'Semantic Context' },
     contextMaxChars:       { default: 8000, label: 'Context Budget (chars)', number: { min: 2000, max: 100000, step: 2000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },
     defaultAllowlistPatterns: { default: [] as readonly string[], label: 'Default Allowlist Patterns' },

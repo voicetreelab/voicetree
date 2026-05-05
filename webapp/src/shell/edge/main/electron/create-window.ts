@@ -4,7 +4,7 @@ import path from 'path';
 import type {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {writeAllPositionsSync} from '@/shell/edge/main/graph/writeAllPositionsOnExit';
+import {writeAllPositionsSync} from '@vt/graph-model';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store';
 import {recordAppUsage} from './notification-scheduler';

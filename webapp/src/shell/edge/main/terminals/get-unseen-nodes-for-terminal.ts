@@ -7,7 +7,7 @@
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
-import { getUnseenNodesAroundContextNode, type UnseenNode } from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-model'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { getTerminalRecords, type TerminalRecord } from './terminal-registry'
 

@@ -4,8 +4,7 @@ import * as path from 'path'
 import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
 import type { Graph, GraphNode } from '@vt/graph-model/pure/graph'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import { loadGraphFromDisk, type FileLimitExceededError } from '@vt/graph-model'
 
 // Helper to find a node by filename or relative path (since node IDs are now absolute paths)
 function findNodeByFilename(graph: Graph, relativePathOrFilename: string): GraphNode | undefined {

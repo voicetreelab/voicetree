@@ -5,8 +5,7 @@ import { createGraph, createEmptyGraph } from '@vt/graph-model/pure/graph/create
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import { loadGraphFromDisk, type FileLimitExceededError } from '@vt/graph-model'
 
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 

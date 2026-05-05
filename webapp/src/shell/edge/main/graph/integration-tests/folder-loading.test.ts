@@ -271,7 +271,7 @@ describe('Folder Loading - Integration Tests', () => {
       clearRecentDeltas()
 
       // Import handler to simulate FS events
-      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides')
+      const { handleFSEventWithStateAndUISides } = await import('@vt/graph-model')
 
       const testFilePath: string = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent: "# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]" = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
@@ -424,7 +424,7 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.writeFile(newFilePath, newFileContent, 'utf-8')
 
       // Import and call the FS event handler directly to simulate watcher detection
-      const { handleFSEventWithStateAndUISides } = await import('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/handleFSEventWithStateAndUISides')
+      const { handleFSEventWithStateAndUISides } = await import('@vt/graph-model')
 
       const addEvent: { absolutePath: string; content: string; eventType: "Added"; } = {
         absolutePath: newFilePath,

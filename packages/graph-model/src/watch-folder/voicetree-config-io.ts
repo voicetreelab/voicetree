@@ -47,6 +47,9 @@ export function getConfigPath(): string {
     return path.join(getConfig().appSupportPath, 'voicetree-config.json');
 }
 
+const CONFIG_CACHE_TTL_MS: number = 5000;
+let cachedConfig: { readonly path: string; readonly loadedAt: number; readonly config: VoiceTreeConfig } | undefined;
+
 async function loadPersistedConfig(): Promise<PersistedVoiceTreeConfig> {
     const configPath: string = getConfigPath();
     try {
@@ -58,7 +61,14 @@ async function loadPersistedConfig(): Promise<PersistedVoiceTreeConfig> {
 }
 
 export async function loadConfig(): Promise<VoiceTreeConfig> {
-    return stripLegacyVaultConfig(await loadPersistedConfig());
+    const configPath: string = getConfigPath();
+    const now: number = Date.now();
+    if (cachedConfig && cachedConfig.path === configPath && now - cachedConfig.loadedAt < CONFIG_CACHE_TTL_MS) {
+        return cachedConfig.config;
+    }
+    const config: VoiceTreeConfig = stripLegacyVaultConfig(await loadPersistedConfig());
+    cachedConfig = {path: configPath, loadedAt: now, config};
+    return config;
 }
 
 export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
@@ -68,6 +78,7 @@ export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
         // Ensure parent directory exists (needed on first run or in tests)
         await fs.mkdir(path.dirname(configPath), { recursive: true });
         await fs.writeFile(configPath, JSON.stringify(cleanConfig, null, 2), 'utf8');
+        cachedConfig = {path: configPath, loadedAt: Date.now(), config: cleanConfig};
     } catch (error) {
         console.error('[saveConfig] FAILED to save config:', error);
         throw error;  // Propagate error so callers know save failed

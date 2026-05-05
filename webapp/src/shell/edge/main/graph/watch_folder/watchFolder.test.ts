@@ -38,7 +38,7 @@ import {
 import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
 import type { GraphDelta, Graph } from '@vt/graph-model/pure/graph'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph'
-import { saveVaultConfigForDirectory } from '@/shell/edge/main/graph/watch_folder/voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/graph-model'
 
 /**
  * Pre-seed vault config so resolveOrCreateConfig uses it directly

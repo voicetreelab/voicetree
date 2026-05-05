@@ -29,9 +29,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
-} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import { initGraphModel } from '@vt/graph-model'
 
 const TEST_NODE_ID: "test-integration-node" = 'test-integration-node'

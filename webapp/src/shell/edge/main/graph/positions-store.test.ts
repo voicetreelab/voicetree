@@ -14,7 +14,7 @@ import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, Position } from '@vt/graph-model/pure/graph'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from './positions-store'
+import { loadPositions, mergePositionsIntoGraph, savePositionsSync } from '@vt/graph-model'
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 

@@ -41,9 +41,13 @@ vi.mock('@/shell/edge/main/ui-api-proxy', () => ({uiAPI: {syncTerminals: vi.fn()
 vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     loadSettings: vi.fn().mockResolvedValue({autoNotifyUnseenNodes: false, agents: []})
 }))
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn().mockResolvedValue([])
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        getUnseenNodesAroundContextNode: vi.fn().mockResolvedValue([]),
+    }
+})
 vi.mock('@/shell/edge/main/terminals/stopGateHookRunner', () => ({
     runStopHooks: vi.fn().mockResolvedValue({passed: true})
 }))

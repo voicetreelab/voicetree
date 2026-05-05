@@ -21,8 +21,8 @@ import {
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
-import { broadcastGraphDeltaToUI } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
-import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starred-folders'
+import { broadcastGraphDeltaToUI } from '@vt/graph-model'
+import { getStarredFolders } from '@vt/graph-model'
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'

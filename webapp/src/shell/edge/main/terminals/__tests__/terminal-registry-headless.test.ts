@@ -29,9 +29,13 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}}))
 }))
 
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn(async () => [])
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        getUnseenNodesAroundContextNode: vi.fn(async () => []),
+    }
+})
 
 vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')
