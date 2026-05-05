@@ -1,6 +1,6 @@
 import type {Core, NodeSingular, CollectionReturnValue} from "cytoscape";
 import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
-import type {EdgeElement, ElementSpec, NodeElement} from '@vt/graph-state'
+import type {EdgeElement, ElementSpec, NodeElement} from '@vt/graph-state/contract'
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
@@ -288,6 +288,18 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
+            if (specNode.position !== undefined) {
+                const currentPosition: { x: number; y: number } = existing.position()
+                if (
+                    currentPosition.x !== specNode.position.x
+                    || currentPosition.y !== specNode.position.y
+                ) {
+                    existing.position({
+                        x: specNode.position.x,
+                        y: specNode.position.y,
+                    })
+                }
+            }
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }

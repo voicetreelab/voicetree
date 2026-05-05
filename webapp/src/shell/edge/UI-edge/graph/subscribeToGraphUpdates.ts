@@ -3,7 +3,8 @@
  * Extracted from VoiceTreeGraphView to separate concerns
  */
 import type {Core} from 'cytoscape';
-import type {GraphDelta, UpsertNodeDelta} from '@vt/graph-model/pure/graph';
+import {mapNewGraphToDelta} from '@vt/graph-model';
+import type {Graph, GraphDelta, UpsertNodeDelta} from '@vt/graph-model/pure/graph';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
@@ -41,6 +42,7 @@ export function subscribeToGraphUpdates(
     }
 
     const cy: Core = navigationService.getCy();
+    let disposed: boolean = false;
 
     const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
         //console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
@@ -97,8 +99,17 @@ export function subscribeToGraphUpdates(
     const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
+    void (async () => {
+        const graph: Graph | undefined = await electronAPI.main.getGraph();
+        if (disposed || !graph || Object.keys(graph.nodes).length === 0) return;
+        handleGraphDelta(mapNewGraphToDelta(graph));
+    })().catch((error: unknown) => {
+        console.error('[subscribeToGraphUpdates] Failed to hydrate initial graph:', error);
+    });
+
     // Return combined cleanup function
     return (): void => {
+        disposed = true;
         cleanupUpdate();
         cleanupClear();
     };

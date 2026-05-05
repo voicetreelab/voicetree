@@ -47,6 +47,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
                         // If so, append to current editor content to preserve unsaved user edits
                         if (O.isSome(nodeDelta.previousNode)) {
                             const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                            if (currentEditorContent !== prevContent) {
+                                continue;
+                            }
                             if (isAppendOnly(prevContent, newContent)) {
                                 const suffix: string = getAppendedSuffix(prevContent, newContent);
                                 //console.log('[FloatingEditorManager-v2] Appending to editor for node:', nodeId, 'suffix:', suffix);

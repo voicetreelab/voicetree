@@ -134,6 +134,16 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }
   };
 
+  const onInitialHydrationComplete: () => void = () => {
+    if (layoutSafetyTimeout) {
+      clearTimeout(layoutSafetyTimeout);
+      layoutSafetyTimeout = null;
+    }
+    refreshSpatialIndex(cy);
+    layoutRunning = false;
+    clearPendingPan();
+  };
+
   const getLayoutParticipantElements: () => CollectionReturnValue = () => {
     return cy.elements().filter(ele => isLayoutParticipantElement(ele));
   };
@@ -245,12 +255,14 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     pendingRemovedNodeCount = 0;
 
     const totalNodes: number = cy.nodes().length;
-
     try {
       if (!hasRunInitialLayout) {
-        // Initial load: full ultimate layout (R-tree pack → Cola → fit)
+        // Initial graph hydration uses graph-model positions as authoritative:
+        // persisted .voicetree/positions.json positions or applyPositions()
+        // fallbacks. Auto-layout remains available through incremental changes
+        // and the manual tidy action.
         hasRunInitialLayout = true;
-        runFullUltimateLayout();
+        onInitialHydrationComplete();
       } else if (newNodeIds.size > 0 && newNodeIds.size < totalNodes * 0.3) {
         // Incremental: local Cola positions new nodes, then component separation +
         // push loop runs inside runLocalCola (coarse-then-fine overlap resolution).

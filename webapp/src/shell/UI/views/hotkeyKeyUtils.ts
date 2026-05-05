@@ -29,14 +29,22 @@ export function getHotkeyKeyFromEvent(e: KeyboardEvent): string {
   if (e.altKey) modifiers.push('Alt');
   if (e.shiftKey) modifiers.push('Shift');
 
-  // On Mac, Option+letter produces special characters (e.g., Option+R = "\u00ae")
-  // Use e.code to get the physical key and extract the letter for Alt combinations
-  let key: string = e.key;
-  if (e.altKey && e.code.startsWith('Key')) {
-    key = e.code.slice(3).toLowerCase(); // "KeyR" -> "r"
-  }
+  let key: string = normalizeKeyboardEventKey(e);
 
   return getHotkeyKey(key, modifiers);
+}
+
+function normalizeKeyboardEventKey(e: KeyboardEvent): string {
+  if (e.code === 'BracketLeft') return '[';
+  if (e.code === 'BracketRight') return ']';
+
+  // On Mac, Option+letter produces special characters (e.g., Option+R = "\u00ae").
+  // Use e.code to get the physical key and extract the letter for Alt combinations.
+  if (e.altKey && e.code.startsWith('Key')) {
+    return e.code.slice(3).toLowerCase(); // "KeyR" -> "r"
+  }
+
+  return e.key;
 }
 
 /**
