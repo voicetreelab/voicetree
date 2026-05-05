@@ -56,7 +56,6 @@ describe('filesystem-event search index maintenance', () => {
         setProjectRootWatchedDirectory(projectRootPath)
         await saveVaultConfigForDirectory(projectRootPath, {
             writePath: tempVaultPath,
-            readPaths: [],
         })
         setGraph(createEmptyGraph())
     })

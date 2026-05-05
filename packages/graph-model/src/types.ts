@@ -24,7 +24,7 @@ export interface GraphModelCallbacks {
 
   // UI state syncing
   fitViewport?: () => void  // replaces uiAPI.fitViewport
-  syncVaultState?: (state: { readPaths: readonly string[]; writePath: string | null; starredFolders: readonly string[] }) => void
+  syncVaultState?: (state: { vaultPaths: readonly string[]; writePath: string | null; starredFolders: readonly string[] }) => void
   syncFolderTree?: (tree: FolderTreeNode) => void
   syncStarredFolderTrees?: (trees: Record<string, FolderTreeNode>) => void
   syncExternalFolderTrees?: (trees: Record<string, FolderTreeNode>) => void

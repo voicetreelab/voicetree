@@ -3,14 +3,17 @@
  *
  * Handles CRUD operations for vault paths:
  * - Managing the write path (main vault for new node creation)
- * - Managing readPaths (additional directories that are fully loaded)
+ * - Managing active-view expanded folder paths
  * - Resolving path configuration for a project
  */
 
 import { promises as fs } from "fs";
 import normalizePath from "normalize-path";
 export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject } from './resolve-vault-config';
-import { resolveWritePath } from './resolve-vault-config';
+import {
+    logIgnoredLegacyReadPathsIfPresent,
+    resolveWritePath,
+} from './resolve-vault-config';
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
 import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '../pure/graph';
@@ -40,6 +43,10 @@ import {
 } from "./voicetree-config-io";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import {getCallbacks} from '../types';
+import {
+    getExpandedFolderPathsForVault,
+    setActiveViewFolderState,
+} from "./folder-visibility-active-view";
 
 /**
  * Options for loading a vault path into the graph
@@ -64,34 +71,30 @@ export type LoadVaultPathResult = {
 
 
 /**
- * Get all vault paths (writePath + readPaths).
- * Reads directly from config file (source of truth).
+ * Get all vault paths (writePath + active-view expanded paths).
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
+    await logIgnoredLegacyReadPathsIfPresent(watchedDir);
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    // Return writePath + all readPaths (all normalized, deduplicated)
     const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
-    const normalizedReadPaths: readonly string[] = config.readPaths.map((p: string) => resolveWritePath(watchedDir, p));
-    // Deduplicate: filter out readPaths that match writePath
-    const uniqueReadPaths: readonly string[] = normalizedReadPaths.filter((p: string) => p !== resolvedWritePath);
-    return [resolvedWritePath, ...uniqueReadPaths];
+    const expandedPaths: readonly FilePath[] = await getReadPaths();
+    const uniqueExpandedPaths: readonly string[] = expandedPaths.filter((p: string) => p !== resolvedWritePath);
+    return [resolvedWritePath, ...uniqueExpandedPaths];
 }
 
 /**
- * Get the readPaths array (additional paths for reading, not including writePath).
- * Reads directly from config file (source of truth).
+ * Get the active view's expanded folder paths.
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getReadPaths(): Promise<readonly FilePath[]> {
     const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    if (!config) return [];
-    return config.readPaths.map((p: string) => resolveWritePath(watchedDir, p));
+    const expandedPaths: readonly FilePath[] = await getExpandedFolderPathsForVault(watchedDir);
+    return expandedPaths.map((p: string) => resolveWritePath(watchedDir, p));
 }
 
 /**
@@ -223,20 +226,18 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
         return result;
     }
 
-    // Demote old write path to readPaths before overwriting
+    // Demote old write path to the active view's expanded paths before overwriting
     const oldWritePath: string = config?.writePath
         ? resolveWritePath(watchedDir, config.writePath)
         : normalizePath(watchedDir);
 
-    // Build new readPaths: remove new writePath if present, add old writePath
-    const newReadPaths: readonly string[] = (config?.readPaths ?? [])
-        .filter((p: string) => p !== vaultPath)
-        .concat(oldWritePath !== vaultPath ? [oldWritePath] : []);
+    if (oldWritePath !== vaultPath) {
+        await setActiveViewFolderState(watchedDir, oldWritePath, 'expanded');
+    }
 
     // Save to config only AFTER successful load (atomic operation)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: vaultPath,
-        readPaths: newReadPaths
     });
 
     emitReadPathsChanged(await getVaultPaths());
@@ -249,7 +250,7 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
 }
 
 /**
- * Add a path to readPaths.
+ * Add a path to the active view's expanded folder paths.
  * If the path doesn't exist, it will be created.
  * Automatically loads ALL files from the new path into the graph and adds to watcher.
  *
@@ -265,13 +266,13 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    const currentReadPaths: readonly string[] = config?.readPaths ?? [];
     const currentWritePath: string = config?.writePath ?? watchedDir;
+    const currentExpandedPaths: readonly FilePath[] = await getReadPaths();
 
-    // Check if already in readPaths or is the writePath
+    // Check if already expanded or is the writePath
     const resolvedWritePath: string = resolveWritePath(watchedDir, currentWritePath);
-    if (currentReadPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
-        return { success: false, error: 'Path already in readPaths' };
+    if (currentExpandedPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
+        return { success: false, error: 'Path already expanded' };
     }
 
     // Create directory if it doesn't exist (matching loadFolder behavior)
@@ -287,21 +288,16 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
     if (!result.success) {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
         if (result.error?.includes('File limit exceeded')) {
-            const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
-            await saveVaultConfigForDirectory(watchedDir, {
-                writePath: currentWritePath,
-                readPaths: newReadPaths
-            });
+            await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
             await broadcastVaultState();
         }
         return result;
     }
 
-    // Only save config and add to watcher AFTER successful load
-    const newReadPaths: readonly string[] = [...currentReadPaths, vaultPath];
+    // Only save visibility and add to watcher AFTER successful load
+    await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: currentWritePath,
-        readPaths: newReadPaths
     });
 
     emitReadPathsChanged(await getVaultPaths());
@@ -316,7 +312,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
 }
 
 /**
- * Remove a path from readPaths.
+ * Remove a path from the active view's expanded folder paths.
  * Cannot remove the write path.
  * Immediately removes nodes from that path from the graph.
  */
@@ -341,20 +337,20 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         return { success: false, error: 'Cannot remove write path' };
     }
 
-    // Note: We don't check if path is in readPaths because this function
+    // Note: We don't check if path is expanded because this function
     // is also used to clear the old write path when editing it to a new location.
-    // The old write path was never in readPaths, so we must allow removing it.
+    // The old write path may never have been expanded, so we must allow removing it.
 
     // Remove nodes from the graph that belong to this vault path
     const currentGraph: Graph = getGraph();
 
-    // Build list of paths that should be KEPT (current writePath + remaining readPaths)
+    // Build list of paths that should be KEPT (current writePath + remaining expanded paths)
     // Exclude the path we're removing so its nodes can be deleted
     // Normalize all paths for consistent comparison with nodeIds (which use forward slashes)
-    const remainingReadPaths: readonly string[] = config.readPaths
+    const remainingExpandedPaths: readonly string[] = (await getReadPaths())
         .filter((p: string) => normalizePath(p) !== normalizedVaultPath)
         .map((p: string) => normalizePath(p));
-    const pathsToKeep: readonly string[] = [resolvedWritePath, ...remainingReadPaths];
+    const pathsToKeep: readonly string[] = [resolvedWritePath, ...remainingExpandedPaths];
 
     // Helper to check if a nodeId is inside any of the paths to keep
     const isInPathToKeep: (nodeId: string) => boolean = (nodeId: string): boolean => {
@@ -392,12 +388,11 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         currentWatcher.unwatch(vaultPath);
     }
 
-    const newReadPaths: readonly string[] = config.readPaths.filter((p: string) => p !== vaultPath);
+    await setActiveViewFolderState(watchedDir, vaultPath, 'hidden');
 
-    // Save to config (source of truth)
+    // Save write path to config (visibility is sqlite-backed)
     await saveVaultConfigForDirectory(watchedDir, {
         writePath: config.writePath,
-        readPaths: newReadPaths
     });
 
     emitReadPathsChanged(await getVaultPaths());

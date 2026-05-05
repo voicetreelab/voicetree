@@ -10,7 +10,11 @@ import path from "path";
 import { promises as fs } from "fs";
 import normalizePath from "normalize-path";
 import type { VaultConfig } from '../pure/settings/types';
-import { getVaultConfigForDirectory } from "./voicetree-config-io";
+import { getExpandedFolderPathsForVault } from "./folder-visibility-active-view";
+import {
+    getVaultConfigForDirectory,
+    hasLegacyReadPathsForDirectory,
+} from "./voicetree-config-io";
 
 /**
  * Resolve a writePath to an absolute path with normalized separators.
@@ -29,12 +33,16 @@ export function resolveWritePath(watchedFolder: string, writePath: string): stri
  * Resolved vault configuration for loading.
  */
 export interface ResolvedVaultConfig {
-    /** Combined allowlist (writePath + readPaths) for backwards compatibility */
+    /** Combined watch roots: writePath plus active-view expanded folder paths. */
     readonly allowlist: readonly string[];
     /** Main vault path for writing new nodes */
     readonly writePath: string;
-    /** readPaths (excluding writePath) */
-    readonly readPaths: readonly string[];
+}
+
+export async function logIgnoredLegacyReadPathsIfPresent(watchedDir: string): Promise<void> {
+    if (await hasLegacyReadPathsForDirectory(watchedDir)) {
+        console.debug('[resolveAllowlistForProject] ignoring legacy readPaths from voicetree-config.json');
+    }
 }
 
 /**
@@ -49,6 +57,7 @@ export async function resolveAllowlistForProject(
     watchedDir: string
 ): Promise<ResolvedVaultConfig | null> {
     const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
+    await logIgnoredLegacyReadPathsIfPresent(watchedDir);
 
     // If no saved config exists, return null so caller can attempt loading directly
     if (!savedVaultConfig?.writePath) {
@@ -66,28 +75,27 @@ export async function resolveAllowlistForProject(
         return null;
     }
 
-    // Filter readPaths to those that still exist on disk
+    // Filter expanded folder paths to those that still exist on disk
     // Normalize all paths to forward slashes for cross-platform consistency
-    const validReadPaths: string[] = [];
-    for (const savedPath of savedVaultConfig.readPaths) {
+    const validExpandedPaths: string[] = [];
+    for (const expandedPath of await getExpandedFolderPathsForVault(watchedDir)) {
         const absolutePath: string = normalizePath(
-            path.isAbsolute(savedPath)
-                ? savedPath
-                : path.join(watchedDir, savedPath)
+            path.isAbsolute(expandedPath)
+                ? expandedPath
+                : path.join(watchedDir, expandedPath)
         );
         // Skip if same as writePath (deduplicate)
         if (absolutePath === absoluteWritePath) continue;
         try {
             await fs.access(absolutePath);
-            validReadPaths.push(absolutePath);
+            validExpandedPaths.push(absolutePath);
         } catch {
             // Path no longer exists on disk, skip
         }
     }
 
     return {
-        allowlist: [absoluteWritePath, ...validReadPaths],
+        allowlist: [absoluteWritePath, ...validExpandedPaths],
         writePath: absoluteWritePath,
-        readPaths: validReadPaths
     };
 }

@@ -5,7 +5,7 @@
  *         so vault state + folder tree broadcasts may not have completed
  *         by the time the caller acts on the return value.
  *
- * Bug 2: createDatedVoiceTreeFolder auto-loads ALL starred folders as readPaths,
+ * Bug 2: createDatedVoiceTreeFolder auto-loads ALL starred folders as expanded paths,
  *         even though the user only wants starred folders to appear in the sidebar
  *         without being loaded unless they were previously loaded.
  *
@@ -63,6 +63,7 @@ import {
     setWatcher,
 } from '../state/watch-folder-store'
 import { saveVaultConfigForDirectory } from './voicetree-config-io'
+import { setActiveViewFolderState } from './folder-visibility-active-view'
 import {
     removeReadPath,
     addReadPath,
@@ -120,8 +121,8 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         vi.clearAllMocks()
     })
 
-    it('syncVaultState callback should fire with updated readPaths before removeReadPath resolves', async () => {
-        // GIVEN: A project with writePath and one readPath loaded
+    it('syncVaultState callback should fire with updated vault paths before removeReadPath resolves', async () => {
+        // GIVEN: A project with writePath and one expanded path loaded
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
@@ -131,8 +132,8 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [readPathA],
         })
+        await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
         // WHEN: removeReadPath is called to unload readA
         const result = await removeReadPath(readPathA)
@@ -145,12 +146,12 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
 
         // AND: The broadcast payload should NOT include the removed path
         const lastCall = syncVaultStateSpy.mock.calls[syncVaultStateSpy.mock.calls.length - 1]
-        const broadcastData = lastCall[0] as { readPaths: readonly string[] }
-        expect(broadcastData.readPaths).not.toContain(readPathA)
+        const broadcastData = lastCall[0] as { vaultPaths: readonly string[] }
+        expect(broadcastData.vaultPaths).not.toContain(readPathA)
     })
 
     it('folder tree should be rebuilt before removeReadPath resolves', async () => {
-        // GIVEN: A project with a loaded readPath
+        // GIVEN: A project with a loaded expanded path
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
@@ -160,8 +161,8 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [readPathA],
         })
+        await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
         // WHEN: removeReadPath unloads readA
         await removeReadPath(readPathA)
@@ -172,8 +173,8 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
         expect(syncFolderTreeSpy).toHaveBeenCalled()
     })
 
-    it('readPaths from getVaultPaths should not include removed path after removal', async () => {
-        // GIVEN: A project with two readPaths
+    it('vault paths should not include removed path after removal', async () => {
+        // GIVEN: A project with two expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
@@ -185,8 +186,9 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [readPathA, readPathB],
         })
+        await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
+        await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
 
         // WHEN: removeReadPath removes readPathA
         await removeReadPath(readPathA)
@@ -243,7 +245,7 @@ describe('Bug 1 additional: addReadPath and setWritePath should also complete br
     })
 
     it('addReadPath should complete vault state broadcast before returning', async () => {
-        // GIVEN: A project with a write path and no readPaths
+        // GIVEN: A project with a write path and no expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'write')
         const newReadPath = path.join(watchedDir, 'newRead')
@@ -253,7 +255,6 @@ describe('Bug 1 additional: addReadPath and setWritePath should also complete br
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [],
         })
 
         // WHEN: addReadPath is called
@@ -278,7 +279,6 @@ describe('Bug 1 additional: addReadPath and setWritePath should also complete br
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [],
         })
 
         // WHEN: setWritePath is called
@@ -335,8 +335,8 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
         vi.clearAllMocks()
     })
 
-    it('removed readPath should have loadState not-loaded in folder tree broadcast', async () => {
-        // GIVEN: A project with a loaded readPath
+    it('removed expanded path should have loadState not-loaded in folder tree broadcast', async () => {
+        // GIVEN: A project with a loaded expanded path
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
@@ -346,8 +346,8 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [readPathA],
         })
+        await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
         // WHEN: removeReadPath unloads readA
         await removeReadPath(readPathA)
@@ -403,8 +403,8 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         vi.clearAllMocks()
     })
 
-    it('starred folders NOT previously loaded should NOT be added to readPaths', async () => {
-        // GIVEN: A project with a write path and no readPaths
+    it('starred folders NOT previously loaded should NOT be added to expanded paths', async () => {
+        // GIVEN: A project with a write path and no expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'currentWrite')
         await fs.mkdir(writePath, { recursive: true })
@@ -412,10 +412,9 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [],
         })
 
-        // AND: A starred folder that is NOT currently in readPaths
+        // AND: A starred folder that is NOT currently expanded
         const starredFolder = path.join(testTmpDir, 'starred-vault')
         await fs.mkdir(starredFolder, { recursive: true })
         await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredFolder] })
@@ -424,13 +423,9 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         const result = await createDatedVoiceTreeFolder()
         expect(result.success).toBe(true)
 
-        // THEN: The starred folder should NOT be in readPaths
-        // It should appear in the starred sidebar, but not be loaded as a readPath.
-        // Current code FAILS here because createDatedVoiceTreeFolder does:
-        //   const starred = await getStarredFolders();
-        //   for (const p of starred) await addReadPath(p);
-        const readPaths = await getReadPaths()
-        expect(readPaths).not.toContain(starredFolder)
+        // THEN: The starred folder should NOT be expanded.
+        const expandedPaths = await getReadPaths()
+        expect(expandedPaths).not.toContain(starredFolder)
     })
 
     it('starred folders should NOT appear in getVaultPaths after new folder creation (unless previously loaded)', async () => {
@@ -442,7 +437,6 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [],
         })
 
         // AND: Two starred folders, neither currently loaded
@@ -463,7 +457,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
     })
 
     it('a previously-loaded starred folder should remain loaded after new folder creation', async () => {
-        // GIVEN: A project where a starred folder IS already loaded as a readPath
+        // GIVEN: A project where a starred folder IS already expanded
         const watchedDir = path.join(testTmpDir, 'project')
         const writePath = path.join(watchedDir, 'currentWrite')
         const starredAndLoaded = path.join(testTmpDir, 'starred-loaded')
@@ -473,8 +467,8 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
 
         await saveVaultConfigForDirectory(watchedDir, {
             writePath,
-            readPaths: [starredAndLoaded], // Already loaded before folder creation
         })
+        await setActiveViewFolderState(watchedDir, starredAndLoaded, 'expanded')
 
         await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [starredAndLoaded] })
 
@@ -482,10 +476,10 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         const result = await createDatedVoiceTreeFolder()
         expect(result.success).toBe(true)
 
-        // THEN: The previously-loaded starred folder should still be in readPaths
+        // THEN: The previously-loaded starred folder should still be expanded
         // (Loading state should be preserved — only the auto-loading of
         // not-previously-loaded starred folders is the bug.)
-        const readPaths = await getReadPaths()
-        expect(readPaths).toContain(starredAndLoaded)
+        const expandedPaths = await getReadPaths()
+        expect(expandedPaths).toContain(starredAndLoaded)
     })
 })

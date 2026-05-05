@@ -225,15 +225,15 @@ export async function scanMarkdownFiles(vaultPath: string): Promise<readonly str
 }
 
 /**
- * Checks if a node ID (absolute path) belongs to one of the readPaths directories.
+ * Checks if a node ID (absolute path) belongs to one of the expanded folder directories.
  *
  * @param nodeId - Absolute path to check (expected to be normalized with forward slashes)
- * @param readPaths - Array of absolute paths to readPaths directories
+ * @param expandedPaths - Array of absolute expanded folder paths
  * @returns true if the node is within a readPath directory
  */
-export function isReadPath(nodeId: string, readPaths: readonly string[]): boolean {
-    return readPaths.some((readPath: string) => {
-        const normalizedReadPath: string = normalizePath(readPath);
+export function isReadPath(nodeId: string, expandedPaths: readonly string[]): boolean {
+    return expandedPaths.some((expandedPath: string) => {
+        const normalizedReadPath: string = normalizePath(expandedPath);
         return nodeId.startsWith(normalizedReadPath + '/') || nodeId === normalizedReadPath;
     });
 }
@@ -382,7 +382,7 @@ async function loadFileAsNode(
  * Recursively resolves transitive links (A→B→C all get loaded).
  *
  * This is the "resolve-on-link" behavior for files in the watched folder
- * that are outside writePath/readPaths.
+ * that are outside writePath and expanded paths.
  *
  * @param graph - Current graph with nodes
  * @param watchedFolder - The root folder to search for linked files

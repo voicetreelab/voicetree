@@ -33,7 +33,7 @@ export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (d
     projectRootWatchedDirectory = dir;
 };
 
-type ReadPathsChangedListener = (readPaths: readonly FilePath[]) => void
+type ReadPathsChangedListener = (watchPaths: readonly FilePath[]) => void
 const readPathListeners = new Set<ReadPathsChangedListener>()
 
 export const onReadPathsChanged: (listener: ReadPathsChangedListener) => (() => void) = (
@@ -45,11 +45,11 @@ export const onReadPathsChanged: (listener: ReadPathsChangedListener) => (() => 
     }
 }
 
-export const emitReadPathsChanged: (readPaths: readonly FilePath[]) => void = (
-    readPaths: readonly FilePath[],
+export const emitReadPathsChanged: (watchPaths: readonly FilePath[]) => void = (
+    watchPaths: readonly FilePath[],
 ): void => {
     for (const listener of readPathListeners) {
-        listener(readPaths)
+        listener(watchPaths)
     }
 }
 

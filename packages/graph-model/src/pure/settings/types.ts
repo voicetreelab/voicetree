@@ -136,13 +136,10 @@ export interface VTSettings {
  * Per-folder vault configuration for multi-vault support.
  *
  * writePath: The main vault (read + write). Can be relative to projectRootWatchedDirectory or absolute.
- * readPaths: Additional directories that are fully loaded (all files visible immediately).
  */
 export interface VaultConfig {
     /** Main vault path where new nodes are created. Can be relative or absolute. */
     readonly writePath: string;
-    /** Additional paths to fully load - all files are visible immediately */
-    readonly readPaths: readonly string[];
 }
 
 /**

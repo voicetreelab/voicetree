@@ -25,7 +25,7 @@ async function doBroadcast(): Promise<void> {
     const projectRoot: FilePath | null = getProjectRootWatchedDirectory();
     if (!projectRoot) return;
 
-    const readPaths: readonly FilePath[] = await getVaultPaths();
+    const vaultPaths: readonly FilePath[] = await getVaultPaths();
     const writePathOption: O.Option<FilePath> = await getWritePath();
     const writePath: AbsolutePath | null = O.isSome(writePathOption) ? toAbsolutePath(writePathOption.value) : null;
 
@@ -34,7 +34,7 @@ async function doBroadcast(): Promise<void> {
         Object.keys(graph.nodes) as readonly NodeIdAndFilePath[]
     );
 
-    const loadedPaths: Set<string> = new Set<string>(readPaths);
+    const loadedPaths: Set<string> = new Set<string>(vaultPaths);
     if (writePath) loadedPaths.add(writePath);
 
     const entry: DirectoryEntry = await getDirectoryTree(projectRoot);
@@ -55,8 +55,8 @@ async function doBroadcast(): Promise<void> {
     }
     getCallbacks().syncStarredFolderTrees?.(starredTrees);
 
-    // Scan external read paths (not under project root) and broadcast their trees
-    const externalPaths: readonly string[] = getExternalReadPaths([...readPaths], projectRoot);
+    // Scan external loaded paths (not under project root) and broadcast their trees
+    const externalPaths: readonly string[] = getExternalReadPaths([...vaultPaths], projectRoot);
     const externalTrees: Record<string, FolderTreeNode> = {};
     for (const extPath of externalPaths) {
         try {

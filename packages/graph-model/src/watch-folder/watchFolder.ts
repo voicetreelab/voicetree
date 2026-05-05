@@ -43,6 +43,7 @@ import {
     loadAndMergeVaultPath,
     type LoadVaultPathResult,
 } from "./vault-allowlist";
+import { setActiveViewFolderState } from "./folder-visibility-active-view";
 import { setupWatcher } from "./file-watcher-setup";
 import type { WatcherOptions } from "./file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
@@ -121,9 +122,9 @@ export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise
  */
 async function resolveOrCreateConfig(
     watchedFolderPath: string
-): Promise<{ writePath: string; readPaths: readonly string[]; allowlist: readonly string[] }> {
+): Promise<{ writePath: string; allowlist: readonly string[] }> {
     // Try to resolve from saved vaultConfig first
-    const savedConfig: { allowlist: readonly string[]; writePath: string; readPaths: readonly string[] } | null =
+    const savedConfig: { allowlist: readonly string[]; writePath: string } | null =
         await resolveAllowlistForProject(watchedFolderPath);
 
     if (savedConfig) {
@@ -163,6 +164,7 @@ async function resolveOrCreateConfig(
             await fs.access(patternPath);
             if (!allowlist.includes(patternPath)) {
                 allowlist.push(patternPath);
+                await setActiveViewFolderState(watchedFolderPath, patternPath, 'expanded');
             }
         } catch {
             // Pattern folder doesn't exist, skip
@@ -170,16 +172,13 @@ async function resolveOrCreateConfig(
     }
 
     // Save config with subfolder as writePath
-    const readPaths: readonly string[] = allowlist.filter(p => p !== subfolderPath);
     await saveVaultConfigForDirectory(watchedFolderPath, {
         writePath: subfolderPath,
-        readPaths
     });
 
     return {
         allowlist,
         writePath: subfolderPath,
-        readPaths
     };
 }
 
@@ -218,7 +217,7 @@ export async function loadFolder(
     getCallbacks().onGraphCleared?.();
 
     // Resolve or create config (unified path)
-    const config: { writePath: string; readPaths: readonly string[]; allowlist: readonly string[] } =
+    const config: { writePath: string; allowlist: readonly string[] } =
         await resolveOrCreateConfig(watchedFolderPath);
 
     // Ensure .voicetree/ has default prompts and hook scripts (copy-on-first-open)
@@ -245,30 +244,30 @@ export async function loadFolder(
             return createNewWorkspaceOnFileLimitExceeded(
                 watchedFolderPath,
                 fileCount,
-                config.readPaths,
+                config.allowlist.filter((folderPath: string) => folderPath !== config.writePath),
                 options,
             );
         }
         return { success: false };
     }
 
-    // Load read paths (handles all side effects internally)
-    for (const readPath of config.readPaths) {
-        const readResult: LoadVaultPathResult = await loadAndMergeVaultPath(readPath, { isWritePath: false }, positions);
-        if (!readResult.success) {
+    // Load active-view expanded paths (handles all side effects internally)
+    for (const expandedPath of config.allowlist.filter((folderPath: string) => folderPath !== config.writePath)) {
+        const expandedResult: LoadVaultPathResult = await loadAndMergeVaultPath(expandedPath, { isWritePath: false }, positions);
+        if (!expandedResult.success) {
             // Check for file limit exceeded error
-            if (readResult.error?.includes('File limit exceeded')) {
-                const match: RegExpMatchArray | null = readResult.error.match(/(\d+) files/);
+            if (expandedResult.error?.includes('File limit exceeded')) {
+                const match: RegExpMatchArray | null = expandedResult.error.match(/(\d+) files/);
                 const fileCount: number = match ? parseInt(match[1], 10) : 0;
                 return createNewWorkspaceOnFileLimitExceeded(
                     watchedFolderPath,
                     fileCount,
-                    config.readPaths,
+                    config.allowlist.filter((folderPath: string) => folderPath !== config.writePath),
                     options,
                 );
             }
             // Log but continue with remaining paths for non-fatal errors
-            console.warn(`[loadFolder] Failed to load read path ${readPath}: ${readResult.error}`);
+            console.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
             continue;
         }
     }
@@ -291,7 +290,7 @@ export async function loadFolder(
         timestamp: new Date().toISOString()
     });
 
-    // Push initial vault state to renderer (readPaths, writePath, starredFolders)
+    // Push initial vault state to renderer
     void broadcastVaultState();
 
     return { success: true };
@@ -304,7 +303,7 @@ export async function loadFolder(
 async function createNewWorkspaceOnFileLimitExceeded(
     watchedFolderPath: FilePath,
     fileCount: number,
-    existingReadPaths: readonly string[],
+    existingExpandedPaths: readonly string[],
     options: WatchFolderLoadOptions = {},
 ): Promise<{ success: boolean }> {
     const newSubfolderPath: string = await createDatedSubfolder(watchedFolderPath);
@@ -315,10 +314,9 @@ async function createNewWorkspaceOnFileLimitExceeded(
         `Previous workspace has ${fileCount} markdown files (limit: 600).\n\nCreated new workspace:\n${newSubfolderPath}`
     );
 
-    // Save new config with the new subfolder, keeping readPaths for linking
+    // Save new config with the new subfolder, keeping expanded paths for linking
     await saveVaultConfigForDirectory(watchedFolderPath, {
         writePath: newSubfolderPath,
-        readPaths: existingReadPaths
     });
 
     // Clear graph before loading new workspace
@@ -335,7 +333,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
         const watcherOptions: WatcherOptions = await resolveWatcherOptions();
 
         // Setup file watcher for the new workspace
-        const newAllowlist: readonly string[] = [newSubfolderPath, ...existingReadPaths];
+        const newAllowlist: readonly string[] = [newSubfolderPath, ...existingExpandedPaths];
         await setupWatcher(newAllowlist, watchedFolderPath, watcherOptions);
     }
 

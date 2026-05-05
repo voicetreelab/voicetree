@@ -187,11 +187,7 @@ export function reduceFolderConfig(
         }
 
         case 'REMOVE_READ_FOLDER': {
-            // Remove from readPaths
-            return {
-                ...config,
-                readPaths: config.readPaths.filter((path) => path !== action.path),
-            };
+            return config;
         }
 
         case 'SET_AS_WRITE': {
@@ -203,29 +199,14 @@ export function reduceFolderConfig(
                 return config;
             }
 
-            // Remove new write path from readPaths, then add old write path
-            const newReadPaths: readonly string[] = [
-                ...config.readPaths.filter((path) => path !== newWritePath),
-                oldWritePath,
-            ];
-
             return {
                 ...config,
                 writePath: newWritePath,
-                readPaths: newReadPaths,
             };
         }
 
         case 'ADD_AS_READ': {
-            // Don't add duplicates
-            if (config.readPaths.includes(action.path)) {
-                return config;
-            }
-
-            return {
-                ...config,
-                readPaths: [...config.readPaths, action.path],
-            };
+            return config;
         }
 
         // UI-only actions - return config unchanged
@@ -273,14 +254,14 @@ export function toFolderSelectorState(
 }
 
 /**
- * Filter readPaths to those NOT under projectRoot. PURE.
+ * Filter loaded vault paths to those NOT under projectRoot. PURE.
  */
 export function getExternalReadPaths(
-    readPaths: readonly string[],
+    vaultPaths: readonly string[],
     projectRoot: string
 ): readonly string[] {
     const normalizedRoot: string = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
-    return readPaths.filter((p: string) => !p.startsWith(normalizedRoot) && p !== projectRoot);
+    return vaultPaths.filter((p: string) => !p.startsWith(normalizedRoot) && p !== projectRoot);
 }
 
 // ============================================================

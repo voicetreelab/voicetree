@@ -58,7 +58,6 @@ describe('context-node external edit propagates to graph-store', () => {
         setProjectRootWatchedDirectory(projectRootPath)
         await saveVaultConfigForDirectory(projectRootPath, {
             writePath: tempVaultPath,
-            readPaths: [],
         })
         setGraph(createEmptyGraph())
         clearRecentDeltas()

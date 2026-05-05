@@ -244,17 +244,15 @@ describe('reduceFolderConfig', () => {
     it('RESET_WRITE_TO_ROOT sets write to root', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: ['/Users/bob/project/drafts'],
         };
         const action: FolderAction = { type: 'RESET_WRITE_TO_ROOT' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result.writePath).toBe('/Users/bob/project');
     });
 
-    it('SET_AS_WRITE swaps write and read (old write becomes read)', () => {
+    it('SET_AS_WRITE updates the write path only', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: [],
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
@@ -262,83 +260,47 @@ describe('reduceFolderConfig', () => {
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
         expect(result.writePath).toBe('/Users/bob/project/drafts');
-        expect(result.readPaths).toContain('/Users/bob/project/notes');
     });
 
-    it('SET_AS_WRITE does not add old write to read if same as new write', () => {
+    it('SET_AS_WRITE returns the same config if same as new write', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: [],
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
             path: toAbsolutePath('/Users/bob/project/notes'),
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writePath).toBe('/Users/bob/project/notes');
-        expect(result.readPaths).toHaveLength(0);
+        expect(result).toBe(config);
     });
 
-    it('SET_AS_WRITE removes the path from readPaths if it was there', () => {
+    it('ADD_AS_READ leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: ['/Users/bob/project/drafts', '/Users/bob/project/archive'],
-        };
-        const action: FolderAction = {
-            type: 'SET_AS_WRITE',
-            path: toAbsolutePath('/Users/bob/project/drafts'),
-        };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writePath).toBe('/Users/bob/project/drafts');
-        expect(result.readPaths).toContain('/Users/bob/project/notes');
-        expect(result.readPaths).toContain('/Users/bob/project/archive');
-        expect(result.readPaths).not.toContain('/Users/bob/project/drafts');
-    });
-
-    it('ADD_AS_READ adds to read folders', () => {
-        const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
-            readPaths: [],
         };
         const action: FolderAction = {
             type: 'ADD_AS_READ',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.readPaths).toContain('/Users/bob/project/drafts');
+        expect(result).toBe(config);
     });
 
-    it('ADD_AS_READ does not add duplicates', () => {
+    it('REMOVE_READ_FOLDER leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: ['/Users/bob/project/drafts'],
-        };
-        const action: FolderAction = {
-            type: 'ADD_AS_READ',
-            path: toAbsolutePath('/Users/bob/project/drafts'),
-        };
-        const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.readPaths.filter(p => p === '/Users/bob/project/drafts')).toHaveLength(1);
-    });
-
-    it('REMOVE_READ_FOLDER removes correctly', () => {
-        const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
-            readPaths: ['/Users/bob/project/drafts', '/Users/bob/project/archive'],
         };
         const action: FolderAction = {
             type: 'REMOVE_READ_FOLDER',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.readPaths).not.toContain('/Users/bob/project/drafts');
-        expect(result.readPaths).toContain('/Users/bob/project/archive');
+        expect(result).toBe(config);
     });
 
     it('returns same config for unhandled action types', () => {
         const config: VaultConfig = {
             writePath: '/Users/bob/project/notes',
-            readPaths: [],
         };
         const action: FolderAction = { type: 'TOGGLE_DROPDOWN' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);

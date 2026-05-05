@@ -37,7 +37,6 @@ describe('watchFolder daemon bootstrap callback', () => {
 
     await saveVaultConfigForDirectory(projectRoot, {
       writePath: projectRoot,
-      readPaths: [],
     })
 
     clearWatchFolderState()
