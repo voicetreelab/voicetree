@@ -5,7 +5,24 @@
 import { getCyInstance, isCyInitialized } from '@/shell/edge/UI-edge/state/cytoscape-state'
 import type { Core } from 'cytoscape'
 
-type CyDumpNode = { id: string; classes: string[]; position: { x: number; y: number }; visible: boolean }
+type CyNodeData = {
+  id: string
+  label?: string
+  folderLabel?: string
+  parent?: string
+  isFolderNode?: boolean
+  collapsed?: boolean
+}
+
+type CyDumpNode = {
+  id: string
+  classes: string[]
+  data: CyNodeData
+  position: { x: number; y: number }
+  visible: boolean
+  width?: number
+  height?: number
+}
 type CyDumpEdge = { id: string; source: string; target: string; classes: string[] }
 
 export type CyDump = {
@@ -24,6 +41,10 @@ function safeNum(v: unknown, fallback = 0): number {
   return typeof v === 'number' && isFinite(v) ? v : fallback
 }
 
+function safeOptionalNum(v: unknown): number | undefined {
+  return typeof v === 'number' && isFinite(v) ? v : undefined
+}
+
 // Pure transformation of a live cytoscape Core into a serializable CyDump.
 export function dumpCy(cy: Core): CyDump {
   const json: Record<string, unknown> = cy.json() as Record<string, unknown>
@@ -36,11 +57,24 @@ export function dumpCy(cy: Core): CyDump {
     const data: Record<string, unknown> = (n.data as Record<string, unknown>) ?? {}
     const pos: Record<string, unknown> = (n.position as Record<string, unknown>) ?? {}
     const id: string = String(data.id ?? '')
+    const element = cy.getElementById(id)
+    const width = safeOptionalNum(element.width())
+    const height = safeOptionalNum(element.height())
     return {
       id,
       classes: splitClasses(n.classes),
+      data: {
+        id,
+        ...(typeof data.label === 'string' ? { label: data.label } : {}),
+        ...(typeof data.folderLabel === 'string' ? { folderLabel: data.folderLabel } : {}),
+        ...(typeof data.parent === 'string' ? { parent: data.parent } : {}),
+        ...(typeof data.isFolderNode === 'boolean' ? { isFolderNode: data.isFolderNode } : {}),
+        ...(typeof data.collapsed === 'boolean' ? { collapsed: data.collapsed } : {}),
+      },
       position: { x: safeNum(pos.x), y: safeNum(pos.y) },
-      visible: !cy.getElementById(id).hidden(),
+      visible: !element.hidden(),
+      ...(width !== undefined ? { width } : {}),
+      ...(height !== undefined ? { height } : {}),
     }
   })
 

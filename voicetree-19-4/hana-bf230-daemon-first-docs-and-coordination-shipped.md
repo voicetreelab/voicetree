@@ -53,6 +53,10 @@ corepack pnpm exec tsc --noEmit -p packages/graph-db-server/tsconfig.json
 # Baseline type failures remain in packages/graph-model and packages/graph-state unrelated to BF-230 docs.
 ```
 
+## Commit
+
+- `ea762c4b0ed026016215b1d69f5e8cf673e5398a` - `[P8-BF-230] document daemon-first architecture`
+
 ### NOTES
 
 - New markdown files are ignored by the repo's `**/*.md` gitignore rule, so any BF-230 commit must use `git add -f` for the new docs.
