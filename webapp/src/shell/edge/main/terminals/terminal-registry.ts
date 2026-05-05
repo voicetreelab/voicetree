@@ -420,10 +420,18 @@ export function getTerminalRecords(): TerminalRecord[] {
 /**
  * Get all existing agent names from the terminal registry.
  * Used for collision detection when spawning new terminals.
+ *
+ * Includes both running terminals and pending reservations so that two
+ * concurrent spawns can't pick the same name in the window between
+ * recordTerminalPending and recordTerminalSpawn.
  */
 export function getExistingAgentNames(): Set<string> {
     const records: TerminalRecord[] = getTerminalRecords();
-    return new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+    const names: Set<string> = new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+    for (const pendingId of pendingTerminals.keys()) {
+        names.add(pendingId);
+    }
+    return names;
 }
 
 export function clearTerminalRecords(): void {

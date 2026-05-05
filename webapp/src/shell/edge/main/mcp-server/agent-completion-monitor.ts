@@ -8,7 +8,7 @@
 
 import type {Graph} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
@@ -44,7 +44,17 @@ export function startMonitor(
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
         const foundIds: Set<string> = new Set(targetRecords.map((r: TerminalRecord) => r.terminalId))
-        const missingIds: string[] = effectiveIds.filter((id: string) => !foundIds.has(id))
+        const unfoundIds: string[] = effectiveIds.filter((id: string) => !foundIds.has(id))
+
+        // Pending terminals (spawn_agent returned but recordTerminalSpawn hasn't fired yet)
+        // are still mid-startup, NOT vanished — wait for them. Truly-missing IDs (neither
+        // running nor pending) keep their original "treat as complete" semantics.
+        const stillPendingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminal(id) !== undefined)
+        const missingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminal(id) === undefined)
+
+        if (stillPendingIds.length > 0) {
+            return // Wait for pending spawns to either register or be cleared.
+        }
 
         const allFoundDone: boolean = targetRecords.every(
             (r: TerminalRecord) => isAgentComplete(r, graph, now, currentRecords)
