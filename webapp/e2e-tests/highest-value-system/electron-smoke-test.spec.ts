@@ -271,6 +271,13 @@ const test = base.extend<{
     );
     console.log('[Smoke Test] Graph view loaded');
 
+    await window.evaluate(async (vaultPath: string) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      await api.main.startFileWatching(vaultPath);
+    }, fixtureVaultPath);
+    console.log('[Smoke Test] Fixture vault loaded');
+
     // Wait a bit longer to ensure graph is ready
     await window.waitForTimeout(1000);
 
