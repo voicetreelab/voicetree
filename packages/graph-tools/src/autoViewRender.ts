@@ -22,6 +22,7 @@ export function buildAutoHeader(
     visibleEntityCount: number,
     options: AutoHeaderOptions,
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
     const collapsedNodeCount: number = clusters.reduce((sum, cluster) => sum + cluster.nodeIds.length, 0)
     const visibleNodeCount: number = graph.nodes.length - collapsedNodeCount
@@ -38,7 +39,7 @@ export function buildAutoHeader(
 
     for (const cluster of clusters) {
         lines.push(
-            `# cluster: ${formatCollapsedSummary(cluster, displayLabelByClusterId)} cohesion=${cluster.cohesion.toFixed(2)} reason=${cluster.strategy}`,
+            `# cluster: ${formatCollapsedSummary(cluster, displayLabelByClusterId, userCollapsedClusterIds)} cohesion=${cluster.cohesion.toFixed(2)} reason=${cluster.strategy}`,
         )
     }
 
@@ -58,9 +59,11 @@ export function renderTreeCoverBody(
     graph: AutoViewGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    selectedIds?: ReadonlySet<string>,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
-    const spine: string = renderSpine(graph, clusters, displayLabelByClusterId)
-    const forests: readonly string[] = renderForests(graph, clusters, displayLabelByClusterId)
+    const spine: string = renderSpine(graph, clusters, displayLabelByClusterId, selectedIds, userCollapsedClusterIds)
+    const forests: readonly string[] = renderForests(graph, clusters, displayLabelByClusterId, selectedIds, userCollapsedClusterIds)
     return [
         '═══ SPINE (folder hierarchy, no content edges) ═══',
         spine,
@@ -73,6 +76,8 @@ function renderSpine(
     graph: AutoViewGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    selectedIds?: ReadonlySet<string>,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
     const visibleFilesByFolder = new Map<string, AutoViewNode[]>()
@@ -113,6 +118,8 @@ function renderSpine(
         visibleFilesByFolder,
         summariesByAnchor,
         displayLabelByClusterId,
+        selectedIds,
+        userCollapsedClusterIds,
     )
     return lines.join('\n')
 }
@@ -126,6 +133,8 @@ function renderFolderEntries(
     visibleFilesByFolder: ReadonlyMap<string, readonly AutoViewNode[]>,
     summariesByAnchor: ReadonlyMap<string, readonly CollapseCluster[]>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    selectedIds?: ReadonlySet<string>,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): void {
     const childFolders: readonly string[] = [...(childFoldersByParent.get(folderPath) ?? [])]
         .sort((left, right) => path.posix.basename(left).localeCompare(path.posix.basename(right)))
@@ -165,18 +174,21 @@ function renderFolderEntries(
                 visibleFilesByFolder,
                 summariesByAnchor,
                 displayLabelByClusterId,
+                selectedIds,
+                userCollapsedClusterIds,
             )
             return
         }
         if (entry.kind === 'summary') {
-            out.push(`${prefix}${branch}${formatCollapsedSummary(entry.cluster, displayLabelByClusterId)}`)
+            out.push(`${prefix}${branch}${formatCollapsedSummary(entry.cluster, displayLabelByClusterId, userCollapsedClusterIds)}`)
             const expandCommand: string | undefined = formatExpandCommand(entry.cluster)
             if (expandCommand) {
                 out.push(`${childPrefix}  ${expandCommand}`)
             }
             return
         }
-        out.push(`${prefix}${branch}· ${entry.node.title} @[${entry.node.relPath}]`)
+        const fileGlyph: string = selectedIds?.has(entry.node.id) ? '★' : '·'
+        out.push(`${prefix}${branch}${fileGlyph} ${entry.node.title} @[${entry.node.relPath}]`)
     })
 }
 
@@ -195,6 +207,8 @@ function renderForests(
     graph: AutoViewGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    selectedIds?: ReadonlySet<string>,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): readonly string[] {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
     const clusterById = new Map<string, CollapseCluster>(clusters.map(cluster => [cluster.id, cluster]))
@@ -232,11 +246,11 @@ function renderForests(
         lines.push(`═══ COVER FOREST ${index + 1} (|E|=${edgeCount}) ═══`)
 
         for (const sourceId of sourceIds) {
-            lines.push(`● ${renderForestEntity(sourceId, graph.nodeById, clusterById, displayLabelByClusterId)}`)
+            lines.push(`● ${renderForestEntity(sourceId, graph.nodeById, clusterById, displayLabelByClusterId, selectedIds, userCollapsedClusterIds)}`)
             const targets: readonly string[] = groupedTargets.get(sourceId) ?? []
             targets.forEach((targetId, targetIndex) => {
                 const branch: string = targetIndex === targets.length - 1 ? '└── ' : '├── '
-                lines.push(`${branch}⇢ ${renderForestEntity(targetId, graph.nodeById, clusterById, displayLabelByClusterId)}`)
+                lines.push(`${branch}⇢ ${renderForestEntity(targetId, graph.nodeById, clusterById, displayLabelByClusterId, selectedIds, userCollapsedClusterIds)}`)
             })
             lines.push('')
         }
@@ -252,16 +266,19 @@ function renderForestEntity(
     nodeById: ReadonlyMap<string, AutoViewNode>,
     clusterById: ReadonlyMap<string, CollapseCluster>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    selectedIds?: ReadonlySet<string>,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
     const cluster: CollapseCluster | undefined = clusterById.get(entityId)
     if (cluster) {
-        return formatCollapsedSummary(cluster, displayLabelByClusterId)
+        return formatCollapsedSummary(cluster, displayLabelByClusterId, userCollapsedClusterIds)
     }
     const node: AutoViewNode | undefined = nodeById.get(entityId)
     if (!node) {
         return entityId
     }
-    return `${node.title} @[${node.relPath}]`
+    const nodeGlyph: string = selectedIds?.has(node.id) ? '★ ' : ''
+    return `${nodeGlyph}${node.title} @[${node.relPath}]`
 }
 
 function entitySortKey(
@@ -280,9 +297,11 @@ function entitySortKey(
 function formatCollapsedSummary(
     cluster: CollapseCluster,
     displayLabelByClusterId: ClusterDisplayLabelMap,
+    userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
     const displayLabel: string = resolveClusterDisplayLabel(cluster, displayLabelByClusterId)
-    return `▢ ${displayLabel} [collapsed: ${cluster.nodeIds.length} nodes, ${cluster.incomingEdgeCount} edges in, ${cluster.outgoingEdgeCount} edges out]`
+    const collapseType: string = userCollapsedClusterIds?.has(cluster.id) ? 'user' : 'auto'
+    return `▢ ${displayLabel} [collapsed:${collapseType} ${cluster.nodeIds.length} nodes, ${cluster.incomingEdgeCount} edges in, ${cluster.outgoingEdgeCount} edges out]`
 }
 
 function formatExpandCommand(cluster: CollapseCluster): string | undefined {

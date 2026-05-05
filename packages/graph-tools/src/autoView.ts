@@ -151,15 +151,44 @@ export function renderTreeCover(graph: AutoViewGraph, opts?: RenderTreeCoverOpti
     const clusters: readonly CollapseCluster[] = [...pinnedClusters, ...autoClusters]
     const displayLabelByClusterId: ClusterDisplayLabelMap = buildClusterDisplayLabelMap(clusters)
     const visibleEntityCount: number = countVisibleEntities(graph.nodes.length, clusters)
-    const body: string = renderTreeCoverBody(graph, clusters, displayLabelByClusterId)
+    const userCollapsedClusterIds: ReadonlySet<string> = buildUserCollapsedClusterIds(graph, clusters, opts?.collapsed)
+    const body: string = renderTreeCoverBody(graph, clusters, displayLabelByClusterId, opts?.selected, userCollapsedClusterIds)
     const header: string = buildAutoHeader(graph, clusters, budget, visibleEntityCount, {
         pinningRequested: requestedPinnedIds.length > 0,
         pinnedClusterCount: pinnedClusters.length,
         autoClusterCount: autoClusters.length,
-    }, displayLabelByClusterId)
+    }, displayLabelByClusterId, userCollapsedClusterIds)
     const footer: string = buildAutoFooter(clusters)
 
-    return footer.length > 0 ? `${header}\n${body}\n${footer}` : `${header}\n${body}`
+    const folderName: string = path.basename(graph.rootPath)
+    const viewApplied: boolean = (opts?.collapsed !== undefined && opts.collapsed.size > 0) || (opts?.selected !== undefined && opts.selected.size > 0)
+    const structureHeader: string = `═══ STRUCTURE ${folderName}${viewApplied ? ' (view applied)' : ''} ═══`
+
+    return footer.length > 0
+        ? `${structureHeader}\n${header}\n${body}\n${footer}`
+        : `${structureHeader}\n${header}\n${body}`
+}
+
+function buildUserCollapsedClusterIds(
+    graph: AutoViewGraph,
+    clusters: readonly CollapseCluster[],
+    collapsed: ReadonlySet<string> | undefined,
+): ReadonlySet<string> {
+    if (!collapsed || collapsed.size === 0) return new Set()
+    const userIds = new Set<string>()
+    for (const cluster of clusters) {
+        const absFolder: string | undefined = cluster.alignedFolderPath
+            ? path.join(graph.rootPath, cluster.alignedFolderPath)
+            : undefined
+        if (
+            (absFolder !== undefined && collapsed.has(absFolder)) ||
+            (cluster.alignedFolderPath !== undefined && collapsed.has(cluster.alignedFolderPath)) ||
+            cluster.nodeIds.some(nodeId => collapsed.has(nodeId))
+        ) {
+            userIds.add(cluster.id)
+        }
+    }
+    return userIds
 }
 
 export function renderAutoView(

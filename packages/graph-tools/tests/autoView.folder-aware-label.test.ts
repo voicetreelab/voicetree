@@ -76,8 +76,8 @@ describe('renderAutoView folder-aware labels', () => {
 
         const output = renderAutoView(vaultPath, {budget: 2}).output
 
-        expect(output).toContain('# cluster: ▢ projects/ [collapsed: 2 nodes')
-        expect(output).not.toContain('# cluster: ▢ teams/projects/ [collapsed: 2 nodes')
+        expect(output).toContain('# cluster: ▢ projects/ [collapsed:auto 2 nodes')
+        expect(output).not.toContain('# cluster: ▢ teams/projects/ [collapsed:auto 2 nodes')
     })
 })
 
