@@ -27,7 +27,7 @@ const repoRoot: string = path.resolve(testDir, '../../..')
 function runViewCli(args: readonly string[]): string {
     return execFileSync(
         process.execPath,
-        ['--import', 'tsx', 'packages/graph-tools/bin/vt-graph.ts', 'view', ...args],
+        ['--import', 'tsx', 'packages/graph-tools/bin/vt-graph.ts', 'structure', ...args],
         {
             cwd: repoRoot,
             encoding: 'utf8',
