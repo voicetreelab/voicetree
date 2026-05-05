@@ -57,11 +57,15 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run root check
-        run: npm run check
+        run: |
+          npm --workspace webapp run check
+          npm run lint
+          npm run lint:verify-cytoscape-rules
+          npm run lint:blackbox-tests
 
       - name: Run browser Tier 2 E2E
-        run: npm run test:e2e:tier2:browser
+        run: npm --workspace webapp run test:browser
 
       - name: Run Electron Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
-        run: xvfb-run --auto-servernum npm run test:e2e:tier2:electron
+        run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
