@@ -36,6 +36,7 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "../graph/applyGraphDelta";
+import { loadPositions } from "../graph/positions-store";
 import { notifyTextToTreeServerOfDirectory } from "../graph/notifyTextToTreeServer";
 import {
     getVaultConfigForDirectory,
@@ -220,8 +221,10 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
 
+    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
+
     // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true });
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true }, positions);
     if (!result.success) {
         return result;
     }
@@ -282,9 +285,11 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
+    const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
+
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWritePath: false means no starter node and no backend notification
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false });
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
     if (!result.success) {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
         if (result.error?.includes('File limit exceeded')) {

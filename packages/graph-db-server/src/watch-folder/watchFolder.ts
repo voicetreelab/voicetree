@@ -70,7 +70,10 @@ export {
 export { getAvailableFoldersForSelector } from "./folder-scanner";
 
 export interface WatchFolderLoadOptions {
+    broadcastVaultState?: boolean;
     mountWatcher?: boolean;
+    includeActiveViewExpandedPaths?: boolean;
+    persistDefaultExpandedPaths?: boolean;
 }
 
 async function resolveWatcherOptions(): Promise<WatcherOptions> {
@@ -121,11 +124,14 @@ export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise
  * This unifies the two code paths that were previously in loadFolder.
  */
 async function resolveOrCreateConfig(
-    watchedFolderPath: string
+    watchedFolderPath: string,
+    options: WatchFolderLoadOptions = {},
 ): Promise<{ writePath: string; allowlist: readonly string[] }> {
     // Try to resolve from saved vaultConfig first
     const savedConfig: { allowlist: readonly string[]; writePath: string } | null =
-        await resolveAllowlistForProject(watchedFolderPath);
+        await resolveAllowlistForProject(watchedFolderPath, {
+            includeActiveViewExpandedPaths: options.includeActiveViewExpandedPaths,
+        });
 
     if (savedConfig) {
         return savedConfig;
@@ -164,7 +170,9 @@ async function resolveOrCreateConfig(
             await fs.access(patternPath);
             if (!allowlist.includes(patternPath)) {
                 allowlist.push(patternPath);
-                await setActiveViewFolderState(watchedFolderPath, patternPath, 'expanded');
+                if (options.persistDefaultExpandedPaths !== false) {
+                    await setActiveViewFolderState(watchedFolderPath, patternPath, 'expanded');
+                }
             }
         } catch {
             // Pattern folder doesn't exist, skip
@@ -218,7 +226,7 @@ export async function loadFolder(
 
     // Resolve or create config (unified path)
     const config: { writePath: string; allowlist: readonly string[] } =
-        await resolveOrCreateConfig(watchedFolderPath);
+        await resolveOrCreateConfig(watchedFolderPath, options);
 
     // Ensure .voicetree/ has default prompts and hook scripts (copy-on-first-open)
     await getCallbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
@@ -293,9 +301,11 @@ export async function loadFolder(
         timestamp: new Date().toISOString()
     });
 
-    // Push initial vault state to renderer before resolving so callers/tests
-    // do not tear down app support while the settings-backed broadcast runs.
-    await broadcastVaultState();
+    if (options.broadcastVaultState !== false) {
+        // Push initial vault state to renderer before resolving so callers/tests
+        // do not tear down app support while the settings-backed broadcast runs.
+        await broadcastVaultState();
+    }
 
     return { success: true };
 }
@@ -351,8 +361,10 @@ async function createNewWorkspaceOnFileLimitExceeded(
         timestamp: new Date().toISOString()
     });
 
-    // Push updated vault state to renderer so VaultPathSelector re-renders.
-    await broadcastVaultState();
+    if (options.broadcastVaultState !== false) {
+        // Push updated vault state to renderer so VaultPathSelector re-renders.
+        await broadcastVaultState();
+    }
 
     return { success: true };
 }

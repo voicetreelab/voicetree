@@ -433,6 +433,19 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   return await syncRendererSessionState(client, localState)
 }
 
+export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
+  const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
+  if (!activeConnection) {
+    return null
+  }
+
+  try {
+    return await activeConnection.client.getVault()
+  } catch {
+    return null
+  }
+}
+
 export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation((client) => client.addReadPath(path))
 }

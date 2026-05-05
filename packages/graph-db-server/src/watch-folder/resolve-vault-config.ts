@@ -39,6 +39,10 @@ export interface ResolvedVaultConfig {
     readonly writePath: string;
 }
 
+export interface ResolveAllowlistOptions {
+    readonly includeActiveViewExpandedPaths?: boolean;
+}
+
 export async function logIgnoredLegacyReadPathsIfPresent(watchedDir: string): Promise<void> {
     if (await hasLegacyReadPathsForDirectory(watchedDir)) {
         console.debug('[resolveAllowlistForProject] ignoring legacy readPaths from voicetree-config.json');
@@ -54,7 +58,8 @@ export async function logIgnoredLegacyReadPathsIfPresent(watchedDir: string): Pr
  * If no saved config, return null so caller can attempt loading directly.
  */
 export async function resolveAllowlistForProject(
-    watchedDir: string
+    watchedDir: string,
+    options: ResolveAllowlistOptions = {},
 ): Promise<ResolvedVaultConfig | null> {
     const savedVaultConfig: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
@@ -73,6 +78,13 @@ export async function resolveAllowlistForProject(
     } catch {
         // Write path no longer exists, return null to retry fresh
         return null;
+    }
+
+    if (options.includeActiveViewExpandedPaths === false) {
+        return {
+            allowlist: [absoluteWritePath],
+            writePath: absoluteWritePath,
+        };
     }
 
     // Filter expanded folder paths to those that still exist on disk

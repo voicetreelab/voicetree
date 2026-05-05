@@ -1,0 +1,50 @@
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { getExpandedFolderPathsForVault } = vi.hoisted(() => ({
+    getExpandedFolderPathsForVault: vi.fn(),
+}))
+
+vi.mock('./folder-visibility-active-view', () => ({
+    getExpandedFolderPathsForVault,
+}))
+
+import { initGraphModel } from '@vt/graph-model'
+import { resolveAllowlistForProject } from './resolve-vault-config'
+import { saveVaultConfigForDirectory } from './voicetree-config-io'
+
+describe('resolveAllowlistForProject', () => {
+    let root: string
+    let appSupportPath: string
+    let watchedDir: string
+    let writePath: string
+
+    beforeEach(async () => {
+        root = await mkdtemp(path.join(tmpdir(), 'resolve-vault-config-'))
+        appSupportPath = path.join(root, 'app-support')
+        watchedDir = path.join(root, 'project')
+        writePath = path.join(watchedDir, 'voicetree')
+        await mkdir(writePath, { recursive: true })
+        initGraphModel({ appSupportPath })
+        await saveVaultConfigForDirectory(watchedDir, { writePath })
+        getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
+    })
+
+    afterEach(async () => {
+        await rm(root, { recursive: true, force: true })
+        getExpandedFolderPathsForVault.mockReset()
+    })
+
+    it('can skip active-view sqlite reads for Electron main daemon handoff', async () => {
+        await expect(
+            resolveAllowlistForProject(watchedDir, { includeActiveViewExpandedPaths: false }),
+        ).resolves.toEqual({
+            allowlist: [writePath],
+            writePath,
+        })
+
+        expect(getExpandedFolderPathsForVault).not.toHaveBeenCalled()
+    })
+})

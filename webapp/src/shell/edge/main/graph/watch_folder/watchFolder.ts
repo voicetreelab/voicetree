@@ -1,40 +1,77 @@
-import type { FilePath } from '@vt/graph-model'
+import path from 'node:path'
+import { promises as fs } from 'node:fs'
+import * as O from 'fp-ts/lib/Option.js'
+import { getCallbacks, type FilePath } from '@vt/graph-model'
+import { getGraph } from '@/shell/edge/main/state/graph-store'
 import {
-    clearVaultPath,
-    createDatedVoiceTreeFolder,
-    createSubfolder,
-    getVaultPath,
-    getVaultPaths,
-    getReadPaths,
-    getWritePath,
-    setVaultPath,
-} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+    getProjectRootWatchedDirectory,
+    getStartupFolderOverride,
+    getOnFolderSwitchCleanup,
+    setProjectRootWatchedDirectory,
+} from '@/shell/edge/main/state/watch-folder-store'
+import { getAvailableFoldersForSelector } from '@vt/graph-db-server/watch-folder/folder-scanner'
+import { initializeProject } from '@vt/graph-db-server/project/project-initializer'
+import { createDatedSubfolder } from '@vt/graph-db-server/project/project-utils'
 import {
-    initialLoad as initialLoadImpl,
-    loadFolder as loadFolderImpl,
-    loadPreviousFolder as loadPreviousFolderImpl,
-    markFrontendReady as markFrontendReadyImpl,
-    startFileWatching as startFileWatchingImpl,
-    stopFileWatching as stopFileWatchingImpl,
-    type WatchFolderLoadOptions,
-    getAvailableFoldersForSelector,
-} from '@vt/graph-db-server/watch-folder/watchFolder'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+    getLastDirectory,
+    getVaultConfigForDirectory,
+    saveLastDirectory,
+    saveVaultConfigForDirectory,
+} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { savePositionsSync } from '@vt/graph-db-server/graph/positions-store'
 
 import {
     isDaemonGraphSyncActive,
     startDaemonGraphSync,
     stopDaemonGraphSync,
 } from '@/shell/edge/main/electron/daemon-watch-sync'
-import { bootstrapDaemonVaultFromLocalState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import {
+    ensureDaemonClientForVault,
+    type CachedDaemonConnection,
+} from '@/shell/edge/main/electron/graph-daemon'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/state/live-state-store'
+import type { VaultState } from '@vt/graph-db-client'
 
-const DAEMON_LOAD_OPTIONS: WatchFolderLoadOptions = {
-    mountWatcher: false,
-}
+const DAEMON_LOAD_TIMEOUT_MS: number = 15_000
+
+export { getAvailableFoldersForSelector }
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
+}
+
+async function pathIsDirectory(directoryPath: string): Promise<boolean> {
+    try {
+        return (await fs.stat(directoryPath)).isDirectory()
+    } catch {
+        return false
+    }
+}
+
+function resolveLocalWritePath(projectPath: string, writePath: string): string {
+    return path.isAbsolute(writePath)
+        ? writePath
+        : path.join(projectPath, writePath)
+}
+
+async function resolveOrCreateWritePath(projectPath: string): Promise<string> {
+    const existingConfig = await getVaultConfigForDirectory(projectPath)
+    if (existingConfig?.writePath) {
+        const writePath: string = resolveLocalWritePath(projectPath, existingConfig.writePath)
+        if (await pathIsDirectory(writePath)) {
+            return writePath
+        }
+    }
+
+    const onboardingRoot: string | undefined = getCallbacks().getOnboardingDirectory?.()
+    const onboardingSourceDir: string | undefined = onboardingRoot
+        ? path.join(onboardingRoot, 'voicetree')
+        : undefined
+    const initializedPath: string | null = await initializeProject(projectPath, onboardingSourceDir)
+    const writePath: string = initializedPath ?? projectPath
+    await saveVaultConfigForDirectory(projectPath, { writePath })
+    return writePath
 }
 
 async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<void> {
@@ -44,43 +81,98 @@ async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<vo
         return
     }
 
-    await bootstrapDaemonVaultFromLocalState(loadedDirectory)
+    await ensureDaemonClientForVault(loadedDirectory, {
+        timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
+    })
     await startDaemonGraphSync(loadedDirectory)
     syncLoadedRoot(loadedDirectory)
 }
 
 export async function initialLoad(): Promise<void> {
-    await initialLoadImpl(DAEMON_LOAD_OPTIONS)
-    await startDaemonSyncForLoadedDirectory()
+    if (getProjectRootWatchedDirectory() !== null) {
+        return
+    }
+
+    const startupFolder: string | null = getStartupFolderOverride()
+    if (startupFolder !== null) {
+        await loadFolder(startupFolder)
+        return
+    }
+
+    const lastDirectory: O.Option<string> = await getLastDirectory()
+    if (getProjectRootWatchedDirectory() !== null) {
+        return
+    }
+    if (O.isSome(lastDirectory)) {
+        await loadFolder(lastDirectory.value)
+    }
 }
 
 export async function loadFolder(
     watchedFolderPath: FilePath,
 ): Promise<{ readonly success: boolean }> {
-    const result: { readonly success: boolean } = await loadFolderImpl(watchedFolderPath, DAEMON_LOAD_OPTIONS)
-    if (result.success) {
-        await startDaemonSyncForLoadedDirectory(watchedFolderPath)
+    if (!(await pathIsDirectory(watchedFolderPath))) {
+        return { success: false }
     }
-    return result
+
+    const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
+    if (previousRoot) {
+        savePositionsSync(getGraph(), previousRoot)
+    }
+
+    setProjectRootWatchedDirectory(watchedFolderPath)
+    void getCallbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ })
+
+    const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup()
+    folderCleanup?.()
+    getCallbacks().onGraphCleared?.()
+
+    const writePath: string = await resolveOrCreateWritePath(watchedFolderPath)
+    await getCallbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
+        console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error)
+    })
+
+    const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
+        timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
+    })
+    await connection.client.setWritePath(writePath)
+    await startDaemonSyncForLoadedDirectory(watchedFolderPath)
+    await saveLastDirectory(watchedFolderPath)
+
+    getCallbacks().onWatchingStarted?.({
+        directory: watchedFolderPath,
+        writePath,
+        timestamp: new Date().toISOString(),
+    })
+
+    return { success: true }
 }
 
 export async function startFileWatching(
     directoryPath?: string,
 ): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    const result: { readonly success: boolean; readonly directory?: string; readonly error?: string } = await startFileWatchingImpl(directoryPath, DAEMON_LOAD_OPTIONS)
-    if (result.success && result.directory) {
-        await startDaemonSyncForLoadedDirectory(result.directory)
+    const selectedDirectory: string | undefined = directoryPath
+        ?? await getCallbacks().openFolderDialog?.()
+
+    if (!selectedDirectory) {
+        return { success: false, error: 'No new directory selected' }
     }
-    return result
+    if (!(await pathIsDirectory(selectedDirectory))) {
+        return { success: false, error: `Path is not a directory: ${selectedDirectory}` }
+    }
+
+    const result: { readonly success: boolean } = await loadFolder(selectedDirectory)
+    return result.success
+        ? { success: true, directory: selectedDirectory }
+        : { success: false, error: 'Failed to load folder' }
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     await stopDaemonGraphSync()
-    const result: { readonly success: boolean; readonly error?: string } = await stopFileWatchingImpl()
-    if (result.success) {
-        syncWatchedProjectRoot(null)
-    }
-    return result
+    setProjectRootWatchedDirectory(null)
+    syncWatchedProjectRoot(null)
+    getCallbacks().onFolderCleared?.()
+    return { success: true }
 }
 
 export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
@@ -100,26 +192,111 @@ export async function loadPreviousFolder(): Promise<{
     readonly directory?: string
     readonly error?: string
 }> {
-    const result: { readonly success: boolean; readonly directory?: string; readonly error?: string } = await loadPreviousFolderImpl(DAEMON_LOAD_OPTIONS)
-    if (result.success && result.directory) {
-        await startDaemonSyncForLoadedDirectory(result.directory)
-    }
-    return result
+    await initialLoad()
+    const watchedDir: string | null = getProjectRootWatchedDirectory()
+    return watchedDir
+        ? { success: true, directory: watchedDir }
+        : { success: false, error: 'No previous folder found' }
 }
 
 export async function markFrontendReady(): Promise<void> {
-    await markFrontendReadyImpl(DAEMON_LOAD_OPTIONS)
-    await startDaemonSyncForLoadedDirectory()
+    await initialLoad()
 }
 
-export {
-    getVaultPaths,
-    getReadPaths,
-    getWritePath,
-    getVaultPath,
-    setVaultPath,
-    clearVaultPath,
-    createDatedVoiceTreeFolder,
-    createSubfolder,
-    getAvailableFoldersForSelector,
+export async function getVaultPaths(): Promise<readonly FilePath[]> {
+    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
+    if (daemonVaultState) {
+        return [
+            daemonVaultState.writePath,
+            ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writePath),
+        ]
+    }
+
+    const writePath: O.Option<FilePath> = await getWritePath()
+    return O.isSome(writePath) ? [writePath.value] : []
+}
+
+export async function getReadPaths(): Promise<readonly FilePath[]> {
+    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
+    if (daemonVaultState) {
+        return daemonVaultState.readPaths
+    }
+
+    return []
+}
+
+export async function getWritePath(): Promise<O.Option<FilePath>> {
+    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
+    if (daemonVaultState) {
+        return O.some(daemonVaultState.writePath)
+    }
+
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory()
+    if (!watchedDir) {
+        return O.none
+    }
+    const config = await getVaultConfigForDirectory(watchedDir)
+    return O.some(config?.writePath ? resolveLocalWritePath(watchedDir, config.writePath) : watchedDir)
+}
+
+export function getVaultPath(): O.Option<FilePath> {
+    return O.fromNullable(getProjectRootWatchedDirectory())
+}
+
+export function setVaultPath(vaultPath: FilePath): void {
+    setProjectRootWatchedDirectory(vaultPath)
+}
+
+export function clearVaultPath(): void {
+    setProjectRootWatchedDirectory(null)
+}
+
+export async function createDatedVoiceTreeFolder(): Promise<{
+    success: boolean
+    path?: string
+    error?: string
+}> {
+    const watchedDir: string | null = getProjectRootWatchedDirectory()
+    if (!watchedDir) {
+        return { success: false, error: 'No project open' }
+    }
+
+    try {
+        const previousVaultState: VaultState | null = await getActiveDaemonVaultState()
+        const newPath: string = await createDatedSubfolder(watchedDir)
+        const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedDir, {
+            timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
+        })
+        await connection.client.addReadPath(newPath)
+        await connection.client.setWritePath(newPath)
+        if (
+            previousVaultState?.writePath
+            && previousVaultState.writePath !== newPath
+            && previousVaultState.writePath !== watchedDir
+        ) {
+            await connection.client.removeReadPath(previousVaultState.writePath).catch(() => undefined)
+        }
+        await startDaemonSyncForLoadedDirectory(watchedDir)
+        return { success: true, path: newPath }
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        return { success: false, error: message }
+    }
+}
+
+export async function createSubfolder(
+    parentPath: string,
+    folderName: string,
+): Promise<{ success: boolean; path?: string; error?: string }> {
+    if (!folderName || folderName.includes('/') || folderName.includes('\\')) {
+        return { success: false, error: 'Invalid folder name' }
+    }
+    const fullPath: string = path.join(parentPath, folderName)
+    try {
+        await fs.mkdir(fullPath, { recursive: true })
+        return { success: true, path: fullPath }
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        return { success: false, error: message }
+    }
 }

@@ -18,6 +18,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js'
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import {serializeState} from '@vt/graph-state'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')
@@ -55,6 +56,10 @@ vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
     setMcpIntegration: vi.fn(),
 }))
 
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    getLiveStateSnapshotFromDaemon: vi.fn(),
+}))
+
 import {
     getGraph as mockedGetGraph,
     getProjectRootWatchedDirectory,
@@ -64,6 +69,7 @@ import {
     getDirectoryTree,
 } from '@vt/graph-model'
 import {getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
+import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {createMcpServer} from '@/shell/edge/main/mcp-server/mcp-server'
 import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
 
@@ -153,6 +159,19 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             isDirectory: true,
             children: [],
         })
+        vi.mocked(getLiveStateSnapshotFromDaemon).mockResolvedValue(serializeState({
+            graph,
+            roots: {loaded: new Set(['/tmp/vault']), folderTree: [{
+                absolutePath: '/tmp/vault',
+                name: 'vault',
+                isDirectory: true,
+                children: [],
+            }]},
+            collapseSet: new Set(['/tmp/vault/tasks/']),
+            selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
+            layout: {positions: new Map([['/tmp/vault/sample.md' as NodeIdAndFilePath, {x: 1, y: 2}]])},
+            meta: {schemaVersion: 1, revision: 7, mutatedAt: new Date(0).toISOString()},
+        }))
     })
 
     afterEach(async () => {

@@ -142,6 +142,8 @@ export interface VTSettings {
 export interface VaultConfig {
     /** Main vault path where new nodes are created. Can be relative or absolute. */
     readonly writePath: string;
+    /** Compatibility read paths for older app builds; current active-view state is authoritative. */
+    readonly readPaths?: readonly string[];
 }
 
 /**

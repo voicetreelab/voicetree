@@ -15,7 +15,8 @@ import type {
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import * as O from 'fp-ts/lib/Option.js'
 
 import {
     applyRendererLiveCommand,
@@ -65,10 +66,10 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    const loadedRoots: Set<string> = new Set<string>([
-        ...(await getReadPaths()),
-        ...(await getVaultPaths()),
-    ])
+    const writePath: O.Option<string> = await getWritePath()
+    const loadedRoots: Set<string> = new Set<string>(
+        O.isSome(writePath) ? [writePath.value] : []
+    )
 
     if (loadedRoots.size === 0) {
         return

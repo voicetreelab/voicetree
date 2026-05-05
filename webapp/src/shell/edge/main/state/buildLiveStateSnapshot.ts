@@ -25,7 +25,7 @@ import type {
 } from '@vt/graph-model'
 import { getDirectoryTree } from '@vt/graph-db-server/watch-folder/folder-scanner'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
@@ -52,10 +52,7 @@ async function buildRoots(
     )
     const fallbackRoots: ReadonlySet<string> =
         !rootsWereExplicitlySet() && liveLoadedRoots.size === 0
-            ? new Set<string>([
-                ...(await getReadPaths()),
-                ...(await getVaultPaths()),
-            ])
+            ? new Set<string>(writePath ? [writePath] : [])
             : liveLoadedRoots
     const loaded: ReadonlySet<string> = fallbackRoots
 

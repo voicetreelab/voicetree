@@ -27,7 +27,7 @@ interface PersistedVoiceTreeConfig {
     readonly vaultConfig?: { readonly [folderPath: string]: PersistedVaultConfig };
 }
 
-function stripLegacyVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig {
+function preserveVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig {
     const cleaned: VoiceTreeConfig = {};
     if (config.lastDirectory !== undefined) {
         cleaned.lastDirectory = config.lastDirectory;
@@ -37,6 +37,9 @@ function stripLegacyVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConf
         for (const [folderPath, vaultConfig] of Object.entries(config.vaultConfig)) {
             cleaned.vaultConfig[folderPath] = {
                 writePath: vaultConfig.writePath,
+                readPaths: Array.isArray(vaultConfig.readPaths)
+                    ? vaultConfig.readPaths.filter((entry): entry is string => typeof entry === 'string')
+                    : [],
             };
         }
     }
@@ -66,7 +69,7 @@ export async function loadConfig(): Promise<VoiceTreeConfig> {
     if (cachedConfig && cachedConfig.path === configPath && now - cachedConfig.loadedAt < CONFIG_CACHE_TTL_MS) {
         return cachedConfig.config;
     }
-    const config: VoiceTreeConfig = stripLegacyVaultConfig(await loadPersistedConfig());
+    const config: VoiceTreeConfig = preserveVaultConfig(await loadPersistedConfig());
     cachedConfig = {path: configPath, loadedAt: now, config};
     return config;
 }
@@ -74,7 +77,7 @@ export async function loadConfig(): Promise<VoiceTreeConfig> {
 export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
     const configPath: string = getConfigPath();
     try {
-        const cleanConfig: VoiceTreeConfig = stripLegacyVaultConfig(config as PersistedVoiceTreeConfig);
+        const cleanConfig: VoiceTreeConfig = preserveVaultConfig(config as PersistedVoiceTreeConfig);
         // Ensure parent directory exists (needed on first run or in tests)
         await fs.mkdir(path.dirname(configPath), { recursive: true });
         await fs.writeFile(configPath, JSON.stringify(cleanConfig, null, 2), 'utf8');
@@ -121,8 +124,10 @@ export async function hasLegacyReadPathsForDirectory(directoryPath: string): Pro
 export async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: VaultConfig): Promise<void> {
     const config: VoiceTreeConfig = await loadConfig();
     config.vaultConfig ??= {};
+    const existingConfig: VaultConfig | undefined = config.vaultConfig[directoryPath];
     config.vaultConfig[directoryPath] = {
         writePath: vaultConfig.writePath,
+        readPaths: vaultConfig.readPaths ?? existingConfig?.readPaths ?? [],
     };
     await saveConfig(config);
 }

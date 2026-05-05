@@ -25,6 +25,19 @@ function positionsFilePath(projectRoot: string): string {
     return path.join(projectRoot, '.voicetree', 'positions.json')
 }
 
+function hasPersistedPositions(filePath: string): boolean {
+    try {
+        const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+        return (
+            typeof parsed === 'object'
+            && parsed !== null
+            && Object.keys(parsed).length > 0
+        )
+    } catch {
+        return false
+    }
+}
+
 /**
  * Load positions from .voicetree/positions.json.
  * Returns empty map if file doesn't exist or is invalid.
@@ -60,6 +73,10 @@ export function savePositionsSync(graph: Graph, projectRoot: string): void {
 
     const filePath: string = positionsFilePath(projectRoot)
     const dir: string = path.dirname(filePath)
+
+    if (Object.keys(positions).length === 0 && hasPersistedPositions(filePath)) {
+        return
+    }
 
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })

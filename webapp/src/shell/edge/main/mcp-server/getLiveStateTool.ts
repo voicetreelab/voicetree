@@ -6,27 +6,21 @@
  * view`) can `hydrateState` the payload and project to ASCII / Mermaid —
  * the same data layer the shell renders from.
  *
- * State composition is split:
- *   • `live-state-store.getCurrentLiveState()` (async) — graph +
- *     renderer-canonical collapseSet/selection + revision.
- *   • `buildLiveStateSnapshot()` (async) — overlays roots + folderTree
- *     (reads vault allowlist + getDirectoryTree) and layout.positions
- *     (harvested from graph nodeUIMetadata.position).
+ * State composition is delegated through the graph daemon boundary. Electron
+ * main owns renderer session state, then asks vt-graphd for the canonical graph
+ * snapshot so daemon-backed storage stays in the Node daemon process.
  *
  * Gates V-L1-13/14/15/16. Also acts as the `LiveTransport.getLiveState`
  * implementation used by BF-163's CLI live-view adapter.
  */
-import { serializeState, type SerializedState } from '@vt/graph-state'
-import type { State } from '@vt/graph-state'
-
-import { buildLiveStateSnapshot } from '@/shell/edge/main/state/buildLiveStateSnapshot'
+import type { SerializedState } from '@vt/graph-state'
+import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
 
 export async function getLiveState(): Promise<SerializedState> {
-    const state: State = await buildLiveStateSnapshot()
-    return serializeState(state)
+    return await getLiveStateSnapshotFromDaemon()
 }
 
 export async function getLiveStateTool(): Promise<McpToolResponse> {
