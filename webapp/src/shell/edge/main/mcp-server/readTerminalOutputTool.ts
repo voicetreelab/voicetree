@@ -3,7 +3,7 @@
  * Reads the last N characters of output from an agent terminal.
  */
 
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {getOutput} from '@/shell/edge/main/terminals/terminal-output-buffer'
 import {getHeadlessAgentOutput} from '@/shell/edge/main/terminals/headlessAgentManager'
 import {type McpToolResponse, buildJsonResponse} from './types'
@@ -34,6 +34,19 @@ export async function readTerminalOutputTool({
     )
 
     if (!targetRecord) {
+        // 2a. Pending terminal: spawn returned, but the PTY/process isn't registered yet.
+        // No output to report — return empty with pending=true so caller can poll/retry.
+        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminal(terminalId)
+        if (pending) {
+            return buildJsonResponse({
+                success: true,
+                terminalId,
+                nChars,
+                output: '',
+                pending: true,
+                isHeadless: pending.isHeadless
+            })
+        }
         return buildJsonResponse({
             success: false,
             error: `Terminal not found: ${terminalId}`
