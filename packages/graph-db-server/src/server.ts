@@ -5,9 +5,12 @@ import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
 import {
+  closeFolderVisibilityDb,
+  ensureDefaultView,
   getVaultPaths,
   initGraphModel,
   onReadPathsChanged,
+  openFolderVisibilityDb,
   setVaultPath,
 } from '@vt/graph-model'
 import { CONTRACT_VERSION } from './contract.ts'
@@ -82,6 +85,18 @@ export async function startDaemon(
       defaultAppSupportPath(),
   })
   setVaultPath(vault)
+  try {
+    const folderVisibilityDb = openFolderVisibilityDb(vault)
+    try {
+      ensureDefaultView(folderVisibilityDb)
+    } finally {
+      closeFolderVisibilityDb(folderVisibilityDb)
+    }
+  } catch (err) {
+    await lockHandle.release()
+    throw err
+  }
+
   const registry = new SessionRegistry()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
   let watcher: Watcher
