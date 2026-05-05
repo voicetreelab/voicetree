@@ -1,0 +1,67 @@
+name: Branch Verification
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - 'packages/**'
+      - 'webapp/**'
+      - '.github/workflows/branch-verification.yml'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - 'packages/**'
+      - 'webapp/**'
+      - '.github/workflows/branch-verification.yml'
+  workflow_dispatch:
+    inputs:
+      run_electron_tier2:
+        description: 'Run Electron Tier 2 as well as browser Tier 2'
+        type: boolean
+        default: false
+
+concurrency:
+  group: branch-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright browser dependencies
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run root check
+        run: npm run check
+
+      - name: Run browser Tier 2 E2E
+        run: npm run test:e2e:tier2:browser
+
+      - name: Run Electron Tier 2 E2E
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
+        run: xvfb-run --auto-servernum npm run test:e2e:tier2:electron
