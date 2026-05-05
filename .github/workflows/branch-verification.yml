@@ -57,7 +57,8 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run browser Tier 2 E2E
-        run: npm --workspace webapp run test:browser
+        timeout-minutes: 25
+        run: npm --workspace webapp run test:browser -- --reporter=line
 
       - name: Run Electron Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
