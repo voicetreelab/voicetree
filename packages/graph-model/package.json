@@ -15,6 +15,7 @@
     "@vt/graph-tools": "*",
     "knowledge-graph": "*",
     "fp-ts": "^2.16.9",
+    "better-sqlite3": "^12.8.0",
     "chokidar": "^3.6.0",
     "normalize-path": "^3.0.0",
     "@vscode/ripgrep": "^1.15.9",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "vitest": "^3.2.4",
     "typescript": "~5.8.3",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/normalize-path": "^3.0.2",
     "@types/rbush": "^4.0.0",
