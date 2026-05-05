@@ -146,7 +146,28 @@ export type {
     LegacyVisibilitySnapshot,
 } from './state/folderVisibility/types'
 
-export { getFolderVisibility } from './state/folderVisibilityStore'
+export {
+    configureFolderVisibilityStore,
+    clearFolderVisibilityStoreForTests,
+    getFolderVisibility,
+    setFolderState,
+    setFolderStateBatch,
+    own,
+    effective,
+} from './state/folderVisibilityStore'
+
+export type {
+    FolderVisibilityDatabase,
+    FolderVisibilityUpdate,
+} from './state/folderVisibilityStore'
+
+export {
+    applySetFolderState,
+} from './apply/folderVisibility'
+
+export type {
+    SetFolderState,
+} from './apply/folderVisibility'
 
 export type {
     SnapshotDocument,

@@ -1,33 +1,145 @@
-import type { State } from '../contract'
-import { deriveFolderVisibilityFromLegacy } from './folderVisibility/derive'
+import {
+    stripTrailingSlash,
+} from './folderVisibility/derive'
 import type {
+    AbsolutePath,
+    FolderState,
     FolderVisibilityState,
-    LegacyVisibilitySnapshot,
 } from './folderVisibility/types'
 
-/**
- * BF-236 Phase 0 — read-only selector returning the unified folder-visibility
- * map for a given State snapshot.
- *
- * Phase 0 has no setters and no separate sqlite store; the map is derived
- * fresh from the snapshot's legacy fields (`roots.loaded` and `collapseSet`)
- * on every call. Phase 1 (BF-238) flips authority by introducing the sqlite
- * primary store and re-implementing `loadedRootsStore`/`collapseSetStore` as
- * derived selectors.
- *
- * Phase 1 consumers depend on this selector — they will be unaffected by the
- * storage flip in Phase 1 because the signature stays stable.
- *
- * Note: graph-state's `State` has no `readPaths` field — in the legacy split,
- * `readPaths` lives in vault config (graph-model). For derivation purposes
- * `roots.loaded` plays both roles (watched + loaded); fuzzing covers cases
- * where the two diverge.
- */
-export function getFolderVisibility(state: State): FolderVisibilityState {
-    const legacy: LegacyVisibilitySnapshot = {
-        readPaths: state.roots.loaded,
-        loadedRoots: state.roots.loaded,
-        collapseSet: state.collapseSet,
+export interface FolderVisibilityUpdate {
+    readonly path: AbsolutePath
+    readonly state: FolderState
+}
+
+interface StatementRunResult {
+    readonly changes: number
+}
+
+interface Statement<T = unknown> {
+    readonly all?: (...params: readonly unknown[]) => T[]
+    readonly get?: (...params: readonly unknown[]) => T | undefined
+    readonly run?: (...params: readonly unknown[]) => StatementRunResult
+}
+
+export interface FolderVisibilityDatabase {
+    readonly prepare: <T = unknown>(sql: string) => Statement<T>
+    readonly transaction: <Args extends readonly unknown[], Result>(
+        fn: (...args: Args) => Result,
+    ) => (...args: Args) => Result
+}
+
+interface FolderVisibilityRow {
+    readonly path: string
+    readonly state: FolderState
+}
+
+let database: FolderVisibilityDatabase | undefined
+
+export function configureFolderVisibilityStore(db: FolderVisibilityDatabase): void {
+    database = db
+}
+
+export function clearFolderVisibilityStoreForTests(): void {
+    database = undefined
+}
+
+export function getFolderVisibility(viewId: string): FolderVisibilityState {
+    const rows = allRows(viewId)
+    return new Map(rows.map((row) => [row.path, row.state]))
+}
+
+export function setFolderState(
+    viewId: string,
+    path: AbsolutePath,
+    state: FolderState,
+): void {
+    const db = requireDatabase()
+    const statement = requireRunStatement(db.prepare(`
+        INSERT INTO folder_visibility (view_id, path, state)
+        VALUES (?, ?, ?)
+        ON CONFLICT(view_id, path) DO UPDATE SET state = excluded.state
+    `))
+    statement.run(viewId, normalizePath(path), state)
+}
+
+export function setFolderStateBatch(
+    viewId: string,
+    updates: readonly FolderVisibilityUpdate[],
+): void {
+    const db = requireDatabase()
+    const statement = requireRunStatement(db.prepare(`
+        INSERT INTO folder_visibility (view_id, path, state)
+        VALUES (?, ?, ?)
+        ON CONFLICT(view_id, path) DO UPDATE SET state = excluded.state
+    `))
+    const applyUpdates = db.transaction((batch: readonly FolderVisibilityUpdate[]) => {
+        for (const update of batch) {
+            statement.run(viewId, normalizePath(update.path), update.state)
+        }
+    })
+    applyUpdates(updates)
+}
+
+export function own(viewId: string, path: AbsolutePath): FolderState {
+    const db = requireDatabase()
+    const statement = requireGetStatement<Pick<FolderVisibilityRow, 'state'>>(db.prepare(`
+        SELECT state
+        FROM folder_visibility
+        WHERE view_id = ? AND path = ?
+    `))
+    return statement.get(viewId, normalizePath(path))?.state ?? 'hidden'
+}
+
+export function effective(viewId: string, path: AbsolutePath): FolderState {
+    return own(viewId, path)
+}
+
+function allRows(viewId: string): FolderVisibilityRow[] {
+    const db = requireDatabase()
+    const statement = requireAllStatement<FolderVisibilityRow>(db.prepare(`
+        SELECT path, state
+        FROM folder_visibility
+        WHERE view_id = ?
+        ORDER BY path ASC
+    `))
+    return statement.all(viewId)
+}
+
+function normalizePath(path: AbsolutePath): AbsolutePath {
+    return stripTrailingSlash(path)
+}
+
+function requireDatabase(): FolderVisibilityDatabase {
+    if (database === undefined) {
+        throw new Error('folderVisibilityStore is not configured with a sqlite database')
     }
-    return deriveFolderVisibilityFromLegacy(legacy)
+    return database
+}
+
+function requireAllStatement<T>(
+    statement: Statement<T>,
+): Required<Pick<Statement<T>, 'all'>> {
+    if (typeof statement.all !== 'function') {
+        throw new Error('folderVisibilityStore expected a sqlite statement with all()')
+    }
+    return statement as Required<Pick<Statement<T>, 'all'>>
+}
+
+function requireGetStatement<T>(
+    statement: Statement<T>,
+): Required<Pick<Statement<T>, 'get'>> {
+    if (typeof statement.get !== 'function') {
+        throw new Error('folderVisibilityStore expected a sqlite statement with get()')
+    }
+    return statement as Required<Pick<Statement<T>, 'get'>>
+}
+
+function requireRunStatement(
+    statement: Statement,
+): Required<Pick<Statement, 'run'>> {
+    if (typeof statement.run !== 'function') {
+        throw new Error('folderVisibilityStore expected a sqlite statement with run()')
+    }
+    return statement as Required<Pick<Statement, 'run'>>
 }
