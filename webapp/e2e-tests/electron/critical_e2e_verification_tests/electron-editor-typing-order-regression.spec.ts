@@ -148,11 +148,33 @@ const test = base.extend<{
       undefined,
       { timeout: 15_000 },
     );
-    await window.waitForFunction(
-      () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
-      undefined,
-      { timeout: 10_000 },
-    );
+    try {
+      await window.waitForFunction(
+        () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
+        undefined,
+        { timeout: 10_000 },
+      );
+    } catch (error) {
+      const diagnostics = await window.evaluate(async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        const graph = await api?.main.getGraph().catch((graphError: unknown) => ({
+          error: graphError instanceof Error ? graphError.message : String(graphError),
+        }));
+        const watchStatus = await api?.main.getWatchStatus().catch((watchError: unknown) => ({
+          error: watchError instanceof Error ? watchError.message : String(watchError),
+        }));
+        return {
+          bodyText: document.body.textContent?.slice(0, 500) ?? '',
+          graph,
+          nodeCount: cy?.nodes().length ?? null,
+          watchStatus,
+        };
+      });
+      throw new Error(`Timed out waiting for graph nodes after opening project: ${JSON.stringify(diagnostics)}`, {
+        cause: error,
+      });
+    }
     await use(window);
   },
 });
