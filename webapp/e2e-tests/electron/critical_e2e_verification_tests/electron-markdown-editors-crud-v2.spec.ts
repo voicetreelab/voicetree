@@ -365,6 +365,123 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Markdown file save test completed');
   });
 
+  test('should preserve exact content typed through real keyboard input', async ({ appWindow }) => {
+    test.setTimeout(60000);
+    console.log('=== Testing real keyboard typing into markdown editor ===');
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy?.nodes().length ?? 0;
+      });
+    }, {
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000
+    }).toBeGreaterThan(0);
+
+    const nodeId = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = cy.nodes();
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (node.data('label') === 'Setting up Agent in Feedback Loop') {
+          return node.id();
+        }
+      }
+
+      throw new Error('Node with label "Setting up Agent in Feedback Loop" not found');
+    });
+
+    const testFilePath = path.isAbsolute(nodeId)
+      ? (nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`)
+      : (nodeId.endsWith('.md')
+          ? path.join(FIXTURE_VAULT_PATH, nodeId)
+          : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`));
+    const originalContent = await fs.readFile(testFilePath, 'utf-8');
+
+    const editorWindowId = `window-${nodeId}-editor`;
+    try {
+      await appWindow.evaluate((nId) => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('Cytoscape not initialized');
+        const node = cy.getElementById(nId);
+        if (node.length === 0) throw new Error(`${nId} node not found`);
+        node.trigger('tap');
+      }, nodeId);
+
+      await expect.poll(async () => {
+        return appWindow.evaluate((winId) => document.getElementById(winId) !== null, editorWindowId);
+      }, {
+        message: 'Waiting for editor window to appear',
+        timeout: 5000
+      }).toBe(true);
+
+      const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
+      const editorSelector = `#${escapedEditorWindowId} .cm-content`;
+      await appWindow.waitForSelector(editorSelector, { timeout: 5000 });
+
+      const focused = await appWindow.evaluate((winId) => {
+        const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+        if (!editorElement?.cmView?.view) return false;
+        editorElement.cmView.view.focus();
+        return document.activeElement === editorElement
+          || !!document.activeElement?.closest('.cm-editor');
+      }, editorWindowId);
+      expect(focused).toBe(true);
+
+      const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+      await appWindow.keyboard.press(`${modifier}+A`);
+      await expect.poll(async () => {
+        return appWindow.evaluate((winId) => {
+          const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+          const view = editorElement?.cmView?.view;
+          if (!view) return null;
+          const selection = view.state.selection.main;
+          return { from: selection.from, to: selection.to, length: view.state.doc.length };
+        }, editorWindowId);
+      }, {
+        message: 'Waiting for keyboard select-all to reach CodeMirror',
+        timeout: 5000
+      }).toEqual(expect.objectContaining({ from: 0 }));
+
+      const typedContent = [
+        '# Keyboard Input Smoke',
+        '',
+        'Typed through Playwright keyboard events.',
+        'Symbols: []{}() _ - + = / \\',
+        'Final line.'
+      ].join('\n');
+      await appWindow.keyboard.type(typedContent);
+
+      await expect.poll(async () => {
+        return appWindow.evaluate((winId) => {
+          const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+          return editorElement?.cmView?.view.state.doc.toString() ?? null;
+        }, editorWindowId);
+      }, {
+        message: 'Waiting for typed content to appear exactly in CodeMirror',
+        timeout: 5000
+      }).toBe(typedContent);
+
+      await appWindow.waitForTimeout(1000);
+      const savedContent = await fs.readFile(testFilePath, 'utf-8');
+      expect(savedContent).toContain(typedContent);
+      expect(savedContent).toMatch(/^---\n/);
+
+      console.log('✓ Real keyboard editor input saved exactly');
+    } finally {
+      await appWindow.evaluate((winId) => {
+        const closeButton = document.querySelector(`#${CSS.escape(winId)} .traffic-light-close`) as HTMLButtonElement | null;
+        if (closeButton) closeButton.click();
+      }, editorWindowId).catch(() => undefined);
+      await appWindow.waitForTimeout(200).catch(() => undefined);
+      await fs.writeFile(testFilePath, originalContent, 'utf-8');
+      await appWindow.waitForTimeout(200).catch(() => undefined);
+    }
+  });
+
   test.skip('should update graph when wikilink is added via editor', async ({ appWindow }) => {
     // SKIPPED: This test fails because the 'introduction' node doesn't get its filePath metadata set,
     // which prevents the editor from opening. This appears to be an application bug, not a test issue.
