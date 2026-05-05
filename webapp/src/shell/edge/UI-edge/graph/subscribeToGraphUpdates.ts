@@ -10,6 +10,7 @@ import {clearCytoscapeState} from './clearCytoscapeState';
 import {projectDelta} from '@/shell/edge/UI-edge/state/rendererStateMirror';
 import {extractRecentNodesFromDelta} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import {updateFloatingEditors} from '@/shell/edge/UI-edge/floating-windows/editors/EditorSync';
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import {
     setLoadingState,
@@ -51,6 +52,7 @@ export function subscribeToGraphUpdates(
         // BF-L5-202b: renderer folds delta into the State mirror + projects
         // through `project(state)` so cy reflects the true ElementSpec.
         applyGraphDeltaToUI(cy, projectDelta(delta));
+        updateFloatingEditors(cy, delta);
 
         // Track last created node for "fit to last node" hotkey (Space)
         const lastUpsertedNode: UpsertNodeDelta | undefined = extractRecentNodesFromDelta(delta)[0];

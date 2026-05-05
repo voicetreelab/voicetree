@@ -10,7 +10,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -70,14 +69,6 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    console.log('=== Step 2b: Select mock project ===');
-    await selectMockProject(page);
-    console.log('✓ Mock project selected');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -200,9 +191,6 @@ test.describe('Floating Editor Auto-Height (Browser)', () => {
 
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await selectMockProject(page);
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Create node with some initial content (not minimal, to have a reasonable starting height)

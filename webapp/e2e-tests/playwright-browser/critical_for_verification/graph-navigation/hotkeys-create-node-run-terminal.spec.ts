@@ -8,7 +8,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -72,9 +71,6 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -102,14 +98,21 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('=== Step 6: Press Cmd+N ===');
     await page.keyboard.press('Meta+n');
 
-    // Wait for node creation - increased timeout to allow for async operations
-    await page.waitForTimeout(200);
+    // Wait for node creation via async IPC roundtrip
+    await page.waitForFunction(
+      (expected) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        return cy.nodes().filter(node => !node.data('isShadowNode')).length >= expected;
+      },
+      initialNodeCount + 1,
+      { timeout: 3000 }
+    );
 
     console.log('=== Step 7: Verify new node was created ===');
     const finalNodeCount = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      // Filter out shadow nodes (floating editors) to count only real graph nodes
       return cy.nodes().filter(node => !node.data('isShadowNode')).length;
     });
     expect(finalNodeCount).toBe(initialNodeCount + 1);
@@ -139,9 +142,6 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -167,8 +167,16 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('=== Step 6: Press Cmd+N ===');
     await page.keyboard.press('Meta+n');
 
-    // Wait for node creation - increased timeout to allow for async operations
-    await page.waitForTimeout(200);
+    // Wait for node creation via async IPC roundtrip
+    await page.waitForFunction(
+      (expected) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        return cy.nodes().filter(node => !node.data('isShadowNode')).length >= expected;
+      },
+      initialNodeCount + 1,
+      { timeout: 3000 }
+    );
 
     console.log('=== Step 7: Verify new node was created ===');
     const finalNodeCount = await page.evaluate(() => {
@@ -212,9 +220,6 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);

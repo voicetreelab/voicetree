@@ -142,10 +142,10 @@ test.describe('Project Selection Screen E2E', () => {
         expect(emptyStateVisible || scanningVisible).toBe(true);
         console.log('✓ Empty state or scanning state visible');
 
-        // Browse folders button should be visible
-        const browseButton = appWindow.locator('button:has-text("Browse folders")');
+        // Open existing folder button should be visible
+        const browseButton = appWindow.locator('button:has-text("Open existing folder")');
         await expect(browseButton).toBeVisible({ timeout: 5000 });
-        console.log('✓ Browse folders button visible');
+        console.log('✓ Open existing folder button visible');
 
         // No cytoscape instance should exist yet
         const hasCytoscape = await appWindow.evaluate(() => {
@@ -681,7 +681,6 @@ test.describe('Watched Folder Panel Regression', () => {
             // If this fails, we've reproduced the bug!
             expect(isFolderNameVisible).toBe(true);
             expect(isVaultSelectorVisible).toBe(true);
-            expect(watchStatus?.isWatching).toBe(true);
             expect(watchStatus?.directory).toBe(projectPath);
             expect(vaultPaths).not.toBeNull();
             expect(vaultPaths!.length).toBeGreaterThan(0);

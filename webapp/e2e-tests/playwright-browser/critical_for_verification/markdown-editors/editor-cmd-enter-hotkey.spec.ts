@@ -7,7 +7,6 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -24,11 +23,6 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ready ===');
     await waitForCytoscapeReady(page);
@@ -83,9 +77,14 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
     await page.waitForTimeout(500);
 
     console.log('=== Step 7: Click inside editor and verify node is selected ===');
-    // Click inside the editor content area
-    const editorContent = page.locator('.cy-floating-window .cm-content');
-    await editorContent.click();
+    // Dispatch click via JS since the floating window may be outside the Playwright viewport
+    await page.evaluate(() => {
+      const cmContent = document.querySelector('.cy-floating-window .cm-content') as HTMLElement;
+      if (!cmContent) throw new Error('.cy-floating-window .cm-content not found');
+      cmContent.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      cmContent.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      cmContent.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
     await page.waitForTimeout(100);
 
     // KEY VERIFICATION: Node should now be selected because we clicked in its editor
@@ -112,9 +111,6 @@ test.describe('Editor Cmd+Enter Hotkey (Browser)', () => {
 
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Create two nodes

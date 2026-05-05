@@ -13,7 +13,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -77,11 +76,6 @@ test.describe('Floating Window Resize Persistence (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('OK React rendered');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -285,9 +279,6 @@ test.describe('Floating Window Resize Persistence (Browser)', () => {
 
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Create a node

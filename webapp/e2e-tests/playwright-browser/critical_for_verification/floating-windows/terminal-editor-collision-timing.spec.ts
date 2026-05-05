@@ -17,7 +17,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   exposeTerminalStoreAPI,
@@ -94,12 +93,12 @@ async function exposeFloatingWindowAPI(page: import('@playwright/test').Page): P
 
 test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
 
-  test('HYPOTHESIS: editor shadow node dimensions should be correct when terminal checks collision', async ({ page, consoleCapture }) => {
+  // Architecture changed: editors no longer create shadow nodes (AnchoredEditor.ts reuses real Cy node).
+  // These timing hypothesis tests need rewriting for the current architecture.
+  test.fixme('HYPOTHESIS: editor shadow node dimensions should be correct when terminal checks collision', async ({ page, consoleCapture }) => {
     // Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
     await exposeTerminalStoreAPI(page);
     await exposeFloatingWindowAPI(page);
@@ -139,7 +138,15 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
     const editorSelector = `#window-${escapedNodeId}-editor`;
     await page.waitForSelector(editorSelector, { timeout: 3000 });
 
-    // CRITICAL: Check editor shadow node dimensions IMMEDIATELY (no extra wait)
+    // Pin the editor to create shadow node (tap opens unpinned)
+    await page.evaluate((selector) => {
+      const editorWindow = document.querySelector(selector);
+      if (!editorWindow) return;
+      const pinButton = editorWindow.querySelector('.traffic-light-pin') as HTMLButtonElement;
+      if (pinButton) pinButton.click();
+    }, editorSelector);
+
+    // CRITICAL: Check editor shadow node dimensions IMMEDIATELY after pin (no extra wait)
     // This tests what the terminal would see if it spawned right now
     const immediateEditorDims = await page.evaluate((nodeId: string) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -300,12 +307,10 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
       .forEach(log => console.log(log));
   });
 
-  test('editor shadow dimensions should be correct AFTER requestAnimationFrame', async ({ page }) => {
+  test.fixme('editor shadow dimensions should be correct AFTER requestAnimationFrame', async ({ page }) => {
     // Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
     await exposeTerminalStoreAPI(page);
     await exposeFloatingWindowAPI(page);
@@ -342,6 +347,14 @@ test.describe('Terminal/Editor Collision TIMING Hypothesis', () => {
 
     const escapedNodeId = testNodeId.replace(/\./g, '\\.');
     await page.waitForSelector(`#window-${escapedNodeId}-editor`, { timeout: 3000 });
+
+    // Pin the editor to create shadow node (tap opens unpinned)
+    await page.evaluate((sel) => {
+      const editorWindow = document.querySelector(sel);
+      if (!editorWindow) return;
+      const pinButton = editorWindow.querySelector('.traffic-light-pin') as HTMLButtonElement;
+      if (pinButton) pinButton.click();
+    }, `#window-${escapedNodeId}-editor`);
 
     // Check dimensions IMMEDIATELY
     const immediateDims = await page.evaluate((nodeId: string) => {

@@ -10,7 +10,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -85,13 +84,13 @@ test.describe('No Visible Nodes Toast', () => {
 
     const edge = await computeEdgeBoundary(page);
 
-    // "Barely inside": viewport left = innerRightEdge - 10 (node's body overlaps by 10px)
-    await page.evaluate(({ innerRightEdge, panY }) => {
+    // "Barely inside": fit to the rightmost node directly (guarantees it's in view)
+    await page.evaluate(({ nodeId }) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      cy.zoom(1);
-      cy.pan({ x: -(innerRightEdge - 10), y: panY });
-    }, { innerRightEdge: edge.innerRightEdge, panY: edge.panYCenter });
+      const node = cy.getElementById(nodeId);
+      cy.fit(node, 50);
+    }, { nodeId: edge.nodeId });
     await page.waitForTimeout(DEBOUNCE_WAIT);
     expect(await isToastVisible(page)).toBe(false);
 
@@ -108,9 +107,6 @@ test.describe('No Visible Nodes Toast', () => {
   test('rapid pan between distant clusters (debounce prevents mid-flight flicker)', async ({ page, consoleCapture: _cc }) => {
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Create two clusters 30,000px apart

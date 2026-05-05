@@ -6,7 +6,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -69,15 +68,6 @@ test.describe('External Content Update (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page); // Vite dev server URL
-
-    // Wait for React to render
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    // Wait for graph update handler to be registered
-    await page.waitForTimeout(10);
-    console.log('✓ Graph update handler should be registered');
 
     console.log('=== Step 3: Wait for Cytoscape to initialize ===');
     await waitForCytoscapeReady(page);

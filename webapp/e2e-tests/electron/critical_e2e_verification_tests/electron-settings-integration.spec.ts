@@ -5,9 +5,9 @@
  * This test verifies the COMPLETE flow:
  * 0. Original settings are saved for restoration at the end
  * 1. Settings are loaded and modified for testing (terminalSpawnPath='../', add test agent)
- * 2. Test vault is auto-loaded on startup via config file
+ * 2. Test vault is loaded from a saved project on startup
  * 3. Settings editor is opened via SpeedDialMenu settings button click (bottom-right corner)
- * 4. Settings are edited in the floating window CodeMirror editor (adds test agent to agents array)
+ * 4. Settings are edited in the floating React settings editor (adds test agent to agents array)
  * 5. Settings are saved (auto-save triggers on content change)
  * 6. ContextMenuService integration is verified (it reads settings when spawning terminals)
  * 7. Original settings are restored at the end
@@ -43,11 +43,6 @@ interface ExtendedWindow {
   electronAPI?: ElectronAPI;
 }
 
-// Helper type for CodeMirror access
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: { state: { doc: { length: number; toString: () => string } }; dispatch: (spec: unknown) => void } };
-}
-
 // Extend test with Electron app
 const test = base.extend<{
   electronApp: ElectronApplication;
@@ -57,10 +52,22 @@ const test = base.extend<{
     // Create a temporary userData directory for this test
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-settings-test-'));
 
-    // Write the config file to auto-load the test vault on startup
+    // Create projects.json with a pre-saved project, matching the smoke-test startup path.
+    const projectsPath = path.join(tempUserDataPath, 'projects.json');
+    const savedProject = {
+      id: 'settings-test-project-id',
+      path: FIXTURE_VAULT_PATH,
+      name: 'example_small',
+      type: 'folder',
+      lastOpened: Date.now(),
+      voicetreeInitialized: true
+    };
+    await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
+
+    // Also keep the legacy config file for backwards compatibility.
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
-    console.log('[Settings Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+    console.log('[Settings Test] Created saved project:', FIXTURE_VAULT_PATH);
 
     const electronApp = await electron.launch({
       args: [
@@ -114,6 +121,12 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
+
+    const projectButton = window.locator('button:has-text("example_small")').first();
+    if (await projectButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+      await projectButton.click();
+      console.log('[Settings Test] Clicked saved project to navigate to graph view');
+    }
 
     // Check for errors before waiting for cytoscapeInstance
     const hasErrors = await window.evaluate(() => {
@@ -171,9 +184,7 @@ test.describe('Settings Integration E2E', () => {
     });
     console.log('✓ Settings modified for test');
 
-    console.log('=== STEP 2: Wait for auto-loaded vault nodes to render ===');
-    // The vault is auto-loaded on startup via config file
-    // Wait for nodes to load with polling
+    console.log('=== STEP 2: Wait for vault nodes to render ===');
     await appWindow.waitForFunction(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) return false;
@@ -181,7 +192,7 @@ test.describe('Settings Integration E2E', () => {
       return nodes.length >= 2; // Wait for at least 2 nodes to ensure folder loaded
     }, { timeout: 10000 });
 
-    console.log('✓ Nodes loaded successfully from auto-loaded vault');
+    console.log('✓ Nodes loaded successfully from saved project vault');
 
     console.log('=== STEP 3: Verify initial test settings ===');
     const initialSettings = await appWindow.evaluate(async () => {
@@ -214,62 +225,41 @@ test.describe('Settings Integration E2E', () => {
     expect(editorExists).toBe(true);
     console.log('✓ Settings editor window opened');
 
-    console.log('=== STEP 6: Edit settings in the CodeMirror editor ===');
+    console.log('=== STEP 6: Edit settings in the React settings editor ===');
     const newAgentName = 'TestAgent';
     const newAgentCommand = './test-agent.sh';
     const newLaunchPath = '/test/path';
 
-    // Wait for CodeMirror to fully render
-    await appWindow.waitForSelector('#window-settings-editor .cm-content', { timeout: 5000 });
+    const settingsWindow = appWindow.locator('#window-settings-editor');
+    await settingsWindow.getByRole('button', { name: 'Agents' }).click();
+    await settingsWindow.getByRole('button', { name: 'Add Agent' }).click();
 
-    // Edit the JSON in CodeMirror using the same pattern as markdown editor tests
-    const editResult = await appWindow.evaluate(({ agentName, agentCmd, launchPath }) => {
-      // Access the CodeMirror content element (not .cm-editor)
-      const editorElement = document.querySelector('#window-settings-editor .cm-content') as HTMLElement | null;
-      if (!editorElement) throw new Error('Editor content element not found');
+    const agentNameInputs = settingsWindow.locator('input[placeholder="name"]');
+    const agentCommandInputs = settingsWindow.locator('input[placeholder="command"]');
+    const newAgentIndex = await agentNameInputs.count() - 1;
+    await agentNameInputs.nth(newAgentIndex).fill(newAgentName);
+    await agentCommandInputs.nth(newAgentIndex).fill(newAgentCommand);
+    await settingsWindow.getByTitle(`Set ${newAgentName} as default`).click();
 
-      // Access the CodeMirror view from the element
-      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
-      if (!cmView) throw new Error('CodeMirror view not found');
-
-      // Get current value
-      const currentValue = cmView.state.doc.toString();
-      console.log('[Test] Current editor value:', currentValue);
-
-      // Parse current settings
-      const currentSettings = JSON.parse(currentValue);
-
-      // Modify settings - add a new test agent to the agents array
-      currentSettings.agents = [
-        { name: agentName, command: agentCmd },
-        ...currentSettings.agents
-      ];
-      currentSettings.terminalSpawnPathRelativeToWatchedDirectory = launchPath;
-
-      const newValue = JSON.stringify(currentSettings, null, 2);
-      console.log('[Test] New value to set:', newValue);
-
-      // Set new value using CodeMirror dispatch with userEvent annotation
-      // This is required to trigger the onChange handler in CodeMirrorEditorView
-      // which only fires for user-initiated changes (input, delete, undo, redo)
-      cmView.dispatch({
-        changes: {
-          from: 0,
-          to: cmView.state.doc.length,
-          insert: newValue
-        },
-        userEvent: 'input'
-      });
-      console.log('[Test] Dispatched changes to CodeMirror with userEvent annotation');
-      return { success: true };
-    }, { agentName: newAgentName, agentCmd: newAgentCommand, launchPath: newLaunchPath });
-
-    expect(editResult.success).toBe(true);
-    console.log('✓ Settings edited in CodeMirror');
+    await settingsWindow.getByRole('button', { name: 'General' }).click();
+    const terminalSpawnInput = appWindow
+      .locator('#window-settings-editor span:text-is("Terminal Spawn Path")')
+      .locator('xpath=ancestor::div[contains(@class, "py-1.5")][1]')
+      .locator('input');
+    await terminalSpawnInput.fill(newLaunchPath);
+    console.log('✓ Settings edited in React settings editor');
 
     console.log('=== STEP 7: Wait for auto-save to trigger ===');
-    // The editor has autosaveDelay: 300ms, so wait longer
-    await appWindow.waitForTimeout(1000);
+    await expect.poll(async () => {
+      return await appWindow.evaluate(async () => {
+        const api = (window as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        return await api.main.loadSettings();
+      }) as VTSettings;
+    }, { timeout: 5000 }).toMatchObject({
+      defaultAgent: newAgentName,
+      terminalSpawnPathRelativeToWatchedDirectory: newLaunchPath
+    });
 
     console.log('=== STEP 8: Verify settings were saved ===');
     const savedSettings = await appWindow.evaluate(async () => {
@@ -279,8 +269,8 @@ test.describe('Settings Integration E2E', () => {
     }) as VTSettings;
 
     console.log('Saved settings:', savedSettings);
-    expect(savedSettings.agents[0].name).toBe(newAgentName);
-    expect(savedSettings.agents[0].command).toBe(newAgentCommand);
+    expect(savedSettings.agents).toContainEqual({ name: newAgentName, command: newAgentCommand });
+    expect(savedSettings.defaultAgent).toBe(newAgentName);
     expect(savedSettings.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ Settings saved successfully');
 
@@ -308,9 +298,10 @@ test.describe('Settings Integration E2E', () => {
       const settings = await api.main.loadSettings();
 
       // Verify we get the updated settings
+      const defaultAgent = settings.agents.find(agent => agent.name === settings.defaultAgent) ?? settings.agents[0];
       return {
-        firstAgentName: settings.agents[0].name,
-        firstAgentCommand: settings.agents[0].command,
+        defaultAgentName: defaultAgent?.name,
+        defaultAgentCommand: defaultAgent?.command,
         terminalSpawnPathRelativeToWatchedDirectory: settings.terminalSpawnPathRelativeToWatchedDirectory,
         settingsLoaded: true
       };
@@ -318,8 +309,8 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('Settings integration check:', settingsIntegrationTest);
     expect(settingsIntegrationTest.settingsLoaded).toBe(true);
-    expect(settingsIntegrationTest.firstAgentName).toBe(newAgentName);
-    expect(settingsIntegrationTest.firstAgentCommand).toBe(newAgentCommand);
+    expect(settingsIntegrationTest.defaultAgentName).toBe(newAgentName);
+    expect(settingsIntegrationTest.defaultAgentCommand).toBe(newAgentCommand);
     expect(settingsIntegrationTest.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ ContextMenuService will use new settings when spawning terminals');
 
@@ -347,7 +338,7 @@ test.describe('Settings Integration E2E', () => {
     console.log('✓ Original settings saved at start');
     console.log('✓ Settings can be loaded (defaults)');
     console.log('✓ Settings editor can be opened via SpeedDialMenu');
-    console.log('✓ Settings can be edited in CodeMirror');
+    console.log('✓ Settings can be edited in React settings editor');
     console.log('✓ Settings can be saved via IPC');
     console.log('✓ Settings persist to disk');
     console.log('✓ Terminal can be spawned via context menu');

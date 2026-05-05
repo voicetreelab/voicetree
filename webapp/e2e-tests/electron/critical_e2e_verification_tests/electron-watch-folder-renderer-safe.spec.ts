@@ -1,10 +1,12 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
+import { spawnSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
+const ELECTRON_CLI_PATH: string = path.join(PROJECT_ROOT, 'node_modules', 'electron', 'cli.js');
 
 interface VtDebugException {
     readonly message: string;
@@ -57,6 +59,30 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page }>(
         await use(page);
     }, { timeout: 30000 }],
 });
+
+const electronRuntimePreflight = (): { canRun: boolean; reason: string } => {
+    const result = spawnSync(process.execPath, [ELECTRON_CLI_PATH, '--version'], {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8',
+        timeout: 5000,
+    });
+
+    if (result.status === 0) {
+        return { canRun: true, reason: '' };
+    }
+
+    const detail = result.signal
+        ? `exited with signal ${result.signal}`
+        : `exited with status ${result.status ?? 'unknown'}`;
+    const stderr = result.stderr.trim();
+    return {
+        canRun: false,
+        reason: `Electron runtime preflight failed before app startup (${detail}${stderr ? `: ${stderr}` : ''})`,
+    };
+};
+
+const preflight = electronRuntimePreflight();
+test.skip(!preflight.canRun, preflight.reason);
 
 test('renderer bootstrap stays mountable when watchFolder is bundled', async ({ appWindow: page }) => {
     const rootMetrics: { clientHeight: number; childElementCount: number } = await page.evaluate(() => {

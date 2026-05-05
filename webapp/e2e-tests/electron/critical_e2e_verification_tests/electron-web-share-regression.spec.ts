@@ -58,9 +58,6 @@ const test = base.extend<{
     };
     await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
 
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
-
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),

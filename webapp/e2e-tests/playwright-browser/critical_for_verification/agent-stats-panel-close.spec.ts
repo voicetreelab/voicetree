@@ -7,7 +7,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   waitForCytoscapeReady,
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
@@ -62,13 +61,8 @@ test.describe('Agent Statistics Panel Close', () => {
     await setupMockElectronAPI(page);
     console.log('OK Electron API mock prepared');
 
-    console.log('=== Step 2: Navigate to app ===');
+    console.log('=== Step 2: Navigate to app (auto-navigates to graph via mock getWatchStatus) ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('OK React rendered');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);

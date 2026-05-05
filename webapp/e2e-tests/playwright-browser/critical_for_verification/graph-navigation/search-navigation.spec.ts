@@ -6,7 +6,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -71,15 +70,6 @@ test.describe('Search Navigation (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page); // Vite dev server URL
-
-    // Wait for React to render
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    // Wait for graph update handler to be registered
-    await page.waitForTimeout(50);
-    console.log('✓ Graph update handler should be registered');
 
     console.log('=== Step 3: Wait for Cytoscape to initialize ===');
     await waitForCytoscapeReady(page);
@@ -273,9 +263,6 @@ test.describe('Search Navigation (Browser)', () => {
     // Step 1: Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Step 2: Send test graph
@@ -338,9 +325,6 @@ test.describe('Search Navigation (Browser)', () => {
     // Step 1: Setup
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Step 2: Send test graph

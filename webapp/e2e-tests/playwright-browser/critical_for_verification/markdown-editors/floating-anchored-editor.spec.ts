@@ -6,7 +6,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -70,12 +69,6 @@ test.describe('Floating Anchored Editor (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    await page.waitForTimeout(50);
-    console.log('✓ Graph update handler registered');
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -149,34 +142,15 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     console.log(`  Heading1 font-size: ${headingFontSize}`);
     expect(headingFontSize).toBe('24px');
 
-    console.log('=== Step 7: Verify child shadow node exists and get dimensions ===');
-    const initialDims = await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      // The editor is now anchored to a shadow node
-      // Shadow node ID format: {nodeId}-editor-anchor-shadowNode
-      // For nodeId 'test-editor-node.md', editorId is 'test-editor-node.md-editor'
-      // So shadow node ID is 'test-editor-node.md-editor-anchor-shadowNode'
-      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
-      if (childShadowNode.length === 0) throw new Error('Child shadow node not found');
-
-      // Verify parent relationship
-      const parentId = childShadowNode.data('parentId');
-      if (parentId !== 'test-editor-node.md') {
-        throw new Error(`Expected parentId to be 'test-editor-node.md', got '${parentId}'`);
-      }
-
-      return {
-        width: childShadowNode.width(),
-        height: childShadowNode.height(),
-        parentId: parentId
-      };
-    });
-    console.log(`  Child shadow node dims: ${initialDims.width}x${initialDims.height}`);
-    console.log(`  Child shadow node parent: ${initialDims.parentId}`);
-    expect(initialDims.width).toBeGreaterThan(0);
-    expect(initialDims.height).toBeGreaterThan(0);
-    expect(initialDims.parentId).toBe('test-editor-node.md');
+    console.log('=== Step 7: Verify editor is anchored to real node ===');
+    const anchorInfo = await page.evaluate((selector) => {
+      const windowEl = document.querySelector(selector) as HTMLElement | null;
+      if (!windowEl) throw new Error('Editor window not found');
+      const shadowNodeId = windowEl.dataset.shadowNodeId;
+      return { shadowNodeId };
+    }, editorSelector);
+    console.log(`  Editor anchored to: ${anchorInfo.shadowNodeId}`);
+    expect(anchorInfo.shadowNodeId).toBe('test-editor-node.md');
 
     console.log('=== Step 8: Verify window has resizable CSS class ===');
     const hasResizableClass = await page.evaluate((selector) => {
@@ -186,48 +160,16 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(hasResizableClass).toBe(true);
     console.log('✓ Window is resizable via CSS');
 
-    console.log('=== Step 9: Drag parent node and verify child shadow follows ===');
-    const initialNodePos = await page.evaluate(() => {
+    console.log('=== Step 9: Verify real node is hidden (anchored editor hides circle) ===');
+    const nodeHidden = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       const node = cy.$('#test-editor-node.md');
-      return node.position();
+      const bgOpacity = node.style('background-opacity');
+      return parseFloat(bgOpacity) === 0;
     });
-    console.log(`  Initial anchor node pos: (${initialNodePos.x}, ${initialNodePos.y})`);
-
-    // Drag the anchor node (Cola layout may adjust the position)
-    await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.$('#test-editor-node.md');
-      node.position({ x: 600, y: 600 });
-    });
-    await page.waitForTimeout(50); // Wait for layout to settle
-    console.log('✓ Dragged anchor node');
-
-    const newNodePos = await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.$('#test-editor-node.md');
-      return node.position();
-    });
-    console.log(`  New anchor node pos: (${newNodePos.x}, ${newNodePos.y})`);
-    // Check that position moved significantly (Cola layout may adjust exact position)
-    const xMoved = Math.abs(newNodePos.x - initialNodePos.x) > 10;
-    const yMoved = Math.abs(newNodePos.y - initialNodePos.y) > 5;
-    expect(xMoved || yMoved).toBe(true);
-
-    // Verify child shadow node also moved (it should be a child of the parent node)
-    const childShadowNodePos = await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
-      return childShadowNode.position();
-    });
-    console.log(`  Child shadow node pos: (${childShadowNodePos.x}, ${childShadowNodePos.y})`);
-    // Child shadow should be near the parent node (with some offset)
-    expect(Math.abs(childShadowNodePos.x - newNodePos.x)).toBeLessThan(500);
-    expect(Math.abs(childShadowNodePos.y - newNodePos.y)).toBeLessThan(500);
+    expect(nodeHidden).toBe(true);
+    console.log('✓ Real node circle is hidden (opacity 0)');
 
     console.log('=== Step 10: Close editor and verify cleanup ===');
     // Close the editor by clicking the close button via DOM (avoids viewport issues)
@@ -245,15 +187,16 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(editorGone).toBe(true);
     console.log('✓ Editor window closed');
 
-    // Verify child shadow node is also removed
-    const childShadowNodeRemoved = await page.evaluate(() => {
+    // Verify real node circle is restored (opacity back to 1)
+    const nodeRestored = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#test-editor-node\\.md-editor-anchor-shadowNode');
-      return childShadowNode.length === 0;
+      const node = cy.$('#test-editor-node.md');
+      const bgOpacity = node.style('background-opacity');
+      return parseFloat(bgOpacity) === 1;
     });
-    expect(childShadowNodeRemoved).toBe(true);
-    console.log('✓ Child shadow node removed');
+    expect(nodeRestored).toBe(true);
+    console.log('✓ Real node circle restored');
 
     console.log('=== Step 11: Reopen editor ===');
     await page.evaluate(() => {

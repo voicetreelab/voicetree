@@ -6,7 +6,6 @@
 import { test as base } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -62,9 +61,6 @@ test.describe('Wikilink Title Display Screenshot', () => {
 
     await setupMockElectronAPI(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     // Create target nodes that will be referenced by wikilinks

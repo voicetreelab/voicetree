@@ -3,18 +3,18 @@
  * E2E test for the VaultPathSelector component (multi-vault write path switching).
  *
  * This test verifies:
- * 1. VaultPathSelector appears when multiple vault paths exist
- * 2. Dropdown displays all available vault paths
- * 3. Clicking a path changes the default write path
+ * 1. VaultPathSelector appears when vault paths exist
+ * 2. Clicking it opens the folder tree sidebar
+ * 3. Choosing a folder's write-target control changes the default write path
  * 4. The change persists via the API
  *
  * PRECONDITION:
- * Test vault has an 'openspec' folder which matches the defaultAllowlistPatterns setting.
- * This causes the app to auto-add openspec to the vault allowlist, giving us 2+ vault paths.
+ * Test vault has an 'openspec' folder. The test explicitly adds it as a read path
+ * so it does not depend on default allowlist settings.
  *
  * EXPECTED OUTCOME:
- * - VaultPathSelector dropdown shows when >1 vault paths exist
- * - Users can switch default write path via the dropdown
+ * - VaultPathSelector opens the folder tree sidebar
+ * - Users can switch default write path via the sidebar
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -32,6 +32,18 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
+}
+
+async function getWritePath(page: Page): Promise<string | null> {
+  return await page.evaluate(async () => {
+    const api = (window as ExtendedWindow).electronAPI;
+    if (!api) throw new Error('electronAPI not available');
+    const result = await api.main.getWritePath();
+    if (result && typeof result === 'object' && '_tag' in result) {
+      return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
+    }
+    return null;
+  });
 }
 
 // Extend test with Electron app
@@ -144,47 +156,36 @@ const test = base.extend<{
 });
 
 test.describe('Multi-Vault VaultPathSelector E2E', () => {
-  test('should display VaultPathSelector when multiple vault paths exist and allow switching', async ({ appWindow }) => {
+  test('should display VaultPathSelector when multiple vault paths exist and allow switching', async ({ appWindow, openspecPath, testVaultPath }) => {
     test.setTimeout(30000);
 
-    console.log('=== STEP 1: Verify multiple vault paths are loaded ===');
+    console.log('=== STEP 1: Ensure multiple vault paths are loaded ===');
     // Wait for auto-load to complete
     await appWindow.waitForTimeout(500);
 
-    // Check that we have multiple vault paths (primary + openspec auto-added)
-    const vaultPaths = await appWindow.evaluate(async () => {
+    const vaultPaths = await appWindow.evaluate(async (pathToAdd) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
+      const currentPaths = await api.main.getVaultPaths();
+      if (!currentPaths.includes(pathToAdd)) {
+        await api.main.addReadPath(pathToAdd);
+      }
       return await api.main.getVaultPaths();
-    });
+    }, openspecPath);
 
     console.log('Vault paths:', vaultPaths);
-
-    // We should have at least 2 paths (primary vault + openspec)
-    // Note: If defaultAllowlistPatterns doesn't include 'openspec', we'll only have 1
-    if (vaultPaths.length < 2) {
-      console.log('Only 1 vault path found - VaultPathSelector will not be visible');
-      console.log('This is expected if openspec pattern is not in settings.defaultAllowlistPatterns');
-      // Skip the rest of the test if we don't have multiple vaults
-      return;
-    }
-
     expect(vaultPaths.length).toBeGreaterThanOrEqual(2);
+    expect(vaultPaths).toContain(openspecPath);
     console.log('Multiple vault paths confirmed:', vaultPaths.length);
 
     console.log('=== STEP 2: Verify VaultPathSelector is visible ===');
-    // The VaultPathSelector should appear when there are multiple vault paths
-    // It renders when vaultPaths.length > 0
-    // The VaultPathSelector button has title="Write Path: ..."
     const selectorButton = appWindow.locator('button[title^="Write Path:"]');
     const selectorExists = await selectorButton.isVisible({ timeout: 5000 }).catch(() => false);
 
     expect(selectorExists).toBe(true);
     console.log('VaultPathSelector button is visible');
 
-    console.log('=== STEP 3: Click to open dropdown ===');
-    // Click the selector button to open dropdown via JavaScript to avoid overlay interception
-    // The VaultPathSelector button has title="Write Path: ..."
+    console.log('=== STEP 3: Click to open folder tree sidebar ===');
     await appWindow.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const selectorBtn = buttons.find(b => b.getAttribute('title')?.startsWith('Write Path:'));
@@ -193,105 +194,76 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
       }
     });
 
-    // Wait for dropdown to appear
-    // The dropdown header shows "Markdown folders (select write destination)"
-    await appWindow.waitForSelector('text=Markdown folders', { timeout: 3000 });
-    console.log('Dropdown opened');
+    await appWindow.waitForSelector('[data-testid="folder-tree-sidebar"]', { state: 'visible', timeout: 5000 });
+    console.log('Folder tree sidebar opened');
 
-    console.log('=== STEP 4: Verify dropdown lists all vault paths ===');
-    // Check that both paths are listed in dropdown
-    const dropdownContent = await appWindow.evaluate(() => {
-      const dropdown = document.querySelector('.absolute.bottom-full');
-      return dropdown?.textContent ?? '';
+    console.log('=== STEP 4: Verify sidebar lists the openspec folder ===');
+    await appWindow.evaluate((rootPath) => {
+      const rootRow = Array.from(document.querySelectorAll('.folder-tree-folder'))
+        .find(row => row.getAttribute('title') === rootPath);
+      if (rootRow && !rootRow.parentElement?.querySelector('.folder-tree-children')) {
+        (rootRow as HTMLElement).click();
+      }
+    }, testVaultPath);
+    await appWindow.locator(`.folder-tree-folder[title="${openspecPath}"]`).waitFor({ state: 'visible', timeout: 5000 });
+    const sidebarContent = await appWindow.evaluate(() => {
+      const sidebar = document.querySelector('[data-testid="folder-tree-sidebar"]');
+      return sidebar?.textContent ?? '';
     });
 
-    console.log('Dropdown content:', dropdownContent);
-    // The dropdown should list folder names (relative paths show full temp path but folder name is extracted)
-    expect(dropdownContent).toContain('openspec');
+    console.log('Sidebar content:', sidebarContent);
+    expect(sidebarContent).toContain('openspec');
 
     console.log('=== STEP 5: Get initial default write path ===');
-    const initialDefaultPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWritePath();
-      // Handle fp-ts Option type
-      if (result && typeof result === 'object' && '_tag' in result) {
-        return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
-      }
-      return null;
-    });
+    let initialDefaultPath = await getWritePath(appWindow);
+    if (initialDefaultPath?.includes('openspec')) {
+      await appWindow.evaluate(async (fallbackPath) => {
+        const api = (window as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        await api.main.setWritePath(fallbackPath);
+      }, testVaultPath);
+      await expect.poll(() => getWritePath(appWindow), { timeout: 5000 }).toBe(testVaultPath);
+      initialDefaultPath = await getWritePath(appWindow);
+    }
 
     console.log('Initial default write path:', initialDefaultPath);
     expect(initialDefaultPath).toBeTruthy();
-    // Initial default should NOT be openspec (it should be the primary vault)
     expect(initialDefaultPath).not.toContain('openspec');
 
-    console.log('=== STEP 6: Click openspec to change default write path ===');
-    // Find and click the circle (○) button for the openspec row to select it as write destination
-    // Each path row has: [checkmark/circle button] [path text button] [other buttons]
-    // We need to click the circle button (○) for the non-selected path (openspec)
-    await appWindow.evaluate(() => {
-      const dropdown = document.querySelector('.absolute.bottom-full');
-      if (dropdown) {
-        // Find all rows in the dropdown
-        const rows = Array.from(dropdown.querySelectorAll('div[title]'));
-        const openspecRow = rows.find(row => row.getAttribute('title')?.includes('openspec'));
-        if (openspecRow) {
-          // Find the select button (contains ○ for unselected paths)
-          const selectButton = Array.from(openspecRow.querySelectorAll('button')).find(
-            b => b.textContent?.includes('\u25CB') // ○ character
-          );
-          if (selectButton) {
-            selectButton.click();
-          }
-        }
+    console.log('=== STEP 6: Click openspec write-target control ===');
+    await appWindow.evaluate((pathToSelect) => {
+      const row = Array.from(document.querySelectorAll('.folder-tree-folder'))
+        .find(folder => folder.getAttribute('title') === pathToSelect);
+      const setWriteButton = row?.querySelector('.folder-tree-set-write-btn');
+      if (!(setWriteButton instanceof HTMLElement)) {
+        throw new Error(`Set write target button not found for ${pathToSelect}`);
       }
-    });
-
-    // Wait for dropdown to close
-    await appWindow.waitForTimeout(500);
+      setWriteButton.click();
+    }, openspecPath);
 
     console.log('=== STEP 7: Verify default write path changed ===');
-    const newDefaultPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      const result = await api.main.getWritePath();
-      // Handle fp-ts Option type
-      if (result && typeof result === 'object' && '_tag' in result) {
-        return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
-      }
-      return null;
-    });
+    await expect.poll(() => getWritePath(appWindow), { timeout: 5000 }).toBe(openspecPath);
+    const newDefaultPath = await getWritePath(appWindow);
 
     console.log('New default write path:', newDefaultPath);
-    expect(newDefaultPath).toBeTruthy();
     expect(newDefaultPath).toContain('openspec');
     expect(newDefaultPath).not.toBe(initialDefaultPath);
 
     console.log('=== STEP 8: Verify UI reflects the change ===');
-    // The button should now show 'openspec' as the current selection
-    // The VaultPathSelector button has title="Write Path: ..."
-    const buttonText = await appWindow.evaluate(() => {
-      // Find the VaultPathSelector button by its title attribute
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const foundButton = buttons.find(b => b.getAttribute('title')?.startsWith('Write Path:'));
-      return foundButton?.textContent ?? '';
-    });
-
-    console.log('Selector button text:', buttonText);
-    expect(buttonText).toContain('openspec');
+    await expect(selectorButton).toContainText('openspec', { timeout: 5000 });
+    console.log('Selector button text:', await selectorButton.textContent());
 
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('VaultPathSelector E2E test completed successfully:');
     console.log('- Multiple vault paths detected');
-    console.log('- VaultPathSelector dropdown visible');
-    console.log('- All vault paths listed in dropdown');
-    console.log('- Default write path switchable via UI');
+    console.log('- Folder tree sidebar visible');
+    console.log('- All vault paths listed in sidebar');
+    console.log('- Default write path switchable via sidebar');
     console.log('- UI updates to reflect new selection');
   });
 
-  test('should hide VaultPathSelector when only one vault path exists', async ({ electronApp: _electronApp }) => {
+  test('should handle a project with only one vault path', async () => {
     test.setTimeout(20000);
 
     // Create a test vault WITHOUT openspec folder
@@ -337,21 +309,14 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
       });
 
       console.log('Single vault test - vault paths:', vaultPaths);
-
-      // With only 1 vault path, VaultPathSelector SHOULD still render
-      // (returns null only when vaultPaths.length === 0)
-      // However, with a single vault, the user doesn't need to switch, so it's less prominent
       const selectorVisible = await window.locator('button[title^="Write Path:"]').isVisible().catch(() => false);
 
-      // Note: The component only returns null when there are NO paths (length === 0)
-      // With 1+ paths, it renders to allow adding more paths
       if (vaultPaths.length === 0) {
-        // Component returns null when no paths
         expect(selectorVisible).toBe(false);
         console.log('No vault paths - VaultPathSelector correctly hidden');
-      } else if (vaultPaths.length === 1) {
-        // With single vault, selector should still be visible
-        console.log('Single vault path - VaultPathSelector visibility:', selectorVisible);
+      } else {
+        expect(selectorVisible).toBe(true);
+        console.log('Loaded vault path - VaultPathSelector visible:', selectorVisible);
       }
 
       console.log('Test passed: VaultPathSelector behavior correct for single vault');

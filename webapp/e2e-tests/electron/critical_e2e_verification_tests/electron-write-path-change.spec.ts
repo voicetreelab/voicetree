@@ -198,7 +198,7 @@ test.describe('Write Path Change Bug', () => {
     }, secondVaultPath);
 
     console.log('Add vault path result:', addResult);
-    expect(addResult.success).toBe(true);
+    expect(addResult.readPaths).toContain(secondVaultPath);
 
     // Verify we now have 2 vault paths
     const updatedVaultPaths = await appWindow.evaluate(async () => {
@@ -219,7 +219,7 @@ test.describe('Write Path Change Bug', () => {
     }, secondVaultPath);
 
     console.log('Set default write path result:', setResult);
-    expect(setResult.success).toBe(true);
+    expect(setResult.writePath).toBe(secondVaultPath);
 
     // Verify default write path changed
     const newDefaultPath = await appWindow.evaluate(async () => {
@@ -380,7 +380,7 @@ test.describe('Write Path Change Bug', () => {
     }, secondVaultPath);
 
     console.log('Add second-vault result:', addResult);
-    expect(addResult.success).toBe(true);
+    expect(addResult.readPaths).toContain(secondVaultPath);
 
     // Step 2b: Set new write path
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
@@ -390,7 +390,7 @@ test.describe('Write Path Change Bug', () => {
     }, secondVaultPath);
 
     console.log('Set write path to second-vault result:', setResult);
-    expect(setResult.success).toBe(true);
+    expect(setResult.writePath).toBe(secondVaultPath);
 
     // Step 2c: Remove old path (this is what should remove the nodes from graph)
     const removeResult = await appWindow.evaluate(async (primaryPath: string) => {
@@ -400,7 +400,8 @@ test.describe('Write Path Change Bug', () => {
     }, primaryVaultPath);
 
     console.log('Remove primary path result:', removeResult);
-    expect(removeResult.success).toBe(true);
+    expect(removeResult.readPaths).not.toContain(primaryVaultPath);
+    expect(removeResult.writePath).toBe(secondVaultPath);
 
     // Wait for graph update to propagate
     await appWindow.waitForTimeout(1000);

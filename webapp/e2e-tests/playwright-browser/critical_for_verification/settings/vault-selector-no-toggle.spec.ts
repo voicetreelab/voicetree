@@ -13,7 +13,6 @@ import {
   waitForCytoscapeReady,
   createTestGraphDelta,
   sendGraphDelta,
-  selectMockProject
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
 /**
@@ -82,8 +81,16 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         // App support path (used by VaultPathSelector to derive home directory)
         getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
 
-        // Frontend ready signal (no-op for tests)
-        markFrontendReady: async () => {},
+        markFrontendReady: async () => { setTimeout(broadcastVaultState, 10); },
+        getLiveStateSnapshot: async () => ({
+          graph: { nodes: [], edges: [] },
+          roots: { loaded: [], folderTree: [] },
+          collapseSet: [],
+          selection: [],
+          layout: { positions: [] },
+          meta: { schemaVersion: 1 },
+        }),
+        createDatedVoiceTreeFolder: async () => {},
 
         // UI-edge graph delta operations
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
@@ -276,174 +283,76 @@ const test = base.extend<{ consoleCapture: { logs: string[]; errors: string[] } 
 
 test.describe('VaultPathSelector without showAll toggle', () => {
   test('should not render eye icon toggle for readPaths', async ({ page, consoleCapture: _consoleCapture }) => {
-    console.log('=== Starting VaultPathSelector eye icon toggle removal test ===');
-
-    // Step 1: Setup mock Electron API with vault methods
     await setupMockElectronAPIWithVault(page);
-    console.log('✓ Mock Electron API with vault methods prepared');
-
-    // Step 2: Navigate to app
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    // Step 3: Wait for Cytoscape
     await waitForCytoscapeReady(page);
-    console.log('✓ Cytoscape initialized');
 
-    // Step 4: Send test graph to ensure app is in a working state
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(100);
-    console.log('✓ Test graph loaded');
+    await page.waitForTimeout(200);
 
-    // Step 5: Find and click the VaultPathSelector button
-    // It should have title starting with "Write Path:"
-    const selectorButton = page.locator('button[title^="Write Path:"]');
-    await expect(selectorButton).toBeVisible({ timeout: 5000 });
-    console.log('✓ VaultPathSelector button is visible');
+    // FolderTreeSidebar opens by default (isOpen: true in fresh localStorage)
+    const sidebar = page.locator('[data-testid="folder-tree-sidebar"]');
+    await expect(sidebar).toBeVisible({ timeout: 5000 });
 
-    // Click to open dropdown
-    await selectorButton.click();
-    await page.waitForTimeout(100);
+    // Verify NO eye icon exists anywhere in the sidebar
+    const eyeIconButtons = sidebar.locator('button').filter({ has: page.locator('text=👁') });
+    expect(await eyeIconButtons.count()).toBe(0);
 
-    // Step 6: Verify dropdown is open (use more specific selector)
-    const dropdown = page.locator('.absolute.bottom-full.bg-card');
-    await expect(dropdown).toBeVisible({ timeout: 3000 });
-    console.log('✓ Dropdown opened');
+    // No "show all" buttons
+    const showAllButtons = sidebar.locator('button[title*="show all" i], button[title*="Show all" i]');
+    expect(await showAllButtons.count()).toBe(0);
 
-    // Step 7: Verify NO eye icon exists in the dropdown
-    // Eye icons would have been 👁 or 👁‍🗨 emoji in buttons
-    const eyeIconButtons = page.locator('.absolute.bottom-full.bg-card button').filter({
-      has: page.locator('text=👁')
-    });
-
-    const eyeIconCount = await eyeIconButtons.count();
-    console.log(`  Eye icon button count: ${eyeIconCount}`);
-
-    // ASSERTION: No eye icons should exist
-    expect(eyeIconCount).toBe(0);
-    console.log('✓ No eye icon toggle found in dropdown');
-
-    // Alternative check: Look for any button with "show all" in title
-    const showAllButtons = dropdown.locator('button[title*="show all" i], button[title*="Show all" i]');
-    const showAllCount = await showAllButtons.count();
-    console.log(`  "Show all" button count: ${showAllCount}`);
-
-    expect(showAllCount).toBe(0);
-    console.log('✓ No "show all" toggle buttons found');
-
-    // Step 8: Verify data-testid elements don't exist (if using data-testid approach)
-    const showAllToggle = page.locator('[data-testid="show-all-toggle"]');
+    // No data-testid for show-all toggle
+    const showAllToggle = sidebar.locator('[data-testid="show-all-toggle"]');
     await expect(showAllToggle).toHaveCount(0);
-    console.log('✓ No data-testid="show-all-toggle" element found');
-
-    console.log('');
-    console.log('=== TEST PASSED: Eye icon toggle is removed ===');
   });
 
-  test('should still allow adding and removing readPaths', async ({ page, consoleCapture: _consoleCapture }) => {
-    console.log('=== Starting VaultPathSelector add/remove path test ===');
-
-    // Setup
+  test('should still allow adding readPaths via folder search', async ({ page, consoleCapture: _consoleCapture }) => {
     await setupMockElectronAPIWithVault(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(200);
 
-    // Open dropdown
-    const selectorButton = page.locator('button[title^="Write Path:"]');
-    await expect(selectorButton).toBeVisible({ timeout: 5000 });
-    await selectorButton.click();
-    await page.waitForTimeout(100);
+    const sidebar = page.locator('[data-testid="folder-tree-sidebar"]');
+    await expect(sidebar).toBeVisible({ timeout: 5000 });
 
-    // Verify dropdown is open (use more specific selector)
-    const dropdown = page.locator('.absolute.bottom-full.bg-card');
-    await expect(dropdown).toBeVisible({ timeout: 3000 });
-    console.log('✓ Dropdown opened');
+    // Find the footer add-folder input
+    const addInput = sidebar.locator('input[placeholder="+ Add folder..."]');
+    await expect(addInput).toBeVisible();
 
-    // Find the input field for adding folders (placeholder is "Add folder...")
-    const addPathInput = dropdown.locator('input[placeholder*="Add folder"]');
-    await expect(addPathInput).toBeVisible();
-    console.log('✓ Add folder input visible');
+    // Type a query to trigger getAvailableFoldersForSelector
+    await addInput.fill('folder');
+    await page.waitForTimeout(300);
 
-    // Verify the "Read" and "Write" action buttons are available
-    // These appear when hovering over available folders, but verify the pattern exists
-    // The available folders section should be rendered with action buttons
-    const availableFoldersSection = dropdown.locator('.max-h-\\[280px\\].overflow-y-auto');
-    await expect(availableFoldersSection).toBeVisible();
-    console.log('✓ Available folders section visible');
+    // Results should appear with add buttons
+    const results = sidebar.locator('.folder-tree-add-results');
+    await expect(results).toBeVisible({ timeout: 3000 });
 
-    // Verify remove buttons exist for non-write paths (− buttons)
-    // The write path has a reset button, and read paths have remove buttons
-    const removeButtons = dropdown.locator('button:has-text("−")');
-    const removeCount = await removeButtons.count();
-    console.log(`  Remove button count: ${removeCount}`);
-
-    // Should have at least one remove button (for read paths or write path reset)
-    // The UI always shows at least one "−" button for paths
-    expect(removeCount).toBeGreaterThan(0);
-    console.log('✓ Remove/reset path buttons exist');
-
-    console.log('');
-    console.log('=== TEST PASSED: Add/remove functionality still works ===');
+    const addButtons = results.locator('.folder-tree-add-result-btn');
+    expect(await addButtons.count()).toBeGreaterThan(0);
   });
 
-  test('should display readPaths without toggle state indicator', async ({ page, consoleCapture: _consoleCapture }) => {
-    console.log('=== Starting VaultPathSelector display without toggle indicator test ===');
-
-    // Setup
+  test('should display sidebar without toggle state indicators', async ({ page, consoleCapture: _consoleCapture }) => {
     await setupMockElectronAPIWithVault(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(200);
 
-    // Open dropdown
-    const selectorButton = page.locator('button[title^="Write Path:"]');
-    await expect(selectorButton).toBeVisible({ timeout: 5000 });
-    await selectorButton.click();
-    await page.waitForTimeout(100);
+    const sidebar = page.locator('[data-testid="folder-tree-sidebar"]');
+    await expect(sidebar).toBeVisible({ timeout: 5000 });
 
-    // Verify dropdown is open (use more specific selector)
-    const dropdown = page.locator('.absolute.bottom-full.bg-card');
-    await expect(dropdown).toBeVisible({ timeout: 3000 });
-
-    // Get all elements with title attribute containing paths (spans for display, buttons for actions)
-    // The component uses span[title] for path display and button[title] for path-related actions
-    const pathRows = dropdown.locator('span[title], button[title]');
-    const rowCount = await pathRows.count();
-    console.log(`  Path elements with title count: ${rowCount}`);
-
-    // Verify we have path rows
-    expect(rowCount).toBeGreaterThan(0);
-
-    // Verify none of the rows have visual indicators of "show all" state
-    // In the original implementation, isShowAll would change the icon color
-    // After removal, there should be no such indicators
-    for (let i = 0; i < rowCount; i++) {
-      const row = pathRows.nth(i);
-      const rowHtml = await row.innerHTML();
-
-      // Verify no eye emoji or similar toggles
-      expect(rowHtml).not.toContain('👁');
-      expect(rowHtml).not.toContain('show all');
-      expect(rowHtml).not.toContain('showAll');
-    }
-
-    console.log('✓ Path rows display without toggle state indicators');
-    console.log('');
-    console.log('=== TEST PASSED: No toggle state indicators in path display ===');
+    // Get sidebar HTML and verify no toggle indicators
+    const sidebarHtml = await sidebar.innerHTML();
+    expect(sidebarHtml).not.toContain('👁');
+    expect(sidebarHtml).not.toContain('show-all-toggle');
+    expect(sidebarHtml).not.toContain('showAll');
   });
 });
 

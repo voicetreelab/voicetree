@@ -23,6 +23,7 @@ import {calculateNodePosition} from "@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from "@vt/graph-model/pure/graph/positioning/spatialAdapters";
 import type {SpatialIndex} from "@vt/graph-model/pure/graph/spatial";
 import {requestAutoPinOnCreation} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
+import {createGraph} from "@vt/graph-model/pure/graph/createGraph";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -54,14 +55,25 @@ export async function createNewChildNodeFromUI(
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner
     }
-    // Get parent node from graph
-    const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
+    const graphParentNode: GraphNode | undefined = currentGraph.nodes[parentNodeId];
+    const parentNode: GraphNode | undefined = graphParentNode ?? await window.electronAPI?.main.getNode(parentNodeId);
+    if (!parentNode) {
+        console.error(`Cannot create child node: parent node not found (${parentNodeId})`);
+        return "-1";
+    }
 
-    const spatialIndexToUse: SpatialIndex = spatialIndex ?? buildSpatialIndexFromGraph(currentGraph);
-    const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(currentGraph, spatialIndexToUse, parentNodeId));
+    const graphForChildCreation: Graph = graphParentNode
+        ? currentGraph
+        : createGraph({
+            ...currentGraph.nodes,
+            [parentNodeId]: parentNode,
+        });
+
+    const spatialIndexToUse: SpatialIndex = spatialIndex ?? buildSpatialIndexFromGraph(graphForChildCreation);
+    const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graphForChildCreation, spatialIndexToUse, parentNodeId));
 
     // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode, "# ", undefined, O.some(position));
+    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(graphForChildCreation, parentNode, "# ", undefined, O.some(position));
     const newNode: GraphNode = (graphDelta[0] as UpsertNodeDelta).nodeToUpsert;
 
     // GRAPH UI CHANGE path: update editor passively BEFORE writing to FS
@@ -175,4 +187,3 @@ function deduplicateDelta(delta: GraphDelta): GraphDelta {
 
     return [...deleteDeltas, ...upsertDeltas]
 }
-

@@ -215,6 +215,26 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(distance).toBeLessThan(1000)
     })
 
+    it('should create a child when the graph snapshot is missing the parent but getNode can load it', async () => {
+        // GIVEN: The renderer has a selected parent, but the graph snapshot is stale/missing it
+        const parentNode: GraphNode = mockGraph.nodes['parent.md']
+        const staleGraph: Graph = createGraph({
+            'child1.md': mockGraph.nodes['child1.md']
+        })
+        mockGraph = staleGraph
+        ;(global.window as any).electronAPI.main.getNode = vi.fn((nodeId: string) =>
+            nodeId === 'parent.md' ? parentNode : mockGraph.nodes[nodeId]
+        )
+
+        // WHEN: Creating a child from the selected parent
+        const result: string = await createNewChildNodeFromUI('parent.md', cy)
+
+        // THEN: The UI path should recover instead of passing undefined into child creation
+        expect(result).toBe('parent_1.md')
+        expect((global.window as any).electronAPI.main.getNode).toHaveBeenCalledWith('parent.md')
+        expect((global.window as any).electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
+    })
+
     it('should extract labels correctly via markdownToTitle for different content types', async () => {
         // Test heading extraction
         const headingNode: cytoscape.CollectionReturnValue = cy.getElementById('parent.md')

@@ -9,7 +9,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import {
   waitForCytoscapeReady,
-  selectMockProject,
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
 
@@ -224,11 +223,6 @@ test.describe('Agent Statistics Panel - Recent Sessions', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('OK React rendered');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -302,9 +296,6 @@ test.describe('Agent Statistics Panel - Recent Sessions', () => {
     await setupMockElectronAPIWithSessions(page, sessions);
 
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(50);
     await waitForCytoscapeReady(page);
 
     await page.evaluate(() => {

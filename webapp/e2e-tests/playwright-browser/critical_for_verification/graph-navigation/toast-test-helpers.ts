@@ -9,7 +9,6 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   createTestGraphDelta,
   sendGraphDelta,
   waitForCytoscapeReady,
@@ -33,9 +32,6 @@ export const DEBOUNCE_WAIT = 300;
 export async function setupGraphAndFit(page: Page): Promise<void> {
   await setupMockElectronAPI(page);
   await page.goto('/');
-  await selectMockProject(page);
-  await page.waitForSelector('#root', { timeout: 5000 });
-  await page.waitForTimeout(50);
   await waitForCytoscapeReady(page);
 
   const graphDelta = createTestGraphDelta();
@@ -64,9 +60,6 @@ export async function setupGraphAndFit(page: Page): Promise<void> {
 export async function setupEmptyGraph(page: Page): Promise<void> {
   await setupMockElectronAPI(page);
   await page.goto('/');
-  await selectMockProject(page);
-  await page.waitForSelector('#root', { timeout: 5000 });
-  await page.waitForTimeout(50);
   await waitForCytoscapeReady(page);
 }
 

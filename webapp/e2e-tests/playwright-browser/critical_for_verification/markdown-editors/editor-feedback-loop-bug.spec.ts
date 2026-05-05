@@ -20,7 +20,6 @@
 import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
-  selectMockProject,
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
@@ -208,11 +207,6 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
-    console.log('✓ React rendered');
-
-    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -312,8 +306,6 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     await setupMockWithFilesystemFeedback(page);
     await page.goto('/');
-    await selectMockProject(page);
-    await page.waitForSelector('#root', { timeout: 5000 });
     await waitForCytoscapeReady(page);
 
     const nodeId = 'test-rapid-edits.md';

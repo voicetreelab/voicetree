@@ -7,6 +7,7 @@ import {
     agentSpawn,
     agentWait,
 } from './commands/agent.ts'
+import {runDebugCommand} from './commands/debug.ts'
 import {runSessionCommand} from './commands/session.ts'
 import {runVaultCommand} from './commands/vault.ts'
 import {runViewCommand} from './commands/view.ts'
@@ -35,6 +36,7 @@ Commands:
   agent close     Close an agent terminal
   agent send      Send a message to an agent terminal
   agent output    Read buffered agent output
+  debug <cmd>     Run vt-debug subcommands (ls, eval, run, screenshot, ...)
   graph view      Render a folder as tree-cover with progressive-disclosure collapse (default)
   graph create    Create progress nodes in the graph
   graph index     Build a local semantic search index for a vault
@@ -317,6 +319,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'search':
             await dispatchSearchCommand(port, terminalId, commandArgs.slice(1))
+            return
+        case 'debug':
+            await runDebugCommand(commandArgs.slice(1))
             return
         default:
             error(`Unknown command: ${command}`)

@@ -1,6 +1,7 @@
 import path from 'node:path'
-import {buildIndex, search, SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-model'
-import {error, output} from '../output.ts'
+import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
+import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
+import {error, output} from '@/shell/edge/main/cli/commands/output.ts'
 
 type GraphIndexSuccess = {
     success: true
@@ -47,10 +48,10 @@ function parseGraphIndexArgs(args: string[]): string {
 }
 
 function parseGraphSearchArgs(args: string[]): {vaultPath: string; query: string; topK: number} {
-    let topK = 10
+    let topK: number = 10
     const positionalArgs: string[] = []
 
-    for (let index = 0; index < args.length; index += 1) {
+    for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
         if (arg === '--top-k') {
             topK = parsePositiveInteger(getRequiredValue(args, index + 1, '--top-k'), '--top-k')
