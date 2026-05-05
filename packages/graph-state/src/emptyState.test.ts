@@ -1,17 +1,16 @@
-import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { expect, test } from 'vitest'
 
 import { emptyState } from './emptyState'
 
 test('emptyState returns a revision-0 empty state', () => {
     const state = emptyState()
 
-    assert.equal(state.meta.schemaVersion, 1)
-    assert.equal(state.meta.revision, 0)
-    assert.deepEqual(Object.keys(state.graph.nodes), [])
-    assert.equal(state.roots.loaded.size, 0)
-    assert.equal(state.roots.folderTree.length, 0)
-    assert.equal(state.collapseSet.size, 0)
-    assert.equal(state.selection.size, 0)
-    assert.equal(state.layout.positions.size, 0)
+    expect(state.meta.schemaVersion).toBe(1)
+    expect(state.meta.revision).toBe(0)
+    expect(Object.keys(state.graph.nodes)).toEqual([])
+    expect(state.roots.loaded.size).toBe(0)
+    expect(state.roots.folderTree.length).toBe(0)
+    expect(state.collapseSet.size).toBe(0)
+    expect(state.selection.size).toBe(0)
+    expect(state.layout.positions.size).toBe(0)
 })

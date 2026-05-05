@@ -127,6 +127,27 @@ export type {
     LoadedRootsSubscriber,
 } from './state/loadedRootsStore'
 
+export {
+    deriveFolderVisibilityFromLegacy,
+    deriveLegacyFromFolderVisibility,
+    ensureTrailingSlash,
+    stripTrailingSlash,
+} from './state/folderVisibility/derive'
+
+export {
+    deriveImplicitRoots,
+    deriveWatchRoots,
+} from './state/folderVisibility/implicitRoots'
+
+export type {
+    AbsolutePath,
+    FolderState,
+    FolderVisibilityState,
+    LegacyVisibilitySnapshot,
+} from './state/folderVisibility/types'
+
+export { getFolderVisibility } from './state/folderVisibilityStore'
+
 export type {
     SnapshotDocument,
     SequenceDocument,
