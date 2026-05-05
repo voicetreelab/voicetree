@@ -10,6 +10,7 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
@@ -17,7 +18,8 @@ import { expect } from '@playwright/test'
 // Paths
 // ---------------------------------------------------------------------------
 
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..')
+const dirname = path.dirname(fileURLToPath(import.meta.url))
+const PROJECT_ROOT = path.resolve(dirname, '..', '..', '..', '..')
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small')
 
 export { PROJECT_ROOT, FIXTURE_VAULT_PATH }

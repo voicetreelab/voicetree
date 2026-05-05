@@ -5,9 +5,15 @@
     "packages/*"
   ],
   "scripts": {
+    "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests",
+    "check:e2e-taxonomy": "npm --workspace webapp run check:e2e-taxonomy",
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
     "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs",
-    "lint:blackbox-tests": "bash scripts/lint-blackbox-tests.sh"
+    "lint:blackbox-tests": "bash scripts/lint-blackbox-tests.sh",
+    "test:e2e:tier1": "npm --workspace webapp run test:e2e:tier1",
+    "test:e2e:tier2": "npm --workspace webapp run test:e2e:tier2",
+    "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
+    "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",

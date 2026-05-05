@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 /**
- * Playwright configuration for Electron E2E e2e-tests
+ * Tier 2 Playwright configuration for Electron subsystem verification tests.
+ *
  * This configuration is specifically for testing the Electron application
  * with real file system operations and the complete IPC pipeline.
  */

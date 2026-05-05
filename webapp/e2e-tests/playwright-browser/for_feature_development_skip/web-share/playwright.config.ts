@@ -27,14 +27,14 @@ export default defineConfig({
   webServer: [
     {
       command: 'npx wrangler dev --port 8787 --local --persist-to .wrangler/state/e2e',
-      cwd: '../../../workers/share-worker',
+      cwd: '../../../../workers/share-worker',
       url: 'http://localhost:8787',
       reuseExistingServer: true,
       timeout: 15_000,
     },
     {
       command: 'npx vite --config vite.web.config.ts --port 3002',
-      cwd: '../../..',
+      cwd: '../../../..',
       url: 'http://localhost:3002',
       reuseExistingServer: true,
       timeout: 15_000,

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+  // Tier 2: curated browser subsystem verification.
   testDir: './e2e-tests/playwright-browser/critical_for_verification',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
