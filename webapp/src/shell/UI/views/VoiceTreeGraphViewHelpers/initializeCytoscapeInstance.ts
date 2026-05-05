@@ -87,7 +87,7 @@ export function initializeCytoscapeInstance(config: CytoscapeInitConfig): Cytosc
                 webgl: true,
                 showFps,
                 webglDebug: false,
-                webglTexSize: 4096,
+                webglTexSize: 2048,
                 webglTexRows: 24,
                 webglBatchSize: 2048,
                 webglTexPerBatch: 16
