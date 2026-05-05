@@ -5,26 +5,21 @@
  * Each function should be defined in its own module.
  */
 
-import {
-    applyGraphDeltaToDBThroughMemAndUI
-} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
+import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-model'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
-import {getDirectoryTree} from './graph/watch_folder/folder-scanner'
+import {getDirectoryTree} from '@vt/graph-model'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
-import {createContextNode} from "@/shell/edge/main/graph/context-nodes/createContextNode";
-import {getPreviewContainedNodeIds} from "@/shell/edge/main/graph/context-nodes/getPreviewContainedNodeIds";
+import {createContextNode, getPreviewContainedNodeIds} from '@vt/graph-model'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
-import {performUndo, performRedo} from './graph/undoOperations'
+import {performUndo, performRedo} from '@vt/graph-model'
 import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
 import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
 import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
 import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
-} from "@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange";
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
@@ -32,7 +27,7 @@ import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-clien
 import {getMcpPort} from './mcp-server/mcp-server';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
-import {findFileByName} from './graph/loading/findFileByName';
+import {findFileByName} from '@vt/graph-model';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
@@ -47,13 +42,7 @@ import {
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
-import {
-  getStarredFolders,
-  addStarredFolder,
-  removeStarredFolder,
-  isStarred,
-  copyNodeToFolder,
-} from './graph/watch_folder/starred-folders';
+import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from '@vt/graph-model';
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,

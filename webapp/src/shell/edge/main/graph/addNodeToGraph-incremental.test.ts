@@ -7,9 +7,8 @@ import * as E from 'fp-ts/lib/Either.js'
 import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import { loadGraphFromDisk, type FileLimitExceededError } from '@vt/graph-model'
 import { mapFSEventsToGraphDelta } from '@vt/graph-model/pure/graph/mapFSEventsToGraphDelta'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
 
 function findNodeByFilename(graph: Graph, relativePathOrFilename: string): GraphNode | undefined {
   const normalized: string = relativePathOrFilename.replace(/\\/g, '/')

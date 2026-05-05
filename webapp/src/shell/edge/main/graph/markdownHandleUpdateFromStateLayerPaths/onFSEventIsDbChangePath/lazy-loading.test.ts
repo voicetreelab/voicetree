@@ -3,10 +3,9 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk, isReadPath, extractLinkTargets, resolveLinkTarget } from './loadGraphFromDisk'
+import { loadGraphFromDisk, isReadPath, extractLinkTargets, resolveLinkTarget, type FileLimitExceededError } from '@vt/graph-model'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph'
 import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from './fileLimitEnforce'
 
 /**
  * Tests for isReadPath helper and resolveLinkedNodesInWatchedFolder.
@@ -219,7 +218,7 @@ End of chain.`
     })
 
     it('should resolve linked nodes in watched folder using resolve-on-link', async () => {
-        const { resolveLinkedNodesInWatchedFolder } = await import('./loadGraphFromDisk')
+        const { resolveLinkedNodesInWatchedFolder } = await import('@vt/graph-model')
 
         // First load just the writePath
         const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(

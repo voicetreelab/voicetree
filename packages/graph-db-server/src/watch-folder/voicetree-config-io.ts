@@ -19,29 +19,66 @@ type PersistedVaultConfig = VaultConfig & {
 
 export interface VoiceTreeConfig {
     lastDirectory?: string;
-    vaultConfig?: { [folderPath: string]: PersistedVaultConfig };
+    vaultConfig?: { [folderPath: string]: VaultConfig };
+}
+
+interface PersistedVoiceTreeConfig {
+    readonly lastDirectory?: string;
+    readonly vaultConfig?: { readonly [folderPath: string]: PersistedVaultConfig };
+}
+
+function stripLegacyVaultConfig(config: PersistedVoiceTreeConfig): VoiceTreeConfig {
+    const cleaned: VoiceTreeConfig = {};
+    if (config.lastDirectory !== undefined) {
+        cleaned.lastDirectory = config.lastDirectory;
+    }
+    if (config.vaultConfig !== undefined) {
+        cleaned.vaultConfig = {};
+        for (const [folderPath, vaultConfig] of Object.entries(config.vaultConfig)) {
+            cleaned.vaultConfig[folderPath] = {
+                writePath: vaultConfig.writePath,
+            };
+        }
+    }
+    return cleaned;
 }
 
 export function getConfigPath(): string {
     return path.join(getConfig().appSupportPath, 'voicetree-config.json');
 }
 
-export async function loadConfig(): Promise<VoiceTreeConfig> {
+const CONFIG_CACHE_TTL_MS: number = 5000;
+let cachedConfig: { readonly path: string; readonly loadedAt: number; readonly config: VoiceTreeConfig } | undefined;
+
+async function loadPersistedConfig(): Promise<PersistedVoiceTreeConfig> {
     const configPath: string = getConfigPath();
     try {
         const data: string = await fs.readFile(configPath, 'utf8');
-        return JSON.parse(data) as VoiceTreeConfig;
+        return JSON.parse(data) as PersistedVoiceTreeConfig;
     } catch {
         return {};
     }
 }
 
+export async function loadConfig(): Promise<VoiceTreeConfig> {
+    const configPath: string = getConfigPath();
+    const now: number = Date.now();
+    if (cachedConfig && cachedConfig.path === configPath && now - cachedConfig.loadedAt < CONFIG_CACHE_TTL_MS) {
+        return cachedConfig.config;
+    }
+    const config: VoiceTreeConfig = stripLegacyVaultConfig(await loadPersistedConfig());
+    cachedConfig = {path: configPath, loadedAt: now, config};
+    return config;
+}
+
 export async function saveConfig(config: VoiceTreeConfig): Promise<void> {
     const configPath: string = getConfigPath();
     try {
+        const cleanConfig: VoiceTreeConfig = stripLegacyVaultConfig(config as PersistedVoiceTreeConfig);
         // Ensure parent directory exists (needed on first run or in tests)
         await fs.mkdir(path.dirname(configPath), { recursive: true });
-        await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify(cleanConfig, null, 2), 'utf8');
+        cachedConfig = {path: configPath, loadedAt: Date.now(), config: cleanConfig};
     } catch (error) {
         console.error('[saveConfig] FAILED to save config:', error);
         throw error;  // Propagate error so callers know save failed
@@ -75,22 +112,17 @@ export async function getVaultConfigForDirectory(directoryPath: string): Promise
 }
 
 export async function hasLegacyReadPathsForDirectory(directoryPath: string): Promise<boolean> {
-    const config: VoiceTreeConfig = await loadConfig();
+    const config: PersistedVoiceTreeConfig = await loadPersistedConfig();
     const vaultConfig: PersistedVaultConfig | undefined = config.vaultConfig?.[directoryPath];
     return vaultConfig !== undefined &&
-        Object.prototype.hasOwnProperty.call(vaultConfig, 'readPaths') &&
-        Array.isArray((vaultConfig as { readPaths?: unknown }).readPaths) &&
-        ((vaultConfig as { readPaths: readonly unknown[] }).readPaths.length > 0);
+        Object.prototype.hasOwnProperty.call(vaultConfig, 'readPaths');
 }
 
 export async function saveVaultConfigForDirectory(directoryPath: string, vaultConfig: VaultConfig): Promise<void> {
     const config: VoiceTreeConfig = await loadConfig();
     config.vaultConfig ??= {};
-    // readPaths: [] is a forward-compatibility shim for older packaged binaries
-    // (pre-BF-241) that iterate this field on load. New code ignores it.
     config.vaultConfig[directoryPath] = {
         writePath: vaultConfig.writePath,
-        readPaths: [],
     };
     await saveConfig(config);
 }

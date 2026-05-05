@@ -8,7 +8,7 @@ import {
     buildMarkdownBody as buildGraphToolsMarkdownBody,
     type BuildMarkdownBodyParams,
     type ComplexityScore,
-} from '../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
+} from '@vt/graph-tools/node'
 
 export type {BuildMarkdownBodyParams, ComplexityScore}
 

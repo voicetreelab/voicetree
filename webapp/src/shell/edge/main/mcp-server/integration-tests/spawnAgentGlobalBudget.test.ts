@@ -17,17 +17,18 @@ vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
     spawnTerminalWithContextNode: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn()
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        getUnseenNodesAroundContextNode: vi.fn(),
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+    }
+})
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getTerminalRecords: vi.fn(),
     recordTerminalSpawn: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
 vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({

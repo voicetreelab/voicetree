@@ -8,9 +8,13 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn()
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        getUnseenNodesAroundContextNode: vi.fn(),
+    }
+})
 
 vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     getTerminalRecords: vi.fn()
@@ -22,7 +26,7 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
 
 import {listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getUnseenNodesAroundContextNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import {getUnseenNodesAroundContextNode} from '@vt/graph-model'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType"
 

@@ -7,8 +7,8 @@ import { getWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
-import { broadcastGraphDeltaToUI } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI'
-import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starred-folders'
+import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
+import { getStarredFolders } from '@vt/graph-db-server/watch-folder/starred-folders'
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -29,6 +29,7 @@ type CurrentDaemonConnection = {
 }
 type DesiredVaultState = Awaited<ReturnType<typeof getDesiredVaultStateForBootstrap>>
 type FolderTreeSyncPayload = Awaited<ReturnType<typeof buildFolderTreeSyncPayload>>
+type NodePosition = GraphNode['nodeUIMetadata']['position']
 
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
 
@@ -74,6 +75,44 @@ function samePan(
   }
 
   return left.x === right.x && left.y === right.y
+}
+
+function graphWithLocalPositionOverlays(
+  daemonGraph: Graph,
+  localGraph: Graph,
+): Graph {
+  let changed: boolean = false
+  const nodes: Record<string, GraphNode> = {}
+
+  for (const [nodeId, daemonNode] of Object.entries(daemonGraph.nodes)) {
+    const localNode: GraphNode | undefined = localGraph.nodes[nodeId]
+    const localPosition: NodePosition | undefined = localNode?.nodeUIMetadata.position
+    if (!localNode || !localPosition || O.isNone(localPosition)) {
+      nodes[nodeId] = daemonNode
+      continue
+    }
+
+    const daemonPosition: NodePosition = daemonNode.nodeUIMetadata.position
+    if (
+      O.isSome(daemonPosition)
+      && daemonPosition.value.x === localPosition.value.x
+      && daemonPosition.value.y === localPosition.value.y
+    ) {
+      nodes[nodeId] = daemonNode
+      continue
+    }
+
+    changed = true
+    nodes[nodeId] = {
+      ...daemonNode,
+      nodeUIMetadata: {
+        ...daemonNode.nodeUIMetadata,
+        position: localPosition,
+      },
+    }
+  }
+
+  return changed ? { ...daemonGraph, nodes } : daemonGraph
 }
 
 async function getCurrentVaultOrThrow(): Promise<string> {
@@ -215,7 +254,8 @@ async function syncRendererFromDaemon(
 
 async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
   const previousGraph: Graph = getLocalGraph()
-  const nextGraph: Graph = await getNormalizedDaemonGraph(client)
+  const daemonGraph: Graph = await getNormalizedDaemonGraph(client)
+  const nextGraph: Graph = graphWithLocalPositionOverlays(daemonGraph, previousGraph)
   const vaultState: VaultState = await client.getVault()
 
   setLocalGraph(nextGraph)
@@ -353,7 +393,7 @@ async function runVaultMutation(
 
 export async function getGraphFromDaemon(): Promise<Graph> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  return await getNormalizedDaemonGraph(client)
+  return graphWithLocalPositionOverlays(await getNormalizedDaemonGraph(client), getLocalGraph())
 }
 
 export async function getNodeFromDaemon(

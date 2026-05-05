@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
@@ -19,9 +19,13 @@ vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
     resetAuditRetryCount: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn()
-}))
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn(),
+    }
+})
 
 // Mock settings
 vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
@@ -38,7 +42,7 @@ import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {parse as mermaidParse} from '@mermaid-js/parser'
 
 type McpToolResponse = {
@@ -506,7 +510,7 @@ describe('MCP create_graph tool', () => {
             const calls: Array<[GraphDelta, boolean | undefined]> =
                 vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
             const creationDelta: GraphDelta = calls[0][0]
-            const childDelta = creationDelta.find(
+            const childDelta: NodeDelta | undefined = creationDelta.find(
                 (entry) => entry.type === 'UpsertNode' && entry.nodeToUpsert.absoluteFilePathIsID === `${WRITE_PATH}/child.md`
             )
 

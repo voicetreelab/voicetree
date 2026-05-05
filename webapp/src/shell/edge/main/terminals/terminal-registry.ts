@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getUnseenNodesAroundContextNode, type UnseenNode} from '@/shell/edge/main/graph/context-nodes/getUnseenNodesAroundContextNode'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-model'
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {sendTextToTerminal} from './send-text-to-terminal'
 
@@ -24,6 +24,23 @@ export type TerminalRecord = {
 }
 
 const terminalRecords: Map<string, TerminalRecord> = new Map()
+
+/**
+ * Pending terminals: spawn_agent has reserved a terminalId but the actual
+ * PTY/process hasn't been registered yet (recordTerminalSpawn hasn't run).
+ *
+ * Lets spawn_agent return its MCP response before the heavy terminal-prep
+ * work completes, while keeping send_message/read_terminal_output safe:
+ *   - send_message queues messages here; recordTerminalSpawn drains them.
+ *   - read_terminal_output returns empty + pending=true.
+ *   - send_message on a pending HEADLESS still errors immediately (same
+ *     contract as a running headless), since headless has no stdin ever.
+ */
+type PendingTerminal = {
+    isHeadless: boolean
+    queuedMessages: string[]
+}
+const pendingTerminals: Map<string, PendingTerminal> = new Map()
 
 /**
  * Tracking state for unseen nodes notifications.
@@ -164,6 +181,12 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
 }
 
 export function recordTerminalSpawn(terminalId: string, terminalData: TerminalData): void {
+    // Capture-and-clear any pending state so the drain below is the last
+    // observer of the queue (no race with concurrent enqueues that arrive
+    // between the spawn-record and the drain).
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    pendingTerminals.delete(terminalId)
+
     terminalRecords.set(terminalId, {
         terminalId,
         terminalData,
@@ -181,6 +204,57 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
     })
 
     pushStateToRenderer()
+
+    // Drain queued messages from the pending phase (if any). sendTextToTerminal
+    // serializes per-terminal and has its own preamble delays, so it tolerates
+    // being called the moment a PTY is registered.
+    if (pending && pending.queuedMessages.length > 0) {
+        for (const queued of pending.queuedMessages) {
+            void sendTextToTerminal(terminalId, queued)
+        }
+    }
+}
+
+/**
+ * Reserve a terminalId before its PTY/process exists. Used by spawn_agent
+ * to return its MCP response early while terminal prep runs in the background.
+ *
+ * No-op if the terminal is already registered (running) — the running record
+ * wins. The pending entry is cleared on recordTerminalSpawn or
+ * clearPendingTerminal (e.g. on spawn failure).
+ */
+export function recordTerminalPending(terminalId: string, isHeadless: boolean): void {
+    if (terminalRecords.has(terminalId)) return
+    if (pendingTerminals.has(terminalId)) return
+    pendingTerminals.set(terminalId, { isHeadless, queuedMessages: [] })
+}
+
+export function getPendingTerminal(terminalId: string): { readonly isHeadless: boolean } | undefined {
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    return pending ? { isHeadless: pending.isHeadless } : undefined
+}
+
+/**
+ * Queue a (pre-formatted) message for a pending terminal. Messages are sent
+ * via sendTextToTerminal in arrival order during recordTerminalSpawn.
+ *
+ * Returns true if queued, false if the terminal isn't pending (caller should
+ * fall through to the normal send path or surface a "not found" error).
+ */
+export function enqueuePendingMessage(terminalId: string, prefixedMessage: string): boolean {
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    if (!pending) return false
+    pending.queuedMessages.push(prefixedMessage)
+    return true
+}
+
+/**
+ * Drop a pending terminal entry without draining. For use when async spawn
+ * prep fails — the caller's MCP response said success, but follow-up tool
+ * calls will now correctly report "Terminal not found".
+ */
+export function clearPendingTerminal(terminalId: string): void {
+    pendingTerminals.delete(terminalId)
 }
 
 export function incrementAuditRetryCount(terminalId: string): void {
@@ -346,10 +420,18 @@ export function getTerminalRecords(): TerminalRecord[] {
 /**
  * Get all existing agent names from the terminal registry.
  * Used for collision detection when spawning new terminals.
+ *
+ * Includes both running terminals and pending reservations so that two
+ * concurrent spawns can't pick the same name in the window between
+ * recordTerminalPending and recordTerminalSpawn.
  */
 export function getExistingAgentNames(): Set<string> {
     const records: TerminalRecord[] = getTerminalRecords();
-    return new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+    const names: Set<string> = new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+    for (const pendingId of pendingTerminals.keys()) {
+        names.add(pendingId);
+    }
+    return names;
 }
 
 export function clearTerminalRecords(): void {
@@ -359,6 +441,7 @@ export function clearTerminalRecords(): void {
     }
     pendingNotificationTimeouts.clear()
     terminalRecords.clear()
+    pendingTerminals.clear()
     notificationStateByTerminal.clear()
     idleSinceByTerminal.clear()
 }

@@ -16,9 +16,9 @@ import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {createContextNodeFromQuestion} from '@/shell/edge/main/graph/context-nodes/createContextNodeFromQuestion';
+import {createContextNodeFromQuestion} from '@vt/graph-model';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWritePath} from "@/shell/edge/main/graph/watch_folder/vault-allowlist";
+import {getWritePath} from '@vt/graph-model';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {

@@ -42,7 +42,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 
 // Re-export types and tool functions for external use
@@ -438,6 +438,7 @@ export async function startMcpServer(): Promise<void> {
     })
 
     app.post('/mcp', async (req, res) => {
+        console.log(`[MCP] arrived ${Date.now()} method=${req.body?.params?.name ?? req.body?.method}`)
         // ⚠️  SUSPICIOUS PATTERN — reviewed 2026-03-21, user flagged for closer review.
         // We create a fresh McpServer per request because sharing one instance causes
         // Protocol._onclose() on completed transports to corrupt shared state (_transport,

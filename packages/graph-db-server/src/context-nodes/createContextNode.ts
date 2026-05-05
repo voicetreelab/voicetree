@@ -120,10 +120,12 @@ export async function createContextNode(
     const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]
 
     // Get semantically relevant nodes via vector search (with 1s timeout)
-    const semanticNodeIds: readonly NodeIdAndFilePath[] = await getSemanticRelevantNodes(
-        parentNode.contentWithoutYamlOrLinks,
-        contextVectorSearchTopK
-    )
+    const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
+        ? await getSemanticRelevantNodes(
+            parentNode.contentWithoutYamlOrLinks,
+            contextVectorSearchTopK
+        )
+        : []
 
     // Get subgraph - union if we have semantic results, otherwise distance-only
     const subgraph: Graph = semanticNodeIds.length > 0
@@ -169,7 +171,7 @@ export async function createContextNode(
         parentTitle,
         maxDistance,
         asciiTree,
-        subgraph,
+        bidirectionalSubgraph,
         semanticNodeIds,
         contextMaxChars
     )
@@ -273,12 +275,11 @@ function getNodeSummaryContent(node: GraphNode, escapedContent: string): string 
  * Nodes not reachable return Infinity.
  */
 function computeNodeDistances(
-    subgraph: Graph,
+    bidirectionalSubgraph: Graph,
     startNodeId: NodeIdAndFilePath
 ): ReadonlyMap<string, number> {
-    const bidirectional: Graph = makeBidirectionalEdges(subgraph)
     const distances: Map<string, number> = new Map()
-    if (!bidirectional.nodes[startNodeId]) return distances
+    if (!bidirectionalSubgraph.nodes[startNodeId]) return distances
 
     distances.set(startNodeId, 0)
     const queue: Array<{id: string; dist: number}> = [{id: startNodeId, dist: 0}]
@@ -287,7 +288,7 @@ function computeNodeDistances(
         const item: {id: string; dist: number} | undefined = queue.shift()
         if (!item) break
         const {id, dist} = item
-        const node: GraphNode | undefined = bidirectional.nodes[id]
+        const node: GraphNode | undefined = bidirectionalSubgraph.nodes[id]
         if (!node) continue
         for (const edge of node.outgoingEdges) {
             if (!distances.has(edge.targetId)) {

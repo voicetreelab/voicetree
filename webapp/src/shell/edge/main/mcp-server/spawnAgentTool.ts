@@ -12,7 +12,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {tryConsumeAndSplitBudget, registerChild} from '@/shell/edge/main/terminals/global-budget-registry'
@@ -159,13 +159,14 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         const taskDescription: string = task
 
         try {
-            // Create task node
+            // Create task node already marked claimed — saves a redundant second write.
             const taskNodeDelta: GraphDelta = createTaskNode({
                 taskDescription,
                 selectedNodeIds: [resolvedParentId],
                 graph,
                 writePath,
-                position: taskNodePosition
+                position: taskNodePosition,
+                initialStatus: 'claimed'
             })
 
             // Extract task node ID from delta
@@ -180,59 +181,29 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 }, true)
             }
 
-            // Apply task node to graph
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
-
-            // Mark task node as claimed
-            const freshGraph: Graph = getGraph()
-            const freshTaskNode: GraphNode | undefined = freshGraph.nodes[taskNodeId]
-            if (freshTaskNode) {
-                const claimedYAML: Map<string, string> = new Map([
-                    ...freshTaskNode.nodeUIMetadata.additionalYAMLProps,
-                    ['status', 'claimed']
-                ])
-                const claimDelta: GraphDelta = [{
+            // Build caller-context update sub-delta (if caller has a context node with contained-IDs).
+            // The caller's context node is unaffected by the task-node creation, so we read it
+            // from the pre-spawn graph snapshot and batch both writes into one apply call.
+            const callerContextNodeId: string | undefined = callerRecord?.terminalData.attachedToContextNodeId
+            const callerContextNode: GraphNode | undefined = callerContextNodeId
+                ? graph.nodes[callerContextNodeId]
+                : undefined
+            const callerContextUpdateDelta: GraphDelta = callerContextNode?.nodeUIMetadata.containedNodeIds
+                ? [{
                     type: 'UpsertNode',
                     nodeToUpsert: {
-                        ...freshTaskNode,
-                        nodeUIMetadata: {
-                            ...freshTaskNode.nodeUIMetadata,
-                            additionalYAMLProps: claimedYAML
-                        }
-                    },
-                    previousNode: O.some(freshTaskNode)
-                }]
-                await applyGraphDeltaToDBThroughMemAndUIAndEditors(claimDelta)
-            }
-
-            // Update caller's context node to mark task node as "seen"
-            const callerRecord: TerminalRecord | undefined = terminalRecords.find(
-                (r: TerminalRecord) => r.terminalId === callerTerminalId
-            )
-            if (callerRecord) {
-                const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
-                const updatedGraph: Graph = getGraph()
-                const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
-                if (callerContextNode?.nodeUIMetadata.containedNodeIds) {
-                    const updatedContainedNodeIds: readonly string[] = [
-                        ...callerContextNode.nodeUIMetadata.containedNodeIds,
-                        taskNodeId
-                    ]
-                    const updatedContextNode: GraphNode = {
                         ...callerContextNode,
                         nodeUIMetadata: {
                             ...callerContextNode.nodeUIMetadata,
-                            containedNodeIds: updatedContainedNodeIds
+                            containedNodeIds: [...callerContextNode.nodeUIMetadata.containedNodeIds, taskNodeId]
                         }
-                    }
-                    const updateDelta: GraphDelta = [{
-                        type: 'UpsertNode',
-                        nodeToUpsert: updatedContextNode,
-                        previousNode: O.some(callerContextNode)
-                    }]
-                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(updateDelta)
-                }
-            }
+                    },
+                    previousNode: O.some(callerContextNode)
+                }]
+                : []
+
+            // Apply task-node creation + caller-context update as one batched delta.
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent

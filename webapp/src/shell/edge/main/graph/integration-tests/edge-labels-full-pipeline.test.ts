@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/loadGraphFromDisk'
+import { loadGraphFromDisk } from '@vt/graph-model'
 import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onFSEventIsDbChangePath/fileLimitEnforce'
+import type { FileLimitExceededError } from '@vt/graph-model'
 
 /**
  * Integration test for edge labels through the full pipeline:
@@ -18,7 +18,7 @@ import type { FileLimitExceededError } from '@/shell/edge/main/graph/markdownHan
  * This test reproduces the real user scenario where labels appear empty in production
  * despite unit tests passing.
  */
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
   return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 

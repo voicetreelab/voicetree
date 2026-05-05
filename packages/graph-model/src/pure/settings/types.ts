@@ -86,6 +86,8 @@ export interface VTSettings {
     readonly INJECT_ENV_VARS: Record<string, EnvVarValue>;
     /** Maximum traversal distance when creating context nodes */
     readonly contextNodeMaxDistance: number;
+    /** Whether context node creation augments graph-distance context with semantic vector search. */
+    readonly enableSemanticContext?: boolean;
     /** Maximum total characters in context node content section (default: 30000 ≈ 7.5k tokens). Nodes are ranked by relevance and truncated to fit within budget. */
     readonly contextMaxChars: number;
     /** Maximum traversal distance when creating context nodes in Ask mode (from each relevant node) */

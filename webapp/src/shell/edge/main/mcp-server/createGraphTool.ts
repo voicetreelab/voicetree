@@ -20,13 +20,13 @@ import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-pars
 import {
     buildMarkdownBody,
     type ComplexityScore,
-} from '../../../../../../packages/graph-tools/src/filesystemAuthoring.ts'
+} from '@vt/graph-tools/node'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/onUIChangePath/onUIChange'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {

@@ -17,8 +17,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { createContextNode } from '@/shell/edge/main/graph/context-nodes/createContextNode';
-import { createContextNodeFromSelectedNodes } from '@/shell/edge/main/graph/context-nodes/createContextNodeFromSelectedNodes';
+import { createContextNode, createContextNodeFromSelectedNodes } from '@vt/graph-model';
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
@@ -29,7 +28,7 @@ import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@vt/graph-model/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@vt/graph-model/pure/settings';
 import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph-model/pure/settings/types';
-import { getNextTerminalCountForNode, getExistingAgentNames } from '@/shell/edge/main/terminals/terminal-registry';
+import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '@/shell/edge/main/terminals/terminal-registry';
 import { setTerminalBudget } from '@/shell/edge/main/terminals/global-budget-registry';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
@@ -37,7 +36,7 @@ import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnv
 import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
-import {broadcastGraphDeltaToUI} from '@/shell/edge/main/graph/markdownHandleUpdateFromStateLayerPaths/applyGraphDeltaToDBThroughMemAndUI';
+import {broadcastGraphDeltaToUI} from '@vt/graph-model';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -120,69 +119,96 @@ export async function spawnTerminalWithContextNode(
         resolvedTaskNodeId = taskNodeId;
     }
 
-    // Prepare terminal data (main has immediate access to all state)
+    // Compute the eventual terminalId / agentName eagerly so we can return to the
+    // caller before the heavy terminal-prep work finishes. getExistingAgentNames
+    // includes pending entries, so concurrent spawns won't collide.
+    const agentName: string = inheritTerminalId ?? (() => {
+        const baseAgentName: string = getNextAgentName();
+        const existingNames: Set<string> = getExistingAgentNames();
+        return getUniqueAgentName(baseAgentName, existingNames);
+    })();
+    const terminalId: TerminalId = agentName as TerminalId;
+
     const resolvedTerminalCount: number = typeof terminalCount === 'number'
         ? terminalCount
         : getNextTerminalCountForNode(contextNodeId)
 
-    const terminalData: TerminalData = await prepareTerminalDataInMain(
-        contextNodeId,
-        resolvedTaskNodeId,
-        resolvedTerminalCount,
-        command,
-        settings,
-        startUnpinned,
-        spawnDirectory,
-        parentTerminalId,
-        promptTemplate,
-        headless,
-        inheritTerminalId,
-        envOverrides
-    );
+    // Reserve the terminalId in the registry so MCP tools (send_message,
+    // read_terminal_output, list_agents completion monitor) can do the right
+    // thing while the rest of the spawn runs async.
+    recordTerminalPending(terminalId, !!headless)
 
-    if (headless) {
-        // Headless branch: spawn as background child_process, no PTY/xterm.js
-        const headlessCommand: string = buildHeadlessCommand(command)
-        const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
+    // Fire-and-forget: prepareTerminalDataInMain + spawn launch + bookkeeping.
+    // None of these produce values the caller needs in the response, so they
+    // can run after we've returned terminalId + contextNodeId.
+    void (async (): Promise<void> => {
+        try {
+            const terminalData: TerminalData = await prepareTerminalDataInMain(
+                contextNodeId,
+                resolvedTaskNodeId,
+                resolvedTerminalCount,
+                command,
+                settings,
+                startUnpinned,
+                spawnDirectory,
+                parentTerminalId,
+                promptTemplate,
+                headless,
+                inheritTerminalId,
+                envOverrides,
+                agentName
+            );
 
-        // replaceSelf: kill old process before spawning successor with same ID
-        if (inheritTerminalId) {
-            killHeadlessAgent(inheritTerminalId as TerminalId)
+            if (headless) {
+                // Headless branch: spawn as background child_process, no PTY/xterm.js
+                const headlessCommand: string = buildHeadlessCommand(command)
+                const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
+
+                // replaceSelf: kill old process before spawning successor with same ID
+                if (inheritTerminalId) {
+                    killHeadlessAgent(inheritTerminalId as TerminalId)
+                }
+
+                spawnHeadlessAgent(
+                    getTerminalId(terminalData),
+                    terminalData,
+                    headlessCommand,
+                    terminalData.initialSpawnDirectory,
+                    headlessEnv
+                )
+            } else {
+                // Interactive branch: launch terminal onto UI with xterm.js
+
+                // replaceSelf for interactive: close the old terminal first
+                if (inheritTerminalId) {
+                    uiAPI.closeTerminalById(inheritTerminalId)
+                }
+
+                // Call UI to launch terminal (via UI API pattern)
+                // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
+                void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
+            }
+
+            if (parentTerminalId) {
+                registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
+            }
+
+            // Set spawn budget for this terminal from GLOBAL_SPAWN_BUDGET env var
+            // Root terminals read from env; child terminals receive their budget via envOverrides from spawnAgentTool
+            if (terminalData.initialEnvVars?.GLOBAL_SPAWN_BUDGET) {
+                const budget: number = parseInt(terminalData.initialEnvVars.GLOBAL_SPAWN_BUDGET, 10);
+                if (!isNaN(budget) && budget >= 0) {
+                    setTerminalBudget(terminalId, budget);
+                }
+            }
+        } catch (err) {
+            // Spawn prep failed after the MCP response already returned success.
+            // Drop the pending entry so follow-up tool calls correctly report
+            // "Terminal not found" rather than queueing forever.
+            clearPendingTerminal(terminalId)
+            console.error(`[spawnTerminalWithContextNode] async spawn failed for ${terminalId}:`, err)
         }
-
-        spawnHeadlessAgent(
-            getTerminalId(terminalData),
-            terminalData,
-            headlessCommand,
-            terminalData.initialSpawnDirectory,
-            headlessEnv
-        )
-    } else {
-        // Interactive branch: launch terminal onto UI with xterm.js
-
-        // replaceSelf for interactive: close the old terminal first
-        if (inheritTerminalId) {
-            uiAPI.closeTerminalById(inheritTerminalId)
-        }
-
-        // Call UI to launch terminal (via UI API pattern)
-        // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
-        void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
-    }
-
-    if (parentTerminalId) {
-        registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
-    }
-
-    // Set spawn budget for this terminal from GLOBAL_SPAWN_BUDGET env var
-    // Root terminals read from env; child terminals receive their budget via envOverrides from spawnAgentTool
-    const terminalId: TerminalId = getTerminalId(terminalData);
-    if (terminalData.initialEnvVars?.GLOBAL_SPAWN_BUDGET) {
-        const budget: number = parseInt(terminalData.initialEnvVars.GLOBAL_SPAWN_BUDGET, 10);
-        if (!isNaN(budget) && budget >= 0) {
-            setTerminalBudget(terminalId, budget);
-        }
-    }
+    })()
 
     return {
         terminalId: terminalId,
@@ -212,7 +238,8 @@ async function prepareTerminalDataInMain(
     promptTemplate?: string,
     headless?: boolean,
     inheritTerminalId?: string,
-    envOverrides?: Record<string, string>
+    envOverrides?: Record<string, string>,
+    precomputedAgentName?: string
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
     const graph: Graph = getGraph();
@@ -227,9 +254,11 @@ async function prepareTerminalDataInMain(
     const title: string = taskNode ? getNodeTitle(taskNode) : getNodeTitle(contextNode);
 
     // Generate unique agent name with collision handling (enables terminal-to-created-node edges)
-    // terminalId now equals agentName for unified identification
-    // When inheritTerminalId is set (replaceSelf), reuse the caller's identity
-    const agentName: string = inheritTerminalId ?? (() => {
+    // terminalId now equals agentName for unified identification.
+    // Callers (e.g. spawnTerminalWithContextNode) may pre-compute the agentName so they
+    // can reserve it in the registry before calling this; honour their value to avoid drift.
+    // When inheritTerminalId is set (replaceSelf), reuse the caller's identity.
+    const agentName: string = precomputedAgentName ?? inheritTerminalId ?? (() => {
         const baseAgentName: string = getNextAgentName();
         const existingNames: Set<string> = getExistingAgentNames();
         return getUniqueAgentName(baseAgentName, existingNames);
