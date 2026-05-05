@@ -1,5 +1,3 @@
-import path from 'path'
-
 import * as O from 'fp-ts/lib/Option.js'
 
 import { getFolderNotePath, type FolderTreeNode, type GraphNode } from '@vt/graph-model'
@@ -53,13 +51,25 @@ function parentFolderIdForNode(nodeId: string): FolderId | null {
     return `${nodeId.slice(0, lastSlash + 1)}`
 }
 
+function posixBaseName(filePath: string): string {
+    const lastSlash = filePath.lastIndexOf('/')
+    return lastSlash >= 0 ? filePath.slice(lastSlash + 1) : filePath
+}
+
+function posixExtName(filePath: string): string {
+    const baseName = posixBaseName(filePath)
+    const lastDot = baseName.lastIndexOf('.')
+    if (lastDot <= 0) return ''
+    return baseName.slice(lastDot)
+}
+
 function labelForFolder(folderId: FolderId): string {
-    return path.posix.basename(folderId.slice(0, -1))
+    return posixBaseName(folderId.slice(0, -1))
 }
 
 function labelForNode(nodeId: string): string {
-    const baseName = path.posix.basename(nodeId)
-    const extension = path.posix.extname(baseName)
+    const baseName = posixBaseName(nodeId)
+    const extension = posixExtName(baseName)
     return extension.length > 0 ? baseName.slice(0, -extension.length) : baseName
 }
 

@@ -14,13 +14,10 @@ import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToGraph, createEmptyGraph } from '@vt/graph-model'
 import type { FolderTreeNode, Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model'
 
-import {
-    emptyState,
-    project,
-    type ElementSpec,
-    type SerializedState,
-    type State,
-} from '@vt/graph-state'
+import type { ElementSpec, State } from '@vt/graph-state/contract'
+import { emptyState } from '@vt/graph-state/emptyState'
+import type { SerializedState } from '@vt/graph-state/fixtures/serialization'
+import { project } from '@vt/graph-state/project'
 
 import { getSelection } from '@vt/graph-state/state/selectionStore'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'

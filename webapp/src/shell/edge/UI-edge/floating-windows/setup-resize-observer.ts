@@ -8,7 +8,7 @@
 import type cytoscape from "cytoscape";
 import {readStoredStrategy, screenToGraphDimensions, type ScalingStrategy} from "@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling";
 import {markNodeDirty} from "@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout";
-import { getLayout } from '@vt/graph-state';
+import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 /**
  * Update shadow node dimensions based on window DOM element dimensions.

@@ -14,7 +14,7 @@ import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsi
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse'
-import { dispatchSelect, dispatchDeselect } from '@vt/graph-state'
+import { dispatchSelect, dispatchDeselect } from '@vt/graph-state/state/selectionStore'
 
 export function setupBasicCytoscapeEventListeners(
   cy: Core,

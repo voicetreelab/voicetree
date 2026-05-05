@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types'
-import type { SerializedState } from '@vt/graph-state'
+import type { SerializedState } from '@vt/graph-state/fixtures/serialization'
 import {
     folderTreeReducer,
     subscribeFolderTree,

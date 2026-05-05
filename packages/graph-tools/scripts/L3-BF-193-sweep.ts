@@ -471,6 +471,6 @@ function main(): void {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('L3-BF-193-sweep.ts') === true && import.meta.url === `file://${process.argv[1]}`) {
     main()
 }

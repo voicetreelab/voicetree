@@ -33,7 +33,7 @@ import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state"
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import { getLoadedRoots } from '@vt/graph-state';
+import { getLoadedRoots } from '@vt/graph-state/state/loadedRootsStore';
 
 /**
  * Update floating editors from external FS changes

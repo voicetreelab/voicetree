@@ -11,7 +11,7 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
 import { getVisibleViewportCenterInGraph } from '@/utils/visibleViewport';
-import { getSelection } from '@vt/graph-state';
+import { getSelection } from '@vt/graph-state/state/selectionStore';
 
 /**
  * Get currently selected graph nodes from the selection store.

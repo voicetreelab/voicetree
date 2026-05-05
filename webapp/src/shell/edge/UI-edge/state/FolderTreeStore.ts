@@ -11,7 +11,7 @@
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
-import type { SerializedState } from '@vt/graph-state';
+import type { SerializedState } from '@vt/graph-state/fixtures/serialization';
 import type {} from '@/shell/electron';
 
 export interface FolderTreeState {

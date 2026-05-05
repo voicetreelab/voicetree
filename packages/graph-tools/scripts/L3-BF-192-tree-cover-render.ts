@@ -395,7 +395,7 @@ function main(): void {
     process.stdout.write('\n')
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('L3-BF-192-tree-cover-render.ts') === true && import.meta.url === `file://${process.argv[1]}`) {
     main()
 }
 

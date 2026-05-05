@@ -388,7 +388,7 @@ function main(): void {
     process.stdout.write(buildRecursive2dAscii(dataset, options).text)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+if (process.argv[1]?.endsWith('L3-BF-195-collapse-2d-ascii.ts') === true && import.meta.url === `file://${process.argv[1]}`) main()
 
 export {DEFAULTS, buildRecursive2dAscii, loadDatasetFromFixture, loadDatasetFromState}
 export type {Dataset, FixtureJson, FragmentPlan, FragmentRender, GraphNode, Recursive2D, RenderOptions}

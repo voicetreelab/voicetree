@@ -33,7 +33,7 @@
 
 import type { Core } from 'cytoscape'
 
-import type { LayoutDelta, LayoutStore } from '@vt/graph-state'
+import type { LayoutDelta, LayoutStore } from '@vt/graph-state/state/layoutStore'
 
 export interface LayoutProjectionMount {
     /** Detach the projection. Tests + unmount must call this. */

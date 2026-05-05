@@ -11,7 +11,7 @@
 import type cytoscape from 'cytoscape';
 import {getWindowTransform, graphToScreenPosition,} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
 import { getLayout, subscribeLayout } from '@vt/graph-state/state/layoutStore';
-import type { StateLayout } from '@vt/graph-state';
+import type { StateLayout } from '@vt/graph-state/contract';
 import {
     type EditorId,
     type FloatingWindowData,

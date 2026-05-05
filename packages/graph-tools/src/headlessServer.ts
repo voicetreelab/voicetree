@@ -21,6 +21,7 @@ import {
     type SerializedCommand,
 } from '@vt/graph-state'
 import type {State, Delta} from '@vt/graph-state/contract'
+import {configureGraphToolsRootIO} from './rootIO'
 
 // ── delta serialization (shape liveTransport.ts DispatchResult expects) ───────
 
@@ -119,6 +120,8 @@ export interface HeadlessServer {
 }
 
 export async function createHeadlessServer(options: HeadlessServerOptions = {}): Promise<HeadlessServer> {
+    configureGraphToolsRootIO()
+
     let state: State = emptyState()
 
     if (options.vaultPath) {

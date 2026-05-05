@@ -35,7 +35,7 @@ describe('vt-graph state dump CLI', () => {
 
         mkdirSync(path.join(tempDir, 'knowledge'))
         writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[knowledge/idea]]\n')
-        writeFileSync(path.join(tempDir, 'knowledge', 'knowledge.md'), '# Knowledge\n')
+        writeFileSync(path.join(tempDir, 'knowledge', 'knowledge.md'), '---\nposition:\n  x: 10\n  y: 20\n---\n# Knowledge\n')
         writeFileSync(path.join(tempDir, 'knowledge', 'idea.md'), '# Idea\n')
 
         return tempDir

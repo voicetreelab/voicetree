@@ -556,6 +556,6 @@ function main(): void {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('L3-BF-191-ascii-parser.ts') === true && import.meta.url === `file://${process.argv[1]}`) {
     main()
 }

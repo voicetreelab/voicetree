@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import type { ElementSpec, NodeElement } from '@vt/graph-state'
+import type { ElementSpec, NodeElement } from '@vt/graph-state/contract'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'

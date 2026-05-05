@@ -11,7 +11,7 @@ import * as O from "fp-ts/lib/Option.js";
 import {addRecentlyVisited} from "@/shell/edge/UI-edge/state/RecentlyVisitedStore";
 import {setActiveTerminalId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {highlightContainedNodes, clearContainedHighlights} from "@/shell/UI/cytoscape-graph-ui/highlightContextNodes";
-import { dispatchSelect, dispatchDeselect, getSelection } from '@vt/graph-state';
+import { dispatchSelect, dispatchDeselect, getSelection } from '@vt/graph-state/state/selectionStore';
 
 /**
  * Select the graph node associated with a floating window.

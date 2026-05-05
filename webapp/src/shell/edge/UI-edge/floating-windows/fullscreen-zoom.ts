@@ -14,7 +14,7 @@ import type { ShadowNodeId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { cyFitIntoVisibleViewport, getResponsivePadding, restoreViewportDirectly } from '@/utils/responsivePadding';
 import { getVisibleViewportMetrics, getCyViewportState, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getLayout, dispatchSetZoom, dispatchSetPan, flushLayout } from '@vt/graph-state/state/layoutStore';
-import type { StateLayout } from '@vt/graph-state';
+import type { StateLayout } from '@vt/graph-state/contract';
 import { MIN_ZOOM } from '@/shell/UI/cytoscape-graph-ui/constants';
 
 // Per-window state for fullscreen zoom restoration — keyed by ShadowNodeId (stable across remounts)

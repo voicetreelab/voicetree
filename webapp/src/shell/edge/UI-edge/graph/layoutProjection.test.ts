@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import cytoscape, { type Core } from 'cytoscape'
 
-import { createLayoutStore, type LayoutStore } from '@vt/graph-state'
+import { createLayoutStore, type LayoutStore } from '@vt/graph-state/state/layoutStore'
 
 import { mountLayoutProjection } from './layoutProjection'
 

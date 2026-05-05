@@ -35,8 +35,35 @@ type SettingsSchema = {
 // Platform logic
 // ============================================================================
 
-const isMac: boolean = typeof process !== 'undefined' && process.platform === 'darwin';
-const isWindows: boolean = typeof process !== 'undefined' && process.platform === 'win32';
+function getRuntimePlatform(): string {
+    if (typeof process !== 'undefined' && process.platform) {
+        return process.platform;
+    }
+
+    const globalNavigator: {
+        userAgentData?: { platform?: string };
+        platform?: string;
+        userAgent?: string;
+    } | undefined = (globalThis as { navigator?: {
+        userAgentData?: { platform?: string };
+        platform?: string;
+        userAgent?: string;
+    } }).navigator;
+
+    const browserPlatform: string = [
+        globalNavigator?.userAgentData?.platform,
+        globalNavigator?.platform,
+        globalNavigator?.userAgent,
+    ].filter(Boolean).join(' ');
+
+    if (/mac|iphone|ipad|ipod/i.test(browserPlatform)) return 'darwin';
+    if (/win/i.test(browserPlatform)) return 'win32';
+    return '';
+}
+
+const runtimePlatform: string = getRuntimePlatform();
+const isMac: boolean = runtimePlatform === 'darwin';
+const isWindows: boolean = runtimePlatform === 'win32';
 const homeDir: string = typeof process !== 'undefined' && process.env.HOME ? process.env.HOME : '';
 const AGENT_PROMPT_VAR: string = isWindows ? '$env:AGENT_PROMPT' : '$AGENT_PROMPT';
 

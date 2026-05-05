@@ -8,6 +8,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./contract": "./src/contract.d.ts",
+    "./applyCommand": "./src/applyCommand.ts",
+    "./emptyState": "./src/emptyState.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./fixtures/serialization": "./src/fixtures/serialization.ts",
+    "./project": "./src/project.ts",
     "./state/collapseSetStore": "./src/state/collapseSetStore.ts",
     "./state/selectionStore": "./src/state/selectionStore.ts",
     "./state/loadedRootsStore": "./src/state/loadedRootsStore.ts",

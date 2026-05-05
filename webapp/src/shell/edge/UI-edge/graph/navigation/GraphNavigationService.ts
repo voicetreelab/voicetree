@@ -23,7 +23,7 @@ import { linkMatchScore, getPathComponents } from '@vt/graph-model/pure/graph/ma
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
-import { dispatchDeselect, dispatchSelect, getSelection } from '@vt/graph-state';
+import { dispatchDeselect, dispatchSelect, getSelection } from '@vt/graph-state/state/selectionStore';
 
 const TERMINAL_CONTEXT_TARGET_FRACTION: number = 0.95;
 const TERMINAL_MIN_ZOOM_THRESHOLD: number = 0.7;

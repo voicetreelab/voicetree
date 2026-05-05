@@ -462,7 +462,7 @@ function main(): void {
     process.stdout.write(buildRecursiveAscii(state, inferredRoot, options).text)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('L3-BF-194-recursive-ascii.ts') === true && import.meta.url === `file://${process.argv[1]}`) {
     main()
 }
 

@@ -1,4 +1,3 @@
-import cytoscape, { type ElementDefinition } from 'cytoscape'
 import { describe, expect, it } from 'vitest'
 import {
   applyCommandWithDelta,
@@ -16,67 +15,36 @@ import {
 import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../src/debug/flows/index'
 import type { CyDump } from '../src/debug/cyStateShape'
 
-function toCyElement(element: NodeElement | EdgeElement): ElementDefinition {
-  if ('source' in element) {
-    return {
-      group: 'edges',
-      data: {
-        ...(element.data ?? {}),
-        id: element.id,
-        source: element.source,
-        target: element.target,
-        kind: element.kind,
-        ...(element.label !== undefined ? { label: element.label } : {}),
-      },
-      ...(element.classes ? { classes: [...element.classes] } : {}),
-    }
-  }
+function renderProjectedElements(): CyDump
+function renderProjectedElements(elements: readonly (NodeElement | EdgeElement)[]): CyDump
+function renderProjectedElements(elements: readonly (NodeElement | EdgeElement)[] = []): CyDump {
+  const nodes = elements.filter((element): element is NodeElement => !('source' in element))
+  const edges = elements.filter((element): element is EdgeElement => 'source' in element)
 
   return {
-    group: 'nodes',
-    data: {
-      ...(element.data ?? {}),
-      id: element.id,
-      kind: element.kind,
-      ...(element.parent !== undefined ? { parent: element.parent } : {}),
-      ...(element.label !== undefined ? { label: element.label } : {}),
-    },
-    ...(element.position ? { position: element.position } : {}),
-    ...(element.classes ? { classes: [...element.classes] } : {}),
-  }
-}
-
-function renderThroughCytoscape(): CyDump
-function renderThroughCytoscape(elements: readonly (NodeElement | EdgeElement)[]): CyDump
-function renderThroughCytoscape(elements: readonly (NodeElement | EdgeElement)[] = []): CyDump {
-  const cy = cytoscape({
-    headless: true,
-    styleEnabled: false,
-    elements: elements.map(toCyElement),
-  })
-
-  try {
-    return {
-      nodes: cy.nodes().map(node => ({
-        id: node.id(),
-        classes: node.classes(),
-        position: node.position(),
-        visible: true,
-      })),
-      edges: cy.edges().map(edge => ({
-        id: edge.id(),
-        source: edge.source().id(),
-        target: edge.target().id(),
-        classes: edge.classes(),
-      })),
-      viewport: {
-        zoom: cy.zoom(),
-        pan: cy.pan(),
+    nodes: nodes.map(node => ({
+      id: node.id,
+      classes: [...(node.classes ?? [])],
+      data: {
+        ...node.data,
+        id: node.id,
+        ...(node.label !== undefined ? { label: node.label } : {}),
+        ...(node.parent !== undefined ? { parent: node.parent } : {}),
       },
-      selection: cy.$(':selected').map(node => node.id()).sort((left, right) => left.localeCompare(right)),
-    }
-  } finally {
-    cy.destroy()
+      position: node.position ?? { x: 0, y: 0 },
+      visible: true,
+    })),
+    edges: edges.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      classes: [...(edge.classes ?? [])],
+    })),
+    viewport: {
+      zoom: 1,
+      pan: { x: 0, y: 0 },
+    },
+    selection: [],
   }
 }
 
@@ -100,7 +68,7 @@ describe('F4 collapseSet capture', () => {
 
     const overlayBeforeStep = createStateCaptureOverlay(initialState)
     const collapseResult = applyCommandWithDelta(initialState, firstStep.dispatch)
-    const rendered = renderThroughCytoscape([
+    const rendered = renderProjectedElements([
       ...project(collapseResult.state).nodes,
       ...project(collapseResult.state).edges,
     ])

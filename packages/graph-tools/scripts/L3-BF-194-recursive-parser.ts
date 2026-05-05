@@ -283,7 +283,7 @@ function main(): void {
     console.log(`| dropped parser lines | ${parsed.droppedLines.length} |`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1]?.endsWith('L3-BF-194-recursive-parser.ts') === true && import.meta.url === `file://${process.argv[1]}`) {
     main()
 }
 

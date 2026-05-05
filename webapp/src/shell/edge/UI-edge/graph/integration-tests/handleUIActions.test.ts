@@ -17,9 +17,14 @@ import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIAct
 import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/pure/graph'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import {
+    applyDeltaToRendererStateMirror,
+    projectDelta,
+    resetRendererStateMirror
+} from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 
 // Mock posthog
@@ -84,6 +89,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 }
             }
         })
+        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape with the 2 nodes
         // Labels should match what markdownToTitle would extract from content

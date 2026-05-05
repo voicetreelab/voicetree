@@ -5,7 +5,7 @@ import {projectRendererState, resetRendererStateMirror} from '@/shell/edge/UI-ed
 import {
     getLoadedRoots,
     dispatchUnloadRoot,
-} from '@vt/graph-state';
+} from '@vt/graph-state/state/loadedRootsStore';
 
 /**
  * Dispatch UnloadRoot for every currently-loaded root, then project the

@@ -10,6 +10,7 @@ import {
     toFixtureJson,
     type SerializedCommand,
 } from '@vt/graph-state'
+import {configureGraphToolsRootIO} from './rootIO'
 
 export interface StateDumpOptions {
     readonly pretty?: boolean
@@ -89,6 +90,8 @@ async function readStateInput(stateFile?: string): Promise<string> {
 }
 
 export async function dumpState(rootPath: string, options: StateDumpOptions = {}): Promise<StateDumpResult> {
+    configureGraphToolsRootIO()
+
     const pretty: boolean = options.pretty !== false
     const resolvedRootPath = path.resolve(rootPath)
     const serializedState = serializeState(await buildStateFromVault(resolvedRootPath, resolvedRootPath))

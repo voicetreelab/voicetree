@@ -24,7 +24,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 import type { VTSettings } from '@vt/graph-model/pure/settings/types';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
-import { isSelected } from '@vt/graph-state';
+import { isSelected } from '@vt/graph-state/state/selectionStore';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 
 export class NavigationGestureService {
