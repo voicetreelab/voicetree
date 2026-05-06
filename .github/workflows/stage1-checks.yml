@@ -55,6 +55,9 @@ jobs:
         working-directory: webapp
         run: npx tsc --noEmit
 
+      - name: Blackbox test lint
+        run: npm run lint:blackbox-tests
+
       - name: E2E taxonomy check
         run: npm run check:e2e-taxonomy
 
