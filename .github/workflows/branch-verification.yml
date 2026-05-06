@@ -121,10 +121,13 @@ jobs:
       - name: Run Electron Tier 1 smoke tests
         timeout-minutes: 10
         working-directory: webapp
+        env:
+          CI: 'true'
+          PLAYWRIGHT_QUIET: 'false'
         run: |
           xvfb-run --auto-servernum npx playwright test \
             --config=playwright-tier1-system.config.ts \
-            --reporter=line
+            --reporter=list
 
       - name: Upload Electron test artifacts on failure
         if: failure()
