@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildTerminalTree } from '@vt/graph-model/pure/agentTabs/terminalTree';
 import type { TerminalTreeNode } from '@vt/graph-model/pure/agentTabs/terminalTree';
+import type { TerminalLifecycle } from '@vt/graph-model/pure/agentTabs/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 
@@ -8,7 +9,8 @@ import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 function createTerminal(
   terminalId: string,
   parentTerminalId: string | null = null,
-  title = `Terminal ${terminalId}`
+  title = `Terminal ${terminalId}`,
+  lifecycle: TerminalLifecycle = 'spawning',
 ): TerminalData {
   return {
     type: 'Terminal',
@@ -18,6 +20,7 @@ function createTerminal(
     title,
     isPinned: true,
     isDone: false,
+    lifecycle,
     lastOutputTime: Date.now(),
     activityCount: 0,
     parentTerminalId: parentTerminalId as TerminalId | null,
@@ -143,5 +146,78 @@ describe('buildTerminalTree', () => {
     expect(result[1].depth).toBe(1);
     expect(result[2].depth).toBe(2);
     expect(result[3].depth).toBe(3);
+  });
+});
+
+describe('buildTerminalTree — collapse + summary', () => {
+  it('reports hasChildren and directChildCount on parents', () => {
+    const result: TerminalTreeNode[] = buildTerminalTree([
+      createTerminal('parent', null),
+      createTerminal('a', 'parent'),
+      createTerminal('b', 'parent'),
+    ]);
+    expect(result[0].hasChildren).toBe(true);
+    expect(result[0].directChildCount).toBe(2);
+    expect(result[1].hasChildren).toBe(false);
+    expect(result[2].directChildCount).toBe(0);
+  });
+
+  it('descendantSummary aggregates lifecycle counts recursively', () => {
+    const result: TerminalTreeNode[] = buildTerminalTree([
+      createTerminal('root', null, 'r', 'active'),
+      createTerminal('a', 'root', 'a', 'awaiting_input'),
+      createTerminal('b', 'root', 'b', 'completed'),
+      createTerminal('a1', 'a', 'a1', 'errored'),
+    ]);
+    const root: TerminalTreeNode = result[0];
+    expect(root.descendantSummary.total).toBe(3);
+    expect(root.descendantSummary.awaiting).toBe(1);
+    expect(root.descendantSummary.completed).toBe(1);
+    expect(root.descendantSummary.errored).toBe(1);
+  });
+
+  it('isCollapsed predicate hides descendants of matching parents', () => {
+    const result: TerminalTreeNode[] = buildTerminalTree(
+      [
+        createTerminal('root', null),
+        createTerminal('a', 'root'),
+        createTerminal('b', 'root'),
+        createTerminal('c', 'root'),
+      ],
+      (parent) => parent.terminalId === 'root',
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].terminal.terminalId).toBe('root');
+    expect(result[0].hasChildren).toBe(true);
+    expect(result[0].directChildCount).toBe(3);
+  });
+
+  it('only the matching parent collapses; siblings stay expanded', () => {
+    const result: TerminalTreeNode[] = buildTerminalTree(
+      [
+        createTerminal('root', null),
+        createTerminal('p1', 'root'),
+        createTerminal('p1a', 'p1'),
+        createTerminal('p2', 'root'),
+        createTerminal('p2a', 'p2'),
+      ],
+      (parent) => parent.terminalId === 'p1',
+    );
+    // p1's child p1a is hidden; p2 and p2a are visible.
+    const ids: string[] = result.map(n => n.terminal.terminalId);
+    expect(ids).toEqual(['root', 'p1', 'p2', 'p2a']);
+  });
+
+  it('predicate receives directChildCount so React can apply auto-threshold', () => {
+    const seen: number[] = [];
+    buildTerminalTree(
+      [
+        createTerminal('root', null),
+        createTerminal('a', 'root'),
+        createTerminal('b', 'root'),
+      ],
+      (_parent, n) => { seen.push(n); return false; },
+    );
+    expect(seen).toContain(2);
   });
 });
