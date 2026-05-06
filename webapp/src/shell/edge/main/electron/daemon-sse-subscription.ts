@@ -52,19 +52,19 @@ async function connectToDaemonSSE(
     }
 
     const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffered = ''
+    const decoder: TextDecoder = new TextDecoder()
+    let buffered: string = ''
 
     while (!controller.signal.aborted) {
         const { done, value } = await reader.read()
         if (done) break
 
         buffered += decoder.decode(value, { stream: true })
-        const blocks = buffered.split('\n\n')
+        const blocks: string[] = buffered.split('\n\n')
         buffered = blocks.pop() ?? ''
 
         for (const block of blocks) {
-            const event = parseSSEBlock(block)
+            const event: SourceTaggedDelta | null = parseSSEBlock(block)
             if (event) {
                 forwardDelta(event, mainWindow)
             }
@@ -94,7 +94,7 @@ export function subscribeToDaemonSSE(
 ): void {
     unsubscribeFromDaemonSSE()
 
-    const controller = new AbortController()
+    const controller: AbortController = new AbortController()
     currentController = controller
 
     void connectToDaemonSSE(sessionId, baseUrl, mainWindow, controller)
