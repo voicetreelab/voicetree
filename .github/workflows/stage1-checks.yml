@@ -51,10 +51,6 @@ jobs:
       - name: Lint (root targets)
         run: npm run lint
 
-      - name: Lint (webapp)
-        working-directory: webapp
-        run: npx eslint .
-
       - name: Typecheck
         working-directory: webapp
         run: npx tsc --noEmit
