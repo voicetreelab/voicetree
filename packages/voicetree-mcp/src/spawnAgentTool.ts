@@ -203,7 +203,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 : []
 
             // Apply task-node creation + caller-context update as one batched delta.
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors([...taskNodeDelta, ...callerContextUpdateDelta])
+            await postDeltaThroughDaemonWithEditors([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent
@@ -278,7 +278,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 },
                 previousNode: O.some(targetNode)
             }]
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(claimDelta)
+            await postDeltaThroughDaemonWithEditors(claimDelta)
         }
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport

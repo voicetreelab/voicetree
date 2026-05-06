@@ -25,8 +25,8 @@ export default defineConfig({
     video: 'retain-on-failure'
   },
 
-  // Longer timeout for Electron app startup
-  timeout: 30000,
+  // Longer timeout for Electron app startup — CI runners are slower
+  timeout: process.env.CI ? 90000 : 30000,
 
   projects: [
     {

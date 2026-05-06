@@ -12,6 +12,7 @@ import {getTerminalRecords, type TerminalRecord, type TerminalId} from '@vt/agen
 import {closeHeadlessAgent, getRuntimeUI} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getAgentNodes} from './agentNodeIndex'
 import {getAgentStatus} from './isAgentComplete'
 import {runStopHooks, type StopHookResult} from '@vt/agent-runtime'
 
@@ -59,9 +60,13 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
         }
 
         const agentName: string | undefined = targetRecord.terminalData.agentName
-        const agentNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName, targetRecord.spawnedAt)
+        const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(terminalId)
+        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName, targetRecord.spawnedAt)
+        const allNodesById: Map<string, {nodeId: string; title: string}> = new Map(
+            [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
+        )
 
-        if (agentNodes.length === 0) {
+        if (allNodesById.size === 0) {
             return buildJsonResponse({
                 success: false,
                 error: `Cannot close agent "${terminalId}": this agent has not produced any nodes yet. Use send_message to nudge them to create a progress node or provide any other necessary guidance.`

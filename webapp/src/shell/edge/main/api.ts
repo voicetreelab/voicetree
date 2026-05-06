@@ -5,7 +5,6 @@
  * Each function should be defined in its own module.
  */
 
-import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
@@ -20,7 +19,6 @@ import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, upd
 import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
 import {injectNodesIntoTerminal} from '@vt/agent-runtime'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
@@ -49,6 +47,8 @@ import {
   getGraphFromDaemon as getGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
+  postDeltaThroughDaemon,
+  postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
@@ -80,10 +80,10 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
-  // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyGraphDeltaToDBThroughMemAndUIAndEditors,
+  // Graph operations - daemon-only write path
+  applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: applyGraphDeltaToDBThroughMemAndUI,
+    applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
 
   getGraph,
 

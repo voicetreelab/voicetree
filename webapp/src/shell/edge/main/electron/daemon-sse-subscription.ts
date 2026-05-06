@@ -1,4 +1,5 @@
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 
 type SourceTaggedDelta = {
     delta: GraphDelta
@@ -7,6 +8,7 @@ type SourceTaggedDelta = {
 
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let currentSessionId: string | null = null
 
 function clearReconnectTimer(): void {
     if (currentReconnectTimer !== null) {
@@ -29,12 +31,17 @@ function parseSSEBlock(block: string): SourceTaggedDelta | null {
     }
 }
 
+function isOwnEcho(event: SourceTaggedDelta): boolean {
+    return currentSessionId !== null && event.source === `session:${currentSessionId}`
+}
+
 function forwardDelta(
     event: SourceTaggedDelta,
     mainWindow: Electron.BrowserWindow,
 ): void {
     if (mainWindow.isDestroyed()) return
     mainWindow.webContents.send('graph:stateChanged', event.delta)
+    uiAPI.updateFloatingEditorsFromDaemon(event.delta)
 }
 
 async function connectToDaemonSSE(
@@ -65,7 +72,7 @@ async function connectToDaemonSSE(
 
         for (const block of blocks) {
             const event: SourceTaggedDelta | null = parseSSEBlock(block)
-            if (event) {
+            if (event && !isOwnEcho(event)) {
                 forwardDelta(event, mainWindow)
             }
         }
@@ -94,6 +101,7 @@ export function subscribeToDaemonSSE(
 ): void {
     unsubscribeFromDaemonSSE()
 
+    currentSessionId = sessionId
     const controller: AbortController = new AbortController()
     currentController = controller
 
@@ -114,6 +122,7 @@ export function unsubscribeFromDaemonSSE(): void {
     clearReconnectTimer()
     currentController?.abort()
     currentController = null
+    currentSessionId = null
 }
 
 export function isDaemonSSEActive(): boolean {

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { DaemonLaunchTimeout, DaemonUnreachableError } from './errors.ts'
@@ -7,6 +7,9 @@ import { discoverPort, readPortFile } from './portDiscovery.ts'
 const requireFromHere = createRequire(import.meta.url)
 const TSX_IMPORT_PATH = requireFromHere.resolve('tsx')
 const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server')
+const BETTER_SQLITE3_PACKAGE_JSON = requireFromHere.resolve(
+  'better-sqlite3/package.json',
+)
 
 // Resolve from the installed workspace package, not from import.meta.url.
 // In the bundled Electron main process, import.meta.url points into dist output.
@@ -28,6 +31,7 @@ type RuntimeCommandInput = {
   execPath?: string
   versions?: Partial<RuntimeVersions>
 }
+type RuntimeValidation = { ok: true } | { ok: false; reason: string }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
@@ -35,6 +39,11 @@ function sleep(ms: number): Promise<void> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function unrefIfSupported(value: unknown): void {
+  if (!isRecord(value) || typeof value.unref !== 'function') return
+  value.unref()
 }
 
 async function probeHealth(vault: string, port: number): Promise<boolean> {
@@ -59,46 +68,90 @@ export function resolveDaemonRuntimeCommand(
   input: RuntimeCommandInput = {},
 ): string {
   const env = input.env ?? process.env
-  const versions = input.versions ?? process.versions
+  const candidates = daemonRuntimeCandidates({
+    env,
+    execPath: input.execPath ?? process.execPath,
+    versions: input.versions ?? process.versions,
+  })
+  const failures: string[] = []
 
-  // Inside Electron we deliberately default to Electron's own binary running
-  // as Node (with ELECTRON_RUN_AS_NODE=1; see resolveDaemonRuntimeEnv). That
-  // way the daemon's native modules — notably better-sqlite3 — match the
-  // ABI that @electron/rebuild compiled them for. Using the system `node`
-  // here is the historical bug: when the user's system Node version doesn't
-  // match Electron's bundled Node ABI, the daemon throws
-  // "NODE_MODULE_VERSION mismatch" and never becomes ready.
-  //
-  // Explicit overrides still win: VT_GRAPHD_NODE_BIN is the documented
-  // escape hatch for users who really do want a specific Node binary.
-  if (versions.electron) {
-    return env.VT_GRAPHD_NODE_BIN?.trim() || (input.execPath ?? process.execPath)
+  for (const candidate of candidates) {
+    const validation = validateDaemonRuntime(candidate, env)
+    if (validation.ok) {
+      return candidate
+    }
+    failures.push(`${candidate}: ${validation.reason}`)
   }
 
-  return input.execPath ?? process.execPath
+  throw new Error(
+    `Could not find a Node runtime for vt-graphd that can load better-sqlite3. Checked: ${failures.join('; ')}`,
+  )
 }
 
-/**
- * Env additions to merge into the daemon's spawn environment.
- *
- * When we're spawning Electron's binary as Node, we must set
- * `ELECTRON_RUN_AS_NODE=1` or the binary launches as Electron and tries to
- * open a window. This function returns the minimal env mutations needed for
- * the chosen runtime; it is intentionally additive (caller spreads it on top
- * of process.env).
- */
-export function resolveDaemonRuntimeEnv(
-  input: RuntimeCommandInput = {},
-): NodeJS.ProcessEnv {
-  const env = input.env ?? process.env
-  const versions = input.versions ?? process.versions
+function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
+  const candidates = [
+    input.env.VT_GRAPHD_NODE_BIN,
+    input.env.npm_node_execpath,
+    input.execPath,
+    input.versions.electron ? undefined : process.execPath,
+    'node',
+  ]
 
-  // Only relevant inside Electron, and only when no explicit override is set
-  // (an explicit override points at a real Node binary, not Electron).
-  if (versions.electron && !env.VT_GRAPHD_NODE_BIN?.trim()) {
-    return { ELECTRON_RUN_AS_NODE: '1' }
+  return uniqueNonEmpty(candidates)
+}
+
+function uniqueNonEmpty(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    result.push(trimmed)
   }
-  return {}
+
+  return result
+}
+
+function validateDaemonRuntime(
+  candidate: string,
+  env: NodeJS.ProcessEnv,
+): RuntimeValidation {
+  const result = spawnSync(
+    candidate,
+    [
+      '-e',
+      [
+        "const { createRequire } = require('node:module')",
+        'if (process.versions.electron) {',
+        "  throw new Error(`Electron runtime ABI ${process.versions.modules} cannot host vt-graphd`)",
+        '}',
+        `const requireFromBetterSqlite = createRequire(${JSON.stringify(BETTER_SQLITE3_PACKAGE_JSON)})`,
+        "const Database = requireFromBetterSqlite('better-sqlite3')",
+        "new Database(':memory:').close()",
+      ].join('\n'),
+    ],
+    {
+      cwd: dirname(BETTER_SQLITE3_PACKAGE_JSON),
+      encoding: 'utf8',
+      env,
+      timeout: 5000,
+    },
+  )
+
+  if (result.status === 0) {
+    return { ok: true }
+  }
+
+  if (result.error) {
+    return { ok: false, reason: result.error.message }
+  }
+
+  const stderr = result.stderr.trim()
+  const stdout = result.stdout.trim()
+  const detail = stderr || stdout || `exit status ${result.status ?? 'unknown'}`
+  return { ok: false, reason: detail.split('\n').at(-1) ?? detail }
 }
 
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
@@ -111,7 +164,7 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
   return {
     cmd: resolveDaemonRuntimeCommand(),
     args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
-    env: { ...process.env, ...resolveDaemonRuntimeEnv() },
+    env: { ...process.env },
   }
 }
 
@@ -147,7 +200,7 @@ export async function ensureDaemon(
     stdio: ['ignore', 'ignore', 'pipe'],
   })
   child.unref()
-  child.stderr?.unref?.()
+  unrefIfSupported(child.stderr)
   const spawnedPid = child.pid ?? null
 
   let spawnError: NodeJS.ErrnoException | null = null

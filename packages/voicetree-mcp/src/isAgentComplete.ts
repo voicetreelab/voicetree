@@ -8,6 +8,7 @@ import type {Graph} from '@vt/graph-model/pure/graph'
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {getIdleSince} from '@vt/agent-runtime'
 import {getAgentNodes} from './agentNodeIndex'
+import {getNewNodesForAgent} from './getNewNodesForAgent'
 
 const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this long before considered done
 export const NO_PROGRESS_TIMEOUT_MS: number = 30 * 60 * 1000 // 30 minutes — max time to wait for agent without progress nodes
@@ -56,8 +57,9 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     // If agent hasn't created any progress nodes, don't consider complete —
     // it's likely still working (between tool calls or waiting on sub-agents).
     // Safety valve: after 30 minutes from spawn, consider complete anyway so orchestration doesn't hang.
-    const agentNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)
-    if (agentNodes.length === 0) {
+    const indexNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)
+    const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, record.terminalData.agentName, record.spawnedAt)
+    if (indexNodes.length === 0 && graphNodes.length === 0) {
         const aliveMs: number = now - record.spawnedAt
         if (!Number.isFinite(aliveMs) || aliveMs < NO_PROGRESS_TIMEOUT_MS) {
             return false

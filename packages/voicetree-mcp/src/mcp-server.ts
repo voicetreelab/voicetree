@@ -372,12 +372,12 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
         console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
-    // Auto-write .mcp.json so external agents (e.g. manually-launched Claude Code) can discover this server.
+    // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).
     try {
-        await enableMcpJsonIntegration()
+        await enableMcpClientIntegrations()
     } catch (_e) {
-        // No watched directory yet — loadFolder will call enableMcpJsonIntegration when one is set
+        // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
     }
 
     return {

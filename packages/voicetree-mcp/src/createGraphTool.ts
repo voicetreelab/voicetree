@@ -1,12 +1,7 @@
 /**
  * MCP Tool: create_graph
  * Creates a graph of progress nodes in a single call.
- * Accepts a JSON graph of fully populated nodes with support for multiple parents
- * (DAG structure including diamond dependencies). Creates all files atomically,
- * returns paths + warnings. Accept-all, warn-on-error — never blocks creation.
- *
- * Replaces multi-call add_progress_node workflows where agents had to create
- * nodes sequentially (O(depth) round-trips). Now one call creates the whole graph.
+ * Pure types, DAG validation, and path resolution live in createGraphPure.ts.
  */
 
 import path from 'path'
@@ -39,7 +34,6 @@ import {
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {
-    type OverrideEntry,
     type ValidationResult,
     ALL_RULES,
     runValidations,
@@ -414,7 +408,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
+        await postDeltaThroughDaemonWithEditors(batchDelta)
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -443,7 +437,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
+            await postDeltaThroughDaemonWithEditors(contextDelta)
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created

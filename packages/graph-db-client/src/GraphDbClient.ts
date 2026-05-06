@@ -35,6 +35,7 @@ type Schema<T> = {
 type RequestOptions<T> = {
   body?: unknown
   expectNoContent?: boolean
+  headers?: Record<string, string>
   method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
   responseSchema?: Schema<T>
 }
@@ -174,6 +175,21 @@ export class GraphDbClient {
     })
   }
 
+  async postDelta(delta: unknown[], sessionId?: string): Promise<void> {
+    const headers: Record<string, string> = {}
+    if (sessionId) {
+      headers['X-Session-Id'] = sessionId
+    }
+
+    await this.request('/graph/delta', {
+      body: delta,
+      expectNoContent: false,
+      headers,
+      method: 'POST',
+      responseSchema: { parse: (value) => value },
+    })
+  }
+
   async createSession(): Promise<{ sessionId: string }> {
     return await this.request('/sessions', {
       method: 'POST',
@@ -260,8 +276,12 @@ export class GraphDbClient {
   ): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      headers:
-        opts.body === undefined ? undefined : { 'content-type': 'application/json' },
+      headers: {
+        ...(opts.body === undefined
+          ? undefined
+          : { 'content-type': 'application/json' }),
+        ...opts.headers,
+      },
       method: opts.method ?? 'GET',
     })
 

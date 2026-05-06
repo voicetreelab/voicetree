@@ -19,7 +19,7 @@ import {closeEditor} from './FloatingEditorCRUD';
  * For each node upsert, check if there's an open editor and update its content
  * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
  */
-export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
+export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuard: boolean = false): void {
     for (const nodeDelta of delta) {
         if (nodeDelta.type === 'UpsertNode') {
             const nodeId: string = nodeDelta.nodeToUpsert.absoluteFilePathIsID;
@@ -60,8 +60,10 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
 
                     // Skip non-append programmatic updates while the user is
                     // actively typing — the autosave round-trip would clobber
-                    // newer characters.
-                    if (cmEditor.isFocused()) {
+                    // newer characters.  In daemon mode, echo filtering happens
+                    // at the SSE layer so all deltas reaching here are external;
+                    // skipFocusGuard bypasses this guard for those.
+                    if (!skipFocusGuard && cmEditor.isFocused()) {
                         continue;
                     }
 

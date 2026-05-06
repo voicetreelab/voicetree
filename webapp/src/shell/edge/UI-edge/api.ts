@@ -45,6 +45,16 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
 }
 
 /**
+ * Update floating editors from daemon SSE deltas.
+ * Echo filtering already happened at the SSE layer, so these are always
+ * external changes — skip the isFocused guard that would block them.
+ */
+function updateFloatingEditorsFromDaemon(delta: GraphDelta): void {
+    const cy: Core = getCyInstance();
+    updateFloatingEditors(cy, delta, true);
+}
+
+/**
  * Create an editor for a node created by an external FS change.
  * This is the auto-pin path for truly external file additions.
  * Called from main process FS watcher when it detects a new file was added externally.
@@ -141,6 +151,7 @@ export function onSettingsChange(cb: SettingsChangeCallback): () => void {
 export const uiAPIHandler = {
     launchTerminalOntoUI,
     updateFloatingEditorsFromExternal,
+    updateFloatingEditorsFromDaemon,
     createEditorForExternalNode,
     fitViewport,
     syncTerminals,

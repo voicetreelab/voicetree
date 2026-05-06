@@ -1,73 +1,114 @@
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
-import { resolveDaemonRuntimeCommand, resolveDaemonRuntimeEnv } from './autoLaunch.ts'
+import { resolveDaemonRuntimeCommand } from './autoLaunch.ts'
 
 describe('resolveDaemonRuntimeCommand', () => {
-    test('uses the current Node executable outside Electron', () => {
-        expect(
-            resolveDaemonRuntimeCommand({
-                env: {},
-                execPath: '/usr/local/bin/node',
-                versions: { node: '24.0.0' },
-            }),
-        ).toBe('/usr/local/bin/node')
-    })
+  test('uses the current Node executable outside Electron', () => {
+    expect(
+      resolveDaemonRuntimeCommand({
+        env: { PATH: dirname(process.execPath) },
+        execPath: process.execPath,
+        versions: { node: '24.0.0' },
+      }),
+    ).toBe(process.execPath)
+  })
 
-    test("inside Electron defaults to Electron's binary so native module ABI matches", () => {
-        // Previously this returned npm_node_execpath, which caused the
-        // better-sqlite3 NODE_MODULE_VERSION mismatch when the system Node
-        // and Electron's bundled Node disagreed on ABI.
-        expect(
-            resolveDaemonRuntimeCommand({
-                env: { npm_node_execpath: '/opt/homebrew/bin/node' },
-                execPath: '/Applications/Electron.app/Contents/MacOS/Electron',
-                versions: { node: '24.0.0', electron: '38.1.2' },
-            }),
-        ).toBe('/Applications/Electron.app/Contents/MacOS/Electron')
-    })
+  test('does not blindly use the Electron executable when launched from Electron', async () => {
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
+      const electron = await makeRuntime('Electron', 1)
+      await makeRuntime('node', 0)
 
-    test('allows an explicit daemon Node binary override from Electron', () => {
-        expect(
-            resolveDaemonRuntimeCommand({
-                env: {
-                    npm_node_execpath: '/opt/homebrew/bin/node',
-                    VT_GRAPHD_NODE_BIN: '/custom/node',
-                },
-                execPath: '/Applications/Electron.app/Contents/MacOS/Electron',
-                versions: { node: '24.0.0', electron: '38.1.2' },
-            }),
-        ).toBe('/custom/node')
+      expect(
+        resolveDaemonRuntimeCommand({
+          env: { PATH: binDir },
+          execPath: electron,
+          versions: { node: '24.0.0', electron: '38.1.2' },
+        }),
+      ).toBe('node')
     })
+  })
+
+  test('skips a bad npm_node_execpath candidate', async () => {
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
+      const electron = await makeRuntime('Electron', 1)
+      const badNpmNode = await makeRuntime('bad-npm-node', 1)
+      await makeRuntime('node', 0)
+
+      expect(
+        resolveDaemonRuntimeCommand({
+          env: { npm_node_execpath: badNpmNode, PATH: binDir },
+          execPath: electron,
+          versions: { node: '24.0.0', electron: '38.1.2' },
+        }),
+      ).toBe('node')
+    })
+  })
+
+  test('prefers VT_GRAPHD_NODE_BIN when it is valid', async () => {
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
+      const explicitNode = await makeRuntime('explicit-node', 0)
+      const npmNode = await makeRuntime('npm-node', 0)
+      await makeRuntime('node', 0)
+
+      expect(
+        resolveDaemonRuntimeCommand({
+          env: {
+            VT_GRAPHD_NODE_BIN: explicitNode,
+            npm_node_execpath: npmNode,
+            PATH: binDir,
+          },
+          execPath: process.execPath,
+          versions: { node: '24.0.0', electron: '38.1.2' },
+        }),
+      ).toBe(explicitNode)
+    })
+  })
+
+  test('throws a clear error when no candidate can load better-sqlite3', async () => {
+    await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
+      const electron = await makeRuntime('Electron', 1)
+      const badNpmNode = await makeRuntime('bad-npm-node', 1)
+      await makeRuntime('node', 1)
+
+      expect(() =>
+        resolveDaemonRuntimeCommand({
+          env: { npm_node_execpath: badNpmNode, PATH: binDir },
+          execPath: electron,
+          versions: { node: '24.0.0', electron: '38.1.2' },
+        }),
+      ).toThrow(
+        /Could not find a Node runtime for vt-graphd that can load better-sqlite3/,
+      )
+    })
+  })
 })
 
-describe('resolveDaemonRuntimeEnv', () => {
-    test('outside Electron, returns empty env', () => {
-        expect(
-            resolveDaemonRuntimeEnv({
-                env: {},
-                execPath: '/usr/local/bin/node',
-                versions: { node: '24.0.0' },
-            }),
-        ).toEqual({})
-    })
+async function withFakeRuntimeBin(
+  run: (helpers: {
+    binDir: string
+    makeRuntime: (name: string, exitCode: number) => Promise<string>
+  }) => Promise<void>,
+): Promise<void> {
+  const binDir = await mkdtemp(join(tmpdir(), 'vt-graphd-runtime-test-'))
 
-    test('inside Electron, sets ELECTRON_RUN_AS_NODE so Electron binary acts as Node', () => {
-        expect(
-            resolveDaemonRuntimeEnv({
-                env: {},
-                execPath: '/Applications/Electron.app/Contents/MacOS/Electron',
-                versions: { node: '24.0.0', electron: '38.1.2' },
-            }),
-        ).toEqual({ ELECTRON_RUN_AS_NODE: '1' })
+  try {
+    await run({
+      binDir,
+      makeRuntime: async (name, exitCode) => {
+        const path = join(binDir, name)
+        await writeFile(
+          path,
+          ['#!/bin/sh', `exit ${exitCode}`, ''].join('\n'),
+          'utf8',
+        )
+        await chmod(path, 0o755)
+        return path
+      },
     })
-
-    test('inside Electron with VT_GRAPHD_NODE_BIN override, env is left empty (override is real Node)', () => {
-        expect(
-            resolveDaemonRuntimeEnv({
-                env: { VT_GRAPHD_NODE_BIN: '/custom/node' },
-                execPath: '/Applications/Electron.app/Contents/MacOS/Electron',
-                versions: { node: '24.0.0', electron: '38.1.2' },
-            }),
-        ).toEqual({})
-    })
-})
+  } finally {
+    await rm(binDir, { force: true, recursive: true })
+  }
+}
