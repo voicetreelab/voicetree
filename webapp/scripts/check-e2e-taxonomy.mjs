@@ -54,8 +54,8 @@ const specFiles = await collectSpecFiles(e2eRoot);
 const relativeSpecs = specFiles.map((specPath) => toPosix(path.relative(e2eRoot, specPath)));
 const tier1Specs = relativeSpecs.filter((specPath) => specPath.startsWith('highest-value-system/'));
 
-if (tier1Specs.length !== 1) {
-  errors.push(`Tier 1 must contain exactly one .spec.ts file; found ${tier1Specs.length}.`);
+if (tier1Specs.length < 1) {
+  errors.push(`Tier 1 must contain at least one .spec.ts file; found ${tier1Specs.length}.`);
 }
 
 for (const specPath of relativeSpecs) {

@@ -238,14 +238,10 @@ export async function enableOpencodeMcpIntegration(): Promise<void> {
     const port: number = getMcpPort();
 
     // Ensure schema is present
-    if (!config.$schema) {
-        config.$schema = 'https://opencode.ai/config.json';
-    }
+    config.$schema ??= 'https://opencode.ai/config.json';
 
     // Ensure mcp section exists
-    if (!config.mcp) {
-        config.mcp = {};
-    }
+    config.mcp ??= {};
 
     // Merge or update voicetree server config
     config.mcp[VOICETREE_MCP_SERVER_NAME] = {
