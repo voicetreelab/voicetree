@@ -1,0 +1,73 @@
+name: "Stage 1: Fast Checks"
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'packages/**'
+      - 'webapp/**'
+      - 'scripts/**'
+      - '.github/workflows/stage1-checks.yml'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'packages/**'
+      - 'webapp/**'
+      - 'scripts/**'
+      - '.github/workflows/stage1-checks.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: stage1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck:
+    name: Lint + Typecheck + Taxonomy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run check (lint + tsc + taxonomy)
+        run: npm run check
+
+  unit-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run unit/integration tests
+        run: npx vitest run --reporter=verbose
