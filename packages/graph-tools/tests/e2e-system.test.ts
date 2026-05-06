@@ -97,7 +97,7 @@ describe('@vt/graph-tools system contract', () => {
     const state = JSON.parse(dump.stdout) as { graph: { nodes: Record<string, unknown> } }
     expect(Object.keys(state.graph.nodes)).toHaveLength(2)
 
-    const view = runCli(['view', vault, '--ascii', '--no-auto'])
+    const view = runCli(['structure', vault, '--ascii', '--no-auto'])
     expect(view.status).toBe(0)
     expect(view.stdout).toContain('Index')
     expect(view.stdout).toContain('Task')
