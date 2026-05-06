@@ -17,7 +17,8 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { createContextNode, createContextNodeFromSelectedNodes } from '@vt/graph-model';
+import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode';
+import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
@@ -36,7 +37,7 @@ import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnv
 import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
-import {broadcastGraphDeltaToUI} from '@vt/graph-model';
+import {broadcastGraphDeltaToUI} from '@vt/graph-db-server/graph/applyGraphDelta';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process

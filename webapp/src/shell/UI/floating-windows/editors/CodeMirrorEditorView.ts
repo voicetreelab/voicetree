@@ -296,6 +296,13 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Whether the user is currently typing into this editor.
+   */
+  isFocused(): boolean {
+    return this.view.hasFocus;
+  }
+
+  /**
    * Set cursor to the end of the document and focus
    * Used when opening editor for newly created nodes
    */

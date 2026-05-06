@@ -65,7 +65,7 @@ import {
 } from '@vt/graph-model'
 import {getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
 import {createMcpServer} from '@/shell/edge/main/mcp-server/mcp-server'
-import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {findAvailablePort} from '@/shell/edge/main/port-utils'
 
 function buildFixtureGraph(): Graph {
     const id: NodeIdAndFilePath = '/tmp/vault/sample.md' as NodeIdAndFilePath
