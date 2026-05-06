@@ -228,7 +228,7 @@ jobs:
         run: npm rebuild better-sqlite3
 
       - name: Run fuzz tests
-        run: npx vitest run --reporter=verbose "**/*.fuzz.test.ts"
+        run: npx vitest run --config vitest.config.fuzz.ts --reporter=verbose
 
   browser-tier2:
     name: Browser Tier 2 E2E
