@@ -312,11 +312,26 @@ jobs:
         working-directory: webapp
         run: npx @electron/rebuild --only node-pty,electron-trackpad-detect
 
+      - name: Build vt-fake-agent
+        working-directory: tools/vt-fake-agent
+        run: npm install && npx tsc
+
+      - name: Pre-warm graph daemon (tsx JIT compile)
+        run: |
+          mkdir -p /tmp/daemon-warmup/.voicetree
+          echo "# warmup" > /tmp/daemon-warmup/root.md
+          TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
+          timeout 30 node --import "$TSX_PATH" \
+            packages/graph-db-server/bin/vt-graphd.ts \
+            --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
+          rm -rf /tmp/daemon-warmup
+
       - name: Run Electron Tier 2 tests
         timeout-minutes: 20
         working-directory: webapp
         env:
           CI: 'true'
+          PLAYWRIGHT_QUIET: 'false'
         run: |
           xvfb-run --auto-servernum npx playwright test \
             --config=playwright-electron.config.ts \
