@@ -3,8 +3,8 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
-import {setGraph} from '@vt/graph-db-server/state/graph-store.ts'
-import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store.ts'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {
     createEmptyGraph,
 } from '@vt/graph-model'

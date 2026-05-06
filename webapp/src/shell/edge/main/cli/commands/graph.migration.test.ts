@@ -3,8 +3,8 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, beforeAll, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient, type GraphState} from '@vt/graph-db-client'
-import {setGraph} from '@vt/graph-db-server/state/graph-store.ts'
-import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store.ts'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {
     formatLintReportHuman,
     lintGraph,
