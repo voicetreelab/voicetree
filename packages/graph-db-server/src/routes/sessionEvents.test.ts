@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../server.ts'
@@ -8,6 +8,17 @@ import type { SourceTaggedDelta } from '../events/deltaEventBus.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))
+}
+
+async function createAppSupport(vault: string): Promise<string> {
+  const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-appsupport-'))
+  const config = {
+    vaultConfig: {
+      [vault]: { writePath: vault },
+    },
+  }
+  await writeFile(join(appSupport, 'voicetree-config.json'), JSON.stringify(config))
+  return appSupport
 }
 
 function parseSSEEvents(text: string): SourceTaggedDelta[] {
@@ -27,27 +38,29 @@ function parseSSEEvents(text: string): SourceTaggedDelta[] {
 
 describe('SSE session events', () => {
   let vault: string
+  let appSupport: string
   let handles: DaemonHandle[]
   let sseController: AbortController | null
 
   beforeEach(async () => {
     vault = await withTempVault()
+    appSupport = await createAppSupport(vault)
     handles = []
     sseController = null
   })
 
   afterEach(async () => {
     sseController?.abort()
-    // Give the server a moment to process the abort
     await new Promise(r => setTimeout(r, 50))
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
     await rm(vault, { recursive: true, force: true })
+    await rm(appSupport, { recursive: true, force: true })
   }, 15000)
 
   test('receives source-tagged deltas via SSE for HTTP writes and FS writes', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ vault, appSupportPath: appSupport })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -74,13 +87,10 @@ describe('SSE session events', () => {
     const collectEvents = async (timeoutMs = 3000): Promise<void> => {
       const deadline = Date.now() + timeoutMs
       while (Date.now() < deadline && !sseController!.signal.aborted) {
-        const timer = setTimeout(() => {}, Math.max(50, deadline - Date.now()))
         const timeoutPromise = new Promise<{ done: true; value: undefined }>((resolve) => {
           const t = setTimeout(() => resolve({ done: true, value: undefined }), Math.max(50, deadline - Date.now()))
-          // If aborted, resolve immediately
           sseController!.signal.addEventListener('abort', () => { clearTimeout(t); resolve({ done: true, value: undefined }) })
         })
-        clearTimeout(timer)
         const result = await Promise.race([reader.read(), timeoutPromise])
         if (result.done) break
         if (result.value) {
@@ -140,7 +150,7 @@ describe('SSE session events', () => {
   }, 20000)
 
   test('returns 404 for non-existent session', async () => {
-    const handle = await startDaemon({ vault })
+    const handle = await startDaemon({ vault, appSupportPath: appSupport })
     handles.push(handle)
 
     const res = await fetch(

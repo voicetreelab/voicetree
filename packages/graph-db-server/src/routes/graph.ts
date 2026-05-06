@@ -5,6 +5,7 @@ import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/pure/grap
 import { GraphStateSchema } from '../contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
 import { getGraph, getNode } from '../state/graph-store.ts'
+import { publish } from '../events/deltaEventBus.ts'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -110,6 +111,8 @@ export function createGraphRoutes(): Hono {
 
     try {
       await applyGraphDeltaToDBThroughMemAndUI(delta)
+      const sessionId = c.req.header('X-Session-Id') ?? 'anonymous'
+      publish({ delta, source: `session:${sessionId}` })
       return c.json({ delta, graph: GraphStateSchema.parse(getGraph()) })
     } catch (error) {
       return jsonError(

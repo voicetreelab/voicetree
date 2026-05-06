@@ -11,6 +11,7 @@ import { mountSelectionRoutes } from './routes/selection.ts'
 import { mountSessionStateRoutes } from './routes/sessionState.ts'
 import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
+import { mountSessionEventsRoute } from './routes/sessionEvents.ts'
 import { type SessionRegistry } from './session/registry.ts'
 
 export type CreateDaemonAppOptions = {
@@ -24,6 +25,7 @@ export function mountDaemonRoutes(
   opts: CreateDaemonAppOptions,
 ): void {
   mountSessionRoutes(app, opts.registry)
+  mountSessionEventsRoute(app, opts.registry)
   mountSessionStateRoutes(app, opts.registry)
   mountCollapseRoutes(app, opts.registry)
   mountSelectionRoutes(app, opts.registry)
