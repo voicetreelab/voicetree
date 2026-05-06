@@ -9,6 +9,7 @@ import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
 import type { GraphNode } from '@vt/graph-model/pure/graph';
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -96,8 +97,12 @@ const test = base.extend<{
       'utf8',
     );
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${userDataPath}`,
       ],
@@ -122,7 +127,7 @@ const test = base.extend<{
     } catch {
       // The app may already be closed after a failed launch.
     }
-    await electronApp.close();
+    await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 

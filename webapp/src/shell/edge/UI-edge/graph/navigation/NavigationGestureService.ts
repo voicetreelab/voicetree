@@ -183,6 +183,15 @@ export class NavigationGestureService {
         let delta: number = e.deltaY;
         if (delta === 0) return;
 
+        // Sync currentZoom from layout store in case external navigation
+        // (fitToTerminal, search nav, etc.) changed the viewport since our last write.
+        if (!this.zoomAnimating) {
+            const storeZoom: number | undefined = getLayout().zoom;
+            if (storeZoom !== undefined) {
+                this.currentZoom = storeZoom;
+            }
+        }
+
         let clamp: boolean = false;
         const wheelDeltaN: number = 4;
 

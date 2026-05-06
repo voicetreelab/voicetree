@@ -2,7 +2,10 @@ import { promises as fsp } from 'fs'
 import path from 'path'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as E from 'fp-ts/lib/Either.js'
 
+import { buildGraphFromFiles, toAbsolutePath, type DirectoryEntry } from '@vt/graph-model'
+import { configureRootIO, clearRootIOForTests } from '../../src/rootIO'
 import {
     clearLoadedRoots,
     dispatchLoadRoot,
@@ -16,6 +19,37 @@ import {
 const ROOT_A = '/tmp/loaded-roots-store-test/root-a'
 const ROOT_B = '/tmp/loaded-roots-store-test/root-b'
 
+async function readMarkdownFiles(rootPath: string): Promise<readonly { readonly absolutePath: string; readonly content: string }[]> {
+    const files: { absolutePath: string; content: string }[] = []
+    async function walk(dirPath: string): Promise<void> {
+        const entries = await fsp.readdir(dirPath, { withFileTypes: true })
+        for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+            if (entry.name.startsWith('.')) continue
+            const abs = path.join(dirPath, entry.name)
+            if (entry.isDirectory()) { await walk(abs); continue }
+            if (entry.isFile() && entry.name.endsWith('.md')) {
+                files.push({ absolutePath: abs, content: await fsp.readFile(abs, 'utf8') })
+            }
+        }
+    }
+    await walk(rootPath)
+    return files
+}
+
+async function getDirectoryTree(rootPath: string): Promise<DirectoryEntry> {
+    const abs = path.resolve(rootPath)
+    const stats = await fsp.stat(abs)
+    if (!stats.isDirectory()) {
+        return { absolutePath: toAbsolutePath(abs), name: path.basename(abs), isDirectory: false }
+    }
+    const entries = await fsp.readdir(abs, { withFileTypes: true })
+    const children = await Promise.all(
+        entries.filter(e => !e.name.startsWith('.')).sort((a, b) => a.name.localeCompare(b.name))
+            .map(e => getDirectoryTree(path.join(abs, e.name))),
+    )
+    return { absolutePath: toAbsolutePath(abs), name: path.basename(abs), isDirectory: true, children }
+}
+
 async function setupFixtureDirs(): Promise<void> {
     await fsp.mkdir(ROOT_A, { recursive: true })
     await fsp.mkdir(ROOT_B, { recursive: true })
@@ -27,8 +61,24 @@ async function teardownFixtureDirs(): Promise<void> {
     await fsp.rm('/tmp/loaded-roots-store-test', { recursive: true, force: true })
 }
 
-beforeAll(setupFixtureDirs)
-afterAll(teardownFixtureDirs)
+beforeAll(async () => {
+    configureRootIO({
+        getDirectoryTree,
+        loadGraphFromDisk: async (vaultPaths) => {
+            try {
+                const filesByVault = await Promise.all(vaultPaths.map(p => readMarkdownFiles(path.resolve(p))))
+                return E.right(buildGraphFromFiles(filesByVault.flat()))
+            } catch (error) {
+                return E.left(error)
+            }
+        },
+    })
+    await setupFixtureDirs()
+})
+afterAll(async () => {
+    await teardownFixtureDirs()
+    clearRootIOForTests()
+})
 beforeEach(() => { clearLoadedRoots() })
 
 describe('loadedRootsStore — dispatchLoadRoot', () => {

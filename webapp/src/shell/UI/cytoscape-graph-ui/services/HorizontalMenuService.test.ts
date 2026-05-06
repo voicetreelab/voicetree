@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
@@ -46,7 +47,7 @@ describe('HorizontalMenuService', () => {
         document.body.appendChild(container);
 
         cy = cytoscape({
-            container: container,
+            headless: true,
             elements: [
                 { data: { id: 'test-node.md', label: 'Test Node' }, position: { x: 100, y: 100 } },
             ],

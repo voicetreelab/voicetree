@@ -10,15 +10,16 @@
  * (prompts.ts) consumes the snapshot.
  */
 
-// `@xterm/headless` ships CommonJS only, so the ESM bundle cannot use named
-// imports. Default-import the module object and pull `Terminal` off it. The
-// `// @ts-expect-error` is needed because the package's TypeScript typings
-// describe a namespace, not a default export — the CJS interop works at
-// runtime but TS doesn't know that.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// @ts-expect-error CJS default-import; runtime exposes Terminal on the module object
-import xtermHeadless from '@xterm/headless';
-const Terminal: typeof import('@xterm/headless').Terminal = xtermHeadless.Terminal ?? xtermHeadless;
+// `@xterm/headless` ships CommonJS only, so the ESM bundle in production
+// cannot do `import { Terminal } from '@xterm/headless'` — it errors at
+// runtime with "Named export 'Terminal' not found". Type-only import for
+// compile-time + `createRequire` for the runtime fetch (the canonical
+// ESM-loads-CJS pattern).
+import { createRequire } from 'node:module';
+import type { Terminal as TerminalClass } from '@xterm/headless';
+const require = createRequire(import.meta.url);
+const TerminalCtor: typeof TerminalClass =
+    (require('@xterm/headless') as { Terminal: typeof TerminalClass }).Terminal;
 import type { LineSnapshot } from './prompts';
 
 export type Emulator = {
@@ -46,7 +47,7 @@ const DEFAULT_COLS: number = 200;
 const DEFAULT_SNAPSHOT_LINES: number = 8;
 
 export function createEmulator(opts: EmulatorOptions = {}): Emulator {
-    const term: Terminal = new Terminal({
+    const term: TerminalClass = new TerminalCtor({
         rows: opts.rows ?? DEFAULT_ROWS,
         cols: opts.cols ?? DEFAULT_COLS,
         allowProposedApi: true,

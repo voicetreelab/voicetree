@@ -13,6 +13,7 @@ import {
     broadcastGraphDeltaToUI
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
+import {publish} from "../events/deltaEventBus";
 
 const SEARCH_INDEX_PATH_SEGMENTS = ['.vt-search', 'kg.db'] as const
 
@@ -123,6 +124,9 @@ async function applyAndBroadcast(delta: GraphDelta, fsEvent: FSEvent): Promise<v
 
     // Broadcast merged delta (includes resolved links) to UI
     broadcastGraphDeltaToUI(mergedDelta)
+
+    // Publish to SSE event bus for daemon clients
+    publish({ delta: mergedDelta, source: 'fs:external' })
 
     // Broadcast to floating editor state via callback
     getCallbacks().onFloatingEditorUpdate?.(mergedDelta)

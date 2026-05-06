@@ -65,8 +65,7 @@ type FilesystemAuthoringPlanResult = {
 }
 
 const FIXTURE_ROOT = path.join(
-    process.cwd(),
-    'tests',
+    import.meta.dirname,
     'fixtures',
     'filesystem-graph-authoring'
 )

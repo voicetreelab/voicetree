@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { WEBAPP_ROOT } from './electron-smoke-helpers';
+import { WEBAPP_ROOT, robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 test.describe('Electron CI Launch Fallback', () => {
   test('starts Electron and renders the project selection window', async () => {
@@ -21,7 +21,7 @@ test.describe('Electron CI Launch Fallback', () => {
       );
 
       const ciFlags = process.env.CI
-        ? ['--no-sandbox', '--disable-dev-shm-usage']
+        ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
         : [];
 
       electronApp = await electron.launch({
@@ -34,7 +34,8 @@ test.describe('Electron CI Launch Fallback', () => {
           ...process.env,
           NODE_ENV: 'test',
           HEADLESS_TEST: '1',
-          MINIMIZE_TEST: '1'
+          MINIMIZE_TEST: '1',
+          VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
         },
         timeout: 30000
       });
@@ -57,7 +58,7 @@ test.describe('Electron CI Launch Fallback', () => {
       expect(`${title}\n${bodyText}`).toMatch(/Voicetree|Select a project|No projects yet/);
     } finally {
       if (electronApp) {
-        await electronApp.close();
+        await robustElectronTeardown(electronApp);
       }
       await fs.rm(tempUserDataPath, { recursive: true, force: true });
     }

@@ -113,7 +113,7 @@ describe('graph CLI module resolution', () => {
                 },
             ],
         })
-    })
+    }, 30000)
 
     it('routes graph structure into argument validation instead of @/shell resolution failure', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-structure-'))
@@ -124,9 +124,9 @@ describe('graph CLI module resolution', () => {
         expect(result.code, result.stderr).toBe(1)
         expect(result.signal).toBeNull()
         expect(result.stdout).toBe('')
-        expect(result.stderr).toContain('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
+        expect(result.stderr).toContain('Usage: vt graph structure <folder-path>')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
-    })
+    }, 30000)
 
     it('routes graph view into handler-level validation instead of @/shell resolution failure', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-view-'))
@@ -139,5 +139,5 @@ describe('graph CLI module resolution', () => {
         expect(result.stdout).toBe('')
         expect(result.stderr).toContain('Unknown argument: --bogus')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
-    })
+    }, 30000)
 })

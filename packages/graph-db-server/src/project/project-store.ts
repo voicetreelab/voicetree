@@ -28,9 +28,14 @@ async function readProjectsFile(): Promise<SavedProject[]> {
 
     try {
         const data: string = await fs.readFile(filePath, 'utf-8');
+        if (!data.trim()) return [];
         return JSON.parse(data) as SavedProject[];
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return [];
+        }
+        if (error instanceof SyntaxError) {
+            console.warn(`[project-store] Corrupt projects.json, resetting: ${error.message}`);
             return [];
         }
         throw error;

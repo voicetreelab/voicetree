@@ -122,7 +122,7 @@ export async function createNewEmptyOrphanNodeFromUI(
  */
 export async function deleteNodesFromUI(
     nodeIds: ReadonlyArray<NodeIdAndFilePath>,
-    _cy: Core
+    cy: Core
 ): Promise<void> {
     const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph()
     if (!currentGraph) {
@@ -158,7 +158,15 @@ export async function deleteNodesFromUI(
 
     const finalDelta: GraphDelta = deduplicateDelta(allDeltas)
 
+    for (const nodeId of nodeIdsToDelete) {
+        cy.remove(cy.getElementById(nodeId))
+    }
+
     await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(finalDelta);
+
+    for (const nodeId of nodeIdsToDelete) {
+        cy.remove(cy.getElementById(nodeId))
+    }
 }
 
 /**

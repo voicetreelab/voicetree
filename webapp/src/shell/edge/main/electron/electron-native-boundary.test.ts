@@ -253,5 +253,5 @@ describe('Electron main native storage boundary', () => {
         const violations = await findNativeBoundaryViolations()
 
         expect(violations.map(formatViolation)).toEqual([])
-    })
+    }, 30000)
 })

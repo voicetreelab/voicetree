@@ -23,14 +23,13 @@ vi.mock('@vt/agent-runtime', async (importOriginal) => {
     }
 })
 
-vi.mock('@vt/graph-model', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
-    return {
-        ...actual,
-        getUnseenNodesAroundContextNode: vi.fn(),
-        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
-    }
-})
+vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
+    getUnseenNodesAroundContextNode: vi.fn(),
+}))
+
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('@vt/voicetree-mcp', () => ({
     startMonitor: vi.fn().mockReturnValue('monitor-1')

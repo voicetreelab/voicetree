@@ -67,6 +67,10 @@ export async function spawnTerminalWithContextNode(
     inheritTerminalId?: string,
     envOverrides?: Record<string, string>
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
+    // Normalize: strip trailing slashes from node IDs (directories are not valid nodes)
+    const normalizedNodeId: NodeIdAndFilePath = taskNodeId.endsWith('/') ? taskNodeId.slice(0, -1) as NodeIdAndFilePath : taskNodeId;
+    taskNodeId = normalizedNodeId;
+
     // Load settings to get agents
     const settings: VTSettings = await loadSettings();
     if (!settings) {

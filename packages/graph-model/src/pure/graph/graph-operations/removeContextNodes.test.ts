@@ -39,8 +39,8 @@ function toEdges(ids: readonly string[]): readonly { readonly targetId: string; 
 }
 
 describe('removeContextNodes', () => {
-    it('should remove context node and bridge edges', () => {
-        // A -> ContextNode -> B  becomes  A -> B
+    it('should remove context node and clean up parent edges — no bridging', () => {
+        // A -> ContextNode -> B: ContextNode removed, A loses its edge (no transitive edge to B)
         const graph: Graph = createGraph({
             'A': createNode('A', ['ContextNode']),
             'ContextNode': createContextNode('ContextNode', ['B']),
@@ -50,11 +50,11 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
-        expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+        expect(result.nodes['A'].outgoingEdges).toEqual([])
     })
 
     it('should handle chained context nodes', () => {
-        // A -> Ctx1 -> Ctx2 -> B  becomes  A -> B
+        // A -> Ctx1 -> Ctx2 -> B: both context nodes removed, A loses its edge
         const graph: Graph = createGraph({
             'A': createNode('A', ['Ctx1']),
             'Ctx1': createContextNode('Ctx1', ['Ctx2']),
@@ -65,11 +65,11 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B'])
-        expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+        expect(result.nodes['A'].outgoingEdges).toEqual([])
     })
 
     it('should handle context node with multiple children', () => {
-        // A -> ContextNode -> {B, C, D}  becomes  A -> {B, C, D}
+        // A -> ContextNode -> {B, C, D}: ContextNode removed, A loses its edge
         const graph: Graph = createGraph({
             'A': createNode('A', ['ContextNode']),
             'ContextNode': createContextNode('ContextNode', ['B', 'C', 'D']),
@@ -81,7 +81,7 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C', 'D'])
-        expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B', 'C', 'D'])
+        expect(result.nodes['A'].outgoingEdges).toEqual([])
     })
 
     it('should handle graph with no context nodes', () => {
@@ -115,7 +115,7 @@ describe('removeContextNodes', () => {
     })
 
     it('should handle alternating context and regular nodes', () => {
-        // A -> Ctx1 -> B -> Ctx2 -> C  becomes  A -> B -> C
+        // A -> Ctx1 -> B -> Ctx2 -> C: context nodes removed, parent edges cleaned up
         const graph: Graph = createGraph({
             'A': createNode('A', ['Ctx1']),
             'Ctx1': createContextNode('Ctx1', ['B']),
@@ -127,14 +127,15 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
-        expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
-        expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['C']))
+        // A's edge to Ctx1 removed, B's edge to Ctx2 removed — no bridging
+        expect(result.nodes['A'].outgoingEdges).toEqual([])
+        expect(result.nodes['B'].outgoingEdges).toEqual([])
     })
 
     it('should handle diamond topology with context node in one path', () => {
         // A -> ContextNode -> C
         // A -> B -> C
-        // becomes A -> {B, C}, B -> C
+        // ContextNode removed, A keeps only its edge to B
         const graph: Graph = createGraph({
             'A': createNode('A', ['ContextNode', 'B']),
             'ContextNode': createContextNode('ContextNode', ['C']),
@@ -145,7 +146,8 @@ describe('removeContextNodes', () => {
         const result: Graph = removeContextNodes(graph)
 
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'B', 'C'])
-        expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B', 'C'])
+        // A's edge to ContextNode removed, but edge to B remains
+        expect(result.nodes['A'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['B'])
         expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['C']))
     })
 
@@ -168,8 +170,8 @@ describe('removeContextNodes', () => {
         expect(result.nodes).toEqual({})
     })
 
-    it('should connect nodes that both pointed to removed context node (star pattern)', () => {
-        // A -> ContextNode <- C  should result in A and C connected
+    it('should remove context node and clean up parent edges (star pattern)', () => {
+        // A -> ContextNode <- C: ContextNode removed, both parents lose their edges
         const graph: Graph = createGraph({
             'A': createNode('A', ['ContextNode']),
             'ContextNode': createContextNode('ContextNode', []),
@@ -181,8 +183,8 @@ describe('removeContextNodes', () => {
         // Both nodes should remain
         expect(Object.keys(result.nodes).sort()).toEqual(['A', 'C'])
 
-        // A and C should be connected to each other (bidirectional for traversal)
-        expect(result.nodes['A'].outgoingEdges.map(e => e.targetId)).toContain('C')
-        expect(result.nodes['C'].outgoingEdges.map(e => e.targetId)).toContain('A')
+        // No cross-incomer edges — simple deletion only removes parent edges
+        expect(result.nodes['A'].outgoingEdges).toHaveLength(0)
+        expect(result.nodes['C'].outgoingEdges).toHaveLength(0)
     })
 })

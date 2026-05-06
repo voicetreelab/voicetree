@@ -11,14 +11,15 @@
     "./daemonRouteParity": "./src/daemonRouteParity.ts",
     "./lock": "./src/lock.ts",
     "./portFile": "./src/portFile.ts",
-    "./views/*": "./src/views/*.ts",
-    "./graph/*": "./src/graph/*.ts",
-    "./state/*": "./src/state/*.ts",
-    "./watch-folder/*": "./src/watch-folder/*.ts",
-    "./context-nodes/*": "./src/context-nodes/*.ts",
-    "./search/*": "./src/search/*.ts",
-    "./settings/*": "./src/settings/*.ts",
-    "./project/*": "./src/project/*.ts"
+    "./views/*": "./src/views/*",
+    "./graph/*": "./src/graph/*",
+    "./state/*": "./src/state/*",
+    "./watch-folder/*": "./src/watch-folder/*",
+    "./context-nodes/*": "./src/context-nodes/*",
+    "./search/*": "./src/search/*",
+    "./settings/*": "./src/settings/*",
+    "./project/*": "./src/project/*",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

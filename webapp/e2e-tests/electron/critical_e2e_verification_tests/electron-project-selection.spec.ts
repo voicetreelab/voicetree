@@ -18,8 +18,12 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
+const CI_FLAGS = process.env.CI
+    ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+    : [];
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
@@ -70,6 +74,7 @@ const test = base.extend<{
         // Note: NO voicetree-config.json or projects.json - simulates first launch
         const electronApp = await electron.launch({
             args: [
+                ...CI_FLAGS,
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`
             ],
@@ -78,7 +83,8 @@ const test = base.extend<{
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
-                VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
+                VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
             },
             timeout: 15000
         });
@@ -99,7 +105,7 @@ const test = base.extend<{
             // Window may be closed already
         }
 
-        await electronApp.close();
+        await robustElectronTeardown(electronApp);
     },
 
     appWindow: async ({ electronApp }, use) => {
@@ -331,6 +337,7 @@ test.describe('Project Selection Screen E2E', () => {
             // Launch first instance - should show the pre-saved project
             const app1 = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -339,7 +346,8 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
-                    VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
+                    VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
                 timeout: 15000
             });
@@ -367,6 +375,7 @@ test.describe('Project Selection Screen E2E', () => {
             // Launch second instance
             const app2 = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -375,7 +384,8 @@ test.describe('Project Selection Screen E2E', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
-                    VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
+                    VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
                 timeout: 15000
             });
@@ -444,6 +454,7 @@ test.describe('Watched Folder Panel Regression', () => {
 
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -452,7 +463,8 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
-                    VOICETREE_PERSIST_STATE: '1'
+                    VOICETREE_PERSIST_STATE: '1',
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
                 timeout: 15000
             });
@@ -509,7 +521,7 @@ test.describe('Watched Folder Panel Regression', () => {
                     if (api) await api.main.stopFileWatching();
                 });
             } catch { /* ignore */ }
-            await electronApp.close();
+            await robustElectronTeardown(electronApp);
         } finally {
             await fs.rm(tempUserDataPath, { recursive: true, force: true });
             await fs.rm(tempProjectPath, { recursive: true, force: true });
@@ -581,6 +593,7 @@ test.describe('Watched Folder Panel Regression', () => {
             // 4. Launch the app
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -589,7 +602,8 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
-                    VOICETREE_PERSIST_STATE: '1'
+                    VOICETREE_PERSIST_STATE: '1',
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
                 timeout: 15000
             });
@@ -697,7 +711,7 @@ test.describe('Watched Folder Panel Regression', () => {
             } catch {
                 // Ignore cleanup errors
             }
-            await electronApp.close();
+            await robustElectronTeardown(electronApp);
 
         } finally {
             // Cleanup temp directories
@@ -833,6 +847,7 @@ test.describe('Watched Folder Panel Regression', () => {
             // Launch app
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -841,7 +856,8 @@ test.describe('Watched Folder Panel Regression', () => {
                     NODE_ENV: 'test',
                     HEADLESS_TEST: '1',
                     MINIMIZE_TEST: '1',
-                    VOICETREE_PERSIST_STATE: '1'
+                    VOICETREE_PERSIST_STATE: '1',
+                    VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
                 },
                 timeout: 15000
             });
@@ -910,7 +926,7 @@ test.describe('Watched Folder Panel Regression', () => {
             } catch {
                 // Ignore
             }
-            await electronApp.close();
+            await robustElectronTeardown(electronApp);
 
         } finally {
             await fs.rm(tempUserDataPath, { recursive: true, force: true });

@@ -6,10 +6,12 @@ import type { Server } from 'node:http'
 import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
+import { createEmptyGraph } from '@vt/graph-model'
 import { getVaultPaths, setVaultPath } from './watch-folder/vault-allowlist.ts'
+import { setGraph } from './state/graph-store.ts'
 import { loadGraphFromDisk } from './graph/loadGraphFromDisk.ts'
 import { getDirectoryTree } from './watch-folder/folder-scanner.ts'
-import { onReadPathsChanged } from './state/watch-folder-store.ts'
+import { clearWatchFolderState, onReadPathsChanged } from './state/watch-folder-store.ts'
 import {
   closeFolderVisibilityDb,
   openFolderVisibilityDb,
@@ -79,6 +81,8 @@ export async function startDaemon(
   }
 
   const lockHandle = lockResult
+  clearWatchFolderState()
+  setGraph(createEmptyGraph())
   const startMs = Date.now()
   initGraphModel({
     appSupportPath:
@@ -261,6 +265,8 @@ export async function startDaemon(
     } finally {
       await lockHandle.release()
       await deletePortFile(vault)
+      clearWatchFolderState()
+      setGraph(createEmptyGraph())
     }
   }
 

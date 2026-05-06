@@ -28,16 +28,17 @@ describe('Embedder', () => {
     expect(simAB).toBeGreaterThan(simAC);
   });
 
-  it('builds embedding text from title, tags, and first paragraph', () => {
+  it('builds embedding text from title, tags, and body content after the markdown title', () => {
     const text = Embedder.buildEmbeddingText(
       'Widget Theory',
       ['concept', 'framework'],
-      'A theoretical framework for understanding component interactions.\n\nMore details here.',
+      '# Widget Theory\n\nA theoretical framework for understanding component interactions.\n\nMore details here.',
     );
     expect(text).toContain('Widget Theory');
     expect(text).toContain('concept');
     expect(text).toContain('theoretical framework');
-    expect(text).not.toContain('More details here');
+    expect(text).toContain('More details here');
+    expect(text).not.toContain('# Widget Theory');
   });
 });
 

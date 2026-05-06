@@ -65,7 +65,7 @@ describe('deleteNodeSimple', () => {
     })
 
     describe('simple chain: a -> b -> c', () => {
-        it('should connect parent to children when middle node is removed', () => {
+        it('should remove middle node and its incoming edges — no transitive edge creation', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
                 'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
@@ -75,15 +75,14 @@ describe('deleteNodeSimple', () => {
             const result: Graph = deleteAndApply(graph, 'b.md')
 
             expect(result.nodes['b.md']).toBeUndefined()
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
-            expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
-            expect(result.nodes['a.md'].outgoingEdges[0].label).toBe('extends')
+            // deleteNodeSimple only removes b and cleans up parent edges — no transitive edges
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
             expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('multiple children: a -> b -> {c, d}', () => {
-        it('should connect parent to all children of removed node', () => {
+        it('should remove node and clean up parent edges — children become disconnected', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
                 'b.md': createNode('b.md', [
@@ -96,18 +95,13 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(2)
-            const targetIds: readonly NodeIdAndFilePath[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
-            expect(targetIds).toContain('c.md')
-            expect(targetIds).toContain('d.md')
-            expect(result.nodes['a.md'].outgoingEdges.every(e => e.label === 'parent-of')).toBe(true)
+            // a's edge to b is removed, no transitive edges created
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('multiple parents: {a, x} -> b -> c', () => {
-        it('should connect all parents to children AND to each other', () => {
-            // In bidirectional traversal, a and x can reach each other via b's incoming edges
-            // So when removing b, we preserve: a -> c, x -> c (children) AND a -> x, x -> a (incomers)
+        it('should remove node and clean up all parent edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
                 'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
@@ -117,24 +111,14 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
-            // a connects to c (child of b) and x (other incomer)
-            const aTargets: readonly string[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
-            expect(aTargets).toContain('c.md')
-            expect(aTargets).toContain('x.md')
-            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-a')
-            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'x.md')?.label).toBe('label-a')
-
-            // x connects to c (child of b) and a (other incomer)
-            const xTargets: readonly string[] = result.nodes['x.md'].outgoingEdges.map(e => e.targetId)
-            expect(xTargets).toContain('c.md')
-            expect(xTargets).toContain('a.md')
-            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-x')
-            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'a.md')?.label).toBe('label-x')
+            // Both parents' edges to b are removed, no transitive or cross-incomer edges
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['x.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('edge cases', () => {
-        it('should not create duplicate edges if parent already connects to child', () => {
+        it('should remove edge to deleted node but keep other edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [
                     { targetId: 'b.md', label: 'via-b' },
@@ -146,6 +130,7 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'b.md')
 
+            // Only the direct edge to c.md remains, the edge to b.md is removed
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
             expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
             expect(result.nodes['a.md'].outgoingEdges[0].label).toBe('direct')
@@ -188,36 +173,26 @@ describe('deleteNodeSimple', () => {
 
     /**
      * Fan-in pattern tests: Multiple nodes pointing TO the removed node.
-     *
-     * In bidirectional traversal (like getSubgraphByDistance), when at node X,
-     * we can follow X's "incoming" edges to find other nodes pointing to X.
-     * This means nodes A and B that both point to X can reach each other via X.
-     *
-     * When X is removed, we must preserve this reachability by connecting
-     * the incomers to each other.
+     * deleteNodeSimple just removes the node and cleans up parent edges —
+     * no transitive or cross-incomer edges are created.
      */
     describe('fan-in pattern: sink node removal ({a, b} -> x, x has no children)', () => {
-        it('should connect incomers to each other when removing a sink node', () => {
-            // Before: a -> x, b -> x (x is a "sink" with no outgoing edges)
-            // Bidirectional traversal: a can reach b via x's incoming edges
-            // After removing x: a -> b, b -> a (preserve mutual reachability)
+        it('should remove sink node and clean up parent edges — no cross-incomer edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'points-to' }]),
                 'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'also-points-to' }]),
-                'x.md': createNode('x.md', []) // sink node - no outgoing edges
+                'x.md': createNode('x.md', [])
             })
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
             expect(result.nodes['x.md']).toBeUndefined()
-            // a should connect to b (preserves: a -> x -> incoming -> b)
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId)).toContain('b.md')
-            // b should connect to a (preserves: b -> x -> incoming -> a)
-            expect(result.nodes['b.md'].outgoingEdges.map(e => e.targetId)).toContain('a.md')
+            // Parents' edges to x are removed, no new edges created
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['b.md'].outgoingEdges).toHaveLength(0)
         })
 
-        it('should connect all incomers to each other with 3+ nodes', () => {
-            // a -> x, b -> x, c -> x (all can reach each other via x)
+        it('should remove sink node with 3+ incomers — all parent edges cleaned up', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
                 'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
@@ -227,20 +202,12 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
-            // Each incomer should be able to reach the others
-            const aTargets: readonly string[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
-            const bTargets: readonly string[] = result.nodes['b.md'].outgoingEdges.map(e => e.targetId)
-            const cTargets: readonly string[] = result.nodes['c.md'].outgoingEdges.map(e => e.targetId)
-
-            expect(aTargets).toContain('b.md')
-            expect(aTargets).toContain('c.md')
-            expect(bTargets).toContain('a.md')
-            expect(bTargets).toContain('c.md')
-            expect(cTargets).toContain('a.md')
-            expect(cTargets).toContain('b.md')
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['b.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
         })
 
-        it('should preserve original labels when connecting incomers', () => {
+        it('should only remove edges pointing to deleted node', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'my-label' }]),
                 'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'other-label' }]),
@@ -249,20 +216,14 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
-            // a's new edge to b should use a's original label
-            const aToB: { readonly targetId: string; readonly label: string } | undefined = result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'b.md')
-            expect(aToB?.label).toBe('my-label')
-
-            // b's new edge to a should use b's original label
-            const bToA: { readonly targetId: string; readonly label: string } | undefined = result.nodes['b.md'].outgoingEdges.find(e => e.targetId === 'a.md')
-            expect(bToA?.label).toBe('other-label')
+            // No new edges created — simple deletion
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['b.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('fan-in with children: {a, b} -> x -> c', () => {
-        it('should connect incomers to children AND to each other', () => {
-            // Before: a -> x -> c, b -> x
-            // After: a -> c, b -> c (current), PLUS a -> b, b -> a (new)
+        it('should remove node and clean up parent edges — no transitive or cross-incomer edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'x.md', label: 'label-a' }]),
                 'b.md': createNode('b.md', [{ targetId: 'x.md', label: 'label-b' }]),
@@ -272,43 +233,28 @@ describe('deleteNodeSimple', () => {
 
             const result: Graph = deleteAndApply(graph, 'x.md')
 
-            // Current behavior: incomers connect to children
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId)).toContain('c.md')
-            expect(result.nodes['b.md'].outgoingEdges.map(e => e.targetId)).toContain('c.md')
-
-            // New behavior: incomers connect to each other
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId)).toContain('b.md')
-            expect(result.nodes['b.md'].outgoingEdges.map(e => e.targetId)).toContain('a.md')
+            // Parents' edges are cleaned up, no transitive edges to c
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['b.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
-    describe('context node bug scenario', () => {
-        it('should preserve reachability when removing context node with backlink pattern', () => {
-            // Real bug scenario:
-            // original_node -> context_node (original created context)
-            // agent_child -> context_node (agent added backlink to "parent")
-            // context_node has no outgoing edges
-            //
-            // When traversing from agent_child:
-            // - Go to context_node (outgoing)
-            // - See original_node via context_node's incoming
-            //
-            // After removing context_node, agent_child should reach original_node
+    describe('simple deletion scenario', () => {
+        it('should remove node and clean up all incoming references', () => {
             const graph: Graph = createGraph({
                 'original.md': createNode('original.md', [{ targetId: 'context.md', label: 'created' }]),
                 'agent_child.md': createNode('agent_child.md', [{ targetId: 'context.md', label: 'parent-backlink' }]),
-                'context.md': createNode('context.md', []) // Context node - no outgoing
+                'context.md': createNode('context.md', [])
             })
 
             const result: Graph = deleteAndApply(graph, 'context.md')
 
             expect(result.nodes['context.md']).toBeUndefined()
 
-            // agent_child should be able to reach original (was reachable via context's incoming)
-            expect(result.nodes['agent_child.md'].outgoingEdges.map(e => e.targetId)).toContain('original.md')
-
-            // original should be able to reach agent_child
-            expect(result.nodes['original.md'].outgoingEdges.map(e => e.targetId)).toContain('agent_child.md')
+            // Both parents' edges to context.md are removed, no new edges
+            expect(result.nodes['agent_child.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['original.md'].outgoingEdges).toHaveLength(0)
         })
     })
 })

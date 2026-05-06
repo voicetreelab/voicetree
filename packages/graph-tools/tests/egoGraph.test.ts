@@ -8,6 +8,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 import {mkdirSync, writeFileSync, rmSync} from 'fs'
 import {buildStateFromVault} from '@vt/graph-state'
 import type {State} from '@vt/graph-state/contract'
+import {configureGraphToolsRootIO} from '../src/rootIO'
 import {focus, neighbors, shortestPath, renderFocus, renderNeighbors, renderPath} from '../src/egoGraph'
 
 const VAULT = '/tmp/vt-ego-unit-test'
@@ -20,6 +21,7 @@ const E = `${VAULT}/e.md`
 let graph: State['graph']
 
 beforeAll(async () => {
+    configureGraphToolsRootIO()
     mkdirSync(VAULT, {recursive: true})
     writeFileSync(A, '# A\n[[b]]\n')
     writeFileSync(B, '# B\n[[c]]\n')

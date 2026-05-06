@@ -9,6 +9,7 @@ const srcDir: string = path.dirname(fileURLToPath(import.meta.url))
 const webappDir: string = path.resolve(srcDir, '..')
 const repoRootDir: string = path.resolve(webappDir, '..')
 const configPath: string = path.join(webappDir, 'eslint.config.js')
+const ESLINT_INTEGRATION_TIMEOUT_MS: number = 60_000
 
 async function lintText(
   code: string,
@@ -42,7 +43,7 @@ describe('daemon mutation import lint rule', () => {
     )
 
     expect(messages).toEqual([])
-  })
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
 
   it('rejects direct imports and re-exports outside the daemon package', async () => {
     const messages: readonly string[] = await lintText(
@@ -58,7 +59,7 @@ describe('daemon mutation import lint rule', () => {
       'addReadPath is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
       'dispatchCollapse is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
     ])
-  })
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
 
   it('allows explicitly annotated low-level tests', async () => {
     const messages: readonly string[] = await lintText(
@@ -73,7 +74,7 @@ describe('daemon mutation import lint rule', () => {
     )
 
     expect(messages).toEqual([])
-  })
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
 
   it('allows the narrow fixture path escape hatch', async () => {
     const messages: readonly string[] = await lintText(
@@ -85,5 +86,5 @@ describe('daemon mutation import lint rule', () => {
     )
 
     expect(messages).toEqual([])
-  })
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
 })

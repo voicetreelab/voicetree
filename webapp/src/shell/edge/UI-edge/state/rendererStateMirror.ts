@@ -157,7 +157,6 @@ export function applyDeltaToRendererStateMirror(delta: GraphDelta): void {
     mirror.graph = applyGraphDeltaToGraph(mirror.graph, delta)
     updatePositionsFromDelta(delta)
     mirror.revision += 1
-    void refreshFolderTreeFromMain()
 }
 
 export function resetRendererStateMirror(): void {

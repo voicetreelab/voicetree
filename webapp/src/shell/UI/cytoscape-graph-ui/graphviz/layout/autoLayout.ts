@@ -303,18 +303,23 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }, 300); // 300ms debounce - prevents flickering during markdown typing
   };
 
-  // Track new node IDs on add, then trigger debounced layout
+  // Track new node IDs on add, then trigger debounced layout.
+  // Folder nodes (collapsed proxies) are excluded: they arrive from async
+  // re-projection at (0,0) and would cause Cola to pull everything to origin.
   const onNodeAdd: (evt: EventObject) => void = (evt) => {
     const target: NodeSingular = evt.target as NodeSingular;
+    if (target.data('isFolderNode')) return;
     if (isLayoutParticipantNode(target)) {
       pendingNewNodeIds.add(target.id());
     }
     debouncedRunLayout();
   };
 
-  // Track removed node count so runLayout can decide whether full layout is needed
+  // Track removed node count so runLayout can decide whether full layout is needed.
+  // Folder nodes excluded for symmetry — folder add/remove is structural, not layout-relevant.
   const onNodeRemove: (evt: EventObject) => void = (evt) => {
     const target: NodeSingular = evt.target as NodeSingular;
+    if (target.data('isFolderNode')) return;
     if (isLayoutParticipantNode(target)) {
       pendingRemovedNodeCount++;
     }

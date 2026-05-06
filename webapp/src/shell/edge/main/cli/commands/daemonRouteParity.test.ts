@@ -23,6 +23,8 @@ describe('daemon CLI route parity', () => {
             {id: 'view.selection', method: 'POST', path: '/sessions/:sessionId/selection'},
             {id: 'view.layout', method: 'PUT', path: '/sessions/:sessionId/layout'},
             {id: 'graph.read', method: 'GET', path: '/graph'},
+            {id: 'graph.delta', method: 'POST', path: '/graph/delta'},
+            {id: 'graph.delete-node', method: 'DELETE', path: '/graph/node/:encodedNodeId'},
             {id: 'vault.show', method: 'GET', path: '/vault'},
             {id: 'vault.add-read-path', method: 'POST', path: '/vault/read-paths'},
             {id: 'vault.remove-read-path', method: 'DELETE', path: '/vault/read-paths/:encodedPath'},

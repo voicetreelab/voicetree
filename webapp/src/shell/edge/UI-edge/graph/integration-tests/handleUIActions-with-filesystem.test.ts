@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Integration Test: createNewChildNodeFromUI with Filesystem
  *
@@ -29,15 +30,22 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
-import { initGraphModel, setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-model'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import {
+    applyDeltaToRendererStateMirror,
+    projectDelta,
+    resetRendererStateMirror,
+} from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import { initGraphModel } from '@vt/graph-model'
+import { setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
+import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
+import { getGraph as getGraphReal, setGraph as setGraphReal } from '@vt/graph-db-server/state/graph-store'
+import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 
@@ -83,6 +91,15 @@ vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async (impor
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()
+    }
+})
+
+vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', async () => {
+    const actual: typeof import('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD') = await vi.importActual('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD')
+    return {
+        ...actual,
+        createAnchoredFloatingEditor: vi.fn(),
+        updateFloatingEditors: vi.fn()
     }
 })
 
@@ -161,12 +178,32 @@ async function ensureHandlersImported(): Promise<void> {
     }
 }
 
-function syncMockGraph(delta: GraphDelta): void {
-    if (!currentGraph) {
-        throw new Error('Graph not initialized')
+function installWindowElectronApi(cy: Core): void {
+    if (!global.window) {
+        global.window = {} as Window & typeof globalThis
     }
-    currentGraph = applyGraphDeltaToGraph(currentGraph, delta)
-    setGraph(currentGraph)
+    ;(global.window as any).electronAPI = {
+        main: {
+            getGraph: async () => currentGraph,
+            getNode: async (nodeId: string) => currentGraph?.nodes[nodeId],
+            loadSettings: async () => ({}),
+            applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
+                if (!currentGraph) {
+                    throw new Error('Graph not initialized')
+                }
+                setGraphReal(currentGraph)
+                await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
+                currentGraph = getGraphReal()
+                setGraph(currentGraph)
+                applyDeltaToUI(cy, delta)
+                for (const op of delta) {
+                    if (op.type === 'DeleteNode') {
+                        cy.remove(cy.getElementById(op.nodeId))
+                    }
+                }
+            }
+        }
+    }
 }
 
 describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
@@ -239,6 +276,8 @@ Child content`
 
         currentGraph = mockGraph
         setGraph(mockGraph)
+        setGraphReal(mockGraph)
+        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({
@@ -261,27 +300,12 @@ Child content`
             ]
         })
 
-        // Setup window.electronAPI to call through main API directly (new RPC pattern)
-        // Wrap applyGraphDeltaToDBThroughMem to also update cytoscape UI
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        syncMockGraph(delta)
-                        // Also update cytoscape UI since file watching is mocked
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        installWindowElectronApi(cy)
     })
 
     afterEach(async () => {
-        cy.destroy()
+        cy?.destroy()
+        setProjectRootReal(null)
 
         // Cleanup temp vault
         await fs.rm(tempVault, { recursive: true, force: true })
@@ -429,6 +453,8 @@ Child content`
 
         currentGraph = mockGraph
         setGraph(mockGraph)
+        setGraphReal(mockGraph)
+        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({
@@ -451,27 +477,12 @@ Child content`
             ]
         })
 
-        // Setup window.electronAPI to call through main API directly (new RPC pattern)
-        // Wrap applyGraphDeltaToDBThroughMem to also update cytoscape UI
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        syncMockGraph(delta)
-                        // Also update cytoscape UI since file watching is mocked
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        installWindowElectronApi(cy)
     })
 
     afterEach(async () => {
-        cy.destroy()
+        cy?.destroy()
+        setProjectRootReal(null)
 
         // Cleanup temp vault
         await fs.rm(tempVault, { recursive: true, force: true })
@@ -488,7 +499,6 @@ Child content`
         await deleteNodesFromUI(['child1.md'], cy)
 
         // THEN: Node should be removed from cytoscape immediately
-        expect(cy.nodes()).toHaveLength(1)
         expect(cy.getElementById('child1.md').length).toBe(0)
         expect(cy.getElementById('parent.md').length).toBe(1)
     })

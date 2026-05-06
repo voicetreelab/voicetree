@@ -14,7 +14,10 @@
   },
   "concurrency": 3,
   "timeoutMS": 30000,
-  "reporters": ["clear-text"],
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "../../stryker-graph-model.json"
+  },
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": "always",
   "warnings": {

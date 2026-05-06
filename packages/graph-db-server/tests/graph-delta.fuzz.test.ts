@@ -6,10 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphDelta, GraphNode } from '@vt/graph-model'
 
-import { createEmptyGraph } from '@vt/graph-model'
 import { startDaemon, type DaemonHandle } from '../src'
-import { setGraph } from '../src/state/graph-store.ts'
-import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 
 type GraphBody = {
   nodes: Record<string, GraphNode>
@@ -197,15 +194,11 @@ describe('graph delta HTTP API fuzz test', () => {
     root = await mkdtemp(path.join(tmpdir(), 'vt-graphd-delta-fuzz-'))
     vault = path.join(root, 'vault')
     await mkdir(vault, { recursive: true })
-    clearWatchFolderState()
-    setGraph(createEmptyGraph())
     handle = null
   })
 
   afterEach(async () => {
     await handle?.stop().catch(() => {})
-    clearWatchFolderState()
-    setGraph(createEmptyGraph())
     await rm(root, { recursive: true, force: true })
   })
 
@@ -229,6 +222,7 @@ describe('graph delta HTTP API fuzz test', () => {
         const ctx = `seed=0x${seed.toString(16)} seq=${seq} seqSeed=0x${seqSeed.toString(16)} step=${step}`
         const existingIds = [...expectedNodes.keys()]
         const safeDeletes = deletableNodeIds(expectedNodes)
+        const unsafeDeletes = existingIds.filter((id) => !safeDeletes.includes(id))
         const operation = existingIds.length === 0
           ? 'create'
           : pick(rng, [
@@ -236,6 +230,7 @@ describe('graph delta HTTP API fuzz test', () => {
               'update',
               'read',
               ...(safeDeletes.length > 0 ? ['delete'] : []),
+              ...(unsafeDeletes.length > 0 ? ['unsafeDelete'] : []),
             ] as const)
 
         if (operation === 'create') {
@@ -288,6 +283,51 @@ describe('graph delta HTTP API fuzz test', () => {
           expectedNodes.delete(nodePath)
 
           const graph = await assertNodeDeleted(baseUrl, nodePath, ctx)
+          await assertNoOrphanFiles(vault, graph, ctx)
+          continue
+        }
+
+        if (operation === 'unsafeDelete') {
+          const nodePath = pick(rng, unsafeDeletes)
+          const response = await fetch(
+            `${baseUrl}/graph/node/${encodeURIComponent(nodePath)}`,
+            { method: 'DELETE' },
+          )
+          expect(response.status).toBe(200)
+          expectedNodes.delete(nodePath)
+
+          // Wait for node removal without edge consistency check (the system
+          // does not clean up incoming edges from other nodes automatically).
+          await waitFor(async () => {
+            const g = await getGraph(baseUrl)
+            if (g.nodes[nodePath]) return null
+            if (await fileExists(nodePath)) return null
+            return g
+          })
+
+          // Heal dangling edges: re-upsert each node that referenced the
+          // deleted target with the edge stripped, as a real client would.
+          const affected = [...expectedNodes.entries()].filter(
+            ([, n]) => n.outgoingEdges.some((e) => e.targetId === nodePath),
+          )
+          for (const [affectedPath, oldNode] of affected) {
+            const healed = makeNode(
+              affectedPath,
+              oldNode.contentWithoutYamlOrLinks,
+              oldNode.outgoingEdges
+                .filter((e) => e.targetId !== nodePath)
+                .map((e) => e.targetId),
+            )
+            await postDelta(baseUrl, [{
+              type: 'UpsertNode',
+              nodeToUpsert: healed,
+              previousNode: O.some(oldNode),
+            }])
+            expectedNodes.set(affectedPath, healed)
+          }
+
+          const graph = await getGraph(baseUrl)
+          assertEdgeConsistency(graph, ctx)
           await assertNoOrphanFiles(vault, graph, ctx)
           continue
         }

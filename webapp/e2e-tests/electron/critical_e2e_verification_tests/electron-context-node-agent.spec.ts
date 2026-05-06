@@ -31,6 +31,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -62,8 +63,12 @@ const test = base.extend<{
     }, null, 2), 'utf8');
     console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
       ],
@@ -72,7 +77,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
+        VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
       timeout: 10000 // 10 second timeout for app launch
     });
@@ -93,7 +99,7 @@ const test = base.extend<{
       console.log('Note: Could not stop file watching during cleanup');
     }
 
-    await electronApp.close();
+    await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });

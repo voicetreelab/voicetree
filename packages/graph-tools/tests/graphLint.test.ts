@@ -23,8 +23,7 @@ import type {
 } from '../src/graphLint'
 
 const FIXTURE_ROOT = path.join(
-    process.cwd(),
-    'tests',
+    import.meta.dirname,
     'fixtures',
     'filesystem-graph-authoring'
 )

@@ -14,4 +14,4 @@ export {
     type LintResult,
     type GraphLintReport,
     type LintConfig,
-} from '@vt/graph-tools'
+} from '@vt/graph-tools/graphLint'

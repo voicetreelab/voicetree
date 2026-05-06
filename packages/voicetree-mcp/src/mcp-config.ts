@@ -7,7 +7,7 @@ import type { Command, Delta, SerializedState } from '@vt/graph-state'
 
 export type LiveStateBridge = {
     readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
-    readonly getLiveStateSnapshot: () => Promise<SerializedState>
+    readonly getLiveStateSnapshot: () => Promise<SerializedState | null>
 }
 
 export type SearchSimilarResult = {

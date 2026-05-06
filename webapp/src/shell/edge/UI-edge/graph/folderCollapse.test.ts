@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * BF-113: Synthetic Edges on Collapsed Folders
  *
