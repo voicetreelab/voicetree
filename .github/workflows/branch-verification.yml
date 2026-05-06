@@ -31,7 +31,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -56,10 +56,83 @@ jobs:
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
+      - name: Run browser Tier 2 E2E (critical_for_verification)
+        timeout-minutes: 10
+        working-directory: webapp
+        run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ci-smoke-results
+          path: |
+            webapp/test-results/
+            webapp/playwright-report/
+          retention-days: 7
+
       - name: Run browser Tier 2 E2E
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
         timeout-minutes: 25
         run: npm --workspace webapp run test:browser -- --reporter=line
 
       - name: Run Electron Tier 2 E2E
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
         run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
+
+  electron-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install system dependencies for Electron
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
+
+      - name: Build Electron app
+        working-directory: webapp
+        run: npx electron-vite build
+
+      - name: Rebuild native modules for Electron
+        working-directory: webapp
+        run: npx @electron/rebuild --only node-pty,electron-trackpad-detect
+
+      - name: Build vt-fake-agent
+        working-directory: tools/vt-fake-agent
+        run: npm install && npx tsc
+
+      - name: Run Electron smoke test (CI launch)
+        timeout-minutes: 5
+        working-directory: webapp
+        run: |
+          xvfb-run --auto-servernum npx playwright test \
+            --config=playwright-tier1-system.config.ts \
+            --grep="starts Electron and renders the project selection window" \
+            --reporter=line
+
+      - name: Upload Electron test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-smoke-results
+          path: |
+            webapp/test-results/
+            webapp/playwright-report-tier1-system/
+          retention-days: 7
