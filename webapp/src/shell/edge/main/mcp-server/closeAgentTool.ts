@@ -8,14 +8,14 @@
  */
 
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {closeHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
+import {closeHeadlessAgent} from '@vt/agent-runtime'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentStatus} from './isAgentComplete'
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {runStopHooks, type StopHookResult} from '@/shell/edge/main/terminals/stopGateHookRunner'
+import {runStopHooks, type StopHookResult} from '@vt/agent-runtime'
 
 export interface CloseAgentParams {
     terminalId: string

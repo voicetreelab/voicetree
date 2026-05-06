@@ -14,7 +14,7 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
+vi.mock('@vt/agent-runtime', () => ({
     getTerminalRecords: vi.fn(),
     resetAuditRetryCount: vi.fn()
 }))
@@ -41,7 +41,7 @@ import {createGraphTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {parse as mermaidParse} from '@mermaid-js/parser'
 

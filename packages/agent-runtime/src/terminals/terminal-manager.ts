@@ -1,16 +1,15 @@
 import { promises as fs } from 'fs';
 import { execFileSync } from 'child_process';
 import pty, { type IPty } from 'node-pty';
-import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
-import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {trace} from '@/shell/edge/main/tracing/trace';
-import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
-import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/terminals/terminal-output-buffer';
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
+import {getTerminalId} from '../types';
+import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
+import type {TerminalData} from '../types';
+import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
+import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
 import type {VTSettings} from '@vt/graph-model/pure/settings/types';
-import {closeHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
+import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
+import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -60,12 +59,12 @@ export interface TerminalSpawnOpts {
  * - Shell selection logic
  * - Error terminal handling
  */
-export default class TerminalManager {
+export class TerminalManager {
   private terminals = new Map<string, IPty>();
 
   async spawn(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const { terminalData, getToolsDirectory, onData, onExit } = opts;
-    return trace('terminal:spawn', async () => {
+    return getRuntimeTrace()('terminal:spawn', async () => {
     try {
       const terminalId: string = getTerminalId(terminalData);
 
@@ -212,7 +211,7 @@ export default class TerminalManager {
   kill(terminalId: string): TerminalOperationResult {
     try {
       // Headless agents: shared close path (handles both running + exited)
-      const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as import('@/shell/edge/UI-edge/floating-windows/types').TerminalId);
+      const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as import('../types').TerminalId);
       if (headlessResult.closed) {
         return { success: true };
       }
@@ -314,7 +313,7 @@ export default class TerminalManager {
       // Set node-based environment variables from attachedToContextNodeId
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
-      const otlpPort: number | null = getOTLPReceiverPort();
+      const otlpPort: number | null = getRuntimeEnv().getOTLPReceiverPort?.() ?? null;
       if (otlpPort) {
         customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
         customEnv.OTEL_METRICS_EXPORTER = 'otlp';

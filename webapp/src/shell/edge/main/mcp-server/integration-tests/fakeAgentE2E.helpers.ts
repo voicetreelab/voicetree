@@ -13,11 +13,11 @@ import {
     updateTerminalIsDone,
     clearTerminalRecords,
     type TerminalRecord
-} from '@/shell/edge/main/terminals/terminal-registry'
+} from '@vt/agent-runtime'
 import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from '@/shell/edge/main/mcp-server/agentNodeIndex'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
+import {getTerminalManager} from '@vt/agent-runtime'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
 import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'

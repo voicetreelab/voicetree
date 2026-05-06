@@ -4,7 +4,7 @@ import type {} from '@/shell/electron';
 import * as O from "fp-ts/lib/Option.js";
 import {type Option} from "fp-ts/lib/Option.js";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import type {TerminalRecord, TerminalStatus} from "@/shell/edge/main/terminals/terminal-registry";
+import type {TerminalRecord, TerminalStatus} from '@vt/agent-runtime';
 import {resetAgentTabsStore} from "@/shell/edge/UI-edge/state/AgentTabsStore";
 
 const terminals: Map<TerminalId, TerminalData> = new Map<TerminalId, TerminalData>();

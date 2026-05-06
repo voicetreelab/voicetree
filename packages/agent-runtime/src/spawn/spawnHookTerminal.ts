@@ -11,17 +11,17 @@ import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
+import {createTerminalData, type TerminalId} from '../types'
+import type {TerminalData} from '../types'
+import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
+import {getTerminalManager} from '../terminals/terminal-manager-instance'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder'
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {buildTerminalEnvVars} from './buildTerminalEnvVars'
+import {getRuntimeUI} from '../runtime-config'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
 const TERMINAL_READY_POLL_MS: number = 100
@@ -115,7 +115,7 @@ async function spawnHookTerminal(): Promise<void> {
     })
 
     // Launch terminal UI — async IPC roundtrip: main → renderer → main (PTY spawn)
-    void uiAPI.launchTerminalOntoUI(hookNodeId, terminalData, true)
+    getRuntimeUI().launchTerminalOntoUI?.(hookNodeId, terminalData, true)
 
     const ready: boolean = await waitForTerminalReady()
     if (!ready) {

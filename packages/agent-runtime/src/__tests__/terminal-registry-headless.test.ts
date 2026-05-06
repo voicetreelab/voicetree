@@ -11,14 +11,13 @@
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {createTerminalData} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalData, CreateTerminalDataParams} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
+import type {TerminalId} from '../types'
+import {createTerminalData} from '../types'
+import type {TerminalData, CreateTerminalDataParams} from '../types'
 
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 
-// These are imported by terminal-registry but not used in our test path
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}}))
 }))
 
@@ -34,11 +33,11 @@ vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')
 }))
 
-vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
+vi.mock('../inject/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
     loadSettings: vi.fn(async () => ({autoNotifyUnseenNodes: false}))
 }))
 
@@ -52,7 +51,7 @@ import {
     getTerminalRecords,
     subscribeToRegistry,
     type TerminalRecord
-} from '@/shell/edge/main/terminals/terminal-registry'
+} from '../terminals/terminal-registry'
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 

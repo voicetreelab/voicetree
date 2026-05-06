@@ -5,8 +5,8 @@
  */
 
 import type {Graph} from '@vt/graph-model/pure/graph'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
+import type {TerminalRecord} from '@vt/agent-runtime'
+import {getIdleSince} from '@vt/agent-runtime'
 import {getAgentNodes} from './agentNodeIndex'
 
 const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this long before considered done

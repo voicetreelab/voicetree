@@ -7,7 +7,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/gra
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import * as O from 'fp-ts/lib/Option.js'
 

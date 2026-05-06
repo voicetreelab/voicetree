@@ -4,7 +4,7 @@
  * The monitor polls agent completion and notifies the caller terminal when all agents are done.
  */
 
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
     isTerminalIdAlreadyMonitoredForCaller,

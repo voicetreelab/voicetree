@@ -6,10 +6,9 @@
 import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settings'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
-import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state'
-import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server'
-import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store'
+import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store'
+import {getRuntimeEnv} from '../runtime-config'
 import path from 'path'
 
 export async function buildTerminalEnvVars(params: {
@@ -26,7 +25,8 @@ export async function buildTerminalEnvVars(params: {
     if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
     }
-    const appSupportPath: string = getAppSupportPath()
+    const env = getRuntimeEnv()
+    const appSupportPath: string = env.getAppSupportPath()
     const allVaultPaths: readonly string[] = await getVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
     const vaultPath: string = O.getOrElse(() => '')(await getWritePath())
@@ -44,7 +44,7 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
         AGENT_NAME: params.agentName,
-        VOICETREE_MCP_PORT: String(getMcpPort()),
+        VOICETREE_MCP_PORT: String(env.getMcpPort()),
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }

@@ -1,8 +1,9 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphDelta} from '@vt/graph-model/pure/graph'
-import {ensureHookTerminal, writeToHookTerminal} from '@/shell/edge/main/terminals/spawnHookTerminal'
-import {shellQuote} from '@/shell/edge/main/worktree/gitWorktreeCommands'
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
+import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTerminal'
+import {shellQuote} from '../util/shellQuote'
+
+export type HookResultLogger = (message: string) => void
 
 /**
  * Max new nodes per delta before hook dispatch is skipped.
@@ -34,7 +35,8 @@ const pendingTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
  */
 export function dispatchOnNewNodeHooks(
     delta: GraphDelta,
-    hookCommand: string
+    hookCommand: string,
+    logHookResult: HookResultLogger
 ): void {
     // Collect genuinely new, non-context nodes
     const newNodePaths: readonly string[] = delta
@@ -43,7 +45,7 @@ export function dispatchOnNewNodeHooks(
         .filter(p => p !== '' && !p.includes('/ctx-nodes/'))
 
     if (newNodePaths.length > MAX_NEW_NODES_PER_DELTA) {
-        uiAPI.logHookResult(
+        logHookResult(
             `[onNewNode] Skipped hook: delta has ${newNodePaths.length} new nodes (max ${MAX_NEW_NODES_PER_DELTA})`
         )
         return
@@ -62,11 +64,11 @@ export function dispatchOnNewNodeHooks(
             void ensureHookTerminal().then(() => {
                 writeToHookTerminal(`${hookCommand} ${shellQuote(nodePath)}`)
                 const shortPath: string = nodePath.split('/').slice(-2).join('/')
-                uiAPI.logHookResult(`[onNewNode] Dispatched hook for ${shortPath}`)
+                logHookResult(`[onNewNode] Dispatched hook for ${shortPath}`)
             }).catch((error: unknown) => {
                 const shortPath: string = nodePath.split('/').slice(-2).join('/')
                 const message: string = error instanceof Error ? error.message : String(error)
-                uiAPI.logHookResult(`[onNewNode] Hook FAILED for ${shortPath}: ${message}`)
+                logHookResult(`[onNewNode] Hook FAILED for ${shortPath}: ${message}`)
             })
         }, DEBOUNCE_MS)
 

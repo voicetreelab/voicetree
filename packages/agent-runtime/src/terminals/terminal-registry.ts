@@ -1,13 +1,13 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
-import {sendTextToTerminal} from './send-text-to-terminal'
+import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
-import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
+import type {TerminalData} from '../types';
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
+import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
 
 export type TerminalStatus = 'running' | 'exited'
@@ -66,7 +66,7 @@ const idleSinceByTerminal: Map<string, number> = new Map()
 
 /**
  * Subscribers receive a snapshot of all terminal records after every
- * structural mutation. Webapp wires `uiAPI.syncTerminals` as a subscriber
+ * structural mutation. Webapp wires its renderer sync as a subscriber
  * in electron/main.ts; headless contexts simply skip wiring.
  */
 type RegistryListener = (records: TerminalRecord[]) => void

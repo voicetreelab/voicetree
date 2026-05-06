@@ -12,13 +12,14 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
-    spawnTerminalWithContextNode: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
-    getTerminalRecords: vi.fn()
-}))
+vi.mock('@vt/agent-runtime', async (importOriginal) => {
+    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    return {
+        ...actual,
+        spawnTerminalWithContextNode: vi.fn(),
+        getTerminalRecords: vi.fn(),
+    }
+})
 
 vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     loadSettings: vi.fn()
@@ -40,8 +41,8 @@ import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
 import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
+import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
+import {getTerminalRecords} from '@vt/agent-runtime'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 

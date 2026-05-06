@@ -13,7 +13,7 @@ import * as fs from 'fs'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
 import {getNodesByAgentName} from '@vt/graph-model/pure/graph'
-import type {TerminalRecord} from './terminal-registry'
+import type {TerminalRecord} from '../terminals/terminal-registry'
 
 // ─── Types (pipeline seams — not stored on any record) ──────────────────────
 

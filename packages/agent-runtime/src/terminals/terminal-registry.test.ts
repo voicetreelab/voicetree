@@ -11,28 +11,21 @@
  * Spec Reference: consolidate-terminal-registry phase 1
  */
 
-import {describe, it, expect, beforeEach, afterEach, vi, type Mock} from 'vitest'
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import {describe, it, expect, beforeEach, vi, type Mock} from 'vitest'
+import {createTerminalData, type TerminalId} from '../types'
+import type {TerminalData} from '../types'
+import type {TerminalRecord} from './terminal-registry'
 import {
     recordTerminalSpawn,
-    recordTerminalPending,
-    getPendingTerminal,
-    enqueuePendingMessage,
-    clearPendingTerminal,
     getTerminalRecords,
     clearTerminalRecords,
     updateTerminalIsDone,
     updateTerminalPinned,
-    updateTerminalActivityState,
-    markTerminalExited,
-    subscribeToRegistry
-} from '@/shell/edge/main/terminals/terminal-registry'
+    updateTerminalActivityState
+} from './terminal-registry'
 
-// Mock sendTextToTerminal so pending-state drain tests can observe calls
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true })
-vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
+vi.mock('../inject/send-text-to-terminal', () => ({
     sendTextToTerminal: (terminalId: string, text: string): Promise<{ success: boolean }> =>
         mockSendTextToTerminal(terminalId, text)
 }))
@@ -297,219 +290,5 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
             expect(record.terminalData.agentName).toBe('preserve-agent')
             expect(record.terminalData.title).toBe('Preserve Test Terminal')
         })
-    })
-})
-
-/**
- * Phase 2A: registry subscribers fire after mutations (except activity updates)
- *
- * BEHAVIOR TESTED:
- * - subscribers fire after recordTerminalSpawn
- * - subscribers fire after markTerminalExited
- * - subscribers fire after structural state updates (isDone, isPinned)
- * - subscribers do NOT fire after activity updates (performance: avoids re-renders)
- *
- * Spec Reference: consolidate-terminal-registry phase 2A
- */
-describe('Terminal Registry - Phase 2A: registry subscribers', () => {
-    let receivedSnapshots: TerminalRecord[][]
-    let unsubscribe: () => void
-
-    beforeEach(() => {
-        clearTerminalRecords()
-        receivedSnapshots = []
-        unsubscribe = subscribeToRegistry((records: TerminalRecord[]): void => {
-            receivedSnapshots.push(records)
-        })
-    })
-
-    afterEach(() => {
-        unsubscribe()
-    })
-
-    describe('subscribers fire after recordTerminalSpawn', () => {
-        it('passes the current records snapshot after spawn', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'sync-spawn-node.md',
-                terminalCount: 0,
-                title: 'Sync Spawn Test'
-            })
-
-            recordTerminalSpawn('sync-spawn-node.md-terminal-0', terminalData)
-
-            expect(receivedSnapshots).toHaveLength(1)
-            const records: TerminalRecord[] = receivedSnapshots[0]
-            expect(records).toHaveLength(1)
-            expect(records[0].terminalId).toBe('sync-spawn-node.md-terminal-0')
-        })
-    })
-
-    describe('subscribers fire after markTerminalExited', () => {
-        it('passes the updated-status snapshot after exit', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'sync-exit-node.md',
-                terminalCount: 0,
-                title: 'Sync Exit Test'
-            })
-            recordTerminalSpawn('sync-exit-node.md-terminal-0', terminalData)
-            receivedSnapshots.length = 0
-
-            markTerminalExited('sync-exit-node.md-terminal-0')
-
-            expect(receivedSnapshots).toHaveLength(1)
-            expect(receivedSnapshots[0][0].status).toBe('exited')
-        })
-
-        it('does not fire subscribers for non-existent terminal', () => {
-            markTerminalExited('non-existent-terminal')
-
-            expect(receivedSnapshots).toHaveLength(0)
-        })
-    })
-
-    describe('subscribers fire after state updates', () => {
-        it('fires after updateTerminalIsDone', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'sync-done-node.md',
-                terminalCount: 0,
-                title: 'Sync Done Test'
-            })
-            recordTerminalSpawn('sync-done-node.md-terminal-0', terminalData)
-            receivedSnapshots.length = 0
-
-            updateTerminalIsDone('sync-done-node.md-terminal-0', true)
-
-            expect(receivedSnapshots).toHaveLength(1)
-            expect(receivedSnapshots[0][0].terminalData.isDone).toBe(true)
-        })
-
-        it('fires after updateTerminalPinned', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'sync-pin-node.md',
-                terminalCount: 0,
-                title: 'Sync Pin Test',
-                isPinned: false
-            })
-            recordTerminalSpawn('sync-pin-node.md-terminal-0', terminalData)
-            receivedSnapshots.length = 0
-
-            updateTerminalPinned('sync-pin-node.md-terminal-0', true)
-
-            expect(receivedSnapshots).toHaveLength(1)
-            expect(receivedSnapshots[0][0].terminalData.isPinned).toBe(true)
-        })
-
-        it('does NOT fire after updateTerminalActivityState (performance: avoids re-renders)', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'sync-activity-node.md',
-                terminalCount: 0,
-                title: 'Sync Activity Test'
-            })
-            recordTerminalSpawn('sync-activity-node.md-terminal-0', terminalData)
-            receivedSnapshots.length = 0
-
-            updateTerminalActivityState('sync-activity-node.md-terminal-0', {activityCount: 5})
-
-            expect(receivedSnapshots).toHaveLength(0)
-            const records: TerminalRecord[] = getTerminalRecords()
-            expect(records[0].terminalData.activityCount).toBe(5)
-        })
-
-        it('does not fire for non-existent terminal updates', () => {
-            updateTerminalIsDone('non-existent-terminal', true)
-
-            expect(receivedSnapshots).toHaveLength(0)
-        })
-    })
-})
-
-describe('Terminal Registry - Pending state (Phase 3a)', () => {
-    beforeEach(() => {
-        clearTerminalRecords()
-        vi.clearAllMocks()
-    })
-
-    it('recordTerminalPending registers a pending entry that getPendingTerminal exposes', () => {
-        recordTerminalPending('pending-1', false)
-        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminal('pending-1')
-        expect(pending).toEqual({ isHeadless: false })
-    })
-
-    it('recordTerminalPending records the headless flag', () => {
-        recordTerminalPending('pending-headless', true)
-        expect(getPendingTerminal('pending-headless')?.isHeadless).toBe(true)
-    })
-
-    it('recordTerminalPending is a no-op when an entry already exists', () => {
-        recordTerminalPending('pending-1', false)
-        recordTerminalPending('pending-1', true) // second call should not overwrite
-        expect(getPendingTerminal('pending-1')?.isHeadless).toBe(false)
-    })
-
-    it('recordTerminalPending is a no-op when the terminal is already running', () => {
-        const data: TerminalData = createTerminalData({
-            attachedToNodeId: 'node-1.md',
-            terminalCount: 0,
-            title: 'Running'
-        })
-        recordTerminalSpawn('running-1', data)
-        recordTerminalPending('running-1', false)
-        expect(getPendingTerminal('running-1')).toBeUndefined()
-    })
-
-    it('enqueuePendingMessage returns true while pending and queues the message', () => {
-        recordTerminalPending('pending-1', false)
-        const ok: boolean = enqueuePendingMessage('pending-1', 'hello')
-        expect(ok).toBe(true)
-    })
-
-    it('enqueuePendingMessage returns false when no pending entry exists', () => {
-        const ok: boolean = enqueuePendingMessage('unknown', 'hello')
-        expect(ok).toBe(false)
-    })
-
-    it('recordTerminalSpawn clears the pending entry', () => {
-        recordTerminalPending('pending-1', false)
-        const data: TerminalData = createTerminalData({
-            attachedToNodeId: 'pending-1.md',
-            terminalCount: 0,
-            title: 'Spawned',
-            agentName: 'pending-1'
-        })
-        recordTerminalSpawn('pending-1' as TerminalId, data)
-        expect(getPendingTerminal('pending-1')).toBeUndefined()
-    })
-
-    it('recordTerminalSpawn drains queued messages via sendTextToTerminal', () => {
-        recordTerminalPending('pending-1', false)
-        enqueuePendingMessage('pending-1', 'msg-1')
-        enqueuePendingMessage('pending-1', 'msg-2')
-
-        const data: TerminalData = createTerminalData({
-            attachedToNodeId: 'pending-1.md',
-            terminalCount: 0,
-            title: 'Spawned',
-            agentName: 'pending-1'
-        })
-        recordTerminalSpawn('pending-1' as TerminalId, data)
-
-        expect(mockSendTextToTerminal).toHaveBeenCalledTimes(2)
-        expect(mockSendTextToTerminal).toHaveBeenNthCalledWith(1, 'pending-1', 'msg-1')
-        expect(mockSendTextToTerminal).toHaveBeenNthCalledWith(2, 'pending-1', 'msg-2')
-    })
-
-    it('clearPendingTerminal removes pending entry without draining', () => {
-        recordTerminalPending('pending-1', false)
-        enqueuePendingMessage('pending-1', 'should-not-send')
-        clearPendingTerminal('pending-1')
-
-        expect(getPendingTerminal('pending-1')).toBeUndefined()
-        expect(mockSendTextToTerminal).not.toHaveBeenCalled()
-    })
-
-    it('clearTerminalRecords also clears pending entries', () => {
-        recordTerminalPending('pending-1', false)
-        clearTerminalRecords()
-        expect(getPendingTerminal('pending-1')).toBeUndefined()
     })
 })

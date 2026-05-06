@@ -9,17 +9,15 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import { shellQuote } from '@vt/agent-runtime';
+
+export { shellQuote };
 
 const execFileAsync: (file: string, args: readonly string[], options?: { cwd?: string }) => Promise<{ stdout: string; stderr: string }> = promisify(execFile);
 
 /** Normalize path separators to forward slashes (for cross-platform comparison) */
 function toForwardSlashes(p: string): string {
     return p.replace(/\\/g, '/');
-}
-
-/** Shell-quote a single argument (wrap in single quotes, escape existing single quotes) */
-export function shellQuote(arg: string): string {
-    return "'" + arg.replace(/'/g, "'\\''") + "'"
 }
 
 /**

@@ -1,5 +1,5 @@
 import { getGraph } from '@/shell/edge/main/state/graph-store';
-import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode';
+import { spawnTerminalWithContextNode } from '@vt/agent-runtime';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';

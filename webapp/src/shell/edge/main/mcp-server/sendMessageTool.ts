@@ -3,8 +3,8 @@
  * Sends a message directly to an agent terminal.
  */
 
-import {getTerminalRecords, getPendingTerminal, enqueuePendingMessage, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
+import {getTerminalRecords, getPendingTerminal, enqueuePendingMessage, type TerminalRecord} from '@vt/agent-runtime'
+import {sendTextToTerminal} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 function buildPrefixedMessage(callerTerminalId: string, message: string): string {

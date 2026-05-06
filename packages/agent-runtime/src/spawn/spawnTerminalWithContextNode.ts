@@ -8,7 +8,7 @@
  * Flow:
  * 1. Main process creates context node (has immediate graph access)
  * 2. Main process prepares terminal data (reads settings, env vars, etc.)
- * 3. Main process calls UI via uiAPI.launchTerminalOntoUI()
+ * 3. Main process calls UI via runtime UI bridge launchTerminalOntoUI()
  * 4. UI renders terminal with Cytoscape
  *
  * Note: Permission mode prompting is now handled in the renderer
@@ -19,25 +19,24 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode';
 import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store';
-import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import { uiAPI } from '@/shell/edge/main/ui-api-proxy';
-import { createTerminalData, getTerminalId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store';
+import { loadSettings } from '@vt/graph-db-server/settings/settings_IO';
+import { createTerminalData, getTerminalId, type TerminalId } from '../types';
 import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/pure/graph';
 import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph';
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
 import { findFirstParentNode } from '@vt/graph-model/pure/graph/graph-operations/findFirstParentNode';
 import type { VTSettings } from '@vt/graph-model/pure/settings';
 import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph-model/pure/settings/types';
-import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '@/shell/edge/main/terminals/terminal-registry';
-import { setTerminalBudget } from '@/shell/edge/main/terminals/global-budget-registry';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWatchStatus} from "@/shell/edge/main/graph/watch_folder/watchFolder";
-import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
-import {spawnHeadlessAgent, killHeadlessAgent} from '@/shell/edge/main/terminals/headlessAgentManager';
-import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
+import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../terminals/terminal-registry';
+import { setTerminalBudget } from '../terminals/global-budget-registry';
+import type {TerminalData} from '../types';
+import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
+import {buildTerminalEnvVars} from './buildTerminalEnvVars';
+import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager';
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
 import {broadcastGraphDeltaToUI} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {getRuntimeUI} from '../runtime-config';
 
 /**
  * Spawn a terminal with a context node, orchestrated from main process
@@ -182,16 +181,16 @@ export async function spawnTerminalWithContextNode(
 
                 // replaceSelf for interactive: close the old terminal first
                 if (inheritTerminalId) {
-                    uiAPI.closeTerminalById(inheritTerminalId)
+                    getRuntimeUI().closeTerminalById?.(inheritTerminalId)
                 }
 
-                // Call UI to launch terminal (via UI API pattern)
-                // Note: uiAPI sends IPC message, no need to await (fire-and-forget)
-                void uiAPI.launchTerminalOntoUI(contextNodeId, terminalData, skipFitAnimation);
+                // Call UI to launch terminal via the runtime UI bridge.
+                // Bridge is fire-and-forget (e.g. webapp sends IPC, headless no-op).
+                getRuntimeUI().launchTerminalOntoUI?.(contextNodeId, terminalData, skipFitAnimation);
             }
 
             if (parentTerminalId) {
-                registerChildIfMonitored(parentTerminalId, getTerminalId(terminalData))
+                getRuntimeUI().registerChildIfMonitored?.(parentTerminalId, getTerminalId(terminalData))
             }
 
             // Set spawn budget for this terminal from GLOBAL_SPAWN_BUDGET env var

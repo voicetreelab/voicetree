@@ -8,13 +8,13 @@
 
 import type {Graph} from '@vt/graph-model/pure/graph'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {sendTextToTerminal} from '@/shell/edge/main/terminals/send-text-to-terminal'
+import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
+import {sendTextToTerminal} from '@vt/agent-runtime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getHeadlessAgentOutput} from '@/shell/edge/main/terminals/headlessAgentManager'
+import {getHeadlessAgentOutput} from '@vt/agent-runtime'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>

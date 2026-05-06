@@ -17,7 +17,7 @@ import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
-import { dispatchOnNewNodeHooks } from '@/shell/edge/main/hooks/onNewNodeHook'
+import { dispatchOnNewNodeHooks } from '@vt/agent-runtime'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-client-config'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
@@ -111,7 +111,7 @@ export function initializeGraphModel(): void {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     // Create a single-node delta for dispatch
-                    dispatchOnNewNodeHooks(graphData, hookPath)
+                    dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
                 }
             })
         },

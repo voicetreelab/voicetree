@@ -4,8 +4,8 @@
  * and submits with a dual escape sequence.
  */
 
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
-import type {TerminalOperationResult} from '@/shell/edge/main/terminals/terminal-manager'
+import {getTerminalManager} from '../terminals/terminal-manager-instance'
+import type {TerminalOperationResult} from '../terminals/terminal-manager'
 
 const CHAR_DELAY_MS: number = 200
 const ESC_DELAY_MS: number = 100

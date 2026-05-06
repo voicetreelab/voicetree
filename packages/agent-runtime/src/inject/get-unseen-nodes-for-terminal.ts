@@ -6,10 +6,10 @@
  */
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/pure/graph'
-import { getGraph } from '@/shell/edge/main/state/graph-store'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
-import { getTerminalRecords, type TerminalRecord } from './terminal-registry'
+import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
 
 export interface UnseenNodeInfo {
     readonly nodeId: NodeIdAndFilePath

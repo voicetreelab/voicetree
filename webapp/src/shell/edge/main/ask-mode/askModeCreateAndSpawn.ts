@@ -11,7 +11,7 @@ import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settin
 import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/pure/settings/types';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
+import {getExistingAgentNames} from '@vt/agent-runtime';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';

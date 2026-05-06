@@ -8,12 +8,12 @@
  */
 
 import {spawn, type ChildProcess} from 'child_process'
-import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {detectCliType} from './spawnTerminalWithContextNode'
+import type {TerminalId} from '../types'
+import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
+import type {TerminalData} from '../types'
+import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {detectCliType} from '../spawn/spawnTerminalWithContextNode'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
 

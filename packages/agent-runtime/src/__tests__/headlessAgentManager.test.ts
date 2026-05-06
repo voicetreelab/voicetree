@@ -10,8 +10,8 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {EventEmitter} from 'events'
-import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
+import type {TerminalId} from '../types'
+import type {TerminalData} from '../types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
@@ -22,7 +22,7 @@ const {mockMarkTerminalExited, mockRecordTerminalSpawn, mockSpawn, mockGetTermin
     mockGetTerminalRecords: vi.fn().mockReturnValue([])
 }))
 
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
+vi.mock('../terminals/terminal-registry', () => ({
     markTerminalExited: mockMarkTerminalExited,
     recordTerminalSpawn: mockRecordTerminalSpawn,
     getTerminalRecords: mockGetTerminalRecords,
@@ -35,16 +35,16 @@ vi.mock('child_process', () => ({
     spawn: mockSpawn
 }))
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn().mockReturnValue({ nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map() })
 }))
 
-vi.mock('@/shell/edge/main/terminals/stopGateAudit', () => ({
+vi.mock('../hooks/stopGateAudit', () => ({
     auditAgent: vi.fn().mockReturnValue(null),
     buildDeficiencyPrompt: vi.fn().mockReturnValue(''),
 }))
 
-vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
+vi.mock('../spawn/spawnTerminalWithContextNode', () => ({
     detectCliType: vi.fn().mockReturnValue(null),
 }))
 
@@ -55,7 +55,7 @@ import {
     killHeadlessAgent,
     isHeadlessAgent,
     cleanupHeadlessAgents
-} from '@/shell/edge/main/terminals/headlessAgentManager'
+} from '../headless/headlessAgentManager'
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 

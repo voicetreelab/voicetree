@@ -9,17 +9,17 @@ import {createNewNodeNoParent} from '@vt/graph-model/pure/graph/graphDelta/uiInt
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
 import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/pure/settings/types';
-import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {getExistingAgentNames} from '@/shell/edge/main/terminals/terminal-registry';
-import {getGraph} from '@/shell/edge/main/state/graph-store';
-import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {createTerminalData, type TerminalId} from '../types';
+import {getExistingAgentNames} from '../terminals/terminal-registry';
+import {getGraph} from '@vt/graph-db-server/state/graph-store';
+import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
-import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
+import type {TerminalData} from '../types';
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
+import {buildTerminalEnvVars} from './buildTerminalEnvVars';
+import {getRuntimeUI} from '../runtime-config';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
@@ -65,7 +65,7 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     agentName: agentName,
   });
 
-  void uiAPI.launchTerminalOntoUI(nodeId, terminalData);
+  getRuntimeUI().launchTerminalOntoUI?.(nodeId, terminalData);
 }
 
 /**
