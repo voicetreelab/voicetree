@@ -6,7 +6,17 @@ import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
+import {getTerminalManager, configureAgentRuntime} from '@vt/agent-runtime';
+import {trace} from '@/shell/edge/main/tracing/trace';
+import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/metrics/otlp-receiver';
+import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
+import {
+    configureMcpServer,
+    disableMcpJsonIntegration,
+    getMcpPort,
+    registerChildIfMonitored,
+    startMcpServer,
+} from '@vt/voicetree-mcp';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
@@ -14,11 +24,12 @@ import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, 
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
-import {subscribeToRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry';
+import {subscribeToRegistry, type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
-import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
-import {disableMcpJsonIntegration} from '@/shell/edge/main/mcp-server/mcp-client-config';
+import {applyLiveCommand} from '@/shell/edge/main/state/live-state-store';
+import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
@@ -41,6 +52,40 @@ validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
+
+// Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
+// its own implementations (or omit, for tools that don't apply headlessly).
+configureMcpServer({
+    liveState: {
+        applyLiveCommand,
+        getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
+    },
+    search: {
+        askQuery,
+    },
+});
+
+// Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
+configureAgentRuntime({
+    env: {
+        getAppSupportPath,
+        getMcpPort,
+        getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
+    },
+    trace,
+    ui: {
+        launchTerminalOntoUI: (nodeId, terminalData, skipFitAnimation) => {
+            void uiAPI.launchTerminalOntoUI(nodeId, terminalData, skipFitAnimation);
+        },
+        closeTerminalById: (terminalId) => {
+            uiAPI.closeTerminalById(terminalId);
+        },
+        logHookResult: (message: string) => {
+            uiAPI.logHookResult(message);
+        },
+        registerChildIfMonitored,
+    },
+});
 
 const {autoUpdater} = electronUpdater;
 

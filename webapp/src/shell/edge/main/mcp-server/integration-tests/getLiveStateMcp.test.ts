@@ -50,7 +50,7 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     saveSettings: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
     isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
     setMcpIntegration: vi.fn(),
@@ -70,7 +70,7 @@ import {
 } from '@vt/graph-model'
 import {getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
 import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy'
-import {createMcpServer} from '@/shell/edge/main/mcp-server/mcp-server'
+import {createMcpServer} from '@vt/voicetree-mcp'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
 
 function buildFixtureGraph(): Graph {

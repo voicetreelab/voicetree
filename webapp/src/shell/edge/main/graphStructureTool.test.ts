@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
-import { graphStructureTool } from '@/shell/edge/main/mcp-server/graphStructureTool'
-import type { McpToolResponse } from '@/shell/edge/main/mcp-server/types'
+import { graphStructureTool, type McpToolResponse } from '@vt/voicetree-mcp'
 let tempDir: string = ''
 
 describe('graphStructureTool', () => {
@@ -92,8 +91,8 @@ describe('graphStructureTool', () => {
   })
 
   it('passes through withSummaries to the shared graph-structure implementation', async () => {
-    const rootPath = path.join(tempDir, 'root.md')
-    const childPath = path.join(tempDir, 'child.md')
+    const rootPath: string = path.join(tempDir, 'root.md')
+    const childPath: string = path.join(tempDir, 'child.md')
     writeFileSync(path.join(tempDir, 'root.md'), [
       '---',
       'status: claimed',

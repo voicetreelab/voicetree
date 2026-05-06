@@ -2,8 +2,8 @@ import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@/shell/edge/main/terminals/global-budget-registry'
+import type {TerminalRecord} from '@vt/agent-runtime'
+import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
 
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
     getWritePath: vi.fn()
@@ -13,9 +13,15 @@ vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
-    spawnTerminalWithContextNode: vi.fn()
-}))
+vi.mock('@vt/agent-runtime', async (importOriginal) => {
+    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    return {
+        ...actual,
+        spawnTerminalWithContextNode: vi.fn(),
+        getTerminalRecords: vi.fn(),
+        recordTerminalSpawn: vi.fn(),
+    }
+})
 
 vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
     getUnseenNodesAroundContextNode: vi.fn(),
@@ -25,20 +31,15 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
     applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
-    getTerminalRecords: vi.fn(),
-    recordTerminalSpawn: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     startMonitor: vi.fn().mockReturnValue('monitor-1')
 }))
 
-import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
+import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
+import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 type McpToolResponse = {

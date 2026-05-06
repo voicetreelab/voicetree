@@ -10,7 +10,6 @@
  */
 
 import { Disposable } from './Disposable';
-// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import './styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialMenuViewOptions {

@@ -36,3 +36,26 @@
 .sidebar-wrapper > * {
     pointer-events: auto; /* Re-enable clicks on actual sidebar children */
 }
+
+/* Subtle dot-grid underlay for the canvas — sits behind the transparent
+   Cytoscape WebGL canvas. Pan/zoom are mirrored into --dot-size, --dot-x,
+   --dot-y by attachDotGridBackground (dotGridBackground.ts). */
+.dot-grid {
+    --dot-radius: 1px;
+    --dot-color: color-mix(in oklab, var(--foreground) 12%, transparent);
+    --dot-opacity: 1;
+    background-color: var(--background);
+    background-image: radial-gradient(
+        circle,
+        var(--dot-color) var(--dot-radius),
+        transparent calc(var(--dot-radius) + 0.5px)
+    );
+    background-size: var(--dot-size, 24px) var(--dot-size, 24px);
+    background-position: var(--dot-x, 0px) var(--dot-y, 0px);
+    opacity: var(--dot-opacity);
+    transition: opacity 120ms linear;
+}
+
+.dark .dot-grid {
+    --dot-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+}

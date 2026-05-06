@@ -1,53 +1,5 @@
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
-import type {FloatingWindowFields, TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+// Re-export shim — terminal types live in @vt/agent-runtime now.
+// Webapp's UI-side TerminalData layers an optional `ui` field via intersection
+// in `floating-windows/types.ts`; this file exists so existing imports keep working.
 
-export type TerminalData = FloatingWindowFields & {
-    readonly type: 'Terminal';
-    readonly terminalId: TerminalId; // Single source of truth for terminal identity
-    readonly attachedToContextNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number; // Multiple terminals per parent node allowed
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-    // Tab UI state (managed by TerminalStore, rendered by AgentTabsBar)
-    readonly isPinned: boolean;
-    readonly isDone: boolean;
-    readonly lastOutputTime: number;
-    readonly activityCount: number;
-    // Parent-child relationship for tree-style tabs (null = root terminal)
-    readonly parentTerminalId: TerminalId | null;
-    // Agent name for matching terminal to nodes it creates (via agent_name in YAML)
-    readonly agentName: string;
-    // Worktree directory name when terminal was spawned in a git worktree (undefined = not in worktree)
-    readonly worktreeName: string | undefined;
-    // Headless agent mode: runs as background child_process, no PTY/xterm.js
-    readonly isHeadless: boolean;
-    // Minimized mode: floating window hidden, badge shown on task node, PTY stays alive
-    readonly isMinimized: boolean;
-    // Context node content for displaying in the context dropdown panel
-    readonly contextContent: string;
-    // Human-readable agent type name from settings (e.g. "Claude Sonnet", "Codex")
-    readonly agentTypeName: string;
-};
-export type CreateTerminalDataParams = {
-    readonly terminalId: TerminalId; // Now passed directly (equals agentName)
-    readonly attachedToNodeId: NodeIdAndFilePath;
-    readonly terminalCount: number;
-    readonly title: string;
-    readonly anchoredToNodeId?: NodeIdAndFilePath; // IMPORTANT anchoredToNodeId is the task node for terminals (todo leakage)
-    readonly initialEnvVars?: Record<string, string>;
-    readonly initialSpawnDirectory?: string;
-    readonly initialCommand?: string;
-    readonly executeCommand?: boolean;
-    readonly resizable?: boolean; // defaults to true
-    readonly shadowNodeDimensions?: { width: number; height: number };
-    readonly isPinned?: boolean; // defaults to true
-    readonly parentTerminalId?: TerminalId | null; // defaults to null (root terminal)
-    readonly agentName: string; // Agent name for terminal-to-node edge matching (same as terminalId)
-    readonly worktreeName?: string; // Worktree directory name (undefined = not in worktree)
-    readonly isHeadless?: boolean; // Headless agent mode (default false)
-    readonly isMinimized?: boolean; // Minimized mode (default false)
-    readonly contextContent?: string; // Context node content for dropdown panel (default '')
-    readonly agentTypeName?: string; // Human-readable agent type from settings (default '')
-};
+export type { TerminalData, CreateTerminalDataParams } from '@/shell/edge/UI-edge/floating-windows/types';

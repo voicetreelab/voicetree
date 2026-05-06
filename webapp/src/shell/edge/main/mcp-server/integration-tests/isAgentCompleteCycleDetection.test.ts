@@ -4,20 +4,20 @@ import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
 
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import type {TerminalRecord} from '@vt/agent-runtime'
 
 // Mock leaf dependencies
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
+vi.mock('@vt/agent-runtime', () => ({
     getIdleSince: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     getAgentNodes: vi.fn()
 }))
 
-import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
-import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
-import {getAgentNodes} from '@/shell/edge/main/mcp-server/agentNodeIndex'
+import {isAgentComplete} from '@vt/voicetree-mcp'
+import {getIdleSince} from '@vt/agent-runtime'
+import {getAgentNodes} from '@vt/voicetree-mcp'
 
 // --- Helpers ---
 

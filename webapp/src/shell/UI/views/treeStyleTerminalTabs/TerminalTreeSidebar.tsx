@@ -14,8 +14,63 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import { buildTerminalTree, type TerminalTreeNode } from '@vt/graph-model/pure/agentTabs/terminalTree';
+import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/pure/agentTabs/terminalTree';
 import { getShortcutHintForTab } from '@vt/graph-model/pure/agentTabs';
+
+// =============================================================================
+// Collapse / expand
+// =============================================================================
+
+/** A parent with this many or more direct children auto-collapses unless the user explicitly expands it. */
+const AUTO_COLLAPSE_THRESHOLD: number = 5;
+/** localStorage key. Stores explicit user choices: collapsed terminals + expanded terminals. */
+const COLLAPSE_STORAGE_KEY: string = 'vt:terminalTreeCollapse:v1';
+
+type CollapseChoice = 'collapsed' | 'expanded';
+type CollapseChoiceMap = Record<TerminalId, CollapseChoice>;
+
+function loadCollapseChoices(): CollapseChoiceMap {
+    try {
+        const raw: string | null = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed: unknown = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed as CollapseChoiceMap : {};
+    } catch { return {}; }
+}
+
+function saveCollapseChoices(choices: CollapseChoiceMap): void {
+    try {
+        window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(choices));
+    } catch { /* localStorage may be unavailable (private mode); persistence is best-effort. */ }
+}
+
+function useCollapseState(): {
+    readonly isCollapsed: (id: TerminalId, directChildCount: number) => boolean;
+    readonly toggle: (id: TerminalId, directChildCount: number) => void;
+} {
+    const [choices, setChoices] = useState<CollapseChoiceMap>(loadCollapseChoices);
+
+    const isCollapsed = useCallback((id: TerminalId, directChildCount: number): boolean => {
+        const choice: CollapseChoice | undefined = choices[id];
+        if (choice === 'collapsed') return true;
+        if (choice === 'expanded') return false;
+        return directChildCount >= AUTO_COLLAPSE_THRESHOLD;
+    }, [choices]);
+
+    const toggle = useCallback((id: TerminalId, directChildCount: number): void => {
+        setChoices((prev: CollapseChoiceMap): CollapseChoiceMap => {
+            const next: CollapseChoiceMap = { ...prev };
+            const current: CollapseChoice | undefined = prev[id];
+            const autoCollapsed: boolean = directChildCount >= AUTO_COLLAPSE_THRESHOLD;
+            const effective: CollapseChoice = current ?? (autoCollapsed ? 'collapsed' : 'expanded');
+            next[id] = effective === 'collapsed' ? 'expanded' : 'collapsed';
+            saveCollapseChoices(next);
+            return next;
+        });
+    }, []);
+
+    return { isCollapsed, toggle };
+}
 import {
     subscribeToTerminalChanges,
     subscribeToActiveTerminalChange,
@@ -114,6 +169,54 @@ function useResizeHandle(sidebarRef: React.RefObject<HTMLDivElement | null>): Re
 }
 
 // =============================================================================
+// Collapsed-parent summary chip
+// =============================================================================
+
+/**
+ * Renders a tiny pill showing total descendant count + colored pips for any
+ * status with a non-zero count. Only the "interesting" statuses get pips —
+ * `idle` is omitted to reduce noise (it's the default quiet state).
+ *
+ * Order: awaiting → errored → active → completed → spawning. This puts the
+ * action-required and broken statuses leftmost so the eye sees them first.
+ */
+function renderSummaryChip(s: ChildStatusSummary): JSX.Element | null {
+    if (s.total === 0) return null;
+    const pips: JSX.Element[] = [];
+    if (s.awaiting > 0) pips.push(<Pip key="a" kind="awaiting" n={s.awaiting} />);
+    if (s.errored > 0) pips.push(<Pip key="e" kind="errored" n={s.errored} />);
+    if (s.active > 0) pips.push(<Pip key="r" kind="active" n={s.active} />);
+    if (s.completed > 0) pips.push(<Pip key="c" kind="completed" n={s.completed} />);
+    if (s.spawning > 0) pips.push(<Pip key="s" kind="spawning" n={s.spawning} />);
+    return (
+        <span className="terminal-tree-summary" title={summaryTitle(s)}>
+            <span className="terminal-tree-summary-count">{s.total}</span>
+            {pips}
+        </span>
+    );
+}
+
+function Pip({ kind, n }: { readonly kind: string; readonly n: number }): JSX.Element {
+    return (
+        <span className="terminal-tree-summary-pipgroup">
+            <span className={`terminal-tree-summary-pip ${kind}`} />
+            <span className="terminal-tree-summary-pipn">{n}</span>
+        </span>
+    );
+}
+
+function summaryTitle(s: ChildStatusSummary): string {
+    const parts: string[] = [];
+    if (s.awaiting) parts.push(`${s.awaiting} awaiting`);
+    if (s.errored) parts.push(`${s.errored} errored`);
+    if (s.active) parts.push(`${s.active} working`);
+    if (s.idle) parts.push(`${s.idle} idle`);
+    if (s.completed) parts.push(`${s.completed} done`);
+    if (s.spawning) parts.push(`${s.spawning} starting`);
+    return `${s.total} descendant${s.total === 1 ? '' : 's'}: ${parts.join(', ')}`;
+}
+
+// =============================================================================
 // Tree Node Component
 // =============================================================================
 
@@ -122,11 +225,13 @@ interface TreeNodeProps {
     readonly isActive: boolean;
     readonly shortcutHint: string | null;
     readonly onSelect: (terminal: TerminalData) => void;
+    readonly isCollapsed: boolean;
+    readonly onToggleCollapse: (id: TerminalId, directChildCount: number) => void;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps): JSX.Element {
-    const { terminal, depth } = treeNode;
+function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onToggleCollapse }: TreeNodeProps): JSX.Element {
+    const { terminal, depth, hasChildren, directChildCount, descendantSummary } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
 
     const handleClick: () => void = useCallback((): void => {
@@ -149,6 +254,11 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
         e.stopPropagation();
     }, []);
 
+    const handleChevronClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onToggleCollapse(terminalId, directChildCount);
+    }, [onToggleCollapse, terminalId, directChildCount]);
+
     const activityDots: JSX.Element[] = useMemo(() => {
         const dots: JSX.Element[] = [];
         for (let i: number = 0; i < terminal.activityCount; i++) {
@@ -157,20 +267,46 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
         return dots;
     }, [terminal.activityCount]);
 
+    // Lifecycle drives both the row tint (only awaiting_input gets blue) and the
+    // status icon class. Minimized takes precedence over lifecycle for icon style
+    // since it's a viewport hint, not a true state.
+    const isAwaiting: boolean = !terminal.isMinimized && terminal.lifecycle === 'awaiting_input';
+    const statusClass: string = terminal.isMinimized
+        ? 'minimized'
+        : `lifecycle-${terminal.lifecycle}`;
+
+    // Chevron only renders when the node has children. Spacer keeps the rest
+    // of the row aligned with parents.
+    const chevron: JSX.Element = hasChildren ? (
+        <span
+            className={`terminal-tree-chev${isCollapsed ? '' : ' open'}`}
+            onClick={handleChevronClick}
+            onMouseDown={handleMouseDown}
+            title={isCollapsed ? 'Expand' : 'Collapse'}
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+        >\u25b6</span>
+    ) : (
+        <span className="terminal-tree-chev-spacer" aria-hidden="true" />
+    );
+
+    // Collapsed-parent summary chip \u2014 shows count + colored pips for descendants
+    // that the user can't see at a glance because they're hidden below the fold.
+    const summary: JSX.Element | null = (hasChildren && isCollapsed)
+        ? renderSummaryChip(descendantSummary)
+        : null;
+
     return (
         <div
-            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}`}
+            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}`}
             data-depth={depth}
             data-terminal-id={terminalId}
             onClick={handleClick}
             onMouseDown={handleMouseDown}
         >
-            {/* Status indicator — headless agents stay orange (never green) */}
-            <span className={`terminal-tree-status ${
-                terminal.isMinimized ? 'minimized' :
-                terminal.isDone ? (terminal.isHeadless ? 'headless-done' : 'done') :
-                'running'
-            }`} />
+            {chevron}
+
+            {/* Lifecycle indicator. Glyph (if any) supplied via CSS ::after. */}
+            <span className={`terminal-tree-status ${statusClass}`} />
 
             {/* Title container */}
             <span className="terminal-tree-title">
@@ -184,6 +320,8 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect }: TreeNodeProps)
                     {terminalId}{terminal.agentTypeName ? ` - ${terminal.agentTypeName}` : ''}{terminal.isHeadless ? ' (Headless)' : ''}
                 </span>
             </span>
+
+            {summary}
 
             {/* Activity dots */}
             {activityDots}
@@ -224,9 +362,11 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
         return () => stopTerminalActivityPolling();
     }, []);
 
+    const collapse = useCollapseState();
+
     const treeNodes: TerminalTreeNode[] = useMemo(
-        () => buildTerminalTree(terminals),
-        [terminals]
+        () => buildTerminalTree(terminals, (parent, n) => collapse.isCollapsed(parent.terminalId as TerminalId, n)),
+        [terminals, collapse]
     );
 
     const displayOrder: TerminalId[] = useMemo(
@@ -262,6 +402,8 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                     const terminalId: TerminalId = treeNode.terminal.terminalId;
                     const tabIndex: number = displayOrder.indexOf(terminalId);
                     const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+                    const collapsed: boolean = treeNode.hasChildren
+                        && collapse.isCollapsed(terminalId, treeNode.directChildCount);
 
                     return (
                         <TreeNode
@@ -270,6 +412,8 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                             isActive={terminalId === activeTerminalId}
                             shortcutHint={hint}
                             onSelect={handleSelect}
+                            isCollapsed={collapsed}
+                            onToggleCollapse={collapse.toggle}
                         />
                     );
                 })}

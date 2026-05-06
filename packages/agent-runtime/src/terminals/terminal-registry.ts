@@ -1,0 +1,563 @@
+import * as O from 'fp-ts/lib/Option.js'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
+import {sendTextToTerminal} from '../inject/send-text-to-terminal'
+
+import type {TerminalData} from '../types';
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
+import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
+import {clearBudget} from './global-budget-registry'
+import {classifyExit} from '../lifecycle/exit'
+import type {TerminalLifecycle, TerminalKillReason} from '../lifecycle/types'
+
+export type TerminalStatus = 'running' | 'exited'
+
+export type TerminalRecord = {
+    terminalId: string
+    terminalData: TerminalData
+    status: TerminalStatus
+    exitCode: number | null
+    exitSignal: string | null
+    // Set by VoiceTree before issuing a kill signal so the subsequent exit event
+    // classifies as `completed` rather than `errored`.
+    killReason: TerminalKillReason | null
+    // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
+    auditRetryCount: number
+    spawnedAt: number
+}
+
+const terminalRecords: Map<string, TerminalRecord> = new Map()
+
+/**
+ * Pending terminals: spawn_agent has reserved a terminalId but the actual
+ * PTY/process hasn't been registered yet (recordTerminalSpawn hasn't run).
+ *
+ * Lets spawn_agent return its MCP response before the heavy terminal-prep
+ * work completes, while keeping send_message/read_terminal_output safe:
+ *   - send_message queues messages here; recordTerminalSpawn drains them.
+ *   - read_terminal_output returns empty + pending=true.
+ *   - send_message on a pending HEADLESS still errors immediately (same
+ *     contract as a running headless), since headless has no stdin ever.
+ */
+type PendingTerminal = {
+    isHeadless: boolean
+    queuedMessages: string[]
+}
+const pendingTerminals: Map<string, PendingTerminal> = new Map()
+
+/**
+ * Tracking state for unseen nodes notifications.
+ * Used to implement 5-minute cooldown and avoid re-alerting about same nodes.
+ */
+type UnseenNodesNotificationState = {
+    lastNotificationTime: number
+    spawnTime: number
+    alertedNodeIds: Set<NodeIdAndFilePath>
+}
+const notificationStateByTerminal: Map<string, UnseenNodesNotificationState> = new Map()
+
+const NOTIFICATION_COOLDOWN_MS: number = 5 * 60 * 1000 // 5 minutes
+const STOP_HOOK_DELAY_MS: number = 30 * 1000 // 30 seconds — only notify after sustained idle
+
+const pendingNotificationTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map()
+
+/**
+ * Shared timestamp tracking when each terminal first became idle (isDone: false→true).
+ * Cleared when terminal becomes active again (isDone: true→false).
+ * Used by wait_for_agents (15s threshold) and notification hook (30s setTimeout).
+ */
+const idleSinceByTerminal: Map<string, number> = new Map()
+
+/**
+ * Subscribers receive a snapshot of all terminal records after every
+ * structural mutation. Webapp wires its renderer sync as a subscriber
+ * in electron/main.ts; headless contexts simply skip wiring.
+ */
+type RegistryListener = (records: TerminalRecord[]) => void
+const listeners: Set<RegistryListener> = new Set()
+
+export function subscribeToRegistry(listener: RegistryListener): () => void {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+}
+
+function notifyRegistrySubscribers(): void {
+    if (listeners.size === 0) return
+    const snapshot: TerminalRecord[] = getTerminalRecords()
+    for (const listener of listeners) listener(snapshot)
+}
+
+/**
+ * Run stop gate audit when an interactive agent goes idle.
+ * If violations found and retries not exhausted, inject deficiency message into terminal.
+ * The agent will resume work → go idle again → audit fires again (up to 2 retries).
+ */
+async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord): Promise<void> {
+    if (record.auditRetryCount >= 2) return
+    if (record.terminalData.isHeadless) return // headless agents use exit handler instead
+
+    const records: readonly TerminalRecord[] = getTerminalRecords()
+
+    // Skip audit if agent has active (non-exited) child agents — it's waiting, not stopping.
+    // wait_for_agents will resume this agent when children finish.
+    const hasActiveChildren: boolean = records.some(
+        (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'
+    )
+    if (hasActiveChildren) return
+
+    const graph: Graph = getGraph()
+    const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
+
+    if (!hookResult.passed) {
+        incrementAuditRetryCount(terminalId)
+        console.log(`[terminal-registry] Stop gate audit failed for idle agent ${terminalId} (retry ${record.auditRetryCount + 1}/2)`)
+        void sendTextToTerminal(terminalId, hookResult.message ?? 'Stop gate hooks failed')
+    }
+}
+
+/**
+ * Notify an agent of unseen nodes created nearby while they were working.
+ * Filters out nodes the agent themselves created (via agent_name matching).
+ * Implements 5-minute cooldown and tracks already-alerted nodes.
+ * Sends formatted list directly to terminal.
+ */
+async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalRecord): Promise<void> {
+    try {
+        const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
+        const agentName: string = record.terminalData.agentName
+
+        // Get or initialize notification state
+        let notificationState: UnseenNodesNotificationState | undefined = notificationStateByTerminal.get(terminalId)
+        if (!notificationState) {
+            // Should not happen since we initialize on spawn, but handle gracefully
+            notificationState = {
+                lastNotificationTime: 0,
+                spawnTime: Date.now(),
+                alertedNodeIds: new Set()
+            }
+            notificationStateByTerminal.set(terminalId, notificationState)
+        }
+
+        // Check 5-minute cooldown from last notification AND from spawn time
+        const now: number = Date.now()
+        const timeSinceLastNotification: number = now - notificationState.lastNotificationTime
+        const timeSinceSpawn: number = now - notificationState.spawnTime
+
+        if (timeSinceLastNotification < NOTIFICATION_COOLDOWN_MS || timeSinceSpawn < NOTIFICATION_COOLDOWN_MS) {
+            return // Cooldown active, skip notification
+        }
+
+        // Get unseen nodes around this agent's context
+        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
+
+        // Filter out nodes created by this agent
+        const graph: Graph = getGraph()
+        const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
+            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            if (!graphNode) return true
+            const nodeAgentName: string | undefined = graphNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+            return nodeAgentName !== agentName
+        })
+
+        // Filter out already-alerted nodes
+        const newUnseenNodes: readonly UnseenNode[] = nodesFromOthers.filter(
+            (node: UnseenNode) => !notificationState.alertedNodeIds.has(node.nodeId)
+        )
+
+        // Only notify about nodes in a /voice/ folder (not matching repo name like voicetree-public)
+        const voiceNodes: readonly UnseenNode[] = newUnseenNodes.filter(
+            (node: UnseenNode) => node.nodeId.includes('/voice/')
+        )
+
+        if (voiceNodes.length === 0) return
+
+        // Format notification message (titles and file paths only)
+        const nodeList: string = voiceNodes.map((node: UnseenNode) => {
+            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+            const title: string = graphNode ? getNodeTitle(graphNode) : node.nodeId
+            return `- ${title} (${node.nodeId})`
+        }).join('\n')
+
+        const message: string = `\n\n[ voicetree-stop-hook ] New nodes created nearby while you were working:\n${nodeList}\n\nIf you don't have an up to date progress node, read addProgressTree.md to create multiple nodes to document your work.\n\n`
+
+        // Send to terminal using escape-code + char-by-char approach
+        await sendTextToTerminal(terminalId, message)
+
+        // Update tracking state
+        notificationState.lastNotificationTime = now
+        for (const node of voiceNodes) {
+            notificationState.alertedNodeIds.add(node.nodeId)
+        }
+    } catch (error) {
+        // Silent failure - don't disrupt normal terminal operation
+        console.error(`[terminal-registry] Failed to notify agent of unseen nodes:`, error)
+    }
+}
+
+export function recordTerminalSpawn(terminalId: string, terminalData: TerminalData): void {
+    // Capture-and-clear any pending state so the drain below is the last
+    // observer of the queue (no race with concurrent enqueues that arrive
+    // between the spawn-record and the drain).
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    pendingTerminals.delete(terminalId)
+
+    terminalRecords.set(terminalId, {
+        terminalId,
+        terminalData,
+        status: 'running',
+        exitCode: null,
+        exitSignal: null,
+        killReason: null,
+        auditRetryCount: 0,
+        spawnedAt: Date.now()
+    })
+
+    // Initialize notification tracking state for this terminal
+    notificationStateByTerminal.set(terminalId, {
+        lastNotificationTime: 0,
+        spawnTime: Date.now(),
+        alertedNodeIds: new Set()
+    })
+
+    notifyRegistrySubscribers()
+
+    // Drain queued messages from the pending phase (if any). sendTextToTerminal
+    // serializes per-terminal and has its own preamble delays, so it tolerates
+    // being called the moment a PTY is registered.
+    if (pending && pending.queuedMessages.length > 0) {
+        for (const queued of pending.queuedMessages) {
+            void sendTextToTerminal(terminalId, queued)
+        }
+    }
+}
+
+/**
+ * Reserve a terminalId before its PTY/process exists. Used by spawn_agent
+ * to return its MCP response early while terminal prep runs in the background.
+ *
+ * No-op if the terminal is already registered (running) — the running record
+ * wins. The pending entry is cleared on recordTerminalSpawn or
+ * clearPendingTerminal (e.g. on spawn failure).
+ */
+export function recordTerminalPending(terminalId: string, isHeadless: boolean): void {
+    if (terminalRecords.has(terminalId)) return
+    if (pendingTerminals.has(terminalId)) return
+    pendingTerminals.set(terminalId, { isHeadless, queuedMessages: [] })
+}
+
+export function getPendingTerminal(terminalId: string): { readonly isHeadless: boolean } | undefined {
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    return pending ? { isHeadless: pending.isHeadless } : undefined
+}
+
+/**
+ * Queue a (pre-formatted) message for a pending terminal. Messages are sent
+ * via sendTextToTerminal in arrival order during recordTerminalSpawn.
+ *
+ * Returns true if queued, false if the terminal isn't pending (caller should
+ * fall through to the normal send path or surface a "not found" error).
+ */
+export function enqueuePendingMessage(terminalId: string, prefixedMessage: string): boolean {
+    const pending: PendingTerminal | undefined = pendingTerminals.get(terminalId)
+    if (!pending) return false
+    pending.queuedMessages.push(prefixedMessage)
+    return true
+}
+
+/**
+ * Drop a pending terminal entry without draining. For use when async spawn
+ * prep fails — the caller's MCP response said success, but follow-up tool
+ * calls will now correctly report "Terminal not found".
+ */
+export function clearPendingTerminal(terminalId: string): void {
+    pendingTerminals.delete(terminalId)
+}
+
+export function incrementAuditRetryCount(terminalId: string): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) return
+    terminalRecords.set(terminalId, { ...record, auditRetryCount: record.auditRetryCount + 1 })
+}
+
+export function resetAuditRetryCount(terminalId: string): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record || record.auditRetryCount === 0) return
+    terminalRecords.set(terminalId, { ...record, auditRetryCount: 0 })
+}
+
+/**
+ * Wait N seconds, then check if the terminal is still idle before firing callback.
+ * Cancels any pending timeout for this terminal if it becomes active again.
+ */
+function wait_for_agent_to_still_be_done_after_n_seconds(
+    terminalId: string,
+    delayMs: number,
+    callback: (terminalId: string, record: TerminalRecord) => void
+): void {
+    // Clear any existing pending timeout for this terminal
+    const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
+    if (existing) clearTimeout(existing)
+
+    const timeout: ReturnType<typeof setTimeout> = setTimeout(() => {
+        pendingNotificationTimeouts.delete(terminalId)
+        const currentRecord: TerminalRecord | undefined = terminalRecords.get(terminalId)
+        if (currentRecord?.terminalData.isDone) {
+            callback(terminalId, currentRecord)
+        }
+    }, delayMs)
+    pendingNotificationTimeouts.set(terminalId, timeout)
+}
+
+function cancelPendingNotification(terminalId: string): void {
+    const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
+    if (existing) {
+        clearTimeout(existing)
+        pendingNotificationTimeouts.delete(terminalId)
+    }
+}
+
+export function updateTerminalIsDone(terminalId: string, isDone: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+
+    // Detect transition to idle (isDone: false -> true)
+    const wasNotDone: boolean = !record.terminalData.isDone
+
+    // Dual-write: mirror isDone into the new `lifecycle` field so consumers
+    // migrating off isDone see consistent state. Don't overwrite terminal
+    // states (completed/errored) — exit always wins.
+    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+    const lifecycle: TerminalLifecycle =
+        currentLifecycle === 'completed' || currentLifecycle === 'errored'
+            ? currentLifecycle
+            : (isDone ? 'idle' : 'active')
+
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, isDone, lifecycle}
+    })
+    notifyRegistrySubscribers()
+
+    if (wasNotDone && isDone) {
+        // Record when idle started — shared source of truth for wait_for_agents and notification hook
+        idleSinceByTerminal.set(terminalId, Date.now())
+        // Agent just became idle — wait 30s to confirm it's sustained before firing hooks
+        wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
+            // Stop gate audit: check if idle agent addressed all outgoing workflow obligations
+            void runIdleStopGateAudit(tid, rec)
+
+            // Unseen nodes notification (optional, settings-gated)
+            void loadSettings().then((settings: import('@vt/graph-model/pure/settings/types').VTSettings) => {
+                if (settings.autoNotifyUnseenNodes) {
+                    void notifyAgentOfUnseenNodes(tid, rec)
+                }
+            })
+        })
+    } else if (!isDone) {
+        // Agent became active again — clear idle timestamp and cancel any pending notification
+        idleSinceByTerminal.delete(terminalId)
+        cancelPendingNotification(terminalId)
+    }
+}
+
+export function updateTerminalMinimized(terminalId: string, isMinimized: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, isMinimized}
+    })
+    notifyRegistrySubscribers()
+}
+
+export function updateTerminalPinned(terminalId: string, isPinned: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, isPinned}
+    })
+    notifyRegistrySubscribers()
+}
+
+/**
+ * Update activity state (lastOutputTime, activityCount) in the registry.
+ * Does NOT push to renderer - activity updates happen frequently and
+ * should not trigger full re-renders. Renderer tracks this locally.
+ */
+export function updateTerminalActivityState(
+    terminalId: string,
+    updates: Partial<Pick<TerminalData, 'lastOutputTime' | 'activityCount'>>
+): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: {...record.terminalData, ...updates}
+    })
+    // NOTE: No notifyRegistrySubscribers() - activity updates are high frequency
+    // and should not trigger full re-renders. Renderer updates local state directly.
+}
+
+export function markTerminalExited(
+    terminalId: string,
+    exitCode?: number | null,
+    exitSignal?: string | null,
+): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    const lifecycle: TerminalLifecycle = classifyExit(
+        exitCode ?? null,
+        exitSignal ?? null,
+        record.killReason,
+    )
+    terminalRecords.set(terminalId, {
+        ...record,
+        status: 'exited',
+        exitCode: exitCode ?? null,
+        exitSignal: exitSignal ?? null,
+        terminalData: { ...record.terminalData, lifecycle, isDone: true },
+    })
+    notifyRegistrySubscribers()
+}
+
+/**
+ * Record that VoiceTree itself initiated a termination (close button, /kill, etc.)
+ * Must be called BEFORE the kill signal is sent so the subsequent exit event
+ * classifies as `completed` rather than `errored`.
+ */
+export function markTerminalKillReason(terminalId: string, reason: TerminalKillReason): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, { ...record, killReason: reason })
+    // No subscriber notify — this is a transient flag, not visible state.
+}
+
+/**
+ * Set or clear the prompt-detected flag for a terminal. Drives the
+ * `awaiting_input` lifecycle state. Sticky terminal states (completed/errored)
+ * are preserved — exit always wins.
+ *
+ * Called by the Tier-3 prompt-runner; will also be called by the Tier-1
+ * Claude Code hook server in Phase 4.
+ */
+export function updateTerminalPromptDetected(terminalId: string, detected: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+    if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
+        return // Sticky — exit wins.
+    }
+
+    let nextLifecycle: TerminalLifecycle
+    if (detected) {
+        nextLifecycle = 'awaiting_input'
+    } else {
+        // Clearing: fall back to active or idle based on the existing isDone flag,
+        // which is maintained by the inactivity poller.
+        nextLifecycle = record.terminalData.isDone ? 'idle' : 'active'
+    }
+
+    if (nextLifecycle === currentLifecycle) {
+        return // No change — skip notify.
+    }
+
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: { ...record.terminalData, lifecycle: nextLifecycle },
+    })
+    notifyRegistrySubscribers()
+}
+
+/**
+ * Remove a terminal from the registry.
+ * Called when terminal is closed from UI.
+ * Phase 3: Ensures main registry stays in sync when renderer closes terminals.
+ */
+export function removeTerminalFromRegistry(terminalId: string): void {
+    if (terminalRecords.has(terminalId)) {
+        terminalRecords.delete(terminalId)
+        // Clean up notification tracking state
+        notificationStateByTerminal.delete(terminalId)
+        idleSinceByTerminal.delete(terminalId)
+        cancelPendingNotification(terminalId)
+        // Clean up budget entry if this was a root terminal
+        clearBudget(terminalId)
+        notifyRegistrySubscribers()
+    }
+}
+
+export function getTerminalRecords(): TerminalRecord[] {
+    return Array.from(terminalRecords.values())
+}
+
+/**
+ * Get all existing agent names from the terminal registry.
+ * Used for collision detection when spawning new terminals.
+ *
+ * Includes both running terminals and pending reservations so that two
+ * concurrent spawns can't pick the same name in the window between
+ * recordTerminalPending and recordTerminalSpawn.
+ */
+export function getExistingAgentNames(): Set<string> {
+    const records: TerminalRecord[] = getTerminalRecords();
+    const names: Set<string> = new Set(records.map((r: TerminalRecord) => r.terminalData.agentName));
+    for (const pendingId of pendingTerminals.keys()) {
+        names.add(pendingId);
+    }
+    return names;
+}
+
+export function clearTerminalRecords(): void {
+    // Cancel all pending notification timeouts
+    for (const timeout of pendingNotificationTimeouts.values()) {
+        clearTimeout(timeout)
+    }
+    pendingNotificationTimeouts.clear()
+    terminalRecords.clear()
+    pendingTerminals.clear()
+    notificationStateByTerminal.clear()
+    idleSinceByTerminal.clear()
+}
+
+export function getIdleSince(terminalId: string): number | null {
+    return idleSinceByTerminal.get(terminalId) ?? null
+}
+
+/**
+ * Get all headless agent records anchored to a given node.
+ * Used by badge UI to render status badges on task node cards.
+ */
+export function getHeadlessAgentsForNode(nodeId: NodeIdAndFilePath): TerminalRecord[] {
+    return getTerminalRecords().filter((r: TerminalRecord) =>
+        r.terminalData.isHeadless &&
+        O.isSome(r.terminalData.anchoredToNodeId) &&
+        r.terminalData.anchoredToNodeId.value === nodeId
+    )
+}
+
+export function getNextTerminalCountForNode(nodeId: NodeIdAndFilePath): number {
+    let maxCount: number = -1
+    for (const record of terminalRecords.values()) {
+        if (record.terminalData.attachedToContextNodeId === nodeId) {
+            maxCount = Math.max(maxCount, record.terminalData.terminalCount)
+        }
+    }
+    return maxCount + 1
+}

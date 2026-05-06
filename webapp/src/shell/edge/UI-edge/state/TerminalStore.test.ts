@@ -12,7 +12,7 @@ import {
     subscribeToTerminalChanges,
 } from './TerminalStore'
 import { createTerminalData, computeTerminalId, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types'
-import type { TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry'
+import type { TerminalRecord } from '@vt/agent-runtime'
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import * as O from 'fp-ts/lib/Option.js'
 

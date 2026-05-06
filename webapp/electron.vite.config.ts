@@ -35,7 +35,10 @@ const isMainExternal = (id: string): boolean => {
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
 // need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
-const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'better-sqlite3', 'sqlite-vec', 'chokidar'])
+// `@xterm/headless` ships a `module` field pointing to a file that doesn't exist
+// in the published tarball; Vite/Rollup choke on it. The package is pure JS, so
+// we externalize it and let Node's require fall back to `main` at runtime.
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'better-sqlite3', 'sqlite-vec', 'chokidar', '@xterm/headless'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,

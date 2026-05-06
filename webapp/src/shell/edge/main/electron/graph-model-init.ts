@@ -17,11 +17,10 @@ import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
-import { dispatchOnNewNodeHooks } from '@/shell/edge/main/hooks/onNewNodeHook'
-import { getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry'
-import { registerAgentNodes } from '@/shell/edge/main/mcp-server/agentNodeIndex'
+import { dispatchOnNewNodeHooks, getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@vt/agent-runtime'
+import { registerAgentNodes } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
-import { enableMcpClientIntegrations } from '@/shell/edge/main/mcp-server/mcp-client-config'
+import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
@@ -110,7 +109,7 @@ export function initializeGraphModel(): void {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     // Create a single-node delta for dispatch
-                    dispatchOnNewNodeHooks(graphData, hookPath)
+                    dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
                 }
             })
         },
@@ -151,7 +150,7 @@ export function initializeGraphModel(): void {
 
         // App-specific setup
         enableMcpIntegration(): Promise<void> {
-            return enableMcpClientIntegrations()
+            return enableMcpJsonIntegration()
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

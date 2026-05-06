@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
-import type {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
+import type {getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';

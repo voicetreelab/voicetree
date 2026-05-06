@@ -21,7 +21,7 @@ import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsive
 import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
 import {isImageNode} from "@vt/graph-model/pure/graph";
 import type {Core} from "cytoscape";
-import type {TerminalRecord} from "@/shell/edge/main/terminals/terminal-registry";
+import type {TerminalRecord} from '@vt/agent-runtime';
 import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";

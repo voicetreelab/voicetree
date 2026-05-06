@@ -81,6 +81,24 @@
     box-shadow: inset 2px 0 0 rgba(255, 200, 80, 0.7);
 }
 
+/* Awaiting-user-input row tint. Blue, less harsh than red — red is reserved
+   for actual crashes. The blue accent flags "click here, agent needs you". */
+.terminal-tree-node.attn {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: inset 2px 0 0 rgba(59, 130, 246, 0.95);
+}
+.terminal-tree-node.attn:hover {
+    background: rgba(59, 130, 246, 0.22);
+    border-color: rgba(59, 130, 246, 0.7);
+}
+/* When a row is BOTH active and awaiting, awaiting wins (it's more urgent). */
+.terminal-tree-node.active.attn {
+    background: rgba(59, 130, 246, 0.18);
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: inset 2px 0 0 rgba(59, 130, 246, 1);
+}
+
 /* Headless agent styling - background agents: smaller, less emphasis, dashed */
 .terminal-tree-node.headless {
     border-style: dashed;
@@ -107,40 +125,171 @@
 .terminal-tree-node[data-depth="3"] { margin-left: 42px; }
 .terminal-tree-node[data-depth="4"] { margin-left: 54px; }
 
-/* Status indicator */
-.terminal-tree-status {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 6px;
+/* ============================================================================
+ * Collapse/expand chevron — shown on parents that have children.
+ * Click toggles between auto-collapsed and explicit-expanded.
+ * ============================================================================ */
+.terminal-tree-chev {
+    width: 12px;
+    height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s ease, color 0.12s ease;
+    font-size: 8px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.terminal-tree-chev:hover { color: var(--foreground); }
+.terminal-tree-chev.open { transform: rotate(90deg); }
+
+/* Spacer for non-parent rows so the icon column stays aligned with parent rows. */
+.terminal-tree-chev-spacer {
+    width: 16px;
     flex-shrink: 0;
 }
 
-.terminal-tree-status.running {
-    border: 2px dashed #f59e0b;
-    background: rgba(245, 158, 11, 0.15);
-    animation: terminal-pulse 1.5s ease-in-out infinite;
+/* ============================================================================
+ * Collapsed-parent summary chip — count + colored pips.
+ * Only shown when the parent is collapsed AND has at least one descendant.
+ * ============================================================================ */
+.terminal-tree-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    flex-shrink: 0;
+    font-size: 9px;
+}
+.terminal-tree-summary-count {
+    background: var(--border);
+    color: var(--foreground);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 9px;
+    line-height: 1.2;
+}
+.terminal-tree-summary-pipgroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5px;
+}
+.terminal-tree-summary-pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.terminal-tree-summary-pip.awaiting  { background: #3b82f6; } /* blue */
+.terminal-tree-summary-pip.errored   { background: #b91c1c; } /* deep red */
+.terminal-tree-summary-pip.active    { background: #f59e0b; } /* amber */
+.terminal-tree-summary-pip.completed { background: #22c55e; } /* green */
+.terminal-tree-summary-pip.spawning  { background: #6b7280; } /* gray */
+.terminal-tree-summary-pipn {
+    color: var(--muted-foreground);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 9px;
 }
 
-/* Light mode: stronger running indicator */
-:root:not(.dark) .terminal-tree-status.running {
-    border: 2px dashed #d97706;
-    background: rgba(217, 119, 6, 0.2);
+/* ============================================================================
+ * Lifecycle status indicator
+ *
+ * One channel: lifecycle drives color + glyph + animation. Headless agents
+ * are already distinguished by row chrome (.terminal-tree-node.headless adds
+ * a dashed border + smaller text), so the indicator itself is shape-stable
+ * across agent types.
+ *
+ * States (matching .lifecycle-{name} from TerminalTreeSidebar.tsx):
+ *   spawning        → muted gray dot         (just-created, no output yet)
+ *   active          → amber rotating ring    (output flowing)
+ *   idle            → green ✓                (alive, quiet, no completion signal)
+ *   awaiting_input  → amber static dashed    (paired with .node.attn blue row)
+ *   completed       → green ✓                (exit 0 / agent self-reported done)
+ *   errored         → red ✕                  (crash / non-zero exit)
+ *
+ * Plus minimized — viewport hint, not lifecycle. Solid purple, dimmed.
+ * ============================================================================ */
+.terminal-tree-status {
+    width: 12px;
+    height: 12px;
+    margin-right: 7px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    box-sizing: border-box;
 }
 
-.terminal-tree-status.done {
+/* spawning — just-spawned, no output yet. Muted gray. */
+.terminal-tree-status.lifecycle-spawning {
+    background: #6b7280;
+    opacity: 0.7;
+}
+
+/* active — output flowing. Amber rotating ring. */
+.terminal-tree-status.lifecycle-active {
+    background: transparent;
+    border: 2px solid #f59e0b;
+    border-top-color: transparent;
+    animation: terminal-spinner 0.9s linear infinite;
+}
+:root:not(.dark) .terminal-tree-status.lifecycle-active {
+    border-color: #d97706;
+    border-top-color: transparent;
+}
+
+/* idle — alive, quiet. Green check. */
+.terminal-tree-status.lifecycle-idle {
     background: #22c55e;
 }
-
-/* Headless agents stay orange when done — square shape to distinguish from interactive */
-.terminal-tree-status.headless-done {
-    background: #f59e0b;
-    border-radius: 2px;
+.terminal-tree-status.lifecycle-idle::after {
+    content: "\2713"; /* ✓ */
+    font-size: 9px;
+    font-weight: 800;
 }
 
+/* awaiting_input — agent blocked on user. Amber static dashed (paused, not
+   crashed). Row gets a blue tint via .node.attn — that's the actual signal. */
+.terminal-tree-status.lifecycle-awaiting_input {
+    background: transparent;
+    border: 2px dashed #f59e0b;
+}
+
+/* completed — exit code 0 OR agent self-reported done. Green check. */
+.terminal-tree-status.lifecycle-completed {
+    background: #22c55e;
+}
+.terminal-tree-status.lifecycle-completed::after {
+    content: "\2713"; /* ✓ */
+    font-size: 9px;
+    font-weight: 800;
+}
+
+/* errored — crash / non-zero exit. Red ×. */
+.terminal-tree-status.lifecycle-errored {
+    background: #b91c1c;
+}
+.terminal-tree-status.lifecycle-errored::after {
+    content: "\00d7"; /* × */
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* minimized — viewport hint, takes precedence over lifecycle for the icon
+   (whole node also gets dimmed via existing .node.minimized opacity). */
 .terminal-tree-status.minimized {
     background: #a78bfa;
-    animation: none;
     opacity: 0.6;
 }
 
@@ -209,9 +358,8 @@
     color: var(--destructive);
 }
 
-@keyframes terminal-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+@keyframes terminal-spinner {
+    to { transform: rotate(360deg); }
 }
 
 /* Activity dots (blue node creation indicators) */

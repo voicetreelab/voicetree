@@ -14,16 +14,15 @@ import {createContextNode} from '@vt/graph-db-server/context-nodes/createContext
 import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from '@vt/graph-db-server/graph/undoOperations'
-import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
-import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
-import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
-import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
-import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
+import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
+import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
+import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
+import {injectNodesIntoTerminal} from '@vt/agent-runtime'
+import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
-import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
-import {getMcpPort} from './mcp-server/mcp-server';
+import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';
@@ -35,7 +34,7 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
-import {getHeadlessAgentOutput} from './terminals/headlessAgentManager';
+import {getHeadlessAgentOutput} from '@vt/agent-runtime';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
