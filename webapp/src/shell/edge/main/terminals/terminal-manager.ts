@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import { execFileSync } from 'child_process';
 import pty, { type IPty } from 'node-pty';
-import type { WebContents } from 'electron';
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import {getOTLPReceiverPort} from "@/shell/edge/main/metrics/otlp-receiver";
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry';
@@ -37,36 +36,35 @@ export interface TerminalOperationResult {
   error?: string;
 }
 
+export interface TerminalSpawnOpts {
+  terminalData: TerminalData;
+  getToolsDirectory: () => string;
+  onData: (terminalId: string, data: string) => void;
+  onExit: (terminalId: string, exitCode: number) => void;
+}
+
 /**
- * Deep module for managing PTY terminals in the Electron app.
+ * Deep module for managing PTY terminals.
  *
  * Public API:
- * - spawn(sender, terminalData, getToolsDirectory)
+ * - spawn({ terminalData, getToolsDirectory, onData, onExit })
  * - write(terminalId, data)
  * - resize(terminalId, cols, rows)
  * - kill(terminalId)
- * - cleanupForWindow(windowId)
+ * - cleanupForWindow(terminalIds)
  * - cleanup()
  *
  * Hides:
  * - PTY process lifecycle
- * - Terminal-to-window tracking
  * - Environment variable injection
  * - Shell selection logic
  * - Error terminal handling
  */
 export default class TerminalManager {
   private terminals = new Map<string, IPty>();
-  private terminalToWindow = new Map<string, number>();
 
-  /**
-   * Spawn a new PTY terminal with terminal data for environment variables
-   */
-  async spawn(
-    sender: WebContents,
-    terminalData: TerminalData,
-    getToolsDirectory: () => string
-  ): Promise<TerminalSpawnResult> {
+  async spawn(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
+    const { terminalData, getToolsDirectory, onData, onExit } = opts;
     return trace('terminal:spawn', async () => {
     try {
       const terminalId: string = getTerminalId(terminalData);
@@ -113,9 +111,6 @@ export default class TerminalManager {
       this.terminals.set(terminalId, ptyProcess);
       recordTerminalSpawn(terminalId, terminalData);
 
-      // Track terminal ownership for cleanup when window closes
-      this.terminalToWindow.set(terminalId, sender.id);
-
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
         //console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
@@ -131,46 +126,27 @@ export default class TerminalManager {
       // Handle PTY data
       ptyProcess.onData((data: string) => {
         captureOutput(terminalId, data);
-        try {
-          sender.send('terminal:data', terminalId, data);
-        } catch (error) {
-          console.error(`Failed to send terminal data for ${terminalId}:`, error);
-        }
+        onData(terminalId, data);
       });
 
       // Handle PTY exit
       ptyProcess.onExit((exitInfo: { exitCode: number }) => {
-        try {
-          sender.send('terminal:exit', terminalId, exitInfo.exitCode);
-        } catch (error) {
-          console.error(`Failed to send terminal exit for ${terminalId}:`, error);
-        }
+        onExit(terminalId, exitInfo.exitCode);
         markTerminalExited(terminalId);
         this.terminals.delete(terminalId);
-        this.terminalToWindow.delete(terminalId);
         clearBuffer(terminalId);
       });
 
-      //console.log(`[TerminalManager] Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
-      //console.log(`[TerminalManager] sender.id at spawn time: ${sender.id}, isDestroyed: ${sender.isDestroyed()}`);
       return { success: true, terminalId };
     } catch (error: unknown) {
       console.error('Failed to spawn terminal:', error);
 
-      // Send error message to display in terminal
       const errorMessage: string = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error instanceof Error ? error.message : String(error)}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
 
       // Create a fake terminal ID for error display
       const terminalId: string = `error-${Date.now()}`;
-      setTimeout(() => {
-        try {
-          if (!sender.isDestroyed()) {
-            sender.send('terminal:data', terminalId, errorMessage);
-          }
-        } catch (error) {
-          console.error(`Failed to send terminal error message for ${terminalId}:`, error);
-        }
-      }, 100);
+      // Delay so the renderer has time to mount the terminal before receiving data
+      setTimeout(() => onData(terminalId, errorMessage), 100);
 
       return { success: true, terminalId }; // Return success with error terminal
     }
@@ -256,7 +232,6 @@ export default class TerminalManager {
       ptyProcess.kill();
       markTerminalExited(terminalId);
       this.terminals.delete(terminalId);
-      this.terminalToWindow.delete(terminalId);
       clearBuffer(terminalId);
       return { success: true };
     } catch (error: unknown) {
@@ -266,27 +241,22 @@ export default class TerminalManager {
   }
 
   /**
-   * Clean up all terminals owned by a specific window
+   * Bulk-kill terminals without firing markTerminalExited.
+   * Intended for window-close cleanup, where the registry's renderer push
+   * would target a destroyed renderer anyway.
    */
-  cleanupForWindow(windowId: number): void {
-    //console.log(`Window ${windowId} closed, cleaning up terminals`);
-
-    // Find and kill all terminals owned by this window
-    for (const [terminalId, webContentsId] of this.terminalToWindow.entries()) {
-      if (webContentsId === windowId) {
-        //console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
-        const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
-        if (ptyProcess && ptyProcess.kill) {
-          try {
-            ptyProcess.kill();
-          } catch (error) {
-            console.error(`Error killing terminal ${terminalId}:`, error);
-          }
+  cleanupForWindow(terminalIds: readonly string[]): void {
+    for (const terminalId of terminalIds) {
+      const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
+      if (ptyProcess && ptyProcess.kill) {
+        try {
+          ptyProcess.kill();
+        } catch (error) {
+          console.error(`Error killing terminal ${terminalId}:`, error);
         }
-        this.terminals.delete(terminalId);
-        this.terminalToWindow.delete(terminalId);
-        clearBuffer(terminalId);
       }
+      this.terminals.delete(terminalId);
+      clearBuffer(terminalId);
     }
   }
 
@@ -313,7 +283,6 @@ export default class TerminalManager {
       }
     }
     this.terminals.clear();
-    this.terminalToWindow.clear();
     clearAllBuffers();
   }
 
