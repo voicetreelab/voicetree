@@ -61,11 +61,44 @@ export function resolveDaemonRuntimeCommand(
   const env = input.env ?? process.env
   const versions = input.versions ?? process.versions
 
+  // Inside Electron we deliberately default to Electron's own binary running
+  // as Node (with ELECTRON_RUN_AS_NODE=1; see resolveDaemonRuntimeEnv). That
+  // way the daemon's native modules — notably better-sqlite3 — match the
+  // ABI that @electron/rebuild compiled them for. Using the system `node`
+  // here is the historical bug: when the user's system Node version doesn't
+  // match Electron's bundled Node ABI, the daemon throws
+  // "NODE_MODULE_VERSION mismatch" and never becomes ready.
+  //
+  // Explicit overrides still win: VT_GRAPHD_NODE_BIN is the documented
+  // escape hatch for users who really do want a specific Node binary.
   if (versions.electron) {
-    return env.VT_GRAPHD_NODE_BIN?.trim() || env.npm_node_execpath?.trim() || 'node'
+    return env.VT_GRAPHD_NODE_BIN?.trim() || (input.execPath ?? process.execPath)
   }
 
   return input.execPath ?? process.execPath
+}
+
+/**
+ * Env additions to merge into the daemon's spawn environment.
+ *
+ * When we're spawning Electron's binary as Node, we must set
+ * `ELECTRON_RUN_AS_NODE=1` or the binary launches as Electron and tries to
+ * open a window. This function returns the minimal env mutations needed for
+ * the chosen runtime; it is intentionally additive (caller spreads it on top
+ * of process.env).
+ */
+export function resolveDaemonRuntimeEnv(
+  input: RuntimeCommandInput = {},
+): NodeJS.ProcessEnv {
+  const env = input.env ?? process.env
+  const versions = input.versions ?? process.versions
+
+  // Only relevant inside Electron, and only when no explicit override is set
+  // (an explicit override points at a real Node binary, not Electron).
+  if (versions.electron && !env.VT_GRAPHD_NODE_BIN?.trim()) {
+    return { ELECTRON_RUN_AS_NODE: '1' }
+  }
+  return {}
 }
 
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
@@ -78,7 +111,7 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
   return {
     cmd: resolveDaemonRuntimeCommand(),
     args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
-    env: { ...process.env },
+    env: { ...process.env, ...resolveDaemonRuntimeEnv() },
   }
 }
 
