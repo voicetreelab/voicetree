@@ -78,6 +78,8 @@ describe('runAgentOnSelectedNodes', () => {
     })
 
     expect(result.terminalId).toBe('agent-1')
+    expect(result.contextNodeId).toBe('/vault/ctx-nodes/task_context.md')
+    expect(result.taskNodeId).toMatch(/\.md$/)
     expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalledTimes(1)
 
     const taskNodeId: NodeIdAndFilePath = result.taskNodeId
