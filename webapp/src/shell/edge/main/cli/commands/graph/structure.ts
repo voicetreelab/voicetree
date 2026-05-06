@@ -1,7 +1,7 @@
 import path from 'node:path'
-import {getGraphStructure} from '@vt/graph-tools/node'
-import {error, output} from '../../output.ts'
-import {handleCliError} from '../../util/exitCodes.ts'
+import {renderAutoView} from '@vt/graph-tools/node'
+import {error, output} from '@/shell/edge/main/cli/output.ts'
+import {handleCliError} from '@/shell/edge/main/cli/util/exitCodes.ts'
 import {withDaemonGraphSnapshot} from './snapshot.ts'
 
 export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
@@ -9,26 +9,13 @@ export async function graphStructure(port: number, terminalId: string | undefine
     void terminalId
 
     if (args.length === 0) {
-        error('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
+        error('Usage: vt graph structure <folder-path>')
     }
 
     let folderPath: string | undefined
-    let withSummaries: boolean | undefined
 
     for (const arg of args) {
-        if (arg === '--with-summaries') {
-            if (withSummaries === false) {
-                error('Cannot combine --with-summaries and --no-summaries')
-            }
-            withSummaries = true
-            continue
-        }
-
-        if (arg === '--no-summaries') {
-            if (withSummaries === true) {
-                error('Cannot combine --with-summaries and --no-summaries')
-            }
-            withSummaries = false
+        if (arg === '--with-summaries' || arg === '--no-summaries') {
             continue
         }
 
@@ -44,26 +31,20 @@ export async function graphStructure(port: number, terminalId: string | undefine
     }
 
     if (!folderPath) {
-        error('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
+        error('Usage: vt graph structure <folder-path>')
     }
 
     try {
         const resolvedFolderPath: string = path.resolve(folderPath)
-        const result: ReturnType<typeof getGraphStructure> = await withDaemonGraphSnapshot(
+        const ascii: string = await withDaemonGraphSnapshot(
             resolvedFolderPath,
-            (snapshotRoot: string): ReturnType<typeof getGraphStructure> =>
-                getGraphStructure(snapshotRoot, {withSummaries}),
+            (snapshotRoot: string): string => renderAutoView(snapshotRoot).output,
         )
 
-        if (result.nodeCount === 0) {
-            output({message: '0 nodes found', folderPath, withSummaries})
+        if (!ascii) {
+            output({message: '0 nodes found', folderPath})
         } else {
-            console.log(`${result.nodeCount} nodes in ${folderPath}`)
-            console.log('')
-            console.log(result.ascii)
-            if (result.orphanCount && result.orphanCount > 0) {
-                console.log(`\nOrphans: ${result.orphanCount}`)
-            }
+            console.log(ascii)
         }
     } catch (toolError: unknown) {
         handleCliError(toolError)

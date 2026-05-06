@@ -8,11 +8,6 @@ export {
     type StructureNode,
 } from './primitives'
 
-export {
-    getGraphStructure,
-    type GraphStructureOptions,
-    type GraphStructureResult,
-} from './graphStructure'
 
 export {
     renderGraphView,

@@ -4,18 +4,15 @@ import {
   formatLintReportHuman,
   formatLintReportJson,
   graphStateApply,
-  getGraphStructure,
   graphMove,
   graphRename,
   lintGraphWithFixes,
-  renderGraphView,
   liveStateDump,
   liveApply,
   liveView,
   liveFocus,
   liveNeighbors,
   livePath,
-  renderAutoView,
   type ViewFormat,
 } from '../src/node'
 import {
@@ -24,7 +21,8 @@ import {
   formatHygieneReportJson,
   type HygieneRuleId,
 } from '../src/hygiene'
-import {parsePrettyValue, parseStateDumpArgs} from './cliArgs'
+import {parseStateDumpArgs} from './cliArgs'
+import {runStructureCommand} from './structureCommand'
 
 const [,, command, ...args] = process.argv
 
@@ -35,10 +33,10 @@ function fail(message: string): never {
 
 function usage(): string {
   return [
-    'Usage: vt-graph <lint|hygiene|structure|view|apply|rename|mv|state|live> [args]',
+    'Usage: vt-graph <lint|hygiene|structure|apply|rename|mv|state|live> [args]',
     '       vt-graph hygiene <vault> [--rule <id>] [--json]',
-    '       vt-graph view <vault> [--budget N] [--no-auto|--ascii|--mermaid] [--collapse F]... [--select X]...',
-    '         (default: tree-cover; auto-collapses coherent subgraphs once visible entities exceed budget — default 30)',
+    '       vt-graph structure [folder] [--budget N] [--no-auto|--ascii|--mermaid] [--collapse F]... [--select X]... [--port N]',
+    '         (default: tree-cover with daemon overlay if available; auto-collapses coherent subgraphs once visible entities exceed budget — default 30)',
     '       vt-graph apply <cmd-json> [--state-file <path>] [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph state dump <root> [--pretty|--no-pretty] [--out <file>]',
     '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
@@ -98,40 +96,7 @@ async function main(): Promise<void> {
       break
     }
     case 'structure': {
-      let folderPath: string | undefined
-      let withSummaries: boolean | undefined
-
-      for (const arg of args) {
-        if (arg === '--with-summaries') {
-          if (withSummaries === false) {
-            fail('Cannot combine --with-summaries and --no-summaries')
-          }
-          withSummaries = true
-          continue
-        }
-
-        if (arg === '--no-summaries') {
-          if (withSummaries === true) {
-            fail('Cannot combine --with-summaries and --no-summaries')
-          }
-          withSummaries = false
-          continue
-        }
-
-        if (arg.startsWith('--')) {
-          fail(`Unknown argument: ${arg}`)
-        }
-
-        if (folderPath !== undefined) {
-          fail(`Unexpected argument: ${arg}`)
-        }
-
-        folderPath = arg
-      }
-
-      const resolvedFolderPath = folderPath || process.cwd()
-      const result = getGraphStructure(resolvedFolderPath, {withSummaries})
-      console.log(result.ascii)
+      await runStructureCommand(args)
       break
     }
     case 'rename': {
@@ -158,114 +123,6 @@ async function main(): Promise<void> {
         outFile: parsed.outFile,
       })
       process.stdout.write(result.json)
-      break
-    }
-    case 'view': {
-      let folderPath: string | undefined
-      let format: ViewFormat = 'ascii'
-      let showCrossEdges: boolean = true
-      const collapsedFolders: string[] = []
-      const selectedIds: string[] = []
-      let autoExplicit: boolean | undefined
-      let explicitRender = false
-      let budget = 30
-      let budgetExplicit = false
-
-      for (let i = 0; i < args.length; i++) {
-        const arg = args[i]
-        if (arg === '--auto') { autoExplicit = true; continue }
-        if (arg === '--no-auto') { autoExplicit = false; continue }
-        if (arg === '--budget') {
-          const next = getRequiredValue(args, i + 1, '--budget')
-          const parsed = Number.parseInt(next, 10)
-          if (!Number.isInteger(parsed) || parsed < 1) {
-            fail('--budget requires a positive integer')
-          }
-          budget = parsed
-          budgetExplicit = true
-          i += 1
-          continue
-        }
-        if (arg.startsWith('--budget=')) {
-          const parsed = Number.parseInt(arg.slice('--budget='.length), 10)
-          if (!Number.isInteger(parsed) || parsed < 1) {
-            fail('--budget requires a positive integer')
-          }
-          budget = parsed
-          budgetExplicit = true
-          continue
-        }
-        if (arg === '--mermaid') { format = 'mermaid'; explicitRender = true; continue }
-        if (arg === '--ascii') { format = 'ascii'; explicitRender = true; continue }
-        if (arg.startsWith('--format=')) {
-          const value: string = arg.slice('--format='.length)
-          if (value !== 'ascii' && value !== 'mermaid') {
-            fail(`Unknown format: ${value}`)
-          }
-          format = value
-          explicitRender = true
-          continue
-        }
-        if (arg === '--no-cross-edges') { showCrossEdges = false; explicitRender = true; continue }
-        if (arg === '--collapse') {
-          const next: string | undefined = args[++i]
-          if (!next || next.startsWith('--')) {
-            fail('--collapse requires a folder argument')
-          }
-          collapsedFolders.push(next)
-          explicitRender = true
-          continue
-        }
-        if (arg.startsWith('--collapse=')) {
-          collapsedFolders.push(arg.slice('--collapse='.length))
-          explicitRender = true
-          continue
-        }
-        if (arg === '--select') {
-          const next: string | undefined = args[++i]
-          if (!next || next.startsWith('--')) {
-            fail('--select requires a node id argument')
-          }
-          selectedIds.push(next)
-          explicitRender = true
-          continue
-        }
-        if (arg.startsWith('--select=')) {
-          selectedIds.push(arg.slice('--select='.length))
-          explicitRender = true
-          continue
-        }
-        if (arg.startsWith('--')) {
-          fail(`Unknown argument: ${arg}`)
-        }
-        if (folderPath !== undefined) {
-          fail(`Unexpected argument: ${arg}`)
-        }
-        folderPath = arg
-      }
-
-      // Default to --auto unless the user opted out or passed an explicit render flag
-      // (--ascii, --mermaid, --format=, --collapse, --select, --no-cross-edges).
-      const autoMode = autoExplicit ?? !explicitRender
-
-      if (autoMode) {
-        if (explicitRender) {
-          fail('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
-        }
-        const {output} = renderAutoView(folderPath || process.cwd(), {budget})
-        console.log(output)
-        break
-      }
-
-      if (budgetExplicit) {
-        fail('--budget can only be used with the default auto view or --auto')
-      }
-
-      const result = renderGraphView(folderPath || process.cwd(), {format, showCrossEdges, collapsedFolders, selectedIds})
-      console.log(result.output)
-      if (format === 'ascii') {
-        console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
-      }
       break
     }
     case 'live': {

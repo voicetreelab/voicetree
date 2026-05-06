@@ -18,7 +18,7 @@ describe('renderAutoView folder-aware pinning', () => {
 
         expect(output).toContain('# collapse: strategy=folder-first')
         expect(output).toContain('pinned=1')
-        expect(output).toContain('# cluster: ▢ archive/ [collapsed: 4 nodes')
+        expect(output).toContain('# cluster: ▢ archive/ [collapsed:auto 4 nodes')
     })
 
     it('preserves existing output byte-for-byte when pinnedFolderIds is empty', () => {

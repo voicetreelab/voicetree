@@ -1,6 +1,6 @@
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
-import { getGraphStructure } from '@vt/graph-tools'
+import { renderAutoView } from '@vt/graph-tools/node'
 
 export interface GraphStructureParams {
     readonly folderPath: string
@@ -8,7 +8,6 @@ export interface GraphStructureParams {
 }
 
 export async function graphStructureTool(params: GraphStructureParams): Promise<McpToolResponse> {
-    return buildJsonResponse(
-        getGraphStructure(params.folderPath, {withSummaries: params.withSummaries})
-    )
+    const { output } = renderAutoView(params.folderPath)
+    return buildJsonResponse({ ascii: output })
 }
