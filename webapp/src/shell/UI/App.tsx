@@ -1,6 +1,7 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
+import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/dotGridBackground";
 import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
@@ -49,6 +50,8 @@ function App(): JSX.Element {
     const graphContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
     // Ref for UI overlay container (sidebar, overlays, title bar, tabs)
     const uiContainerRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+    // Ref for dot-grid underlay (sits behind the transparent Cytoscape canvas)
+    const dotGridRef: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
 
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
@@ -263,6 +266,12 @@ function App(): JSX.Element {
         };
     }, [currentView]); // Reinitialize when view changes
 
+    // Attach dot-grid background subscriber when in graph view
+    useEffect(() => {
+        if (currentView !== 'graph-view' || !dotGridRef.current) return;
+        return attachDotGridBackground(dotGridRef.current);
+    }, [currentView]);
+
     // Render project selection screen
     if (currentView === 'project-selection') {
         return <ProjectSelectionScreen onProjectSelected={(project) => void handleProjectSelected(project)} />;
@@ -271,8 +280,10 @@ function App(): JSX.Element {
     // Render graph view
     return (
         <div className="fixed inset-0 overflow-clip bg-background">
+            {/* Layer 0: Dot-grid underlay - sits behind the transparent Cytoscape canvas */}
+            <div ref={dotGridRef} className="absolute inset-0 pb-14 dot-grid pointer-events-none"/>
             {/* Layer 1: Graph canvas - Cytoscape only, absolutely positioned so it never causes overflow */}
-            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden bg-background"/>
+            <div ref={graphContainerRef} className="absolute inset-0 pb-14 overflow-hidden"/>
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
