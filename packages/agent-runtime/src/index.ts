@@ -4,6 +4,7 @@
 
 export * from './types'
 export * from './runtime-config'
+export * from './lifecycle'
 
 export { TerminalManager } from './terminals/terminal-manager'
 export type {

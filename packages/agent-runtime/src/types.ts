@@ -1,6 +1,7 @@
 import type { Option } from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
+import type { TerminalLifecycle } from './lifecycle/types';
 
 export type TerminalId = string & { readonly __brand: 'TerminalId' };
 
@@ -22,6 +23,7 @@ export type TerminalData = {
 
     readonly isPinned: boolean;
     readonly isDone: boolean;
+    readonly lifecycle: TerminalLifecycle;
     readonly lastOutputTime: number;
     readonly activityCount: number;
 
@@ -81,6 +83,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 395, height: 380 },
         isPinned: params.isPinned ?? true,
         isDone: false,
+        lifecycle: 'spawning',
         lastOutputTime: Date.now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,

@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
+    "./lifecycle": "./src/lifecycle/index.ts",
     "./terminals/*": "./src/terminals/*",
     "./headless/*": "./src/headless/*",
     "./spawn/*": "./src/spawn/*",
@@ -26,9 +27,9 @@
     "node-pty": "^1.1.0"
   },
   "devDependencies": {
-    "typescript": "~5.8.3",
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.2",
-    "vitest": "^3.2.4",
-    "@types/node": "^22.0.0"
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
   }
 }

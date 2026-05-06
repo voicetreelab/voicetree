@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import os from 'os';
 import { execFileSync } from 'child_process';
 import pty, { type IPty } from 'node-pty';
 import {getTerminalId} from '../types';
@@ -10,6 +11,22 @@ import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
 import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
 import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
+
+/**
+ * Convert a numeric signal (as reported by node-pty on Unix) into the
+ * canonical SIG* name. Returns null if the signal is unknown to this OS.
+ *
+ * node-pty reports `signal` as a number on exit when the process was
+ * terminated by a signal. We need the name for `classifyExit`.
+ */
+function signalNumberToName(signalNumber: number): string | null {
+    if (!signalNumber) return null;
+    const map: Record<string, number> = os.constants.signals as unknown as Record<string, number>;
+    for (const name of Object.keys(map)) {
+        if (map[name] === signalNumber) return name;
+    }
+    return null;
+}
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -39,7 +56,7 @@ export interface TerminalSpawnOpts {
   terminalData: TerminalData;
   getToolsDirectory: () => string;
   onData: (terminalId: string, data: string) => void;
-  onExit: (terminalId: string, exitCode: number) => void;
+  onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
 }
 
 /**
@@ -129,9 +146,12 @@ export class TerminalManager {
       });
 
       // Handle PTY exit
-      ptyProcess.onExit((exitInfo: { exitCode: number }) => {
-        onExit(terminalId, exitInfo.exitCode);
-        markTerminalExited(terminalId);
+      ptyProcess.onExit((exitInfo: { exitCode: number; signal?: number }) => {
+        const signalName: string | null = exitInfo.signal !== undefined
+          ? signalNumberToName(exitInfo.signal)
+          : null;
+        onExit(terminalId, exitInfo.exitCode, signalName);
+        markTerminalExited(terminalId, exitInfo.exitCode, signalName);
         this.terminals.delete(terminalId);
         clearBuffer(terminalId);
       });

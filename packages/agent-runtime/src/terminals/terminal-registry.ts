@@ -9,6 +9,8 @@ import type {TerminalData} from '../types';
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
 import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
+import {classifyExit} from '../lifecycle/exit'
+import type {TerminalLifecycle, TerminalKillReason} from '../lifecycle/types'
 
 export type TerminalStatus = 'running' | 'exited'
 
@@ -17,6 +19,10 @@ export type TerminalRecord = {
     terminalData: TerminalData
     status: TerminalStatus
     exitCode: number | null
+    exitSignal: string | null
+    // Set by VoiceTree before issuing a kill signal so the subsequent exit event
+    // classifies as `completed` rather than `errored`.
+    killReason: TerminalKillReason | null
     // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
     auditRetryCount: number
     spawnedAt: number
@@ -202,6 +208,8 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         terminalData,
         status: 'running',
         exitCode: null,
+        exitSignal: null,
+        killReason: null,
         auditRetryCount: 0,
         spawnedAt: Date.now()
     })
@@ -319,9 +327,18 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
     // Detect transition to idle (isDone: false -> true)
     const wasNotDone: boolean = !record.terminalData.isDone
 
+    // Dual-write: mirror isDone into the new `lifecycle` field so consumers
+    // migrating off isDone see consistent state. Don't overwrite terminal
+    // states (completed/errored) — exit always wins.
+    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+    const lifecycle: TerminalLifecycle =
+        currentLifecycle === 'completed' || currentLifecycle === 'errored'
+            ? currentLifecycle
+            : (isDone ? 'idle' : 'active')
+
     terminalRecords.set(terminalId, {
         ...record,
-        terminalData: {...record.terminalData, isDone}
+        terminalData: {...record.terminalData, isDone, lifecycle}
     })
     notifyRegistrySubscribers()
 
@@ -392,17 +409,42 @@ export function updateTerminalActivityState(
     // and should not trigger full re-renders. Renderer updates local state directly.
 }
 
-export function markTerminalExited(terminalId: string, exitCode?: number | null): void {
+export function markTerminalExited(
+    terminalId: string,
+    exitCode?: number | null,
+    exitSignal?: string | null,
+): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {
         return
     }
+    const lifecycle: TerminalLifecycle = classifyExit(
+        exitCode ?? null,
+        exitSignal ?? null,
+        record.killReason,
+    )
     terminalRecords.set(terminalId, {
         ...record,
         status: 'exited',
-        exitCode: exitCode ?? null
+        exitCode: exitCode ?? null,
+        exitSignal: exitSignal ?? null,
+        terminalData: { ...record.terminalData, lifecycle, isDone: true },
     })
     notifyRegistrySubscribers()
+}
+
+/**
+ * Record that VoiceTree itself initiated a termination (close button, /kill, etc.)
+ * Must be called BEFORE the kill signal is sent so the subsequent exit event
+ * classifies as `completed` rather than `errored`.
+ */
+export function markTerminalKillReason(terminalId: string, reason: TerminalKillReason): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    terminalRecords.set(terminalId, { ...record, killReason: reason })
+    // No subscriber notify — this is a transient flag, not visible state.
 }
 
 /**
