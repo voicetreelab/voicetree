@@ -28,12 +28,20 @@ if [[ ! -x "$REBUILD" ]]; then
     exit 1
 fi
 
-# 1. webapp's direct native deps (e.g. electron-trackpad-detect).
+# 1. webapp's direct native deps (electron-trackpad-detect, node-pty).
 echo "→ rebuild-native: webapp"
 ( cd "$ROOT/webapp" && "$REBUILD" )
 
-# 2. graph-db-server's direct native deps (better-sqlite3).
+# 2. agent-runtime's direct native deps (node-pty).
+echo "→ rebuild-native: packages/agent-runtime"
+( cd "$ROOT/packages/agent-runtime" && "$REBUILD" -f -w node-pty )
+
+# 3. graph-db-server's direct native deps (better-sqlite3).
 echo "→ rebuild-native: packages/graph-db-server"
 ( cd "$ROOT/packages/graph-db-server" && "$REBUILD" -f -w better-sqlite3 )
+
+# 4. knowledge-graph's direct native deps (better-sqlite3, sqlite-vec).
+echo "→ rebuild-native: packages/knowledge-graph"
+( cd "$ROOT/packages/knowledge-graph" && "$REBUILD" -f -w better-sqlite3,sqlite-vec )
 
 echo "✔ rebuild-native: all native modules built for Electron ABI"

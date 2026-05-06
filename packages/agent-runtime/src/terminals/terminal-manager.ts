@@ -178,9 +178,20 @@ export class TerminalManager {
 
       return { success: true, terminalId };
     } catch (error: unknown) {
-      console.error('Failed to spawn terminal:', error);
+      console.error('Failed to spawn terminal. shell=', terminalData.initialSpawnDirectory, 'cwd=', terminalData.initialSpawnDirectory, 'error=', error);
 
-      const errorMessage: string = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error instanceof Error ? error.message : String(error)}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
+      const detail: string = error instanceof Error ? error.message : String(error);
+      // posix_spawnp failures from node-pty are usually one of:
+      //   - shell path doesn't exist or isn't executable (settings.shell)
+      //   - the spawn cwd was deleted between fs.access() check and pty.spawn()
+      //   - native module ABI mismatch (NODE_MODULE_VERSION)
+      // The canned "rebuild for Electron" hint covers the third; the others
+      // need the actual error message to diagnose, so we surface it verbatim.
+      const errorMessage: string =
+        `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${detail}\r\n\r\n` +
+        `If this is a NODE_MODULE_VERSION mismatch, rebuild native modules:\r\n` +
+        `  scripts/rebuild-native.sh\r\n\r\n` +
+        `Otherwise, check your shell setting (settings.shell) and that the spawn directory exists.\r\n`;
 
       // Create a fake terminal ID for error display
       const terminalId: string = `error-${Date.now()}`;
