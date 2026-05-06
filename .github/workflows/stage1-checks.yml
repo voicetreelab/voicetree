@@ -200,3 +200,33 @@ jobs:
             webapp/test-results/
             webapp/playwright-report-tier1-system/
           retention-days: 7
+
+  # ── Stage 3: Fuzz Tests (gated on Stage 2) ─────────────────────────
+
+  fuzz-tests:
+    name: Fuzz Tests
+    needs: [browser-smoke, electron-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Rebuild native modules
+        run: npm rebuild better-sqlite3
+
+      - name: Run fuzz tests
+        run: npx vitest run --reporter=verbose "**/*.fuzz.test.ts"
