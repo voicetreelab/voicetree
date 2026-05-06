@@ -201,10 +201,11 @@ jobs:
             webapp/playwright-report-tier1-system/
           retention-days: 7
 
-  # ── Stage 3: Fuzz Tests (gated on Stage 2) ─────────────────────────
+  # ── Stage 3: Deep Tests (PR to main only, gated on Stage 2) ─────────
 
   fuzz-tests:
     name: Fuzz Tests
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     needs: [browser-smoke, electron-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 15
