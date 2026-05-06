@@ -191,19 +191,28 @@ const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    const projectButton = window.locator('button:has-text("example_small")').first();
-    try {
-      await window.waitForSelector('text=Recent Projects', { timeout: 5000 });
-      console.log('[Smoke Test] Recent Projects section visible');
-      await projectButton.click();
-      console.log('[Smoke Test] Clicked project to navigate to graph view');
-    } catch {
-      console.log('[Smoke Test] Project selection skipped; loading fixture vault directly');
+    if (process.env.CI) {
+      console.log('[Smoke Test] CI mode: calling startFileWatching directly');
       await window.evaluate(async (vaultPath: string) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         await api.main.startFileWatching(vaultPath);
       }, fixtureVaultPath);
+    } else {
+      const projectButton = window.locator('button:has-text("example_small")').first();
+      try {
+        await window.waitForSelector('text=Recent Projects', { timeout: 5000 });
+        console.log('[Smoke Test] Recent Projects section visible');
+        await projectButton.click();
+        console.log('[Smoke Test] Clicked project to navigate to graph view');
+      } catch {
+        console.log('[Smoke Test] Project selection skipped; loading fixture vault directly');
+        await window.evaluate(async (vaultPath: string) => {
+          const api = (window as unknown as ExtendedWindow).electronAPI;
+          if (!api) throw new Error('electronAPI not available');
+          await api.main.startFileWatching(vaultPath);
+        }, fixtureVaultPath);
+      }
     }
 
     await window.waitForFunction(
