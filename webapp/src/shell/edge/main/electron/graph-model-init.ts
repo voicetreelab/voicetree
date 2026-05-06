@@ -21,11 +21,10 @@ import { dispatchOnNewNodeHooks } from '@/shell/edge/main/hooks/onNewNodeHook'
 import { getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry'
 import { registerAgentNodes } from '@/shell/edge/main/mcp-server/agentNodeIndex'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
-import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-client-config'
+import { enableMcpClientIntegrations } from '@/shell/edge/main/mcp-server/mcp-client-config'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
-import { isDaemonSSEActive } from '@/shell/edge/main/electron/daemon-sse-subscription'
 
 const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
 
@@ -37,12 +36,8 @@ export function initializeGraphModel(): void {
 
     const callbacks: GraphModelCallbacks = {
         // Core graph broadcasting
-        onGraphDelta(delta: GraphDelta): void {
-            if (isDaemonSSEActive()) return
-            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('graph:stateChanged', delta)
-            }
+        onGraphDelta(_delta: GraphDelta): void {
+            // No-op: SSE is the only read path in daemon mode
         },
         onFloatingEditorUpdate(delta: GraphDelta): void {
             uiAPI.updateFloatingEditorsFromExternal(delta)
@@ -156,7 +151,7 @@ export function initializeGraphModel(): void {
 
         // App-specific setup
         enableMcpIntegration(): Promise<void> {
-            return enableMcpJsonIntegration()
+            return enableMcpClientIntegrations()
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

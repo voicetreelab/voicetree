@@ -12,7 +12,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {tryConsumeAndSplitBudget, registerChild} from '@/shell/edge/main/terminals/global-budget-registry'
@@ -203,7 +203,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 : []
 
             // Apply task-node creation + caller-context update as one batched delta.
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors([...taskNodeDelta, ...callerContextUpdateDelta])
+            await postDeltaThroughDaemonWithEditors([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent
@@ -278,7 +278,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 },
                 previousNode: O.some(targetNode)
             }]
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(claimDelta)
+            await postDeltaThroughDaemonWithEditors(claimDelta)
         }
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport

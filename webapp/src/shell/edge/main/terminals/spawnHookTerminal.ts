@@ -19,7 +19,7 @@ import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars'
 
@@ -77,7 +77,7 @@ async function createHookNode(): Promise<string> {
         previousNode: O.none
     }]
 
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(hookDelta)
+    await postDeltaThroughDaemonWithEditors(hookDelta)
     return hookNode.absoluteFilePathIsID
 }
 

@@ -1,12 +1,7 @@
 /**
  * MCP Tool: create_graph
  * Creates a graph of progress nodes in a single call.
- * Accepts a JSON graph of fully populated nodes with support for multiple parents
- * (DAG structure including diamond dependencies). Creates all files atomically,
- * returns paths + warnings. Accept-all, warn-on-error — never blocks creation.
- *
- * Replaces multi-call add_progress_node workflows where agents had to create
- * nodes sequentially (O(depth) round-trips). Now one call creates the whole graph.
+ * Pure types, DAG validation, and path resolution live in createGraphPure.ts.
  */
 
 import path from 'path'
@@ -17,16 +12,13 @@ import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Positio
 import {findBestMatchingNode} from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
-import {
-    buildMarkdownBody,
-    type ComplexityScore,
-} from '@vt/graph-tools/node'
+import {buildMarkdownBody} from '@vt/graph-tools/node'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
@@ -39,7 +31,6 @@ import {
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {
-    type OverrideEntry,
     type ValidationResult,
     ALL_RULES,
     runValidations,
@@ -47,171 +38,19 @@ import {
     formatViolationError,
 } from './createGraphValidation'
 import {registerAgentNodes} from './agentNodeIndex'
+import {
+    type CreateGraphNodeInput,
+    type CreateGraphParams,
+    type CreatedNodeInfo,
+    type NodeResult,
+    parentRefFilename,
+    parentRefEdgeLabel,
+    hasCycle,
+    topologicalSort,
+    resolveOutputDirectory,
+} from './createGraphPure'
 
-/** A parent reference: object with filename + edge label (edge label required, use "" for no label). */
-export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
-
-/** Extract the filename from a ParentRef. */
-function parentRefFilename(ref: ParentRef): string {
-    return ref.filename
-}
-
-/** Extract the edge label from a ParentRef. Returns undefined for empty strings. */
-function parentRefEdgeLabel(ref: ParentRef): string | undefined {
-    return ref.edgeLabel || undefined
-}
-
-export interface CreateGraphNodeInput {
-    readonly filename: string
-    readonly title: string
-    readonly summary: string
-    readonly content?: string
-    readonly color?: string
-    readonly diagram?: string
-    readonly notes?: readonly string[]
-    readonly codeDiffs?: readonly string[]
-    readonly filesChanged?: readonly string[]
-    readonly complexityScore?: ComplexityScore
-    readonly complexityExplanation?: string
-    readonly linkedArtifacts?: readonly string[]
-    readonly parents?: readonly ParentRef[]
-}
-
-export interface CreateGraphParams {
-    readonly callerTerminalId: string
-    readonly parentNodeId?: string
-    readonly outputPath?: string
-    readonly nodes: readonly CreateGraphNodeInput[]
-    readonly override_with_rationale?: readonly OverrideEntry[]
-}
-
-/**
- * Detect cycles in parent references using DFS.
- * Supports multiple parents per node (DAG validation).
- * Returns true if a cycle exists.
- */
-function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
-    const adjacency: Map<string, string[]> = new Map()
-    for (const node of nodes) {
-        if (node.parents) {
-            for (const parentRef of node.parents) {
-                const parentId: string = parentRefFilename(parentRef)
-                const children: string[] = adjacency.get(parentId) ?? []
-                children.push(node.filename)
-                adjacency.set(parentId, children)
-            }
-        }
-    }
-
-    const visited: Set<string> = new Set()
-    const inStack: Set<string> = new Set()
-
-    function dfs(nodeId: string): boolean {
-        if (inStack.has(nodeId)) return true
-        if (visited.has(nodeId)) return false
-
-        visited.add(nodeId)
-        inStack.add(nodeId)
-
-        for (const child of adjacency.get(nodeId) ?? []) {
-            if (dfs(child)) return true
-        }
-
-        inStack.delete(nodeId)
-        return false
-    }
-
-    for (const node of nodes) {
-        if (!visited.has(node.filename)) {
-            if (dfs(node.filename)) return true
-        }
-    }
-
-    return false
-}
-
-/**
- * Topological sort of nodes by parent dependencies.
- * All parents come before their children in the output.
- * Supports multiple parents per node.
- */
-function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNodeInput[] {
-    const nodeMap: Map<string, CreateGraphNodeInput> = new Map()
-    for (const node of nodes) {
-        nodeMap.set(node.filename, node)
-    }
-
-    const visited: Set<string> = new Set()
-    const result: CreateGraphNodeInput[] = []
-
-    function visit(nodeId: string): void {
-        if (visited.has(nodeId)) return
-        visited.add(nodeId)
-
-        const node: CreateGraphNodeInput | undefined = nodeMap.get(nodeId)
-        if (!node) return
-
-        // Visit ALL parents before this node
-        if (node.parents) {
-            for (const parentRef of node.parents) {
-                const parentId: string = parentRefFilename(parentRef)
-                if (nodeMap.has(parentId)) {
-                    visit(parentId)
-                }
-            }
-        }
-
-        result.push(node)
-    }
-
-    for (const node of nodes) {
-        visit(node.filename)
-    }
-
-    return result
-}
-
-interface CreatedNodeInfo {
-    readonly nodeId: NodeIdAndFilePath
-    readonly baseName: string
-}
-
-type NodeResult = {
-    readonly id: string
-    readonly path: string
-    readonly status: 'ok' | 'warning'
-    readonly warning?: string
-}
-
-function isPathWithinDirectory(targetPath: string, directoryPath: string): boolean {
-    return targetPath === directoryPath || targetPath.startsWith(`${directoryPath}/`)
-}
-
-function resolveOutputDirectory(
-    writePath: string,
-    outputPath: string | undefined,
-    allowedVaultPaths: readonly string[]
-): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
-    if (!outputPath || outputPath.trim() === '') {
-        return {ok: true, path: normalizePath(writePath)}
-    }
-
-    const requestedPath: string = outputPath.trim()
-    const resolvedPath: string = normalizePath(
-        path.isAbsolute(requestedPath)
-            ? requestedPath
-            : path.resolve(writePath, requestedPath)
-    )
-
-    if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {
-        return {ok: true, path: resolvedPath}
-    }
-
-    return {
-        ok: false,
-        error: `outputPath "${outputPath}" resolves to "${resolvedPath}" which is outside the loaded vault paths. Choose a path inside one of: ${allowedVaultPaths.join(', ')}`,
-    }
-}
+export type {ParentRef, CreateGraphNodeInput, CreateGraphParams} from './createGraphPure'
 
 export async function createGraphTool({
     callerTerminalId,
@@ -505,7 +344,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
+        await postDeltaThroughDaemonWithEditors(batchDelta)
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -534,7 +373,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
+            await postDeltaThroughDaemonWithEditors(contextDelta)
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created

@@ -2,7 +2,7 @@ import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphNode, GraphDelta} from "@vt/graph-model/pure/graph";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getTerminalRecords} from "@/shell/edge/main/terminals/terminal-registry";
-import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {postDeltaThroughDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
 import * as O from "fp-ts/lib/Option.js";
 
 /**
@@ -96,5 +96,5 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
     }));
 
     // Apply deltas (deletes from filesystem and updates graph state)
-    await applyGraphDeltaToDBThroughMemAndUI(deleteDelta, false);
+    await postDeltaThroughDaemon(deleteDelta);
 }

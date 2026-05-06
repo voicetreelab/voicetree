@@ -16,7 +16,7 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
-import {enableMcpJsonIntegration} from './mcp-client-config'
+import {enableMcpClientIntegrations} from './mcp-client-config'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -42,7 +42,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 
 // Re-export types and tool functions for external use
@@ -132,7 +132,7 @@ async function triggerOvernight(params: TriggerOvernightParams): Promise<Trigger
         return {success: false, error: 'Failed to create task node'}
     }
 
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
+    await postDeltaThroughDaemonWithEditors(taskNodeDelta)
 
     // Resolve Opus agent command (find "Claude" in settings.agents)
     const settings: VTSettings = await loadSettings()
@@ -478,12 +478,12 @@ export async function startMcpServer(): Promise<void> {
         console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
-    // Auto-write .mcp.json so external agents (e.g. manually-launched Claude Code) can discover this server.
+    // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).
     try {
-        await enableMcpJsonIntegration()
+        await enableMcpClientIntegrations()
     } catch (_e) {
-        // No watched directory yet — loadFolder will call enableMcpJsonIntegration when one is set
+        // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
     }
 }
 

@@ -5,8 +5,6 @@
  * Each function should be defined in its own module.
  */
 
-import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {getCallbacks, type GraphDelta} from '@vt/graph-model'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
@@ -21,7 +19,6 @@ import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, upd
 import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
 import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
 import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
@@ -52,11 +49,11 @@ import {
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
+  postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
-import {getActiveDaemonConnection} from './electron/graph-daemon'
 import path from 'path';
 
 /**
@@ -82,35 +79,12 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
-async function applyDeltaFeatureFlagged(
-  delta: GraphDelta,
-  recordForUndo: boolean = true,
-): Promise<void> {
-  if (getActiveDaemonConnection()) {
-    await postDeltaThroughDaemon(delta)
-  } else {
-    await applyGraphDeltaToDBThroughMemAndUI(delta, recordForUndo)
-  }
-}
-
-async function applyDeltaWithEditorsFeatureFlagged(
-  delta: GraphDelta,
-  recordForUndo: boolean = true,
-): Promise<void> {
-  if (getActiveDaemonConnection()) {
-    await postDeltaThroughDaemon(delta)
-    getCallbacks().onFloatingEditorUpdate?.(delta)
-  } else {
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
-  }
-}
-
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
-  // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyDeltaWithEditorsFeatureFlagged,
+  // Graph operations - daemon-only write path
+  applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: applyDeltaFeatureFlagged,
+    applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
 
   getGraph,
 

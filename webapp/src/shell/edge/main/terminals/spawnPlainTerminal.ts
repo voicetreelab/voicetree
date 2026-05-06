@@ -16,7 +16,7 @@ import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars';
@@ -88,7 +88,7 @@ export async function spawnPlainTerminalWithNode(
         createNewNodeNoParent(position, writePath, graph);
 
     // Persist the node to disk and update UI
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
+    await postDeltaThroughDaemonWithEditors(graphDelta);
 
     // Now spawn a plain terminal attached to this node
     await spawnPlainTerminal(newNode.absoluteFilePathIsID, terminalCount);
