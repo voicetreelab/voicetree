@@ -118,14 +118,26 @@ jobs:
         working-directory: tools/vt-fake-agent
         run: npm install && npx tsc
 
-      - name: Run Electron smoke test (CI launch)
-        timeout-minutes: 5
+      - name: Pre-warm graph daemon (tsx JIT compile)
+        run: |
+          mkdir -p /tmp/daemon-warmup/.voicetree
+          echo "# warmup" > /tmp/daemon-warmup/root.md
+          TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
+          timeout 30 node --import "$TSX_PATH" \
+            packages/graph-db-server/bin/vt-graphd.ts \
+            --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
+          rm -rf /tmp/daemon-warmup
+
+      - name: Run Electron Tier 1 smoke tests
+        timeout-minutes: 10
         working-directory: webapp
+        env:
+          CI: 'true'
+          PLAYWRIGHT_QUIET: 'false'
         run: |
           xvfb-run --auto-servernum npx playwright test \
             --config=playwright-tier1-system.config.ts \
-            --grep="starts Electron and renders the project selection window" \
-            --reporter=line
+            --reporter=list
 
       - name: Upload Electron test artifacts on failure
         if: failure()

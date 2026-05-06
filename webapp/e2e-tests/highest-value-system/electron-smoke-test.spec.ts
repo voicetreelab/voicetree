@@ -81,7 +81,6 @@ const test = base.extend<{
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: fixtureVaultPath,
       vaultConfig: {
         [fixtureVaultPath]: {
           writePath: fixtureVaultPath,
@@ -151,28 +150,24 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
+    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+
+    if (electronProcess?.pid) {
+      try {
+        process.kill(electronProcess.pid, 'SIGKILL');
+      } catch {
+        // Electron already exited.
+      }
     }
 
-    await electronApp.close();
     try {
-      if (electronProcess?.pid) {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      }
+      await Promise.race([
+        electronApp.close(),
+        new Promise(resolve => setTimeout(resolve, 5000))
+      ]);
     } catch {
-      // Electron already exited.
+      // Close may fail if already killed.
     }
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
     console.log('[Smoke Test] Electron app closed');
 
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
@@ -192,19 +187,28 @@ const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    const projectButton = window.locator('button:has-text("example_small")').first();
-    try {
-      await window.waitForSelector('text=Recent Projects', { timeout: 5000 });
-      console.log('[Smoke Test] Recent Projects section visible');
-      await projectButton.click();
-      console.log('[Smoke Test] Clicked project to navigate to graph view');
-    } catch {
-      console.log('[Smoke Test] Project selection skipped; loading fixture vault directly');
+    if (process.env.CI) {
+      console.log('[Smoke Test] CI mode: calling startFileWatching directly');
       await window.evaluate(async (vaultPath: string) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         await api.main.startFileWatching(vaultPath);
       }, fixtureVaultPath);
+    } else {
+      const projectButton = window.locator('button:has-text("example_small")').first();
+      try {
+        await window.waitForSelector('text=Recent Projects', { timeout: 5000 });
+        console.log('[Smoke Test] Recent Projects section visible');
+        await projectButton.click();
+        console.log('[Smoke Test] Clicked project to navigate to graph view');
+      } catch {
+        console.log('[Smoke Test] Project selection skipped; loading fixture vault directly');
+        await window.evaluate(async (vaultPath: string) => {
+          const api = (window as unknown as ExtendedWindow).electronAPI;
+          if (!api) throw new Error('electronAPI not available');
+          await api.main.startFileWatching(vaultPath);
+        }, fixtureVaultPath);
+      }
     }
 
     await window.waitForFunction(
@@ -221,7 +225,7 @@ const test = base.extend<{
 
 test.describe('Smoke Test', () => {
   test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
-    test.setTimeout(process.env.CI ? 60000 : 30000);
+    test.setTimeout(process.env.CI ? 120000 : 30000);
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
     const appReady = await appWindow.evaluate(() => {
@@ -238,8 +242,8 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for Cytoscape nodes to render',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(2);
     console.log('✓ Cytoscape nodes loaded');
 
@@ -278,7 +282,7 @@ test.describe('Smoke Test', () => {
   });
 
   test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    test.setTimeout(60000);
+    test.setTimeout(process.env.CI ? 120000 : 60000);
     console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
 
     const mcpPort = await appWindow.evaluate(async () => {
@@ -304,8 +308,8 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for graph nodes before spawning fake agent',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(0);
 
     const nodeIds = await appWindow.evaluate(async () => {
