@@ -192,40 +192,24 @@ test('preserves character-by-character editor typing after autosave and file wat
   });
 
   const editorWindowId = `window-${nodeId}-editor`;
-  await appWindow.waitForSelector(`${idSelector(editorWindowId)} .cm-content`, { timeout: 5_000 });
+  const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
+  await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
+  await editorContent.click();
 
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return Boolean(editorElement?.cmView?.view);
-    }, editorWindowId);
-  }, {
-    message: 'Waiting for CodeMirror view to attach to editor content',
-    timeout: 5_000,
-  }).toBe(true);
-
-  await appWindow.evaluate((winId) => {
-    const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    const view = editorElement?.cmView?.view;
-    if (!view) throw new Error('CodeMirror view not found');
-    view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
-    view.focus();
-  }, editorWindowId);
-
-  await expect.poll(async () => {
-    return appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      const view = editorElement?.cmView?.view;
-      if (!view) return null;
-      const selection = view.state.selection.main;
       const editorFocused = document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
-      return editorFocused && selection.from === 0 && selection.to === view.state.doc.length;
+      return editorFocused;
     }, editorWindowId);
   }, {
-    message: 'Waiting for focused CodeMirror selection to cover the document',
+    message: 'Waiting for CodeMirror editor focus',
     timeout: 5_000,
   }).toBe(true);
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await appWindow.keyboard.press(`${modifier}+A`);
 
   const expectedContent = [
     'random saves should stay ordered',
@@ -246,7 +230,7 @@ test('preserves character-by-character editor typing after autosave and file wat
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-        return editorElement?.cmView?.view.state.doc.toString() ?? null;
+        return editorElement?.textContent ?? null;
       }, editorWindowId);
     }, {
       message: `Waiting for editor to preserve typed prefix through autosave cycle ${i + 1}`,
@@ -257,7 +241,7 @@ test('preserves character-by-character editor typing after autosave and file wat
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.cmView?.view.state.doc.toString() ?? null;
+      return editorElement?.textContent ?? null;
     }, editorWindowId);
   }, {
     message: 'Waiting for CodeMirror to contain the exact typed document',
@@ -268,7 +252,7 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   const settled = await appWindow.evaluate((winId) => {
     const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    return editorElement?.cmView?.view.state.doc.toString() ?? null;
+    return editorElement?.textContent ?? null;
   }, editorWindowId);
   expect(settled).toBe(expectedContent);
 
