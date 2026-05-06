@@ -274,7 +274,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log(`Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
 
     console.log('=== Step 8: Press Cmd+] (next terminal) ===');
-    await page.keyboard.press('Meta+BracketRight');
+    await page.keyboard.press('ControlOrMeta+BracketRight');
 
     await page.waitForTimeout(100);
 
@@ -295,7 +295,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('✓ Cmd+] successfully cycled to next terminal');
 
     console.log('=== Step 9: Press Cmd+[ (previous terminal) ===');
-    await page.keyboard.press('Meta+BracketLeft');
+    await page.keyboard.press('ControlOrMeta+BracketLeft');
 
     await page.waitForTimeout(100);
 
