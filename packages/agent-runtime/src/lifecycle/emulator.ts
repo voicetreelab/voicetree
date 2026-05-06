@@ -10,7 +10,15 @@
  * (prompts.ts) consumes the snapshot.
  */
 
-import { Terminal } from '@xterm/headless';
+// `@xterm/headless` ships CommonJS only, so the ESM bundle cannot use named
+// imports. Default-import the module object and pull `Terminal` off it. The
+// `// @ts-expect-error` is needed because the package's TypeScript typings
+// describe a namespace, not a default export — the CJS interop works at
+// runtime but TS doesn't know that.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// @ts-expect-error CJS default-import; runtime exposes Terminal on the module object
+import xtermHeadless from '@xterm/headless';
+const Terminal: typeof import('@xterm/headless').Terminal = xtermHeadless.Terminal ?? xtermHeadless;
 import type { LineSnapshot } from './prompts';
 
 export type Emulator = {
