@@ -21,6 +21,12 @@ import {
   type CachedDaemonConnection,
 } from './graph-daemon'
 import { buildGraphDiff, getNormalizedDaemonGraph } from './daemon-graph-normalization'
+import {
+  isDaemonSSEActive,
+  subscribeToDaemonSSE,
+  unsubscribeFromDaemonSSE,
+} from './daemon-sse-subscription'
+import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 
 type DaemonClient = Awaited<
   ReturnType<typeof ensureDaemonClientForVault>
@@ -162,6 +168,16 @@ function resetCachesForVault(vault: string): void {
   cachedVault = vault
   rendererSessionId = null
   sessionSyncCache = null
+  unsubscribeFromDaemonSSE()
+}
+
+function subscribeRendererSessionToDaemon(client: DaemonClient, sessionId: string): void {
+  if (isDaemonSSEActive()) return
+
+  const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
 
 async function getDaemonClientForCurrentVault(): Promise<{
@@ -275,10 +291,12 @@ async function ensureRendererSession(client: DaemonClient): Promise<string> {
   if (rendererSessionId) {
     try {
       await client.getSession(rendererSessionId)
+      subscribeRendererSessionToDaemon(client, rendererSessionId)
       return rendererSessionId
     } catch {
       rendererSessionId = null
       sessionSyncCache = null
+      unsubscribeFromDaemonSSE()
     }
   }
 
@@ -291,6 +309,7 @@ async function ensureRendererSession(client: DaemonClient): Promise<string> {
     pan: undefined,
     zoom: undefined,
   }
+  subscribeRendererSessionToDaemon(client, created.sessionId)
   return created.sessionId
 }
 
@@ -501,4 +520,5 @@ export function __resetDaemonIpcProxyStateForTests(): void {
   cachedVault = null
   rendererSessionId = null
   sessionSyncCache = null
+  unsubscribeFromDaemonSSE()
 }

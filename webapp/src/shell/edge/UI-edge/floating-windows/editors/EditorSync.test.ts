@@ -25,7 +25,11 @@ function makeNode(id: NodeIdAndFilePath, content: string): GraphNode {
     }
 }
 
-function openEditorForNode(nodeId: NodeIdAndFilePath, initialContent: string): { getValue: () => string } {
+function openEditorForNode(
+    nodeId: NodeIdAndFilePath,
+    initialContent: string,
+    focused: boolean = false,
+): { getValue: () => string } {
     let value = initialContent
 
     const editor = createEditorData({
@@ -40,7 +44,7 @@ function openEditorForNode(nodeId: NodeIdAndFilePath, initialContent: string): {
         setValue: (nextValue: string) => {
             value = nextValue
         },
-        isFocused: () => false,
+        isFocused: () => focused,
     }
     vanillaFloatingWindowInstances.set(`${nodeId}-editor`, editorInstance as unknown as { dispose: () => void })
 
@@ -108,5 +112,31 @@ describe('updateFloatingEditors', () => {
         }])
 
         expect(editor.getValue()).toBe('r')
+    })
+
+    it('keeps focused embedded-mode editors immune to non-append replacements', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
+            nodeToUpsert: makeNode(nodeId, 'external update'),
+        }])
+
+        expect(editor.getValue()).toBe('# Typing Target\n\n')
+    })
+
+    it('applies matching daemon-mode external replacements while the editor is focused', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
+            nodeToUpsert: makeNode(nodeId, 'external update'),
+        }], true)
+
+        expect(editor.getValue()).toBe('external update')
     })
 })
