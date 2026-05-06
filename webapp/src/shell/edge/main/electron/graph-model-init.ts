@@ -25,6 +25,7 @@ import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-clien
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
+import { isDaemonSSEActive } from '@/shell/edge/main/electron/daemon-sse-subscription'
 
 const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
 
@@ -37,6 +38,7 @@ export function initializeGraphModel(): void {
     const callbacks: GraphModelCallbacks = {
         // Core graph broadcasting
         onGraphDelta(delta: GraphDelta): void {
+            if (isDaemonSSEActive()) return
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('graph:stateChanged', delta)
