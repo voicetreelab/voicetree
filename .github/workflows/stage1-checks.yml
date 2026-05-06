@@ -357,11 +357,11 @@ jobs:
 
       - name: Run Stryker on graph-model
         working-directory: packages/graph-model
-        run: npx stryker run --reporters clear-text,json --jsonReporter.fileName ../../stryker-graph-model.json
+        run: npx stryker run
 
       - name: Run Stryker on graph-state
         working-directory: packages/graph-state
-        run: npx stryker run --reporters clear-text,json --jsonReporter.fileName ../../stryker-graph-state.json
+        run: npx stryker run
 
       - name: Check mutation scores
         run: |

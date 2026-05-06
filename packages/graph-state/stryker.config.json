@@ -6,6 +6,8 @@
     "!src/**/*.d.ts",
     "!src/**/index.ts",
     "!src/fixtures/**",
+    "!src/fixtures.ts",
+    "!src/emptyState.ts",
     "!src/rootIO.ts",
     "!tests/**"
   ],
@@ -16,7 +18,10 @@
   },
   "concurrency": 3,
   "timeoutMS": 60000,
-  "reporters": ["clear-text"],
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "../../stryker-graph-state.json"
+  },
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": "always",
   "warnings": {
