@@ -278,9 +278,11 @@ export class CodeMirrorEditorView extends Disposable {
    */
   setValue(content: string): void {
     // Preserve cursor position before replacing content
+    const previousContent: string = this.view.state.doc.toString();
     const cursorPos: number = this.view.state.selection.main.head;
+    const isAppendingAtEnd: boolean = content.startsWith(previousContent) && cursorPos === previousContent.length;
     // Clamp to new content length (content may be shorter)
-    const newCursorPos: number = Math.min(cursorPos, content.length);
+    const newCursorPos: number = isAppendingAtEnd ? content.length : Math.min(cursorPos, content.length);
 
     this.view.dispatch({
       changes: { from: 0, to: this.view.state.doc.length, insert: content },

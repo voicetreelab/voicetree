@@ -194,6 +194,16 @@ test('preserves character-by-character editor typing after autosave and file wat
   const editorWindowId = `window-${nodeId}-editor`;
   await appWindow.waitForSelector(`${idSelector(editorWindowId)} .cm-content`, { timeout: 5_000 });
 
+  await expect.poll(async () => {
+    return appWindow.evaluate((winId) => {
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      return Boolean(editorElement?.cmView?.view);
+    }, editorWindowId);
+  }, {
+    message: 'Waiting for CodeMirror view to attach to editor content',
+    timeout: 5_000,
+  }).toBe(true);
+
   await appWindow.evaluate((winId) => {
     const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
     const view = editorElement?.cmView?.view;

@@ -19,7 +19,13 @@ interface CodeMirrorElement extends HTMLElement {
       dispatch: (spec: unknown) => void;
       state: {
         doc: {
+          length: number;
           toString: () => string;
+        };
+        selection: {
+          main: {
+            head: number;
+          };
         };
       };
     };
@@ -186,6 +192,30 @@ position:
     // Should contain updated content
     expect(value).toContain('# Second heading');
     expect(value).not.toContain('# First heading');
+  });
+
+  it('keeps the cursor at the new end when setValue appends to an end cursor', async () => {
+    editor = new CodeMirrorEditorView(container, 'r');
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const contentElement = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const cmView = contentElement?.cmView?.view;
+    expect(cmView).toBeDefined();
+
+    cmView!.dispatch({ selection: { anchor: cmView!.state.doc.length } });
+    editor.setValue('ra');
+
+    expect(editor.getValue()).toBe('ra');
+    expect(cmView!.state.selection.main.head).toBe(2);
+
+    cmView!.dispatch({
+      changes: { from: cmView!.state.selection.main.head, insert: 'n' },
+      selection: { anchor: cmView!.state.selection.main.head + 1 },
+      userEvent: 'input.type',
+    });
+
+    expect(editor.getValue()).toBe('ran');
   });
 });
 
