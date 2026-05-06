@@ -38,7 +38,7 @@ import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 

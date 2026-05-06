@@ -54,7 +54,7 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', asyn
     }
 })
 
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 

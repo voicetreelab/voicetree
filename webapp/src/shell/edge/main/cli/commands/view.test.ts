@@ -1,16 +1,16 @@
 import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
+import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {
     createEmptyGraph,
 } from '@vt/graph-model'
-import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
-import {main} from '../voicetree-cli.ts'
-import {EXIT} from '../util/exitCodes.ts'
+import {main} from '@/shell/edge/main/cli/voicetree-cli'
+import {EXIT} from '@/shell/edge/main/cli/util/exitCodes'
 import {runViewCommand} from './view.ts'
 
 class ExitCalled extends Error {
@@ -49,14 +49,14 @@ async function createHarness(): Promise<Harness> {
 async function captureCommand(invoke: () => Promise<void>): Promise<CommandResult> {
     const stdoutLines: string[] = []
     const stderrChunks: string[] = []
-    const logSpy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]): void => {
+    const logSpy: MockInstance = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]): void => {
         stdoutLines.push(args.map((value: unknown): string => String(value)).join(' '))
     })
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
+    const stderrSpy: MockInstance = vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
         stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk))
         return true
     }) as typeof process.stderr.write)
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+    const exitSpy: MockInstance = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
         throw new ExitCalled(code ?? 0)
     }) as typeof process.exit)
 

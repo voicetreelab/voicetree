@@ -18,7 +18,8 @@
     "./context-nodes/*": "./src/context-nodes/*",
     "./search/*": "./src/search/*",
     "./settings/*": "./src/settings/*",
-    "./project/*": "./src/project/*"
+    "./project/*": "./src/project/*",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

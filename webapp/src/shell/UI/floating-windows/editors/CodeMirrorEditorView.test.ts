@@ -16,20 +16,15 @@ import { CodeMirrorEditorView, hasFrontmatter } from '@/shell/UI/floating-window
 
 interface CodeMirrorElement extends HTMLElement {
   cmView?: {
-    view: {
-      dispatch: (spec: unknown) => void;
-      state: {
-        doc: {
-          length: number;
-          toString: () => string;
-        };
-        selection: {
-          main: {
-            head: number;
-          };
-        };
-      };
-    };
+    view: CMEditorView;
+  };
+}
+
+type CMEditorView = {
+  dispatch: (spec: unknown) => void;
+  state: {
+    doc: { length: number; toString: () => string };
+    selection: { main: { head: number } };
   };
 }
 
@@ -200,8 +195,8 @@ position:
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const contentElement = container.querySelector('.cm-content') as CodeMirrorElement | null;
-    const cmView = contentElement?.cmView?.view;
+    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
     expect(cmView).toBeDefined();
 
     cmView!.dispatch({ selection: { anchor: cmView!.state.doc.length } });
@@ -251,8 +246,8 @@ describe('Markdown Table Rendering', () => {
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const renderedTable = container.querySelector('.cm-markdoc-renderBlock table');
-    const renderedQuote = container.querySelector('.cm-markdoc-renderBlock blockquote');
+    const renderedTable: Element | null = container.querySelector('.cm-markdoc-renderBlock table');
+    const renderedQuote: Element | null = container.querySelector('.cm-markdoc-renderBlock blockquote');
 
     expect(renderedTable).not.toBeNull();
     expect(renderedTable?.textContent).toContain('Alpha');
@@ -272,14 +267,14 @@ describe('Markdown Table Rendering', () => {
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const contentElement = container.querySelector('.cm-content') as CodeMirrorElement | null;
-    const cmView = contentElement?.cmView?.view;
+    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
 
     expect(cmView).toBeDefined();
     expect(container.querySelector('.cm-markdoc-renderBlock table')).not.toBeNull();
 
-    const doc = cmView!.state.doc.toString();
-    const tableStart = doc.indexOf('| Name | Value |');
+    const doc: string = cmView!.state.doc.toString();
+    const tableStart: number = doc.indexOf('| Name | Value |');
     expect(tableStart).toBeGreaterThanOrEqual(0);
 
     cmView!.dispatch({

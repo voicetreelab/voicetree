@@ -38,7 +38,7 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/ap
 let currentGraph: Graph | null = null
 let tempVault: string = ''
 
-function applyDeltaToUI(cy: Core, delta: GraphDelta) {
+function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
 }
 

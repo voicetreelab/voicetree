@@ -1,6 +1,8 @@
 import path from 'node:path'
 import {renderAutoView} from '@vt/graph-tools/node'
+// eslint-disable-next-line no-restricted-imports -- relative paths required for tsx CLI execution
 import {error, output} from '../../output.ts'
+// eslint-disable-next-line no-restricted-imports -- relative paths required for tsx CLI execution
 import {handleCliError} from '../../util/exitCodes.ts'
 import {withDaemonGraphSnapshot} from './snapshot.ts'
 
