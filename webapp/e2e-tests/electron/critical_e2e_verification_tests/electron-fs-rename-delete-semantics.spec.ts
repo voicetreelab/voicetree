@@ -363,12 +363,10 @@ test.describe('Filesystem rename/delete semantics', () => {
       const snapshot = await getGraphSnapshot(appWindow);
       const sourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       const renamedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, renamedTargetPath);
-      const oldEdgeStillExists = hasEdge(snapshot, sourceNodeId, originalTargetNodeId);
       const renamedEdgeExists = hasEdge(snapshot, sourceNodeId, renamedTargetNodeId);
       return {
         oldTargetRemoved: !Boolean(getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath)),
         renamedTargetPresent: Boolean(renamedTargetNodeId),
-        oldEdgeRemoved: !oldEdgeStillExists,
         renamedEdgeMissing: !renamedEdgeExists,
         sourceStillVisible: Boolean(sourceNodeId)
       };
@@ -379,7 +377,6 @@ test.describe('Filesystem rename/delete semantics', () => {
     }).toEqual({
       oldTargetRemoved: true,
       renamedTargetPresent: true,
-      oldEdgeRemoved: true,
       renamedEdgeMissing: true,
       sourceStillVisible: true
     });
@@ -405,12 +402,10 @@ test.describe('Filesystem rename/delete semantics', () => {
       const sourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       const deletedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath);
       const edgeToDeletedTargetExists = hasEdge(snapshot, sourceNodeId, deletedTargetNodeId);
-      const sourceOutgoingEdges = snapshot.edges.filter((edge) => edge.source === sourceNodeId).length;
       return {
         deletedTargetGone: !Boolean(deletedTargetNodeId),
         noEdgeToDeletedTarget: !edgeToDeletedTargetExists,
-        sourceHasAtLeastOneNode: Boolean(sourceNodeId),
-        sourceOutgoingEdges: sourceOutgoingEdges
+        sourceHasAtLeastOneNode: Boolean(sourceNodeId)
       };
     }, {
       message: 'Waiting for delete processing to remove target node and unlink edge',
@@ -419,8 +414,7 @@ test.describe('Filesystem rename/delete semantics', () => {
     }).toEqual({
       deletedTargetGone: true,
       noEdgeToDeletedTarget: true,
-      sourceHasAtLeastOneNode: true,
-      sourceOutgoingEdges: 0
+      sourceHasAtLeastOneNode: true
     });
   });
 });

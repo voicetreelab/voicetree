@@ -48,6 +48,7 @@ async function seedProject(projectPath: string): Promise<string> {
 }
 
 function resolveGraphdNodeBin(): string | undefined {
+  const requiredModules = process.versions.modules;
   const candidates: readonly string[] = [
     process.env.VT_GRAPHD_NODE_BIN,
     process.env.npm_node_execpath,
@@ -58,7 +59,7 @@ function resolveGraphdNodeBin(): string | undefined {
   return candidates.find((candidate) => {
     if (!existsSync(candidate)) return false;
     try {
-      return execFileSync(candidate, ['-p', 'process.versions.modules'], { encoding: 'utf8' }).trim() === '127';
+      return execFileSync(candidate, ['-p', 'process.versions.modules'], { encoding: 'utf8' }).trim() === requiredModules;
     } catch {
       return false;
     }
@@ -175,6 +176,22 @@ const test = base.extend<{
         cause: error,
       });
     }
+    await window.waitForFunction(
+      async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        const watchStatus = await api?.main.getWatchStatus();
+        const bodyText = document.body.textContent ?? '';
+        return Boolean(
+          watchStatus?.isWatching
+            && (cy?.nodes().length ?? 0) >= 1
+            && !bodyText.includes('Loading Voicetree'),
+        );
+      },
+      undefined,
+      { timeout: 10_000 },
+    );
+    await window.waitForTimeout(1_000);
     await use(window);
   },
 });
@@ -182,6 +199,15 @@ const test = base.extend<{
 test.describe.configure({ timeout: 75_000 });
 
 test('preserves character-by-character editor typing after autosave and file watcher settle', async ({ appWindow, writePath }) => {
+  await appWindow.waitForFunction(
+    () => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return Boolean(cy?.nodes().some((node) => node.data('label') === 'Typing Target'));
+    },
+    undefined,
+    { timeout: 10_000 },
+  );
+
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     if (!cy) throw new Error('Cytoscape not initialized');
@@ -194,10 +220,11 @@ test('preserves character-by-character editor typing after autosave and file wat
   const editorWindowId = `window-${nodeId}-editor`;
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
   await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
-  await editorContent.click();
 
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
+      const windowElement = document.getElementById(winId);
+      windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
       const editorFocused = document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
@@ -219,7 +246,14 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   for (let i = 0; i < expectedContent.length; i++) {
     const character = expectedContent[i];
-    await appWindow.keyboard.type(character);
+    await appWindow.evaluate((winId) => {
+      document.getElementById(winId)?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    }, editorWindowId);
+    if (character === '\n') {
+      await appWindow.keyboard.press('Enter');
+    } else {
+      await appWindow.keyboard.insertText(character);
+    }
     await appWindow.waitForTimeout(seededDelay(i + 1));
 
     if (character === ' ') {
@@ -230,7 +264,8 @@ test('preserves character-by-character editor typing after autosave and file wat
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-        return editorElement?.textContent ?? null;
+        const text = editorElement?.innerText;
+        return text === undefined ? null : text.replace(/\n$/, '');
       }, editorWindowId);
     }, {
       message: `Waiting for editor to preserve typed prefix through autosave cycle ${i + 1}`,
@@ -241,7 +276,8 @@ test('preserves character-by-character editor typing after autosave and file wat
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.textContent ?? null;
+      const text = editorElement?.innerText;
+      return text === undefined ? null : text.replace(/\n$/, '');
     }, editorWindowId);
   }, {
     message: 'Waiting for CodeMirror to contain the exact typed document',
@@ -252,7 +288,8 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   const settled = await appWindow.evaluate((winId) => {
     const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    return editorElement?.textContent ?? null;
+    const text = editorElement?.innerText;
+    return text === undefined ? null : text.replace(/\n$/, '');
   }, editorWindowId);
   expect(settled).toBe(expectedContent);
 
