@@ -17,13 +17,6 @@ import type {TerminalData, CreateTerminalDataParams} from '@/shell/edge/UI-edge/
 
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 
-// uiAPI.syncTerminals is called by pushStateToRenderer inside registry mutations
-vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
-    uiAPI: {
-        syncTerminals: vi.fn()
-    }
-}))
-
 // These are imported by terminal-registry but not used in our test path
 vi.mock('@/shell/edge/main/state/graph-store', () => ({
     getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}}))
@@ -57,6 +50,7 @@ import {
     getHeadlessAgentsForNode,
     updateTerminalMinimized,
     getTerminalRecords,
+    subscribeToRegistry,
     type TerminalRecord
 } from '@/shell/edge/main/terminals/terminal-registry'
 
@@ -226,10 +220,11 @@ describe('updateTerminalMinimized', () => {
         expect(records).toHaveLength(0)
     })
 
-    it('calls pushStateToRenderer (syncTerminals mock)', async () => {
-        const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
-        const syncMock: ReturnType<typeof vi.mocked<typeof uiAPI.syncTerminals>> = vi.mocked(uiAPI.syncTerminals)
-        syncMock.mockClear()
+    it('notifies registry subscribers', () => {
+        const snapshots: TerminalRecord[][] = []
+        const unsubscribe: () => void = subscribeToRegistry((records: TerminalRecord[]): void => {
+            snapshots.push(records)
+        })
 
         const terminalData: TerminalData = buildTerminalData({
             terminalId: 'term-sync',
@@ -237,11 +232,12 @@ describe('updateTerminalMinimized', () => {
             anchoredToNodeId: TASK_NODE_A
         })
         recordTerminalSpawn('term-sync', terminalData)
-        syncMock.mockClear() // Clear the call from recordTerminalSpawn
+        snapshots.length = 0 // Clear the call from recordTerminalSpawn
 
         updateTerminalMinimized('term-sync', true)
 
-        expect(syncMock).toHaveBeenCalledTimes(1)
+        expect(snapshots).toHaveLength(1)
+        unsubscribe()
     })
 
     it('terminals default to isMinimized: false', () => {

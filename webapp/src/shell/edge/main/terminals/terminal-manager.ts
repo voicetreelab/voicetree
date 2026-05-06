@@ -265,7 +265,7 @@ export default class TerminalManager {
    */
   cleanup(): void {
     // Clear the terminal registry FIRST, before killing PTYs.
-    // This prevents onExit handlers from calling markTerminalExited → pushStateToRenderer,
+    // This prevents onExit handlers from calling markTerminalExited → registry subscribers,
     // which would sync stale terminals to the newly mounted renderer during project switch.
     clearTerminalRecords();
 
