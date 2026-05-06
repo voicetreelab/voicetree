@@ -11,7 +11,7 @@
  * Spec Reference: consolidate-terminal-registry phase 1
  */
 
-import {describe, it, expect, beforeEach, vi, type Mock} from 'vitest'
+import {describe, it, expect, beforeEach, afterEach, vi, type Mock} from 'vitest'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
@@ -26,15 +26,9 @@ import {
     updateTerminalIsDone,
     updateTerminalPinned,
     updateTerminalActivityState,
-    markTerminalExited
+    markTerminalExited,
+    subscribeToRegistry
 } from '@/shell/edge/main/terminals/terminal-registry'
-
-// Mock uiAPI for Phase 2A tests
-vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
-    uiAPI: {
-        syncTerminals: vi.fn()
-    }
-}))
 
 // Mock sendTextToTerminal so pending-state drain tests can observe calls
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true })
@@ -307,94 +301,89 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
 })
 
 /**
- * Phase 2A: syncTerminals is called after mutations (except activity updates)
+ * Phase 2A: registry subscribers fire after mutations (except activity updates)
  *
  * BEHAVIOR TESTED:
- * - syncTerminals is called after recordTerminalSpawn
- * - syncTerminals is called after markTerminalExited
- * - syncTerminals is called after structural state updates (isDone, isPinned)
- * - syncTerminals is NOT called after activity updates (performance: avoids re-renders)
+ * - subscribers fire after recordTerminalSpawn
+ * - subscribers fire after markTerminalExited
+ * - subscribers fire after structural state updates (isDone, isPinned)
+ * - subscribers do NOT fire after activity updates (performance: avoids re-renders)
  *
  * Spec Reference: consolidate-terminal-registry phase 2A
  */
-describe('Terminal Registry - Phase 2A: syncTerminals', () => {
-    let mockSyncTerminals: Mock
+describe('Terminal Registry - Phase 2A: registry subscribers', () => {
+    let receivedSnapshots: TerminalRecord[][]
+    let unsubscribe: () => void
 
-    beforeEach(async () => {
+    beforeEach(() => {
         clearTerminalRecords()
-        // Get the mocked uiAPI
-        const {uiAPI} = await import('@/shell/edge/main/ui-api-proxy')
-        mockSyncTerminals = uiAPI.syncTerminals as Mock
-        mockSyncTerminals.mockClear()
+        receivedSnapshots = []
+        unsubscribe = subscribeToRegistry((records: TerminalRecord[]): void => {
+            receivedSnapshots.push(records)
+        })
     })
 
-    describe('syncTerminals is called after recordTerminalSpawn', () => {
-        it('calls syncTerminals with current records after spawn', async () => {
+    afterEach(() => {
+        unsubscribe()
+    })
+
+    describe('subscribers fire after recordTerminalSpawn', () => {
+        it('passes the current records snapshot after spawn', () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-spawn-node.md',
                 terminalCount: 0,
                 title: 'Sync Spawn Test'
             })
 
-            // WHEN: Recording a terminal spawn
             recordTerminalSpawn('sync-spawn-node.md-terminal-0', terminalData)
 
-            // THEN: syncTerminals should be called with the current records
-            expect(mockSyncTerminals).toHaveBeenCalledTimes(1)
-            const records: TerminalRecord[] = mockSyncTerminals.mock.calls[0][0]
+            expect(receivedSnapshots).toHaveLength(1)
+            const records: TerminalRecord[] = receivedSnapshots[0]
             expect(records).toHaveLength(1)
             expect(records[0].terminalId).toBe('sync-spawn-node.md-terminal-0')
         })
     })
 
-    describe('syncTerminals is called after markTerminalExited', () => {
-        it('calls syncTerminals with updated status after exit', async () => {
+    describe('subscribers fire after markTerminalExited', () => {
+        it('passes the updated-status snapshot after exit', () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-exit-node.md',
                 terminalCount: 0,
                 title: 'Sync Exit Test'
             })
             recordTerminalSpawn('sync-exit-node.md-terminal-0', terminalData)
-            mockSyncTerminals.mockClear()
+            receivedSnapshots.length = 0
 
-            // WHEN: Marking terminal as exited
             markTerminalExited('sync-exit-node.md-terminal-0')
 
-            // THEN: syncTerminals should be called with updated status
-            expect(mockSyncTerminals).toHaveBeenCalledTimes(1)
-            const records: TerminalRecord[] = mockSyncTerminals.mock.calls[0][0]
-            expect(records[0].status).toBe('exited')
+            expect(receivedSnapshots).toHaveLength(1)
+            expect(receivedSnapshots[0][0].status).toBe('exited')
         })
 
-        it('does not call syncTerminals for non-existent terminal', async () => {
-            // WHEN: Marking a non-existent terminal as exited
+        it('does not fire subscribers for non-existent terminal', () => {
             markTerminalExited('non-existent-terminal')
 
-            // THEN: syncTerminals should not be called
-            expect(mockSyncTerminals).not.toHaveBeenCalled()
+            expect(receivedSnapshots).toHaveLength(0)
         })
     })
 
-    describe('syncTerminals is called after state updates', () => {
-        it('calls syncTerminals after updateTerminalIsDone', async () => {
+    describe('subscribers fire after state updates', () => {
+        it('fires after updateTerminalIsDone', () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-done-node.md',
                 terminalCount: 0,
                 title: 'Sync Done Test'
             })
             recordTerminalSpawn('sync-done-node.md-terminal-0', terminalData)
-            mockSyncTerminals.mockClear()
+            receivedSnapshots.length = 0
 
-            // WHEN: Updating isDone
             updateTerminalIsDone('sync-done-node.md-terminal-0', true)
 
-            // THEN: syncTerminals should be called
-            expect(mockSyncTerminals).toHaveBeenCalledTimes(1)
-            const records: TerminalRecord[] = mockSyncTerminals.mock.calls[0][0]
-            expect(records[0].terminalData.isDone).toBe(true)
+            expect(receivedSnapshots).toHaveLength(1)
+            expect(receivedSnapshots[0][0].terminalData.isDone).toBe(true)
         })
 
-        it('calls syncTerminals after updateTerminalPinned', async () => {
+        it('fires after updateTerminalPinned', () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-pin-node.md',
                 terminalCount: 0,
@@ -402,42 +391,34 @@ describe('Terminal Registry - Phase 2A: syncTerminals', () => {
                 isPinned: false
             })
             recordTerminalSpawn('sync-pin-node.md-terminal-0', terminalData)
-            mockSyncTerminals.mockClear()
+            receivedSnapshots.length = 0
 
-            // WHEN: Updating isPinned
             updateTerminalPinned('sync-pin-node.md-terminal-0', true)
 
-            // THEN: syncTerminals should be called
-            expect(mockSyncTerminals).toHaveBeenCalledTimes(1)
-            const records: TerminalRecord[] = mockSyncTerminals.mock.calls[0][0]
-            expect(records[0].terminalData.isPinned).toBe(true)
+            expect(receivedSnapshots).toHaveLength(1)
+            expect(receivedSnapshots[0][0].terminalData.isPinned).toBe(true)
         })
 
-        it('does NOT call syncTerminals after updateTerminalActivityState (performance: avoids re-renders)', async () => {
+        it('does NOT fire after updateTerminalActivityState (performance: avoids re-renders)', () => {
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'sync-activity-node.md',
                 terminalCount: 0,
                 title: 'Sync Activity Test'
             })
             recordTerminalSpawn('sync-activity-node.md-terminal-0', terminalData)
-            mockSyncTerminals.mockClear()
+            receivedSnapshots.length = 0
 
-            // WHEN: Updating activity state
             updateTerminalActivityState('sync-activity-node.md-terminal-0', {activityCount: 5})
 
-            // THEN: syncTerminals should NOT be called (activity updates are high frequency)
-            expect(mockSyncTerminals).not.toHaveBeenCalled()
-            // But state should still be updated locally
+            expect(receivedSnapshots).toHaveLength(0)
             const records: TerminalRecord[] = getTerminalRecords()
             expect(records[0].terminalData.activityCount).toBe(5)
         })
 
-        it('does not call syncTerminals for non-existent terminal updates', async () => {
-            // WHEN: Updating a non-existent terminal
+        it('does not fire for non-existent terminal updates', () => {
             updateTerminalIsDone('non-existent-terminal', true)
 
-            // THEN: syncTerminals should not be called
-            expect(mockSyncTerminals).not.toHaveBeenCalled()
+            expect(receivedSnapshots).toHaveLength(0)
         })
     })
 })

@@ -14,6 +14,8 @@ import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, 
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
+import {subscribeToRegistry, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry';
+import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
 import {disableMcpJsonIntegration} from '@/shell/edge/main/mcp-server/mcp-client-config';
@@ -64,6 +66,11 @@ registerTerminalIpcHandlers(
     terminalManager,
     getToolsDirectory
 );
+
+// Bridge registry mutations to the renderer. Headless contexts skip this wiring.
+subscribeToRegistry((records: TerminalRecord[]) => {
+    uiAPI.syncTerminals(records);
+});
 
 // Register terminal cleanup for when folders are switched
 setOnFolderSwitchCleanup(() => {

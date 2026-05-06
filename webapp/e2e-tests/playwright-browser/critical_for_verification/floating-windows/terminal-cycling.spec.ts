@@ -193,7 +193,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     console.log(`Initial active terminal: ${initialActiveTerminal}`);
 
     console.log('=== Step 8: Press Cmd+] (next terminal) ===');
-    await page.keyboard.press('Meta+BracketRight');
+    await page.keyboard.press('ControlOrMeta+BracketRight');
     await page.waitForTimeout(100);
 
     const activeTerminalAfterNext = await page.evaluate(() => {
@@ -209,7 +209,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     console.log('✓ Cmd+] successfully cycled to terminal');
 
     console.log('=== Step 9: Press Cmd+[ (previous terminal) ===');
-    await page.keyboard.press('Meta+BracketLeft');
+    await page.keyboard.press('ControlOrMeta+BracketLeft');
     await page.waitForTimeout(100);
 
     const activeTerminalAfterPrev = await page.evaluate(() => {

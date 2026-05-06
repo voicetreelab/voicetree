@@ -2,6 +2,7 @@
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import type {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance';
+import {cleanupTerminalsForWindow} from '@/shell/edge/main/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {writeAllPositionsSync} from '@vt/graph-db-server/graph/writeAllPositionsOnExit';
@@ -156,7 +157,7 @@ export function createWindow(deps: {
 
     // Clean up terminals when window closes
     mainWindow.on('closed', () => {
-        deps.terminalManager.cleanupForWindow(windowId);
+        cleanupTerminalsForWindow(deps.terminalManager, windowId);
         // Persist node positions to .voicetree/positions.json before exit
         const projectRoot: string | null = getProjectRootWatchedDirectory();
         if (projectRoot) {

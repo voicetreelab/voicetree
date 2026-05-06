@@ -88,7 +88,7 @@ Final paragraph of content here.`;
     await page.screenshot({ path: 'e2e-tests/screenshots/cmd-a-before.png' });
 
     // Press Cmd+A to select all
-    await page.keyboard.press('Meta+a');
+    await page.keyboard.press('ControlOrMeta+a');
     await page.waitForTimeout(200);
 
     // Take screenshot after

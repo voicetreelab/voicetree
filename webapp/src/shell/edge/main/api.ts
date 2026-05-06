@@ -9,7 +9,7 @@ import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/appl
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
-import {getDirectoryTree} from './graph/watch_folder/folderScanning'
+import {getDirectoryTree} from '@vt/graph-db-server/watch-folder/folder-scanner'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
 import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
@@ -43,7 +43,7 @@ import {
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
-import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from './graph/watch_folder/starredFolders';
+import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from '@vt/graph-db-server/watch-folder/starred-folders';
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,

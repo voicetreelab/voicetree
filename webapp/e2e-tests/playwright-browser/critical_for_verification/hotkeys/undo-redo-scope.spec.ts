@@ -213,7 +213,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     });
 
     // Press Cmd+Z while focused in the editor
-    await page.keyboard.press('Meta+z');
+    await page.keyboard.press('ControlOrMeta+z');
     await page.waitForTimeout(100);
     console.log('✓ Cmd+Z pressed while in editor');
 
@@ -259,7 +259,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     expect(isFocusedInEditor).toBe(false);
 
     console.log('=== Step 10: Press Cmd+Z while NOT in editor - should trigger graph undo ===');
-    await page.keyboard.press('Meta+z');
+    await page.keyboard.press('ControlOrMeta+z');
     await page.waitForTimeout(100);
     console.log('✓ Cmd+Z pressed while outside editor');
 
@@ -337,7 +337,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     console.log('✓ Typed "XYZ"');
 
     // Undo the typing
-    await page.keyboard.press('Meta+z');
+    await page.keyboard.press('ControlOrMeta+z');
     await page.waitForTimeout(50);
     console.log('✓ Undid typing');
 
@@ -351,7 +351,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
       }
     });
 
-    await page.keyboard.press('Meta+Shift+z');
+    await page.keyboard.press('ControlOrMeta+Shift+z');
     await page.waitForTimeout(100);
     console.log('✓ Cmd+Shift+Z pressed while in editor');
 
@@ -371,7 +371,7 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     });
     await page.waitForTimeout(100);
 
-    await page.keyboard.press('Meta+Shift+z');
+    await page.keyboard.press('ControlOrMeta+Shift+z');
     await page.waitForTimeout(100);
     console.log('✓ Cmd+Shift+Z pressed outside editor');
 

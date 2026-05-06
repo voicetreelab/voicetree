@@ -96,7 +96,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log(`✓ Selected node: ${selectedNodeId}`);
 
     console.log('=== Step 6: Press Cmd+N ===');
-    await page.keyboard.press('Meta+n');
+    await page.keyboard.press('ControlOrMeta+n');
 
     // Wait for node creation via async IPC roundtrip
     await page.waitForFunction(
@@ -165,7 +165,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log('✓ All nodes deselected');
 
     console.log('=== Step 6: Press Cmd+N ===');
-    await page.keyboard.press('Meta+n');
+    await page.keyboard.press('ControlOrMeta+n');
 
     // Wait for node creation via async IPC roundtrip
     await page.waitForFunction(
@@ -257,7 +257,7 @@ test.describe('Cmd+N and Cmd+Enter Hotkeys (Browser)', () => {
     console.log(`Initial terminal count: ${initialTerminalCount}`);
 
     console.log('=== Step 7: Press Cmd+Enter ===');
-    await page.keyboard.press('Meta+Enter');
+    await page.keyboard.press('ControlOrMeta+Enter');
 
     // Wait to ensure nothing happens
     await page.waitForTimeout(200);
