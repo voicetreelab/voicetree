@@ -18,6 +18,7 @@ import { getVaultPaths, loadAndMergeVaultPath, type LoadVaultPathResult, addRead
 import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
+import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
 import type { GraphDelta } from '@vt/graph-model/pure/graph'
 import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
@@ -156,8 +157,8 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
 
       await saveVaultConfigForDirectory(watchedDir, {
         writePath: writePathA,
-        readPaths: [readPathB]
       })
+      await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
 
       // WHEN: setWritePath is called with a new path C
       await setWritePath(newWritePathC)

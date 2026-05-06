@@ -20,7 +20,7 @@ describe('layoutProjection', () => {
         document.body.appendChild(container)
 
         cy = cytoscape({
-            container,
+            headless: true,
             elements: [],
             userZoomingEnabled: false,
             minZoom: 0.1,

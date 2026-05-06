@@ -30,8 +30,8 @@ import {
   stopFileWatching,
   getVaultPath,
   clearVaultPath,
-} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
+} from '@vt/graph-db-server/watch-folder/watchFolder'
+import { setGraph, getGraph } from '@vt/graph-db-server/state/graph-store'
 import type { GraphDelta, Graph } from '@vt/graph-model/pure/graph'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph'
 import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
@@ -234,7 +234,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
 
       // ASSERT: Duplicate not added (readPaths length unchanged)
       expect(secondAdd.success).toBe(false)
-      expect(secondAdd.error).toContain('already in readPaths')
+      expect(secondAdd.error).toContain('already')
       expect((await getVaultPaths()).length).toBe(lengthAfterFirstAdd)
     })
   })

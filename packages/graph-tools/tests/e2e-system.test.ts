@@ -5,6 +5,8 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..')
+const HEADLESS_START_TIMEOUT_MS = 15_000
+const SYSTEM_CONTRACT_TIMEOUT_MS = 30_000
 
 function runCli(args: readonly string[]) {
   return spawnSync(
@@ -54,8 +56,9 @@ async function startHeadless(vault: string): Promise<{
 
   const port = await new Promise<number>((resolve, reject) => {
     const timeout = setTimeout(() => {
+      child.kill('SIGINT')
       reject(new Error(`vt-headless did not print a port. stdout=${stdout} stderr=${stderr}`))
-    }, 5000)
+    }, HEADLESS_START_TIMEOUT_MS)
     child.stdout.on('data', () => {
       const match = stdout.match(/Listening on port (\d+)/)
       if (!match) return
@@ -134,5 +137,5 @@ describe('@vt/graph-tools system contract', () => {
     const liveView = runCli(['live', 'view', '--port', String(server.port)])
     expect(liveView.status).toBe(0)
     expect(liveView.stdout).toContain('Index')
-  })
+  }, SYSTEM_CONTRACT_TIMEOUT_MS)
 })

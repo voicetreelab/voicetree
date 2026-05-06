@@ -10,8 +10,9 @@ import path from 'path'
 
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Command, State } from '@vt/graph-state'
-import type { Graph } from '@vt/graph-model/pure/graph'
+import * as E from 'fp-ts/lib/Either.js'
+import { clearRootIOForTests, configureRootIO, type Command, type State } from '@vt/graph-state'
+import type { DirectoryEntry, Graph } from '@vt/graph-model/pure/graph'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')
@@ -111,11 +112,21 @@ function emptyGraph(): Graph {
 const TMP_ROOT: string = path.join(tmpdir(), `bf197-round-trip-${process.pid}`)
 
 beforeAll(async () => {
+    configureRootIO({
+        getDirectoryTree: async (rootPath: string): Promise<DirectoryEntry> => ({
+            absolutePath: rootPath,
+            name: path.basename(rootPath),
+            isDirectory: true,
+            children: [],
+        }),
+        loadGraphFromDisk: async () => E.right(emptyGraph()),
+    })
     await fsp.mkdir(TMP_ROOT, { recursive: true })
     await fsp.writeFile(path.join(TMP_ROOT, 'note.md'), '# note\n', 'utf8')
 })
 
 afterAll(async () => {
+    clearRootIOForTests()
     await fsp.rm(TMP_ROOT, { recursive: true, force: true })
 })
 

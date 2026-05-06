@@ -20,6 +20,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type { Graph } from '@vt/graph-model/pure/graph'
+import { serializeState } from '@vt/graph-state'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')
@@ -115,10 +116,18 @@ vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
     setMcpIntegration: vi.fn(),
 }))
 
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    getLiveStateSnapshotFromDaemon: vi.fn(),
+}))
+
 import { getGraph as mockedGetGraph } from '@vt/graph-model'
 import { createMcpServer } from '@/shell/edge/main/mcp-server/mcp-server'
 import { findAvailablePort } from '@/shell/edge/main/port-utils'
-import { __resetLiveStoreForTests } from '@/shell/edge/main/state/live-state-store'
+import {
+    __resetLiveStoreForTests,
+    getCurrentLiveState,
+} from '@/shell/edge/main/state/live-state-store'
+import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 
 function emptyGraph(): Graph {
     return {
@@ -186,6 +195,9 @@ describe('vt_dispatch_live_command real MCP roundtrip', () => {
         resetRendererState()
         server = await startTestMcpServer()
         vi.mocked(mockedGetGraph).mockReturnValue(emptyGraph())
+        vi.mocked(getLiveStateSnapshotFromDaemon).mockImplementation(async () =>
+            serializeState(await getCurrentLiveState())
+        )
     })
 
     afterEach(async () => {

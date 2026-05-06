@@ -21,9 +21,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import { deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
 import { mergeSelectedNodesFromUI } from '@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI'
 import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph'
 import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -33,6 +35,7 @@ import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaT
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import { initGraphModel } from '@vt/graph-model'
 import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 
 // State managed by mocked globals
 let currentGraph: Graph | null = null
@@ -40,6 +43,39 @@ let tempVault: string = ''
 
 function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGraphDeltaToUI> {
     return applyGraphDeltaToUI(cy, projectDelta(delta))
+}
+
+async function applyDeltaToFilesystemAndState(cy: Core, delta: GraphDelta): Promise<void> {
+    const result: E.Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)({
+        projectRootWatchedDirectory: tempVault
+    })()
+    if (E.isLeft(result)) {
+        throw result.left
+    }
+    if (currentGraph) {
+        currentGraph = applyGraphDeltaToGraph(currentGraph, delta)
+    }
+    applyDeltaToUI(cy, delta)
+}
+
+function createTestWindow(cy: Core, includeWritePath: boolean): Window {
+    return {
+        electronAPI: {
+            main: {
+                getGraph: async () => currentGraph,
+                getNode: async (nodeId: string) => currentGraph?.nodes[nodeId],
+                ...(includeWritePath
+                    ? {
+                        getWritePath: () => Promise.resolve(O.some(tempVault)),
+                        getWatchStatus: () => ({ isWatching: false, directory: tempVault })
+                    }
+                    : {}),
+                applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
+                    await applyDeltaToFilesystemAndState(cy, delta)
+                }
+            }
+        }
+    } as unknown as Window
 }
 
 // Mock Electron's ipcMain - use vi.hoisted to avoid "Cannot access before initialization" error
@@ -248,19 +284,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         })
 
         // Setup window.electronAPI
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, false)
 
         // WHEN: Delete node B
         await deleteNodesFromUI(['B.md'], cy)
@@ -315,19 +339,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, false)
 
         // WHEN: Delete both A and B (from separate subtrees)
         await deleteNodesFromUI(['A.md', 'B.md'], cy)
@@ -386,19 +398,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, false)
 
         // WHEN: Delete A and B together (connected nodes in the chain)
         await deleteNodesFromUI(['A.md', 'B.md'], cy)
@@ -462,21 +462,7 @@ describe('Merge Operation - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    getWritePath: () => Promise.resolve(O.some(tempVault)),
-                    getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, true)
 
         // WHEN: Merge Internal1 and Internal2
         await mergeSelectedNodesFromUI(['Internal1.md', 'Internal2.md'], cy)
@@ -531,21 +517,7 @@ describe('Merge Operation - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    getWritePath: () => Promise.resolve(O.some(tempVault)),
-                    getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, true)
 
         // WHEN: Merge Leaf1 and Leaf2
         await mergeSelectedNodesFromUI(['Leaf1.md', 'Leaf2.md'], cy)
@@ -613,21 +585,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    getWritePath: () => Promise.resolve(O.some(tempVault)),
-                    getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, true)
 
         // WHEN: Merge all three nodes (2 regular + 1 context)
         await mergeSelectedNodesFromUI(['Regular1.md', 'Regular2.md', 'Context1.md'], cy)
@@ -669,21 +627,7 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             ]
         })
 
-        const { mainAPI } = await import('@/shell/edge/main/api')
-        global.window = {
-            electronAPI: {
-                main: {
-                    getGraph: mainAPI.getGraph,
-                    getNode: mainAPI.getNode,
-                    getWritePath: () => Promise.resolve(O.some(tempVault)),
-                    getWatchStatus: () => ({ isWatching: false, directory: tempVault }),
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-                        await mainAPI.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta)
-                        applyDeltaToUI(cy, delta)
-                    }
-                }
-            }
-        } as any
+        global.window = createTestWindow(cy, true)
 
         // WHEN: Try to merge 1 regular + 1 context node (not enough regular nodes to merge)
         await mergeSelectedNodesFromUI(['Regular1.md', 'Context1.md'], cy)

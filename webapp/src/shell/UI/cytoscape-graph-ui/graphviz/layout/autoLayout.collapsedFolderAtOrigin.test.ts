@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Regression test: collapsed folder proxy nodes added at (0,0) must NOT
  * trigger local Cola layout.

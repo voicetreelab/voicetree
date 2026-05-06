@@ -67,13 +67,13 @@ describe('graphLint', () => {
             expect(parentMetrics!.nChildren).toBe(1)
         })
 
-        it('folder hierarchy parent detection — index file is parent', () => {
+        it('folder hierarchy parent detection — canonical folder note is parent', () => {
             mkdirSync(path.join(tempDir, 'topic'))
-            writeFileSync(path.join(tempDir, 'topic.md'), '# Topic Index')
+            writeFileSync(path.join(tempDir, 'topic', 'topic.md'), '# Topic Folder')
             writeFileSync(path.join(tempDir, 'topic', 'subtopic.md'), '# Subtopic')
 
             const report: GraphLintReport = lintGraph(tempDir)
-            const topicMetrics: NodeMetrics | undefined = report.nodeMetrics.get('topic')
+            const topicMetrics: NodeMetrics | undefined = report.nodeMetrics.get('topic/topic')
             expect(topicMetrics).toBeDefined()
             expect(topicMetrics!.nChildren).toBe(1)
         })
@@ -252,33 +252,29 @@ describe('graphLint', () => {
             expect(tree.childrenOf.get('root')).toEqual(['child'])
         })
 
-        it('builds parent-child from folder hierarchy', () => {
+        it('builds parent-child from canonical folder note hierarchy', () => {
             const nodeContents: Map<string, string> = new Map([
-                ['topic', '# Topic'],
+                ['topic/topic', '# Topic'],
                 ['topic/subtopic', '# Subtopic'],
             ])
-            const nodeIds: string[] = ['topic', 'topic/subtopic']
-            const folderIndexMap: Map<string, string> = new Map([
-                ['topic', 'topic'],
-            ])
+            const nodeIds: string[] = ['topic/topic', 'topic/subtopic']
+            const folderIndexMap: Map<string, string> = new Map([['topic', 'topic/topic']])
 
             const tree: ContainmentTree = buildContainmentTree(nodeIds, nodeContents, folderIndexMap)
-            expect(tree.parentOf.get('topic/subtopic')).toBe('topic')
+            expect(tree.parentOf.get('topic/subtopic')).toBe('topic/topic')
         })
 
-        it('explicit parent overrides folder hierarchy', () => {
+        it('directory containment overrides explicit parent edges', () => {
             const nodeContents: Map<string, string> = new Map([
-                ['topic', '# Topic'],
+                ['topic/topic', '# Topic'],
                 ['topic/subtopic', '# Subtopic\n- parent [[other]]'],
                 ['other', '# Other'],
             ])
-            const nodeIds: string[] = ['topic', 'topic/subtopic', 'other']
-            const folderIndexMap: Map<string, string> = new Map([
-                ['topic', 'topic'],
-            ])
+            const nodeIds: string[] = ['topic/topic', 'topic/subtopic', 'other']
+            const folderIndexMap: Map<string, string> = new Map([['topic', 'topic/topic']])
 
             const tree: ContainmentTree = buildContainmentTree(nodeIds, nodeContents, folderIndexMap)
-            expect(tree.parentOf.get('topic/subtopic')).toBe('other')
+            expect(tree.parentOf.get('topic/subtopic')).toBe('topic/topic')
         })
     })
 

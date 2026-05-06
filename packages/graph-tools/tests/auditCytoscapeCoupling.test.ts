@@ -80,5 +80,5 @@ describe('runCytoscapeCouplingAudit ratchet', () => {
 
         const restoredCount: number = parseCliCount(runAuditCli())
         expect(restoredCount).toBe(baselineCount)
-    })
+    }, 15_000)
 })

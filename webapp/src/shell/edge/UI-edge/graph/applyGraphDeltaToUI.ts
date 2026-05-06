@@ -19,7 +19,33 @@ import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
  */
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
-    return CSS.supports('color', color);
+    if (typeof globalThis.CSS?.supports === 'function') {
+        return globalThis.CSS.supports('color', color);
+    }
+    const rgb: RegExpMatchArray | null = color.match(/^rgba?\((.*)\)$/i);
+    if (rgb) {
+        const channels: string[] = rgb[1].split(',').map((channel: string) => channel.trim());
+        const colorChannels: string[] = channels.slice(0, 3);
+        if (
+            colorChannels.length !== 3
+            || colorChannels.some((channel: string) => {
+                if (channel.endsWith('%')) {
+                    const percent: number = Number(channel.slice(0, -1));
+                    return !Number.isFinite(percent) || percent < 0 || percent > 100;
+                }
+                const value: number = Number(channel);
+                return !Number.isFinite(value) || value < 0 || value > 255;
+            })
+        ) {
+            return false;
+        }
+    }
+    if (typeof document !== 'undefined') {
+        const probe: HTMLOptionElement = document.createElement('option');
+        probe.style.color = color;
+        return probe.style.color !== '';
+    }
+    return false;
 }
 
 /**
