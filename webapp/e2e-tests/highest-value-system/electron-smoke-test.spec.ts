@@ -81,7 +81,6 @@ const test = base.extend<{
 
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: fixtureVaultPath,
       vaultConfig: {
         [fixtureVaultPath]: {
           writePath: fixtureVaultPath,
