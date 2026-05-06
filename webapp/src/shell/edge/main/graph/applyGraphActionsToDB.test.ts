@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { apply_graph_deltas_to_db } from '@vt/graph-model'
+import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 import type { DeleteNode, Env, UpsertNodeDelta, GraphNode, FSWriteEffect, GraphDelta, Graph } from '@vt/graph-model/pure/graph/index'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
@@ -7,7 +7,8 @@ import { tmpdir } from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { markdownToTitle } from '@vt/graph-model/pure/graph/markdown-parsing/markdown-to-title'
-import { loadGraphFromDisk, type FileLimitExceededError } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 
 // Helper to find a node by filename (since node IDs are now absolute paths)
 function findNodeByFilename(graph: Graph, filename: string): GraphNode | undefined {

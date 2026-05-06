@@ -163,5 +163,14 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
           'underlay-shape': 'ellipse',
       }
     },
+
+    // Folder nodes must not get the green selection underlay — it covers the
+    // entire compound area and blocks clicks on children inside the folder.
+    {
+      selector: 'node[?isFolderNode]:selected',
+      style: {
+          'underlay-opacity': 0,
+      }
+    },
   ];
 }

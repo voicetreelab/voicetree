@@ -1,8 +1,10 @@
 import {access} from 'node:fs/promises'
 import path from 'node:path'
-import type {FSEvent, GraphDelta, Graph} from '@vt/graph-model/pure/graph';
+import * as O from 'fp-ts/lib/Option.js'
+import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/pure/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/pure/graph';
 import {markdownToTitle} from '@vt/graph-model/pure/graph/markdown-parsing/markdown-to-title'
+import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {getVaultPaths} from '../watch-folder/vault-allowlist'
@@ -124,4 +126,21 @@ async function applyAndBroadcast(delta: GraphDelta, fsEvent: FSEvent): Promise<v
 
     // Broadcast to floating editor state via callback
     getCallbacks().onFloatingEditorUpdate?.(mergedDelta)
+
+    // Register filesystem-written nodes that have agent_name frontmatter,
+    // so wait_for_agents recognises them as agent progress.
+    notifyAgentNodesFromDelta(mergedDelta)
+}
+
+function notifyAgentNodesFromDelta(delta: GraphDelta): void {
+    const callback = getCallbacks().onFSNodeWithAgentName
+    if (!callback) return
+
+    for (const d of delta) {
+        if (d.type !== 'UpsertNode' || O.isSome(d.previousNode)) continue
+        const agentName: string | undefined = d.nodeToUpsert.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+        if (!agentName) continue
+        const title: string = getNodeTitle(d.nodeToUpsert)
+        callback(agentName, d.nodeToUpsert.absoluteFilePathIsID, title)
+    }
 }

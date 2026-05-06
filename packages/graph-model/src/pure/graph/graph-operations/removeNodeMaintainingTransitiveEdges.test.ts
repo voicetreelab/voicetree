@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, NodeIdAndFilePath, GraphDelta } from '..'
-import { deleteNodeMaintainingTransitiveEdges } from './removeNodeMaintainingTransitiveEdges'
+import { deleteNodeSimple } from '@vt/graph-model'
 import { applyGraphDeltaToGraph } from '../graphDelta/applyGraphDeltaToGraph'
 import { createGraph } from '../createGraph'
 
@@ -21,15 +21,15 @@ function createNode(id: string, outgoingEdges: readonly { readonly targetId: str
 }
 
 /**
- * Helper to apply deleteNodeMaintainingTransitiveEdges and return the resulting graph.
+ * Helper to apply deleteNodeSimple and return the resulting graph.
  * This mirrors how the function is used in practice.
  */
 function deleteAndApply(graph: Graph, nodeIdToRemove: NodeIdAndFilePath): Graph {
-    const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, nodeIdToRemove)
+    const delta: GraphDelta = deleteNodeSimple(graph, nodeIdToRemove)
     return applyGraphDeltaToGraph(graph, delta)
 }
 
-describe('deleteNodeMaintainingTransitiveEdges', () => {
+describe('deleteNodeSimple', () => {
     describe('delta structure', () => {
         it('should return a delta with DeleteNode first, followed by UpsertNodes for modified incomers', () => {
             const graph: Graph = createGraph({
@@ -38,7 +38,7 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
                 'c.md': createNode('c.md', [])
             })
 
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
 
             expect(delta.length).toBe(2) // DeleteNode for b.md, UpsertNode for a.md
             expect(delta[0].type).toBe('DeleteNode')
@@ -58,7 +58,7 @@ describe('deleteNodeMaintainingTransitiveEdges', () => {
                 'b.md': createNode('b.md', [])
             })
 
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'nonexistent.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'nonexistent.md')
 
             expect(delta.length).toBe(0)
         })

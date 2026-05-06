@@ -13,6 +13,7 @@ import path from 'path'
 import { fromNodeToMarkdownContent } from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/pure/graph/markdown-parsing/filename-utils'
 import {markRecentDelta} from "../state/recent-deltas-store";
+import { markPendingDelete, markPendingWrite } from '../watch-folder/pending-writes'
 
 /**
  * Helper to convert unknown errors to Error type
@@ -105,6 +106,7 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true })
 
+            markPendingWrite(fullPath)
             await fs.writeFile(fullPath, markdown, 'utf-8')
         },
         toError
@@ -124,6 +126,7 @@ function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
                 ? filename
                 : path.join(env.projectRootWatchedDirectory, filename)
 
+            markPendingDelete(fullPath)
             await fs.unlink(fullPath)
             await pruneEmptyParentDirectories(fullPath, env.projectRootWatchedDirectory)
         },

@@ -1,7 +1,9 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
+import type { GraphDelta, GraphNode } from '@vt/graph-model'
 
 import {
   HealthResponseSchema,
@@ -87,6 +89,44 @@ describe('@vt/graph-db-server system contract', () => {
       return body.nodes[notePath] ? body : null
     })
     expect(graph.nodes[notePath]).toBeDefined()
+
+    const httpNodePath = path.join(vault, 'http-created.md')
+    const httpNode: GraphNode = {
+      kind: 'leaf',
+      outgoingEdges: [],
+      absoluteFilePathIsID: httpNodePath,
+      contentWithoutYamlOrLinks: '# HTTP Created\n\nCreated through the daemon API.\n',
+      nodeUIMetadata: {
+        color: O.none,
+        position: O.none,
+        additionalYAMLProps: new Map([['agent_name', 'e2e']]),
+      },
+    }
+    const createDelta: GraphDelta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: httpNode,
+        previousNode: O.none,
+      },
+    ]
+    const createResponse = await fetch(`${baseUrl}/graph/delta`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(createDelta),
+    })
+    expect(createResponse.status).toBe(200)
+    const graphAfterCreate = await (await fetch(`${baseUrl}/graph`)).json() as { nodes: Record<string, unknown> }
+    expect(graphAfterCreate.nodes[httpNodePath]).toBeDefined()
+    await expect(readFile(httpNodePath, 'utf8')).resolves.toContain('# HTTP Created')
+
+    const deleteResponse = await fetch(
+      `${baseUrl}/graph/node/${encodeURIComponent(httpNodePath)}`,
+      { method: 'DELETE' },
+    )
+    expect(deleteResponse.status).toBe(200)
+    const graphAfterDelete = await (await fetch(`${baseUrl}/graph`)).json() as { nodes: Record<string, unknown> }
+    expect(graphAfterDelete.nodes[httpNodePath]).toBeUndefined()
+    await expect(readFile(httpNodePath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
 
     const createdSession = SessionCreateResponseSchema.parse(
       await (await fetch(`${baseUrl}/sessions`, { method: 'POST' })).json(),

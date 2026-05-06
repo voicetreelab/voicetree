@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * FolderTreeNode — Graph Collapse Click Wiring Test
  *

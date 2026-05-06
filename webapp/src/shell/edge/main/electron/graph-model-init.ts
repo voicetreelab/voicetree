@@ -17,7 +17,8 @@ import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
-import { dispatchOnNewNodeHooks } from '@vt/agent-runtime'
+import { dispatchOnNewNodeHooks, getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@vt/agent-runtime'
+import { registerAgentNodes } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
@@ -114,6 +115,14 @@ export function initializeGraphModel(): void {
                     dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
                 }
             })
+        },
+        onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
+            const record: TerminalRecord | undefined = getTerminalRecords().find(
+                (r: TerminalRecord) => r.terminalData.agentName === agentName
+            )
+            if (!record) return
+            registerAgentNodes(record.terminalId, [{ nodeId, title }])
+            resetAuditRetryCount(record.terminalId)
         },
         refreshBadge(): void {
             refreshAllInjectBadges()

@@ -3,10 +3,10 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
+import {setGraph} from '@vt/graph-db-server/state/graph-store.ts'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store.ts'
 import {
-    clearWatchFolderState,
     createEmptyGraph,
-    setGraph,
 } from '@vt/graph-model'
 import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
 import {main} from '../voicetree-cli.ts'

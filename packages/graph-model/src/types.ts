@@ -31,6 +31,7 @@ export interface GraphModelCallbacks {
 
   // Hooks
   onNewNodeHook?: (nodeId: string, graphData: GraphDelta) => void  // replaces hooks/onNewNodeHook
+  onFSNodeWithAgentName?: (agentName: string, nodeId: string, title: string) => void
   refreshBadge?: () => void  // replaces terminals/inject-badge-refresh
 
   // Backend notification

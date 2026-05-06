@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createContextNode } from '@vt/graph-model'
+import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode'
 
 // Mock electron app to provide getPath for settings
 vi.mock('electron', () => ({
@@ -27,7 +27,7 @@ vi.mock('electron', () => ({
     getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
   }
 }))
-import { loadGraphFromDisk } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
@@ -37,9 +37,9 @@ import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@vt/graph-model'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-model'
+import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null

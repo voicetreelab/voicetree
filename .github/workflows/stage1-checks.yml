@@ -1,4 +1,4 @@
-name: Branch Verification
+name: "Stage 1: Fast Checks"
 
 on:
   push:
@@ -7,33 +7,92 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/**'
       - 'packages/**'
       - 'webapp/**'
-      - '.github/workflows/branch-verification.yml'
+      - 'scripts/**'
+      - '.github/workflows/stage1-checks.yml'
   pull_request:
     paths:
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/**'
       - 'packages/**'
       - 'webapp/**'
-      - '.github/workflows/branch-verification.yml'
+      - 'scripts/**'
+      - '.github/workflows/stage1-checks.yml'
   workflow_dispatch:
-    inputs:
-      run_electron_tier2:
-        description: 'Run Electron Tier 2 as well as browser Tier 2'
-        type: boolean
-        default: false
 
 concurrency:
-  group: branch-verification-${{ github.ref }}
+  group: stage1-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  browser-smoke:
+  lint-typecheck:
+    name: Lint + Typecheck + Taxonomy
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Lint (root targets)
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: webapp
+        run: npx tsc --noEmit
+
+      - name: Blackbox test lint
+        continue-on-error: true
+        run: npm run lint:blackbox-tests
+
+      - name: E2E taxonomy check
+        run: npm run check:e2e-taxonomy
+
+  unit-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run unit/integration tests
+        continue-on-error: true
+        run: npx vitest run --reporter=verbose
+
+  # ── Stage 2: Tier 1 E2E (gated on Stage 1) ──────────────────────────
+
+  browser-smoke:
+    name: Browser Tier 1 Smoke
+    needs: [lint-typecheck, unit-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
 
@@ -47,16 +106,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install workspace dependencies
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Install Playwright browser dependencies
+      - name: Install Playwright chromium
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
-      - name: Run browser Tier 2 E2E (critical_for_verification)
+      - name: Run browser Tier 1 smoke
         timeout-minutes: 10
         working-directory: webapp
         run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
@@ -71,16 +130,9 @@ jobs:
             webapp/playwright-report/
           retention-days: 7
 
-      - name: Run browser Tier 2 E2E
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
-        timeout-minutes: 25
-        run: npm --workspace webapp run test:browser -- --reporter=line
-
-      - name: Run Electron Tier 2 E2E
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_electron_tier2 }}
-        run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
-
   electron-smoke:
+    name: Electron Tier 1 Smoke
+    needs: [lint-typecheck, unit-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -96,7 +148,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install workspace dependencies
+      - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci

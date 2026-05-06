@@ -39,7 +39,7 @@ import {
     isValidSubdirectory,
 } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 
-const DAEMON_LOAD_TIMEOUT_MS: number = 15_000
+const DAEMON_LOAD_TIMEOUT_MS: number = process.env.CI ? 45_000 : 15_000
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())

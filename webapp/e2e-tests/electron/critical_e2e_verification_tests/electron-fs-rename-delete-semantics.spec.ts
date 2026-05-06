@@ -323,7 +323,7 @@ test.describe('Filesystem rename/delete semantics', () => {
       const movedSourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       return {
         movedTargetExists: Boolean(movedTargetNodeId),
-        oldTargetRemoved: !Boolean(getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath)),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath),
         healedEdge: hasEdge(snapshot, movedSourceNodeId, movedTargetNodeId)
       };
     }, {
@@ -365,7 +365,7 @@ test.describe('Filesystem rename/delete semantics', () => {
       const renamedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, renamedTargetPath);
       const renamedEdgeExists = hasEdge(snapshot, sourceNodeId, renamedTargetNodeId);
       return {
-        oldTargetRemoved: !Boolean(getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath)),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath),
         renamedTargetPresent: Boolean(renamedTargetNodeId),
         renamedEdgeMissing: !renamedEdgeExists,
         sourceStillVisible: Boolean(sourceNodeId)
@@ -403,7 +403,7 @@ test.describe('Filesystem rename/delete semantics', () => {
       const deletedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath);
       const edgeToDeletedTargetExists = hasEdge(snapshot, sourceNodeId, deletedTargetNodeId);
       return {
-        deletedTargetGone: !Boolean(deletedTargetNodeId),
+        deletedTargetGone: !deletedTargetNodeId,
         noEdgeToDeletedTarget: !edgeToDeletedTargetExists,
         sourceHasAtLeastOneNode: Boolean(sourceNodeId)
       };

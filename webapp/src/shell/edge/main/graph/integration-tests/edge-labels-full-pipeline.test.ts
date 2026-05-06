@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
 import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@vt/graph-model'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 
 /**
  * Integration test for edge labels through the full pipeline:
