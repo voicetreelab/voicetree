@@ -66,7 +66,8 @@ export function startMonitor(
                 const agentStatus: string = getAgentStatus(r)
                 if (agentStatus === 'idle') {
                     const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                    if (indexNodes.length === 0) {
+                    const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                    if (indexNodes.length === 0 && graphNodes.length === 0) {
                         void sendTextToTerminal(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
                             'Please create progress nodes documenting your work. Read addProgressTree.md for guidance.\n\n'
