@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
 
 // Mock window event listeners before importing CodeMirrorEditorView

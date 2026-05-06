@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./node": "./src/node.ts"
+    "./node": "./src/node.ts",
+    "./graphLint": "./src/graphLint.ts"
   },
   "bin": {
     "vt-graph": "bin/vt-graph.ts",

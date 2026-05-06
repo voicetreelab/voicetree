@@ -34,6 +34,8 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {command: 'vt graph structure', routeId: 'graph.read'},
     {command: 'vt graph view', routeId: 'graph.read'},
     {command: 'vt graph lint', routeId: 'graph.read'},
+    {command: 'vt graph create', routeId: 'graph.delta'},
+    {command: 'vt graph delete-node', routeId: 'graph.delete-node'},
     {
         command: 'vt graph index',
         routeId: null,

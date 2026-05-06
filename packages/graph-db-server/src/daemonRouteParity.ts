@@ -3,6 +3,8 @@ import { createDaemonApp } from './daemonApp.ts'
 import { SessionRegistry } from './session/registry.ts'
 
 const DAEMON_ROUTE_IDS = [
+  'graph.delta',
+  'graph.delete-node',
   'graph.read',
   'session.create',
   'session.delete',
@@ -35,6 +37,7 @@ export type DaemonRouteExemption = {
 }
 
 const DAEMON_ROUTE_ID_BY_SIGNATURE = {
+  'DELETE /graph/node/:encodedNodeId': 'graph.delete-node',
   'DELETE /sessions/:sessionId': 'session.delete',
   'DELETE /sessions/:sessionId/collapse/:folderId': 'view.expand',
   'DELETE /vault/read-paths/:encodedPath': 'vault.remove-read-path',
@@ -42,6 +45,7 @@ const DAEMON_ROUTE_ID_BY_SIGNATURE = {
   'GET /sessions/:sessionId': 'session.show',
   'GET /sessions/:sessionId/state': 'view.show',
   'GET /vault': 'vault.show',
+  'POST /graph/delta': 'graph.delta',
   'POST /sessions': 'session.create',
   'POST /sessions/:sessionId/collapse/:folderId': 'view.collapse',
   'POST /sessions/:sessionId/selection': 'view.selection',

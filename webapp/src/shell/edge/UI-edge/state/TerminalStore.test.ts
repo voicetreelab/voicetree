@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Tests for TerminalStore - Phase 3: Display-only cache behavior
  */

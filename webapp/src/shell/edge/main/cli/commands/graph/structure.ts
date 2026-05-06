@@ -1,7 +1,7 @@
 import path from 'node:path'
 import {renderAutoView} from '@vt/graph-tools/node'
-import {error, output} from '@/shell/edge/main/cli/output.ts'
-import {handleCliError} from '@/shell/edge/main/cli/util/exitCodes.ts'
+import {error, output} from '../../output.ts'
+import {handleCliError} from '../../util/exitCodes.ts'
 import {withDaemonGraphSnapshot} from './snapshot.ts'
 
 export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {

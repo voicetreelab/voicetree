@@ -19,13 +19,15 @@ import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/electron/daemo
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
 
-export async function getLiveState(): Promise<SerializedState> {
+export async function getLiveState(): Promise<SerializedState | null> {
     return await getLiveStateSnapshotFromDaemon()
 }
 
 export async function getLiveStateTool(): Promise<McpToolResponse> {
     try {
-        return buildJsonResponse(await getLiveState())
+        const state: SerializedState | null = await getLiveState()
+        if (!state) return buildJsonResponse({ error: 'No vault loaded yet' }, true)
+        return buildJsonResponse(state)
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)
         return buildJsonResponse({ error: message }, true)

@@ -31,34 +31,25 @@ function createNode(id: string, outgoingEdges: readonly { readonly targetId: str
 
 describe('Edge Preservation on Node Deletion', () => {
     describe('Simple chain: a -> b -> c', () => {
-        it('should connect parent to children when middle node is deleted', () => {
-            // Setup: a -> b -> c
+        it('should remove middle node and clean up parent edges — no transitive edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
                 'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
                 'c.md': createNode('c.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: b is deleted
             expect(result.nodes['b.md']).toBeUndefined()
-
-            // Verify: a now points to c with a's original label
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
-            expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
-            expect(result.nodes['a.md'].outgoingEdges[0].label).toBe('extends') // inherits from parent edge
-
-            // Verify: c is unchanged
+            // a's edge to b is removed, no transitive edge to c
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
             expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('Multiple children: a -> b -> {c, d}', () => {
-        it('should connect parent to all children of deleted node', () => {
-            // Setup: a -> b -> c, b -> d
+        it('should remove node and clean up parent edges — children become disconnected', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'parent-of' }]),
                 'b.md': createNode('b.md', [
@@ -69,25 +60,16 @@ describe('Edge Preservation on Node Deletion', () => {
                 'd.md': createNode('d.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a now points to both c and d
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(2)
-            const targetIds: readonly NodeIdAndFilePath[] = result.nodes['a.md'].outgoingEdges.map(e => e.targetId)
-            expect(targetIds).toContain('c.md')
-            expect(targetIds).toContain('d.md')
-
-            // Verify: both edges use parent's label
-            expect(result.nodes['a.md'].outgoingEdges.every(e => e.label === 'parent-of')).toBe(true)
+            // a's edge to b is removed, no transitive edges to c or d
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('Multiple parents: {a, x} -> b -> c', () => {
-        it('should connect all parents to children AND to each other', () => {
-            // Setup: a -> b, x -> b, b -> c
-            // In bidirectional traversal, a and x can reach each other via b's incoming edges
+        it('should remove node and clean up all parent edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'label-a' }]),
                 'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'label-x' }]),
@@ -95,26 +77,17 @@ describe('Edge Preservation on Node Deletion', () => {
                 'c.md': createNode('c.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a now points to c (child of b) AND x (fellow incomer)
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'x.md'])
-            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-a')
-            expect(result.nodes['a.md'].outgoingEdges.find(e => e.targetId === 'x.md')?.label).toBe('label-a')
-
-            // Verify: x now points to c (child of b) AND a (fellow incomer)
-            expect(result.nodes['x.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['a.md', 'c.md'])
-            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'c.md')?.label).toBe('label-x')
-            expect(result.nodes['x.md'].outgoingEdges.find(e => e.targetId === 'a.md')?.label).toBe('label-x')
+            // Both parents' edges to b are removed, no new edges
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['x.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('Combined: {a, x} -> b -> {c, d}', () => {
-        it('should connect all parents to all children AND to each other', () => {
-            // Setup: a -> b, x -> b, b -> c, b -> d
-            // In bidirectional traversal, a and x can reach each other via b's incoming edges
+        it('should remove node and clean up all parent edges — no transitive or cross-incomer edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'from-a' }]),
                 'x.md': createNode('x.md', [{ targetId: 'b.md', label: 'from-x' }]),
@@ -126,23 +99,17 @@ describe('Edge Preservation on Node Deletion', () => {
                 'd.md': createNode('d.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a has edges to c, d (children of b), AND x (fellow incomer)
-            expect(result.nodes['a.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['c.md', 'd.md', 'x.md'])
-            expect(result.nodes['a.md'].outgoingEdges.every(e => e.label === 'from-a')).toBe(true)
-
-            // Verify: x has edges to c, d (children of b), AND a (fellow incomer)
-            expect(result.nodes['x.md'].outgoingEdges.map(e => e.targetId).sort()).toEqual(['a.md', 'c.md', 'd.md'])
-            expect(result.nodes['x.md'].outgoingEdges.every(e => e.label === 'from-x')).toBe(true)
+            // Both parents' edges to b are removed, no new edges
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
+            expect(result.nodes['x.md'].outgoingEdges).toHaveLength(0)
         })
     })
 
     describe('Edge cases', () => {
-        it('should not create duplicate edges if parent already connects to child', () => {
-            // Setup: a -> b -> c, but a also already -> c
+        it('should remove edge to deleted node but keep other edges', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [
                     { targetId: 'b.md', label: 'via-b' },
@@ -152,64 +119,53 @@ describe('Edge Preservation on Node Deletion', () => {
                 'c.md': createNode('c.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a still has only one edge to c (no duplicate)
+            // Only the direct edge to c remains
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
             expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
-            // Should keep the existing 'direct' label, not add a new one
             expect(result.nodes['a.md'].outgoingEdges[0].label).toBe('direct')
         })
 
         it('should handle deletion of node with no children (leaf node)', () => {
-            // Setup: a -> b (b has no children)
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'to-b' }]),
                 'b.md': createNode('b.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: a's edge to b is removed, no new edges added
             expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
         })
 
         it('should handle deletion of node with no parents (root node)', () => {
-            // Setup: b -> c (b has no parents)
             const graph: Graph = createGraph({
                 'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'to-c' }]),
                 'c.md': createNode('c.md', [])
             })
 
-            // Delete b with edge preservation
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: b is deleted, c is unchanged
             expect(result.nodes['b.md']).toBeUndefined()
             expect(result.nodes['c.md'].outgoingEdges).toHaveLength(0)
         })
 
-        it('should handle deletion when using graph state for edge information', () => {
-            // Setup: a -> b -> c
+        it('should handle deletion using graph state for edge information', () => {
             const graph: Graph = createGraph({
                 'a.md': createNode('a.md', [{ targetId: 'b.md', label: 'extends' }]),
                 'b.md': createNode('b.md', [{ targetId: 'c.md', label: 'implements' }]),
                 'c.md': createNode('c.md', [])
             })
 
-            // Delete b with edge preservation (function reads from graph state)
             const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
-            // Verify: edge preservation still works
             expect(result.nodes['b.md']).toBeUndefined()
-            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(1)
-            expect(result.nodes['a.md'].outgoingEdges[0].targetId).toBe('c.md')
+            // a's edge to b removed, no transitive edge to c
+            expect(result.nodes['a.md'].outgoingEdges).toHaveLength(0)
         })
     })
 })

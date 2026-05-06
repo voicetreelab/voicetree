@@ -5,6 +5,7 @@ import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
@@ -45,7 +46,7 @@ async function getConfiguredWritePathForCurrentVault(): Promise<string | null> {
   if (!vault) {
     return null
   }
-  const config = await getVaultConfigForDirectory(vault)
+  const config: VaultConfig | undefined = await getVaultConfigForDirectory(vault)
   return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
 }
 
@@ -133,19 +134,11 @@ function graphWithLocalPositionOverlays(
 
 async function getCurrentVaultOrThrow(): Promise<string> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
-  if (activeConnection) {
-    return activeConnection.vault
-  }
-
+  if (activeConnection) return activeConnection.vault
   const writePath: string | null = await getConfiguredWritePathForCurrentVault()
-  if (writePath) {
-    return writePath
-  }
-
+  if (writePath) return writePath
   const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) {
-    throw new Error('Watched directory not initialized')
-  }
+  if (!vault) throw new Error('Watched directory not initialized')
   return vault
 }
 
@@ -419,7 +412,8 @@ export async function getNodeFromDaemon(
   return graph.nodes[nodeId]
 }
 
-export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState> {
+export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
+  if (!getProjectRootWatchedDirectory() && !getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   const sessionId: string = await syncRendererSessionState(client, localState)

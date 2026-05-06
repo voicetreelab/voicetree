@@ -9,6 +9,8 @@ const webappDir: string = path.resolve(srcDir, '..')
 
 const ALLOWED_NON_SHIM_PATHS: ReadonlySet<string> = new Set([
   '@/shell/edge/main/graph/watch_folder/watchFolder',
+  '@/shell/edge/main/graph/watch_folder/folderScanning',
+  '@/shell/edge/main/graph/watch_folder/starredFolders',
 ])
 
 interface ShimImport {

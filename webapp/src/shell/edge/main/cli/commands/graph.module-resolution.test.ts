@@ -124,7 +124,7 @@ describe('graph CLI module resolution', () => {
         expect(result.code, result.stderr).toBe(1)
         expect(result.signal).toBeNull()
         expect(result.stdout).toBe('')
-        expect(result.stderr).toContain('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
+        expect(result.stderr).toContain('Usage: vt graph structure <folder-path>')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
     })
 

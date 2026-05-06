@@ -27,7 +27,7 @@ import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 
 // Voicetree subfolder (watched by chokidar when loadFolder is called)

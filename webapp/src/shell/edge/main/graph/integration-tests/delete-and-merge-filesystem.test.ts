@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Integration Test: Delete and Merge Operations with Filesystem Assertions
  *
@@ -30,7 +31,8 @@ import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
-import { initGraphModel, setProjectRootWatchedDirectory } from '@vt/graph-model'
+import { initGraphModel } from '@vt/graph-model'
+import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 
 // State managed by mocked globals
 let currentGraph: Graph | null = null

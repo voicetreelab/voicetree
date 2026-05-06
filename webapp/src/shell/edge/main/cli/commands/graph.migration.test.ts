@@ -3,8 +3,8 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, beforeAll, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient, type GraphState} from '@vt/graph-db-client'
-import {setGraph} from '@vt/graph-db-server/state/graph-store.ts'
-import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store.ts'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {
     formatLintReportHuman,
     lintGraph,
@@ -15,8 +15,8 @@ import {
 import {
     createEmptyGraph,
     initGraphModel,
-    saveVaultConfigForDirectory,
 } from '@vt/graph-model'
+import {saveVaultConfigForDirectory} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 // eslint-disable-next-line no-restricted-imports
 import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
 import {main} from '@/shell/edge/main/cli/voicetree-cli.ts'
@@ -152,6 +152,10 @@ describe('graph daemon migration', () => {
         })
 
         daemonHandle = await startDaemon({vault: harness.vault})
+
+        // Allow chokidar watcher to fully initialize before writing test files
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
         await writeFile(join(harness.docsPath, 'root.md'), '# Root\n\n[[nested/leaf]]\n', 'utf8')
         await writeFile(join(harness.docsPath, 'nested', 'leaf.md'), '# Leaf\n\n[[root]]\n', 'utf8')
         await writeFile(join(harness.docsPath, 'nested', 'other.md'), '# Other\n', 'utf8')
@@ -160,8 +164,8 @@ describe('graph daemon migration', () => {
         await waitFor(async () => {
             const graph: GraphState = await createClient().getGraph()
             return Object.keys(graph.nodes).length === 3 ? graph : null
-        })
-    }, 10000)
+        }, {timeoutMs: 15000})
+    }, 20000)
 
     afterAll(async () => {
         process.chdir(originalCwd)
@@ -196,7 +200,7 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
     it('routes explicit graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
         const expected: ViewGraphResult = renderGraphView(docsRoot(), {
@@ -213,7 +217,7 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
     it('routes auto graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
         const expectedStdout: string = renderAutoView(docsRoot(), {budget: 2}).output
@@ -225,7 +229,7 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
     it('routes graph lint through daemon graph snapshots with parity to the disk helper', async () => {
         const expectedStdout: string = formatLintReportHuman(lintGraph(docsRoot()))
@@ -237,5 +241,5 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 })

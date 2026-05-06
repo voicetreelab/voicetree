@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * RED TEAM: Shell-level tests that SHOULD pass but DON'T.
  * Tests the full cy-based collapse/expand flow for nested folder scenarios.

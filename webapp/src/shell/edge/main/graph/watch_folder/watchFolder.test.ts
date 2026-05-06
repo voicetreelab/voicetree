@@ -20,12 +20,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import {
-  addReadPath,
-  initGraphModel,
-  removeReadPath,
-  setWritePath,
-} from '@vt/graph-model'
+import { initGraphModel } from '@vt/graph-model'
+import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
