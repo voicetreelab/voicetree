@@ -86,8 +86,12 @@ const test = base.extend<{
         console.log('[Headless Test] Temp userData created:', tempUserDataPath);
         console.log('[Headless Test] projects.json, voicetree-config.json, settings.json written');
 
+        const ciFlags = process.env.CI
+            ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+            : [];
         const electronApp = await electron.launch({
             args: [
+                ...ciFlags,
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`
             ],

@@ -20,6 +20,9 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
+const CI_FLAGS = process.env.CI
+    ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+    : [];
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
@@ -70,6 +73,7 @@ const test = base.extend<{
         // Note: NO voicetree-config.json or projects.json - simulates first launch
         const electronApp = await electron.launch({
             args: [
+                ...CI_FLAGS,
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`
             ],
@@ -331,6 +335,7 @@ test.describe('Project Selection Screen E2E', () => {
             // Launch first instance - should show the pre-saved project
             const app1 = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -367,6 +372,7 @@ test.describe('Project Selection Screen E2E', () => {
             // Launch second instance
             const app2 = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -444,6 +450,7 @@ test.describe('Watched Folder Panel Regression', () => {
 
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -581,6 +588,7 @@ test.describe('Watched Folder Panel Regression', () => {
             // 4. Launch the app
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],
@@ -833,6 +841,7 @@ test.describe('Watched Folder Panel Regression', () => {
             // Launch app
             const electronApp = await electron.launch({
                 args: [
+                    ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                     `--user-data-dir=${tempUserDataPath}`
                 ],

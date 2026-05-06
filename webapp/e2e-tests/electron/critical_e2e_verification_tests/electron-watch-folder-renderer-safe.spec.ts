@@ -22,8 +22,12 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page }>(
     electronApp: [async ({}, use): Promise<void> => {
         const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-watch-folder-safe-'));
 
+        const ciFlags = process.env.CI
+            ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+            : [];
         const electronApp: ElectronApplication = await electron.launch({
             args: [
+                ...ciFlags,
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`,
             ],

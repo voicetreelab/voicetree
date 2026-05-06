@@ -21,7 +21,7 @@ test.describe('Electron CI Launch Fallback', () => {
       );
 
       const ciFlags = process.env.CI
-        ? ['--no-sandbox', '--disable-dev-shm-usage']
+        ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
         : [];
 
       electronApp = await electron.launch({
