@@ -1,5 +1,5 @@
 import http from 'http';
-import { findAvailablePort } from '@/shell/edge/main/electron/port-utils';
+import { findAvailablePort } from '@/shell/edge/main/port-utils';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 
 /**

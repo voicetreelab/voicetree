@@ -19,7 +19,7 @@ import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry}
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
-import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {findAvailablePort} from '@/shell/edge/main/port-utils'
 import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {startMonitor} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
