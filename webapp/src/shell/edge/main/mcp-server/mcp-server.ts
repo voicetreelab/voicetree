@@ -42,7 +42,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
 
 // Re-export types and tool functions for external use

@@ -10,7 +10,7 @@ import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from './terminal-registry'
-import { updateContextNodeContainedIds } from '@vt/graph-model'
+import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 
 const MAX_NODES_PER_INJECTION: number = 5
 
