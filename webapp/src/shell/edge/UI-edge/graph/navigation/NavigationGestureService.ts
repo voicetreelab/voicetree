@@ -27,6 +27,22 @@ import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/
 import { isSelected } from '@vt/graph-state';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 
+/**
+ * Synchronous heuristic for distinguishing a discrete mouse wheel from a
+ * trackpad scroll. Trackpads emit small or fractional deltas at high frequency
+ * (and often a horizontal component); mouse wheels emit large integer deltas
+ * along a single axis.
+ */
+function looksLikeMouseWheel(e: WheelEvent): boolean {
+    // deltaMode 1 (LINE) or 2 (PAGE) is always a discrete mouse wheel.
+    if (e.deltaMode !== 0) return true;
+    // Any horizontal component → trackpad swipe.
+    if (e.deltaX !== 0) return false;
+    if (e.deltaY === 0) return false;
+    if (!Number.isInteger(e.deltaY)) return false;
+    return Math.abs(e.deltaY) >= 50;
+}
+
 export class NavigationGestureService {
     private container: HTMLElement;
 
@@ -112,18 +128,29 @@ export class NavigationGestureService {
 
         e.preventDefault();
 
-        // Use native detection from main process (via IPC)
-        const isTrackpad: boolean = getIsTrackpadScrolling();
+        // Trackpad pinch (ctrlKey) → zoom regardless of device classification
+        if (e.ctrlKey) {
+            signalViewportManipulationCached();
+            this.zoomAtCursor(e);
+            return;
+        }
 
-        // Trackpad scroll (non-pinch) → pan
-        if (isTrackpad && !e.ctrlKey) {
+        // Trackpad vs mouse-wheel classification.
+        // The IPC-based getIsTrackpadScrolling() lags one event behind because
+        // main process sets it asynchronously after the renderer's wheel handler
+        // already ran. Apply a synchronous local check first: discrete mouse
+        // wheels emit large integer deltas with no horizontal component.
+        const isTrackpad: boolean = looksLikeMouseWheel(e) ? false : getIsTrackpadScrolling();
+
+        // Trackpad scroll → pan
+        if (isTrackpad) {
             signalViewportManipulationCached();
             const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
             dispatchSetPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
             return;
         }
 
-        // Mouse wheel or trackpad pinch (ctrlKey) → zoom using Cytoscape-compatible logic
+        // Mouse wheel → zoom using Cytoscape-compatible logic
         signalViewportManipulationCached();
         this.zoomAtCursor(e);
     }
@@ -201,20 +228,15 @@ export class NavigationGestureService {
             diff *= 33;
         }
 
+        // Always anchor at cursor; track latest cursor position for the animation.
+        this.zoomCursorPos = { x: e.clientX, y: e.clientY };
+
         // Trackpad pinch: apply directly (already smooth from high-frequency deltas)
         if (getIsTrackpadScrolling()) {
             this.cancelZoomAnimation();
             const newZoom: number = this.currentZoom * Math.pow(10, diff);
             const clampedZoom: number = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-            // Cursor-anchored zoom: keep model point under cursor fixed via store dispatch
-            const pinchPan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
-            const rp: { x: number; y: number } = { x: e.clientX, y: e.clientY };
-            dispatchSetPan({
-                x: (pinchPan.x - rp.x) / this.currentZoom * clampedZoom + rp.x,
-                y: (pinchPan.y - rp.y) / this.currentZoom * clampedZoom + rp.y,
-            });
-            dispatchSetZoom(clampedZoom);
-            this.currentZoom = clampedZoom;
+            this.applyZoomAnchored(clampedZoom);
             return;
         }
 
@@ -224,10 +246,26 @@ export class NavigationGestureService {
         }
         this.targetZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
             this.targetZoom * Math.pow(10, diff)));
-        this.zoomCursorPos = { x: e.clientX, y: e.clientY };
         if (!this.zoomAnimating) {
             this.startZoomAnimation();
         }
+    }
+
+    /**
+     * Apply a zoom level while keeping the model point currently under the
+     * cursor fixed on screen. Without this, zoom is anchored at the model
+     * origin and the visible content drifts diagonally as the user zooms.
+     */
+    private applyZoomAnchored(newZoom: number): void {
+        const rp: { x: number; y: number } = this.zoomCursorPos;
+        const pan: { x: number; y: number } = getLayout().pan ?? { x: 0, y: 0 };
+        const oldZoom: number = this.currentZoom;
+        dispatchSetPan({
+            x: (pan.x - rp.x) / oldZoom * newZoom + rp.x,
+            y: (pan.y - rp.y) / oldZoom * newZoom + rp.y,
+        });
+        dispatchSetZoom(newZoom);
+        this.currentZoom = newZoom;
     }
 
     /**
@@ -242,17 +280,13 @@ export class NavigationGestureService {
 
             // Stop when close enough (relative threshold scales across zoom range)
             if (Math.abs(remaining / current) < NavigationGestureService.ZOOM_EPSILON) {
-                // TODO: renderedPosition (cursor-anchored zoom) not yet modeled in layoutStore
-                dispatchSetZoom(this.targetZoom);
-                this.currentZoom = this.targetZoom;
+                this.applyZoomAnchored(this.targetZoom);
                 this.zoomAnimating = false;
                 return;
             }
 
             const next: number = current + remaining * NavigationGestureService.ZOOM_LERP;
-            // TODO: renderedPosition (cursor-anchored zoom) not yet modeled in layoutStore
-            dispatchSetZoom(next);
-            this.currentZoom = next;
+            this.applyZoomAnchored(next);
             this.zoomAnimFrameId = requestAnimationFrame(tick);
         };
         this.zoomAnimFrameId = requestAnimationFrame(tick);
@@ -365,8 +399,9 @@ export class NavigationGestureService {
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        // Use native detection from main process
-        const isTrackpad: boolean = getIsTrackpadScrolling();
+        // See onWheel for the rationale on the local mouse-wheel signature
+        // override: the IPC trackpad state lags one event behind.
+        const isTrackpad: boolean = looksLikeMouseWheel(e) ? false : getIsTrackpadScrolling();
 
         signalViewportManipulationCached();
         if (isTrackpad && !e.ctrlKey) {
