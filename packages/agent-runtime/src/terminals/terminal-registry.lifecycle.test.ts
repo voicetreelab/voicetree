@@ -20,6 +20,7 @@ import {
     updateTerminalIsDone,
     markTerminalExited,
     markTerminalKillReason,
+    updateTerminalPromptDetected,
 } from './terminal-registry';
 
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true });
@@ -128,6 +129,45 @@ describe('terminal-registry lifecycle wiring', () => {
             markTerminalKillReason('t1', 'user');
             markTerminalExited('t1', 143, null);
             expect(lifecycleOf('t1')).toBe('completed');
+        });
+    });
+
+    describe('updateTerminalPromptDetected', () => {
+        it('detected=true → lifecycle "awaiting_input"', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);
+            updateTerminalPromptDetected('t1', true);
+            expect(lifecycleOf('t1')).toBe('awaiting_input');
+        });
+
+        it('detected=false (cleared) returns to active when isDone=false', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);
+            updateTerminalPromptDetected('t1', true);
+            updateTerminalPromptDetected('t1', false);
+            expect(lifecycleOf('t1')).toBe('active');
+        });
+
+        it('detected=false (cleared) returns to idle when isDone=true', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', true);
+            updateTerminalPromptDetected('t1', true);
+            updateTerminalPromptDetected('t1', false);
+            expect(lifecycleOf('t1')).toBe('idle');
+        });
+
+        it('does not override completed lifecycle', () => {
+            spawn('t1');
+            markTerminalExited('t1', 0, null);
+            updateTerminalPromptDetected('t1', true);
+            expect(lifecycleOf('t1')).toBe('completed');
+        });
+
+        it('does not override errored lifecycle', () => {
+            spawn('t1');
+            markTerminalExited('t1', 1, null);
+            updateTerminalPromptDetected('t1', true);
+            expect(lifecycleOf('t1')).toBe('errored');
         });
     });
 

@@ -3,7 +3,8 @@ import os from 'os';
 import { execFileSync } from 'child_process';
 import pty, { type IPty } from 'node-pty';
 import {getTerminalId} from '../types';
-import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
+import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords, updateTerminalPromptDetected} from './terminal-registry';
+import {startPromptDetection, feedPromptDetector, stopPromptDetection} from '../lifecycle/prompt-runner';
 import type {TerminalData} from '../types';
 import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
@@ -127,6 +128,19 @@ export class TerminalManager {
       this.terminals.set(terminalId, ptyProcess);
       recordTerminalSpawn(terminalId, terminalData);
 
+      // Tier-3 prompt detection — feeds PTY bytes through @xterm/headless,
+      // emits awaiting/cleared transitions. Best-effort: if it fails to start,
+      // we fall back to the inactivity heuristic without breaking the terminal.
+      try {
+        startPromptDetection(terminalId, {
+          onStateChange: (id: string, change): void => {
+            updateTerminalPromptDetected(id, change.kind === 'detected');
+          },
+        });
+      } catch (err: unknown) {
+        console.error(`[TerminalManager] Failed to start prompt detection for ${terminalId}:`, err);
+      }
+
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
         //console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
@@ -143,6 +157,11 @@ export class TerminalManager {
       ptyProcess.onData((data: string) => {
         captureOutput(terminalId, data);
         onData(terminalId, data);
+        // Feed prompt detector — fire-and-forget; the runner handles the
+        // rest asynchronously. Errors are logged but don't propagate.
+        feedPromptDetector(terminalId, data).catch((err: unknown) => {
+          console.error(`[TerminalManager] Prompt-detector feed failed for ${terminalId}:`, err);
+        });
       });
 
       // Handle PTY exit
@@ -152,6 +171,7 @@ export class TerminalManager {
           : null;
         onExit(terminalId, exitInfo.exitCode, signalName);
         markTerminalExited(terminalId, exitInfo.exitCode, signalName);
+        stopPromptDetection(terminalId);
         this.terminals.delete(terminalId);
         clearBuffer(terminalId);
       });

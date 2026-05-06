@@ -24,3 +24,24 @@ export {
 export { derive, deriveAll, withKillReason } from './derive';
 
 export { classifyExit, type ExitClassification } from './exit';
+
+export {
+    detectPromptShape,
+    DEFAULT_PROMPT_PATTERNS,
+    type LineSnapshot,
+    type PromptPattern,
+    type PromptKind,
+    type PromptDetectionResult,
+} from './prompts';
+
+export { createEmulator, type Emulator, type EmulatorOptions } from './emulator';
+
+export {
+    startPromptDetection,
+    feedPromptDetector,
+    stopPromptDetection,
+    isPromptDetectionActive,
+    type PromptStateChange,
+    type PromptRunnerCallbacks,
+    type PromptRunnerOptions,
+} from './prompt-runner';

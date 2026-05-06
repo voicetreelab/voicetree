@@ -448,6 +448,44 @@ export function markTerminalKillReason(terminalId: string, reason: TerminalKillR
 }
 
 /**
+ * Set or clear the prompt-detected flag for a terminal. Drives the
+ * `awaiting_input` lifecycle state. Sticky terminal states (completed/errored)
+ * are preserved — exit always wins.
+ *
+ * Called by the Tier-3 prompt-runner; will also be called by the Tier-1
+ * Claude Code hook server in Phase 4.
+ */
+export function updateTerminalPromptDetected(terminalId: string, detected: boolean): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) {
+        return
+    }
+    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+    if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
+        return // Sticky — exit wins.
+    }
+
+    let nextLifecycle: TerminalLifecycle
+    if (detected) {
+        nextLifecycle = 'awaiting_input'
+    } else {
+        // Clearing: fall back to active or idle based on the existing isDone flag,
+        // which is maintained by the inactivity poller.
+        nextLifecycle = record.terminalData.isDone ? 'idle' : 'active'
+    }
+
+    if (nextLifecycle === currentLifecycle) {
+        return // No change — skip notify.
+    }
+
+    terminalRecords.set(terminalId, {
+        ...record,
+        terminalData: { ...record.terminalData, lifecycle: nextLifecycle },
+    })
+    notifyRegistrySubscribers()
+}
+
+/**
  * Remove a terminal from the registry.
  * Called when terminal is closed from UI.
  * Phase 3: Ensures main registry stays in sync when renderer closes terminals.
