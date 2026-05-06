@@ -21,7 +21,6 @@ on:
 
 concurrency:
   group: stage1-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   lint-typecheck:
