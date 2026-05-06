@@ -4,6 +4,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 const ELECTRON_CLI_PATH: string = path.join(PROJECT_ROOT, 'node_modules', 'electron', 'cli.js');
@@ -37,13 +38,14 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page }>(
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
             },
             timeout: 15000,
         });
 
         await use(electronApp);
 
-        await electronApp.close();
+        await robustElectronTeardown(electronApp);
         await fs.rm(tempUserDataPath, { recursive: true, force: true });
     }, { timeout: 30000 }],
 

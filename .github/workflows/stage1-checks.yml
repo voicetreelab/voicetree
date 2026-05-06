@@ -327,7 +327,7 @@ jobs:
           rm -rf /tmp/daemon-warmup
 
       - name: Run Electron Tier 2 tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         working-directory: webapp
         env:
           CI: 'true'

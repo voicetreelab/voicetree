@@ -134,6 +134,31 @@ export async function mcpCallTool(mcpUrl: string, toolName: string, args: Record
   };
 }
 
+export function getCiElectronFlags(): string[] {
+  return process.env.CI
+    ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+    : [];
+}
+
+export async function robustElectronTeardown(electronApp: import('@playwright/test').ElectronApplication): Promise<void> {
+  const proc = electronApp.process();
+  if (proc?.pid) {
+    try {
+      process.kill(proc.pid, 'SIGKILL');
+    } catch {
+      // Already exited
+    }
+  }
+  try {
+    await Promise.race([
+      electronApp.close(),
+      new Promise(resolve => setTimeout(resolve, 5000))
+    ]);
+  } catch {
+    // Close may fail if already killed
+  }
+}
+
 export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics): void {
   const criticalErrorPatterns = [
     /NODE_MODULE_VERSION/i,

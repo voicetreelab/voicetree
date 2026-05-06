@@ -14,6 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -69,7 +70,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1', // Minimize window to avoid dialog popups
-        VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
+        VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       }
     });
 
@@ -92,7 +94,7 @@ const test = base.extend<{
       console.log('Note: Could not stop file watching during cleanup (window may be closed)');
     }
 
-    await electronApp.close();
+    await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });

@@ -19,6 +19,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -131,7 +132,7 @@ const test = base.extend<{
     } catch {
       // App may already be closed
     }
-    await electronApp.close();
+    await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 
