@@ -5,6 +5,9 @@
   "type": "module",
   "description": "Voicetree MCP server. Hosts the MCP tool catalog (spawn_agent, create_graph, list_agents, …) over HTTP. Embedded in Electron and consumed by the vt-mcpd headless binary.",
   "main": "src/index.ts",
+  "bin": {
+    "vt-mcpd": "bin/vt-mcpd.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./tools/*": "./src/tools/*",
