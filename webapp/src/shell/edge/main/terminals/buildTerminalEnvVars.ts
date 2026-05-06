@@ -7,11 +7,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settings'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state'
-<<<<<<< HEAD
 import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-=======
-import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
->>>>>>> main
 import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server'
 import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store'
 import path from 'path'

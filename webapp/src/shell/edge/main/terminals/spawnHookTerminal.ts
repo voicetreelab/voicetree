@@ -20,11 +20,7 @@ import {getWatchStatus} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-<<<<<<< HEAD
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-=======
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
->>>>>>> main
 import {buildTerminalEnvVars} from '@/shell/edge/main/terminals/buildTerminalEnvVars'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId

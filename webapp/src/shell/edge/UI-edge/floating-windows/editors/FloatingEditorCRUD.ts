@@ -134,11 +134,15 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI
     // Note: onChange only fires for user input (typing, paste, etc.) - NOT for programmatic setValue() calls
     // This is handled by CodeMirrorEditorView using CM6's isUserEvent("input") check
+    let saveQueue: Promise<void> = Promise.resolve();
     editor.onChange((newContent: string): void => {
-        void (async (): Promise<void> => {
-            //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            await modifyNodeContentFromUI(nodeId, newContent, cy);
-        })();
+        saveQueue = saveQueue
+            .catch(() => undefined)
+            .then(async (): Promise<void> => {
+                //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
+                await modifyNodeContentFromUI(nodeId, newContent, cy);
+            });
+        void saveQueue;
     });
 
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)
