@@ -7,6 +7,22 @@
 //      publishes graphd.port, owns the per-vault lock).
 //   4. Start MCP HTTP server (publishes .mcp.json with the assigned port).
 //   5. Wait for SIGINT/SIGTERM, then tear down: MCP server → terminals → graph-db.
+//
+// Headless contract (decided in Phase E; see docs/headless-migration.md):
+//   - READ path:  CLI agents call any read tool over MCP (graph_structure,
+//                 get_unseen_nodes_nearby, …). These do not require a terminal
+//                 record on the daemon side.
+//   - WRITE path: CLI agents write new nodes by raw filesystem Write into the
+//                 watched vault; the chokidar mount inside startDaemon
+//                 reconciles them into the graph-store singleton.
+// `create_graph` (and other write tools) validate `callerTerminalId` against
+// getTerminalRecords(), which vt-mcpd intentionally seeds empty in headless
+// mode — so a CLI agent invoking create_graph receives a clean
+// "Unknown caller terminal: <id>" MCP error rather than silent corruption.
+// Bootstrapping a synthetic terminal record was rejected: the registry models
+// real PTY/agent processes with budget + lifecycle; a synthetic terminal has
+// no real owner. Phase D (phase-d-headless-e2e-result.md) verified the
+// Write→watcher path end-to-end.
 
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
