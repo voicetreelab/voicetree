@@ -288,18 +288,6 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
-            if (specNode.position !== undefined) {
-                const currentPosition: { x: number; y: number } = existing.position()
-                if (
-                    currentPosition.x !== specNode.position.x
-                    || currentPosition.y !== specNode.position.y
-                ) {
-                    existing.position({
-                        x: specNode.position.x,
-                        y: specNode.position.y,
-                    })
-                }
-            }
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }

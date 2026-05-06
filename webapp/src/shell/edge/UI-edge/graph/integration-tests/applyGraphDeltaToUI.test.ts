@@ -1447,4 +1447,170 @@ describe('applyGraphDeltaToUI - Integration', () => {
             vi.useRealTimers()
         })
     })
+
+    describe('Position stability — re-projection does not overwrite cy positions', () => {
+        it('re-projection preserves position that was changed in cy (simulates Cola moving a node)', () => {
+            const node: GraphNode = {
+                absoluteFilePathIsID: 'node-a',
+                contentWithoutYamlOrLinks: '# Node A',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(node)])
+            expect(cy.getElementById('node-a').position()).toEqual({ x: 100, y: 100 })
+
+            // Simulate Cola moving the node to a new position
+            cy.getElementById('node-a').position({ x: 999, y: 888 })
+
+            // Re-project (as refreshFolderTreeFromMain would trigger)
+            applyGraphDeltaToUI(cy, projectDelta([upsert(node)]))
+
+            // Position must stay at the Cola-computed value, NOT fly back to 100,100
+            expect(cy.getElementById('node-a').position()).toEqual({ x: 999, y: 888 })
+        })
+
+        it('re-projection preserves positions even when node content changes', () => {
+            const node: GraphNode = {
+                absoluteFilePathIsID: 'node-b',
+                contentWithoutYamlOrLinks: '# Original',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(node)])
+            cy.getElementById('node-b').position({ x: 700, y: 600 })
+
+            // Content changes but position in graph model is stale
+            const updated: GraphNode = {
+                ...node,
+                contentWithoutYamlOrLinks: '# Updated content',
+            }
+
+            applyDeltaToUI(cy, [upsert(updated)])
+
+            expect(cy.getElementById('node-b').data('content')).toBe('# Updated content')
+            expect(cy.getElementById('node-b').position()).toEqual({ x: 700, y: 600 })
+        })
+    })
+
+    describe('Position preservation through collapse/expand cycle', () => {
+        it('nodes reappearing after expand get their persisted position from spec', () => {
+            syncVaultStateFromMain({
+                readPaths: [],
+                writePath: '/vault',
+                starredFolders: [],
+            })
+            syncFolderTree('/vault')
+
+            const childNode: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 400, y: 300 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedNode: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 500, y: 400 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            // Initial: both nodes visible
+            applyDeltaToUI(cy, [upsert(childNode), upsert(nestedNode)])
+            expect(cy.getElementById('/vault/auth/login-flow.md').position()).toEqual({ x: 400, y: 300 })
+
+            // Cola moves the node
+            cy.getElementById('/vault/auth/login-flow.md').position({ x: 600, y: 500 })
+
+            // Collapse /vault/auth/ — child nodes disappear
+            addCollapsedFolderLocally('/vault/auth/')
+            applyGraphDeltaToUI(cy, projectDelta([]))
+
+            expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(0)
+
+            // Expand /vault/auth/ — child nodes reappear
+            removeCollapsedFolderLocally('/vault/auth/')
+            applyGraphDeltaToUI(cy, projectDelta([]))
+
+            // Node reappears with its persisted position from mirror.positions
+            // (which was set from the original delta, not the Cola position)
+            const reappeared: cytoscape.CollectionReturnValue = cy.getElementById('/vault/auth/login-flow.md')
+            expect(reappeared.length).toBe(1)
+            expect(reappeared.position()).toEqual({ x: 400, y: 300 })
+        })
+
+        it('collapsing and expanding does not affect positions of nodes outside the folder', () => {
+            syncVaultStateFromMain({
+                readPaths: [],
+                writePath: '/vault',
+                starredFolders: [],
+            })
+            syncFolderTree('/vault')
+
+            const childNode: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedNode: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(childNode), upsert(nestedNode)])
+
+            // Cola moves login-flow to a new position
+            cy.getElementById('/vault/auth/login-flow.md').position({ x: 800, y: 700 })
+
+            // Collapse the nested /vault/auth/internal/ folder (login-flow stays visible)
+            addCollapsedFolderLocally('/vault/auth/internal/')
+            applyGraphDeltaToUI(cy, projectDelta([]))
+
+            // login-flow.md should NOT have its position affected
+            expect(cy.getElementById('/vault/auth/login-flow.md').position()).toEqual({ x: 800, y: 700 })
+
+            // Expand again
+            removeCollapsedFolderLocally('/vault/auth/internal/')
+            applyGraphDeltaToUI(cy, projectDelta([]))
+
+            // Still stable
+            expect(cy.getElementById('/vault/auth/login-flow.md').position()).toEqual({ x: 800, y: 700 })
+        })
+    })
 })
