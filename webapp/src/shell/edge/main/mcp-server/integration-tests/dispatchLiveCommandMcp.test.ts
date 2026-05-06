@@ -109,14 +109,14 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     saveSettings: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
     isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
     setMcpIntegration: vi.fn(),
 }))
 
 import { getGraph as mockedGetGraph } from '@vt/graph-model'
-import { createMcpServer } from '@/shell/edge/main/mcp-server/mcp-server'
+import { createMcpServer } from '@vt/voicetree-mcp'
 import { findAvailablePort } from '@/shell/edge/main/port-utils'
 import { __resetLiveStoreForTests } from '@/shell/edge/main/state/live-state-store'
 

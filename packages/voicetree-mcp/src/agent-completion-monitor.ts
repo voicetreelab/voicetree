@@ -7,7 +7,7 @@
  */
 
 import type {Graph} from '@vt/graph-model/pure/graph'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
 import {sendTextToTerminal} from '@vt/agent-runtime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'

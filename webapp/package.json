@@ -127,6 +127,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "@vt/graph-model": "*",
     "@vt/graph-tools": "*",
+    "@vt/voicetree-mcp": "*",
     "@vitest/ui": "^3.2.4",
     "chokidar": "^4.0.3",
     "concurrently": "^9.1.0",

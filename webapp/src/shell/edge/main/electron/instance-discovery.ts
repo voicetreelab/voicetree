@@ -2,7 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
-import { getMcpPort } from '@/shell/edge/main/mcp-server/mcp-server';
+import { getMcpPort } from '@vt/voicetree-mcp';
 import { getProjectRootWatchedDirectory, getStartupFolderOverride } from '@/shell/edge/main/state/watch-folder-store';
 import { getConfiguredCdpPort } from './environment-config';
 

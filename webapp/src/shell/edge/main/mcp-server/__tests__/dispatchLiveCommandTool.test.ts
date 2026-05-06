@@ -80,7 +80,7 @@ import { getGraph } from '@vt/graph-model'
 import {
     dispatchLiveCommand,
     dispatchLiveCommandTool,
-} from '@/shell/edge/main/mcp-server/dispatchLiveCommandTool'
+} from '@vt/voicetree-mcp'
 import {
     getCurrentLiveState,
     __resetLiveStoreForTests,

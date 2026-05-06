@@ -7,14 +7,12 @@
  * at least one progress node, so work isn't silently discarded.
  */
 
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {closeHeadlessAgent} from '@vt/agent-runtime'
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getTerminalRecords, type TerminalRecord, type TerminalId} from '@vt/agent-runtime'
+import {closeHeadlessAgent, getRuntimeUI} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentStatus} from './isAgentComplete'
-import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import {runStopHooks, type StopHookResult} from '@vt/agent-runtime'
 
 export interface CloseAgentParams {
@@ -83,8 +81,9 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
         })
     }
 
-    // Interactive agents: close via UI API (removes xterm.js terminal)
-    uiAPI.closeTerminalById(terminalId)
+    // Interactive agents: close via UI bridge (removes xterm.js terminal in
+    // Electron; no-op when running headless under vt-mcpd, where there is no UI).
+    getRuntimeUI().closeTerminalById?.(terminalId)
     return buildJsonResponse({
         success: true,
         terminalId,

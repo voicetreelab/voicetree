@@ -24,7 +24,7 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     loadSettings: vi.fn()
 }))
 
-import {listAgentsTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {listAgentsTool} from '@vt/voicetree-mcp'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {getUnseenNodesAroundContextNode} from '@vt/graph-model'
 import {getTerminalRecords} from '@vt/agent-runtime'

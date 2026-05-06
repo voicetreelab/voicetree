@@ -15,7 +15,7 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import {z} from 'zod'
 import express, {type Express} from 'express'
-import {findAvailablePort} from '@/shell/edge/main/port-utils'
+import {findAvailablePort} from './util/findAvailablePort'
 import {enableMcpJsonIntegration} from './mcp-client-config'
 
 // Import tool implementations
@@ -30,7 +30,7 @@ import {searchNodesTool as _searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
 import {graphStructureTool} from './graphStructureTool'
 import {registerLiveTools} from './registerLiveTools'
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 
 // Imports for /trigger-overnight endpoint
@@ -40,8 +40,8 @@ import {createTaskNode} from '@vt/graph-model/pure/graph/graph-operations/create
 import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 

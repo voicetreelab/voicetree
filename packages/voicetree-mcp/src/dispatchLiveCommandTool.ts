@@ -18,7 +18,7 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
 
-import { applyLiveCommand } from '@/shell/edge/main/state/live-state-store'
+import { getLiveStateBridge } from './mcp-config'
 
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
@@ -89,7 +89,7 @@ export async function dispatchLiveCommand(
 ): Promise<DispatchLiveCommandResult> {
     const serializedCommand: SerializedCommand = params.command
     const command: Command = hydrateCommand(serializedCommand)
-    const delta: Delta = await applyLiveCommand(command)
+    const delta: Delta = await getLiveStateBridge().applyLiveCommand(command)
 
     return {
         delta: toSerializableDelta(delta, serializedCommand),

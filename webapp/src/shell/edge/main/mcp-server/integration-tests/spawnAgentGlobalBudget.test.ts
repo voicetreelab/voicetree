@@ -32,11 +32,11 @@ vi.mock('@vt/graph-model', async (importOriginal) => {
     }
 })
 
-vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     startMonitor: vi.fn().mockReturnValue('monitor-1')
 }))
 
-import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'

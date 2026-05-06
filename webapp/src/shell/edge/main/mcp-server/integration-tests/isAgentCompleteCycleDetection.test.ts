@@ -11,13 +11,13 @@ vi.mock('@vt/agent-runtime', () => ({
     getIdleSince: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
+vi.mock('@vt/voicetree-mcp', () => ({
     getAgentNodes: vi.fn()
 }))
 
-import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
+import {isAgentComplete} from '@vt/voicetree-mcp'
 import {getIdleSince} from '@vt/agent-runtime'
-import {getAgentNodes} from '@/shell/edge/main/mcp-server/agentNodeIndex'
+import {getAgentNodes} from '@vt/voicetree-mcp'
 
 // --- Helpers ---
 

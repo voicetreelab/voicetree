@@ -15,6 +15,7 @@ export function mockGraph(
     const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
     for (const id of nodeIds) {
         nodes[id] = {
+            kind: 'leaf',
             absoluteFilePathIsID: id,
             outgoingEdges: [],
             contentWithoutYamlOrLinks: '',

@@ -7,7 +7,7 @@ import * as mcpClientConfig from './mcp-client-config';
 const testDir: string = '/tmp/test-voicetree-mcp-opencode';
 
 // Mock the watch folder store
-vi.mock('@/shell/edge/main/state/watch-folder-store', () => ({
+vi.mock('@vt/graph-db-server/state/watch-folder-store', () => ({
     getProjectRootWatchedDirectory: vi.fn(() => testDir)
 }));
 

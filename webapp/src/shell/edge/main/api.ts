@@ -24,8 +24,7 @@ import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
-import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
-import {getMcpPort} from './mcp-server/mcp-server';
+import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';

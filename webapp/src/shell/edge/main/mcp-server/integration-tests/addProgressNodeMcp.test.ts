@@ -37,7 +37,7 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-import {createGraphTool} from '@/shell/edge/main/mcp-server/mcp-server'
+import {createGraphTool} from '@vt/voicetree-mcp'
 import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'

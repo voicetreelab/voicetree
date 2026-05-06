@@ -17,13 +17,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mermaid-js/parser": "^0.6.2",
     "@modelcontextprotocol/sdk": "^1.22.0",
     "@vt/agent-runtime": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
+    "@vt/graph-tools": "*",
     "express": "^4.21.2",
     "fp-ts": "^2.16.9",
+    "normalize-path": "^3.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

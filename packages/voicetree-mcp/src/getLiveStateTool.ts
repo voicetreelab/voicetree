@@ -14,13 +14,13 @@
  * implementation used by BF-163's CLI live-view adapter.
  */
 import type { SerializedState } from '@vt/graph-state'
-import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import { getLiveStateBridge } from './mcp-config'
 
 import { buildJsonResponse } from './types'
 import type { McpToolResponse } from './types'
 
 export async function getLiveState(): Promise<SerializedState> {
-    return await getLiveStateSnapshotFromDaemon()
+    return await getLiveStateBridge().getLiveStateSnapshot()
 }
 
 export async function getLiveStateTool(): Promise<McpToolResponse> {

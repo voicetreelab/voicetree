@@ -38,7 +38,7 @@ export function registerLiveTools(server: McpServer): void {
             title: 'Dispatch Live VoiceTree Command',
             description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}. For L1, only Collapse/Expand/Select/Deselect are wired — other commands return {error:"not-yet-wired"}.',
             inputSchema: {
-                command: z.record(z.unknown()).describe(DISPATCH_DESCRIPTION),
+                command: z.record(z.string(), z.unknown()).describe(DISPATCH_DESCRIPTION),
             },
         },
         async (args: { command: Record<string, unknown> }) =>

@@ -10,8 +10,13 @@ import {getTerminalManager, configureAgentRuntime} from '@vt/agent-runtime';
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
-import {getMcpPort} from '@/shell/edge/main/mcp-server/mcp-server';
-import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor';
+import {
+    configureMcpServer,
+    disableMcpJsonIntegration,
+    getMcpPort,
+    registerChildIfMonitored,
+    startMcpServer,
+} from '@vt/voicetree-mcp';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
@@ -22,8 +27,9 @@ import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-termi
 import {subscribeToRegistry, type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
-import {startMcpServer} from '@/shell/edge/main/mcp-server/mcp-server';
-import {disableMcpJsonIntegration} from '@/shell/edge/main/mcp-server/mcp-client-config';
+import {applyLiveCommand} from '@/shell/edge/main/state/live-state-store';
+import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
 import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
@@ -46,6 +52,18 @@ validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
+
+// Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
+// its own implementations (or omit, for tools that don't apply headlessly).
+configureMcpServer({
+    liveState: {
+        applyLiveCommand,
+        getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
+    },
+    search: {
+        askQuery,
+    },
+});
 
 // Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
 configureAgentRuntime({
