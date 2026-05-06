@@ -118,13 +118,12 @@ jobs:
         working-directory: tools/vt-fake-agent
         run: npm install && npx tsc
 
-      - name: Run Electron smoke test (CI launch)
-        timeout-minutes: 5
+      - name: Run Electron Tier 1 smoke tests
+        timeout-minutes: 10
         working-directory: webapp
         run: |
           xvfb-run --auto-servernum npx playwright test \
             --config=playwright-tier1-system.config.ts \
-            --grep="starts Electron and renders the project selection window" \
             --reporter=line
 
       - name: Upload Electron test artifacts on failure

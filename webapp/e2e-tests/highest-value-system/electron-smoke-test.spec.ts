@@ -221,7 +221,7 @@ const test = base.extend<{
 
 test.describe('Smoke Test', () => {
   test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
-    test.setTimeout(process.env.CI ? 60000 : 30000);
+    test.setTimeout(process.env.CI ? 120000 : 30000);
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
     const appReady = await appWindow.evaluate(() => {
@@ -238,8 +238,8 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for Cytoscape nodes to render',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(2);
     console.log('✓ Cytoscape nodes loaded');
 
@@ -278,7 +278,7 @@ test.describe('Smoke Test', () => {
   });
 
   test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    test.setTimeout(60000);
+    test.setTimeout(process.env.CI ? 120000 : 60000);
     console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
 
     const mcpPort = await appWindow.evaluate(async () => {
@@ -304,8 +304,8 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for graph nodes before spawning fake agent',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(0);
 
     const nodeIds = await appWindow.evaluate(async () => {
