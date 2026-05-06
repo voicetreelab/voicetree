@@ -117,7 +117,7 @@ vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
 
 import { getGraph as mockedGetGraph } from '@vt/graph-model'
 import { createMcpServer } from '@/shell/edge/main/mcp-server/mcp-server'
-import { findAvailablePort } from '@/shell/edge/main/electron/port-utils'
+import { findAvailablePort } from '@/shell/edge/main/port-utils'
 import { __resetLiveStoreForTests } from '@/shell/edge/main/state/live-state-store'
 
 function emptyGraph(): Graph {

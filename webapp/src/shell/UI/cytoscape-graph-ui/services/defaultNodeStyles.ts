@@ -18,6 +18,10 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
         'text-valign': 'top',
         'text-halign': 'center',
         'text-margin-y': -16, // 2x scale (was 8), negative = above node
+        // Halo so labels stay legible when they overlap a sibling node's fill.
+        'text-outline-color': isDark ? '#1e1e1e' : '#ffffff',
+        'text-outline-width': 2,
+        'text-outline-opacity': 1,
         'shape': 'ellipse',
         'border-width': 1,
         'border-color': '#666',

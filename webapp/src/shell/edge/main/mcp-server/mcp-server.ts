@@ -15,7 +15,7 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import {z} from 'zod'
 import express, {type Express} from 'express'
-import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {findAvailablePort} from '@/shell/edge/main/port-utils'
 import {enableMcpJsonIntegration} from './mcp-client-config'
 
 // Import tool implementations

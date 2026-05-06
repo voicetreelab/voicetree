@@ -4,7 +4,7 @@ import { promises as fs, createWriteStream } from 'fs';
 import type { WriteStream } from 'fs';
 import http from 'http';
 import { spawn, ChildProcess } from 'child_process';
-import { findAvailablePort } from '@/shell/edge/main/electron/port-utils';
+import { findAvailablePort } from '@/shell/edge/main/port-utils';
 import { getBuildConfig } from '@/shell/edge/main/electron/build-config';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 import type { BuildConfig } from '@/shell/edge/main/electron/build-config';

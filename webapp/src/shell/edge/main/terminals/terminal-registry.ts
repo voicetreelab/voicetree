@@ -6,7 +6,6 @@ import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {sendTextToTerminal} from './send-text-to-terminal'
 
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {runStopHooks, type StopHookResult} from './stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
@@ -66,11 +65,22 @@ const pendingNotificationTimeouts: Map<string, ReturnType<typeof setTimeout>> = 
 const idleSinceByTerminal: Map<string, number> = new Map()
 
 /**
- * Push current terminal state to renderer via uiAPI.
- * Called after every mutation to keep renderer in sync.
+ * Subscribers receive a snapshot of all terminal records after every
+ * structural mutation. Webapp wires `uiAPI.syncTerminals` as a subscriber
+ * in electron/main.ts; headless contexts simply skip wiring.
  */
-function pushStateToRenderer(): void {
-    uiAPI.syncTerminals(getTerminalRecords())
+type RegistryListener = (records: TerminalRecord[]) => void
+const listeners: Set<RegistryListener> = new Set()
+
+export function subscribeToRegistry(listener: RegistryListener): () => void {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+}
+
+function notifyRegistrySubscribers(): void {
+    if (listeners.size === 0) return
+    const snapshot: TerminalRecord[] = getTerminalRecords()
+    for (const listener of listeners) listener(snapshot)
 }
 
 /**
@@ -203,7 +213,7 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         alertedNodeIds: new Set()
     })
 
-    pushStateToRenderer()
+    notifyRegistrySubscribers()
 
     // Drain queued messages from the pending phase (if any). sendTextToTerminal
     // serializes per-terminal and has its own preamble delays, so it tolerates
@@ -313,7 +323,7 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
         ...record,
         terminalData: {...record.terminalData, isDone}
     })
-    pushStateToRenderer()
+    notifyRegistrySubscribers()
 
     if (wasNotDone && isDone) {
         // Record when idle started — shared source of truth for wait_for_agents and notification hook
@@ -346,7 +356,7 @@ export function updateTerminalMinimized(terminalId: string, isMinimized: boolean
         ...record,
         terminalData: {...record.terminalData, isMinimized}
     })
-    pushStateToRenderer()
+    notifyRegistrySubscribers()
 }
 
 export function updateTerminalPinned(terminalId: string, isPinned: boolean): void {
@@ -358,7 +368,7 @@ export function updateTerminalPinned(terminalId: string, isPinned: boolean): voi
         ...record,
         terminalData: {...record.terminalData, isPinned}
     })
-    pushStateToRenderer()
+    notifyRegistrySubscribers()
 }
 
 /**
@@ -378,7 +388,7 @@ export function updateTerminalActivityState(
         ...record,
         terminalData: {...record.terminalData, ...updates}
     })
-    // NOTE: No pushStateToRenderer() - activity updates are high frequency
+    // NOTE: No notifyRegistrySubscribers() - activity updates are high frequency
     // and should not trigger full re-renders. Renderer updates local state directly.
 }
 
@@ -392,7 +402,7 @@ export function markTerminalExited(terminalId: string, exitCode?: number | null)
         status: 'exited',
         exitCode: exitCode ?? null
     })
-    pushStateToRenderer()
+    notifyRegistrySubscribers()
 }
 
 /**
@@ -409,7 +419,7 @@ export function removeTerminalFromRegistry(terminalId: string): void {
         cancelPendingNotification(terminalId)
         // Clean up budget entry if this was a root terminal
         clearBudget(terminalId)
-        pushStateToRenderer()
+        notifyRegistrySubscribers()
     }
 }
 

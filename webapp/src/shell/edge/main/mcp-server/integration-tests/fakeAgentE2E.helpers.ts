@@ -6,7 +6,6 @@
 
 import path from 'path'
 import type {Server} from 'http'
-import type {WebContents} from 'electron'
 
 import {
     getTerminalRecords,
@@ -19,7 +18,7 @@ import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry}
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
-import {findAvailablePort} from '@/shell/edge/main/electron/port-utils'
+import {findAvailablePort} from '@/shell/edge/main/port-utils'
 import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
 import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
 import {startMonitor} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
@@ -103,7 +102,8 @@ export function makeInteractiveTerminalData(
 // ─── Activity harness (simulates renderer-side inactivity detection) ────────
 
 export type ActivityHarness = {
-    sender: WebContents
+    onData: (terminalId: string, data: string) => void
+    onExit: (terminalId: string, exitCode: number) => void
     outputs: Map<string, string>
     transitionsByTerminal: Map<string, boolean[]>
     cleanup: () => void
@@ -134,38 +134,30 @@ export function createActivityHarness(): ActivityHarness {
         }
     }, SILENCE_POLL_MS)
 
-    const sender: WebContents = {
-        id: 1,
-        isDestroyed: () => false,
-        send: (channel: string, terminalId: string, payload: string | number): void => {
-            if (channel === 'terminal:data') {
-                const data: string = String(payload)
-                const now: number = Date.now()
-                outputs.set(terminalId, (outputs.get(terminalId) ?? '') + data)
-                lastOutputAt.set(terminalId, now)
+    const onData = (terminalId: string, data: string): void => {
+        const now: number = Date.now()
+        outputs.set(terminalId, (outputs.get(terminalId) ?? '') + data)
+        lastOutputAt.set(terminalId, now)
 
-                const record: TerminalRecord | undefined = getTerminalRecord(terminalId)
-                if (!record) return
+        const record: TerminalRecord | undefined = getTerminalRecord(terminalId)
+        if (!record) return
 
-                updateTerminalActivityState(terminalId, {
-                    lastOutputTime: now,
-                    activityCount: record.terminalData.activityCount + 1,
-                })
+        updateTerminalActivityState(terminalId, {
+            lastOutputTime: now,
+            activityCount: record.terminalData.activityCount + 1,
+        })
 
-                if (record.terminalData.isDone) {
-                    updateTerminalIsDone(terminalId, false)
-                    recordTransition(transitionsByTerminal, terminalId, false)
-                }
-                return
-            }
+        if (record.terminalData.isDone) {
+            updateTerminalIsDone(terminalId, false)
+            recordTransition(transitionsByTerminal, terminalId, false)
+        }
+    }
 
-            if (channel === 'terminal:exit') {
-                exitedTerminals.add(terminalId)
-            }
-        },
-    } as unknown as WebContents
+    const onExit = (terminalId: string, _exitCode: number): void => {
+        exitedTerminals.add(terminalId)
+    }
 
-    return {sender, outputs, transitionsByTerminal, cleanup: () => clearInterval(intervalId)}
+    return {onData, onExit, outputs, transitionsByTerminal, cleanup: () => clearInterval(intervalId)}
 }
 
 // ─── Spawn + wait helpers ───────────────────────────────────────────────────
@@ -178,7 +170,12 @@ export async function spawnInteractiveFakeAgent(
     harness: ActivityHarness,
 ): Promise<void> {
     const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort)
-    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawn(harness.sender, terminalData, () => FAKE_AGENT_DIR)
+    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawn({
+        terminalData,
+        getToolsDirectory: () => FAKE_AGENT_DIR,
+        onData: harness.onData,
+        onExit: harness.onExit,
+    })
     expect(result.success).toBe(true)
     expect(result.terminalId).toBe(terminalId)
 }
@@ -335,7 +332,12 @@ export async function startStubMcpServer(port: number): Promise<Server> {
                     }
                 })
 
-                await getTerminalManager().spawn(stubCtx.harness.sender, childData, () => FAKE_AGENT_DIR)
+                await getTerminalManager().spawn({
+                    terminalData: childData,
+                    getToolsDirectory: () => FAKE_AGENT_DIR,
+                    onData: stubCtx.harness.onData,
+                    onExit: stubCtx.harness.onExit,
+                })
                 registerChildIfMonitored(callerTerminalId, childId)
 
                 return {content: [{type: 'text' as const, text: JSON.stringify({terminalId: childId})}]}
