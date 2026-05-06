@@ -6,6 +6,7 @@
  */
 
 import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {getCallbacks, type GraphDelta} from '@vt/graph-model'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
@@ -50,10 +51,12 @@ import {
   getGraphFromDaemon as getGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
+  postDeltaThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
+import {getActiveDaemonConnection} from './electron/graph-daemon'
 import path from 'path';
 
 /**
@@ -79,12 +82,35 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
+async function applyDeltaFeatureFlagged(
+  delta: GraphDelta,
+  recordForUndo: boolean = true,
+): Promise<void> {
+  if (getActiveDaemonConnection()) {
+    await postDeltaThroughDaemon(delta)
+  } else {
+    await applyGraphDeltaToDBThroughMemAndUI(delta, recordForUndo)
+  }
+}
+
+async function applyDeltaWithEditorsFeatureFlagged(
+  delta: GraphDelta,
+  recordForUndo: boolean = true,
+): Promise<void> {
+  if (getActiveDaemonConnection()) {
+    await postDeltaThroughDaemon(delta)
+    getCallbacks().onFloatingEditorUpdate?.(delta)
+  } else {
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyGraphDeltaToDBThroughMemAndUIAndEditors,
+  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyDeltaWithEditorsFeatureFlagged,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: applyGraphDeltaToDBThroughMemAndUI,
+    applyGraphDeltaToDBThroughMemAndUIExposed: applyDeltaFeatureFlagged,
 
   getGraph,
 
