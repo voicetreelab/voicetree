@@ -1,6 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 
-import { buildFolderTree, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
+import { buildFolderTree, getCallbacks, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
@@ -429,6 +429,11 @@ export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
   const sessionId: string = await ensureRendererSession(client)
   await client.postDelta(delta as unknown[], sessionId)
   await syncMainGraphFromDaemonClient(client)
+}
+
+export async function postDeltaThroughDaemonWithEditors(delta: GraphDelta): Promise<void> {
+  await postDeltaThroughDaemon(delta)
+  getCallbacks().onFloatingEditorUpdate?.(delta)
 }
 
 export async function getNodeFromDaemon(
