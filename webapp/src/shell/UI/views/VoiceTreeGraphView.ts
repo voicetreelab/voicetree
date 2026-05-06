@@ -30,11 +30,8 @@ import cytoscape, {type Core} from 'cytoscape';
 import navigator from 'cytoscape-navigator';
 // @ts-expect-error - cytoscape-layout-utilities doesn't have proper TypeScript definitions
 import layoutUtilities from 'cytoscape-layout-utilities';
-// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
-// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
-// @ts-expect-error CSS import - types declared in vite-env.d.ts (not visible to minimal TS program)
 import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
