@@ -17,6 +17,7 @@ import { isImageNode } from '@vt/graph-model/pure/graph';
 import { handleFSEventWithStateAndUISides } from "../graph/handleFSEvent";
 import { getWatcher, setWatcher } from "../state/watch-folder-store";
 import { broadcastFolderTree } from "./broadcast-folder-tree";
+import { clearPendingWrite, isPendingWrite } from "./pending-writes";
 
 /**
  * Read file with retry logic for transient file system issues
@@ -100,6 +101,11 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
     // File added
     currentWatcher.on('add', (filePath: string) => {
+        if (isPendingWrite(filePath)) {
+            clearPendingWrite(filePath);
+            return;
+        }
+
         // Image files have empty content (don't read binary as UTF-8)
         const contentPromise: Promise<string> = isImageNode(filePath)
             ? Promise.resolve('')
@@ -127,6 +133,11 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
     // File changed
     currentWatcher.on('change', (filePath: string) => {
+        if (isPendingWrite(filePath)) {
+            clearPendingWrite(filePath);
+            return;
+        }
+
         // Skip image file changes - their content is always empty in the graph
         if (isImageNode(filePath)) {
             return;
@@ -150,6 +161,11 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
     // File deleted
     currentWatcher.on('unlink', (filePath: string) => {
+        if (isPendingWrite(filePath)) {
+            clearPendingWrite(filePath);
+            return;
+        }
+
         const fsDelete: FSDelete = {
             type: 'Delete',
             absolutePath: filePath

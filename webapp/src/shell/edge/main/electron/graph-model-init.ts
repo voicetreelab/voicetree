@@ -18,6 +18,8 @@ import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
 import { dispatchOnNewNodeHooks } from '@/shell/edge/main/hooks/onNewNodeHook'
+import { getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@/shell/edge/main/terminals/terminal-registry'
+import { registerAgentNodes } from '@/shell/edge/main/mcp-server/agentNodeIndex'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-client-config'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
@@ -114,6 +116,14 @@ export function initializeGraphModel(): void {
                     dispatchOnNewNodeHooks(graphData, hookPath)
                 }
             })
+        },
+        onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
+            const record: TerminalRecord | undefined = getTerminalRecords().find(
+                (r: TerminalRecord) => r.terminalData.agentName === agentName
+            )
+            if (!record) return
+            registerAgentNodes(record.terminalId, [{ nodeId, title }])
+            resetAuditRetryCount(record.terminalId)
         },
         refreshBadge(): void {
             refreshAllInjectBadges()
