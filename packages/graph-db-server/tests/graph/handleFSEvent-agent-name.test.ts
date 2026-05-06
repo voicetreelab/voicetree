@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel } from '@vt/graph-model'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { setGraph } from '../../src/state/graph-store'
+import { getGraph, getNode, setGraph } from '../../src/state/graph-store'
 import { clearRecentDeltas } from '../../src/state/recent-deltas-store'
 import { handleFSEventWithStateAndUISides } from '../../src/graph/handleFSEvent'
 import type { FSUpdate } from '@vt/graph-model'
@@ -46,6 +46,11 @@ Some content here.`
             '/vault/progress-node.md',
             'Progress Node',
         )
+
+        const node = getNode('/vault/progress-node.md')
+        expect(node).toBeDefined()
+        expect(node!.kind).toBe('leaf')
+        expect(node!.nodeUIMetadata.color).toEqual(O.some('blue'))
     })
 
     it('does not fire callback for a node without agent_name', async () => {
@@ -65,6 +70,10 @@ No agent here.`
         await new Promise(r => setTimeout(r, 200))
 
         expect(agentNameCallback).not.toHaveBeenCalled()
+
+        const node = getNode('/vault/regular-node.md')
+        expect(node).toBeDefined()
+        expect(node!.nodeUIMetadata.color).toEqual(O.some('green'))
     })
 
     it('does not fire callback for an update to an existing node', async () => {
@@ -98,5 +107,9 @@ More content.`
         await new Promise(r => setTimeout(r, 200))
 
         expect(agentNameCallback).not.toHaveBeenCalled()
+
+        const node = getNode('/vault/existing-node.md')
+        expect(node).toBeDefined()
+        expect(node!.contentWithoutYamlOrLinks).toContain('Updated Version')
     })
 })
