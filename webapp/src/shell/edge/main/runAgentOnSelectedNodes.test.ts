@@ -19,7 +19,7 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
   applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
-import { runAgentOnSelectedNodes } from './runAgentOnSelectedNodes'
+import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
@@ -71,7 +71,7 @@ describe('runAgentOnSelectedNodes', () => {
       contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath
     })
 
-    const result = await runAgentOnSelectedNodes({
+    const result: RunAgentOnSelectedResult = await runAgentOnSelectedNodes({
       selectedNodeIds,
       taskDescription: 'Check these nodes',
       position: { x: 10, y: 20 }
