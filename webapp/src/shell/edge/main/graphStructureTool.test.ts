@@ -91,8 +91,8 @@ describe('graphStructureTool', () => {
   })
 
   it('passes through withSummaries to the shared graph-structure implementation', async () => {
-    const rootPath = path.join(tempDir, 'root.md')
-    const childPath = path.join(tempDir, 'child.md')
+    const rootPath: string = path.join(tempDir, 'root.md')
+    const childPath: string = path.join(tempDir, 'child.md')
     writeFileSync(path.join(tempDir, 'root.md'), [
       '---',
       'status: claimed',
