@@ -150,28 +150,24 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
+    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+
+    if (electronProcess?.pid) {
+      try {
+        process.kill(electronProcess.pid, 'SIGKILL');
+      } catch {
+        // Electron already exited.
+      }
     }
 
-    await electronApp.close();
     try {
-      if (electronProcess?.pid) {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      }
+      await Promise.race([
+        electronApp.close(),
+        new Promise(resolve => setTimeout(resolve, 5000))
+      ]);
     } catch {
-      // Electron already exited.
+      // Close may fail if already killed.
     }
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
     console.log('[Smoke Test] Electron app closed');
 
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
