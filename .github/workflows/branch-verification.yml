@@ -56,8 +56,8 @@ jobs:
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
-      - name: Run browser CI smoke test
-        timeout-minutes: 5
+      - name: Run browser Tier 2 E2E (critical_for_verification)
+        timeout-minutes: 10
         working-directory: webapp
         run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
 
