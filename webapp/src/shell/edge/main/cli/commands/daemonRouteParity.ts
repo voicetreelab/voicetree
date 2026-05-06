@@ -22,6 +22,11 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {command: 'vt session create', routeId: 'session.create'},
     {command: 'vt session delete', routeId: 'session.delete'},
     {command: 'vt session show', routeId: 'session.show'},
+    {
+        command: 'vt session events',
+        routeId: 'session.events',
+        notes: 'SSE stream consumed by the Electron renderer for real-time graph delta notifications; not a user-facing CLI subcommand.',
+    },
     {command: 'vt view show', routeId: 'view.show'},
     {command: 'vt view collapse', routeId: 'view.collapse'},
     {command: 'vt view expand', routeId: 'view.expand'},

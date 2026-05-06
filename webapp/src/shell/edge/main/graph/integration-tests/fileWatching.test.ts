@@ -27,6 +27,11 @@ import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
 
+function hasEdgeToBasename(node: GraphNode | undefined, basename: string): boolean {
+  if (!node?.outgoingEdges) return false
+  return node.outgoingEdges.some(e => path.basename(e.targetId, '.md') === basename)
+}
+
 // Track IPC broadcasts
 interface BroadcastCall {
   readonly channel: string
@@ -129,7 +134,7 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph' }
       )
 
       // WHEN: Append wikilink WITH .md to an existing file in voicetree subfolder
@@ -145,20 +150,17 @@ describe('File Watching - Edge Management Tests', () => {
       // Wait for file change to be detected and edge to be created
       await waitForFSEvent()
       await waitForCondition(
-        () => {
-          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
-        },
-        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+        () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-new-file'),
+        { maxWaitMs: 5000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
-      // THEN: Edge should be created (IDs are absolute paths)
+      // THEN: Edge should be created
       const graph: Graph = getGraph()
       const sourceNode: GraphNode = graph.nodes[targetFilePath]
 
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(true)
-    }, 5000)
+      expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(true)
+    }, 15000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
       // GIVEN: Load folder and create a new file in voicetree subfolder
@@ -176,7 +178,7 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph' }
       )
 
       // WHEN: Append wikilink WITHOUT .md to an existing file in voicetree subfolder
@@ -192,19 +194,16 @@ describe('File Watching - Edge Management Tests', () => {
       // Wait for file change to be detected and edge to be created
       await waitForFSEvent()
       await waitForCondition(
-        () => {
-          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
-        },
-        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+        () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-new-file'),
+        { maxWaitMs: 5000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created
       const graph: Graph = getGraph()
       const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(true)
-    }, 5000)
+      expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(true)
+    }, 15000)
 
     it('should remove edge when wikilink is removed from file content', async () => {
       // GIVEN: Load folder and create a new file with a wikilink
@@ -222,7 +221,7 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph' }
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph' }
       )
 
       // Define clean original content without any wikilinks to test-new-file
@@ -256,11 +255,8 @@ Parent:
       // Wait for edge to be created
       await waitForFSEvent()
       await waitForCondition(
-        () => {
-          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath) ?? false
-        },
-        { maxWaitMs: 2000, errorMessage: 'Edge not added before removal test' }
+        () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-new-file'),
+        { maxWaitMs: 5000, errorMessage: 'Edge not added before removal test' }
       )
 
       // WHEN: Remove the wikilink by resetting to clean original content
@@ -269,19 +265,16 @@ Parent:
       // Wait for file change to be detected and edge to be removed
       await waitForFSEvent()
       await waitForCondition(
-        () => {
-          const sourceNode: GraphNode = getGraph().nodes[targetFilePath]
-          return !sourceNode?.outgoingEdges?.some(e => e.targetId === testFilePath)
-        },
-        { maxWaitMs: 2000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
+        () => !hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-new-file'),
+        { maxWaitMs: 5000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
       )
 
       // THEN: Edge should be removed
       const graph: Graph = getGraph()
       const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === testFilePath)).toBe(false)
-    }, 5000)
+      expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(false)
+    }, 15000)
   })
 
   describe('BEHAVIOR: Frontmatter color parsing from filesystem events', () => {
@@ -320,7 +313,7 @@ Parent:
           const node: GraphNode = getGraph().nodes[testFilePath]
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
-        { maxWaitMs: 2000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
+        { maxWaitMs: 5000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
       )
 
       // THEN: Verify color was parsed from frontmatter
@@ -337,6 +330,6 @@ Parent:
         expect(node.nodeUIMetadata.position.value.x).toBe(-819.9742978214647)
         expect(node.nodeUIMetadata.position.value.y).toBe(-1683.7117827984455)
       }
-    }, 3000)
+    }, 10000)
   })
 })

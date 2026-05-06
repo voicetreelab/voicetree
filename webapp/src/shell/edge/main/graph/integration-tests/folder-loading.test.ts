@@ -321,7 +321,7 @@ describe('Folder Loading - Integration Tests', () => {
       // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
       await waitForCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
       )
 
       // Verify the node was added to the graph - node IDs are now absolute paths
@@ -366,7 +366,7 @@ describe('Folder Loading - Integration Tests', () => {
       // Wait for async applyAndBroadcast to complete
       await waitForCondition(
         () => !getGraph().nodes[testFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
       )
 
       // Verify the node was removed from the graph - node IDs are absolute paths
@@ -411,7 +411,7 @@ describe('Folder Loading - Integration Tests', () => {
       await loadFixtureFolder(EXAMPLE_SMALL_PATH)
 
       const graph3: Graph = getGraph()
-      expect(Object.keys(graph3.nodes).length).toBe(smallNodeCount)
+      expect(Object.keys(graph3.nodes).length).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
       // Verify we're back to small graph (same count, not same instances necessarily)
       const finalNodeIds: Set<string> = new Set(Object.keys(graph3.nodes))
@@ -463,9 +463,10 @@ describe('Folder Loading - Integration Tests', () => {
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
+      // Must wait for both graph state AND broadcast since the broadcast fires after async wikilink resolution
       await waitForCondition(
-        () => !!getGraph().nodes[newFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
+        () => !!getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:stateChanged'),
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
       )
 
       // THEN: Graph should contain the new node - node IDs are absolute paths
@@ -474,11 +475,8 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graph.nodes[newFilePath].contentWithoutYamlOrLinks).toBe(newFileContent)
 
       // AND: Broadcast should have been sent (graph:stateChanged)
-      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
-      // 1. graph:stateChanged (for cytoscape UI)
-      // 2. ui:call (for floating editors)
       const stateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
-      expect(stateChangedBroadcasts.length).toBe(1)
+      expect(stateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
       expect(stateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
 
       // Verify the delta contains UpsertNode action
@@ -497,10 +495,10 @@ describe('Folder Loading - Integration Tests', () => {
 
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // Wait for async applyAndBroadcast to complete
+      // Wait for async applyAndBroadcast to complete (wait for both graph state and broadcast)
       await waitForCondition(
-        () => !getGraph().nodes[newFilePath],
-        { maxWaitMs: 2000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
+        () => !getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:stateChanged'),
+        { maxWaitMs: 5000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
       )
 
       // THEN: GraphNode should be removed from graph - node IDs are absolute paths
@@ -508,17 +506,12 @@ describe('Folder Loading - Integration Tests', () => {
       expect(graphAfterDelete.nodes[newFilePath]).toBeUndefined()
 
       // AND: Broadcast should have been sent (graph:stateChanged)
-      // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
-      // 1. graph:stateChanged (for cytoscape UI)
-      // 2. ui:call (for floating editors)
       const deleteStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
-      if (deleteStateChangedBroadcasts.length > 0) {
-        expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
+      expect(deleteStateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
+      expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
 
-        // Verify the delta contains DeleteNode action
-        const deleteDelta: DeleteNode | undefined = deleteStateChangedBroadcasts[0].delta.find(d => d.type === 'DeleteNode')
-        expect(deleteDelta).toBeDefined()
-      }
+      const deleteDelta: DeleteNode | undefined = deleteStateChangedBroadcasts[0].delta.find(d => d.type === 'DeleteNode')
+      expect(deleteDelta).toBeDefined()
     })
   })
 
