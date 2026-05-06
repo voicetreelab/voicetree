@@ -19,18 +19,17 @@
 
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import cytoscape from 'cytoscape';
-import type { Core, NodeSingular } from 'cytoscape';
+import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
 import { isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
 // Mock window.electronAPI to prevent enableAutoLayout from calling main process
-vi.stubGlobal('window', {
-  electronAPI: {
-    main: {
-      loadSettings: () => Promise.resolve({ layoutConfig: undefined }),
-      saveNodePositions: () => Promise.resolve(),
-    },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).electronAPI = {
+  main: {
+    loadSettings: () => Promise.resolve({ layoutConfig: undefined }),
+    saveNodePositions: () => Promise.resolve(),
   },
-});
+};
 
 // Mock the settings change subscription (imported by autoLayout.ts)
 vi.mock('@/shell/edge/UI-edge/api', () => ({
@@ -71,13 +70,13 @@ vi.mock('@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync', () => ({
 // Mock Cola layout
 vi.mock('./cola', () => ({
   default: class MockCola {
-    run() {}
-    one(_event: string, cb: () => void) { cb(); }
+    run(): void {}
+    one(_event: string, cb: () => void): void { cb(); }
   },
 }));
 
 // Mock runLocalCola to track calls
-const runLocalColaSpy = vi.fn((_cy, _ids, _config, onComplete: () => void) => { onComplete(); });
+const runLocalColaSpy: ReturnType<typeof vi.fn> = vi.fn((_cy, _ids, _config, onComplete: () => void) => { onComplete(); });
 vi.mock('./autoLayoutLocalCola', () => ({
   runLocalCola: (...args: unknown[]) => runLocalColaSpy(...args),
 }));
@@ -129,7 +128,7 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
 
   it('precondition: collapsed folder node IS a layout participant', () => {
     // This is the dangerous condition — collapsed folders are eligible for Cola
-    const folder = cy.add({
+    const folder: CollectionReturnValue = cy.add({
       group: 'nodes',
       data: { id: 'folder/', isFolderNode: true, collapsed: true, childCount: 2 },
     });
@@ -138,7 +137,7 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
 
   it('precondition: cytoscape places unpositioned nodes at (0,0)', () => {
     // This simulates what applyGraphDeltaToUI does — no position specified
-    const folder = cy.add({
+    const folder: CollectionReturnValue = cy.add({
       group: 'nodes',
       data: { id: 'folder/', isFolderNode: true, collapsed: true, childCount: 2 },
     });
@@ -146,7 +145,7 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
   });
 
   it('precondition: cytoscape fires add event for programmatically added nodes', () => {
-    const addHandler = vi.fn();
+    const addHandler: ReturnType<typeof vi.fn> = vi.fn();
     cy.on('add', 'node', addHandler);
 
     cy.add({
@@ -196,7 +195,7 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
     // This test directly proves the mechanism: isLayoutParticipantNode says YES
     // for collapsed folders, but the onNodeAdd guard says NO.
     // If someone removes the guard, runLocalCola would run with the folder at (0,0).
-    const folder = cy.add({
+    const folder: CollectionReturnValue = cy.add({
       group: 'nodes',
       data: { id: 'folder/', isFolderNode: true, collapsed: true, childCount: 2 },
     });
