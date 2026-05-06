@@ -117,7 +117,7 @@ const test = base.extend<{
     console.log('[Smoke Test] vt-graphd Node:', graphDaemonNodeBin);
 
     const ciFlags = process.env.CI
-      ? ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
       : [];
 
     const electronApp = await electron.launch({
@@ -221,7 +221,7 @@ const test = base.extend<{
 
 test.describe('Smoke Test', () => {
   test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
-    test.setTimeout(30000);
+    test.setTimeout(process.env.CI ? 60000 : 30000);
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
     const appReady = await appWindow.evaluate(() => {

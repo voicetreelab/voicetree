@@ -112,7 +112,7 @@ jobs:
 
       - name: Rebuild native modules for Electron
         working-directory: webapp
-        run: npx @electron/rebuild --only node-pty
+        run: npx @electron/rebuild --only node-pty,electron-trackpad-detect
 
       - name: Build vt-fake-agent
         working-directory: tools/vt-fake-agent
