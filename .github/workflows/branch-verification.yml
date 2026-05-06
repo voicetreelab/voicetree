@@ -112,7 +112,7 @@ jobs:
 
       - name: Rebuild native modules for Electron
         working-directory: webapp
-        run: npx @electron/rebuild
+        run: npx @electron/rebuild --only node-pty
 
       - name: Build vt-fake-agent
         working-directory: tools/vt-fake-agent
@@ -121,8 +121,6 @@ jobs:
       - name: Run Electron smoke test (first test only)
         timeout-minutes: 10
         working-directory: webapp
-        env:
-          ELECTRON_DISABLE_SANDBOX: '1'
         run: |
           xvfb-run --auto-servernum npx playwright test \
             --config=playwright-tier1-system.config.ts \
