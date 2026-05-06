@@ -18,7 +18,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const CI_FLAGS = process.env.CI
@@ -91,20 +91,7 @@ const test = base.extend<{
 
         await use(electronApp);
 
-        // Graceful shutdown
-        try {
-            const window = await electronApp.firstWindow();
-            await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (api) {
-                    await api.main.stopFileWatching();
-                }
-            });
-            await window.waitForTimeout(300);
-        } catch {
-            // Window may be closed already
-        }
-
+        await safeStopFileWatching(electronApp);
         await robustElectronTeardown(electronApp);
     },
 
@@ -515,12 +502,7 @@ test.describe('Watched Folder Panel Regression', () => {
 
             console.log('✅ Fresh project shows panel correctly');
 
-            try {
-                await appWindow.evaluate(async () => {
-                    const api = (window as ExtendedWindow).electronAPI;
-                    if (api) await api.main.stopFileWatching();
-                });
-            } catch { /* ignore */ }
+            await safeStopFileWatching(electronApp);
             await robustElectronTeardown(electronApp);
         } finally {
             await fs.rm(tempUserDataPath, { recursive: true, force: true });
@@ -701,20 +683,10 @@ test.describe('Watched Folder Panel Regression', () => {
 
             console.log('✅ Watched folder panel fully visible for project with existing config!');
 
-            // Cleanup
-            try {
-                await appWindow.evaluate(async () => {
-                    const api = (window as ExtendedWindow).electronAPI;
-                    if (api) await api.main.stopFileWatching();
-                });
-                await appWindow.waitForTimeout(300);
-            } catch {
-                // Ignore cleanup errors
-            }
+            await safeStopFileWatching(electronApp);
             await robustElectronTeardown(electronApp);
 
         } finally {
-            // Cleanup temp directories
             await fs.rm(tempUserDataPath, { recursive: true, force: true });
             await fs.rm(tempProjectPath, { recursive: true, force: true });
         }
@@ -917,15 +889,7 @@ test.describe('Watched Folder Panel Regression', () => {
 
             console.log('✅ Both project types show watched folder panel correctly!');
 
-            // Cleanup
-            try {
-                await appWindow.evaluate(async () => {
-                    const api = (window as ExtendedWindow).electronAPI;
-                    if (api) await api.main.stopFileWatching();
-                });
-            } catch {
-                // Ignore
-            }
+            await safeStopFileWatching(electronApp);
             await robustElectronTeardown(electronApp);
 
         } finally {

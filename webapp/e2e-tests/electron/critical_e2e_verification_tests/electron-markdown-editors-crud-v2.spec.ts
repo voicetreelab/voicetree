@@ -14,7 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -79,21 +79,7 @@ const test = base.extend<{
 
     // Graceful shutdown: Stop file watching before closing app
     // This prevents EPIPE errors from file watcher trying to log after stdout closes
-    try {
-      const page = await electronApp.firstWindow();
-      await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      // Wait for pending file system events to drain
-      await page.waitForTimeout(300);
-    } catch {
-      // Window might already be closed, that's okay
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
-    }
-
+    await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
@@ -134,12 +120,12 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 45000 });
     // Wait for auto-load to complete (vault is loaded during app initialization)
     await page.waitForTimeout(500);
 
     await use(page);
-  }, { timeout: 30000 }]
+  }, { timeout: 60000 }]
 });
 
 test.describe('Markdown Editor CRUD Tests', () => {

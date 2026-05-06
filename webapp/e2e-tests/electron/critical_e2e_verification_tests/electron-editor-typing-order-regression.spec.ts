@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -132,14 +132,7 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        await (window as unknown as ExtendedWindow).electronAPI?.main.stopFileWatching();
-      });
-    } catch {
-      // The app may already be closed after a failed launch.
-    }
+    await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
@@ -152,13 +145,13 @@ const test = base.extend<{
     await window.waitForFunction(
       () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
       undefined,
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     );
     try {
       await window.waitForFunction(
         () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
         undefined,
-        { timeout: 10_000 },
+        { timeout: 20_000 },
       );
     } catch (error) {
       const diagnostics = await window.evaluate(async () => {

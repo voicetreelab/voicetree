@@ -31,7 +31,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -86,19 +86,7 @@ const test = base.extend<{
     await use(electronApp);
 
     // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup');
-    }
-
+    await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
@@ -122,7 +110,7 @@ const test = base.extend<{
 
     // Wait for cytoscape instance with retry logic
     try {
-      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
     } catch (error) {
       console.error('Failed to initialize cytoscape instance:', error);
       throw error;

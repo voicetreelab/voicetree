@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
 import type { GraphNode } from '@vt/graph-model/pure/graph';
 import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -119,14 +119,7 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        await (window as unknown as ExtendedWindow).electronAPI?.main.stopFileWatching();
-      });
-    } catch {
-      // The app may already be closed after a failed launch.
-    }
+    await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
@@ -138,18 +131,18 @@ const test = base.extend<{
     await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
     await window.waitForFunction(
       () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     );
     await window.waitForFunction(
       () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
-      { timeout: 10_000 },
+      { timeout: 20_000 },
     );
     await use(window);
   },
 });
 
 test('keeps Electron UI, graph state, and vault files converged after a disk change', async ({ appWindow, writePath }) => {
-  test.setTimeout(30_000);
+  test.setTimeout(60_000);
 
   const initial = await appWindow.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;

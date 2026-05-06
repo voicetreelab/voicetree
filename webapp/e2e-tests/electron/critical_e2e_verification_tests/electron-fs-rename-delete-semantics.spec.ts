@@ -13,7 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const SOURCE_FILE_NAME = 'source.md';
@@ -125,19 +125,7 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const page = await electronApp.firstWindow();
-      await page.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await page.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not interact with page before shutdown');
-    }
-
+    await safeStopFileWatching(electronApp);
     await robustElectronTeardown(electronApp);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   }, { timeout: 45000 }],

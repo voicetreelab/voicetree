@@ -159,6 +159,23 @@ export async function robustElectronTeardown(electronApp: import('@playwright/te
   }
 }
 
+export async function safeStopFileWatching(electronApp: import('@playwright/test').ElectronApplication): Promise<void> {
+  try {
+    await Promise.race([
+      (async () => {
+        const page = await electronApp.firstWindow();
+        await page.evaluate(async () => {
+          const api = (window as unknown as { electronAPI?: { main: { stopFileWatching: () => Promise<unknown> } } }).electronAPI;
+          if (api) await api.main.stopFileWatching();
+        });
+      })(),
+      new Promise(resolve => setTimeout(resolve, 3000))
+    ]);
+  } catch {
+    // Window may already be closed or app in bad state
+  }
+}
+
 export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics): void {
   const criticalErrorPatterns = [
     /NODE_MODULE_VERSION/i,
