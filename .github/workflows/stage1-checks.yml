@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      NODE_OPTIONS: '--max-old-space-size=4096'
+      NODE_OPTIONS: '--max-old-space-size=8192'
 
     steps:
       - uses: actions/checkout@v4
@@ -48,8 +48,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Run check (lint + tsc + taxonomy)
-        run: npm run check
+      - name: Lint (root targets)
+        run: npm run lint
+
+      - name: Lint (webapp)
+        working-directory: webapp
+        run: npx eslint .
+
+      - name: Typecheck
+        working-directory: webapp
+        run: npx tsc --noEmit
+
+      - name: E2E taxonomy check
+        run: npm run check:e2e-taxonomy
 
   unit-tests:
     name: Unit & Integration Tests
