@@ -38,42 +38,41 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
 
                 if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
+                    const currentEditorContent: string = cmEditor.getValue();
 
-                    // Skip programmatic updates while the user is actively typing.
-                    // The autosave round-trip echoes the user's own save back to
-                    // the editor; if the user has typed past that snapshot in the
-                    // ~300ms debounce window, replacing the doc would clobber the
-                    // newer characters. The user's edits remain the source of
-                    // truth — externally-applied changes (e.g., wikilinks added
-                    // by another tool) will sync the next time the editor is
-                    // unfocused.
+                    if (currentEditorContent === newContent) {
+                        continue;
+                    }
+
+                    // Append-only changes (e.g., wikilink edge from child creation)
+                    // are safe to apply regardless of focus or unsaved edits —
+                    // they only add to the end, so they won't clobber typing.
+                    if (O.isSome(nodeDelta.previousNode)) {
+                        const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                        if (isAppendOnly(prevContent, newContent)) {
+                            const suffix: string = getAppendedSuffix(prevContent, newContent);
+                            if (!currentEditorContent.endsWith(suffix)) {
+                                cmEditor.setValue(currentEditorContent + suffix);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // Skip non-append programmatic updates while the user is
+                    // actively typing — the autosave round-trip would clobber
+                    // newer characters.
                     if (cmEditor.isFocused()) {
                         continue;
                     }
 
-                    const currentEditorContent: string = cmEditor.getValue();
-
-                    // Only update if content has changed to avoid cursor jumps
-                    // Note: setValue() won't trigger onChange - CM6 isUserEvent check filters out programmatic changes
-                    if (currentEditorContent !== newContent) {
-                        // Check if this is an append-only change (e.g., link addition)
-                        // If so, append to current editor content to preserve unsaved user edits
-                        if (O.isSome(nodeDelta.previousNode)) {
-                            const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
-                            if (currentEditorContent !== prevContent) {
-                                continue;
-                            }
-                            if (isAppendOnly(prevContent, newContent)) {
-                                const suffix: string = getAppendedSuffix(prevContent, newContent);
-                                //console.log('[FloatingEditorManager-v2] Appending to editor for node:', nodeId, 'suffix:', suffix);
-                                cmEditor.setValue(currentEditorContent + suffix);
-                                continue;
-                            }
+                    if (O.isSome(nodeDelta.previousNode)) {
+                        const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                        if (currentEditorContent !== prevContent) {
+                            continue;
                         }
-                        // Full replacement for non-append changes
-                        //console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
-                        cmEditor.setValue(newContent);
                     }
+
+                    cmEditor.setValue(newContent);
                 }
             }
         } else if (nodeDelta.type === 'DeleteNode') {

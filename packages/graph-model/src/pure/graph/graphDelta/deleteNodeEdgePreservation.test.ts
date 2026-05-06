@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, GraphDelta, NodeIdAndFilePath } from '..'
 import { createGraph } from '../createGraph'
 import { applyGraphDeltaToGraph } from './applyGraphDeltaToGraph'
-import { deleteNodeMaintainingTransitiveEdges } from '../graph-operations/removeNodeMaintainingTransitiveEdges'
+import { deleteNodeSimple } from '@vt/graph-model'
 
 /**
  * TDD Tests for Edge Preservation on Node Deletion
@@ -40,7 +40,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: b is deleted
@@ -70,7 +70,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: a now points to both c and d
@@ -96,7 +96,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: a now points to c (child of b) AND x (fellow incomer)
@@ -127,7 +127,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: a has edges to c, d (children of b), AND x (fellow incomer)
@@ -153,7 +153,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: a still has only one edge to c (no duplicate)
@@ -171,7 +171,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: a's edge to b is removed, no new edges added
@@ -186,7 +186,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: b is deleted, c is unchanged
@@ -203,7 +203,7 @@ describe('Edge Preservation on Node Deletion', () => {
             })
 
             // Delete b with edge preservation (function reads from graph state)
-            const delta: GraphDelta = deleteNodeMaintainingTransitiveEdges(graph, 'b.md')
+            const delta: GraphDelta = deleteNodeSimple(graph, 'b.md')
             const result: Graph = applyGraphDeltaToGraph(graph, delta)
 
             // Verify: edge preservation still works

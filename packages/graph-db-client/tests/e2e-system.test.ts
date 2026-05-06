@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { createEmptyGraph } from '@vt/graph-model'
 import { startDaemon, type DaemonHandle } from '@vt/graph-db-server'
-import { clearWatchFolderState } from '../../graph-db-server/src/state/watch-folder-store.ts'
-import { setGraph } from '../../graph-db-server/src/state/graph-store.ts'
+import { setGraph } from '@vt/graph-db-server/state/graph-store.ts'
+import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store.ts'
 import { DaemonUnreachableError, GraphDbClient, GraphDbClientError } from '../src'
 
 async function waitFor<T>(read: () => Promise<T | null>): Promise<T> {

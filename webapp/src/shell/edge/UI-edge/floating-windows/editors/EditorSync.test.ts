@@ -40,6 +40,7 @@ function openEditorForNode(nodeId: NodeIdAndFilePath, initialContent: string): {
         setValue: (nextValue: string) => {
             value = nextValue
         },
+        isFocused: () => false,
     }
     vanillaFloatingWindowInstances.set(`${nodeId}-editor`, editorInstance as unknown as { dispose: () => void })
 
@@ -57,7 +58,7 @@ describe('updateFloatingEditors', () => {
         vanillaFloatingWindowInstances.clear()
     })
 
-    it('does not append a stale autosave suffix onto newer live editor text', () => {
+    it('appends suffix to editor even when editor has diverged from delta base', () => {
         const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
         const editor = openEditorForNode(nodeId, 'rn')
 
@@ -67,7 +68,7 @@ describe('updateFloatingEditors', () => {
             nodeToUpsert: makeNode(nodeId, 'ra'),
         }])
 
-        expect(editor.getValue()).toBe('rn')
+        expect(editor.getValue()).toBe('rna')
     })
 
     it('still appends an append-only suffix when the editor matches the delta base', () => {

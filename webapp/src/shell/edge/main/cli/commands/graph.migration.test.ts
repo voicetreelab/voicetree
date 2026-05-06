@@ -3,6 +3,8 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, beforeAll, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient, type GraphState} from '@vt/graph-db-client'
+import {setGraph} from '@vt/graph-db-server/state/graph-store.ts'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store.ts'
 import {
     formatLintReportHuman,
     lintGraph,
@@ -11,11 +13,9 @@ import {
     type ViewGraphResult,
 } from '@vt/graph-tools/node'
 import {
-    clearWatchFolderState,
     createEmptyGraph,
     initGraphModel,
     saveVaultConfigForDirectory,
-    setGraph,
 } from '@vt/graph-model'
 // eslint-disable-next-line no-restricted-imports
 import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
