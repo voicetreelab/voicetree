@@ -82,10 +82,22 @@ export function isProjectableGraphNode(node: GraphNode | undefined): node is Gra
     return node !== undefined
 }
 
+type GraphNodesRecord = Readonly<Record<string, GraphNode>>
+
+const recursiveCountCache = new WeakMap<FolderTreeNode, WeakMap<GraphNodesRecord, number>>()
+
 function countRecursiveProjectableFileDescendants(
     folder: FolderTreeNode,
-    graphNodes: Readonly<Record<string, GraphNode>>,
+    graphNodes: GraphNodesRecord,
 ): number {
+    let inner = recursiveCountCache.get(folder)
+    if (inner === undefined) {
+        inner = new WeakMap()
+        recursiveCountCache.set(folder, inner)
+    }
+    const cached = inner.get(graphNodes)
+    if (cached !== undefined) return cached
+
     let count = 0
     for (const child of folder.children) {
         if ('children' in child) {
@@ -94,6 +106,8 @@ function countRecursiveProjectableFileDescendants(
             count += 1
         }
     }
+
+    inner.set(graphNodes, count)
     return count
 }
 
@@ -109,16 +123,36 @@ function countDirectProjectableChildren(
     }).length
 }
 
+const folderInfoCache = new WeakMap<FolderTreeNode, WeakMap<GraphNodesRecord, readonly FolderProjectionInfo[]>>()
+
 export function collectFolderProjectionInfo(
     folder: FolderTreeNode,
-    graphNodes: Readonly<Record<string, GraphNode>>,
+    graphNodes: GraphNodesRecord,
     parent: FolderId | undefined,
     out: FolderProjectionInfo[],
 ): void {
-    if (countRecursiveProjectableFileDescendants(folder, graphNodes) === 0) return
+    let inner = folderInfoCache.get(folder)
+    if (inner !== undefined) {
+        const cached = inner.get(graphNodes)
+        if (cached !== undefined) {
+            for (const item of cached) out.push(item)
+            return
+        }
+    }
+
+    const localOut: FolderProjectionInfo[] = []
+
+    if (countRecursiveProjectableFileDescendants(folder, graphNodes) === 0) {
+        if (inner === undefined) {
+            inner = new WeakMap()
+            folderInfoCache.set(folder, inner)
+        }
+        inner.set(graphNodes, localOut)
+        return
+    }
 
     const folderId = folderIdFromAbsolutePath(folder.absolutePath)
-    out.push({
+    localOut.push({
         id: folderId,
         ...(parent ? { parent } : {}),
         label: labelForFolder(folderId),
@@ -129,9 +163,17 @@ export function collectFolderProjectionInfo(
 
     for (const child of folder.children) {
         if ('children' in child) {
-            collectFolderProjectionInfo(child, graphNodes, folderId, out)
+            collectFolderProjectionInfo(child, graphNodes, folderId, localOut)
         }
     }
+
+    if (inner === undefined) {
+        inner = new WeakMap()
+        folderInfoCache.set(folder, inner)
+    }
+    inner.set(graphNodes, localOut)
+
+    for (const item of localOut) out.push(item)
 }
 
 export function hasCollapsedAncestor(
