@@ -213,6 +213,7 @@
  * the container to become scrollable, shifting terminal content within the window. */
 .cy-floating-window.cy-floating-window-terminal {
   overflow: hidden;
+  background: #000;
 }
 
 .cy-floating-window-terminal .cy-floating-window-content {
