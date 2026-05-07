@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/pure/graph'
+import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
 import { GraphStateSchema } from '../contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
 import { getGraph, getNode } from '../state/graph-store.ts'

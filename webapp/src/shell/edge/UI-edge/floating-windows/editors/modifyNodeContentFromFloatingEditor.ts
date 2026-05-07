@@ -1,7 +1,7 @@
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, UpsertNodeDelta} from "@vt/graph-model/pure/graph";
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, UpsertNodeDelta} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
-import {fromContentChangeToGraphDelta} from "@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
-import {parseMarkdownToGraphNode} from "@vt/graph-model/pure/graph/markdown-parsing";
+import {fromContentChangeToGraphDelta} from "@vt/graph-model/graph";
+import {parseMarkdownToGraphNode} from "@vt/graph-model/markdown";
 import * as O from 'fp-ts/lib/Option.js';
 import {mergeNodeUIMetadata} from "@/shell/edge/UI-edge/graph/handleUIActions";
 // Import to make Window.electronAPI type available

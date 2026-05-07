@@ -9,7 +9,7 @@
 import path from "path";
 import { promises as fs } from "fs";
 import normalizePath from "normalize-path";
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types';
+import type { VaultConfig } from '@vt/graph-model/settings';
 import { getExpandedFolderPathsForVault } from "./folder-visibility-active-view";
 import {
     getVaultConfigForDirectory,

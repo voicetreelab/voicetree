@@ -8,9 +8,9 @@
  */
 
 import {statSync} from 'fs'
-import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
-import {getNodesByAgentName} from '@vt/graph-model/pure/graph'
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
+import type {Graph, GraphNode} from '@vt/graph-model/graph'
+import {getNodesByAgentName} from '@vt/graph-model/graph'
+import {getNodeTitle} from '@vt/graph-model/markdown'
 
 export function getNewNodesForAgent(
     graph: Graph,

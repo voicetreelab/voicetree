@@ -22,8 +22,8 @@
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
-import { packComponents } from '@vt/graph-model/pure/graph/positioning/packComponents';
-import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
+import { packComponents } from '@vt/graph-model/spatial';
+import type { ComponentSubgraph } from '@vt/graph-model/spatial';
 import { runLocalCola } from './autoLayoutLocalCola';
 import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
 import { isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';

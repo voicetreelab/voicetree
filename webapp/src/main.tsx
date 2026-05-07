@@ -6,7 +6,7 @@ import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
-import type { VTSettings } from '@vt/graph-model/pure/settings'
+import type { VTSettings } from '@vt/graph-model/settings'
 import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
 import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
 import {

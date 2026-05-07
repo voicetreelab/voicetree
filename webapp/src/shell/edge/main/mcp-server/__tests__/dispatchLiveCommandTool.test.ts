@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Graph } from '@vt/graph-model/pure/graph'
+import type { Graph } from '@vt/graph-model/graph'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')

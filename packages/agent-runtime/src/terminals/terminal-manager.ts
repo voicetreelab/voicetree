@@ -9,7 +9,7 @@ import type {TerminalData} from '../types';
 import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
-import type {VTSettings} from '@vt/graph-model/pure/settings/types';
+import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
 import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
 

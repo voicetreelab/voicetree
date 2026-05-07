@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vites
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { clearRootIOForTests, configureRootIO, type Command, type State } from '@vt/graph-state'
-import type { DirectoryEntry, Graph } from '@vt/graph-model/pure/graph'
+import type { DirectoryEntry, Graph } from '@vt/graph-model/graph'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')

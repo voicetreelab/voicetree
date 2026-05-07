@@ -1,6 +1,6 @@
 import type { EdgeSingular } from 'cytoscape';
 import { getEdgeDistance } from './cytoscape-graph-constants';
-import { DEFAULT_SETTINGS } from '@vt/graph-model/pure/settings';
+import { DEFAULT_SETTINGS } from '@vt/graph-model/settings';
 
 export interface AutoLayoutOptions {
   animate?: boolean;

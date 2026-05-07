@@ -19,9 +19,9 @@ import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/vo
 import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
+import { createEmptyGraph } from '@vt/graph-model/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
+import type { VaultConfig } from '@vt/graph-model/settings'
 import { initGraphModel } from '@vt/graph-model'
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({

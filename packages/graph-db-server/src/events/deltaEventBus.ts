@@ -1,4 +1,4 @@
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
 
 export type SourceTaggedDelta = {
   delta: GraphDelta

@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { SavedProject } from '@vt/graph-model/pure/project/types';
+import type { SavedProject } from '@vt/graph-model/project';
 import { getConfig } from '@vt/graph-model';
 
 function getProjectsFilePath(): string {

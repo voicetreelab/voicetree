@@ -2,16 +2,16 @@
 // Bypasses MCP protocol — invoked over plain HTTP at /trigger-overnight.
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
-import {createTaskNode} from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
-import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
+import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import {createTaskNode} from '@vt/graph-model/graph'
+import {calculateNodePosition} from '@vt/graph-model/spatial'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
+import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 
 export interface TriggerOvernightParams {

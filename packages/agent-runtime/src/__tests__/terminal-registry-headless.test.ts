@@ -10,7 +10,7 @@
  */
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {TerminalId} from '../types'
 import {createTerminalData} from '../types'
 import type {TerminalData, CreateTerminalDataParams} from '../types'

@@ -12,7 +12,7 @@
  * - file-watcher-setup.ts: File watcher setup
  */
 
-import type { FilePath, Position } from '@vt/graph-model/pure/graph';
+import type { FilePath, Position } from '@vt/graph-model/graph';
 import { getGraph, setGraph } from "../state/graph-store";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -22,7 +22,7 @@ import type { FSWatcher } from "chokidar";
 import { getCallbacks } from "@vt/graph-model";
 import { copyMarkdownFiles, pathExists, createDatedSubfolder, findExistingVoicetreeDir } from "../project/project-utils";
 import { loadSettings } from "../settings/settings_IO";
-import { type VTSettings } from '@vt/graph-model/pure/settings/types';
+import { type VTSettings } from '@vt/graph-model/settings';
 import {
     getWatcher,
     setWatcher,
@@ -47,7 +47,7 @@ import { setupWatcher } from "./file-watcher-setup";
 import { setupStateChangeSubscriptions } from "./watcher-rebuild";
 import type { WatcherOptions } from "./file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph';
+import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "./broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "../graph/positions-store";
 

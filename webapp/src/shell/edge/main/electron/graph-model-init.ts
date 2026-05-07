@@ -8,7 +8,7 @@
 import { app, dialog } from 'electron'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'

@@ -4,8 +4,8 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settings'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store'
 import {getRuntimeEnv} from '../runtime-config'

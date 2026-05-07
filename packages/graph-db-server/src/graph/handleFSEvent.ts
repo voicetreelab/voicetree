@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/pure/graph';
-import {mapFSEventsToGraphDelta} from '@vt/graph-model/pure/graph';
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
+import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
+import {mapFSEventsToGraphDelta} from '@vt/graph-model/graph';
+import {getNodeTitle} from '@vt/graph-model/markdown'
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {

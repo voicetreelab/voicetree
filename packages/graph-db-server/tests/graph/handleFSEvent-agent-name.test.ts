@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel } from '@vt/graph-model'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
 import { getGraph, getNode, setGraph } from '../../src/state/graph-store'
 import { clearRecentDeltas } from '../../src/state/recent-deltas-store'
 import { handleFSEventWithStateAndUISides } from '../../src/graph/handleFSEvent'

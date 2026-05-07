@@ -4,7 +4,7 @@
  * Returns true when: (exited) OR (idle + idle ≥ SUSTAINED_IDLE_MS + all children complete)
  */
 
-import type {Graph} from '@vt/graph-model/pure/graph'
+import type {Graph} from '@vt/graph-model/graph'
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {getIdleSince} from '@vt/agent-runtime'
 import {getAgentNodes} from './agentNodeIndex'

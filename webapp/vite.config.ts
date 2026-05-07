@@ -38,13 +38,14 @@ export default defineConfig({
   ],
   base: "./",
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@root": path.resolve(__dirname, "."),
-      "@vt/graph-model/pure": path.resolve(__dirname, "../packages/graph-model/src/pure"),
+    alias: [
+      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, "../packages/graph-model/src/index.ts") },
+      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, "../packages/graph-model/src/$1") },
+      { find: /^@root(?=\/)/, replacement: path.resolve(__dirname, ".") },
+      { find: /^@(?=\/)/, replacement: path.resolve(__dirname, "./src") },
       // Alias CSS imports from @material to prevent import errors
-      '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
-    },
+      { find: '@material/mwc-icon/mwc-icon-host.css', replacement: path.resolve(__dirname, 'src/utils/empty-css-export.ts') },
+    ],
   },
   optimizeDeps: {
     // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import

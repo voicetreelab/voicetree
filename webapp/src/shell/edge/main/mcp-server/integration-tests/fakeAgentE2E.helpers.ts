@@ -19,7 +19,7 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalManager} from '@vt/agent-runtime'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
-import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
+import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/agent-tabs'
 import {registerChildIfMonitored} from '@vt/voicetree-mcp'
 import {startMonitor} from '@vt/voicetree-mcp'
 

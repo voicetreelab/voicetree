@@ -4,7 +4,7 @@ import {
     type GraphNode,
     type NodeIdAndFilePath,
 } from '@vt/graph-model'
-import { fromNodeToContentWithWikilinks } from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown'
+import { fromNodeToContentWithWikilinks } from '@vt/graph-model/markdown'
 
 import type { State } from '../contract'
 import type { EdgeChange, GraphDeltaSummary } from './folderTreeHelpers'

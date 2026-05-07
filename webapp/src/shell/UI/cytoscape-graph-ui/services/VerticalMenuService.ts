@@ -7,10 +7,10 @@ import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/Ter
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/taskInputPopup";
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
-import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/pure/graph/graph-operations/extract-into-folder/computeExtractIntoFolderGraphDelta";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
+import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
 import '@/shell/electron.d.ts';
-import { formatShortcut } from '@vt/graph-model/pure/utils/keyboardShortcutDisplay';
+import { formatShortcut } from '@vt/graph-model/utils';
 
 export interface Position {
     x: number;

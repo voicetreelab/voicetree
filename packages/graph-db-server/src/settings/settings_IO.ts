@@ -1,8 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { VTSettings } from '@vt/graph-model/pure/settings/types';
+import type { VTSettings } from '@vt/graph-model/settings';
 
-import {DEFAULT_SETTINGS} from '@vt/graph-model/pure/settings/DEFAULT_SETTINGS';
+import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
 import {getCallbacks, getConfig} from '@vt/graph-model';
 
 function getSettingsPath(): string {

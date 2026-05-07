@@ -3,12 +3,12 @@
  */
 
 import path from 'path';
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import type {Position} from '@vt/graph-model/pure/graph';
-import {createNewNodeNoParent} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas';
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
-import type {VTSettings} from '@vt/graph-model/pure/settings/types';
-import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/pure/settings/types';
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph';
+import type {Position} from '@vt/graph-model/graph';
+import {createNewNodeNoParent} from '@vt/graph-model/graph';
+import {getNodeTitle} from '@vt/graph-model/markdown';
+import type {VTSettings} from '@vt/graph-model/settings';
+import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '../types';
 import {getExistingAgentNames} from '../terminals/terminal-registry';
 import {getGraph} from '@vt/graph-db-server/state/graph-store';

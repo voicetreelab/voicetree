@@ -1,4 +1,4 @@
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 
 type SourceTaggedDelta = {

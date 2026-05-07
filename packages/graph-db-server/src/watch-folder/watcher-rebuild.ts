@@ -5,7 +5,7 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type { FilePath } from '@vt/graph-model/pure/graph'
+import type { FilePath } from '@vt/graph-model/graph'
 import { getWatcher, setWatcher, getProjectRootWatchedDirectory } from '../state/watch-folder-store'
 import { onViewSwitched } from '../views/viewsStore'
 import { getWatchRootsForActiveView } from './folder-visibility-active-view'

@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { createTerminalData } from '../types';
 import type { TerminalData, TerminalId } from '../types';
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
 import {
     recordTerminalSpawn,
     getTerminalRecords,

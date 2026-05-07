@@ -1,5 +1,5 @@
-import type { Graph, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { computeExtractIntoFolderGraphDelta } from '@vt/graph-model/pure/graph/graph-operations/extract-into-folder/computeExtractIntoFolderGraphDelta'
+import type { Graph, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { computeExtractIntoFolderGraphDelta } from '@vt/graph-model/graph'
 import type { Core } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import type {} from '@/shell/electron'

@@ -15,8 +15,8 @@ import type { Mock } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import type { RenderResult as RTLRenderResult } from '@testing-library/react'
 import { FolderTreeNodeComponent } from './FolderTreeNode'
-import type { FolderTreeNode as FolderTreeNodeType } from '@vt/graph-model/pure/folders/types'
-import { toAbsolutePath } from '@vt/graph-model/pure/folders/types'
+import type { FolderTreeNode as FolderTreeNodeType } from '@vt/graph-model/folders'
+import { toAbsolutePath } from '@vt/graph-model/folders'
 
 // Mock the electron.d.ts side-effect import
 vi.mock('@/shell/electron.d.ts', () => ({}))

@@ -1,16 +1,16 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/pure/graph'
-import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@vt/graph-model/pure/graph'
-import {getNodeTitle, parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing'
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
+import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
+import {getNodeTitle, parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {getGraph} from '../state/graph-store'
 import {loadSettings} from '../settings/settings_IO'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
-import {type VTSettings} from '@vt/graph-model/pure/settings/types'
-import {calculateInitialPositionForChild} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import {type VTSettings} from '@vt/graph-model/settings'
+import {calculateInitialPositionForChild} from '@vt/graph-model/spatial'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
-import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
+import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import {getCallbacks} from '@vt/graph-model'
 import { resolveContextWritePath } from './contextWritePath'
 

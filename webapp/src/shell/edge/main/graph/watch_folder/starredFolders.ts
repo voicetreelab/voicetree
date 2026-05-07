@@ -4,9 +4,9 @@ import { getNode } from '@/shell/edge/main/state/graph-store'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
 import { getVaultPaths, getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
-import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
-import type { GraphNode } from '@vt/graph-model/pure/graph'
-import type { VTSettings } from '@vt/graph-model/pure/settings/types'
+import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown'
+import type { GraphNode } from '@vt/graph-model/graph'
+import type { VTSettings } from '@vt/graph-model/settings'
 import * as O from 'fp-ts/lib/Option.js'
 
 function slugify(text: string): string {

@@ -22,19 +22,19 @@ import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store';
 import { loadSettings } from '@vt/graph-db-server/settings/settings_IO';
 import { createTerminalData, getTerminalId, type TerminalId } from '../types';
-import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/pure/graph';
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph';
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
-import { findFirstParentNode } from '@vt/graph-model/pure/graph/graph-operations/findFirstParentNode';
-import type { VTSettings } from '@vt/graph-model/pure/settings';
-import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph-model/pure/settings/types';
+import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/graph';
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph';
+import { getNodeTitle } from '@vt/graph-model/markdown';
+import { findFirstParentNode } from '@vt/graph-model/graph';
+import type { VTSettings } from '@vt/graph-model/settings';
+import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph-model/settings';
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../terminals/terminal-registry';
 import { setTerminalBudget } from '../terminals/global-budget-registry';
 import type {TerminalData} from '../types';
 import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager';
-import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent';
+import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/graph';
 import {broadcastGraphDeltaToUI} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {getRuntimeUI} from '../runtime-config';
 

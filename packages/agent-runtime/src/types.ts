@@ -1,6 +1,6 @@
 import type { Option } from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { TerminalLifecycle } from './lifecycle/types';
 
 export type TerminalId = string & { readonly __brand: 'TerminalId' };

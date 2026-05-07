@@ -6,7 +6,7 @@ import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderSca
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
+import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 

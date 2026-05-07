@@ -27,7 +27,7 @@ import {
     addOrUpdateSyntheticEdge,
     toggleFolderCollapse,
 } from '@/shell/edge/UI-edge/graph/folderCollapse'
-import { findCollapsedAncestor } from '@vt/graph-model/pure/graph/folderCollapse'
+import { findCollapsedAncestor } from '@vt/graph-model/graph'
 import { getFolderTreeState } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 // Wraps pure findCollapsedAncestor with store state (replaces deleted shell function)

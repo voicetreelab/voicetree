@@ -1,5 +1,5 @@
 import type {NodeDefinition} from "cytoscape";
-import type {Graph, GraphNode, GraphDelta} from "@vt/graph-model/pure/graph";
+import type {Graph, GraphNode, GraphDelta} from "@vt/graph-model/graph";
 import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
 import {getTerminalRecords} from '@vt/agent-runtime';
 import {postDeltaThroughDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';

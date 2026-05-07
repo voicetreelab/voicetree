@@ -1,6 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { describe, expect, it } from 'vitest'
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { State } from '@vt/graph-state'
 
 import {

@@ -1,4 +1,4 @@
-import type { Graph } from '@vt/graph-model/pure/graph'
+import type { Graph } from '@vt/graph-model/graph'
 import { savePositionsSync } from './positions-store'
 
 /**

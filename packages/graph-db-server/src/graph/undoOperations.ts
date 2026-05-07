@@ -2,7 +2,7 @@ import { popUndoDelta, popRedoDelta } from '../state/undo-store'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "./applyGraphDelta";
-import type { GraphDelta } from '@vt/graph-model/pure/graph';
+import type { GraphDelta } from '@vt/graph-model/graph';
 
 /**
  * Performs undo operation by reversing the last user action.

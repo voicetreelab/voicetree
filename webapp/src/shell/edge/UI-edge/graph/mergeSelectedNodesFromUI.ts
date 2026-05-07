@@ -1,6 +1,6 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {Graph, GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
-import {computeMergeGraphDelta} from "@vt/graph-model/pure/graph/graph-operations/merge/computeMergeGraphDelta";
+import {computeMergeGraphDelta} from "@vt/graph-model/graph";
 import * as O from 'fp-ts/lib/Option.js';
 
 // Import ElectronAPI type for window.electronAPI access

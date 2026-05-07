@@ -9,11 +9,11 @@ import { promises as fs } from 'fs';
 import type { Stats, Dirent } from 'fs';
 import path from 'path';
 import normalizePath from 'normalize-path';
-import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model/pure/folders/types';
-import { toAbsolutePath } from '@vt/graph-model/pure/folders/types';
-import type { DirectoryEntry } from '@vt/graph-model/pure/folders/transforms';
-import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/pure/folders/transforms';
-import type { ParsedQuery } from '@vt/graph-model/pure/folders/transforms';
+import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model/folders';
+import { toAbsolutePath } from '@vt/graph-model/folders';
+import type { DirectoryEntry } from '@vt/graph-model/folders';
+import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/folders';
+import type { ParsedQuery } from '@vt/graph-model/folders';
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store';
 import { getVaultPaths } from './vault-allowlist';
 

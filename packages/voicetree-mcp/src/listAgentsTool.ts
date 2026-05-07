@@ -4,11 +4,11 @@
  * plus available agent types from settings for discovery.
  */
 
-import type {Graph} from '@vt/graph-model/pure/graph'
+import type {Graph} from '@vt/graph-model/graph'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentNodes} from './agentNodeIndex'

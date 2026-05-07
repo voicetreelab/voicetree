@@ -18,7 +18,7 @@
  * (no rAF in Node).
  */
 
-import type { NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
 import type { Delta, StateLayout, Unsubscribe } from '../contract'
 

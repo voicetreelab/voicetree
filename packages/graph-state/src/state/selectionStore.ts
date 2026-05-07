@@ -1,4 +1,4 @@
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 
 import { applyCommandWithDelta, emptyState } from '../applyCommand'
 import type { Unsubscribe } from '../contract'

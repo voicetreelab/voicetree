@@ -4,14 +4,14 @@ import * as path from 'path'
 import normalizePath from 'normalize-path'
 import * as E from "fp-ts/lib/Either.js";
 import * as O from "fp-ts/lib/Option.js";
-import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
-import { createEmptyGraph, isImageNode } from '@vt/graph-model/pure/graph'
+import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@vt/graph-model/graph'
+import { createEmptyGraph, isImageNode } from '@vt/graph-model/graph'
 import type { Dirent } from 'fs'
 import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce'
-import { applyPositions, rebaseNewClusterPositions } from '@vt/graph-model/pure/graph/positioning'
-import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
-import { linkMatchScore } from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
+import { applyPositions, rebaseNewClusterPositions } from '@vt/graph-model/spatial'
+import { addNodeToGraphWithEdgeHealingFromFSEvent } from '@vt/graph-model/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
+import { linkMatchScore } from '@vt/graph-model/markdown'
 import { findFileByName } from './findFileByName'
 
 /**
