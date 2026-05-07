@@ -1,8 +1,9 @@
 import path from 'node:path'
+import {GraphDbClient, readPortFile, type ViewResponse} from '@vt/graph-db-client'
 import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node'
-import {error} from '../../output.ts'
-import {handleCliError} from '../../util/exitCodes.ts'
-import {withDaemonGraphSnapshot} from './snapshot.ts'
+import {error} from '@/shell/edge/main/cli/output.ts'
+import {handleCliError} from '@/shell/edge/main/cli/util/exitCodes.ts'
+import {resolveGraphVault} from './snapshot.ts'
 
 export async function graphView(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     void port
@@ -13,6 +14,7 @@ export async function graphView(port: number, terminalId: string | undefined, ar
     let showCrossEdges: boolean = true
     const collapsedFolders: string[] = []
     const selectedIds: string[] = []
+    const expandIds: string[] = []
     let autoExplicit: boolean | undefined
     let explicitRender: boolean = false
     let budget: number = 30
@@ -37,6 +39,17 @@ export async function graphView(port: number, terminalId: string | undefined, ar
             if (!Number.isInteger(parsed) || parsed < 1) error('--budget requires a positive integer')
             budget = parsed
             budgetExplicit = true
+            continue
+        }
+        if (arg === '--expand') {
+            const next: string | undefined = args[i + 1]
+            if (!next || next.startsWith('--')) error('--expand requires a folder id argument')
+            expandIds.push(next)
+            i += 1
+            continue
+        }
+        if (arg.startsWith('--expand=')) {
+            expandIds.push(arg.slice('--expand='.length))
             continue
         }
         if (arg === '--mermaid') { format = 'mermaid'; explicitRender = true; continue }
@@ -81,35 +94,51 @@ export async function graphView(port: number, terminalId: string | undefined, ar
     }
 
     const autoMode: boolean = autoExplicit ?? !explicitRender
-    const resolvedFolderPath: string = folderPath ?? process.cwd()
+    const resolvedFolderPath: string = path.resolve(folderPath ?? process.cwd())
 
     try {
-        await withDaemonGraphSnapshot(path.resolve(resolvedFolderPath), (snapshotRoot: string): void => {
-            if (autoMode) {
-                if (explicitRender) {
-                    error('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
-                }
-                const {output: out} = renderAutoView(snapshotRoot, {budget})
-                console.log(out)
-                return
+        if (autoMode) {
+            if (explicitRender) {
+                error('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
             }
+            const output: string = await viewViaDaemon(resolvedFolderPath, budget, expandIds)
+            console.log(output)
+            return
+        }
 
-            if (budgetExplicit) {
-                error('--budget can only be used with the default auto view or --auto')
-            }
+        if (budgetExplicit) {
+            error('--budget can only be used with the default auto view or --auto')
+        }
 
-            const result: ReturnType<typeof renderGraphView> = renderGraphView(snapshotRoot, {
-                format,
-                showCrossEdges,
-                collapsedFolders,
-                selectedIds,
-            })
-            console.log(result.output)
-            if (format === 'ascii') {
-                console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
-            }
+        const result: ReturnType<typeof renderGraphView> = renderGraphView(resolvedFolderPath, {
+            format,
+            showCrossEdges,
+            collapsedFolders,
+            selectedIds,
         })
+        console.log(result.output)
+        if (format === 'ascii') {
+            console.log(`\n${result.nodeCount} nodes — ${result.folderNodeCount} folder nodes, ${result.virtualFolderCount} virtual folders, ${result.fileNodeCount} files`)
+        }
     } catch (toolError: unknown) {
         handleCliError(toolError)
     }
+}
+
+async function viewViaDaemon(folderPath: string, budget: number, expandIds: string[]): Promise<string> {
+    const vault: string = resolveGraphVault(folderPath)
+    const daemonPort: number | null = await readPortFile(vault)
+
+    if (daemonPort !== null) {
+        try {
+            const client: GraphDbClient = new GraphDbClient({baseUrl: `http://127.0.0.1:${daemonPort}`})
+            const response: ViewResponse = await client.getView('cli', {budget, expand: expandIds})
+            return response.output
+        } catch {
+            // Daemon unreachable or endpoint error — fall through to local rendering
+        }
+    }
+
+    const {output} = renderAutoView(folderPath, {budget})
+    return output
 }

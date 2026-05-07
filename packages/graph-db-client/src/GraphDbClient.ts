@@ -13,6 +13,7 @@ import {
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
   VaultStateSchema,
+  ViewResponseSchema,
   type GraphState,
   type HealthResponse,
   type LayoutPartial,
@@ -23,6 +24,7 @@ import {
   type SessionInfo,
   type ShutdownResponse,
   type VaultState,
+  type ViewResponse,
   type CollapseStateResponse,
 } from '@vt/graph-db-server/contract'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
@@ -267,6 +269,21 @@ export class GraphDbClient {
         method: 'PUT',
         responseSchema: LayoutResponseSchema,
       },
+    )
+  }
+
+  async getView(
+    sessionId: string,
+    opts?: { budget?: number; expand?: string[] },
+  ): Promise<ViewResponse> {
+    const params = new URLSearchParams()
+    if (opts?.budget !== undefined) params.set('budget', String(opts.budget))
+    for (const id of opts?.expand ?? []) params.append('expand', id)
+    const query = params.toString()
+    const suffix = query ? `?${query}` : ''
+    return await this.request(
+      `/sessions/${encodeURIComponent(sessionId)}/view${suffix}`,
+      { responseSchema: ViewResponseSchema },
     )
   }
 

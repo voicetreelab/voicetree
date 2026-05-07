@@ -29,6 +29,7 @@ export {
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
   VaultStateSchema,
+  ViewResponseSchema,
   type AddReadPathRequest,
   type CollapseStateResponse,
   type GraphState,
@@ -44,4 +45,5 @@ export {
   type SetWritePathRequest,
   type ShutdownResponse,
   type VaultState,
+  type ViewResponse,
 } from '@vt/graph-db-server/contract'
