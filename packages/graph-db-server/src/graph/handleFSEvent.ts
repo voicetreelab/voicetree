@@ -1,75 +1,15 @@
-import {access} from 'node:fs/promises'
-import path from 'node:path'
 import * as O from 'fp-ts/lib/Option.js'
 import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/pure/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/pure/graph';
-import {markdownToTitle} from '@vt/graph-model/pure/graph/markdown-parsing/markdown-to-title'
 import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
 import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
-import {getVaultPaths} from '../watch-folder/vault-allowlist'
 import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
 import {publish} from "../events/deltaEventBus";
-
-const SEARCH_INDEX_PATH_SEGMENTS = ['.vt-search', 'kg.db'] as const
-
-function isMarkdownSearchCandidate(filePath: string): boolean {
-    return filePath.endsWith('.md')
-}
-
-function isPathInsideDirectory(candidatePath: string, directoryPath: string): boolean {
-    const relativePath: string = path.relative(directoryPath, candidatePath)
-    return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
-}
-
-async function resolveOwningVaultPath(filePath: string): Promise<string | undefined> {
-    const vaultPaths: readonly string[] = await getVaultPaths()
-    const matchingVaultPaths: readonly string[] = vaultPaths
-        .filter((vaultPath: string) => isPathInsideDirectory(filePath, vaultPath))
-        .sort((left: string, right: string) => right.length - left.length)
-
-    return matchingVaultPaths[0]
-}
-
-async function searchIndexExists(vaultPath: string): Promise<boolean> {
-    const indexPath: string = path.join(vaultPath, ...SEARCH_INDEX_PATH_SEGMENTS)
-
-    try {
-        await access(indexPath)
-        return true
-    } catch {
-        return false
-    }
-}
-
-async function updateSearchIndexForFSEvent(fsEvent: FSEvent): Promise<void> {
-    if (!isMarkdownSearchCandidate(fsEvent.absolutePath)) {
-        return
-    }
-
-    const vaultPath: string | undefined = await resolveOwningVaultPath(fsEvent.absolutePath)
-    if (!vaultPath || !(await searchIndexExists(vaultPath))) {
-        return
-    }
-
-    if ('type' in fsEvent && fsEvent.type === 'Delete') {
-        const { deleteNode } = await import('../search/index-backend')
-        await deleteNode(vaultPath, fsEvent.absolutePath)
-        return
-    }
-
-    if (!('content' in fsEvent)) {
-        return
-    }
-
-    const { upsertNode } = await import('../search/index-backend')
-    const title: string = markdownToTitle(fsEvent.content, fsEvent.absolutePath)
-    await upsertNode(vaultPath, fsEvent.absolutePath, fsEvent.content, title)
-}
 
 /**
  * Handle filesystem events by:
@@ -106,21 +46,16 @@ export function handleFSEventWithStateAndUISides(
 
     // 4. Apply delta to memory state and resolve any new wikilinks
     // Uses void since this is fire-and-forget from FS event handler
-    void applyAndBroadcast(delta, fsEvent)
+    void applyAndBroadcast(delta)
 }
 
 /**
  * Apply delta to memory, broadcast to UI, and handle editor updates.
  * Extracted to allow async/await while keeping the main handler sync.
  */
-async function applyAndBroadcast(delta: GraphDelta, fsEvent: FSEvent): Promise<void> {
-    const searchIndexUpdate: Promise<void> = updateSearchIndexForFSEvent(fsEvent).catch((error: unknown) => {
-        console.error('[handleFSEvent] Failed to update search index:', fsEvent.absolutePath, error)
-    })
-
+async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     // Apply to memory and resolve any new wikilinks (returns merged delta)
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
-    await searchIndexUpdate
 
     // Broadcast merged delta (includes resolved links) to UI
     broadcastGraphDeltaToUI(mergedDelta)
