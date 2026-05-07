@@ -3,9 +3,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
-import type { GraphDelta, GraphNode } from '@vt/graph-model/graph'
+import type { GraphNode } from '@vt/graph-model/graph'
 import {
-    addCollapsedFolderLocally,
     getFolderTreeState,
     removeCollapsedFolderLocally,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'

@@ -58,7 +58,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const delta1 = [upsert(parent), upsert(child)]
+            const delta1: ReturnType<typeof upsert>[] = [upsert(parent), upsert(child)]
             applyDeltaToUI(cy, delta1)
             applyDeltaToUI(cy, delta1)
 

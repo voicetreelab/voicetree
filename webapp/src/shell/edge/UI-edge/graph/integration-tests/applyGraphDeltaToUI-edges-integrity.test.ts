@@ -83,7 +83,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         })
 
         it('should handle edge lifecycle: creation after target exists, persistence on update, removal on link delete', () => {
-            const makeNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({
+            const makeNode: (id: string, edges?: Array<{ targetId: string, label: string }>) => GraphNode = (id, edges = []) => ({
                 absoluteFilePathIsID: id,
                 contentWithoutYamlOrLinks: `# ${id}`,
                 outgoingEdges: edges,
