@@ -60,10 +60,10 @@ ensureCleanLint()
 
 seedViolationAndExpectFailure({
   label: 'pure-package import rule',
-  filePath: path.join(repoRoot, 'packages/graph-model/src/SEED_VIOLATION.ts'),
+  filePath: path.join(repoRoot, 'packages/libraries/graph-model/src/SEED_VIOLATION.ts'),
   content: 'import cytoscape from "cytoscape";\n',
   expectedSnippets: [
-    'packages/graph-model/src/SEED_VIOLATION.ts',
+    'packages/libraries/graph-model/src/SEED_VIOLATION.ts',
     'no-restricted-imports',
     'Cytoscape must stay out of @vt/graph-model and @vt/graph-tools.',
   ],

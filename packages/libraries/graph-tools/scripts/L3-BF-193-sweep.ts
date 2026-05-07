@@ -49,10 +49,10 @@ type SweepRow = {
 type MermaidNode = {readonly key: string; readonly line: number}
 
 const SCRIPT_DIR: string = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = path.resolve(SCRIPT_DIR, '../../..')
+const REPO_ROOT: string = path.resolve(SCRIPT_DIR, '../../../..')
 const VT_GRAPH_BIN: string = path.join(REPO_ROOT, 'node_modules/.bin/vt-graph')
-const CSV_OUT: string = path.join(REPO_ROOT, 'packages/graph-tools/scripts/L3-BF-193-sweep-results.csv')
-const TREE_COVER_SCRIPT: string = path.join(REPO_ROOT, 'packages/graph-tools/scripts/L3-BF-192-tree-cover-render.ts')
+const CSV_OUT: string = path.join(REPO_ROOT, 'packages/libraries/graph-tools/scripts/L3-BF-193-sweep-results.csv')
+const TREE_COVER_SCRIPT: string = path.join(REPO_ROOT, 'packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-render.ts')
 
 function toAbsoluteRoot(root: string): string {
     return path.isAbsolute(root) ? root : path.join(REPO_ROOT, root)

@@ -12,7 +12,7 @@
  *   — lossless pass/fail
  *
  * Run:
- *   npx tsx packages/graph-tools/scripts/L3-BF-192-tree-cover-parse.ts /tmp/wm-tree-cover.txt /tmp/wm-state.json [<vault-root>]
+ *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-parse.ts /tmp/wm-tree-cover.txt /tmp/wm-state.json [<vault-root>]
  */
 
 import * as fs from 'node:fs'

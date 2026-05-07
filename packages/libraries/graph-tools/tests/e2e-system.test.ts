@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
-const repoRoot = path.resolve(import.meta.dirname, '../../..')
+const repoRoot = path.resolve(import.meta.dirname, '../../../..')
 const HEADLESS_START_TIMEOUT_MS = 15_000
 const SYSTEM_CONTRACT_TIMEOUT_MS = 30_000
 
 function runCli(args: readonly string[]) {
   return spawnSync(
     process.execPath,
-    ['--import', 'tsx', 'packages/graph-tools/bin/vt-graph.ts', ...args],
+    ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-graph.ts', ...args],
     {
       cwd: repoRoot,
       encoding: 'utf8',
@@ -37,7 +37,7 @@ async function startHeadless(vault: string): Promise<{
     [
       '--import',
       'tsx',
-      'packages/graph-tools/bin/vt-headless.ts',
+      'packages/libraries/graph-tools/bin/vt-headless.ts',
       'serve',
       '--port',
       '0',

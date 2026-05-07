@@ -6,12 +6,12 @@ import {fileURLToPath} from 'node:url'
 import {afterEach, describe, expect, it} from 'vitest'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot: string = path.resolve(testDir, '../../..')
+const repoRoot: string = path.resolve(testDir, '../../../..')
 
 function runStateDumpCli(args: readonly string[]): string {
     return execFileSync(
         process.execPath,
-        ['--import', 'tsx', 'packages/graph-tools/bin/vt-graph.ts', 'state', 'dump', ...args],
+        ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-graph.ts', 'state', 'dump', ...args],
         {
             cwd: repoRoot,
             encoding: 'utf8',

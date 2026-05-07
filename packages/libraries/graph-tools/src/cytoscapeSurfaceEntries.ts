@@ -221,7 +221,7 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
         surface: 'loaded-roots',
         label: 'Persisted writePath/readPaths vault config',
         primary: {
-            relativePath: 'packages/graph-model/src/watch-folder/vault-allowlist.ts',
+            relativePath: 'packages/libraries/graph-model/src/watch-folder/vault-allowlist.ts',
             contains: 'export async function getVaultPaths(): Promise<readonly FilePath[]> {',
         },
         owner: '@vt/graph-model watch-folder config file',
@@ -229,7 +229,7 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
             {
                 description: 'broadcast pushes the persisted vault state into the renderer mirror',
                 ref: {
-                    relativePath: 'packages/graph-model/src/watch-folder/broadcast-vault-state.ts',
+                    relativePath: 'packages/libraries/graph-model/src/watch-folder/broadcast-vault-state.ts',
                     contains: 'getCallbacks().syncVaultState?.({ readPaths, writePath, starredFolders });',
                 },
             },

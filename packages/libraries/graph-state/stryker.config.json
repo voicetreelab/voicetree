@@ -20,7 +20,7 @@
   "timeoutMS": 60000,
   "reporters": ["clear-text", "json"],
   "jsonReporter": {
-    "fileName": "../../stryker-graph-state.json"
+    "fileName": "../../../stryker-graph-state.json"
   },
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": "always",

@@ -7,7 +7,7 @@ import {
 } from '../src/cytoscapeCouplingAudit'
 
 const scriptDir: string = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot: string = path.resolve(scriptDir, '../../..')
+const repoRoot: string = path.resolve(scriptDir, '../../../..')
 const shouldWriteCatalogue: boolean = process.argv.includes('--write-catalogue')
 
 const report = runCytoscapeCouplingAudit(repoRoot)

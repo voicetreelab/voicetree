@@ -9,7 +9,7 @@ import { resolveDebugInstance, type LaunchedChild, type ResolveDebugInstanceDeps
 import { parseArgs as parseScreenshotArgs } from '../src/commands/screenshot'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(testDir, '../../..')
+const repoRoot = path.resolve(testDir, '../../../..')
 
 function buildInstance(overrides: Partial<DebugInstance> = {}): DebugInstance {
   return {
@@ -130,7 +130,7 @@ describe('vt-debug CLI surface', () => {
   it('documents shared --port usage and auto-launch in --help output', () => {
     const stdout = execFileSync(
       process.execPath,
-      ['--import', 'tsx', 'packages/graph-tools/bin/vt-debug.ts', '--help'],
+      ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-debug.ts', '--help'],
       {
         cwd: repoRoot,
         encoding: 'utf8',

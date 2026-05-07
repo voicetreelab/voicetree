@@ -20,8 +20,8 @@ const sharedExclude = [
 export default defineConfig({
   resolve: {
     alias: [
-      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, 'packages/graph-model/src/index.ts') },
-      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, 'packages/graph-model/src/$1') },
+      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, 'packages/libraries/graph-model/src/index.ts') },
+      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, 'packages/libraries/graph-model/src/$1') },
       { find: /^@root(?=\/)/, replacement: path.resolve(__dirname, 'webapp') },
       { find: /^@(?=\/)/, replacement: path.resolve(__dirname, 'webapp/src') },
     ],

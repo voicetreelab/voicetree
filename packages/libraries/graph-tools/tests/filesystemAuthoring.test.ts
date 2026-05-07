@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs'
 import path from 'node:path'
 import {describe, expect, it} from 'vitest'
 import * as graphTools from '../src/node'
-import {buildMarkdownBody as legacyBuildMarkdownBody} from '../../voicetree-mcp/src/addProgressNodeTool'
+import {buildMarkdownBody as legacyBuildMarkdownBody} from '../../../systems/voicetree-mcp/src/addProgressNodeTool'
 
 type BuildMarkdownBodyParams = {
     readonly title: string

@@ -2,7 +2,8 @@
   "private": true,
   "workspaces": [
     "webapp",
-    "packages/*"
+    "packages/libraries/*",
+    "packages/systems/*"
   ],
   "scripts": {
     "test": "npm --workspace webapp run test",
@@ -10,7 +11,7 @@
     "check:circular-deps": "node scripts/check-circular-deps.mjs",
     "check:coupling": "node scripts/check-coupling.mjs",
     "check:e2e-taxonomy": "npm --workspace webapp run check:e2e-taxonomy",
-    "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
+    "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/libraries/graph-model/**/*.{ts,tsx}\" \"packages/libraries/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
     "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs",
     "lint:blackbox-tests": "bash scripts/lint-blackbox-tests.sh",
     "test:e2e:tier1": "npm --workspace webapp run test:e2e:tier1",

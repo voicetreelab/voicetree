@@ -35,6 +35,7 @@ import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
+    type OverrideEntry,
     ALL_RULES,
     runValidations,
     resolveOverrides,

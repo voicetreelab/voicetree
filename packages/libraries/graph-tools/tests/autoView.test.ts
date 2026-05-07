@@ -22,12 +22,12 @@ import {
 } from '../scripts/L3-BF-192-tree-cover-render'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot: string = path.resolve(testDir, '../../..')
+const repoRoot: string = path.resolve(testDir, '../../../..')
 
 function runViewCli(args: readonly string[]): string {
     return execFileSync(
         process.execPath,
-        ['--import', 'tsx', 'packages/graph-tools/bin/vt-graph.ts', 'structure', ...args],
+        ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-graph.ts', 'structure', ...args],
         {
             cwd: repoRoot,
             encoding: 'utf8',

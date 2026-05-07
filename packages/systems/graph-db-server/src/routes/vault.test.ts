@@ -192,7 +192,7 @@ describe('vault routes', () => {
 
   test('daemon routes keep the same vault mutation surface as the IPC API', async () => {
     const apiSource = await readFile(
-      new URL('../../../../webapp/src/shell/edge/main/api.ts', import.meta.url),
+      new URL('../../../../../webapp/src/shell/edge/main/api.ts', import.meta.url),
       'utf8',
     )
 

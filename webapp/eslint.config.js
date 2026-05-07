@@ -33,7 +33,7 @@ function normalizeFilePath(filename) {
 }
 
 function isDaemonPackageFile(filename) {
-  return /(^|\/)packages\/graph-db-server\//.test(normalizeFilePath(filename))
+  return /(^|\/)packages\/systems\/graph-db-server\//.test(normalizeFilePath(filename))
 }
 
 function hasDaemonMutationAllowComment(sourceCode) {
@@ -71,7 +71,7 @@ const daemonBoundaryLintPlugin = {
         schema: [],
         messages: {
           forbidden:
-            '{{name}} is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
+            '{{name}} is daemon-owned. Route it through packages/systems/graph-db-server or a daemon/session-backed main API path.',
         },
       },
       create(context) {
@@ -209,7 +209,7 @@ export default tseslint.config([
   },
   {
     basePath: repoRootDir,
-    files: ['packages/graph-model/**/*.{ts,tsx}', 'packages/graph-tools/**/*.{ts,tsx}'],
+    files: ['packages/libraries/graph-model/**/*.{ts,tsx}', 'packages/libraries/graph-tools/**/*.{ts,tsx}'],
     plugins: {
       '@typescript-eslint': tseslint.plugin,
       functional

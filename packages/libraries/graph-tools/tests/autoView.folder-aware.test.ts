@@ -5,8 +5,8 @@ import {findCollapseBoundary} from '../src/collapseBoundary'
 import {buildAutoViewGraph, buildPinnedClusters, renderAutoView} from '../src/autoView'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot: string = path.resolve(testDir, '../../..')
-const fixturePath: string = path.join(repoRoot, 'packages/graph-tools/fixtures/folder-aware-fixture')
+const repoRoot: string = path.resolve(testDir, '../../../..')
+const fixturePath: string = path.join(repoRoot, 'packages/libraries/graph-tools/fixtures/folder-aware-fixture')
 
 afterEach(() => {
     vi.restoreAllMocks()

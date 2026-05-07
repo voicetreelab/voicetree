@@ -351,7 +351,7 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
             void runIdleStopGateAudit(tid, rec)
 
             // Unseen nodes notification (optional, settings-gated)
-            void loadSettings().then((settings: import('@vt/graph-model/pure/settings/types').VTSettings) => {
+            void loadSettings().then((settings: import('@vt/graph-model/settings').VTSettings) => {
                 if (settings.autoNotifyUnseenNodes) {
                     void notifyAgentOfUnseenNodes(tid, rec)
                 }

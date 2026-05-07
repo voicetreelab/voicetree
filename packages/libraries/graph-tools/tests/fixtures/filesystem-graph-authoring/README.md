@@ -38,7 +38,7 @@ Relationship fixtures use manifest files so tests can prove that structure is de
 
 ## Intended Consumers
 
-- `packages/graph-tools/tests/**`
+- `packages/libraries/graph-tools/tests/**`
 - `webapp/src/shell/edge/main/cli/**`
 - later validation, fix, and QA phases for filesystem-native authoring
 

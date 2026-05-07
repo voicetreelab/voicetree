@@ -18,7 +18,7 @@ import {
 import {saveVaultConfigForDirectory} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 // eslint-disable-next-line no-restricted-imports
-import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
+import {type DaemonHandle, startDaemon} from '../../../../../../../packages/systems/graph-db-server/src/server.ts'
 import {main} from '@/shell/edge/main/cli/voicetree-cli.ts'
 
 class ExitCalled extends Error {

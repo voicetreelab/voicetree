@@ -11,7 +11,7 @@ import {
 async function main(): Promise<void> {
     const sourceVaultPath = process.argv[2]
     if (!sourceVaultPath) {
-        throw new Error('Usage: npx tsx packages/graph-state/scripts/fixture-vault-roundtrip.ts <vault-path>')
+        throw new Error('Usage: npx tsx packages/libraries/graph-state/scripts/fixture-vault-roundtrip.ts <vault-path>')
     }
 
     const expected = readSnapshotDocument(REAL_VAULT_FIXTURE_ID)

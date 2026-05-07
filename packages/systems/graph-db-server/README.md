@@ -25,7 +25,7 @@ The filesystem is still the durable source of truth. `vt-graphd` is the live own
 From this repo checkout, run the bin directly:
 
 ```bash
-node --import tsx packages/graph-db-server/bin/vt-graphd.ts --vault /abs/path/to/vault
+node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --vault /abs/path/to/vault
 ```
 
 Useful flags:
@@ -36,7 +36,7 @@ Useful flags:
 Help:
 
 ```bash
-node --import tsx packages/graph-db-server/bin/vt-graphd.ts --help
+node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --help
 ```
 
 Example startup line:
@@ -107,7 +107,7 @@ node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts vault show --v
 These are the commands worth running when checking the daemon path manually:
 
 ```bash
-node --import tsx packages/graph-db-server/bin/vt-graphd.ts --help
+node --import tsx packages/systems/graph-db-server/bin/vt-graphd.ts --help
 node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts vault show --vault /abs/path/to/vault --json
 node --import tsx webapp/src/shell/edge/main/cli/voicetree-cli.ts session create --vault /abs/path/to/vault --json
 ```
@@ -116,10 +116,10 @@ If you use the CLI commands above, they will auto-launch the daemon when needed.
 
 ## Related Files
 
-- `packages/graph-db-server/src/server.ts`
-- `packages/graph-db-server/src/daemonApp.ts`
-- `packages/graph-db-server/src/contract.ts`
-- `packages/graph-db-client/src/GraphDbClient.ts`
+- `packages/systems/graph-db-server/src/server.ts`
+- `packages/systems/graph-db-server/src/daemonApp.ts`
+- `packages/systems/graph-db-server/src/contract.ts`
+- `packages/systems/graph-db-client/src/GraphDbClient.ts`
 - `webapp/src/shell/edge/main/cli/commands/vault.ts`
 - `webapp/src/shell/edge/main/cli/commands/session.ts`
 - `webapp/src/shell/edge/main/cli/commands/view.ts`

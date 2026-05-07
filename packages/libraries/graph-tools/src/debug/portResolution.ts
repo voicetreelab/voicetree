@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import { listLiveInstances, pickInstance, type DebugInstance, type PickOpts, type PickResult } from './discover'
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../')
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..')
 const AUTO_LAUNCH_TIMEOUT_MS = 30_000
 const AUTO_LAUNCH_POLL_MS = 250
 

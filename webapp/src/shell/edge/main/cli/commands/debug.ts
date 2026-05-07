@@ -22,7 +22,7 @@ function findRepoRoot(): string {
         }
         dir = path.dirname(dir)
     }
-    throw new Error('Cannot find repo root (looked for packages/graph-tools/bin/vt-debug.ts)')
+    throw new Error('Cannot find repo root (looked for packages/libraries/graph-tools/bin/vt-debug.ts)')
 }
 
 export async function runDebugCommand(args: string[]): Promise<void> {

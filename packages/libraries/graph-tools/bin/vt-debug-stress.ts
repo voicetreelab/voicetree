@@ -40,7 +40,7 @@ const DEFAULT_DIVERGENCE_BASELINE = path.resolve(
 const DEFAULT_FLOW_BASELINE = path.resolve(SCRIPT_DIR, '../fixtures/int1-baseline.json')
 const VT_DEBUG_BIN = path.resolve(SCRIPT_DIR, './vt-debug.ts')
 const VT_DEBUG_FLOWS_BIN = path.resolve(SCRIPT_DIR, './vt-debug-flows.ts')
-const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..')
+const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../../..')
 
 type RunnerOptions = {
   outDir: string

@@ -12,7 +12,7 @@
  * Run:
  *   ./node_modules/.bin/vt-graph state dump <root> --no-pretty --out /tmp/state.json
  *   ./node_modules/.bin/vt-graph view <root> > /tmp/ascii.txt
- *   npx tsx packages/graph-tools/scripts/L3-BF-191-ascii-parser.ts /tmp/ascii.txt /tmp/state.json
+ *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-191-ascii-parser.ts /tmp/ascii.txt /tmp/state.json
  */
 
 import * as fs from 'node:fs'

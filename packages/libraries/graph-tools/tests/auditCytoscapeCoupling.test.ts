@@ -5,12 +5,12 @@ import {fileURLToPath} from 'url'
 import {describe, expect, it} from 'vitest'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot: string = path.resolve(testDir, '../../..')
+const repoRoot: string = path.resolve(testDir, '../../../..')
 const cataloguePath: string = path.join(
     repoRoot,
     'brain/working-memory/tasks/cytoscape-ui-decoupling/coupling-catalogue.md',
 )
-const seedFilePath: string = path.join(repoRoot, 'packages/graph-model/src/__audit_seed__.ts')
+const seedFilePath: string = path.join(repoRoot, 'packages/libraries/graph-model/src/__audit_seed__.ts')
 const REQUIRED_COUPLING_SURFACES: readonly string[] = [
     'collapseSet',
     'selection',
@@ -25,7 +25,7 @@ const REQUIRED_COUPLING_SURFACES: readonly string[] = [
 function runAuditCli(): string {
     return execFileSync(
         'zsh',
-        ['-lc', 'npx tsx packages/graph-tools/scripts/audit-cytoscape-coupling.ts'],
+        ['-lc', 'npx tsx packages/libraries/graph-tools/scripts/audit-cytoscape-coupling.ts'],
         {
             cwd: repoRoot,
             encoding: 'utf-8',

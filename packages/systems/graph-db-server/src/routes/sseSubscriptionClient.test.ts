@@ -33,6 +33,13 @@ function parseSSEBlock(block: string): SourceTaggedDelta | null {
 
 type ForwardedDelta = { channel: string; data: unknown }
 
+function isAbortError(error: unknown): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'name' in error
+        && error.name === 'AbortError'
+}
+
 async function subscribeAndCollect(
     baseUrl: string,
     sessionId: string,
@@ -48,17 +55,23 @@ async function subscribeAndCollect(
     const decoder = new TextDecoder()
     let buffered = ''
 
-    while (!controller.signal.aborted) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffered += decoder.decode(value, { stream: true })
-        const blocks = buffered.split('\n\n')
-        buffered = blocks.pop() ?? ''
-        for (const block of blocks) {
-            const event = parseSSEBlock(block)
-            if (event) {
-                forwarded.push({ channel: 'graph:stateChanged', data: event.delta })
+    try {
+        while (!controller.signal.aborted) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffered += decoder.decode(value, { stream: true })
+            const blocks = buffered.split('\n\n')
+            buffered = blocks.pop() ?? ''
+            for (const block of blocks) {
+                const event = parseSSEBlock(block)
+                if (event) {
+                    forwarded.push({ channel: 'graph:stateChanged', data: event.delta })
+                }
             }
+        }
+    } catch (error) {
+        if (!(controller.signal.aborted && isAbortError(error))) {
+            throw error
         }
     }
 }

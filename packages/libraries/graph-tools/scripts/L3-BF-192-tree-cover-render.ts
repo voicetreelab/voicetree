@@ -14,7 +14,7 @@
  *
  * Usage:
  *   ./node_modules/.bin/vt-graph state dump <vault> --no-pretty --out /tmp/state.json
- *   npx tsx packages/graph-tools/scripts/L3-BF-192-tree-cover-render.ts /tmp/state.json [<vault-root>] > /tmp/tree-cover.txt
+ *   npx tsx packages/libraries/graph-tools/scripts/L3-BF-192-tree-cover-render.ts /tmp/state.json [<vault-root>] > /tmp/tree-cover.txt
  */
 
 import * as fs from 'node:fs'

@@ -1,4 +1,4 @@
-import {existsSync, readdirSync, writeFileSync} from 'fs'
+import {existsSync, readdirSync, readFileSync, writeFileSync} from 'fs'
 import path from 'path'
 
 import {SURFACE_ENTRY_DEFINITIONS} from './cytoscapeSurfaceEntries'
@@ -31,11 +31,11 @@ const CY_LINE_PATTERN: RegExp = /(^|[^A-Za-z0-9_])(cy|this\.cy)\./
 const CY_SELECTOR_PATTERN: RegExp = /(^|[^A-Za-z0-9_])(cy|this\.cy)\.\$(?:id)?\(/
 const CYTOSCAPE_IMPORT_PATTERN: RegExp = /^\s*import\b.*['"]cytoscape['"]/
 const EXCLUDED_AUDIT_SOURCE_FILES: readonly string[] = [
-    'packages/graph-tools/src/cytoscapeCouplingAudit.ts',
-    'packages/graph-tools/src/cytoscapeAuditSeam.ts',
-    'packages/graph-tools/src/cytoscapeAuditLocationResolver.ts',
-    'packages/graph-tools/src/cytoscapeAuditRenderer.ts',
-    'packages/graph-tools/src/cytoscapeSurfaceEntries.ts',
+    'packages/libraries/graph-tools/src/cytoscapeCouplingAudit.ts',
+    'packages/libraries/graph-tools/src/cytoscapeAuditSeam.ts',
+    'packages/libraries/graph-tools/src/cytoscapeAuditLocationResolver.ts',
+    'packages/libraries/graph-tools/src/cytoscapeAuditRenderer.ts',
+    'packages/libraries/graph-tools/src/cytoscapeSurfaceEntries.ts',
 ] as const
 
 type WorkspaceInfo = {
@@ -121,15 +121,29 @@ function getWorkspaceInfos(repoRoot: string): readonly WorkspaceInfo[] {
     if (!existsSync(packagesDir)) {
         return infos
     }
-    const packageDirs = readdirSync(packagesDir, {withFileTypes: true})
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name)
-        .sort()
-    for (const packageDir of packageDirs) {
-        infos.push({
-            name: `@vt/${packageDir}`,
-            relativeRoot: `packages/${packageDir}`,
-        })
+
+    const workspaceRoots: readonly string[] = [
+        'packages/libraries',
+        'packages/systems',
+        'packages',
+    ]
+    for (const workspaceRoot of workspaceRoots) {
+        const absoluteWorkspaceRoot: string = path.join(repoRoot, workspaceRoot)
+        if (!existsSync(absoluteWorkspaceRoot)) continue
+
+        const packageDirs = readdirSync(absoluteWorkspaceRoot, {withFileTypes: true})
+            .filter(entry => entry.isDirectory())
+            .map(entry => entry.name)
+            .sort()
+        for (const packageDir of packageDirs) {
+            const relativeRoot: string = `${workspaceRoot}/${packageDir}`
+            const manifestPath: string = path.join(repoRoot, relativeRoot, 'package.json')
+            if (!existsSync(manifestPath)) continue
+
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {readonly name?: string}
+            if (typeof manifest.name !== 'string') continue
+            infos.push({name: manifest.name, relativeRoot})
+        }
     }
     return infos
 }
@@ -154,7 +168,7 @@ function getPackageNameForPath(relativePath: string): string {
     if (relativePath.startsWith('webapp/')) {
         return 'webapp'
     }
-    const match: RegExpMatchArray | null = relativePath.match(/^packages\/([^/]+)\//)
+    const match: RegExpMatchArray | null = relativePath.match(/^packages\/(?:libraries|systems)\/([^/]+)\//)
     if (match?.[1]) {
         return `@vt/${match[1]}`
     }

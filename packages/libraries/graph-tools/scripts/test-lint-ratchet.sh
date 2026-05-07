@@ -3,8 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-SEED_FILE="${REPO_ROOT}/packages/graph-model/src/SEED_VIOLATION.ts"
-TARGET_PATH="packages/graph-model/src/SEED_VIOLATION.ts"
+SEED_FILE="${REPO_ROOT}/packages/libraries/graph-model/src/SEED_VIOLATION.ts"
+TARGET_PATH="packages/libraries/graph-model/src/SEED_VIOLATION.ts"
 ESLINT_BIN="${REPO_ROOT}/webapp/node_modules/.bin/eslint"
 ESLINT_CONFIG="${REPO_ROOT}/webapp/eslint.config.js"
 EXPECTED_MESSAGE="Cytoscape must stay out of @vt/graph-model and @vt/graph-tools"

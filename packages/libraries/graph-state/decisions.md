@@ -5,7 +5,7 @@
 ## Context
 
 - North-star: `vt-graph live view --collapse tasks --select BF-117` against a running Electron app returns ASCII that is semantically identical to what the human sees. Both paths go through the same data layer.
-- Parent: `packages/graph-model/` owns pure graph primitives today (Graph, GraphNode, GraphDelta, FolderTreeNode, folderCollapse helpers). We build ON TOP of it — no duplication of Graph types.
+- Parent: `packages/libraries/graph-model/` owns pure graph primitives today (Graph, GraphNode, GraphDelta, FolderTreeNode, folderCollapse helpers). We build ON TOP of it — no duplication of Graph types.
 - F6 aggregation (folder-nodes/design.md decision 3) is a law: project() on a State with a non-empty collapseSet must emit synthetic edges matching `computeSyntheticEdgeSpecs` (@vt/graph-tools/folderCollapse).
 
 ## Decision 0 — Package location: NEW `@vt/graph-state`, not graph-model extension

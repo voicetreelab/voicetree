@@ -39,8 +39,8 @@ export default defineConfig({
   base: "./",
   resolve: {
     alias: [
-      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, "../packages/graph-model/src/index.ts") },
-      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, "../packages/graph-model/src/$1") },
+      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, "../packages/libraries/graph-model/src/index.ts") },
+      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, "../packages/libraries/graph-model/src/$1") },
       { find: /^@root(?=\/)/, replacement: path.resolve(__dirname, ".") },
       { find: /^@(?=\/)/, replacement: path.resolve(__dirname, "./src") },
       // Alias CSS imports from @material to prevent import errors

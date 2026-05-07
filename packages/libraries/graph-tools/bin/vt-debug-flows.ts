@@ -38,7 +38,7 @@ const DEFAULT_FIXTURE_OUT = path.resolve(
 )
 const OBSERVATION_FLAGS = ['--screenshot-each', '--console-each', '--state-each', '--stop-on-error=false']
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..')
+const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../../..')
 const VT_DEBUG_BIN = path.resolve(SCRIPT_DIR, './vt-debug.ts')
 
 type RunnerOptions = {

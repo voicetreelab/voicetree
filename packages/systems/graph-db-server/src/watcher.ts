@@ -17,7 +17,7 @@ function buildWatcherOptions() {
     process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
 
   return {
-    // KEEP IN SYNC WITH packages/graph-model/src/watch-folder/file-watcher-setup.ts
+    // KEEP IN SYNC WITH packages/libraries/graph-model/src/watch-folder/file-watcher-setup.ts
     ignored: [
       (filePath: string, stats?: Stats) => {
         if (stats?.isDirectory()) {

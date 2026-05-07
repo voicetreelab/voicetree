@@ -21,7 +21,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/trivial-consumer-smoke.ts",
-    "test": "node ../../node_modules/vitest/vitest.mjs run",
+    "test": "node ../../../node_modules/vitest/vitest.mjs run",
     "bench": "node --import tsx scripts/project-bench.ts"
   },
   "dependencies": {

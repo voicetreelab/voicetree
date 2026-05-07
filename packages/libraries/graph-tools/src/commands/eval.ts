@@ -159,7 +159,7 @@ async function resolveChromium(): Promise<ChromiumLike> {
     return extractChromium(pw)
   } catch {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    const webappNm = path.resolve(dir, '../../../../webapp/node_modules')
+    const webappNm = path.resolve(dir, '../../../../../webapp/node_modules')
     const pwPath = path.resolve(webappNm, 'playwright-core/index.js')
 
     try {

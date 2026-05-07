@@ -40,10 +40,10 @@ sha256 (see "Native ABI" below).
 Run from the repo root.
 
 ```text
-cd packages/agent-runtime  && npm run typecheck    # own-src clean *
-cd packages/agent-runtime  && npm run test         # 10 files, 152 tests pass
-cd packages/voicetree-mcp  && npm run typecheck    # own-src clean *
-cd packages/voicetree-mcp  && npm run test         #  5 files,  41 tests pass (incl. boundary guard)
+cd packages/systems/agent-runtime  && npm run typecheck    # own-src clean *
+cd packages/systems/agent-runtime  && npm run test         # 10 files, 152 tests pass
+cd packages/systems/voicetree-mcp  && npm run typecheck    # own-src clean *
+cd packages/systems/voicetree-mcp  && npm run test         #  5 files,  41 tests pass (incl. boundary guard)
 cd webapp                  && npx tsc --noEmit     # own-src clean *
 npm run lint:blackbox-tests                         # see "Pre-existing" below
 cd webapp && npx electron-vite build                # exit 0 — fresh dist-electron/{main,preload}/index.js
@@ -67,7 +67,7 @@ cp node_modules/better-sqlite3/build/Release/better_sqlite3.node \
 npm rebuild better-sqlite3 --build-from-source
 
 # 3. Run vt-mcpd against a fixture vault
-npx tsx packages/voicetree-mcp/bin/vt-mcpd.ts \
+npx tsx packages/systems/voicetree-mcp/bin/vt-mcpd.ts \
   --vault /tmp/vt-fixture-d-vault --port 3502 &
 
 # 4. Probe MCP and call a read tool
@@ -108,7 +108,7 @@ Phase E re-ran this on `headless_migration` with port 3502 and confirmed:
   `dist-electron/preload/index.js`.
 - Production-only audit empty:
   `rg "from ['\"]electron['\"]|BrowserWindow|ipcMain|webContents" \
-   packages/agent-runtime/src packages/voicetree-mcp/{src,bin} \
+   packages/systems/agent-runtime/src packages/systems/voicetree-mcp/{src,bin} \
    --glob '!**/*.test.ts' --glob '!**/__tests__/**'`
 
 ## Headless contract: read-via-MCP, write-via-disk-watcher
@@ -131,7 +131,7 @@ Phase E **chose (b)**. Reasoning:
   precedent — they appear unconditionally in `tools/list` and reject with a
   clean MCP error in headless mode rather than being hidden.
 
-A header comment in `packages/voicetree-mcp/bin/vt-mcpd.ts` records this
+A header comment in `packages/systems/voicetree-mcp/bin/vt-mcpd.ts` records this
 contract for future readers.
 
 ## Retained boundary debt (intentional in-process surfaces)

@@ -1,5 +1,5 @@
 // Baseline computed from brain/knowledge/world-model (453 nodes, 117 dirs)
-// using: npx tsx packages/graph-tools/scripts/compute-hygiene-baseline.ts brain/knowledge/world-model
+// using: npx tsx packages/libraries/graph-tools/scripts/compute-hygiene-baseline.ts brain/knowledge/world-model
 //
 // Methodology: compute p95 across the reference vault (a(G)≈3, known-good from BF-192),
 // then set threshold = max(ceil(p95 × 1.5), observed_max) so the reference vault is

@@ -14,11 +14,11 @@ const ELECTRON_MAIN_ENTRYPOINTS: string[] = [
 ]
 
 const INTERNAL_PACKAGE_ROOTS: Record<string, string> = {
-    '@vt/graph-db-client': join(REPO_ROOT, 'packages/graph-db-client/src'),
-    '@vt/graph-db-server': join(REPO_ROOT, 'packages/graph-db-server/src'),
-    '@vt/graph-model': join(REPO_ROOT, 'packages/graph-model/src'),
-    '@vt/graph-state': join(REPO_ROOT, 'packages/graph-state/src'),
-    '@vt/graph-tools': join(REPO_ROOT, 'packages/graph-tools/src'),
+    '@vt/graph-db-client': join(REPO_ROOT, 'packages/systems/graph-db-client/src'),
+    '@vt/graph-db-server': join(REPO_ROOT, 'packages/systems/graph-db-server/src'),
+    '@vt/graph-model': join(REPO_ROOT, 'packages/libraries/graph-model/src'),
+    '@vt/graph-state': join(REPO_ROOT, 'packages/libraries/graph-state/src'),
+    '@vt/graph-tools': join(REPO_ROOT, 'packages/libraries/graph-tools/src'),
 }
 
 const FORBIDDEN_MODULES: RegExp[] = [
@@ -28,9 +28,9 @@ const FORBIDDEN_MODULES: RegExp[] = [
 ]
 
 const FORBIDDEN_SOURCE_PATHS: string[] = [
-    join(REPO_ROOT, 'packages/graph-db-server/src/watch-folder/vault-allowlist.ts'),
-    join(REPO_ROOT, 'packages/graph-db-server/src/views/folderVisibilitySqlite.ts'),
-    join(REPO_ROOT, 'packages/graph-db-server/src/views/folder-visibility-active-view.ts'),
+    join(REPO_ROOT, 'packages/systems/graph-db-server/src/watch-folder/vault-allowlist.ts'),
+    join(REPO_ROOT, 'packages/systems/graph-db-server/src/views/folderVisibilitySqlite.ts'),
+    join(REPO_ROOT, 'packages/systems/graph-db-server/src/views/folder-visibility-active-view.ts'),
 ]
 
 type ImportEdge = {
