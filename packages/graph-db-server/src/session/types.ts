@@ -18,6 +18,7 @@ export interface Session {
   readonly id: string
   collapseSet: Set<string>
   selection: Set<string>
+  expandOverrides: Set<string>
   layout: SessionLayout
   lastAccessedAt: number
 }

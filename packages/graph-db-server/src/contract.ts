@@ -47,6 +47,18 @@ export const CollapseStateResponseSchema = z.object({
 })
 export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
 
+// --- view endpoint ---
+export const ViewResponseSchema = z.object({
+  output: z.string(),
+  format: z.literal('tree-cover'),
+})
+export type ViewResponse = z.infer<typeof ViewResponseSchema>
+
+export const ExpandOverridesResponseSchema = z.object({
+  expandOverrides: z.array(z.string()),
+})
+export type ExpandOverridesResponse = z.infer<typeof ExpandOverridesResponseSchema>
+
 // --- BF-216 selection + layout ---
 export const SelectionModeSchema = z.enum(['replace', 'add', 'remove'])
 export type SelectionMode = z.infer<typeof SelectionModeSchema>

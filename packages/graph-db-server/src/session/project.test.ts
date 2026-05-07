@@ -67,6 +67,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     id: '00000000-0000-4000-8000-000000000001',
     collapseSet: new Set(),
     selection: new Set(),
+    expandOverrides: new Set(),
     layout: { positions: {}, pan: { x: 0, y: 0 }, zoom: 1 },
     lastAccessedAt: 1700000000000,
     ...overrides,

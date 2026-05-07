@@ -12,6 +12,7 @@ import { mountSessionStateRoutes } from './routes/sessionState.ts'
 import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
 import { mountSessionEventsRoute } from './routes/sessionEvents.ts'
+import { mountViewRoutes } from './routes/view.ts'
 import { type SessionRegistry } from './session/registry.ts'
 
 export type CreateDaemonAppOptions = {
@@ -30,6 +31,7 @@ export function mountDaemonRoutes(
   mountCollapseRoutes(app, opts.registry)
   mountSelectionRoutes(app, opts.registry)
   mountLayoutRoutes(app, opts.registry)
+  mountViewRoutes(app, opts.registry)
 
   app.get('/health', (c) => {
     return c.json(HealthResponseSchema.parse(opts.readHealth()))

@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Session } from './types.ts'
 
-function createSession(): Session {
+function createSession(id?: string): Session {
   return {
-    id: randomUUID(),
+    id: id ?? randomUUID(),
     collapseSet: new Set<string>(),
     selection: new Set<string>(),
+    expandOverrides: new Set<string>(),
     layout: {
       positions: {},
       pan: { x: 0, y: 0 },
@@ -29,6 +30,17 @@ export class SessionRegistry {
     if (session) {
       session.lastAccessedAt = Date.now()
     }
+    return session
+  }
+
+  getOrCreate(id: string): Session {
+    const existing = this.#sessions.get(id)
+    if (existing) {
+      existing.lastAccessedAt = Date.now()
+      return existing
+    }
+    const session = createSession(id)
+    this.#sessions.set(id, session)
     return session
   }
 
