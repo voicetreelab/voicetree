@@ -1,16 +1,15 @@
 import * as O from 'fp-ts/lib/Option.js'
 
-import { buildFolderTree, getCallbacks, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
+import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
-import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
-import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starredFolders'
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -27,6 +26,7 @@ import {
   unsubscribeFromDaemonSSE,
 } from './daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
+import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
 
 type DaemonClient = Awaited<
   ReturnType<typeof ensureDaemonClientForVault>
@@ -36,7 +36,6 @@ type CurrentDaemonConnection = {
   vault: string
 }
 type DesiredVaultState = Awaited<ReturnType<typeof getDesiredVaultStateForBootstrap>>
-type FolderTreeSyncPayload = Awaited<ReturnType<typeof buildFolderTreeSyncPayload>>
 type NodePosition = GraphNode['nodeUIMetadata']['position']
 
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
@@ -191,65 +190,6 @@ async function getDaemonClientForCurrentVault(): Promise<{
     timeoutMs: MAIN_DAEMON_TIMEOUT_MS,
   })
   return { client: connection.client, vault }
-}
-
-async function buildFolderTreeSyncPayload(
-  vaultState: VaultState,
-  graph: Graph,
-): Promise<{
-  externalTrees: Record<string, FolderTreeNode>
-  rootTree: FolderTreeNode | null
-  starredFolders: readonly string[]
-  starredTrees: Record<string, FolderTreeNode>
-}> {
-  const loadedPaths: Set<string> = new Set<string>([
-    ...vaultState.readPaths,
-    vaultState.writePath,
-  ])
-  const writePath: AbsolutePath = toAbsolutePath(vaultState.writePath)
-  const graphFilePaths: Set<string> = new Set<string>(Object.keys(graph.nodes))
-
-  let rootTree: FolderTreeNode | null = null
-  try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.vaultPath)
-    rootTree = buildFolderTree(rootEntry, loadedPaths, writePath, graphFilePaths)
-  } catch {
-    rootTree = null
-  }
-
-  const starredFolders: readonly string[] = await getStarredFolders()
-
-  const starredTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of starredFolders) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      starredTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writePath,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable starred folders; this matches the existing push path.
-    }
-  }
-
-  const externalTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of getExternalReadPaths(vaultState.readPaths, vaultState.vaultPath)) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      externalTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writePath,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable external trees; this matches the existing push path.
-    }
-  }
-
-  return { externalTrees, rootTree, starredFolders, starredTrees }
 }
 
 async function syncRendererFromDaemon(
@@ -428,7 +368,6 @@ export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const sessionId: string = await ensureRendererSession(client)
   await client.postDelta(delta as unknown[], sessionId)
-  await syncMainGraphFromDaemonClient(client)
 }
 
 export async function postDeltaThroughDaemonWithEditors(delta: GraphDelta): Promise<void> {

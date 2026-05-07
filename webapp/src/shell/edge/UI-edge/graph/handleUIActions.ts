@@ -36,7 +36,7 @@ export function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMeta
     return {
         color: O.isSome(newMeta.color) ? newMeta.color : oldMeta.color,
         position: O.isSome(newMeta.position) ? newMeta.position : oldMeta.position,
-        additionalYAMLProps: newMeta.additionalYAMLProps.size > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
+        additionalYAMLProps: (newMeta.additionalYAMLProps instanceof Map ? newMeta.additionalYAMLProps.size : Object.keys(newMeta.additionalYAMLProps).length) > 0 ? newMeta.additionalYAMLProps : oldMeta.additionalYAMLProps,
         isContextNode: newMeta.isContextNode ?? oldMeta.isContextNode,
         containedNodeIds: newMeta.containedNodeIds ?? oldMeta.containedNodeIds,
     };

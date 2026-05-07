@@ -12,6 +12,8 @@ vi.mock('@vt/graph-db-server/state/watch-folder-store', () => ({
 }));
 
 describe('mcp-client-config: OpenCode integration', () => {
+    const mcpJsonPath: string = path.join(testDir, '.mcp.json');
+    const codexConfigPath: string = path.join(testDir, '.codex', 'config.toml');
     const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
 
     // Mock the MCP server port
@@ -22,8 +24,8 @@ describe('mcp-client-config: OpenCode integration', () => {
     beforeEach(async () => {
         // Clean up test directory
         try {
+            await fs.rm(testDir, { recursive: true, force: true });
             await fs.mkdir(testDir, { recursive: true });
-            await fs.unlink(opencodeConfigPath);
         } catch (_e) {
             // File doesn't exist, which is fine
         }
@@ -32,11 +34,37 @@ describe('mcp-client-config: OpenCode integration', () => {
     afterEach(async () => {
         // Clean up test directory
         try {
-            await fs.unlink(opencodeConfigPath);
-            await fs.rmdir(testDir);
+            await fs.rm(testDir, { recursive: true, force: true });
         } catch (_e) {
             // Cleanup failed, ignore
         }
+    });
+
+    describe('enableMcpClientIntegrations', () => {
+        it('writes .mcp.json and .codex/config.toml with the current port', async () => {
+            await expect(mcpClientConfig.enableMcpClientIntegrations()).resolves.not.toThrow();
+
+            const mcpJsonContent: string = await fs.readFile(mcpJsonPath, 'utf-8');
+            const mcpJson = JSON.parse(mcpJsonContent);
+            expect(mcpJson.mcpServers.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
+
+            const codexContent: string = await fs.readFile(codexConfigPath, 'utf-8');
+            expect(codexContent).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n');
+        });
+
+        it('updates an existing stale Codex MCP port', async () => {
+            await fs.mkdir(path.dirname(codexConfigPath), { recursive: true });
+            await fs.writeFile(
+                codexConfigPath,
+                '[mcp_servers.voicetree]\nurl = "http://localhost:3003/mcp"\n',
+                'utf-8',
+            );
+
+            await expect(mcpClientConfig.enableMcpClientIntegrations()).resolves.not.toThrow();
+
+            const codexContent: string = await fs.readFile(codexConfigPath, 'utf-8');
+            expect(codexContent).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n');
+        });
     });
 
     describe('enableOpencodeMcpIntegration', () => {

@@ -7,6 +7,15 @@ function formatSSE(event: string, data: string): string {
   return `event: ${event}\ndata: ${data}\n\n`
 }
 
+function stringifyEventForSSE(event: SourceTaggedDelta): string {
+  return JSON.stringify(event, (_key: string, value: unknown) => {
+    if (value instanceof Map) {
+      return Object.fromEntries(value.entries())
+    }
+    return value
+  })
+}
+
 export function mountSessionEventsRoute(
   app: Hono,
   registry: SessionRegistry,
@@ -29,7 +38,7 @@ export function mountSessionEventsRoute(
       let unsubscribe: (() => void) | null = null
 
       const onEvent = (event: SourceTaggedDelta): void => {
-        void s.write(formatSSE('graphDelta', JSON.stringify(event)))
+        void s.write(formatSSE('graphDelta', stringifyEventForSSE(event)))
       }
 
       unsubscribe = subscribe(onEvent)

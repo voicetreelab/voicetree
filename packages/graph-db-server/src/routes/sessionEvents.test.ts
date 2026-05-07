@@ -140,13 +140,23 @@ describe('SSE session events', () => {
     // Write a .md file directly to vault (simulating external FS write)
     receivedEvents.length = 0
     const externalFilePath = join(vault, 'external-write.md')
-    await writeFile(externalFilePath, '# External Node\nWritten directly to FS')
+    await writeFile(externalFilePath, `---
+agent_name: Ari
+---
+# External Node
+Written directly to FS`)
 
     // Wait for chokidar to detect the change and publish the event
     await collectEvents(5000)
     const fsEvent = receivedEvents.find(e => e.source === 'fs:external')
     expect(fsEvent).toBeDefined()
     expect(fsEvent!.delta.length).toBeGreaterThan(0)
+    const fsUpsert = fsEvent!.delta.find(d => d.type === 'UpsertNode')
+    expect(fsUpsert).toBeDefined()
+    if (fsUpsert?.type !== 'UpsertNode') throw new Error('Expected UpsertNode')
+    expect(fsUpsert.nodeToUpsert.nodeUIMetadata.additionalYAMLProps).toMatchObject({
+      agent_name: 'Ari',
+    })
   }, 20000)
 
   test('returns 404 for non-existent session', async () => {

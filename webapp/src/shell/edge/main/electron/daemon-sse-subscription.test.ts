@@ -15,7 +15,6 @@ vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
 }))
 
 import {
-    isDaemonSSEActive,
     subscribeToDaemonSSE,
     unsubscribeFromDaemonSSE,
 } from './daemon-sse-subscription'
@@ -42,7 +41,12 @@ function makeDelta(content: string): GraphDelta {
 
 function encodeSSE(source: string, delta: GraphDelta): Uint8Array {
     return new TextEncoder().encode(
-        `event: graphDelta\ndata: ${JSON.stringify({ source, delta })}\n\n`,
+        `event: graphDelta\ndata: ${JSON.stringify({ source, delta }, (_key, value) => {
+            if (value instanceof Map) {
+                return Object.fromEntries(value.entries())
+            }
+            return value
+        })}\n\n`,
     )
 }
 
@@ -81,21 +85,7 @@ describe('daemon SSE subscription', () => {
         vi.unstubAllGlobals()
     })
 
-    it('drops deltas tagged with the renderer session source', async () => {
-        const sent: SentMessage[] = []
-        installFetchStream([
-            encodeSSE('session:renderer-session', makeDelta('own echo')),
-        ])
-
-        subscribeToDaemonSSE('renderer-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
-        await vi.waitFor(() => expect(isDaemonSSEActive()).toBe(true))
-        await new Promise(resolve => setTimeout(resolve, 20))
-
-        expect(sent).toEqual([])
-        expect(daemonEditorUpdates).toEqual([])
-    })
-
-    it('forwards external deltas to graph IPC and daemon editor updates', async () => {
+    it('forwards all deltas to graph IPC and daemon editor updates', async () => {
         const sent: SentMessage[] = []
         const externalDelta: GraphDelta = makeDelta('external update')
         const expectedDelta: GraphDelta = JSON.parse(JSON.stringify(externalDelta)) as GraphDelta
@@ -110,4 +100,20 @@ describe('daemon SSE subscription', () => {
             expect(daemonEditorUpdates).toEqual([expectedDelta])
         })
     })
+
+    it('forwards own-session deltas without filtering', async () => {
+        const sent: SentMessage[] = []
+        const ownDelta: GraphDelta = makeDelta('own write')
+        const expectedDelta: GraphDelta = JSON.parse(JSON.stringify(ownDelta)) as GraphDelta
+        installFetchStream([
+            encodeSSE('session:renderer-session', ownDelta),
+        ])
+
+        subscribeToDaemonSSE('renderer-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
+
+        await vi.waitFor(() => {
+            expect(sent).toEqual([{ channel: 'graph:stateChanged', data: expectedDelta }])
+        })
+    })
+
 })

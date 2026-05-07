@@ -55,7 +55,8 @@ export async function getUnseenNodesNearbyTool({
             // Exclude nodes created by this agent (via agent_name YAML property)
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             if (!graphNode) return true
-            const nodeAgentName: string | undefined = graphNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+            const agentProps = graphNode.nodeUIMetadata.additionalYAMLProps
+            const nodeAgentName: string | undefined = agentProps instanceof Map ? agentProps.get('agent_name') : (agentProps as unknown as Record<string, string>)['agent_name']
             return nodeAgentName !== agentName
         })
 

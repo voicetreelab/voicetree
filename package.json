@@ -5,6 +5,7 @@
     "packages/*"
   ],
   "scripts": {
+    "test": "npm --workspace webapp run test",
     "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests",
     "check:e2e-taxonomy": "npm --workspace webapp run check:e2e-taxonomy",
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",

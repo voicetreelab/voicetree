@@ -177,6 +177,15 @@ async function disableCodexMcpIntegration(): Promise<void> {
     await writeCodexConfig(content + '\n');
 }
 
+/**
+ * Enable the MCP configs that should track the current VoiceTree port whenever
+ * the app starts or a project folder is loaded.
+ */
+export async function enableMcpClientIntegrations(): Promise<void> {
+    await enableMcpJsonIntegration();
+    await enableCodexMcpIntegration();
+}
+
 // ─── opencode.jsonc (OpenCode) ────────────────────────────────────────────────
 
 interface OpencodeMcpServerConfig {
@@ -294,13 +303,13 @@ export function isOpencodeAgent(agentCommand: string): boolean {
 
 /**
  * Set MCP integration state for the appropriate config file(s).
- * Always writes .mcp.json. Also writes .codex/config.toml when agentCommand is a Codex agent.
+ * Always writes .mcp.json and .codex/config.toml so they track the current port.
  * Also writes opencode.jsonc when agentCommand is an OpenCode agent.
  */
 export async function setMcpIntegration(enabled: boolean, agentCommand?: string): Promise<void> {
-    // Claude .mcp.json (always write for Claude compatibility)
+    // Core client configs that should stay fresh for externally launched agents.
     if (enabled) {
-        await enableMcpJsonIntegration();
+        await enableMcpClientIntegrations();
     } else {
         await disableMcpJsonIntegration();
     }

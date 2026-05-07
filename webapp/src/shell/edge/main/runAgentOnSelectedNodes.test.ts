@@ -15,15 +15,20 @@ vi.mock('@vt/agent-runtime', () => ({
   spawnTerminalWithContextNode: vi.fn()
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-  applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+  postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
 import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+<<<<<<< Updated upstream
 import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
 import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
+=======
+import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
+import { postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+>>>>>>> Stashed changes
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
   return {
@@ -80,7 +85,7 @@ describe('runAgentOnSelectedNodes', () => {
     expect(result.terminalId).toBe('agent-1')
     expect(result.contextNodeId).toBe('/vault/ctx-nodes/task_context.md')
     expect(result.taskNodeId).toMatch(/\.md$/)
-    expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalledTimes(1)
+    expect(postDeltaThroughDaemonWithEditors).toHaveBeenCalledTimes(1)
 
     const taskNodeId: NodeIdAndFilePath = result.taskNodeId
     expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(

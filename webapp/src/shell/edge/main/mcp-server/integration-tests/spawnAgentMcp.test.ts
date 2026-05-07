@@ -25,16 +25,21 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     loadSettings: vi.fn()
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@vt/voicetree-mcp', () => ({
     startMonitor: vi.fn().mockReturnValue('monitor-1')
 }))
 
+<<<<<<< Updated upstream
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnAgentTool} from '@vt/voicetree-mcp'
+=======
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
+>>>>>>> Stashed changes
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
@@ -239,7 +244,7 @@ describe('MCP spawn_agent tool', () => {
 
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
-        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
+        const claimCall: unknown[] | undefined = vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls[0]
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
         expect(claimDelta[0].type).toBe('UpsertNode')

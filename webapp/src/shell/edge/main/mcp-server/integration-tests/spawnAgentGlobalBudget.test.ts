@@ -27,8 +27,8 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@vt/voicetree-mcp', () => ({

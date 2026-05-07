@@ -51,12 +51,20 @@ async function buildConnection(
   vault: string,
   opts?: { timeoutMs?: number },
 ): Promise<CachedDaemonConnection> {
-  const bootstrap = await ensureDaemon(vault, opts)
-  const client = new GraphDbClient({
+  let bootstrap = await ensureDaemon(vault, opts)
+  let client = new GraphDbClient({
     baseUrl: `http://127.0.0.1:${bootstrap.port}`,
   })
-  const health = await client.health()
 
+  if (!bootstrap.launched) {
+    await client.shutdown().catch(() => {})
+    bootstrap = await ensureDaemon(vault, opts)
+    client = new GraphDbClient({
+      baseUrl: `http://127.0.0.1:${bootstrap.port}`,
+    })
+  }
+
+  const health = await client.health()
   if (health.vault !== vault) {
     throw new Error(
       `vt-graphd health reported vault ${health.vault}, expected ${vault}`,
@@ -65,7 +73,7 @@ async function buildConnection(
 
   return {
     client,
-    launched: bootstrap.launched,
+    launched: true,
     pid: bootstrap.pid,
     port: bootstrap.port,
     vault,

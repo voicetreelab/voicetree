@@ -14,7 +14,8 @@ export function getNodesByAgentName(
 ): readonly GraphNode[] {
     const result: GraphNode[] = []
     for (const node of Object.values(graph.nodes)) {
-        const nodeAgentName: string | undefined = node.nodeUIMetadata.additionalYAMLProps.get('agent_name')
+        const props = node.nodeUIMetadata.additionalYAMLProps
+        const nodeAgentName: string | undefined = props instanceof Map ? props.get('agent_name') : (props as unknown as Record<string, string>)['agent_name']
         if (nodeAgentName === agentName) {
             result.push(node)
         }

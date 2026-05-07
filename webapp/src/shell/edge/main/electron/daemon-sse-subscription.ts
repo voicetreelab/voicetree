@@ -8,7 +8,6 @@ type SourceTaggedDelta = {
 
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
-let currentSessionId: string | null = null
 
 function clearReconnectTimer(): void {
     if (currentReconnectTimer !== null) {
@@ -29,10 +28,6 @@ function parseSSEBlock(block: string): SourceTaggedDelta | null {
     } catch {
         return null
     }
-}
-
-function isOwnEcho(event: SourceTaggedDelta): boolean {
-    return currentSessionId !== null && event.source === `session:${currentSessionId}`
 }
 
 function forwardDelta(
@@ -72,7 +67,7 @@ async function connectToDaemonSSE(
 
         for (const block of blocks) {
             const event: SourceTaggedDelta | null = parseSSEBlock(block)
-            if (event && !isOwnEcho(event)) {
+            if (event) {
                 forwardDelta(event, mainWindow)
             }
         }
@@ -101,7 +96,6 @@ export function subscribeToDaemonSSE(
 ): void {
     unsubscribeFromDaemonSSE()
 
-    currentSessionId = sessionId
     const controller: AbortController = new AbortController()
     currentController = controller
 
@@ -122,7 +116,6 @@ export function unsubscribeFromDaemonSSE(): void {
     clearReconnectTimer()
     currentController?.abort()
     currentController = null
-    currentSessionId = null
 }
 
 export function isDaemonSSEActive(): boolean {

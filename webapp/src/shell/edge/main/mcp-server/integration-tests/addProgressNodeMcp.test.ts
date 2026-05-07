@@ -19,8 +19,8 @@ vi.mock('@vt/agent-runtime', () => ({
     resetAuditRetryCount: vi.fn()
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn(),
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Mock settings
@@ -37,8 +37,13 @@ import {createGraphTool} from '@vt/voicetree-mcp'
 import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getGraph} from '@/shell/edge/main/state/graph-store'
+<<<<<<< Updated upstream
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+=======
+import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
+>>>>>>> Stashed changes
 import {parse as mermaidParse} from '@mermaid-js/parser'
 
 type McpToolResponse = {
@@ -131,7 +136,7 @@ function setupStandardMocks(graphOverride?: Graph): void {
     vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
     vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
-    vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
+    vi.mocked(postDeltaThroughDaemonWithEditors).mockResolvedValue(undefined)
 }
 
 describe('MCP create_graph tool', () => {
@@ -365,7 +370,7 @@ describe('MCP create_graph tool', () => {
             expect(payload.success).toBe(false)
             expect(payload.error).toContain('"b"')
             // No nodes should have been created
-            expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).not.toHaveBeenCalled()
+            expect(postDeltaThroughDaemonWithEditors).not.toHaveBeenCalled()
         })
     })
 
@@ -393,7 +398,7 @@ describe('MCP create_graph tool', () => {
             mockCallerTerminal({agentName: 'my-agent', color: 'green'})
             vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue(buildGraph())
-            vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
+            vi.mocked(postDeltaThroughDaemonWithEditors).mockResolvedValue(undefined)
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
@@ -403,7 +408,7 @@ describe('MCP create_graph tool', () => {
 
             expect(payload.success).toBe(true)
 
-            const deltaCalls: GraphDelta[] = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls.map(
+            const deltaCalls: GraphDelta[] = vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls.map(
                 (call: [delta: GraphDelta, recordForUndo?: boolean | undefined]) => call[0]
             )
             const firstDelta: GraphDelta = deltaCalls[0]
@@ -485,7 +490,7 @@ describe('MCP create_graph tool', () => {
             expect(payload.nodes).toHaveLength(2)
 
             // Parent should be created first (first applyGraphDelta call)
-            const firstDelta: GraphDelta = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0][0]
+            const firstDelta: GraphDelta = vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls[0][0]
             const firstNode: GraphNode = firstDelta[0].type === 'UpsertNode'
                 ? firstDelta[0].nodeToUpsert
                 : (() => { throw new Error('Expected UpsertNode delta') })()
@@ -504,7 +509,7 @@ describe('MCP create_graph tool', () => {
             })
 
             const calls: Array<[GraphDelta, boolean | undefined]> =
-                vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+                vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
             const creationDelta: GraphDelta = calls[0][0]
             const childDelta: NodeDelta | undefined = creationDelta.find(
                 (entry) => entry.type === 'UpsertNode' && entry.nodeToUpsert.absoluteFilePathIsID === `${WRITE_PATH}/child.md`
@@ -535,7 +540,7 @@ describe('MCP create_graph tool', () => {
             // Root is at graphParent (100,200) + offset (200, 0)
             // Child 1: root position + (200, 0)
             // Child 2: root position + (200, 150)
-            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
             const creationDelta: GraphDelta = calls[0][0]
             expect(creationDelta).toHaveLength(3)
             expect(calls.length).toBeGreaterThanOrEqual(2)
@@ -553,7 +558,7 @@ describe('MCP create_graph tool', () => {
             })
 
             // Last call should be context node update
-            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
+            const calls: Array<[GraphDelta, boolean | undefined]> = vi.mocked(postDeltaThroughDaemonWithEditors).mock.calls as Array<[GraphDelta, boolean | undefined]>
             const lastDelta: GraphDelta = calls[calls.length - 1][0]
             expect(lastDelta[0].type).toBe('UpsertNode')
 
@@ -638,7 +643,7 @@ describe('MCP create_graph tool', () => {
             mockCallerTerminal()
             vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue(graph)
-            vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
+            vi.mocked(postDeltaThroughDaemonWithEditors).mockResolvedValue(undefined)
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,

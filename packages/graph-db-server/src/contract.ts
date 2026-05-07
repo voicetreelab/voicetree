@@ -1,7 +1,7 @@
 // OPEN: log file location + --log-level default — design.md Open Question #1, confirm before P3
 import { z } from 'zod'
 
-export const CONTRACT_VERSION = '0.1.0'
+export const CONTRACT_VERSION = '0.2.0'
 
 export const HealthResponseSchema = z.object({
   version: z.string(),

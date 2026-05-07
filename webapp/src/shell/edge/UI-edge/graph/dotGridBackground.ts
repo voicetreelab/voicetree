@@ -10,7 +10,15 @@
 import { getLayout, subscribeLayout } from '@vt/graph-state/state/layoutStore';
 
 const DEFAULT_BASE_SPACING = 24;
-const MIN_DOT_SPACING = 6; // hide pattern below this to avoid moiré
+const MIN_DOT_SPACING = 6;
+
+const DOT_SIZE_MIN = 10;
+const DOT_SIZE_MAX = 48;
+const DOT_SIZE_MID = (DOT_SIZE_MIN + DOT_SIZE_MAX) / 2;
+const DOT_SIZE_HALF = (DOT_SIZE_MAX - DOT_SIZE_MIN) / 2;
+// k = 1/HALF_RANGE gives derivative = 1 at the center, so the sigmoid
+// matches the linear feel in the sweet spot and only curves at extremes.
+const SIGMOID_K = 1 / DOT_SIZE_HALF;
 
 export function attachDotGridBackground(
     el: HTMLElement,
@@ -22,7 +30,8 @@ export function attachDotGridBackground(
         const layout = getLayout();
         const zoom = layout.zoom ?? 1;
         const pan = layout.pan ?? { x: 0, y: 0 };
-        const size = baseSpacing * zoom;
+        const linearSize = baseSpacing * zoom;
+        const size = DOT_SIZE_MID + DOT_SIZE_HALF * Math.tanh(SIGMOID_K * (linearSize - DOT_SIZE_MID));
 
         if (size < MIN_DOT_SPACING) {
             el.style.setProperty('--dot-opacity', '0');

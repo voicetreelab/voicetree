@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 #
-# Rebuild all native node-addon modules for Electron's bundled Node ABI.
+# Rebuild native node-addon modules for their target runtimes.
 #
-# Why this exists:
-#   `electron-rebuild` only sees modules listed as DIRECT dependencies of the
-#   package whose dir it runs in. Our workspace splits native modules across
-#   two packages — `electron-trackpad-detect` is a direct dep of `webapp`,
-#   `better-sqlite3` is a direct dep of `packages/graph-db-server` — and
-#   `node_modules` gets hoisted to the workspace root.
+# Two categories of native modules exist in this workspace:
 #
-#   Running `electron-rebuild` from `webapp/` (the obvious choice) silently
-#   no-ops `better-sqlite3` and reports "Rebuild Complete" anyway, leaving
-#   the daemon unable to load the native binding (NODE_MODULE_VERSION
-#   mismatch). We have to invoke `electron-rebuild` once per package that
-#   directly owns a native dep.
+#   A. Modules that load INSIDE Electron (electron-trackpad-detect, node-pty)
+#      → Must be compiled for Electron's ABI via electron-rebuild.
+#
+#   B. Modules that load in STANDALONE Node.js (better-sqlite3, sqlite-vec)
+#      → Must be compiled for Node.js ABI. vt-graphd and knowledge-graph run
+#        as detached Node processes, never inside Electron. The boundary test
+#        (electron-native-boundary.test.ts) enforces this.
+#
+# Previously this script ran electron-rebuild on ALL native deps, including
+# better-sqlite3. That compiled it for Electron ABI (e.g. 139) while
+# vt-graphd needs Node.js ABI (e.g. 127), causing persistent
+# NODE_MODULE_VERSION mismatch errors.
 #
 # Usage: scripts/rebuild-native.sh
 # Exits non-zero if any rebuild step fails.
@@ -28,20 +30,21 @@ if [[ ! -x "$REBUILD" ]]; then
     exit 1
 fi
 
+# --- Category A: Electron-hosted native modules ---
+
 # 1. webapp's direct native deps (electron-trackpad-detect, node-pty).
-echo "→ rebuild-native: webapp"
+echo "→ rebuild-native: webapp (Electron ABI)"
 ( cd "$ROOT/webapp" && "$REBUILD" )
 
 # 2. agent-runtime's direct native deps (node-pty).
-echo "→ rebuild-native: packages/agent-runtime"
+echo "→ rebuild-native: packages/agent-runtime (Electron ABI)"
 ( cd "$ROOT/packages/agent-runtime" && "$REBUILD" -f -w node-pty )
 
-# 3. graph-db-server's direct native deps (better-sqlite3).
-echo "→ rebuild-native: packages/graph-db-server"
-( cd "$ROOT/packages/graph-db-server" && "$REBUILD" -f -w better-sqlite3 )
+# --- Category B: Node.js-hosted native modules ---
+# better-sqlite3 and sqlite-vec run in standalone Node.js processes
+# (vt-graphd, knowledge-graph). Rebuild for Node.js ABI, not Electron.
 
-# 4. knowledge-graph's direct native deps (better-sqlite3, sqlite-vec).
-echo "→ rebuild-native: packages/knowledge-graph"
-( cd "$ROOT/packages/knowledge-graph" && "$REBUILD" -f -w better-sqlite3,sqlite-vec )
+echo "→ rebuild-native: better-sqlite3, sqlite-vec (Node.js ABI)"
+( cd "$ROOT" && npm rebuild better-sqlite3 sqlite-vec 2>&1 )
 
-echo "✔ rebuild-native: all native modules built for Electron ABI"
+echo "✔ rebuild-native: all native modules built for correct ABIs"

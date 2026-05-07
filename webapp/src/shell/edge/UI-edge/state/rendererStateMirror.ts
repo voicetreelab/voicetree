@@ -152,10 +152,41 @@ function refreshProjectionFromStores(): void {
     applyGraphDeltaToUI(getCyInstance(), projectRendererState())
 }
 
+function reviveAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
+    if (value instanceof Map) return value
+    if (typeof value === 'object' && value !== null) {
+        return new Map(
+            Object.entries(value as Record<string, string>).map(
+                ([k, v]) => [k, typeof v === 'string' ? v : String(v)] as const
+            )
+        )
+    }
+    return new Map()
+}
+
+function normalizeDeltaMaps(delta: GraphDelta): GraphDelta {
+    return delta.map(op => {
+        if (op.type !== 'UpsertNode') return op
+        const props: unknown = op.nodeToUpsert.nodeUIMetadata.additionalYAMLProps
+        if (props instanceof Map) return op
+        return {
+            ...op,
+            nodeToUpsert: {
+                ...op.nodeToUpsert,
+                nodeUIMetadata: {
+                    ...op.nodeToUpsert.nodeUIMetadata,
+                    additionalYAMLProps: reviveAdditionalYAMLProps(props),
+                },
+            },
+        }
+    })
+}
+
 export function applyDeltaToRendererStateMirror(delta: GraphDelta): void {
     if (delta.length === 0) return
-    mirror.graph = applyGraphDeltaToGraph(mirror.graph, delta)
-    updatePositionsFromDelta(delta)
+    const normalized: GraphDelta = normalizeDeltaMaps(delta)
+    mirror.graph = applyGraphDeltaToGraph(mirror.graph, normalized)
+    updatePositionsFromDelta(normalized)
     mirror.revision += 1
 }
 

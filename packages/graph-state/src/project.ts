@@ -223,7 +223,8 @@ function classesForNode(state: State, nodeId: string, node: GraphNode): readonly
 }
 
 function dataForNode(state: State, nodeId: string, node: GraphNode): Readonly<Record<string, unknown>> {
-    const additionalYAMLProps = [...node.nodeUIMetadata.additionalYAMLProps.entries()]
+    const rawProps = node.nodeUIMetadata.additionalYAMLProps
+    const additionalYAMLProps = [...(rawProps instanceof Map ? rawProps.entries() : Object.entries(rawProps))]
         .sort(([left], [right]) => left.localeCompare(right))
     const selected = state.selection.has(nodeId)
 

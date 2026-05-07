@@ -110,7 +110,12 @@ vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
     saveSettings: vi.fn(),
 }))
 
+<<<<<<< Updated upstream
 vi.mock('@vt/voicetree-mcp', () => ({
+=======
+vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
+    enableMcpClientIntegrations: vi.fn().mockResolvedValue(undefined),
+>>>>>>> Stashed changes
     enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
     isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
     setMcpIntegration: vi.fn(),

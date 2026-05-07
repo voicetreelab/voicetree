@@ -145,7 +145,8 @@ export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics)
     /An object could not be cloned/i,
     /\[spawnTerminalWithContextNode\] async spawn failed/i,
     /\[fake-agent\] Fatal:/i,
-    /ERR_MODULE_NOT_FOUND/i
+    /ERR_MODULE_NOT_FOUND/i,
+    /is not a function or its return value is not iterable/i
   ];
   const criticalErrors = [...diagnostics.mainOutput, ...diagnostics.rendererErrors]
     .filter(line => criticalErrorPatterns.some(pattern => pattern.test(line)));
