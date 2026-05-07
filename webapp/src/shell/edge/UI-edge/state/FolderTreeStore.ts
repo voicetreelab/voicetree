@@ -3,16 +3,13 @@
  * Main process pushes tree updates via syncFolderTreeFromMain().
  * Renderer subscribes via useSyncExternalStore.
  *
- * Follows the same reducer pattern as reduceFolderConfig in transforms.ts.
- *
- * graphCollapsedFolders is renderer-owned state mirrored into the daemon
- * session through main RPC. Reads stay local; mutations go through the
- * addCollapsedFolder/removeCollapsedFolder facades below.
+ * graphCollapsedFolders tracks which folders the sidebar shows as collapsed.
+ * The daemon owns the authoritative collapseSet; this is a local read cache
+ * updated by the reconciler or test helpers.
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/folders';
 import type { SerializedState } from '@vt/graph-state/fixtures/serialization';
-import type {} from '@/shell/electron';
 
 export interface FolderTreeState {
     readonly tree: FolderTreeNode | null;
@@ -124,20 +121,6 @@ function dispatch(action: FolderTreeAction): void {
     }
 }
 
-async function syncRendererSessionStateWithDaemon(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
-    const syncRendererSessionState: (() => Promise<unknown>) | undefined =
-        window.electronAPI?.main?.syncRendererSessionStateWithDaemon as (() => Promise<unknown>) | undefined;
-    if (typeof syncRendererSessionState !== 'function') return;
-
-    try {
-        await syncRendererSessionState();
-    } catch (error) {
-        console.error('[FolderTreeStore] Failed to sync collapseSet with daemon session:', error);
-    }
-}
-
 /**
  * Subscribe to folder tree state changes.
  * @returns unsubscribe function
@@ -203,18 +186,8 @@ export function addCollapsedFolderLocally(folderId: string): void {
     dispatch({ type: 'ADD_COLLAPSED_FOLDER', folderId });
 }
 
-export async function addCollapsedFolder(folderId: string): Promise<void> {
-    addCollapsedFolderLocally(folderId);
-    await syncRendererSessionStateWithDaemon();
-}
-
 export function removeCollapsedFolderLocally(folderId: string): void {
     dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
-}
-
-export async function removeCollapsedFolder(folderId: string): Promise<void> {
-    removeCollapsedFolderLocally(folderId);
-    await syncRendererSessionStateWithDaemon();
 }
 
 export function isGraphFolderCollapsed(folderId: string): boolean {

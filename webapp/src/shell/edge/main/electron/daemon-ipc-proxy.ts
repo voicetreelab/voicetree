@@ -286,18 +286,6 @@ async function syncRendererSessionState(
         zoom: undefined,
       }
 
-  for (const folderId of localState.collapseSet) {
-    if (!previous.collapseSet.has(folderId)) {
-      await client.collapse(sessionId, folderId)
-    }
-  }
-
-  for (const folderId of previous.collapseSet) {
-    if (!localState.collapseSet.has(folderId)) {
-      await client.expand(sessionId, folderId)
-    }
-  }
-
   if (!sameStringSet(previous.selection, localState.selection)) {
     await client.setSelection(sessionId, {
       mode: 'replace',
@@ -435,6 +423,18 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   return await syncRendererSessionState(client, localState)
+}
+
+export async function collapseFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.collapse(sessionId, folderId)
+}
+
+export async function expandFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.expand(sessionId, folderId)
 }
 
 export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
