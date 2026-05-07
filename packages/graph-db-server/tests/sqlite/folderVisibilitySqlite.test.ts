@@ -6,7 +6,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -55,8 +55,8 @@ describe('folderVisibilitySqlite', () => {
         const vault = makeVault()
         const db = openFolderVisibilityDb(vault)
         try {
-            const mode = db.pragma('journal_mode', { simple: true }) as string
-            expect(mode).toBe('wal')
+            const mode = db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }
+            expect(mode.journal_mode).toBe('wal')
         } finally {
             closeFolderVisibilityDb(db)
         }
@@ -93,8 +93,8 @@ describe('folderVisibilitySqlite', () => {
             ).toThrow()
 
             // Schema version is set.
-            const version = db.pragma('user_version', { simple: true }) as number
-            expect(version).toBe(FOLDER_VISIBILITY_SCHEMA_VERSION)
+            const version = db.prepare('PRAGMA user_version').get() as { user_version: number }
+            expect(version.user_version).toBe(FOLDER_VISIBILITY_SCHEMA_VERSION)
         } finally {
             closeFolderVisibilityDb(db)
         }
@@ -128,8 +128,8 @@ describe('folderVisibilitySqlite', () => {
             expect(() => runSchemaMigrations(db2)).not.toThrow()
 
             // Schema version stays at the current version.
-            const version = db2.pragma('user_version', { simple: true }) as number
-            expect(version).toBe(FOLDER_VISIBILITY_SCHEMA_VERSION)
+            const version = db2.prepare('PRAGMA user_version').get() as { user_version: number }
+            expect(version.user_version).toBe(FOLDER_VISIBILITY_SCHEMA_VERSION)
         } finally {
             closeFolderVisibilityDb(db2)
         }
@@ -144,8 +144,8 @@ describe('folderVisibilitySqlite', () => {
         expect(() => openFolderVisibilityDb(undefined)).toThrow(/non-empty string/)
 
         // Vault path under a non-existent, non-creatable parent (a regular file
-        // instead of a directory) — better-sqlite3 / fs.mkdirSync surfaces a
-        // clear error rather than silently corrupting state.
+        // instead of a directory) — fs.mkdirSync surfaces a clear error rather
+        // than silently corrupting state.
         const vault = makeVault()
         const blocker = path.join(vault, 'blocker')
         fs.writeFileSync(blocker, 'not-a-dir')
@@ -159,7 +159,7 @@ describe('folderVisibilitySqlite', () => {
         const vault = makeVault()
         const dbPath = resolveFolderVisibilityDbPath(vault)
         fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-        const db = new Database(dbPath)
+        const db = new DatabaseSync(dbPath)
         try {
             runSchemaMigrations(db)
             runSchemaMigrations(db)
