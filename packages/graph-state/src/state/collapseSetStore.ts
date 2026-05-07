@@ -1,10 +1,5 @@
-/**
- * Phase 1 legacy shim: no-arg callers keep the existing singleton behavior,
- * while view-aware callers derive collapsed folders from folderVisibilityStore.
- */
 import type { FolderId } from '../contract'
-import { deriveLegacyFromFolderVisibility, stripTrailingSlash } from './folderVisibility/derive'
-import { getFolderVisibility, setFolderState } from './folderVisibilityStore'
+import { setFolderState } from './folderVisibilityStore'
 import type { FolderState } from './folderVisibility/types'
 
 const DEFAULT_VIEW_ID = 'main'
@@ -40,10 +35,7 @@ function expandFrom(
     return new Set([...target].filter((id) => id !== folder))
 }
 
-export function getCollapseSet(viewId?: string): ReadonlySet<FolderId> {
-    if (viewId !== undefined) {
-        return deriveLegacyFromFolderVisibility(getFolderVisibility(viewId)).collapseSet
-    }
+export function getCollapseSet(): ReadonlySet<FolderId> {
     return collapseSet
 }
 
@@ -107,7 +99,7 @@ export function clearCollapseSet(): void {
 
 function writeFolderState(folder: FolderId, state: FolderState): void {
     try {
-        setFolderState(DEFAULT_VIEW_ID, stripTrailingSlash(folder), state)
+        setFolderState(DEFAULT_VIEW_ID, stripFolderIdTrailingSlash(folder), state)
     } catch (error) {
         if (!isUnconfiguredStoreError(error)) {
             throw error
@@ -118,4 +110,8 @@ function writeFolderState(folder: FolderId, state: FolderState): void {
 function isUnconfiguredStoreError(error: unknown): boolean {
     return error instanceof Error
         && error.message === 'folderVisibilityStore is not configured with a sqlite database'
+}
+
+function stripFolderIdTrailingSlash(folder: FolderId): string {
+    return folder === '/' ? folder : folder.slice(0, -1)
 }

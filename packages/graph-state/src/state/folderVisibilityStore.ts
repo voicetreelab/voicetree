@@ -1,6 +1,6 @@
 import {
     stripTrailingSlash,
-} from './folderVisibility/derive'
+} from './folderVisibility/path'
 import type {
     AbsolutePath,
     FolderState,

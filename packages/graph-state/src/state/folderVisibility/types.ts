@@ -11,23 +11,10 @@
  * Absolute folder path WITHOUT a trailing slash, e.g. '/Users/x/notes'.
  *
  * Distinct from the legacy {@link FolderId}, which carries a trailing slash.
- * Conversion helpers live in `derive.ts`.
+ * Conversion helpers live in `path.ts`.
  */
 export type AbsolutePath = string
 
 export type FolderState = 'expanded' | 'collapsed' | 'hidden'
 
 export type FolderVisibilityState = ReadonlyMap<AbsolutePath, FolderState>
-
-/**
- * Read-only snapshot of the three pre-unification primitives:
- *   - readPaths    vault config — folders the daemon watches
- *   - loadedRoots  graph-state runtime — roots actually parsed in-memory
- *   - collapseSet  per-session — folders rendered as collapsed (FolderIds
- *                  carry a trailing slash; derivation strips it)
- */
-export interface LegacyVisibilitySnapshot {
-    readonly readPaths: ReadonlySet<AbsolutePath>
-    readonly loadedRoots: ReadonlySet<AbsolutePath>
-    readonly collapseSet: ReadonlySet<string>
-}

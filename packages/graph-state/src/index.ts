@@ -128,11 +128,9 @@ export type {
 } from './state/loadedRootsStore'
 
 export {
-    deriveFolderVisibilityFromLegacy,
-    deriveLegacyFromFolderVisibility,
     ensureTrailingSlash,
     stripTrailingSlash,
-} from './state/folderVisibility/derive'
+} from './state/folderVisibility/path'
 
 export {
     deriveImplicitRoots,
@@ -143,7 +141,6 @@ export type {
     AbsolutePath,
     FolderState,
     FolderVisibilityState,
-    LegacyVisibilitySnapshot,
 } from './state/folderVisibility/types'
 
 export {

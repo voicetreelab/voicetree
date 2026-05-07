@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import {
     afterEach,
     beforeEach,
@@ -21,10 +21,12 @@ import {
 } from '../../src/state/folderVisibilityStore'
 import type { FolderState } from '../../src/state/folderVisibility/types'
 
-let db: Database.Database
+type TestDatabase = DatabaseSync & FolderVisibilityDatabase
+
+let db: TestDatabase
 
 beforeEach(() => {
-    db = new Database(':memory:')
+    db = addTransactionMethod(new DatabaseSync(':memory:'))
     db.exec(`
         CREATE TABLE folder_visibility (
             view_id TEXT NOT NULL,
@@ -39,7 +41,7 @@ beforeEach(() => {
         );
         CREATE INDEX idx_fv_view ON folder_visibility(view_id);
     `)
-    configureFolderVisibilityStore(db as FolderVisibilityDatabase)
+    configureFolderVisibilityStore(db)
 })
 
 afterEach(() => {
@@ -147,4 +149,28 @@ function rawState(viewId: string, path: string): FolderState | undefined {
         WHERE view_id = ? AND path = ?
     `).get(viewId, path) as { state: FolderState } | undefined
     return row?.state
+}
+
+function addTransactionMethod(db: DatabaseSync): TestDatabase {
+    return Object.assign(db, {
+        transaction<Args extends readonly unknown[], Result>(
+            fn: (...args: Args) => Result,
+        ): (...args: Args) => Result {
+            return (...args: Args): Result => {
+                if (db.isTransaction) {
+                    return fn(...args)
+                }
+
+                db.exec('BEGIN')
+                try {
+                    const result = fn(...args)
+                    db.exec('COMMIT')
+                    return result
+                } catch (error) {
+                    db.exec('ROLLBACK')
+                    throw error
+                }
+            }
+        },
+    }) as TestDatabase
 }
