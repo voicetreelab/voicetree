@@ -16,12 +16,9 @@ import {
     buildMarkdownBody,
     type ComplexityScore,
 } from '@vt/graph-tools/node'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
@@ -49,6 +46,7 @@ import {
     hasCycle,
     topologicalSort,
 } from './createGraphTopology'
+import {getConfiguredGraph, getConfiguredGraphDbClient} from './graphDbClientProvider'
 
 export type {ParentRef}
 
@@ -138,15 +136,16 @@ export async function createGraphTool({
     }
 
     // Get vault path
-    const vaultPathOpt: O.Option<string> = await getWritePath()
-    if (O.isNone(vaultPathOpt)) {
+    const client = getConfiguredGraphDbClient()
+    const vaultState = await client.getVault()
+    if (!vaultState.writePath) {
         return buildJsonResponse({
             success: false,
             error: 'No vault loaded. Please load a folder in the UI first.'
         }, true)
     }
-    const writePath: string = vaultPathOpt.value
-    const loadedVaultPaths: readonly string[] = await getVaultPaths()
+    const writePath: string = vaultState.writePath
+    const loadedVaultPaths: readonly string[] = [vaultState.writePath, ...vaultState.readPaths]
     const allowedVaultPaths: readonly string[] = (loadedVaultPaths.length > 0 ? loadedVaultPaths : [writePath])
         .map((vaultPath: string) => normalizePath(vaultPath))
     const outputDirectoryResolution:
@@ -230,7 +229,7 @@ export async function createGraphTool({
         }
     }
 
-    const graph: Graph = getGraph()
+    const graph: Graph = await getConfiguredGraph()
 
     // Resolve graph parent (attachment point for root nodes)
     const defaultParentId: string = O.isSome(callerRecord.terminalData.anchoredToNodeId)
@@ -282,7 +281,7 @@ export async function createGraphTool({
     const results: NodeResult[] = []
 
     // Snapshot graph once; maintain a local copy for position/wikilink resolution
-    let localGraph: Graph = getGraph()
+    let localGraph: Graph = graph
     const batchDelta: NodeDelta[] = []
 
     for (const node of sortedNodes) {
@@ -409,7 +408,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await postDeltaThroughDaemonWithEditors(batchDelta)
+        await client.postDelta([...batchDelta])
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -418,7 +417,7 @@ export async function createGraphTool({
 
     // Update caller's context node to include all new node IDs
     try {
-        const updatedGraph: Graph = getGraph()
+        const updatedGraph: Graph = await getConfiguredGraph()
         const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
         const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
         if (callerContextNode?.nodeUIMetadata.containedNodeIds) {
@@ -438,7 +437,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await postDeltaThroughDaemonWithEditors(contextDelta)
+            await client.postDelta([...contextDelta])
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created

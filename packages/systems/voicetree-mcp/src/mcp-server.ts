@@ -6,8 +6,8 @@
  *
  * Architecture:
  * - Uses pure functions from @vt/graph-model/pure/graph for graph operations
- * - Accesses state via shell functions (getGraph, getVaultPath)
- * - Executes effects via applyGraphDeltaToDBThroughMem
+ * - Accesses graph-db-server state through GraphDbClient HTTP calls
+ * - Executes graph effects through the daemon delta route
  * - Runs on HTTP transport at localhost:3001/mcp
  */
 
@@ -16,8 +16,10 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import type {Server} from 'node:http'
+import type {GraphDbClient} from '@vt/graph-db-client'
 import {findAvailablePort} from './util/findAvailablePort'
 import {enableMcpClientIntegrations} from './mcp-client-config'
+import {configureGraphDbClient} from './graphDbClientProvider'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -288,6 +290,7 @@ export interface StartMcpServerOptions {
      * vt-mcpd passes --port through here to avoid colliding with a running Electron MCP.
      */
     readonly startPort?: number
+    readonly graphDbClient?: GraphDbClient
 }
 
 export interface McpServerHandle {
@@ -300,6 +303,10 @@ export interface McpServerHandle {
  * This allows the server to run in-process with Electron (or vt-mcpd) and share state.
  */
 export async function startMcpServer(options?: StartMcpServerOptions): Promise<McpServerHandle> {
+    if (options?.graphDbClient) {
+        configureGraphDbClient(options.graphDbClient)
+    }
+
     const app: Express = express()
     app.use(express.json())
 

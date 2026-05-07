@@ -2,14 +2,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as mcpClientConfig from './mcp-client-config';
+import {configureGraphDbClient} from './graphDbClientProvider';
 
 // Hoist testDir so the vi.mock factory can reference it (vi.mock is hoisted above describe)
 const testDir: string = '/tmp/test-voicetree-mcp-opencode';
-
-// Mock the watch folder store
-vi.mock('@vt/graph-db-server/state/watch-folder-store', () => ({
-    getProjectRootWatchedDirectory: vi.fn(() => testDir)
-}));
 
 describe('mcp-client-config: OpenCode integration', () => {
     const mcpJsonPath: string = path.join(testDir, '.mcp.json');
@@ -22,6 +18,10 @@ describe('mcp-client-config: OpenCode integration', () => {
     }));
 
     beforeEach(async () => {
+        configureGraphDbClient({
+            baseUrl: 'http://127.0.0.1:65535',
+            getProjectRoot: vi.fn(async () => ({projectRoot: testDir})),
+        } as any);
         // Clean up test directory
         try {
             await fs.rm(testDir, { recursive: true, force: true });

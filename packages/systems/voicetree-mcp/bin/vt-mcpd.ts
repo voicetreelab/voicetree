@@ -26,9 +26,11 @@
 
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
+import {GraphDbClient} from '@vt/graph-db-client'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     configureMcpServer,
+    configureGraphDbClient,
     getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
@@ -140,9 +142,14 @@ async function main(): Promise<void> {
         )
     }
 
+    const graphDbClient: GraphDbClient = new GraphDbClient({
+        baseUrl: `http://127.0.0.1:${daemonHandle.port}`,
+    })
+    configureGraphDbClient(graphDbClient)
+
     let mcpHandle: McpServerHandle
     try {
-        mcpHandle = await startMcpServer({startPort: args.port})
+        mcpHandle = await startMcpServer({startPort: args.port, graphDbClient})
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
         die(`failed to start MCP server: ${(err as Error).message}`)

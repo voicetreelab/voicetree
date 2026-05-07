@@ -7,7 +7,6 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
 import {sendTextToTerminal} from '@vt/agent-runtime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
@@ -15,6 +14,7 @@ import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getHeadlessAgentOutput} from '@vt/agent-runtime'
+import {getConfiguredGraph} from './graphDbClientProvider'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -39,12 +39,13 @@ export function startMonitor(
     const effectiveIds: string[] = [...terminalIds, ...findExistingDescendants(terminalIds)]
 
     const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
+        void (async (): Promise<void> => {
         const now: number = Date.now()
         const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = getGraph()
+        const graph: Graph = await getConfiguredGraph()
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
@@ -114,13 +115,21 @@ export function startMonitor(
                 })
             }
 
-            const stillWaitingOn: string[] = getPendingAgentNamesForCaller(callerTerminalId, monitorId)
+            const stillWaitingOn: string[] = await getPendingAgentNamesForCaller(callerTerminalId, monitorId)
             const message: string = buildCompletionMessage(results, stillWaitingOn)
             void sendTextToTerminal(callerTerminalId, message)
 
             clearInterval(intervalId)
             monitors.delete(monitorId)
         }
+        })().catch((error: unknown) => {
+            void sendTextToTerminal(
+                callerTerminalId,
+                `\n\n[WaitForAgents] Monitor ${monitorId} failed: ${error instanceof Error ? error.message : String(error)}\n\n`,
+            )
+            clearInterval(intervalId)
+            monitors.delete(monitorId)
+        })
     }, pollIntervalMs)
 
     monitors.set(monitorId, {intervalId, callerTerminalId, terminalIds: effectiveIds})
@@ -171,9 +180,9 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Returns agent names still being monitored for this caller, excluding the monitor that just fired.
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
-export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): string[] {
+export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): Promise<string[]> {
     const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
-    const graph: Graph = getGraph()
+    const graph: Graph = await getConfiguredGraph()
     const now: number = Date.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {

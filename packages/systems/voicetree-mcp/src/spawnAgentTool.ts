@@ -10,9 +10,6 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
@@ -20,6 +17,7 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {startMonitor} from './agent-completion-monitor'
+import {getConfiguredGraph, getConfiguredGraphDbClient} from './graphDbClientProvider'
 
 export interface SpawnAgentParams {
     nodeId?: string
@@ -119,16 +117,17 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         return callerRecord?.terminalData.initialSpawnDirectory
     })()
 
-    const vaultPathOpt: O.Option<string> = await getWritePath()
-    if (O.isNone(vaultPathOpt)) {
+    const client = getConfiguredGraphDbClient()
+    const vaultState = await client.getVault()
+    if (!vaultState.writePath) {
         return buildJsonResponse({
             success: false,
             error: 'No vault loaded. Please load a folder in the UI first.'
         }, true)
     }
-    const writePath: string = vaultPathOpt.value
+    const writePath: string = vaultState.writePath
 
-    const graph: Graph = getGraph()
+    const graph: Graph = await getConfiguredGraph()
 
     // Branch: If task is provided, create a new task node first
     if (task) {
@@ -203,7 +202,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 : []
 
             // Apply task-node creation + caller-context update as one batched delta.
-            await postDeltaThroughDaemonWithEditors([...taskNodeDelta, ...callerContextUpdateDelta])
+            await client.postDelta([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent
@@ -278,7 +277,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 },
                 previousNode: O.some(targetNode)
             }]
-            await postDeltaThroughDaemonWithEditors(claimDelta)
+            await client.postDelta([...claimDelta])
         }
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport

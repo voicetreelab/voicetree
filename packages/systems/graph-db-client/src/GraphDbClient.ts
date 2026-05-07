@@ -7,6 +7,7 @@ import {
   LiveStateSnapshotSchema,
   LoadAndMergeRequestSchema,
   LoadAndMergeResponseSchema,
+  ProjectRootResponseSchema,
   RedoResponseSchema,
   SelectionRequestSchema,
   SelectionResponseSchema,
@@ -15,6 +16,7 @@ import {
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
   UndoResponseSchema,
+  UnseenNodesResponseSchema,
   VaultStateSchema,
   ViewResponseSchema,
   WritePositionsResponseSchema,
@@ -24,12 +26,14 @@ import {
   type LayoutResponse,
   type LiveStateSnapshot,
   type LoadAndMergeResponse,
+  type ProjectRootResponse,
   type RedoResponse,
   type SelectionRequest,
   type SelectionResponse,
   type SessionInfo,
   type ShutdownResponse,
   type UndoResponse,
+  type UnseenNodesResponse,
   type VaultState,
   type ViewResponse,
   type WritePositionsResponse,
@@ -138,6 +142,24 @@ export class GraphDbClient {
 
   async getGraph(): Promise<GraphState> {
     return this.req('/graph', { responseSchema: GraphStateSchema })
+  }
+
+  async getProjectRoot(): Promise<ProjectRootResponse> {
+    return this.req('/watch/project-root', { responseSchema: ProjectRootResponseSchema })
+  }
+
+  async getUnseenNodesNearby(
+    contextNodeId: string,
+    searchFromNode?: string,
+  ): Promise<UnseenNodesResponse> {
+    const params = new URLSearchParams()
+    if (searchFromNode) params.set('searchFromNode', searchFromNode)
+    const query = params.toString()
+    const suffix = query ? `?${query}` : ''
+    return this.req(
+      `/context-nodes/${encodeURIComponent(contextNodeId)}/unseen-nearby${suffix}`,
+      { responseSchema: UnseenNodesResponseSchema },
+    )
   }
 
   async postDelta(delta: unknown[], sessionId?: string): Promise<void> {
