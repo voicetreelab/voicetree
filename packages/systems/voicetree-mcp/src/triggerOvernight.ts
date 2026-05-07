@@ -7,10 +7,12 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {getConfiguredGraph, getConfiguredGraphDbClient} from './graphDbClientProvider'
 
 export interface TriggerOvernightParams {
     maxTasks?: number
@@ -34,14 +36,13 @@ export interface TriggerOvernightResult {
 export async function triggerOvernight(
     params: TriggerOvernightParams,
 ): Promise<TriggerOvernightResult> {
-    const client = getConfiguredGraphDbClient()
-    const vaultState = await client.getVault()
-    if (!vaultState.writePath) {
+    const vaultPathOpt: O.Option<string> = await getWritePath()
+    if (O.isNone(vaultPathOpt)) {
         return {success: false, error: 'No vault loaded. Open a folder in VoiceTree first.'}
     }
-    const writePath: string = vaultState.writePath
+    const writePath: string = vaultPathOpt.value
 
-    const graph: Graph = await getConfiguredGraph()
+    const graph: Graph = getGraph()
     const nodeIds: readonly string[] = Object.keys(graph.nodes)
     if (nodeIds.length === 0) {
         return {success: false, error: 'Graph is empty — no nodes to anchor overnight run.'}
@@ -74,7 +75,7 @@ export async function triggerOvernight(
         return {success: false, error: 'Failed to create task node'}
     }
 
-    await client.postDelta([...taskNodeDelta])
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
 
     // Resolve Opus agent command (find "Claude" in settings.agents)
     const settings: VTSettings = await loadSettings()

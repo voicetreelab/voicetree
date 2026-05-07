@@ -14,7 +14,6 @@ export type {
 
 export {createMcpServer, startMcpServer, getMcpPort} from './mcp-server'
 export type {McpServerHandle, StartMcpServerOptions} from './mcp-server'
-export {configureGraphDbClient} from './graphDbClientProvider'
 export {findAvailablePort, isPortAvailable} from './util/findAvailablePort'
 
 export {

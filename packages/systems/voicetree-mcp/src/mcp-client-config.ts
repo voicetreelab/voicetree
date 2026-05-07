@@ -12,7 +12,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getMcpPort } from './mcp-server';
-import {getConfiguredGraphDbClient} from './graphDbClientProvider';
+import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const;
 
@@ -30,13 +30,8 @@ interface McpJsonConfig {
 /**
  * Get the path to .mcp.json in the watched directory
  */
-async function getWatchedDirectory(): Promise<string | null> {
-    const {projectRoot} = await getConfiguredGraphDbClient().getProjectRoot();
-    return projectRoot ?? null;
-}
-
-async function getMcpJsonPath(): Promise<string | null> {
-    const watchedDir: string | null = await getWatchedDirectory();
+function getMcpJsonPath(): string | null {
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return null;
     }
@@ -47,7 +42,7 @@ async function getMcpJsonPath(): Promise<string | null> {
  * Read the current .mcp.json config, or return empty config if doesn't exist
  */
 async function readMcpJson(): Promise<McpJsonConfig> {
-    const mcpJsonPath: string | null = await getMcpJsonPath();
+    const mcpJsonPath: string | null = getMcpJsonPath();
     if (!mcpJsonPath) {
         return {};
     }
@@ -65,7 +60,7 @@ async function readMcpJson(): Promise<McpJsonConfig> {
  * Write the .mcp.json config
  */
 async function writeMcpJson(config: McpJsonConfig): Promise<void> {
-    const mcpJsonPath: string | null = await getMcpJsonPath();
+    const mcpJsonPath: string | null = getMcpJsonPath();
     if (!mcpJsonPath) {
         throw new Error('No watched directory - cannot write .mcp.json');
     }
@@ -126,14 +121,14 @@ export async function disableMcpJsonIntegration(): Promise<void> {
 /** Matches the [mcp_servers.voicetree] section and all its key-value lines */
 const CODEX_VOICETREE_SECTION_RE: RegExp = /\[mcp_servers\.voicetree\]\s*\n(?:(?!\[)[^\n]*\n?)*/;
 
-async function getCodexConfigPath(): Promise<string | null> {
-    const watchedDir: string | null = await getWatchedDirectory();
+function getCodexConfigPath(): string | null {
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return null;
     return path.join(watchedDir, '.codex', 'config.toml');
 }
 
 async function readCodexConfig(): Promise<string> {
-    const configPath: string | null = await getCodexConfigPath();
+    const configPath: string | null = getCodexConfigPath();
     if (!configPath) return '';
     try {
         return await fs.readFile(configPath, 'utf-8');
@@ -143,7 +138,7 @@ async function readCodexConfig(): Promise<string> {
 }
 
 async function writeCodexConfig(content: string): Promise<void> {
-    const configPath: string | null = await getCodexConfigPath();
+    const configPath: string | null = getCodexConfigPath();
     if (!configPath) throw new Error('No watched directory - cannot write .codex/config.toml');
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     await fs.writeFile(configPath, content, 'utf-8');
@@ -172,7 +167,7 @@ async function disableCodexMcpIntegration(): Promise<void> {
 
     if (content.length === 0) {
         // Delete the file if nothing left
-        const configPath: string | null = await getCodexConfigPath();
+        const configPath: string | null = getCodexConfigPath();
         if (configPath) {
             try { await fs.unlink(configPath); } catch (_e) { /* ignore */ }
         }
@@ -205,8 +200,8 @@ interface OpencodeConfig {
     [key: string]: any; // Preserve other OpenCode settings
 }
 
-async function getOpencodeConfigPath(): Promise<string | null> {
-    const watchedDir: string | null = await getWatchedDirectory();
+function getOpencodeConfigPath(): string | null {
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return null;
     return path.join(watchedDir, 'opencode.jsonc');
 }
@@ -215,7 +210,7 @@ async function getOpencodeConfigPath(): Promise<string | null> {
  * Read the current opencode.jsonc config, or return empty config if doesn't exist
  */
 async function readOpencodeConfig(): Promise<OpencodeConfig> {
-    const configPath: string | null = await getOpencodeConfigPath();
+    const configPath: string | null = getOpencodeConfigPath();
     if (!configPath) {
         return {};
     }
@@ -234,7 +229,7 @@ async function readOpencodeConfig(): Promise<OpencodeConfig> {
  * Write the opencode.jsonc config
  */
 async function writeOpencodeConfig(config: OpencodeConfig): Promise<void> {
-    const configPath: string | null = await getOpencodeConfigPath();
+    const configPath: string | null = getOpencodeConfigPath();
     if (!configPath) {
         throw new Error('No watched directory - cannot write opencode.jsonc');
     }
@@ -285,7 +280,7 @@ export async function disableOpencodeMcpIntegration(): Promise<void> {
         // If only schema remains, delete the file
         const keys: string[] = Object.keys(config);
         if (keys.length === 0 || (keys.length === 1 && keys[0] === '$schema')) {
-            const configPath: string | null = await getOpencodeConfigPath();
+            const configPath: string | null = getOpencodeConfigPath();
             if (configPath) {
                 try { await fs.unlink(configPath); } catch (_e) { /* ignore */ }
             }

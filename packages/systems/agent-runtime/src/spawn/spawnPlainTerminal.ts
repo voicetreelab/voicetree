@@ -11,22 +11,24 @@ import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '../types';
 import {getExistingAgentNames} from '../terminals/terminal-registry';
-import {getWatchStatus} from '@vt/graph-db-client';
+import {getGraph} from '@vt/graph-db-server/state/graph-store';
+import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
+import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
 import type {TerminalData} from '../types';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
-import {getRuntimeGraphDbClient, getRuntimeUI} from '../runtime-config';
+import {getRuntimeUI} from '../runtime-config';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
-  const client = getRuntimeGraphDbClient();
 
-  const graph: Graph = await client.getGraph() as unknown as Graph;
+  const graph: Graph = getGraph();
   const node: GraphNode | undefined = graph.nodes[nodeId];
   const title: string = node ? getNodeTitle(node) : 'Terminal';
 
-  const watchStatus: { readonly isWatching: boolean; readonly directory?: string } =
-      await getWatchStatus(client.baseUrl);
+  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
   let initialSpawnDirectory: string | undefined = watchStatus.directory;
 
   if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
@@ -77,16 +79,16 @@ export async function spawnPlainTerminalWithNode(
     terminalCount: number
 ): Promise<void> {
     // Get write path (absolute) for new node creation
-    const client = getRuntimeGraphDbClient();
-    const writePath: string = (await client.getVault()).writePath;
-    const graph: Graph = await client.getGraph() as unknown as Graph;
+    const writePathOption: O.Option<string> = await getWritePath();
+    const writePath: string = O.getOrElse(() => '')(writePathOption);
+    const graph: Graph = getGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
         createNewNodeNoParent(position, writePath, graph);
 
     // Persist the node to disk and update UI
-    await client.postDelta([...graphDelta]);
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
 
     // Now spawn a plain terminal attached to this node
     await spawnPlainTerminal(newNode.absoluteFilePathIsID, terminalCount);

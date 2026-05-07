@@ -17,9 +17,17 @@ import type {TerminalData, CreateTerminalDataParams} from '../types'
 
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 
-vi.mock('@vt/graph-db-client', () => ({
-    getUnseenNodesNearby: vi.fn(async () => ({nodes: []})),
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
+    getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}}))
 }))
+
+vi.mock('@vt/graph-model', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+    return {
+        ...actual,
+        getUnseenNodesAroundContextNode: vi.fn(async () => []),
+    }
+})
 
 vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')

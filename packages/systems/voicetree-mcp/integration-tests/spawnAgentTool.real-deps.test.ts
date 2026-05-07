@@ -22,6 +22,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {initGraphModel} from '@vt/graph-model'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearSettingsCache} from '@vt/app-config/settings'
 import {
     recordTerminalSpawn,
@@ -31,7 +32,22 @@ import {
 } from '@vt/agent-runtime'
 import type {TerminalData, TerminalId} from '@vt/agent-runtime'
 import {createTerminalData} from '@vt/agent-runtime'
-import {configureGraphDbClient} from '../src/graphDbClientProvider'
+
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await importOriginal()
+    return {
+        ...actual,
+        getWritePath: vi.fn(),
+    }
+})
+
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
+    return {
+        ...actual,
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+    }
+})
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
@@ -46,6 +62,7 @@ vi.mock('@vt/agent-runtime', async (importOriginal) => {
 })
 
 import {spawnAgentTool} from '../src/spawnAgentTool'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
 
@@ -108,16 +125,8 @@ describe('spawnAgentTool real-deps integration', () => {
         clearSettingsCache()
         clearTerminalRecords()
         clearAllBudgets()
-        configureGraphDbClient({
-            baseUrl: 'http://127.0.0.1:65535',
-            getVault: vi.fn(async () => ({
-                vaultPath: testTmpDir,
-                readPaths: [],
-                writePath: testTmpDir,
-            })),
-            getGraph: vi.fn(async () => buildGraphWithParent()),
-            postDelta: vi.fn(async () => undefined),
-        } as any)
+        setGraph(buildGraphWithParent())
+        vi.mocked(getWritePath).mockResolvedValue(O.some(testTmpDir))
     })
 
     it('resolves a custom agent name from a written settings.json (catches settings cache/path regressions)', async () => {

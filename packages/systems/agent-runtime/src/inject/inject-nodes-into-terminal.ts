@@ -6,11 +6,11 @@
  */
 
 import type { NodeIdAndFilePath, Graph, GraphNode } from '@vt/graph-model/graph'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
-import { updateContextNodeContainedIds } from '@vt/graph-db-client'
-import { getRuntimeGraphDbClient } from '../runtime-config'
+import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 
 const MAX_NODES_PER_INJECTION: number = 5
 
@@ -37,8 +37,7 @@ export async function injectNodesIntoTerminal(
     }
 
     const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
-    const client = getRuntimeGraphDbClient()
-    const graph: Graph = await client.getGraph() as unknown as Graph
+    const graph: Graph = getGraph()
 
     // Cap at MAX_NODES_PER_INJECTION to avoid PTY buffer issues
     const nodeIdsToInject: readonly string[] = nodeIds.slice(0, MAX_NODES_PER_INJECTION)
@@ -65,7 +64,7 @@ export async function injectNodesIntoTerminal(
         await sendTextToTerminal(terminalId, payload)
 
         // Mark injected nodes as seen by updating context node's containedNodeIds
-        await updateContextNodeContainedIds(client.baseUrl, contextNodeId, [...nodeIdsToInject])
+        await updateContextNodeContainedIds(contextNodeId, nodeIdsToInject)
 
         return { success: true, injectedCount: nodeBlocks.length }
     } catch (error: unknown) {

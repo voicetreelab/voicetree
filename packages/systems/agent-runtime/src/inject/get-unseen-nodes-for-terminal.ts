@@ -6,10 +6,10 @@
  */
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph'
-import { getUnseenNodesNearby, type UnseenNode } from '@vt/graph-db-client'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
-import { getRuntimeGraphDbClient } from '../runtime-config'
 
 export interface UnseenNodeInfo {
     readonly nodeId: NodeIdAndFilePath
@@ -42,17 +42,15 @@ export async function getUnseenNodesForTerminal(terminalId: string): Promise<rea
     // Only compute unseen nodes for terminals attached to actual context nodes
     // (those with isContextNode metadata and containedNodeIds).
     // Non-context-node terminals (e.g. the hook terminal) don't have this metadata.
-    const client = getRuntimeGraphDbClient()
-    const graph: Graph = await client.getGraph() as unknown as Graph
+    const graph: Graph = getGraph()
     const attachedNode: GraphNode | undefined = graph.nodes[contextNodeId]
     if (!attachedNode || !attachedNode.nodeUIMetadata.isContextNode) {
         return []
     }
 
     try {
-        const { nodes: unseenNodes }: { readonly nodes: readonly UnseenNode[] } =
-            await getUnseenNodesNearby(client.baseUrl, contextNodeId)
-        const updatedGraph: Graph = await client.getGraph() as unknown as Graph
+        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
+        const updatedGraph: Graph = getGraph()
 
         return unseenNodes.map((node: UnseenNode): UnseenNodeInfo => {
             const graphNode: GraphNode | undefined = updatedGraph.nodes[node.nodeId]

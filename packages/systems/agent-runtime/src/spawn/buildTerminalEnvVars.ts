@@ -3,10 +3,12 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
+import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getProjectRoot} from '@vt/graph-db-client'
-import {getRuntimeEnv, getRuntimeGraphDbClient} from '../runtime-config'
+import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store'
+import {getRuntimeEnv} from '../runtime-config'
 import path from 'path'
 
 export async function buildTerminalEnvVars(params: {
@@ -24,17 +26,12 @@ export async function buildTerminalEnvVars(params: {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]
     }
     const env = getRuntimeEnv()
-    const graphDbClient = getRuntimeGraphDbClient()
     const appSupportPath: string = env.getAppSupportPath()
-    const vaultState = await graphDbClient.getVault()
-    const allVaultPaths: readonly string[] = [
-        vaultState.writePath,
-        ...vaultState.readPaths.filter((readPath: string) => readPath !== vaultState.writePath),
-    ]
+    const allVaultPaths: readonly string[] = await getVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
-    const vaultPath: string = vaultState.writePath
+    const vaultPath: string = O.getOrElse(() => '')(await getWritePath())
 
-    const projectRoot: string | null = (await getProjectRoot(graphDbClient.baseUrl)).projectRoot
+    const projectRoot: string | null = getProjectRootWatchedDirectory()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
 
     const unexpandedEnvVars: Record<string, string> = {

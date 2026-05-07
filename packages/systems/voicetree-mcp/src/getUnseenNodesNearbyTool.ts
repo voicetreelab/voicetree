@@ -5,15 +5,11 @@
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
-import {getConfiguredGraph, getConfiguredGraphDbClient} from './graphDbClientProvider'
 import * as O from 'fp-ts/lib/Option.js'
-
-type UnseenNode = {
-    nodeId: string
-    content: string
-}
 
 export interface GetUnseenNodesNearbyParams {
     callerTerminalId: string
@@ -41,14 +37,12 @@ export async function getUnseenNodesNearbyTool({
     const contextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
 
     // 3. Get unseen nodes (with optional search_from_node override)
-    const client = getConfiguredGraphDbClient()
-    const graph: Graph = await getConfiguredGraph()
+    const graph: Graph = getGraph()
     try {
-        const unseenResponse = await client.getUnseenNodesNearby(
+        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(
             contextNodeId,
             search_from_node as NodeIdAndFilePath | undefined
         )
-        const unseenNodes: readonly UnseenNode[] = unseenResponse.nodes
 
         // 4. Filter out nodes created by this agent and the agent's task node
         const agentName: string = callerRecord.terminalData.agentName

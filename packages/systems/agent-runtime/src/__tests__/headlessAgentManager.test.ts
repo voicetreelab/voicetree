@@ -35,6 +35,10 @@ vi.mock('child_process', () => ({
     spawn: mockSpawn
 }))
 
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
+    getGraph: vi.fn().mockReturnValue({ nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map() })
+}))
+
 vi.mock('../hooks/stopGateAudit', () => ({
     auditAgent: vi.fn().mockReturnValue(null),
     buildDeficiencyPrompt: vi.fn().mockReturnValue(''),

@@ -5,17 +5,17 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentNodes} from './agentNodeIndex'
-import {getConfiguredGraph} from './graphDbClientProvider'
 import * as O from 'fp-ts/lib/Option.js'
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
-    const graph: Graph = await getConfiguredGraph()
+    const graph: Graph = getGraph()
     const agents: Array<{
         terminalId: string
         title: string
