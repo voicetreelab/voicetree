@@ -206,6 +206,12 @@ describe('vt_dispatch_live_command real MCP roundtrip', () => {
         vi.mocked(getLiveStateSnapshotFromDaemon).mockImplementation(async () =>
             serializeState(await getCurrentLiveState())
         )
+        configureMcpServer({
+            liveState: {
+                applyLiveCommand,
+                getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
+            },
+        })
     })
 
     afterEach(async () => {

@@ -34,6 +34,13 @@ function buildChildEnv(
 ): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
+        // Suppress Node ≥22 ExperimentalWarning when @vt/graph-db-server loads
+        // node:sqlite (still flagged experimental). The warning is benign and
+        // unrelated to CLI module resolution; without this, the strict
+        // `expect(stderr).toBe('')` check below fails on every CLI invocation.
+        NODE_OPTIONS: ['--disable-warning=ExperimentalWarning', process.env.NODE_OPTIONS]
+            .filter((segment: string | undefined): segment is string => typeof segment === 'string' && segment.length > 0)
+            .join(' '),
         ...overrides,
     }
 

@@ -56,10 +56,18 @@ export interface LoadVaultPathOptions {
   /**
    * Whether this path is the write path (main vault for new node creation).
    * When true and the folder is empty:
-   * - Creates a starter node
+   * - Creates a starter node (unless createStarterIfEmpty is false)
    * - Notifies backend of write directory
    */
   isWritePath: boolean;
+  /**
+   * When the write path is empty, auto-create a starter node so first-run
+   * users see a non-empty graph. Defaults to true to preserve UI/shell
+   * behavior. Tests and headless callers pass false to keep their world
+   * pristine — pushes the implicit side effect to the edge per the
+   * "PUSH IMPURITY TO EDGE / SHELL" design rule.
+   */
+  createStarterIfEmpty?: boolean;
 }
 
 /**
@@ -177,7 +185,7 @@ export async function loadAndMergeVaultPath(
     }
 
     // Handle starter node creation for empty write paths
-    if (options.isWritePath) {
+    if (options.isWritePath && (options.createStarterIfEmpty ?? true)) {
         const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
             nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
         );
@@ -213,7 +221,10 @@ export async function loadAndMergeVaultPath(
  * When setting a new write path, all nodes from that path are fully loaded.
  * This ensures the write path behaves like an "immediate load" path.
  */
-export async function setWritePath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
+export async function setWritePath(
+    vaultPath: FilePath,
+    options: { createStarterIfEmpty?: boolean } = {},
+): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
@@ -224,7 +235,11 @@ export async function setWritePath(vaultPath: FilePath): Promise<{ success: bool
     const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
 
     // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true }, positions);
+    const result: LoadVaultPathResult = await loadAndMergeVaultPath(
+        vaultPath,
+        { isWritePath: true, createStarterIfEmpty: options.createStarterIfEmpty },
+        positions,
+    );
     if (!result.success) {
         return result;
     }

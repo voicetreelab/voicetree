@@ -40,6 +40,10 @@ export type StartDaemonOptions = {
   // port-file delete). The bin sets this to process.exit(0); tests leave it
   // unset so vitest workers survive.
   onShutdownComplete?: () => void | Promise<void>
+  // When the vault is empty, auto-create a starter node so first-run UI users
+  // see a non-empty graph. Defaults to true to preserve shell behavior; tests
+  // pass false to keep their world pristine.
+  createStarterIfEmpty?: boolean
 }
 
 const LOOPBACK_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
@@ -95,7 +99,9 @@ export async function startDaemon(
     loadGraphFromDisk,
   })
   setVaultPath(vault)
-  const loadWritePathResult = await setWritePath(vault)
+  const loadWritePathResult = await setWritePath(vault, {
+    createStarterIfEmpty: opts.createStarterIfEmpty,
+  })
   if (!loadWritePathResult.success) {
     await lockHandle.release()
     throw new Error(loadWritePathResult.error ?? `Failed to load vault ${vault}`)

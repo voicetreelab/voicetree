@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { DaemonLaunchTimeout, DaemonUnreachableError } from './errors.ts'
@@ -41,6 +42,70 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function unrefIfSupported(value: unknown): void {
   if (!isRecord(value) || typeof value.unref !== 'function') return
   value.unref()
+}
+
+export interface OrphanCleanupResult {
+  readonly killed: readonly { pid: number; vault: string }[]
+  readonly skipped: readonly { pid: number; vault: string; reason: string }[]
+}
+
+/**
+ * Find vt-graphd processes whose --vault argument no longer points to an
+ * existing directory and terminate them. These are leftover daemons from
+ * crashed apps or aborted test runs; they hold ports and contend with the
+ * fresh daemon a current load is trying to reach.
+ *
+ * Only matches daemons launched via the bundled `vt-graphd.ts` entry; only
+ * kills processes whose vault path is missing on disk. POSIX-only (macOS,
+ * Linux); no-op on other platforms.
+ */
+export function killOrphanVtGraphdDaemons(): OrphanCleanupResult {
+  const killed: { pid: number; vault: string }[] = []
+  const skipped: { pid: number; vault: string; reason: string }[] = []
+
+  if (process.platform !== 'darwin' && process.platform !== 'linux') {
+    return { killed, skipped }
+  }
+
+  const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
+    encoding: 'utf8',
+    timeout: 5000,
+  })
+  if (result.status !== 0 || !result.stdout) {
+    return { killed, skipped }
+  }
+
+  const matcher = /^\s*(\d+)\s+(.*\bvt-graphd\.ts\b.*--vault\s+(\S+).*)$/
+
+  for (const line of result.stdout.split('\n')) {
+    const match = matcher.exec(line)
+    if (!match) continue
+    const pid = Number(match[1])
+    const vault = match[3]
+    if (!Number.isFinite(pid) || pid === process.pid) continue
+
+    let vaultExists = false
+    try {
+      vaultExists = statSync(vault).isDirectory()
+    } catch {
+      vaultExists = false
+    }
+
+    if (vaultExists) {
+      skipped.push({ pid, vault, reason: 'vault-exists' })
+      continue
+    }
+
+    try {
+      process.kill(pid, 'SIGTERM')
+      killed.push({ pid, vault })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'kill-failed'
+      skipped.push({ pid, vault, reason })
+    }
+  }
+
+  return { killed, skipped }
 }
 
 async function probeHealth(vault: string, port: number): Promise<boolean> {

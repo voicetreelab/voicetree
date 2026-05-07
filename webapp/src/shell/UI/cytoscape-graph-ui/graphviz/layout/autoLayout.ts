@@ -184,8 +184,12 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   /** Full ultimate layout chain: R-tree pack → Cola → animated cy.fit() */
   const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
+    // Element membership cannot change between component packing and the post-Cola
+    // fit (Cola only mutates positions; no cy.add/cy.remove in between), so compute
+    // the participant collection once and reuse it.
+    const participants: CollectionReturnValue = getLayoutParticipantElements();
     // R-tree packing: pack disconnected components before Cola
-    const components: CollectionReturnValue[] = getLayoutParticipantElements().components();
+    const components: CollectionReturnValue[] = participants.components();
     if (components.length > 1) {
       const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
         nodes: comp.nodes().map((n: NodeSingular) => ({
@@ -216,7 +220,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     runColaLayout(() => {
       const padding: number = getResponsivePadding(cy, 15);
-      cyFitIntoVisibleViewport(cy, getLayoutParticipantElements(), padding, {
+      cyFitIntoVisibleViewport(cy, participants, padding, {
         duration: 300,
         easing: 'ease-in-out-cubic',
         complete: () => { (onComplete ?? onLayoutComplete)(); },

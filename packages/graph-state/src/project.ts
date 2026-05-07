@@ -301,12 +301,13 @@ export function project(state: State): ElementSpec {
 
         const parentFolder = parentFolderIdForNode(nodeId)
         const classes = classesForNode(state, nodeId, node)
+        const position = state.layout.positions.get(nodeId)
         nodes.push({
             id: nodeId,
             ...(parentFolder && visibleFolderIds.has(parentFolder) ? { parent: parentFolder } : {}),
             label: labelForNode(nodeId),
             data: dataForNode(state, nodeId, node),
-            ...(state.layout.positions.has(nodeId) ? { position: state.layout.positions.get(nodeId) } : {}),
+            ...(position !== undefined ? { position } : {}),
             ...(classes ? { classes } : {}),
             kind: 'node',
         })
@@ -344,11 +345,12 @@ export function project(state: State): ElementSpec {
                     continue
                 }
                 seenRealEdgeIds.add(id)
+                const label = normalizeLabel(edge.label)
                 realEdges.push({
                     id,
                     source: sourceId,
                     target: edge.targetId,
-                    ...(normalizeLabel(edge.label) ? { label: normalizeLabel(edge.label) } : {}),
+                    ...(label ? { label } : {}),
                     data: {},
                     kind: 'real',
                 })

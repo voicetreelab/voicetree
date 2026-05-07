@@ -169,6 +169,7 @@ interface CpuProfile {
 export interface MainProcessMetrics {
   totalDurationMs: number;
   totalSamples: number;
+  activeSamples: number;
   topFunctions: Array<{
     name: string;
     url: string;
@@ -225,7 +226,7 @@ export function analyzeMainProcessProfile(profileJson: string): MainProcessMetri
     selfPercent: activeSamples > 0 ? (entry.count / activeSamples) * 100 : 0,
   }));
 
-  return { totalDurationMs, totalSamples, topFunctions };
+  return { totalDurationMs, totalSamples, activeSamples, topFunctions };
 }
 
 export function printMainProcessMetrics(metrics: MainProcessMetrics): void {

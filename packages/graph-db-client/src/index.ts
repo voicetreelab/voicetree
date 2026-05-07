@@ -5,7 +5,12 @@ export {
   GraphDbClientError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
-export { ensureDaemon, type EnsureDaemonResult } from './autoLaunch.ts'
+export {
+  ensureDaemon,
+  killOrphanVtGraphdDaemons,
+  type EnsureDaemonResult,
+  type OrphanCleanupResult,
+} from './autoLaunch.ts'
 
 export {
   CONTRACT_VERSION,

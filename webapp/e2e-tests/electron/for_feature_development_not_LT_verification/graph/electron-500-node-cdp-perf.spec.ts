@@ -25,6 +25,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
 import { generateClusteredGraph, generateUpdateElements } from './perf-helpers/generateClusteredGraph';
 import type { GraphElement } from './perf-helpers/generateClusteredGraph';
@@ -44,9 +45,11 @@ import {
 } from './perf-helpers/mainProcessProfile';
 import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 import { getOverlapDiagnosticString, savePostUpdateOverlapReport } from './perf-helpers/overlapCheck';
+import { describePerfTestConfig, loadPerfTestConfig } from './perf-helpers/perfConfig';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const PERF_TRACES_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'perf-traces');
+const PERF_CONFIG = loadPerfTestConfig(PROJECT_ROOT);
+const PERF_TRACES_DIR = PERF_CONFIG.outputDir;
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
@@ -85,10 +88,9 @@ const test = base.extend<{
       'utf8'
     );
 
-    const INSPECT_PORT = 9230; // Fixed port for main process profiling
     const electronApp = await electron.launch({
       args: [
-        `--inspect=${INSPECT_PORT}`,
+        `--inspect=${PERF_CONFIG.inspectPort}`,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`,
       ],
@@ -101,7 +103,19 @@ const test = base.extend<{
       },
       timeout: 15000,
     });
-    mainInspectPort = INSPECT_PORT;
+    mainInspectPort = PERF_CONFIG.inspectPort;
+
+    const mainStdout = electronApp.process().stdout;
+    if (mainStdout) {
+      mainStdout.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        for (const line of text.split('\n')) {
+          if (line.startsWith('[load-timing]')) {
+            console.log(line);
+          }
+        }
+      });
+    }
 
     await use(electronApp);
 
@@ -124,6 +138,11 @@ const test = base.extend<{
 
     await electronApp.close();
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+
+    const reaped = killOrphanVtGraphdDaemons();
+    if (reaped.killed.length > 0) {
+      console.log('[Perf Test] Reaped orphan vt-graphd daemons', reaped.killed);
+    }
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -131,8 +150,11 @@ const test = base.extend<{
 
     window.on('console', (msg) => {
       const type = msg.type();
+      const text = msg.text();
       if (type === 'warning' || type === 'error') {
-        console.log(`BROWSER [${type}]:`, msg.text());
+        console.log(`BROWSER [${type}]:`, text);
+      } else if (text.startsWith('[load-timing]')) {
+        console.log(text);
       }
     });
     window.on('pageerror', (error) => {
@@ -162,12 +184,14 @@ const test = base.extend<{
 // Test
 // ============================================================================
 
-test.describe('500-Node CDP Performance Trace', () => {
+test.describe('CDP Performance Trace', () => {
   test('CREATE → UPDATE → DELETE with CDP tracing', async ({ electronApp: _electronApp, appWindow }) => {
     test.setTimeout(300000); // 5 min total
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const cdp = await appWindow.context().newCDPSession(appWindow);
+    const nodeLabel = String(PERF_CONFIG.nodeCount);
+    const updateLabel = String(PERF_CONFIG.updateNodeCount);
     let rendererProfilerActive = false;
 
     const startRendererProfiler = async (): Promise<void> => {
@@ -200,7 +224,12 @@ test.describe('500-Node CDP Performance Trace', () => {
 
     try {
 
-    const graphElements = generateClusteredGraph(10, 50, 50000);
+    console.log(`[Perf Test] Config: ${describePerfTestConfig(PERF_CONFIG)}`);
+    const graphElements = generateClusteredGraph(
+      PERF_CONFIG.clusterCount,
+      PERF_CONFIG.nodesPerCluster,
+      PERF_CONFIG.clusterSpacing
+    );
     const generatedNodeCount = graphElements.filter((e) => e.group === 'nodes').length;
     console.log(`Generated: ${generatedNodeCount} nodes, ${graphElements.length - generatedNodeCount} edges`);
 
@@ -212,7 +241,7 @@ test.describe('500-Node CDP Performance Trace', () => {
     console.log(`Baseline nodes from vault: ${baselineNodeCount}`);
 
     // Phase 1: CREATE
-    const createMetrics = await test.step('PHASE 1: CREATE 500 nodes', async () => {
+    const createMetrics = await test.step(`PHASE 1: CREATE ${nodeLabel} nodes`, async () => {
       console.log('\n=== PHASE 1: CREATE ===');
       await appWindow.evaluate(() => performance.mark('graph-add-start'));
       await startCDPTrace(cdp);
@@ -233,8 +262,8 @@ test.describe('500-Node CDP Performance Trace', () => {
       await waitForLayoutStable(appWindow, 60000);
       await appWindow.evaluate(() => performance.mark('layout-stable'));
 
-      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `create-500-${timestamp}.json`);
-      const m = analyzeTrace(trace, 'CREATE 500 nodes');
+      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `create-${nodeLabel}-${timestamp}.json`);
+      const m = analyzeTrace(trace, `CREATE ${nodeLabel} nodes`);
       printMetricsTable(m);
       return m;
     });
@@ -325,8 +354,8 @@ test.describe('500-Node CDP Performance Trace', () => {
 
       await appWindow.evaluate(() => performance.mark('panzoom-end'));
 
-      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `panzoom-500-${timestamp}.json`);
-      const m = analyzeTrace(trace, 'PAN/ZOOM on settled 500-node graph');
+      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `panzoom-${nodeLabel}-${timestamp}.json`);
+      const m = analyzeTrace(trace, `PAN/ZOOM on settled ${nodeLabel}-node graph`);
       printMetricsTable(m);
       return m;
     });
@@ -378,9 +407,13 @@ test.describe('500-Node CDP Performance Trace', () => {
     // Write diagnostic to file so we can read it even if test fails
     await fs.writeFile(path.join(PERF_TRACES_DIR, 'overlap-diagnostic.txt'), preUpdateOverlapInfo, 'utf8');
 
-    // Phase 2: UPDATE (+50 nodes, local Cola)
-    const updateElements = generateUpdateElements(10, 5, 50000);
-    const updateMetrics = await test.step('PHASE 2: UPDATE +50 nodes', async () => {
+    // Phase 2: UPDATE (default +50 nodes, local Cola)
+    const updateElements = generateUpdateElements(
+      PERF_CONFIG.clusterCount,
+      PERF_CONFIG.updateNodesPerCluster,
+      PERF_CONFIG.clusterSpacing
+    );
+    const updateMetrics = await test.step(`PHASE 2: UPDATE +${updateLabel} nodes`, async () => {
       console.log('\n=== PHASE 2: UPDATE ===');
       await appWindow.evaluate(() => performance.mark('update-add-start'));
       await startCDPTrace(cdp);
@@ -396,13 +429,13 @@ test.describe('500-Node CDP Performance Trace', () => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
         return cy ? cy.nodes().length : 0;
       });
-      expect(total).toBe(baselineNodeCount + generatedNodeCount + 50);
+      expect(total).toBe(baselineNodeCount + generatedNodeCount + PERF_CONFIG.updateNodeCount);
 
       await waitForLayoutStable(appWindow, 30000);
       await appWindow.evaluate(() => performance.mark('update-layout-stable'));
 
-      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `update-50-${timestamp}.json`);
-      const m = analyzeTrace(trace, 'UPDATE +50 nodes (local Cola)');
+      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `update-${updateLabel}-${timestamp}.json`);
+      const m = analyzeTrace(trace, `UPDATE +${updateLabel} nodes (local Cola)`);
       printMetricsTable(m);
       return m;
     });
@@ -412,8 +445,8 @@ test.describe('500-Node CDP Performance Trace', () => {
       savePostUpdateOverlapReport(appWindow, PERF_TRACES_DIR)
     );
 
-    // Phase 3: DELETE (-50 nodes, full rebalance)
-    const deleteMetrics = await test.step('PHASE 3: DELETE 50 nodes', async () => {
+    // Phase 3: DELETE (default -50 nodes, full rebalance)
+    const deleteMetrics = await test.step(`PHASE 3: DELETE ${updateLabel} nodes`, async () => {
       console.log('\n=== PHASE 3: DELETE ===');
       await appWindow.evaluate(() => performance.mark('delete-start'));
       await startCDPTrace(cdp);
@@ -434,8 +467,8 @@ test.describe('500-Node CDP Performance Trace', () => {
       await waitForLayoutStable(appWindow, 60000);
       await appWindow.evaluate(() => performance.mark('delete-layout-stable'));
 
-      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `delete-50-${timestamp}.json`);
-      const m = analyzeTrace(trace, 'DELETE 50 nodes (full rebalance)');
+      const trace = await stopCDPTraceAndSave(cdp, PERF_TRACES_DIR, `delete-${updateLabel}-${timestamp}.json`);
+      const m = analyzeTrace(trace, `DELETE ${updateLabel} nodes (full rebalance)`);
       printMetricsTable(m);
       return m;
     });
@@ -444,7 +477,7 @@ test.describe('500-Node CDP Performance Trace', () => {
     await test.step('Summary & sanity assertions', async () => {
       const sep = '='.repeat(60);
       console.log(`\n${sep}`);
-      console.log('  500-NODE CDP PERFORMANCE TRACE — SUMMARY');
+      console.log(`  ${nodeLabel}-NODE CDP PERFORMANCE TRACE — SUMMARY`);
       console.log(sep);
       console.log(`  CREATE:   ${fmtMs(createMetrics.totalDurationMs)} total, longest ${fmtMs(createMetrics.longestTaskMs)}`);
       console.log(`  PAN/ZOOM: ${fmtMs(panZoomMetrics.totalDurationMs)} total, longest ${fmtMs(panZoomMetrics.longestTaskMs)}`);

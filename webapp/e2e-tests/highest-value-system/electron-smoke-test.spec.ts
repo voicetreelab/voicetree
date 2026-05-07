@@ -347,8 +347,12 @@ test.describe('Smoke Test', () => {
       depthBudget: 0,
       headless: true
     });
-    expect(fakeAgentSpawn.parsed).toMatchObject({ success: true });
-    const fakeAgentTerminalId = (fakeAgentSpawn.parsed as { terminalId: string }).terminalId;
+    const spawnPayload = fakeAgentSpawn.parsed as { success: boolean; error?: string; terminalId?: string };
+    if (!spawnPayload.success) {
+      console.error('[smoke] spawn_agent failed:', JSON.stringify(spawnPayload, null, 2));
+    }
+    expect(spawnPayload, `spawn_agent error: ${spawnPayload.error ?? 'unknown'}`).toMatchObject({ success: true });
+    const fakeAgentTerminalId = spawnPayload.terminalId!;
     expect(fakeAgentTerminalId).toBeTruthy();
 
     await expect.poll(async () => {

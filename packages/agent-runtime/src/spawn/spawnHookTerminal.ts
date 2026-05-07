@@ -77,7 +77,7 @@ async function createHookNode(): Promise<string> {
         previousNode: O.none
     }]
 
-    await postDeltaThroughDaemonWithEditors(hookDelta)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(hookDelta)
     return hookNode.absoluteFilePathIsID
 }
 

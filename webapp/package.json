@@ -21,6 +21,7 @@
     "test:smoke": "npm run test:e2e:tier1",
     "test:e2e": "npm run test:e2e:tier2:electron",
     "test:browser": "npm run test:e2e:tier2:browser",
+    "test:perf:v1": "node scripts/run-perf-suite.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "tsc -b && vite build && npm run test:smoke",

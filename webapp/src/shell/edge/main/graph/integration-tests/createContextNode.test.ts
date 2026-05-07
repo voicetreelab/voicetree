@@ -42,7 +42,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 
 const EXAMPLE_SMALL_WRITE_PATH: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
-const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree')
+const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree-24-2')
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -308,8 +308,8 @@ describe('createContextNode - Integration Tests', () => {
     }, 15000)
   })
 
-  describe('BEHAVIOR: Context node should have exactly ONE edge (BUG REGRESSION TEST)', () => {
-    it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
+  describe('BEHAVIOR: Context node should be orphaned (zero edges) — terminal shadow draws the cytoscape edge at runtime', () => {
+    it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
       initGraphModel(

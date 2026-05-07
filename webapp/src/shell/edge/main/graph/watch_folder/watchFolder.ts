@@ -27,6 +27,10 @@ import {
     startDaemonGraphSync,
     stopDaemonGraphSync,
 } from '@/shell/edge/main/electron/daemon-watch-sync'
+import {
+    markLoadTiming,
+    startLoadTiming,
+} from '@/shell/edge/main/diagnostics/loadTiming'
 import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {
     ensureDaemonClientForVault,
@@ -39,7 +43,13 @@ import {
     isValidSubdirectory,
 } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 
-const DAEMON_LOAD_TIMEOUT_MS: number = process.env.CI ? 45_000 : 15_000
+const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
+    process.env.VOICETREE_DAEMON_LOAD_TIMEOUT_MS ?? '',
+    10,
+)
+const DAEMON_LOAD_TIMEOUT_MS: number = Number.isFinite(configuredDaemonLoadTimeoutMs)
+    ? configuredDaemonLoadTimeoutMs
+    : process.env.CI ? 45_000 : 15_000
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
@@ -177,6 +187,8 @@ export async function loadFolder(
         return { success: false }
     }
 
+    startLoadTiming(watchedFolderPath)
+
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (previousRoot) {
         savePositionsSync(getGraph(), previousRoot)
@@ -194,11 +206,18 @@ export async function loadFolder(
         console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error)
     })
 
+    markLoadTiming('main:daemon-ensure-start')
     const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
         timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
     })
+    markLoadTiming('main:daemon-ensure-end', {
+        port: connection.port,
+        launched: connection.launched,
+    })
     await connection.client.setWritePath(writePath)
+    markLoadTiming('main:daemon-set-write-path-end')
     await startDaemonSyncForLoadedDirectory(watchedFolderPath)
+    markLoadTiming('main:daemon-graph-sync-started')
     await saveLastDirectory(watchedFolderPath)
 
     getCallbacks().onWatchingStarted?.({
