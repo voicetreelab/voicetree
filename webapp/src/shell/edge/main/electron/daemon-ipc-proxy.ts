@@ -382,6 +382,12 @@ export async function getGraphFromDaemon(): Promise<Graph> {
   return graphWithLocalPositionOverlays(await getNormalizedDaemonGraph(client), getLocalGraph())
 }
 
+export async function getProjectedGraphFromDaemon(): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.getProjectedGraph(sessionId)
+}
+
 export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const sessionId: string = await ensureRendererSession(client)

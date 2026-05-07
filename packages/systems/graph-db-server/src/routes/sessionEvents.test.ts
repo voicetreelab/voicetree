@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../server.ts'
 import { SessionCreateResponseSchema } from '../contract.ts'
-import type { SourceTaggedDelta } from '../events/deltaEventBus.ts'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))
@@ -21,19 +21,19 @@ async function createAppSupport(vault: string): Promise<string> {
   return appSupport
 }
 
-function parseSSEEvents(text: string): SourceTaggedDelta[] {
-  const events: SourceTaggedDelta[] = []
+function parseSSEGraphEvents(text: string): ProjectedGraph[] {
+  const graphs: ProjectedGraph[] = []
   const blocks = text.split('\n\n').filter(Boolean)
   for (const block of blocks) {
     const dataLine = block.split('\n').find(l => l.startsWith('data:'))
     if (dataLine) {
       const json = dataLine.slice('data:'.length).trim()
       try {
-        events.push(JSON.parse(json))
+        graphs.push(JSON.parse(json))
       } catch { /* skip malformed */ }
     }
   }
-  return events
+  return graphs
 }
 
 describe('SSE session events', () => {
@@ -59,17 +59,15 @@ describe('SSE session events', () => {
     await rm(appSupport, { recursive: true, force: true })
   }, 15000)
 
-  test('receives source-tagged deltas via SSE for HTTP writes and FS writes', async () => {
+  test('receives projected graph via SSE for HTTP writes and FS writes', async () => {
     const handle = await startDaemon({ vault, appSupportPath: appSupport })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
-    // Create a session for SSE subscription
     const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
     expect(createRes.status).toBe(201)
     const { sessionId } = SessionCreateResponseSchema.parse(await createRes.json())
 
-    // Connect to SSE endpoint
     sseController = new AbortController()
     const sseRes = await fetch(`${base}/sessions/${sessionId}/events`, {
       signal: sseController.signal,
@@ -79,9 +77,8 @@ describe('SSE session events', () => {
 
     const reader = sseRes.body!.getReader()
     const decoder = new TextDecoder()
-    const receivedEvents: SourceTaggedDelta[] = []
+    const receivedGraphs: ProjectedGraph[] = []
 
-    // Read the initial ": connected" comment
     await reader.read()
 
     const collectEvents = async (timeoutMs = 3000): Promise<void> => {
@@ -95,13 +92,12 @@ describe('SSE session events', () => {
         if (result.done) break
         if (result.value) {
           const chunk = decoder.decode(result.value, { stream: true })
-          receivedEvents.push(...parseSSEEvents(chunk))
-          if (receivedEvents.length > 0) break
+          receivedGraphs.push(...parseSSEGraphEvents(chunk))
+          if (receivedGraphs.length > 0) break
         }
       }
     }
 
-    // POST a delta with X-Session-Id header from a different session
     const testNodePath = join(vault, 'test-node-http.md')
     const delta = [
       {
@@ -125,20 +121,21 @@ describe('SSE session events', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Session-Id': 'other-session-123',
+        'X-Session-Id': sessionId,
       },
       body: JSON.stringify(delta),
     })
     expect(deltaRes.status).toBe(200)
 
-    // Read SSE events - should get the HTTP-sourced delta
     await collectEvents()
-    const httpEvent = receivedEvents.find(e => e.source === 'session:other-session-123')
-    expect(httpEvent).toBeDefined()
-    expect(httpEvent!.delta.length).toBeGreaterThan(0)
+    expect(receivedGraphs.length).toBeGreaterThan(0)
+    const httpGraph = receivedGraphs[receivedGraphs.length - 1]
+    expect(httpGraph.nodes).toBeDefined()
+    expect(httpGraph.edges).toBeDefined()
+    const upsertedNode = httpGraph.nodes.find(n => n.id === testNodePath)
+    expect(upsertedNode).toBeDefined()
 
-    // Write a .md file directly to vault (simulating external FS write)
-    receivedEvents.length = 0
+    receivedGraphs.length = 0
     const externalFilePath = join(vault, 'external-write.md')
     await writeFile(externalFilePath, `---
 agent_name: Ari
@@ -146,17 +143,11 @@ agent_name: Ari
 # External Node
 Written directly to FS`)
 
-    // Wait for chokidar to detect the change and publish the event
     await collectEvents(5000)
-    const fsEvent = receivedEvents.find(e => e.source === 'fs:external')
-    expect(fsEvent).toBeDefined()
-    expect(fsEvent!.delta.length).toBeGreaterThan(0)
-    const fsUpsert = fsEvent!.delta.find(d => d.type === 'UpsertNode')
-    expect(fsUpsert).toBeDefined()
-    if (fsUpsert?.type !== 'UpsertNode') throw new Error('Expected UpsertNode')
-    expect(fsUpsert.nodeToUpsert.nodeUIMetadata.additionalYAMLProps).toMatchObject({
-      agent_name: 'Ari',
-    })
+    expect(receivedGraphs.length).toBeGreaterThan(0)
+    const fsGraph = receivedGraphs[receivedGraphs.length - 1]
+    const externalNode = fsGraph.nodes.find(n => n.id === externalFilePath)
+    expect(externalNode).toBeDefined()
   }, 20000)
 
   test('returns 404 for non-existent session', async () => {

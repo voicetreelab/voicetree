@@ -35,6 +35,18 @@ export function mountViewRoutes(
     return c.json(ViewResponseSchema.parse({ output, format: 'tree-cover' }))
   })
 
+  app.get('/sessions/:sessionId/projected-graph', async (c) => {
+    const sessionId = c.req.param('sessionId')
+    const session = registry.getOrCreate(sessionId)
+
+    const state = await buildDaemonState(session)
+    const graph = project(state)
+
+    return c.json(graph, 200, {
+      'Content-Type': 'application/json',
+    })
+  })
+
   app.post('/sessions/:sessionId/expand/:folderId', (c) => {
     const sessionId = c.req.param('sessionId')
     const session = registry.get(sessionId)

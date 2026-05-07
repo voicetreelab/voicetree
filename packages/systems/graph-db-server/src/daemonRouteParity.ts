@@ -83,6 +83,12 @@ export const DAEMON_ROUTE_PARITY_EXEMPTIONS = [
     reason:
       '`/sessions/:sessionId/expand/:folderId` clears persistent render-only expand overrides; current CLI has no persistent override command.',
   },
+  {
+    method: 'GET',
+    path: '/sessions/:sessionId/projected-graph',
+    reason:
+      '`/sessions/:sessionId/projected-graph` returns the full ProjectedGraph for renderer hydration; internal to the Electron IPC bridge, not a CLI command.',
+  },
 ] as const satisfies readonly DaemonRouteExemption[]
 
 const EXEMPT_SIGNATURES = new Set(

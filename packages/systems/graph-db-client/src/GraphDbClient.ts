@@ -258,6 +258,15 @@ export class GraphDbClient {
     )
   }
 
+  async getProjectedGraph(sessionId: string): Promise<unknown> {
+    return await this.request(
+      `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
+      {
+        responseSchema: { parse: (value: unknown) => value },
+      },
+    )
+  }
+
   async updateLayout(
     sessionId: string,
     partial: LayoutPartial,

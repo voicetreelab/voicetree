@@ -1,14 +1,19 @@
 import type { Hono } from 'hono'
 import { stream } from 'hono/streaming'
 import type { SessionRegistry } from '../session/registry.ts'
-import { subscribe, type SourceTaggedDelta } from '../events/deltaEventBus.ts'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
+import { subscribe as subscribeDelta } from '../events/deltaEventBus.ts'
+import { subscribeToProjectedGraph, type ProjectedGraphEvent } from '../events/projectedGraphEventBus.ts'
+import { project } from '@vt/graph-state'
+import { buildDaemonState } from '../session/buildDaemonState.ts'
+import type { Session } from '../session/types.ts'
 
 function formatSSE(event: string, data: string): string {
   return `event: ${event}\ndata: ${data}\n\n`
 }
 
-function stringifyEventForSSE(event: SourceTaggedDelta): string {
-  return JSON.stringify(event, (_key: string, value: unknown) => {
+function stringifyGraphForSSE(graph: ProjectedGraph): string {
+  return JSON.stringify(graph, (_key: string, value: unknown) => {
     if (value instanceof Map) {
       return Object.fromEntries(value.entries())
     }
@@ -32,20 +37,35 @@ export function mountSessionEventsRoute(
     c.header('Connection', 'keep-alive')
 
     return stream(c, async (s) => {
-      // Send initial comment to flush headers to client
       await s.write(': connected\n\n')
 
-      let unsubscribe: (() => void) | null = null
+      let unsubscribeProjected: (() => void) | null = null
+      let unsubscribeDelta: (() => void) | null = null
 
-      const onEvent = (event: SourceTaggedDelta): void => {
-        void s.write(formatSSE('graphDelta', stringifyEventForSSE(event)))
+      const sendGraph = (graph: ProjectedGraph): void => {
+        void s.write(formatSSE('projectedGraph', stringifyGraphForSSE(graph)))
       }
 
-      unsubscribe = subscribe(onEvent)
+      unsubscribeProjected = subscribeToProjectedGraph((event: ProjectedGraphEvent) => {
+        if (event.sessionId !== sessionId) return
+        sendGraph(event.graph)
+      })
+
+      unsubscribeDelta = subscribeDelta(() => {
+        void (async () => {
+          const freshSession: Session | null = registry.get(sessionId)
+          if (!freshSession) return
+          const state = await buildDaemonState(freshSession)
+          const graph = project(state)
+          sendGraph(graph)
+        })()
+      })
 
       s.onAbort(() => {
-        unsubscribe?.()
-        unsubscribe = null
+        unsubscribeProjected?.()
+        unsubscribeDelta?.()
+        unsubscribeProjected = null
+        unsubscribeDelta = null
       })
 
       await new Promise<void>((resolve) => {

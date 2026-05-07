@@ -50,19 +50,6 @@ let loadedRootsFromMain: ReadonlySet<string> | null = null
 let isFetchingFolderTreeFromMain: boolean = false
 let shouldRefetchFolderTreeFromMain: boolean = false
 
-function updatePositionsFromDelta(delta: GraphDelta): void {
-    for (const op of delta) {
-        if (op.type === 'UpsertNode') {
-            const node: typeof op.nodeToUpsert = op.nodeToUpsert
-            if (O.isSome(node.nodeUIMetadata.position)) {
-                mirror.positions.set(node.absoluteFilePathIsID, node.nodeUIMetadata.position.value)
-            }
-        } else if (op.type === 'DeleteNode') {
-            mirror.positions.delete(op.nodeId)
-        }
-    }
-}
-
 function emptyRoots(): State['roots'] {
     return {
         loaded: new Set<string>(),
@@ -152,12 +139,30 @@ function refreshProjectionFromStores(): void {
     applyGraphDeltaToUI(getCyInstance(), projectRendererState())
 }
 
+function updatePositionsFromDelta(delta: GraphDelta): void {
+    for (const op of delta) {
+        if (op.type === 'UpsertNode') {
+            const node: typeof op.nodeToUpsert = op.nodeToUpsert
+            if (O.isSome(node.nodeUIMetadata.position)) {
+                mirror.positions.set(node.absoluteFilePathIsID, node.nodeUIMetadata.position.value)
+            }
+        } else if (op.type === 'DeleteNode') {
+            mirror.positions.delete(op.nodeId)
+        }
+    }
+}
+
 export function applyDeltaToRendererStateMirror(delta: GraphDelta): void {
     if (delta.length === 0) return
     mirror.graph = applyGraphDeltaToGraph(mirror.graph, delta)
     updatePositionsFromDelta(delta)
     mirror.revision += 1
     void refreshFolderTreeFromMain()
+}
+
+export function projectDelta(delta: GraphDelta): ProjectedGraph {
+    applyDeltaToRendererStateMirror(delta)
+    return projectRendererState()
 }
 
 export function resetRendererStateMirror(): void {
@@ -176,17 +181,13 @@ export function projectRendererState(): ProjectedGraph {
     return project(buildStateFromMirror())
 }
 
-export function projectDelta(delta: GraphDelta): ProjectedGraph {
-    applyDeltaToRendererStateMirror(delta)
-    return projectRendererState()
-}
 
 subscribeFolderTree(({ tree }: { tree: FolderTreeNode | null }) => {
     if (tree === lastSyncedFolderTree) return
     lastSyncedFolderTree = tree
     hasFreshFolderTree = tree !== null
     mirror.revision += 1
-    refreshProjectionFromStores()
+    // BF-257: daemon now owns projection; don't re-project from stale mirror
 })
 
 void refreshFolderTreeFromMain()

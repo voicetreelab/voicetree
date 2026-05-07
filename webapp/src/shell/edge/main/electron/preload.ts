@@ -17,6 +17,7 @@
 
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@vt/graph-model/graph";
+import type {ProjectedGraph} from "@vt/graph-state/contract";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api';
 
@@ -86,6 +87,13 @@ async function exposeElectronAPI(): Promise<void> {
                 return () => ipcRenderer.off('graph:stateChanged', handler);
             },
 
+            // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
+            onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
+                const handler: (_event: unknown, graph: ProjectedGraph) => void = (_event: unknown, graph: ProjectedGraph) => callback(graph);
+                ipcRenderer.on('graph:projectedGraphUpdate', handler);
+                return () => ipcRenderer.off('graph:projectedGraphUpdate', handler);
+            },
+
             // Subscribe to graph clear events (returns unsubscribe function)
             onGraphClear: (callback: () => void) => {
                 const handler: () => void = () => callback();
@@ -119,6 +127,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:exit',
                 'backend-log',
                 'graph:stateChanged',
+                'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
                 'ui:call',
@@ -136,6 +145,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:exit',
                 'backend-log',
                 'graph:stateChanged',
+                'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
                 'ui:call',

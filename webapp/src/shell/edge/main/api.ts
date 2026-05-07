@@ -45,6 +45,7 @@ import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/wo
 import {
   addReadPathThroughDaemon as addReadPath,
   getGraphFromDaemon as getGraph,
+  getProjectedGraphFromDaemon as getProjectedGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
@@ -86,6 +87,8 @@ export const mainAPI = {
     applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
 
   getGraph,
+
+  getProjectedGraph,
 
   getNode,
 
