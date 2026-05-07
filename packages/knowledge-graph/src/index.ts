@@ -1,9 +1,9 @@
-export {resolveConfig} from './lib/config.js'
-export {Embedder} from './lib/embedder.js'
-export {IndexPipeline} from './lib/index-pipeline.js'
-export {Search} from './lib/search.js'
-export {Store} from './lib/store.js'
-export {buildStemLookup, extractWikiLinks, resolveLink} from './lib/wiki-links.js'
+export {resolveConfig} from './lib/config'
+export {Embedder} from './lib/embedder'
+export {IndexPipeline} from './lib/index-pipeline'
+export {Search} from './lib/search'
+export {Store} from './lib/store'
+export {buildStemLookup, extractWikiLinks, resolveLink} from './lib/wiki-links'
 export type {
     Community,
     NameMatch,
@@ -14,4 +14,4 @@ export type {
     StoredEdge,
     StoredNode,
     SubgraphResult,
-} from './lib/types.js'
+} from './lib/types'

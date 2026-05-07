@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { resolveConfig } from '../lib/config.js';
-import { Store } from '../lib/store.js';
-import { Embedder } from '../lib/embedder.js';
-import { IndexPipeline } from '../lib/index-pipeline.js';
-import { KnowledgeGraph } from '../lib/graph.js';
-import { Search } from '../lib/search.js';
-import { resolveNodeName } from '../lib/resolve.js';
-import { VaultWriter } from '../lib/writer.js';
+import { resolveConfig } from '../lib/config';
+import { Store } from '../lib/store';
+import { Embedder } from '../lib/embedder';
+import { IndexPipeline } from '../lib/index-pipeline';
+import { KnowledgeGraph } from '../lib/graph';
+import { Search } from '../lib/search';
+import { resolveNodeName } from '../lib/resolve';
+import { VaultWriter } from '../lib/writer';
 import { mkdirSync } from 'fs';
 
 const config = resolveConfig({});

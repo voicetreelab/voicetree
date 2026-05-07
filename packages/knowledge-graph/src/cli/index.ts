@@ -1,12 +1,12 @@
 import { Command } from 'commander';
 import { mkdirSync } from 'fs';
-import { resolveConfig } from '../lib/config.js';
-import { Store } from '../lib/store.js';
-import { Embedder } from '../lib/embedder.js';
-import { IndexPipeline } from '../lib/index-pipeline.js';
-import { KnowledgeGraph } from '../lib/graph.js';
-import { Search } from '../lib/search.js';
-import { resolveNodeName } from '../lib/resolve.js';
+import { resolveConfig } from '../lib/config';
+import { Store } from '../lib/store';
+import { Embedder } from '../lib/embedder';
+import { IndexPipeline } from '../lib/index-pipeline';
+import { KnowledgeGraph } from '../lib/graph';
+import { Search } from '../lib/search';
+import { resolveNodeName } from '../lib/resolve';
 
 const program = new Command();
 
