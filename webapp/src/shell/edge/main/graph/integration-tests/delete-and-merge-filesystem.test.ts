@@ -32,7 +32,7 @@ import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
@@ -240,7 +240,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
     let cy: Core
 
     beforeEach(async () => {
-        resetRendererStateMirror()
+        resetTestProjectionState()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-delete-merge' })
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)

@@ -10,7 +10,7 @@ import {
     removeCollapsedFolderLocally,
 } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
-import { resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, applySpecToUI, folderSpecNode, specWithNodes, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
 
 vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
@@ -21,7 +21,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
 
     beforeEach(() => {
-        resetRendererStateMirror()
+        resetTestProjectionState()
         cy = cytoscape({ headless: true, elements: [] })
     })
 

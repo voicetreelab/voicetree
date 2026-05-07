@@ -4,7 +4,7 @@ import type {
     LiveStateSnapshot,
     SelectionResponse,
 } from '@vt/graph-db-client'
-import {isJsonMode} from '@/shell/edge/main/cli/output.ts'
+import {isJsonMode} from '../output.ts'
 
 export function emitResult<T>(result: T, formatHuman: (data: T) => string, forceJson: boolean): void {
     if (forceJson || isJsonMode()) {
@@ -85,4 +85,3 @@ export function formatViewState(data: LiveStateSnapshot): string {
         `Revision: ${data.meta.revision}`,
     ].join('\n')
 }
-

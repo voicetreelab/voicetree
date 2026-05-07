@@ -5,9 +5,9 @@ import {
     GraphDbClient,
     type SelectionMode,
 } from '@vt/graph-db-client'
-import {resolveVault} from '@/shell/edge/main/cli/util/detectVault.ts'
-import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes.ts'
-import {parseSessionFlag, resolveSessionId} from '@/shell/edge/main/cli/util/sessionFlag.ts'
+import {resolveVault} from '../util/detectVault.ts'
+import {ArgValidationError, handleCliError} from '../util/exitCodes.ts'
+import {parseSessionFlag, resolveSessionId} from '../util/sessionFlag.ts'
 import {emitResult, formatLayout, formatCollapseResult, formatSelection, formatViewState} from './viewFormatters.ts'
 
 type Position = {

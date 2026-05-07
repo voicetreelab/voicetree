@@ -31,10 +31,10 @@ import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
-    applyDeltaToRendererStateMirror,
+    applyDeltaToTestProjectionState,
     projectDelta,
-    resetRendererStateMirror,
-} from '@/shell/edge/UI-edge/state/rendererStateMirror'
+    resetTestProjectionState,
+} from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
 import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
@@ -211,7 +211,7 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
-        resetRendererStateMirror()
+        resetTestProjectionState()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
         await ensureHandlersImported()
@@ -277,7 +277,7 @@ Child content`
         currentGraph = mockGraph
         setGraph(mockGraph)
         setGraphReal(mockGraph)
-        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
+        applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({
@@ -454,7 +454,7 @@ Child content`
         currentGraph = mockGraph
         setGraph(mockGraph)
         setGraphReal(mockGraph)
-        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
+        applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({

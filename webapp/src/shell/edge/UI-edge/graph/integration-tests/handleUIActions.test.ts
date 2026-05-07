@@ -22,10 +22,10 @@ import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
-    applyDeltaToRendererStateMirror,
+    applyDeltaToTestProjectionState,
     projectDelta,
-    resetRendererStateMirror
-} from '@/shell/edge/UI-edge/state/rendererStateMirror'
+    resetTestProjectionState
+} from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 
 // Mock posthog
@@ -63,7 +63,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
     let mockGraph: Graph
 
     beforeEach(() => {
-        resetRendererStateMirror()
+        resetTestProjectionState()
         // Create a minimal graph with 2 nodes
         // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
         mockGraph = createGraph({
@@ -90,7 +90,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 }
             }
         })
-        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
+        applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape with the 2 nodes
         // Labels should match what markdownToTitle would extract from content

@@ -8,7 +8,7 @@ import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/graph'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 
@@ -28,7 +28,7 @@ describe('Edge Labels - Full Pipeline Integration Test', () => {
   let cy: Core
 
   beforeEach(async () => {
-      resetRendererStateMirror()
+      resetTestProjectionState()
     // Create temp vault directory
     tempDir = path.join(process.cwd(), 'test-fixtures', `temp-vault-${Date.now()}`)
     await fs.mkdir(tempDir, { recursive: true })
