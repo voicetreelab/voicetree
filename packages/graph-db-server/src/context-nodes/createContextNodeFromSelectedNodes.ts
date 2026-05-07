@@ -13,7 +13,7 @@ import { getGraph } from '../state/graph-store'
 import * as O from 'fp-ts/lib/Option.js'
 import { calculateInitialPositionForChild } from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {
-  applyGraphDeltaToDBThroughMemAndUIAndEditors
+  applyGraphDeltaThroughDaemonOrLocal
 } from '../graph/applyGraphDelta'
 import { ensureUniqueNodeId } from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
 import { resolveContextWritePath } from './contextWritePath'
@@ -83,7 +83,7 @@ export async function createContextNodeFromSelectedNodes(
   ]
 
   // Apply to graph
-  await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
+  await applyGraphDeltaThroughDaemonOrLocal(contextNodeDelta)
 
   return contextNodeId
 }

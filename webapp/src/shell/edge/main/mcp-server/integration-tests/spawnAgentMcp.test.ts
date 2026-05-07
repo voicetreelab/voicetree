@@ -41,11 +41,11 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
     const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
     return {
         ...actual,
-        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+        applyGraphDeltaThroughDaemonOrLocal: vi.fn().mockResolvedValue(undefined),
     }
 })
 
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
@@ -251,7 +251,7 @@ describe('MCP spawn_agent tool', () => {
 
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
-        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
+        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaThroughDaemonOrLocal).mock.calls[0]
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
         expect(claimDelta[0].type).toBe('UpsertNode')

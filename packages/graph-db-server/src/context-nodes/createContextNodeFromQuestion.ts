@@ -7,7 +7,7 @@ import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-pars
 import {fromCreateChildToUpsertNode} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 import * as O from 'fp-ts/lib/Option.js'
 import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
+    applyGraphDeltaThroughDaemonOrLocal
 } from "../graph/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
 import { resolveContextWritePath } from './contextWritePath'
@@ -79,7 +79,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
         nodeToUpsert: questionNode,
         previousNode: O.none
     }]
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(questionDelta)
+    await applyGraphDeltaThroughDaemonOrLocal(questionDelta)
 
     // 2. Create context node as child of question node
     const contextNodeId: string = `${writePath}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
@@ -103,7 +103,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
         contextNodeId
     )
 
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
+    await applyGraphDeltaThroughDaemonOrLocal(contextDelta)
 
     return contextNodeId
 }

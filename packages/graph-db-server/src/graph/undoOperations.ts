@@ -1,6 +1,6 @@
 import { popUndoDelta, popRedoDelta } from '../state/undo-store'
 import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
+    applyGraphDeltaThroughDaemonOrLocal
 } from "./applyGraphDelta";
 import type { GraphDelta } from '@vt/graph-model/pure/graph';
 
@@ -14,7 +14,7 @@ export async function performUndo(): Promise<boolean> {
         return false
     }
     // Apply reverse delta WITHOUT recording for undo (would create infinite loop)
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(reverseDelta, false)
+    await applyGraphDeltaThroughDaemonOrLocal(reverseDelta, false)
     return true
 }
 
@@ -28,6 +28,6 @@ export async function performRedo(): Promise<boolean> {
         return false
     }
     // Apply delta WITHOUT recording for undo (it's already in the stack)
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(deltaToApply, false)
+    await applyGraphDeltaThroughDaemonOrLocal(deltaToApply, false)
     return true
 }

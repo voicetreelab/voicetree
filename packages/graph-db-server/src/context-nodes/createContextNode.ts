@@ -8,7 +8,7 @@ import path from 'path'
 import {type VTSettings} from '@vt/graph-model/pure/settings/types'
 import {calculateInitialPositionForChild} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
 import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors
+    applyGraphDeltaThroughDaemonOrLocal
 } from "../graph/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
 import {getCallbacks} from '@vt/graph-model'
@@ -197,7 +197,7 @@ export async function createContextNode(
     ]
 
     // 8. EDGE: Apply via GraphDelta pipeline (writes to disk)
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
+    await applyGraphDeltaThroughDaemonOrLocal(contextNodeDelta)
 
     // 9. Return the created node ID
     return contextNodeId

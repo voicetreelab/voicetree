@@ -34,6 +34,12 @@ export interface GraphModelCallbacks {
   onFSNodeWithAgentName?: (agentName: string, nodeId: string, title: string) => void
   refreshBadge?: () => void  // replaces terminals/inject-badge-refresh
 
+  // Daemon-routed graph-delta write path. When set (Electron host), all writes from
+  // workspace packages MUST be routed through this to keep better-sqlite3 out of
+  // Electron's address space. When unset (vt-graphd subprocess IS the daemon),
+  // callers fall back to applyGraphDeltaToDBThroughMemAndUIAndEditors directly.
+  postDelta?: (delta: GraphDelta) => Promise<void>
+
   // Backend notification
   notifyWriteDirectory?: (dirPath: string) => void  // replaces backend-api.tellSTTServerToLoadDirectory
 

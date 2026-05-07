@@ -24,6 +24,7 @@ import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
+import { postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 
 const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
 
@@ -40,6 +41,15 @@ export function initializeGraphModel(): void {
         },
         onFloatingEditorUpdate(delta: GraphDelta): void {
             uiAPI.updateFloatingEditorsFromExternal(delta)
+        },
+        // Route all delta writes from workspace packages through the vt-graphd
+        // HTTP daemon so better-sqlite3 stays out of Electron's address space.
+        // Then mirror the delta into Electron's in-memory graph view so package
+        // code that reads getGraph() right after writing sees the new node
+        // (avoids the SSE-arrival race for read-after-write callers like the
+        // spawn flow).
+        async postDelta(delta: GraphDelta): Promise<void> {
+            await postDeltaThroughDaemonWithEditors(delta)
         },
         onGraphCleared(): void {
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()

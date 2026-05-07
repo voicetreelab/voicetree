@@ -21,7 +21,7 @@ import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
@@ -409,7 +409,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
+        await applyGraphDeltaThroughDaemonOrLocal(batchDelta)
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -438,7 +438,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
+            await applyGraphDeltaThroughDaemonOrLocal(contextDelta)
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created
