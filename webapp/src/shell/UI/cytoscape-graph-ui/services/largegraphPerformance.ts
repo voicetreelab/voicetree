@@ -155,6 +155,13 @@ export function installCollectionCache(cy: Core): void {
  * During viewport manipulation, element data hasn't changed — only the camera
  * moved — so texture re-rasterization is pure waste (~8% CPU at 500 nodes).
  *
+ * Additionally, while a cy.batch() is in progress, defers invalidateElement
+ * calls into per-cache Sets and replays them after endBatch returns. The
+ * same set of originalInvalidate(ele) calls happens across the lifetime of
+ * any batch — they are merely collected and executed in one pass after the
+ * batch closes, instead of interleaved with every data mutation. End state
+ * of the texture caches is identical to the un-batched path.
+ *
  * Call once during graph initialisation. Idempotent.
  */
 export function installTextureCacheSkip(cy: Core): void {
@@ -162,15 +169,51 @@ export function installTextureCacheSkip(cy: Core): void {
     const renderer: CytoscapeRenderer | undefined = getRenderer(cy);
     if (!renderer) return;
 
+    /**
+     * cy.batching() exists at runtime in cytoscape v3.x but is not in
+     * @types/cytoscape. Cast narrowly here, mirroring the hand-rolled
+     * CytoscapeRenderer interface pattern above.
+     */
+    const cyWithBatching: { batching: () => boolean } = cy as unknown as { batching: () => boolean };
+
     const cacheKeys: ReadonlyArray<'eleTxrCache' | 'lblTxrCache' | 'slbTxrCache' | 'tlbTxrCache'> = ['eleTxrCache', 'lblTxrCache', 'slbTxrCache', 'tlbTxrCache'];
+
+    type TxrCache = NonNullable<CytoscapeRenderer['data'][typeof cacheKeys[number]]>;
+    const flushers: Array<() => void> = [];
+
     for (const key of cacheKeys) {
         const cache: CytoscapeRenderer['data'][typeof key] = renderer.data[key];
         if (!cache || !cache.invalidateElement) continue;
         const originalInvalidate: (ele: unknown) => void = cache.invalidateElement.bind(cache);
-        cache.invalidateElement = function (ele: unknown): void {
+        const deferred: Set<unknown> = new Set<unknown>();
+        const boundCache: TxrCache = cache;
+
+        boundCache.invalidateElement = function (ele: unknown): void {
             if (renderer.data.wheelZooming) return;
+            if (cyWithBatching.batching()) {
+                deferred.add(ele);
+                return;
+            }
             originalInvalidate(ele);
         };
+
+        flushers.push((): void => {
+            if (deferred.size === 0) return;
+            for (const ele of deferred) originalInvalidate(ele);
+            deferred.clear();
+        });
     }
+
+    const originalEndBatch: () => Core = cy.endBatch.bind(cy) as () => Core;
+    (cy as unknown as { endBatch: () => Core }).endBatch = function (): Core {
+        const result: Core = originalEndBatch();
+        // Only flush at the outermost batch boundary — nested startBatch/endBatch
+        // calls leave batching() true until the outer endBatch decrements to zero.
+        if (!cyWithBatching.batching()) {
+            for (const flush of flushers) flush();
+        }
+        return result;
+    };
+
     textureCacheSkipInstalled = true;
 }
