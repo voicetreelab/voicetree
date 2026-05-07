@@ -124,13 +124,24 @@ export function installCollectionCache(cy: Core): void {
         elements: cy.elements.bind(cy) as (selector?: string) => ReturnType<Core['elements']>,
     };
 
+    /**
+     * cy.batching() exists at runtime in cytoscape v3.x but is not in
+     * @types/cytoscape. Detect it once here, mirroring installTextureCacheSkip.
+     * If unavailable, the cache only fires during wheelZooming (today's behavior).
+     */
+    const cyBatching: (() => boolean) | undefined = typeof (cy as unknown as { batching?: unknown }).batching === 'function'
+        ? (cy as unknown as { batching: () => boolean }).batching.bind(cy)
+        : undefined;
+
     function cached<T>(
         method: 'nodes' | 'edges' | 'elements',
         original: (selector?: string) => T,
         selector?: string,
     ): T {
         const r: CytoscapeRenderer | undefined = getRenderer(cy);
-        if (r?.data.wheelZooming) {
+        const isPanZoom: boolean = r?.data.wheelZooming === true;
+        const isBatchUnqualified: boolean = selector === undefined && cyBatching !== undefined && cyBatching();
+        if (isPanZoom || isBatchUnqualified) {
             const key: string = `${method}:${selector ?? ''}`;
             const hit: unknown = collectionCache!.get(key);
             if (hit !== undefined) return hit as T;
