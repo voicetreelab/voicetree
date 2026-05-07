@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import type {Graph, GraphNode} from '@vt/graph-model'
 import {
     scanMarkdownFiles,
     getNodeId,
@@ -108,6 +109,43 @@ export function buildAutoViewGraph(root: string): AutoViewGraph {
     return {
         rootPath: root,
         rootName: path.basename(root),
+        nodes,
+        nodeById,
+        edges,
+        forests: cover.forests,
+        arboricity: cover.arboricityUpperBound,
+    }
+}
+
+export function buildAutoViewGraphFromState(
+    graphState: Graph,
+    rootPath: string,
+    expandedFolderIds?: readonly string[],
+): AutoViewGraph {
+    const nodes: AutoViewNode[] = []
+    const nodeById = new Map<string, AutoViewNode>()
+    const edges: DirectedEdge[] = []
+
+    for (const [id, node] of Object.entries(graphState.nodes)) {
+        const relPath: string = relId(id, rootPath)
+        const basename: string = path.posix.basename(relPath)
+        const folderPathRaw: string = path.posix.dirname(relPath)
+        const folderPath: string = folderPathRaw === '.' ? '' : folderPathRaw
+        const title: string = deriveTitle(node.contentWithoutYamlOrLinks, path.basename(id, '.md'))
+        const kind: 'file' | 'folder' = node.kind === 'folder' ? 'folder' : 'file'
+        const outgoingIds: readonly string[] = node.outgoingEdges
+            .map(edge => edge.targetId)
+            .filter(targetId => targetId !== id)
+        const autoNode: AutoViewNode = {id, title, relPath, folderPath, outgoingIds, basename, kind}
+        nodes.push(autoNode)
+        nodeById.set(id, autoNode)
+        outgoingIds.forEach(targetId => edges.push({src: id, tgt: targetId}))
+    }
+
+    const cover = computeArboricity(nodes.length, edges)
+    return {
+        rootPath,
+        rootName: path.basename(rootPath),
         nodes,
         nodeById,
         edges,
