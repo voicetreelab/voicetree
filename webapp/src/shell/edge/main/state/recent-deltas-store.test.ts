@@ -7,7 +7,7 @@ import {
     clearRecentDeltas,
     getRecentDeltasCount,
     getRecentDeltasForNodeId
-} from './recent-deltas-store'
+} from '@vt/graph-db-server/state/recent-deltas-store'
 
 const makeNode: (nodeId: string, content: string) => GraphNode = (nodeId, content) => ({
     absoluteFilePathIsID: nodeId,
