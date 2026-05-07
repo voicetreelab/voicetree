@@ -8,7 +8,6 @@ import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-stor
 import {
     formatLintReportHuman,
     lintGraph,
-    renderAutoView,
     renderGraphView,
     type ViewGraphResult,
 } from '@vt/graph-tools/node'
@@ -190,8 +189,8 @@ describe('graph daemon migration', () => {
         vi.restoreAllMocks()
     })
 
-    it('routes graph structure through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot()).output
+    it('routes graph structure through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli')).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'structure', 'docs']),
@@ -219,8 +218,8 @@ describe('graph daemon migration', () => {
         expect(result.stdout).toBe(expectedStdout)
     }, 15000)
 
-    it('routes auto graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot(), {budget: 2}).output
+    it('routes auto graph view rendering through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli', {budget: 2})).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'view', 'docs', '--auto', '--budget', '2']),

@@ -6,6 +6,7 @@ const DAEMON_ROUTE_IDS = [
   'graph.delta',
   'graph.delete-node',
   'graph.read',
+  'graph.view',
   'session.create',
   'session.delete',
   'session.events',
@@ -46,6 +47,7 @@ const DAEMON_ROUTE_ID_BY_SIGNATURE = {
   'GET /sessions/:sessionId': 'session.show',
   'GET /sessions/:sessionId/events': 'session.events',
   'GET /sessions/:sessionId/state': 'view.show',
+  'GET /sessions/:sessionId/view': 'graph.view',
   'GET /vault': 'vault.show',
   'POST /graph/delta': 'graph.delta',
   'POST /sessions': 'session.create',
@@ -68,6 +70,18 @@ export const DAEMON_ROUTE_PARITY_EXEMPTIONS = [
     path: '/shutdown',
     reason:
       '`/shutdown` is daemon lifecycle control for teardown and tests; it is not a user-facing `vt` command.',
+  },
+  {
+    method: 'POST',
+    path: '/sessions/:sessionId/expand/:folderId',
+    reason:
+      '`/sessions/:sessionId/expand/:folderId` stores persistent render-only expand overrides; current CLI uses one-shot `vt graph structure --expand` query params instead.',
+  },
+  {
+    method: 'DELETE',
+    path: '/sessions/:sessionId/expand/:folderId',
+    reason:
+      '`/sessions/:sessionId/expand/:folderId` clears persistent render-only expand overrides; current CLI has no persistent override command.',
   },
 ] as const satisfies readonly DaemonRouteExemption[]
 

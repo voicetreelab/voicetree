@@ -23,6 +23,7 @@ describe('daemon CLI route parity', () => {
             {id: 'view.expand', method: 'DELETE', path: '/sessions/:sessionId/collapse/:folderId'},
             {id: 'view.selection', method: 'POST', path: '/sessions/:sessionId/selection'},
             {id: 'view.layout', method: 'PUT', path: '/sessions/:sessionId/layout'},
+            {id: 'graph.view', method: 'GET', path: '/sessions/:sessionId/view'},
             {id: 'graph.read', method: 'GET', path: '/graph'},
             {id: 'graph.delta', method: 'POST', path: '/graph/delta'},
             {id: 'graph.delete-node', method: 'DELETE', path: '/graph/node/:encodedNodeId'},
@@ -43,6 +44,18 @@ describe('daemon CLI route parity', () => {
                 path: '/shutdown',
                 reason:
                     '`/shutdown` is daemon lifecycle control for teardown and tests; it is not a user-facing `vt` command.',
+            },
+            {
+                method: 'POST',
+                path: '/sessions/:sessionId/expand/:folderId',
+                reason:
+                    '`/sessions/:sessionId/expand/:folderId` stores persistent render-only expand overrides; current CLI uses one-shot `vt graph structure --expand` query params instead.',
+            },
+            {
+                method: 'DELETE',
+                path: '/sessions/:sessionId/expand/:folderId',
+                reason:
+                    '`/sessions/:sessionId/expand/:folderId` clears persistent render-only expand overrides; current CLI has no persistent override command.',
             },
         ])
     })
@@ -89,6 +102,7 @@ describe('daemon CLI route parity', () => {
             'vt graph search',
             'vt graph rename',
             'vt graph mv',
+            'vt graph group',
         ])
     })
 })

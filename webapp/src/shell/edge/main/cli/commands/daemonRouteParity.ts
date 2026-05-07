@@ -36,8 +36,8 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {command: 'vt view layout set-pan', routeId: 'view.layout'},
     {command: 'vt view layout set-zoom', routeId: 'view.layout'},
     {command: 'vt view layout set-positions', routeId: 'view.layout'},
-    {command: 'vt graph structure', routeId: 'graph.read'},
-    {command: 'vt graph view', routeId: 'graph.read'},
+    {command: 'vt graph structure', routeId: 'graph.view'},
+    {command: 'vt graph view', routeId: 'graph.view'},
     {command: 'vt graph lint', routeId: 'graph.read'},
     {command: 'vt graph create', routeId: 'graph.delta'},
     {command: 'vt graph delete-node', routeId: 'graph.delete-node'},
@@ -58,6 +58,11 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     },
     {
         command: 'vt graph mv',
+        routeId: null,
+        notes: 'Runs through @vt/graph-tools filesystem helpers and does not call vt-graphd.',
+    },
+    {
+        command: 'vt graph group',
         routeId: null,
         notes: 'Runs through @vt/graph-tools filesystem helpers and does not call vt-graphd.',
     },
