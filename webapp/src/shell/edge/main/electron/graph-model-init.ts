@@ -6,11 +6,11 @@
  */
 
 import { app, dialog } from 'electron'
+import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
-import type { GraphDelta } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
-import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
@@ -27,10 +27,23 @@ import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-dae
 
 const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
 
+async function reloadGraphFromDaemon(vaultPaths: readonly string[]): Promise<E.Either<never, Graph>> {
+    const vaultPath: string | undefined = vaultPaths[0]
+    if (!vaultPath) {
+        throw new Error('No vault paths configured')
+    }
+
+    const connection = await ensureDaemonClientForVault(vaultPath, {
+        timeoutMs: GRAPH_MODEL_DAEMON_TIMEOUT_MS,
+    })
+    const graph = await connection.client.reloadGraph()
+    return E.right(graph as Graph)
+}
+
 export function initializeGraphModel(): void {
     configureRootIO({
         getDirectoryTree,
-        loadGraphFromDisk,
+        loadGraphFromDisk: reloadGraphFromDaemon,
     })
 
     const callbacks: GraphModelCallbacks = {

@@ -16,7 +16,7 @@ import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
 import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {createContextNodeFromQuestion} from '@vt/graph-db-server/context-nodes/createContextNodeFromQuestion';
+import {createContextNodeFromQuestionThroughDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
@@ -45,7 +45,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     .filter(id => graph.nodes[id] !== undefined);
 
   // 1. Create context node from relevant nodes
-  const contextNodeId: NodeIdAndFilePath = await createContextNodeFromQuestion(adjustedNodeIds, question);
+  const contextNodeId: NodeIdAndFilePath = await createContextNodeFromQuestionThroughDaemon(adjustedNodeIds, question);
 
   // 2. Get fresh graph - createContextNodeFromQuestion updates the graph store
   const updatedGraph: Graph = getGraph();

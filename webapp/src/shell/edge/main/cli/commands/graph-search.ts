@@ -1,6 +1,5 @@
 import path from 'node:path'
-import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
-import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
+import {buildSearchIndex, ensureDaemon, search as searchGraph, type NodeSearchHit} from '@vt/graph-db-client'
 import {error, output} from '../output.ts'
 
 type GraphIndexSuccess = {
@@ -77,6 +76,11 @@ function parseGraphSearchArgs(args: string[]): {vaultPath: string; query: string
     }
 }
 
+async function getGraphDbBaseUrl(vaultPath: string): Promise<string> {
+    const {port}: {port: number} = await ensureDaemon(vaultPath)
+    return `http://127.0.0.1:${port}`
+}
+
 export async function graphIndex(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     void port
     void terminalId
@@ -84,7 +88,8 @@ export async function graphIndex(port: number, terminalId: string | undefined, a
     const vaultPath: string = parseGraphIndexArgs(args)
 
     try {
-        await buildIndex(vaultPath)
+        const baseUrl: string = await getGraphDbBaseUrl(vaultPath)
+        await buildSearchIndex(baseUrl, vaultPath)
     } catch (buildError: unknown) {
         error(`graph index failed: ${getErrorMessage(buildError)}`)
     }
@@ -109,12 +114,9 @@ export async function graphSearch(port: number, terminalId: string | undefined, 
 
     let hits: readonly NodeSearchHit[]
     try {
-        hits = await search(vaultPath, query, topK)
+        const baseUrl: string = await getGraphDbBaseUrl(vaultPath)
+        hits = (await searchGraph(baseUrl, query, {vaultPath, topK})).hits
     } catch (searchError: unknown) {
-        if (searchError instanceof SearchIndexNotFoundError) {
-            error(searchError.message)
-        }
-
         error(`graph search failed: ${getErrorMessage(searchError)}`)
     }
 

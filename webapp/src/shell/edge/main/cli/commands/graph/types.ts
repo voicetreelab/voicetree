@@ -1,5 +1,5 @@
 import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
-import type {NodeSearchHit} from '@vt/graph-db-server/search/types'
+import type {NodeSearchHit} from '@vt/graph-db-client'
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringReportEntry,
