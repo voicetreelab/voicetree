@@ -16,10 +16,10 @@ import {
 } from './resolve-vault-config';
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '@vt/graph-model/pure/graph';
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph';
-import { mergePositionsIntoGraph } from '@vt/graph-model/pure/graph/positioning/mergePositionsIntoGraph';
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types';
+import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '@vt/graph-model/graph';
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph';
+import { mergePositionsIntoGraph } from '@vt/graph-model/spatial';
+import type { VaultConfig } from '@vt/graph-model/settings';
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "../graph/loadGraphFromDisk";
 import { createDatedSubfolder } from "../project/project-utils";
 import { createStarterNode } from "./create-starter-node";

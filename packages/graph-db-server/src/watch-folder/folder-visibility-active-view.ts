@@ -1,5 +1,5 @@
 import type { FolderVisibilityDatabase } from '../views/folderVisibilitySqlite'
-import type { FilePath } from '@vt/graph-model/pure/graph'
+import type { FilePath } from '@vt/graph-model/graph'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
 type FolderVisibilityState = ReadonlyMap<string, FolderState>

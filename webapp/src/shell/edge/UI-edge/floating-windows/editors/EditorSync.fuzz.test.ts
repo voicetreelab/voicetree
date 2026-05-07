@@ -6,11 +6,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
-import type { GraphNode, NodeIdAndFilePath, Edge } from '@vt/graph-model/pure/graph'
+import type { GraphNode, NodeIdAndFilePath, Edge } from '@vt/graph-model/graph'
 import { getEditors } from '@/shell/edge/UI-edge/state/EditorStore'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
 import { updateFloatingEditors } from './EditorSync'
-import { fromNodeToContentWithWikilinks } from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown'
+import { fromNodeToContentWithWikilinks } from '@vt/graph-model/markdown'
 import {
     createPRNG, randomInt, generateOps,
     makeNode, makeNodeWithWikilinks, createMockEditor, createFuzzState,

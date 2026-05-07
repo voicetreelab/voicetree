@@ -1,15 +1,15 @@
-import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/pure/graph'
-import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
+import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
 import {getGraph} from '../state/graph-store'
 import {loadSettings} from '../settings/settings_IO'
-import {type VTSettings} from '@vt/graph-model/pure/settings/types'
-import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
-import {fromCreateChildToUpsertNode} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
+import {type VTSettings} from '@vt/graph-model/settings'
+import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
+import {fromCreateChildToUpsertNode} from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
-import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId';
+import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWritePath } from './contextWritePath'
 
 /** Truncate a title to at most 5 words */

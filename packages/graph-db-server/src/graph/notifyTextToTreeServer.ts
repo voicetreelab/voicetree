@@ -1,4 +1,4 @@
-import type {FilePath} from '@vt/graph-model/pure/graph';
+import type {FilePath} from '@vt/graph-model/graph';
 import {getCallbacks} from "@vt/graph-model";
 
 /**

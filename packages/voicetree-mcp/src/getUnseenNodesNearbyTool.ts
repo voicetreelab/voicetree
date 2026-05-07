@@ -3,8 +3,8 @@
  * Gets nodes near your context that were created after your context was generated.
  */
 
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import {getNodeTitle} from '@vt/graph-model/markdown'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'

@@ -1,8 +1,8 @@
-import type { Graph, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/pure/graph'
-import { getSubgraphByDistance } from '@vt/graph-model/pure/graph'
+import type { Graph, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/graph'
+import { getSubgraphByDistance } from '@vt/graph-model/graph'
 import { getGraph } from '../state/graph-store'
 import { loadSettings } from '../settings/settings_IO'
-import { type VTSettings } from '@vt/graph-model/pure/settings/types'
+import { type VTSettings } from '@vt/graph-model/settings'
 
 /**
  * Result type for unseen nodes

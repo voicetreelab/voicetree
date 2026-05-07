@@ -4,12 +4,12 @@
 
 import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
-import {findFirstParentNode} from '@vt/graph-model/pure/graph/graph-operations/findFirstParentNode';
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/pure/settings';
-import type {VTSettings} from '@vt/graph-model/pure/settings/types';
-import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/pure/settings/types';
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph';
+import {getNodeTitle} from '@vt/graph-model/markdown';
+import {findFirstParentNode} from '@vt/graph-model/graph';
+import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings';
+import type {VTSettings} from '@vt/graph-model/settings';
+import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {getExistingAgentNames} from '@vt/agent-runtime';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';

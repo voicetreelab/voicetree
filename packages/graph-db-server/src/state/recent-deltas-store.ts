@@ -10,8 +10,8 @@
  * TTL: Entries auto-expire after 10s (generous window to avoid race conditions).
  */
 
-import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { stripBracketedContent } from '@vt/graph-model/pure/graph/contentChangeDetection'
+import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { stripBracketedContent } from '@vt/graph-model/graph'
 
 const DEFAULT_TTL_MS: number = 10000
 

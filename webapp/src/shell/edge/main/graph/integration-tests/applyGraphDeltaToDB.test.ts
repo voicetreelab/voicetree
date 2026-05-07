@@ -21,10 +21,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@vt/graph-model/pure/graph'
+import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'

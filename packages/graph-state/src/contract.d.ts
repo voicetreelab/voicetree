@@ -20,7 +20,7 @@
 
 import type {
     Graph, GraphNode, Edge, NodeIdAndFilePath, Position,
-} from '@vt/graph-model/pure/graph'
+} from '@vt/graph-model/graph'
 import type { FolderTreeNode, GraphDelta } from '@vt/graph-model'
 
 // ============================================================================

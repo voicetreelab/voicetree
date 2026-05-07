@@ -5,8 +5,8 @@ import * as O from 'fp-ts/lib/Option.js';
 import { getFolderNotePath } from '@vt/graph-model';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import {CIRCLE_SIZE} from '@vt/graph-model/pure/graph/node-presentation/types';
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
+import {CIRCLE_SIZE} from '@vt/graph-model/graph';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/PendingPanStore';

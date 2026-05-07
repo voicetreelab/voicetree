@@ -1,10 +1,10 @@
 import type { Core, CollectionReturnValue } from 'cytoscape'
-import type { Graph } from '@vt/graph-model/pure/graph'
-import type { Position } from '@vt/graph-model/pure/graph'
+import type { Graph } from '@vt/graph-model/graph'
+import type { Position } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } from '@vt/graph-model/pure/graph/folderCollapse'
-import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/pure/graph/folderCollapse'
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } from '@vt/graph-model/graph'
+import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/graph'
+import { getNodeTitle } from '@vt/graph-model/markdown'
 import type {} from '@/shell/electron'
 import {
     addCollapsedFolder,

@@ -31,7 +31,7 @@ import {createGraphTool} from './createGraphTool'
 import {graphStructureTool} from './graphStructureTool'
 import {registerLiveTools} from './registerLiveTools'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from './triggerOvernight'
 
 // Re-export types and tool functions for external use

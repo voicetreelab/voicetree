@@ -6,16 +6,16 @@
  * Used for "Run Agent on Selected Nodes" feature.
  */
 
-import type { Graph, GraphDelta, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/pure/graph'
-import { CONTEXT_NODES_FOLDER } from '@vt/graph-model/pure/graph'
-import { getNodeTitle, parseMarkdownToGraphNode } from '@vt/graph-model/pure/graph/markdown-parsing'
+import type { Graph, GraphDelta, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/graph'
+import { CONTEXT_NODES_FOLDER } from '@vt/graph-model/graph'
+import { getNodeTitle, parseMarkdownToGraphNode } from '@vt/graph-model/markdown'
 import { getGraph } from '../state/graph-store'
 import * as O from 'fp-ts/lib/Option.js'
-import { calculateInitialPositionForChild } from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
+import { calculateInitialPositionForChild } from '@vt/graph-model/spatial'
 import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '../graph/applyGraphDelta'
-import { ensureUniqueNodeId } from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
+import { ensureUniqueNodeId } from '@vt/graph-model/graph'
 import { resolveContextWritePath } from './contextWritePath'
 
 /**

@@ -26,7 +26,7 @@ import type {
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
+import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
 import * as O from 'fp-ts/lib/Option.js'

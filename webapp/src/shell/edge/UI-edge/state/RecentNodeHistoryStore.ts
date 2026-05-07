@@ -6,8 +6,8 @@ import {
     createEmptyHistory,
     updateHistoryFromDelta,
     type RecentNodeHistory
-} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
-import type {GraphDelta} from '@vt/graph-model/pure/graph';
+} from '@vt/graph-model/graph';
+import type {GraphDelta} from '@vt/graph-model/graph';
 
 let recentNodeHistory: RecentNodeHistory = createEmptyHistory();
 

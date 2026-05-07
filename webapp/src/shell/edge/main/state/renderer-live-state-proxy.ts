@@ -1,5 +1,5 @@
 import type { Command } from '@vt/graph-state'
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 
 import { getMainWindow } from './app-electron-state'
 

@@ -1,5 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphDelta} from '@vt/graph-model/pure/graph'
+import type {GraphDelta} from '@vt/graph-model/graph'
 import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTerminal'
 import {shellQuote} from '../util/shellQuote'
 

@@ -4,12 +4,12 @@
  */
 import type {Core} from 'cytoscape';
 import {mapNewGraphToDelta} from '@vt/graph-model';
-import type {Graph, GraphDelta, UpsertNodeDelta} from '@vt/graph-model/pure/graph';
+import type {Graph, GraphDelta, UpsertNodeDelta} from '@vt/graph-model/graph';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
 import {projectDelta} from '@/shell/edge/UI-edge/state/rendererStateMirror';
-import {extractRecentNodesFromDelta} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
+import {extractRecentNodesFromDelta} from '@vt/graph-model/graph';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';

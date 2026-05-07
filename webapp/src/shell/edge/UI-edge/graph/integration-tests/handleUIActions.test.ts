@@ -15,11 +15,11 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/pure/graph'
-import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
-import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
+import { mapNewGraphToDelta } from '@vt/graph-model/graph'
+import { getNodeTitle } from '@vt/graph-model/markdown'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
     applyDeltaToRendererStateMirror,

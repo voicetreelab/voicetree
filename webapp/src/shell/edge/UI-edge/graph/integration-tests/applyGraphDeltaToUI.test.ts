@@ -15,7 +15,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { ElementSpec, NodeElement } from '@vt/graph-state/contract'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
-import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/pure/graph'
+import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/graph'
 import type { FolderTreeNode } from '@vt/graph-model'
 import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService'
 import {

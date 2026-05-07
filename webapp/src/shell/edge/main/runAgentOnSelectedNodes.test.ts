@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { buildIncomingEdgesIndex } from '@vt/graph-model/pure/graph/graph-operations/incomingEdgesIndex'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { buildIncomingEdgesIndex } from '@vt/graph-model/graph'
 
 vi.mock('@/shell/edge/main/state/graph-store', () => ({
   getGraph: vi.fn()

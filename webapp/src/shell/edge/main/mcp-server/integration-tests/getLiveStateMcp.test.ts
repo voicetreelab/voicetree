@@ -17,7 +17,7 @@ import path from 'path'
 import {Client} from '@modelcontextprotocol/sdk/client/index.js'
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {serializeState} from '@vt/graph-state'
 
 vi.mock('@vt/graph-model', async () => {

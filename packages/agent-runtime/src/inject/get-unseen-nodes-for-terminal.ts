@@ -5,10 +5,10 @@
  * Zero-boilerplate RPC: just add to mainAPI, types flow via Promisify.
  */
 
-import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import { getNodeTitle } from '@vt/graph-model/markdown'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
 
 export interface UnseenNodeInfo {

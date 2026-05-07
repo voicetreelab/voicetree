@@ -2,7 +2,7 @@
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
 import type {Core, NodeSingular} from 'cytoscape';
-import type {Graph} from '@vt/graph-model/pure/graph';
+import type {Graph} from '@vt/graph-model/graph';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
 import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';

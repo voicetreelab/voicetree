@@ -7,23 +7,23 @@ import type {
     NodeUIMetadata,
     Position,
     UpsertNodeDelta
-} from "@vt/graph-model/pure/graph";
+} from "@vt/graph-model/graph";
 import {
     createNewNodeNoParent,
     fromCreateChildToUpsertNode
-} from "@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
-import {deleteNodeSimple} from "@vt/graph-model/pure/graph/graph-operations/removeNodeMaintainingTransitiveEdges";
-import {applyGraphDeltaToGraph} from "@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph";
+} from "@vt/graph-model/graph";
+import {deleteNodeSimple} from "@vt/graph-model/graph";
+import {applyGraphDeltaToGraph} from "@vt/graph-model/graph";
 import type {Core} from 'cytoscape';
 import {
     updateFloatingEditors,
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import * as O from 'fp-ts/lib/Option.js';
-import {calculateNodePosition} from "@vt/graph-model/pure/graph/positioning/calculateInitialPosition";
-import {buildSpatialIndexFromGraph} from "@vt/graph-model/pure/graph/positioning/spatialAdapters";
-import type {SpatialIndex} from "@vt/graph-model/pure/graph/spatial";
+import {calculateNodePosition} from "@vt/graph-model/spatial";
+import {buildSpatialIndexFromGraph} from "@vt/graph-model/spatial";
+import type {SpatialIndex} from "@vt/graph-model/spatial";
 import {requestAutoPinOnCreation} from "@/shell/edge/UI-edge/graph/applyGraphDeltaToUI";
-import {createGraph} from "@vt/graph-model/pure/graph/createGraph";
+import {createGraph} from "@vt/graph-model/graph";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".

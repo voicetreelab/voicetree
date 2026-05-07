@@ -7,19 +7,19 @@
 import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
-import {applyGraphDeltaToGraph} from '@vt/graph-model/pure/graph'
-import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/pure/graph'
-import {findBestMatchingNode} from '@vt/graph-model/pure/graph/markdown-parsing/extract-edges'
-import {ensureUniqueNodeId} from '@vt/graph-model/pure/graph/ensureUniqueNodeId'
-import {parseMarkdownToGraphNode} from '@vt/graph-model/pure/graph/markdown-parsing/parse-markdown-to-node'
+import {applyGraphDeltaToGraph} from '@vt/graph-model/graph'
+import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import {findBestMatchingNode} from '@vt/graph-model/markdown'
+import {ensureUniqueNodeId} from '@vt/graph-model/graph'
+import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {
     buildMarkdownBody,
     type ComplexityScore,
 } from '@vt/graph-tools/node'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
+import {calculateNodePosition} from '@vt/graph-model/spatial'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
+import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
@@ -32,7 +32,7 @@ import {
     parseDiagramParam,
 } from './addProgressNodeTool'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     ALL_RULES,

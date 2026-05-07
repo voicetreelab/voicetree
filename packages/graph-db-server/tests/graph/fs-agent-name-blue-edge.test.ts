@@ -9,11 +9,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel } from '@vt/graph-model'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { mapFSEventsToGraphDelta } from '@vt/graph-model/pure/graph/mapFSEventsToGraphDelta'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
+import { mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { project } from '@vt/graph-state'
-import type { Graph, GraphDelta, FSUpdate } from '@vt/graph-model/pure/graph'
+import type { Graph, GraphDelta, FSUpdate } from '@vt/graph-model/graph'
 import type { ElementSpec, NodeElement, State } from '@vt/graph-state/contract'
 
 vi.mock('../../src/watch-folder/vault-allowlist', () => ({

@@ -1,8 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing'
+import {getNodeTitle} from '@vt/graph-model/markdown'
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 
 import type {TerminalData} from '../types';

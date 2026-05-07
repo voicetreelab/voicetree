@@ -16,7 +16,7 @@ import {
     type Delta,
     type SerializedCommand,
 } from '@vt/graph-state'
-import type { NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
 import { getLiveStateBridge } from './mcp-config'
 

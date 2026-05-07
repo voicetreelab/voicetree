@@ -1,6 +1,6 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {Graph} from '@vt/graph-model/pure/graph'
+import type {Graph} from '@vt/graph-model/graph'
 
 vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()

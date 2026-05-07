@@ -5,12 +5,12 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, Position} from '@vt/graph-model/pure/graph'
-import {createNewNodeNoParent} from '@vt/graph-model/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
-import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calculateInitialPosition'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
-import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {Graph, GraphDelta, GraphNode, Position} from '@vt/graph-model/graph'
+import {createNewNodeNoParent} from '@vt/graph-model/graph'
+import {calculateNodePosition} from '@vt/graph-model/spatial'
+import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
+import type {SpatialIndex} from '@vt/graph-model/spatial'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '../types'
 import type {TerminalData} from '../types'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'

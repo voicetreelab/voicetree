@@ -10,7 +10,7 @@
  * addCollapsedFolder/removeCollapsedFolder facades below.
  */
 
-import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types';
+import type { FolderTreeNode } from '@vt/graph-model/folders';
 import type { SerializedState } from '@vt/graph-state/fixtures/serialization';
 import type {} from '@/shell/electron';
 

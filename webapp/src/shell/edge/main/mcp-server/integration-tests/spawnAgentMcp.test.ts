@@ -1,7 +1,7 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import type {VTSettings} from '@vt/graph-model/pure/settings'
+import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({

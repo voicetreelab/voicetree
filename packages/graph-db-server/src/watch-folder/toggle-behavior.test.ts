@@ -56,7 +56,7 @@ vi.mock('./folder-scanner', () => ({
 
 import { initGraphModel } from '@vt/graph-model'
 import { setGraph } from '../state/graph-store'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
 import {
     setProjectRootWatchedDirectory,
     clearWatchFolderState,
@@ -73,7 +73,7 @@ import {
     createDatedVoiceTreeFolder,
 } from './vault-allowlist'
 import { saveSettings, clearSettingsCache } from '../settings/settings_IO'
-import { DEFAULT_SETTINGS } from '@vt/graph-model/pure/settings/DEFAULT_SETTINGS'
+import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 
 // ── Bug 1: removeReadPath toggle — broadcast must complete before return ─
 

@@ -3,9 +3,10 @@ import path from 'node:path'
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@vt/graph-model': path.resolve(__dirname, '../graph-model/src'),
-    },
+    alias: [
+      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../graph-model/src/index.ts') },
+      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../graph-model/src/$1') },
+    ],
   },
   test: {
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],

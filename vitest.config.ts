@@ -19,10 +19,12 @@ const sharedExclude = [
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'webapp/src'),
-      '@root': path.resolve(__dirname, 'webapp'),
-    },
+    alias: [
+      { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, 'packages/graph-model/src/index.ts') },
+      { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, 'packages/graph-model/src/$1') },
+      { find: /^@root(?=\/)/, replacement: path.resolve(__dirname, 'webapp') },
+      { find: /^@(?=\/)/, replacement: path.resolve(__dirname, 'webapp/src') },
+    ],
   },
   test: {
     exclude: isRunningInsideWorktree

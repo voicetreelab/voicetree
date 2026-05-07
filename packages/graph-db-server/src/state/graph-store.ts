@@ -1,5 +1,5 @@
-import type {Graph, GraphNode} from '@vt/graph-model/pure/graph';
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph';
+import type {Graph, GraphNode} from '@vt/graph-model/graph';
+import { createEmptyGraph } from '@vt/graph-model/graph';
 
 // The ONLY mutable state in the functional architecture for graph data
 // Initialized to empty - will be populated when file watching starts

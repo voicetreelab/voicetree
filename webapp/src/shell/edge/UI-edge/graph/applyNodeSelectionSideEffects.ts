@@ -1,8 +1,8 @@
 import type {Core} from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import {isImageNode} from '@vt/graph-model/pure/graph';
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
+import {isImageNode} from '@vt/graph-model/graph';
 
 import {createAnchoredFloatingEditor} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 import {getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
