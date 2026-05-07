@@ -38,6 +38,8 @@ import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
+import { GraphDbClient } from '@vt/graph-db-client'
+import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -54,6 +56,10 @@ const INTEGRATION_TEST_TIMEOUT_MS: 30000 = 30000 as const
 
 async function loadFixtureFolder(folderPath: string): Promise<void> {
   await loadFolder(folderPath, { includeActiveViewExpandedPaths: false })
+  await waitForCondition(
+    () => Object.keys(getGraph().nodes).some(nodePath => nodePath.startsWith(`${folderPath}${path.sep}`)),
+    { maxWaitMs: 10000, errorMessage: `Graph did not populate for loaded fixture folder: ${folderPath}` }
+  )
 }
 
 // State for mocks
@@ -70,7 +76,25 @@ async function copyFixtureToTemp(sourcePath: string, destinationName: string): P
 
   const destinationPath: string = path.join(tempFixtureRoot, destinationName)
   await fs.cp(sourcePath, destinationPath, { recursive: true })
+  await Promise.all([
+    fs.rm(path.join(destinationPath, '.voicetree', 'graphd.port'), { force: true }),
+    fs.rm(path.join(destinationPath, '.voicetree', 'graphd.lock'), { force: true })
+  ])
   return destinationPath
+}
+
+async function shutdownDaemonForVault(vaultPath: string | undefined): Promise<void> {
+  if (!vaultPath) return
+  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: vaultPath }).catch(() => null)
+  await client?.shutdown().catch(() => undefined)
+}
+
+async function shutdownFixtureDaemons(): Promise<void> {
+  await Promise.all([
+    shutdownDaemonForVault(exampleSmallPath),
+    shutdownDaemonForVault(exampleLargePath)
+  ])
+  clearDaemonClientCache()
 }
 
 // Mock app-electron-state
@@ -92,7 +116,7 @@ describe('Folder Loading - Integration Tests', () => {
     tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'folder-loading-fixtures-'))
     exampleSmallPath = await copyFixtureToTemp(EXAMPLE_SMALL_PATH, 'example_small')
     exampleLargePath = await copyFixtureToTemp(EXAMPLE_LARGE_PATH, 'example_real_large')
-  })
+  }, INTEGRATION_TEST_TIMEOUT_MS)
 
   beforeEach(async () => {
     // Drain fire-and-forget async operations from previous test (e.g. void applyAndBroadcast
@@ -201,11 +225,12 @@ describe('Folder Loading - Integration Tests', () => {
   })
 
   afterAll(async () => {
+    await shutdownFixtureDaemons()
     if (tempFixtureRoot) {
       await fs.rm(tempFixtureRoot, { recursive: true, force: true })
       tempFixtureRoot = null
     }
-  })
+  }, INTEGRATION_TEST_TIMEOUT_MS)
 
   describe('BEHAVIOR: Load directory and populate graph state', () => {
     it('should load example_small and populate graph with correct node count', async () => {

@@ -249,11 +249,43 @@ test.describe('Smoke Test', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully with graph view');
 
+    // Diagnostic: explicitly trigger startFileWatching and wait for it
+    const sfwResult = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) return { error: 'no electronAPI' };
+      try {
+        const ws1 = await api.main.getWatchStatus();
+        console.log('[DIAG] Before explicit startFileWatching:', JSON.stringify(ws1));
+        if (!ws1.isWatching && ws1.directory) {
+          console.log('[DIAG] Calling startFileWatching explicitly with:', ws1.directory);
+          const result = await api.main.startFileWatching(ws1.directory);
+          console.log('[DIAG] startFileWatching result:', JSON.stringify(result));
+        }
+        const ws2 = await api.main.getWatchStatus();
+        const graph = await api.main.getGraph();
+        return { watchStatus: ws2, graphNodeCount: Object.keys(graph.nodes).length };
+      } catch (e: unknown) {
+        return { error: String(e) };
+      }
+    });
+    console.log('[DIAG] After startFileWatching:', JSON.stringify(sfwResult));
+
     await expect.poll(async () => {
-      return await appWindow.evaluate(() => {
+      const diag = await appWindow.evaluate(async () => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
-        return cy?.nodes().length ?? 0;
+        const api = (window as ExtendedWindow).electronAPI;
+        let mainGraphNodes = 0;
+        try {
+          const graph = await api!.main.getGraph();
+          mainGraphNodes = Object.keys(graph.nodes).length;
+        } catch { /* ignore */ }
+        return {
+          cyNodes: cy?.nodes().length ?? 0,
+          mainGraphNodes,
+        };
       });
+      console.log('[DIAG poll]', JSON.stringify(diag));
+      return diag.cyNodes;
     }, {
       message: 'Waiting for Cytoscape nodes to render',
       timeout: 45000,

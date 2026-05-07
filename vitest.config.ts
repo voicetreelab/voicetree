@@ -14,6 +14,7 @@ const sharedExclude = [
   '**/native-modules/**',
   '**/workers/share-worker/**',
   'tests/system/**',
+  'old/**',
 ]
 
 export default defineConfig({
