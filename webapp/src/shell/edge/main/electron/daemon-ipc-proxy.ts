@@ -20,6 +20,7 @@ import {
   type CachedDaemonConnection,
 } from './graph-daemon'
 import { buildGraphDiff, getNormalizedDaemonGraph } from './daemon-graph-normalization'
+import { isLoadTimingActive, markLoadTiming } from '@/shell/edge/main/diagnostics/loadTiming'
 import {
   isDaemonSSEActive,
   subscribeToDaemonSSE,
@@ -223,12 +224,25 @@ async function syncRendererFromDaemon(
 
 async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
   const previousGraph: Graph = getLocalGraph()
+  const timingActive: boolean = isLoadTimingActive() && Object.keys(previousGraph.nodes).length === 0
+  if (timingActive) markLoadTiming('main:daemon-get-graph-start')
   const daemonGraph: Graph = await getNormalizedDaemonGraph(client)
+  if (timingActive) {
+    markLoadTiming('main:daemon-get-graph-end', {
+      nodeCount: Object.keys(daemonGraph.nodes).length,
+    })
+  }
   const nextGraph: Graph = graphWithLocalPositionOverlays(daemonGraph, previousGraph)
   const vaultState: VaultState = await client.getVault()
 
   setLocalGraph(nextGraph)
+  if (timingActive) {
+    markLoadTiming('main:graph-populated', {
+      nodeCount: Object.keys(nextGraph.nodes).length,
+    })
+  }
   await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
+  if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
 
 async function ensureRendererSession(client: DaemonClient): Promise<string> {

@@ -38,6 +38,7 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
+import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -135,6 +136,14 @@ void app.whenReady().then(async () => {
 
     // Register this instance for vt-debug discovery
     await registerInstance();
+
+    // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
+    // app, aborted test run). Skipping this lets stale daemons hold ports and
+    // contend with the daemon a project-load is about to spawn.
+    const orphanCleanup = killOrphanVtGraphdDaemons();
+    if (orphanCleanup.killed.length > 0) {
+        log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
+    }
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {

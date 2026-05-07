@@ -27,6 +27,10 @@ import {
     startDaemonGraphSync,
     stopDaemonGraphSync,
 } from '@/shell/edge/main/electron/daemon-watch-sync'
+import {
+    markLoadTiming,
+    startLoadTiming,
+} from '@/shell/edge/main/diagnostics/loadTiming'
 import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {
     ensureDaemonClientForVault,
@@ -183,6 +187,8 @@ export async function loadFolder(
         return { success: false }
     }
 
+    startLoadTiming(watchedFolderPath)
+
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (previousRoot) {
         savePositionsSync(getGraph(), previousRoot)
@@ -200,11 +206,18 @@ export async function loadFolder(
         console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error)
     })
 
+    markLoadTiming('main:daemon-ensure-start')
     const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
         timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
     })
+    markLoadTiming('main:daemon-ensure-end', {
+        port: connection.port,
+        launched: connection.launched,
+    })
     await connection.client.setWritePath(writePath)
+    markLoadTiming('main:daemon-set-write-path-end')
     await startDaemonSyncForLoadedDirectory(watchedFolderPath)
+    markLoadTiming('main:daemon-graph-sync-started')
     await saveLastDirectory(watchedFolderPath)
 
     getCallbacks().onWatchingStarted?.({

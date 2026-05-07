@@ -25,6 +25,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
 import { generateClusteredGraph, generateUpdateElements } from './perf-helpers/generateClusteredGraph';
 import type { GraphElement } from './perf-helpers/generateClusteredGraph';
@@ -104,6 +105,18 @@ const test = base.extend<{
     });
     mainInspectPort = PERF_CONFIG.inspectPort;
 
+    const mainStdout = electronApp.process().stdout;
+    if (mainStdout) {
+      mainStdout.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        for (const line of text.split('\n')) {
+          if (line.startsWith('[load-timing]')) {
+            console.log(line);
+          }
+        }
+      });
+    }
+
     await use(electronApp);
 
     try {
@@ -125,6 +138,11 @@ const test = base.extend<{
 
     await electronApp.close();
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+
+    const reaped = killOrphanVtGraphdDaemons();
+    if (reaped.killed.length > 0) {
+      console.log('[Perf Test] Reaped orphan vt-graphd daemons', reaped.killed);
+    }
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -132,8 +150,11 @@ const test = base.extend<{
 
     window.on('console', (msg) => {
       const type = msg.type();
+      const text = msg.text();
       if (type === 'warning' || type === 'error') {
-        console.log(`BROWSER [${type}]:`, msg.text());
+        console.log(`BROWSER [${type}]:`, text);
+      } else if (text.startsWith('[load-timing]')) {
+        console.log(text);
       }
     });
     window.on('pageerror', (error) => {

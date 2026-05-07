@@ -17,6 +17,7 @@ import {
     setLoadingState,
     setEmptyStateVisible
 } from '@/shell/edge/UI-edge/state/GraphViewUIStore';
+import {markRendererLoadTiming} from '@/shell/edge/UI-edge/diagnostics/loadTiming';
 import {
     updateRecentNodeHistoryFromDelta,
     clearRecentNodeHistory
@@ -47,8 +48,10 @@ export function subscribeToGraphUpdates(
     const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
         //console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
 
+        markRendererLoadTiming('renderer:graph-delta-received', {deltaLength: delta.length});
         setLoadingState(false);
         setEmptyStateVisible(false);
+        markRendererLoadTiming('renderer:loading-cleared');
 
         // applyGraphDeltaToUI handles auto-pinning editors for new external nodes.
         // BF-L5-202b: renderer folds delta into the State mirror + projects

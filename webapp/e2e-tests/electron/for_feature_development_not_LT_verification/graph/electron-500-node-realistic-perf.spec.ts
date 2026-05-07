@@ -23,6 +23,7 @@ import * as os from 'os';
 import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
 import { generateVaultOnDisk } from './perf-helpers/generateRealisticVault';
 import {
@@ -204,6 +205,21 @@ const test = base.extend<{
     });
     mainInspectPort = INSPECT_PORT;
 
+    // Surface [load-timing] lines from the main process. Playwright's Electron
+    // launch captures stdout into a pipe that no one reads by default, so
+    // process.stdout.write() inside the bundled main goes nowhere visible.
+    const mainStdout = electronApp.process().stdout;
+    if (mainStdout) {
+      mainStdout.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        for (const line of text.split('\n')) {
+          if (line.startsWith('[load-timing]')) {
+            console.log(line);
+          }
+        }
+      });
+    }
+
     await use(electronApp);
 
     // Graceful shutdown
@@ -226,6 +242,14 @@ const test = base.extend<{
 
     await electronApp.close();
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
+
+    // After the temp vault is gone, any leftover vt-graphd daemons spawned by
+    // this run point at a non-existent path. Reap them so they don't hold
+    // ports for the next scenario or developer iteration.
+    const reaped = killOrphanVtGraphdDaemons();
+    if (reaped.killed.length > 0) {
+      console.log('[Realistic Perf] Reaped orphan vt-graphd daemons', reaped.killed);
+    }
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -233,8 +257,11 @@ const test = base.extend<{
 
     window.on('console', (msg) => {
       const type = msg.type();
+      const text = msg.text();
       if (type === 'warning' || type === 'error') {
-        console.log(`BROWSER [${type}]:`, msg.text());
+        console.log(`BROWSER [${type}]:`, text);
+      } else if (text.startsWith('[load-timing]')) {
+        console.log(text);
       }
     });
     window.on('pageerror', (error) => {
@@ -344,30 +371,30 @@ test.describe('Realistic 500-Node Performance', () => {
       try {
         await expect
           .poll(
-          async () => {
-            const info = await appWindow.evaluate((): { nodes: number; edges: number } => {
-              const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-              if (!cy) return { nodes: 0, edges: 0 };
-              return { nodes: cy.nodes().length, edges: cy.edges().length };
-            });
-            console.log(`[Load poll] nodes=${info.nodes} edges=${info.edges} stableRuns=${stableRuns}`);
+            async () => {
+              const info = await appWindow.evaluate((): { nodes: number; edges: number } => {
+                const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+                if (!cy) return { nodes: 0, edges: 0 };
+                return { nodes: cy.nodes().length, edges: cy.edges().length };
+              });
+              console.log(`[Load poll] nodes=${info.nodes} edges=${info.edges} stableRuns=${stableRuns}`);
 
-            if (info.nodes === lastCount && info.nodes > 0) {
-              stableRuns++;
-            } else {
-              stableRuns = 0;
-              lastCount = info.nodes;
+              if (info.nodes === lastCount && info.nodes > 0) {
+                stableRuns++;
+              } else {
+                stableRuns = 0;
+                lastCount = info.nodes;
+              }
+
+              return stableRuns >= STABLE_THRESHOLD;
+            },
+            {
+              message: `Waiting for vault to finish loading (last count: ${lastCount})`,
+              timeout: 300000,
+              intervals: [5000, 5000, 5000, 5000, 5000],
             }
-
-            return stableRuns >= STABLE_THRESHOLD;
-          },
-          {
-            message: `Waiting for vault to finish loading (last count: ${lastCount})`,
-            timeout: 300000,
-            intervals: [5000, 5000, 5000, 5000, 5000],
-          }
-        )
-        .toBe(true);
+          )
+          .toBe(true);
       } catch (error) {
         console.error('[Realistic Perf] LOAD wait diagnostics:', JSON.stringify(await collectLoadDiagnostics(appWindow), null, 2));
         throw error;
