@@ -53,7 +53,7 @@ export interface ApplyGraphDeltaResult {
 }
 
 function getAgentNameFromNode(node: ProjectedNode): string | undefined {
-    const props = node.additionalYAMLProps
+    const props: ProjectedNode['additionalYAMLProps'] = node.additionalYAMLProps
     if (!props) return undefined
     for (const entry of props) {
         if (entry[0] === 'agent_name') return entry[1]
@@ -62,9 +62,9 @@ function getAgentNameFromNode(node: ProjectedNode): string | undefined {
 }
 
 function nodeDisplayLabel(node: ProjectedNode): string {
-    const content = node.content ?? ''
+    const content: string = node.content ?? ''
     if (content.length > 0) {
-        const synthetic = {
+        const synthetic: { absoluteFilePathIsID: string; contentWithoutYamlOrLinks: string } = {
             absoluteFilePathIsID: node.id,
             contentWithoutYamlOrLinks: content,
         }
