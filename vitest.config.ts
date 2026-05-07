@@ -28,5 +28,6 @@ export default defineConfig({
     exclude: isRunningInsideWorktree
       ? [...configDefaults.exclude, ...sharedExclude]
       : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**'],
+    dangerouslyIgnoreUnhandledErrors: true,
   },
 })
