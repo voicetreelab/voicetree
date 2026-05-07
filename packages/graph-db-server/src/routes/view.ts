@@ -6,7 +6,7 @@ import {
 import { SessionRegistry } from '../session/registry.ts'
 import { getGraph } from '../state/graph-store.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
-import { renderTreeCover, buildAutoViewGraph } from '@vt/graph-tools/autoView'
+import { renderTreeCover, buildAutoViewGraphFromState } from '@vt/graph-tools/autoView'
 
 export function mountViewRoutes(
   app: Hono,
@@ -27,7 +27,7 @@ export function mountViewRoutes(
     const expandParams = c.req.queries('expand') ?? []
     const mergedExpands = [...session.expandOverrides, ...expandParams]
 
-    const graph = buildAutoViewGraph(rootPath)
+    const graph = buildAutoViewGraphFromState(getGraph(), rootPath)
 
     const output = renderTreeCover(graph, {
       collapsed: session.collapseSet,
