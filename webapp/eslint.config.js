@@ -16,24 +16,6 @@ const purePackageCytoscapeMessage =
 const businessLayerCytoscapeMessage =
   'Business-layer files must not reach into Cytoscape via cy.*. Keep this in a projection-layer adapter. Seed scope is src/**/business/** and will expand once BF-139 lands.'
 
-const parentRelativeImportMessage =
-  'Use absolute imports for cross-directory imports. Use @/* for src imports.'
-
-const absoluteFilesystemImportMessage =
-  'Do not use absolute filesystem paths in imports. Use relative or alias imports.'
-
-const directGraphDbServerImportMessage =
-  'Do not import graph-db-server internals directly. Use @vt/graph-db-client, @vt/graph-db-server/contract, the package root daemon API, or the daemonRouteParity tooling module.'
-
-const graphDbServerRestrictedImportPattern = {
-  group: [
-    '@vt/graph-db-server/*',
-    '!@vt/graph-db-server/contract',
-    '!@vt/graph-db-server/daemonRouteParity',
-  ],
-  message: directGraphDbServerImportMessage,
-}
-
 const daemonMutationAllowComment = 'vt-allow-direct-daemon-mutation-import'
 const daemonMutationFixturePattern =
   /(^|[/\\])(?:__fixtures__|fixtures)[/\\]allowed-daemon-mutation-imports[/\\]/
@@ -165,18 +147,6 @@ export default tseslint.config([
   },
   {
     basePath: repoRootDir,
-    files: [
-      'packages/systems/agent-runtime/**/*.{ts,tsx}',
-      'packages/systems/voicetree-mcp/**/*.{ts,tsx}',
-    ],
-    rules: {
-      'no-restricted-imports': ['warn', {
-        patterns: [graphDbServerRestrictedImportPattern],
-      }],
-    },
-  },
-  {
-    basePath: repoRootDir,
     files: ['webapp/*.config.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
@@ -213,16 +183,16 @@ export default tseslint.config([
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
-      'no-restricted-imports': ['warn', {
-        patterns: [graphDbServerRestrictedImportPattern],
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['../*', '../**'],
+          message: 'Use absolute imports for cross-directory imports. Use @/* for src imports.'
+        }, {
+          group: ['/Users/*', '/Users/**', '/home/*', '/home/**', '/opt/*', '/opt/**'],
+          message: 'Do not use absolute filesystem paths in imports. Use relative or alias imports.'
+        }]
       }],
       'no-restricted-syntax': ['error', {
-        selector: 'ImportDeclaration[source.value=/^\\.\\./], ExportNamedDeclaration[source.value=/^\\.\\./], ExportAllDeclaration[source.value=/^\\.\\./]',
-        message: parentRelativeImportMessage,
-      }, {
-        selector: 'ImportDeclaration[source.value=/^\\x2F(Users|home|opt)\\x2F/], ExportNamedDeclaration[source.value=/^\\x2F(Users|home|opt)\\x2F/], ExportAllDeclaration[source.value=/^\\x2F(Users|home|opt)\\x2F/]',
-        message: absoluteFilesystemImportMessage,
-      }, {
         selector: 'TSImportType[argument.literal.value=/^.(Users|home|opt)/]',
         message: 'Do not use absolute filesystem paths in inline import types. Use relative or alias imports.'
       }],

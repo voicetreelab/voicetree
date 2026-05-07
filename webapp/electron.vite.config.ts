@@ -200,13 +200,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
         { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
         { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -226,13 +231,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
         { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
         { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
