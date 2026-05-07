@@ -217,5 +217,6 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+**/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/
