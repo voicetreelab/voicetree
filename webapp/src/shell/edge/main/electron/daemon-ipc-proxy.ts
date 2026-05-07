@@ -1,18 +1,13 @@
 import * as O from 'fp-ts/lib/Option.js'
 
-import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode, type NodeIdAndFilePath } from '@vt/graph-model'
+import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import type { VaultConfig } from '@vt/graph-model/settings'
-import {
-  createContextNode as createContextNodeViaClient,
-  createContextNodeFromQuestion as createContextNodeFromQuestionViaClient,
-  findFileByName as findFileByNameViaClient,
-  getPreviewContainedNodeIds as getPreviewContainedNodeIdsViaClient,
-  type VaultState,
-} from '@vt/graph-db-client'
+import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
@@ -205,6 +200,7 @@ async function syncRendererFromDaemon(
 ): Promise<void> {
   const delta: GraphDelta = buildGraphDiff(previousGraph, nextGraph)
   if (delta.length > 0) {
+    broadcastGraphDeltaToUI(delta)
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('graph:stateChanged', delta)
@@ -398,65 +394,6 @@ export async function getNodeFromDaemon(
   return graph.nodes[nodeId]
 }
 
-export async function createContextNodeThroughDaemon(
-  parentNodeId: NodeIdAndFilePath,
-): Promise<NodeIdAndFilePath> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await createContextNodeViaClient(client.baseUrl, parentNodeId)
-  await syncMainGraphFromDaemonClient(client)
-  return response.contextNodeId as NodeIdAndFilePath
-}
-
-export async function createContextNodeFromQuestionThroughDaemon(
-  relevantNodeIds: readonly NodeIdAndFilePath[],
-  question: string,
-): Promise<NodeIdAndFilePath> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await createContextNodeFromQuestionViaClient(
-    client.baseUrl,
-    [...relevantNodeIds],
-    question,
-  )
-  await syncMainGraphFromDaemonClient(client)
-  return response.contextNodeId as NodeIdAndFilePath
-}
-
-export async function getPreviewContainedNodeIdsThroughDaemon(
-  nodeId: NodeIdAndFilePath,
-): Promise<readonly NodeIdAndFilePath[]> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await getPreviewContainedNodeIdsViaClient(client.baseUrl, nodeId)
-  return response.nodeIds as readonly NodeIdAndFilePath[]
-}
-
-export async function performUndoThroughDaemon(): Promise<boolean> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await client.undo()
-  if (response.performed) {
-    await syncMainGraphFromDaemonClient(client)
-  }
-  return response.performed
-}
-
-export async function performRedoThroughDaemon(): Promise<boolean> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await client.redo()
-  if (response.performed) {
-    await syncMainGraphFromDaemonClient(client)
-  }
-  return response.performed
-}
-
-export async function findFileByNameThroughDaemon(
-  pattern: string,
-  searchPath?: string,
-  _maxDepth?: number,
-): Promise<string[]> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const response = await findFileByNameViaClient(client.baseUrl, pattern, searchPath)
-  return response.files
-}
-
 export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
   if (!getProjectRootWatchedDirectory() && !getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
@@ -545,11 +482,6 @@ export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> 
     : await getDaemonClientForCurrentVault()
 
   await syncMainGraphFromDaemonClient(connection.client)
-}
-
-export async function writePositionsThroughDaemon(): Promise<void> {
-  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  await client.writePositions()
 }
 
 export function __resetDaemonIpcProxyStateForTests(): void {

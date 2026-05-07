@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import {fileURLToPath} from 'node:url'
 
 function findRepoRoot(): string {
-    const marker: string = path.join('packages', 'graph-tools', 'bin', 'vt-debug.ts')
+    const marker: string = path.join('packages', 'libraries', 'graph-tools', 'bin', 'vt-debug.ts')
 
     const scriptDir: string = path.dirname(fileURLToPath(import.meta.url))
     let dir: string = scriptDir
@@ -27,7 +27,7 @@ function findRepoRoot(): string {
 
 export async function runDebugCommand(args: string[]): Promise<void> {
     const repoRoot: string = findRepoRoot()
-    const vtDebugBin: string = path.join(repoRoot, 'packages', 'graph-tools', 'bin', 'vt-debug.ts')
+    const vtDebugBin: string = path.join(repoRoot, 'packages', 'libraries', 'graph-tools', 'bin', 'vt-debug.ts')
 
     try {
         const result: string = execFileSync(

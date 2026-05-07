@@ -13,8 +13,8 @@ import type {
     StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
-import { getGraph } from './graph-store'
-import { getProjectRootWatchedDirectoryFromDaemon } from './watch-folder-store'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -62,7 +62,7 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    if (!await getProjectRootWatchedDirectoryFromDaemon()) {
+    if (!getProjectRootWatchedDirectory()) {
         return
     }
 
@@ -87,7 +87,6 @@ export async function getCurrentLiveState(): Promise<State> {
         await readRendererLiveState()
 
     return {
-        // TODO(graph-db-daemon): replace the remaining sync graph-store shim with a local graph cache.
         graph: getGraph(),
         roots: liveParts.roots,
         collapseSet: new Set(rendererState.collapseSet),

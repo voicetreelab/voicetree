@@ -1,9 +1,9 @@
 import path from 'path';
-import { generateDateSubfolder, pathExists, copyMarkdownFiles, findExistingVoicetreeDir } from './project-utils';
+import { generateDateSubfolder, pathExists, copyMarkdownFiles, findExistingVoicetreeDir } from './project-utils.ts';
 import { promises as fs } from 'fs';
 
 // Re-export for backward compatibility
-export { generateDateSubfolder, pathExists, copyMarkdownFiles, findExistingVoicetreeDir } from './project-utils';
+export { generateDateSubfolder, pathExists, copyMarkdownFiles, findExistingVoicetreeDir } from './project-utils.ts';
 
 /**
  * Initializes a project with Voicetree scaffolding.

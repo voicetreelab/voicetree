@@ -86,21 +86,17 @@ function defaultInstancesDir(): string {
     // Mirrors the Electron-side path: app.getPath('appData') + app.getName() + 'instances'.
     // appData = ~/Library/Application Support on macOS, ~/.config on Linux.
     if (process.platform === 'darwin') {
-        return path.join(os.homedir(), 'Library', 'Application Support', 'Voicetree', 'instances');
+        return path.join(os.homedir(), 'Library', 'Application Support', 'VoiceTree', 'instances');
     }
     const xdg = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config');
-    return path.join(xdg, 'Voicetree', 'instances');
+    return path.join(xdg, 'VoiceTree', 'instances');
 }
 
 /** Read all instance JSON files from the instances directory.
  *  Returns an empty array if the directory does not exist or any file is malformed.
  */
 export async function readInstancesDir(dir?: string): Promise<DebugInstance[]> {
-    const instancesDir = dir ?? (
-        process.env.VOICETREE_APP_SUPPORT
-            ? path.join(process.env.VOICETREE_APP_SUPPORT, 'instances')
-            : defaultInstancesDir()
-    );
+    const instancesDir = dir ?? defaultInstancesDir();
 
     let entries: string[];
     try {

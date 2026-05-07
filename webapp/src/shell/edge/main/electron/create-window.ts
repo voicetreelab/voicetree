@@ -5,7 +5,9 @@ import type {getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {writePositionsThroughDaemon} from './daemon-ipc-proxy';
+import {writeAllPositionsSync} from '@vt/graph-db-server/graph/writeAllPositionsOnExit';
+import {getGraph} from '@/shell/edge/main/state/graph-store';
+import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store';
 import {recordAppUsage} from './notification-scheduler';
 import {registerDebugAutoSetup} from './debug-auto-setup';
 
@@ -157,9 +159,10 @@ export function createWindow(deps: {
     mainWindow.on('closed', () => {
         cleanupTerminalsForWindow(deps.terminalManager, windowId);
         // Persist node positions to .voicetree/positions.json before exit
-        void writePositionsThroughDaemon().catch((error: unknown) => {
-            console.warn('[Main] failed to persist node positions through daemon', error);
-        });
+        const projectRoot: string | null = getProjectRootWatchedDirectory();
+        if (projectRoot) {
+            writeAllPositionsSync(getGraph(), projectRoot);
+        }
     });
 
     // Trackpad detection using native addon (macOS only)

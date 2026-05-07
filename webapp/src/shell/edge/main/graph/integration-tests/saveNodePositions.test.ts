@@ -26,8 +26,7 @@ import path from 'path'
 import os from 'os'
 import { promises as fs } from 'fs'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
-import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
-import { getGraph as getServerGraph } from '@vt/graph-db-server/state/graph-store'
+import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
@@ -235,14 +234,12 @@ Content here.`
 
             await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-            // Wait for file to be added to graph (server-side watcher updates server store;
-            // sync to local store to mimic what SSE does in production)
+            // Wait for file to be added to graph
             await waitForFSEvent()
             await waitForCondition(
-                () => !!getServerGraph().nodes[testNodeId],
+                () => !!getGraph().nodes[testNodeId],
                 { maxWaitMs: 1000, errorMessage: 'test-position-node not added to graph' }
             )
-            setGraph(getServerGraph())
 
             // Now the node is in memory with no position
             const graphAfterLoad: Graph = getGraph()
@@ -270,21 +267,12 @@ Content here. Updated externally.`
 
             await fs.writeFile(testFilePath, updatedContent, 'utf-8')
 
-            // Wait for FS event to reload the node (server store updates; sync to local,
-            // preserving the position we saved via saveNodePositions)
+            // Wait for FS event to reload the node
             await waitForFSEvent()
             await waitForCondition(
-                () => getServerGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
+                () => getGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
                 { maxWaitMs: 1000, errorMessage: 'Node content not updated from FS event' }
             )
-            const serverGraph: Graph = getServerGraph()
-            const serverNode: GraphNode = serverGraph.nodes[testNodeId]
-            const localNode: GraphNode | undefined = getGraph().nodes[testNodeId]
-            if (localNode && O.isSome(localNode.nodeUIMetadata.position)) {
-                setGraph({ ...serverGraph, nodes: { ...serverGraph.nodes, [testNodeId]: { ...serverNode, nodeUIMetadata: { ...serverNode.nodeUIMetadata, position: localNode.nodeUIMetadata.position } } } })
-            } else {
-                setGraph(serverGraph)
-            }
 
             // THEN: Position should be PRESERVED (merged from in-memory state)
             const graphAfterFSEvent: Graph = getGraph()
@@ -314,13 +302,12 @@ Content here.`
 
             await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-            // Wait for file to be added to graph (sync server→local)
+            // Wait for file to be added to graph
             await waitForFSEvent()
             await waitForCondition(
-                () => !!getServerGraph().nodes[testNodeId],
+                () => !!getGraph().nodes[testNodeId],
                 { maxWaitMs: 1000, errorMessage: 'test-position-node not added to graph' }
             )
-            setGraph(getServerGraph())
 
             // Verify position was loaded from YAML
             const graphAfterLoad: Graph = getGraph()
@@ -338,13 +325,12 @@ Content here. Updated externally.`
 
             await fs.writeFile(testFilePath, updatedContent, 'utf-8')
 
-            // Wait for FS event to reload the node (sync server→local)
+            // Wait for FS event to reload the node (may need longer for chokidar to detect second change)
             await waitForFSEvent()
             await waitForCondition(
-                () => getServerGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
+                () => getGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
                 { maxWaitMs: 3000, errorMessage: 'Node content not updated from FS event' }
             )
-            setGraph(getServerGraph())
 
             // THEN: Position should be PRESERVED (it was in the YAML)
             const graphAfterFSEvent: Graph = getGraph()
