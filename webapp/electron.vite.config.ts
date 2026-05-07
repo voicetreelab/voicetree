@@ -15,8 +15,6 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'onnxruntime-node',
   'onnxruntime-common',
   'onnxruntime-web',
-  'better-sqlite3',
-  'sqlite-vec',
   'chokidar',
   'fsevents',
 ]
@@ -38,7 +36,7 @@ const isMainExternal = (id: string): boolean => {
 // `@xterm/headless` ships a `module` field pointing to a file that doesn't exist
 // in the published tarball; Vite/Rollup choke on it. The package is pure JS, so
 // we externalize it and let Node's require fall back to `main` at runtime.
-const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'better-sqlite3', 'sqlite-vec', 'chokidar', '@xterm/headless'])
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar', '@xterm/headless'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,
@@ -78,7 +76,7 @@ const NODE_BUILTINS = new Set([
   'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util', 'v8', 'vm', 'wasi',
   'worker_threads', 'zlib',
 ])
-const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents', 'better-sqlite3', 'sqlite-vec'])
+const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents'])
 const rendererNodeShimPlugin = {
   name: 'renderer-node-shim',
   enforce: 'pre' as const,
@@ -299,7 +297,7 @@ export default defineConfig({
       // Exclude chokidar/fsevents: chokidar v3 leaks in via @vt/graph-state -> @vt/graph-model
       // barrel re-exports. rendererNodeShimPlugin shims them at resolve time during dev and prod;
       // excluding them here prevents esbuild from pre-bundling them before the plugin can intercept.
-      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep', 'better-sqlite3', 'sqlite-vec']
+      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),

@@ -7,9 +7,6 @@ import { discoverPort, readPortFile } from './portDiscovery.ts'
 const requireFromHere = createRequire(import.meta.url)
 const TSX_IMPORT_PATH = requireFromHere.resolve('tsx')
 const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server')
-const BETTER_SQLITE3_PACKAGE_JSON = requireFromHere.resolve(
-  'better-sqlite3/package.json',
-)
 
 // Resolve from the installed workspace package, not from import.meta.url.
 // In the bundled Electron main process, import.meta.url points into dist output.
@@ -84,7 +81,7 @@ export function resolveDaemonRuntimeCommand(
   }
 
   throw new Error(
-    `Could not find a Node runtime for vt-graphd that can load better-sqlite3. Checked: ${failures.join('; ')}`,
+    `Could not find a Node runtime for vt-graphd that supports node:sqlite. Checked: ${failures.join('; ')}`,
   )
 }
 
@@ -123,17 +120,14 @@ function validateDaemonRuntime(
     [
       '-e',
       [
-        "const { createRequire } = require('node:module')",
         'if (process.versions.electron) {',
         "  throw new Error(`Electron runtime ABI ${process.versions.modules} cannot host vt-graphd`)",
         '}',
-        `const requireFromBetterSqlite = createRequire(${JSON.stringify(BETTER_SQLITE3_PACKAGE_JSON)})`,
-        "const Database = requireFromBetterSqlite('better-sqlite3')",
-        "new Database(':memory:').close()",
+        "const { DatabaseSync } = require('node:sqlite')",
+        "new DatabaseSync(':memory:').close()",
       ].join('\n'),
     ],
     {
-      cwd: dirname(BETTER_SQLITE3_PACKAGE_JSON),
       encoding: 'utf8',
       env,
       timeout: 5000,

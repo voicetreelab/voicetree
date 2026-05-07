@@ -67,7 +67,7 @@ describe('resolveDaemonRuntimeCommand', () => {
     })
   })
 
-  test('throws a clear error when no candidate can load better-sqlite3', async () => {
+  test('throws a clear error when no candidate supports node:sqlite', async () => {
     await withFakeRuntimeBin(async ({ binDir, makeRuntime }) => {
       const electron = await makeRuntime('Electron', 1)
       const badNpmNode = await makeRuntime('bad-npm-node', 1)
@@ -80,7 +80,7 @@ describe('resolveDaemonRuntimeCommand', () => {
           versions: { node: '24.0.0', electron: '38.1.2' },
         }),
       ).toThrow(
-        /Could not find a Node runtime for vt-graphd that can load better-sqlite3/,
+        /Could not find a Node runtime for vt-graphd that supports node:sqlite/,
       )
     })
   })

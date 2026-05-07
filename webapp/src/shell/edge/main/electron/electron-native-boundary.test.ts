@@ -19,20 +19,15 @@ const INTERNAL_PACKAGE_ROOTS: Record<string, string> = {
     '@vt/graph-model': join(REPO_ROOT, 'packages/graph-model/src'),
     '@vt/graph-state': join(REPO_ROOT, 'packages/graph-state/src'),
     '@vt/graph-tools': join(REPO_ROOT, 'packages/graph-tools/src'),
-    'knowledge-graph': join(REPO_ROOT, 'packages/knowledge-graph/src'),
 }
 
 const FORBIDDEN_MODULES: RegExp[] = [
-    /^better-sqlite3$/,
-    /^sqlite-vec$/,
-    /^knowledge-graph(?:\/|$)/,
     /^@vt\/graph-db-server\/watch-folder\/vault-allowlist$/,
     /^@vt\/graph-db-server\/views\/folderVisibilitySqlite$/,
     /^@vt\/graph-db-server\/views\/folder-visibility-active-view$/,
 ]
 
 const FORBIDDEN_SOURCE_PATHS: string[] = [
-    join(REPO_ROOT, 'packages/knowledge-graph/src'),
     join(REPO_ROOT, 'packages/graph-db-server/src/watch-folder/vault-allowlist.ts'),
     join(REPO_ROOT, 'packages/graph-db-server/src/views/folderVisibilitySqlite.ts'),
     join(REPO_ROOT, 'packages/graph-db-server/src/views/folder-visibility-active-view.ts'),
