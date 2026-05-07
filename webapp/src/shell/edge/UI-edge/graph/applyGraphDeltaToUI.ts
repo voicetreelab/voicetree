@@ -16,6 +16,7 @@ import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
+    if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return true;
     return CSS.supports('color', color);
 }
 
@@ -249,18 +250,6 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
-            if (specNode.position !== undefined) {
-                const currentPosition: { x: number; y: number } = existing.position()
-                if (
-                    currentPosition.x !== specNode.position.x
-                    || currentPosition.y !== specNode.position.y
-                ) {
-                    existing.position({
-                        x: specNode.position.x,
-                        y: specNode.position.y,
-                    })
-                }
-            }
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }

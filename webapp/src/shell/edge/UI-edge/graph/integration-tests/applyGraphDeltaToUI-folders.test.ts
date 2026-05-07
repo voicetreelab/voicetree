@@ -1,0 +1,199 @@
+// @vitest-environment jsdom
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import type { Core } from 'cytoscape'
+import cytoscape from 'cytoscape'
+import type { GraphNode } from '@vt/graph-model/graph'
+import {
+    addCollapsedFolderLocally,
+    getFolderTreeState,
+    removeCollapsedFolderLocally,
+} from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
+import { resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
+import { O, upsert, applyDeltaToUI, applySpecToUI, folderSpecNode, specWithNodes, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
+
+vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
+    checkEngagementPrompts: vi.fn()
+}))
+
+describe('applyGraphDeltaToUI - Integration', () => {
+    let cy: Core
+
+    beforeEach(() => {
+        resetRendererStateMirror()
+        cy = cytoscape({ headless: true, elements: [] })
+    })
+
+    afterEach(() => {
+        cy.destroy()
+        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
+            removeCollapsedFolderLocally(folderId)
+        })
+        syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
+    })
+
+    describe('Recursive folder chains within loaded roots', () => {
+        it('creates nested folder parents within the loaded root and projects collapsed folders from the collapse store', () => {
+            syncVaultStateFromMain({ readPaths: [], writePath: '/vault', starredFolders: [] })
+            syncFolderTree('/vault')
+            addCollapsedFolderLocally('/vault/auth/internal/')
+
+            const directChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(directChild), upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/').length).toBe(0)
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/').data('parent')).toBeUndefined()
+
+            const nestedFolder: cytoscape.CollectionReturnValue = cy.getElementById('/vault/auth/internal/')
+            expect(nestedFolder.length).toBe(1)
+            expect(nestedFolder.data('parent')).toBe('/vault/auth/')
+            expect(nestedFolder.data('collapsed')).toBe(true)
+            expect(nestedFolder.data('childCount')).toBe(1)
+
+            expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/login-flow.md').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+            expect(getFolderTreeState().graphCollapsedFolders.has('/vault/auth/internal/')).toBe(true)
+        })
+
+        it('projects synced folder roots before VaultPathStore is synced', () => {
+            syncFolderTree('/vault')
+            addCollapsedFolderLocally('/vault/auth/internal/')
+
+            const rootFile: GraphNode = {
+                absoluteFilePathIsID: '/vault/readme.md',
+                contentWithoutYamlOrLinks: '# Readme',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(rootFile), upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/').data('collapsed')).toBe(true)
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+        })
+
+        it('keeps using the synced folder root across sequential deltas before VaultPathStore is synced', () => {
+            syncFolderTree('/vault')
+            addCollapsedFolderLocally('/vault/auth/internal/')
+
+            const rootFile: GraphNode = {
+                absoluteFilePathIsID: '/vault/readme.md',
+                contentWithoutYamlOrLinks: '# Readme',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 50, y: 50 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const directChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/login-flow.md',
+                contentWithoutYamlOrLinks: '# Login Flow',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const nestedChild: GraphNode = {
+                absoluteFilePathIsID: '/vault/auth/internal/refresh-token.md',
+                contentWithoutYamlOrLinks: '# Refresh Token',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.some({ x: 200, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            applyDeltaToUI(cy, [upsert(rootFile), upsert(directChild)])
+            applyDeltaToUI(cy, [upsert(nestedChild)])
+
+            expect(cy.getElementById('/vault/auth/').length).toBe(1)
+            expect(cy.getElementById('/vault/auth/internal/').data('parent')).toBe('/vault/auth/')
+            expect(cy.getElementById('/vault/auth/internal/').data('collapsed')).toBe(true)
+            expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
+        })
+    })
+
+    describe('Folder node content projection', () => {
+        it('inserts folder nodes with content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            const folderNode: cytoscape.CollectionReturnValue = cy.getElementById('/vault/topic/')
+            expect(folderNode.data('content')).toBe('# Topic\n\nbody')
+            expect(folderNode.data('isFolderNode')).toBe(true)
+        })
+
+        it('updates existing folder node content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder')))
+
+            applySpecToUI(
+                cy,
+                specWithNodes(folderSpecNode('folder', { content: '# Topic\n\nupdated' })),
+            )
+
+            expect(cy.getElementById('/vault/topic/').data('content')).toBe('# Topic\n\nupdated')
+        })
+
+        it('inserts collapsed folder nodes with content', () => {
+            applySpecToUI(cy, specWithNodes(folderSpecNode('folder-collapsed')))
+
+            const folderNode: cytoscape.CollectionReturnValue = cy.getElementById('/vault/topic/')
+            expect(folderNode.data('content')).toBe('# Topic\n\nbody')
+            expect(folderNode.data('collapsed')).toBe(true)
+            expect(folderNode.data('childCount')).toBe(2)
+        })
+    })
+})
