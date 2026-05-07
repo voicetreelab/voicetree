@@ -87,7 +87,6 @@ import {
     getCurrentLiveState,
     __resetLiveStoreForTests,
 } from '@/shell/edge/main/state/live-state-store'
-import { serializeState } from '@vt/graph-state'
 
 function emptyGraph(): Graph {
     return {
@@ -105,7 +104,7 @@ beforeEach(() => {
     configureMcpServer({
         liveState: {
             applyLiveCommand,
-            getLiveStateSnapshot: async () => serializeState(await getCurrentLiveState()),
+            getLiveStateSnapshot: async () => null,
         },
     })
 })

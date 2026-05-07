@@ -12,7 +12,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
@@ -203,7 +203,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 : []
 
             // Apply task-node creation + caller-context update as one batched delta.
-            await applyGraphDeltaThroughDaemonOrLocal([...taskNodeDelta, ...callerContextUpdateDelta])
+            await postDeltaThroughDaemonWithEditors([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent
@@ -278,7 +278,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 },
                 previousNode: O.some(targetNode)
             }]
-            await applyGraphDeltaThroughDaemonOrLocal(claimDelta)
+            await postDeltaThroughDaemonWithEditors(claimDelta)
         }
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport

@@ -20,6 +20,8 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { execFileSync } from 'child_process';
+import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 import { generateVaultOnDisk } from './perf-helpers/generateRealisticVault';
@@ -46,6 +48,12 @@ const PERF_TRACES_DIR = path.join(PROJECT_ROOT, 'e2e-tests', 'perf-traces');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
+  electronAPI?: {
+    main?: {
+      startFileWatching?: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+      getGraph?: () => Promise<{ nodes?: Record<string, unknown>; edges?: Record<string, unknown> }>;
+    };
+  };
 }
 
 // ============================================================================
@@ -54,6 +62,83 @@ interface ExtendedWindow {
 
 let mainInspectPort = 0;
 let generatedVaultPath = '';
+let generatedProjectPath = '';
+
+const REALISTIC_PERF_NODE_COUNT = Number.parseInt(process.env.REALISTIC_PERF_NODE_COUNT ?? '500', 10);
+
+function canLoadNativeGraphDbModules(nodeBin: string): boolean {
+  try {
+    execFileSync(nodeBin, ['-e', "const { DatabaseSync } = require('node:sqlite'); new DatabaseSync(':memory:').close()"], {
+      cwd: path.resolve(PROJECT_ROOT, '..'),
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveGraphDaemonNodeBin(): string {
+  const nvmNodeBin = path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.20.0', 'bin', 'node');
+  const candidates = [
+    process.env.VT_GRAPHD_NODE_BIN,
+    process.env.npm_node_execpath,
+    process.execPath,
+    existsSync(nvmNodeBin) ? nvmNodeBin : undefined,
+    'node',
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
+}
+
+async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknown>> {
+  return page.evaluate(async (vaultPath) => {
+    const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+    const api = (
+      window as unknown as {
+        electronAPI?: {
+          main?: {
+            getWatchStatus?: () => Promise<unknown>;
+            getVaultPaths?: () => Promise<unknown>;
+            getGraph?: () => Promise<{ nodes?: Record<string, unknown>; edges?: Record<string, unknown> }>;
+          };
+        };
+      }
+    ).electronAPI;
+
+    const safeCall = async <T>(fn: (() => Promise<T>) | undefined): Promise<T | string> => {
+      if (!fn) return 'unavailable';
+      try {
+        return await fn();
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    };
+
+    const bodyText = document.body?.innerText?.slice(0, 1000) ?? '';
+    const graph = await safeCall(api?.main?.getGraph);
+    const graphNodeCount = typeof graph === 'object' && graph !== null && 'nodes' in graph
+      ? Object.keys((graph as { nodes?: Record<string, unknown> }).nodes ?? {}).length
+      : graph;
+    const graphEdgeCount = typeof graph === 'object' && graph !== null && 'edges' in graph
+      ? Object.keys((graph as { edges?: Record<string, unknown> }).edges ?? {}).length
+      : graph;
+
+    return {
+      url: location.href,
+      title: document.title,
+      vaultPath,
+      bodyText,
+      hasCytoscape: Boolean(cy),
+      cyNodes: cy?.nodes().length ?? null,
+      cyEdges: cy?.edges().length ?? null,
+      watchStatus: await safeCall(api?.main?.getWatchStatus),
+      vaultPaths: await safeCall(api?.main?.getVaultPaths),
+      graphNodeCount,
+      graphEdgeCount,
+    };
+  }, generatedVaultPath);
+}
 
 const test = base.extend<{
   electronApp: ElectronApplication;
@@ -64,8 +149,8 @@ const test = base.extend<{
       path.join(os.tmpdir(), 'voicetree-realistic-perf-')
     );
 
-    // Generate the realistic vault on disk
-    generatedVaultPath = await generateVaultOnDisk(tempUserDataPath, 500);
+    generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
+    generatedVaultPath = await generateVaultOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
 
     // Seed projects.json pointing at the generated vault
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -73,7 +158,7 @@ const test = base.extend<{
       projectsPath,
       JSON.stringify([{
         id: 'realistic-perf-project',
-        path: generatedVaultPath,
+        path: generatedProjectPath,
         name: 'perf-test-vault',
         type: 'folder',
         lastOpened: Date.now(),
@@ -88,9 +173,9 @@ const test = base.extend<{
     await fs.writeFile(
       configPath,
       JSON.stringify({
-        lastDirectory: generatedVaultPath,
+        lastDirectory: generatedProjectPath,
         vaultConfig: {
-          [generatedVaultPath]: {
+          [generatedProjectPath]: {
             writePath: generatedVaultPath,
             readPaths: [],
           }
@@ -112,6 +197,8 @@ const test = base.extend<{
         HEADLESS_TEST: '0',
         MINIMIZE_TEST: '0',
         VOICETREE_PERSIST_STATE: '1',
+        VOICETREE_DAEMON_LOAD_TIMEOUT_MS: '180000',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
       timeout: 30000,
     });
@@ -160,7 +247,17 @@ const test = base.extend<{
     await window.waitForSelector('text=Voicetree', { timeout: 15000 });
     const projectButton = window.locator('button:has-text("perf-test-vault")').first();
     await projectButton.click();
-    console.log('[Realistic Perf] Clicked project to enter graph view');
+    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writePath=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+
+    const watchResult = await window.evaluate(async (projectPath) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api?.main?.startFileWatching) {
+        throw new Error('electronAPI.main.startFileWatching is unavailable');
+      }
+      return api.main.startFileWatching(projectPath);
+    }, generatedProjectPath);
+    console.log('[Realistic Perf] startFileWatching result:', JSON.stringify(watchResult));
+    expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
 
     // Wait for Cytoscape instance to become available
     await window.waitForFunction(
@@ -223,6 +320,20 @@ test.describe('Realistic 500-Node Performance', () => {
       await appWindow.evaluate(() => performance.mark('load-start'));
       await startCDPTrace(cdp);
 
+      await expect
+        .poll(
+          async () => appWindow.evaluate(async () => {
+            const graph = await (window as unknown as ExtendedWindow).electronAPI?.main?.getGraph?.();
+            return Object.keys(graph?.nodes ?? {}).length;
+          }),
+          {
+            message: 'Waiting for main graph to load generated vault nodes',
+            timeout: 300000,
+            intervals: [5000, 5000, 5000, 5000, 5000],
+          }
+        )
+        .toBeGreaterThan(0);
+
       // Wait for graph to have nodes from the file watcher pipeline
       // The real pipeline processes files through: watcher → parser → graph delta → layout
       // Poll and log progress until node count stabilizes.
@@ -230,8 +341,9 @@ test.describe('Realistic 500-Node Performance', () => {
       let stableRuns = 0;
       const STABLE_THRESHOLD = 4; // 4 consecutive same-count polls = ~20s stable
 
-      await expect
-        .poll(
+      try {
+        await expect
+          .poll(
           async () => {
             const info = await appWindow.evaluate((): { nodes: number; edges: number } => {
               const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -256,6 +368,10 @@ test.describe('Realistic 500-Node Performance', () => {
           }
         )
         .toBe(true);
+      } catch (error) {
+        console.error('[Realistic Perf] LOAD wait diagnostics:', JSON.stringify(await collectLoadDiagnostics(appWindow), null, 2));
+        throw error;
+      }
       console.log(`[Realistic Perf] Vault loading complete at ${lastCount} nodes`);
 
       const nodeCountBeforeStable = await appWindow.evaluate((): number => {

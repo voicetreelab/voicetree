@@ -34,8 +34,6 @@
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
-    "knowledge-graph": "*",
-    "better-sqlite3": "^12.8.0",
     "chokidar": "^3.6.0",
     "fp-ts": "^2.16.9",
     "gray-matter": "^4.0.3",
@@ -48,7 +46,6 @@
     "typescript": "~5.8.3",
     "tsx": "^4.19.2",
     "vitest": "^3.2.4",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/normalize-path": "^3.0.2"
   }

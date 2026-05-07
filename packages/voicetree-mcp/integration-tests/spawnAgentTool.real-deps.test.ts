@@ -45,7 +45,7 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
     const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
     return {
         ...actual,
-        applyGraphDeltaThroughDaemonOrLocal: vi.fn().mockResolvedValue(undefined),
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
     }
 })
 

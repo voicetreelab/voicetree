@@ -69,7 +69,7 @@ import {
     getWritePath,
     getDirectoryTree,
 } from '@vt/graph-model'
-import {applyLiveCommand, getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
+import {getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
 import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {configureMcpServer, createMcpServer} from '@vt/voicetree-mcp'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
@@ -141,6 +141,27 @@ describe('vt_get_live_state real MCP roundtrip', () => {
         server = await startTestMcpServer()
 
         const graph: Graph = buildFixtureGraph()
+        const serializedState = serializeState({
+            graph,
+            roots: {loaded: new Set(['/tmp/vault']), folderTree: [{
+                absolutePath: '/tmp/vault',
+                name: 'vault',
+                isDirectory: true,
+                children: [],
+            }]},
+            collapseSet: new Set(['/tmp/vault/tasks/']),
+            selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
+            layout: {positions: new Map([['/tmp/vault/sample.md' as NodeIdAndFilePath, {x: 1, y: 2}]])},
+            meta: {schemaVersion: 1, revision: 7, mutatedAt: new Date(0).toISOString()},
+        })
+        configureMcpServer({
+            liveState: {
+                getLiveStateSnapshot: async () => serializedState,
+                applyLiveCommand: async () => {
+                    throw new Error('applyLiveCommand is not used by vt_get_live_state')
+                },
+            },
+        })
         vi.mocked(getCurrentLiveState).mockResolvedValue({
             graph,
             roots: {loaded: new Set(), folderTree: []},
@@ -160,25 +181,7 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             isDirectory: true,
             children: [],
         })
-        vi.mocked(getLiveStateSnapshotFromDaemon).mockResolvedValue(serializeState({
-            graph,
-            roots: {loaded: new Set(['/tmp/vault']), folderTree: [{
-                absolutePath: '/tmp/vault',
-                name: 'vault',
-                isDirectory: true,
-                children: [],
-            }]},
-            collapseSet: new Set(['/tmp/vault/tasks/']),
-            selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
-            layout: {positions: new Map([['/tmp/vault/sample.md' as NodeIdAndFilePath, {x: 1, y: 2}]])},
-            meta: {schemaVersion: 1, revision: 7, mutatedAt: new Date(0).toISOString()},
-        }))
-        configureMcpServer({
-            liveState: {
-                applyLiveCommand,
-                getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
-            },
-        })
+        vi.mocked(getLiveStateSnapshotFromDaemon).mockResolvedValue(serializedState)
     })
 
     afterEach(async () => {

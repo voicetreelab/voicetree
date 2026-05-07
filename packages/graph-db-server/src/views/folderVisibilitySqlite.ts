@@ -10,7 +10,7 @@
  * against fresh DBs.
  */
 
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
@@ -19,7 +19,11 @@ export const FOLDER_VISIBILITY_DB_RELATIVE_PATH = '.voicetree/folder-visibility.
 /** Current schema version. Bump when adding a non-trivial migration step. */
 export const FOLDER_VISIBILITY_SCHEMA_VERSION = 1
 
-export type FolderVisibilityDatabase = Database.Database
+type TransactionFn<T extends (...args: any[]) => unknown> = (...args: Parameters<T>) => ReturnType<T>
+
+export type FolderVisibilityDatabase = DatabaseSync & {
+    transaction<T extends (...args: any[]) => unknown>(fn: T): TransactionFn<T>
+}
 
 /**
  * Resolve `<vaultPath>/.voicetree/folder-visibility.db`.
@@ -48,10 +52,32 @@ export function openFolderVisibilityDb(vaultPath: string): FolderVisibilityDatab
     const dbPath = resolveFolderVisibilityDbPath(vaultPath)
     fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
+    const db = addTransactionMethod(new DatabaseSync(dbPath))
+    db.exec('PRAGMA journal_mode = WAL')
     runSchemaMigrations(db)
     return db
+}
+
+function addTransactionMethod(db: DatabaseSync): FolderVisibilityDatabase {
+    return Object.assign(db, {
+        transaction<T extends (...args: any[]) => unknown>(fn: T): TransactionFn<T> {
+            return ((...args: Parameters<T>): ReturnType<T> => {
+                if (db.isTransaction) {
+                    return fn(...args) as ReturnType<T>
+                }
+
+                db.exec('BEGIN')
+                try {
+                    const result = fn(...args) as ReturnType<T>
+                    db.exec('COMMIT')
+                    return result
+                } catch (error) {
+                    db.exec('ROLLBACK')
+                    throw error
+                }
+            }) as TransactionFn<T>
+        },
+    })
 }
 
 /**
@@ -64,7 +90,7 @@ export function openFolderVisibilityDb(vaultPath: string): FolderVisibilityDatab
  *
  * Bumps `PRAGMA user_version` to {@link FOLDER_VISIBILITY_SCHEMA_VERSION}.
  */
-export function runSchemaMigrations(db: FolderVisibilityDatabase): void {
+export function runSchemaMigrations(db: DatabaseSync): void {
     db.exec(`
         CREATE TABLE IF NOT EXISTS folder_visibility (
             view_id TEXT NOT NULL,
@@ -79,13 +105,13 @@ export function runSchemaMigrations(db: FolderVisibilityDatabase): void {
         );
         CREATE INDEX IF NOT EXISTS idx_fv_view ON folder_visibility(view_id);
     `)
-    db.pragma(`user_version = ${FOLDER_VISIBILITY_SCHEMA_VERSION}`)
+    db.exec(`PRAGMA user_version = ${FOLDER_VISIBILITY_SCHEMA_VERSION}`)
 }
 
 /**
- * Close a previously opened db. Safe to call once; better-sqlite3 throws on
- * double-close, so callers should not invoke this twice on the same handle.
+ * Close a previously opened db. Safe to call once; callers should not invoke
+ * this twice on the same handle.
  */
-export function closeFolderVisibilityDb(db: FolderVisibilityDatabase): void {
+export function closeFolderVisibilityDb(db: DatabaseSync): void {
     db.close()
 }

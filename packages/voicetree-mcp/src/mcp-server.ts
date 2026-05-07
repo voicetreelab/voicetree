@@ -17,7 +17,7 @@ import {z} from 'zod'
 import express, {type Express} from 'express'
 import type {Server} from 'node:http'
 import {findAvailablePort} from './util/findAvailablePort'
-import {enableMcpJsonIntegration, enableMcpClientIntegrations} from './mcp-client-config'
+import {enableMcpClientIntegrations} from './mcp-client-config'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -27,7 +27,6 @@ import {getUnseenNodesNearbyTool} from './getUnseenNodesNearbyTool'
 import {sendMessageTool} from './sendMessageTool'
 import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
-import {searchNodesTool as _searchNodesTool} from './searchNodesTool'
 import {createGraphTool} from './createGraphTool'
 import {graphStructureTool} from './graphStructureTool'
 import {registerLiveTools} from './registerLiveTools'
@@ -197,20 +196,6 @@ If no node exists yet, use task+parentNodeId to create a new task node first.`,
         async ({terminalId, callerTerminalId, nChars}) =>
             readTerminalOutputTool({terminalId, callerTerminalId, nChars})
     )
-
-    // Tool: search_nodes (temporarily disabled)
-    // server.registerTool(
-    //     'search_nodes',
-    //     {
-    //         title: 'Search Nodes',
-    //         description: 'Search for semantically relevant nodes in the graph using hybrid vector + BM25 search. Use this to find related context, prior work, or relevant documentation within the markdown tree.',
-    //         inputSchema: {
-    //             query: z.string().describe('The search query text'),
-    //             top_k: z.number().optional().describe('Number of results to return (default: 10)')
-    //         }
-    //     },
-    //     async ({query, top_k}) => searchNodesTool({query, top_k})
-    // )
 
     // Tool: create_graph
     server.registerTool(

@@ -18,7 +18,7 @@ import {getTerminalManager} from '../terminals/terminal-manager-instance'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
-import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {getRuntimeUI} from '../runtime-config'
@@ -77,7 +77,7 @@ async function createHookNode(): Promise<string> {
         previousNode: O.none
     }]
 
-    await applyGraphDeltaThroughDaemonOrLocal(hookDelta)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(hookDelta)
     return hookNode.absoluteFilePathIsID
 }
 

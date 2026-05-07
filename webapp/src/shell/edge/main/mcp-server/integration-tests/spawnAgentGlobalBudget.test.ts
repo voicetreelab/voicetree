@@ -5,21 +5,13 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
 
-vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await importOriginal()
-    return {
-        ...actual,
-        getWritePath: vi.fn()
-    }
-})
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
+    getWritePath: vi.fn()
+}))
 
-vi.mock('@vt/graph-db-server/state/graph-store', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/state/graph-store') = await importOriginal()
-    return {
-        ...actual,
-        getGraph: vi.fn()
-    }
-})
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
+    getGraph: vi.fn()
+}))
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
@@ -35,11 +27,19 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+    loadSettings: vi.fn().mockResolvedValue({agents: []})
+}))
+
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
     return {
         ...actual,
-        applyGraphDeltaThroughDaemonOrLocal: vi.fn().mockResolvedValue(undefined),
+        startMonitor: vi.fn().mockReturnValue('monitor-1')
     }
 })
 

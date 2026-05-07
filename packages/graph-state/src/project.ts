@@ -3,7 +3,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import { getFolderNotePath, type FolderTreeNode, type GraphNode } from '@vt/graph-model'
 
 import type { EdgeElement, ElementSpec, FolderId, NodeElement, State } from './contract'
-import { deriveFolderVisibilityFromLegacy, ensureTrailingSlash } from './state/folderVisibility/derive'
 
 interface FolderProjectionInfo {
     readonly id: FolderId
@@ -186,19 +185,6 @@ function selectVisibleCollapsedFolders(
     return visibleCollapsedFolders
 }
 
-function selectCollapsedFoldersFromVisibility(state: State): ReadonlySet<FolderId> {
-    const folderVisibility = deriveFolderVisibilityFromLegacy({
-        readPaths: state.roots.loaded,
-        loadedRoots: state.roots.loaded,
-        collapseSet: state.collapseSet,
-    })
-    return new Set(
-        [...folderVisibility]
-            .filter(([, folderState]) => folderState === 'collapsed')
-            .map(([folderPath]) => ensureTrailingSlash(folderPath) as FolderId),
-    )
-}
-
 function findVisibleCollapsedAncestorForNode(
     nodeId: string,
     visibleCollapsedFolders: ReadonlySet<FolderId>,
@@ -272,7 +258,7 @@ export function project(state: State): ElementSpec {
     const folderInfos = collectFolders(state)
     const knownFolders = new Set(folderInfos.map((info) => info.id))
     const visibleCollapsedFolders = selectVisibleCollapsedFolders(
-        selectCollapsedFoldersFromVisibility(state),
+        state.collapseSet,
         knownFolders,
     )
 

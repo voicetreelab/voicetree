@@ -42,7 +42,7 @@ import { applySetZoom } from './apply/setZoom'
 import { applySetPan } from './apply/setPan'
 import { applySetPositions } from './apply/setPositions'
 import { applyRequestFit } from './apply/requestFit'
-import { stripTrailingSlash } from './state/folderVisibility/derive'
+import { stripTrailingSlash } from './state/folderVisibility/path'
 import type { SetFolderState } from './apply/folderVisibility'
 
 const DEFAULT_VIEW_ID = 'main'

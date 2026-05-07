@@ -9,7 +9,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
@@ -75,7 +75,7 @@ export async function triggerOvernight(
         return {success: false, error: 'Failed to create task node'}
     }
 
-    await applyGraphDeltaThroughDaemonOrLocal(taskNodeDelta)
+    await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
 
     // Resolve Opus agent command (find "Claude" in settings.agents)
     const settings: VTSettings = await loadSettings()

@@ -200,6 +200,10 @@ async function syncRendererFromDaemon(
   const delta: GraphDelta = buildGraphDiff(previousGraph, nextGraph)
   if (delta.length > 0) {
     broadcastGraphDeltaToUI(delta)
+    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('graph:stateChanged', delta)
+    }
   }
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)

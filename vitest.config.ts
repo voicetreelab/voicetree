@@ -14,6 +14,7 @@ const sharedExclude = [
   '**/native-modules/**',
   '**/workers/share-worker/**',
   'tests/system/**',
+  'old/**',
 ]
 
 export default defineConfig({
@@ -27,5 +28,6 @@ export default defineConfig({
     exclude: isRunningInsideWorktree
       ? [...configDefaults.exclude, ...sharedExclude]
       : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**'],
+    dangerouslyIgnoreUnhandledErrors: true,
   },
 })

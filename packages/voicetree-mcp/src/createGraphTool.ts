@@ -21,7 +21,7 @@ import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
@@ -35,7 +35,6 @@ import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {
     type ValidationResult,
-    type OverrideEntry,
     ALL_RULES,
     runValidations,
     resolveOverrides,
@@ -409,7 +408,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await applyGraphDeltaThroughDaemonOrLocal(batchDelta)
+        await postDeltaThroughDaemonWithEditors(batchDelta)
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -438,7 +437,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await applyGraphDeltaThroughDaemonOrLocal(contextDelta)
+            await postDeltaThroughDaemonWithEditors(contextDelta)
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created

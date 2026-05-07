@@ -16,8 +16,8 @@ describe('daemon CLI route parity', () => {
         expect(getDaemonRouteParityRegistry()).toEqual([
             {id: 'session.create', method: 'POST', path: '/sessions'},
             {id: 'session.delete', method: 'DELETE', path: '/sessions/:sessionId'},
-            {id: 'session.events', method: 'GET', path: '/sessions/:sessionId/events'},
             {id: 'session.show', method: 'GET', path: '/sessions/:sessionId'},
+            {id: 'session.events', method: 'GET', path: '/sessions/:sessionId/events'},
             {id: 'view.show', method: 'GET', path: '/sessions/:sessionId/state'},
             {id: 'view.collapse', method: 'POST', path: '/sessions/:sessionId/collapse/:folderId'},
             {id: 'view.expand', method: 'DELETE', path: '/sessions/:sessionId/collapse/:folderId'},

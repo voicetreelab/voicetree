@@ -116,22 +116,3 @@ export async function applyGraphDeltaToDBThroughMemAndUIAndEditors(
     await applyGraphDeltaToDBThroughMemAndUI(delta, recordForUndo)
     getCallbacks().onFloatingEditorUpdate?.(delta)
 }
-
-/**
- * Apply delta from a workspace package, preferring the host's daemon-routed write
- * path if one is registered (Electron host wires this to vt-graphd HTTP), and
- * falling back to in-process apply when the daemon callback is unset (vt-graphd
- * subprocess IS the daemon — apply directly). This indirection exists to keep
- * better-sqlite3 out of Electron's address space; in-process apply pulls the
- * native module into whatever process calls it.
- */
-export async function applyGraphDeltaThroughDaemonOrLocal(
-    delta: GraphDelta,
-): Promise<void> {
-    const route: ((d: GraphDelta) => Promise<void>) | undefined = getCallbacks().postDelta
-    if (route) {
-        await route(delta)
-    } else {
-        await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
-    }
-}

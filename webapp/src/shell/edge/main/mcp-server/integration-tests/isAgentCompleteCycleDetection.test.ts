@@ -6,19 +6,22 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import type {TerminalRecord} from '@vt/agent-runtime'
 
-// Mock only getIdleSince — keep the rest of @vt/agent-runtime intact so the
-// barrel still loads cleanly. getAgentNodes is controlled via registerAgentNodes
-// against the real in-memory index.
-vi.mock('@vt/agent-runtime', async (importOriginal) => {
-    const actual: typeof import('@vt/agent-runtime') = await importOriginal<typeof import('@vt/agent-runtime')>()
+// Mock leaf dependencies
+vi.mock('@vt/agent-runtime', () => ({
+    getIdleSince: vi.fn()
+}))
+
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
     return {
         ...actual,
-        getIdleSince: vi.fn()
+        getAgentNodes: vi.fn()
     }
 })
 
-import {isAgentComplete, registerAgentNodes, clearAgentNodes} from '@vt/voicetree-mcp'
+import {isAgentComplete} from '@vt/voicetree-mcp'
 import {getIdleSince} from '@vt/agent-runtime'
+import {getAgentNodes} from '@vt/voicetree-mcp'
 
 // --- Helpers ---
 
@@ -76,8 +79,9 @@ describe('isAgentComplete cycle detection', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
-        clearAgentNodes()
         vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
+        // Default: agents have progress nodes (so progress-node gate doesn't block)
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
     })
 
     it('handles self-referential cycle (terminalId === parentTerminalId) without stack overflow', () => {
@@ -212,11 +216,11 @@ describe('isAgentComplete progress-node gate', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
-        clearAgentNodes()
         vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
     })
 
     it('blocks completion when agent has no progress nodes and is within 30-min timeout', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         // Spawned recently — within the 30-min timeout
         const record: TerminalRecord = makeRecord('agent-x', data)
@@ -228,6 +232,7 @@ describe('isAgentComplete progress-node gate', () => {
     })
 
     it('allows completion when agent has no progress nodes but exceeds 30-min timeout', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - (31 * 60 * 1000) // 31 minutes ago
@@ -238,17 +243,20 @@ describe('isAgentComplete progress-node gate', () => {
     })
 
     it('allows completion when agent has progress nodes regardless of spawn time', () => {
-        registerAgentNodes('agent-x', [{nodeId: 'node.md', title: 'My Progress'}])
+        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'node.md', title: 'My Progress'}])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
-        const graph: Graph = buildGraph()
+        const graph: Graph = buildGraph([
+            buildGraphNode('node.md', 'My Progress', 'alpha')
+        ])
 
         const result: boolean = isAgentComplete(record, graph, NOW, [record])
         expect(result).toBe(true)
     })
 
     it('does not apply progress-node gate to exited agents', () => {
+        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data, 'exited')
         record.spawnedAt = NOW - 10_000 // recent spawn, no progress nodes

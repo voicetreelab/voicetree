@@ -32,10 +32,17 @@ async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDeriva
 }
 
 export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promise<readonly FilePath[]> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        // node:sqlite is unavailable in this runtime — safe to
+        // return empty because the daemon manages folder visibility in that mode.
+        return []
+    }
     const store = await loadFolderVisibilityStore()
-    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
@@ -45,7 +52,7 @@ export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promi
             .map(([folderPath]) => folderPath)
     } finally {
         store.clearFolderVisibilityStoreForTests()
-        closeFolderVisibilityDb(db)
+        dbModule.closeFolderVisibilityDb(db)
     }
 }
 
@@ -54,10 +61,15 @@ export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promi
  * Uses deriveWatchRoots so nested expanded folders don't add redundant mounts.
  */
 export async function getWatchRootsForActiveView(vaultPath: FilePath): Promise<readonly string[]> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        return []
+    }
     const store = await loadStoreWithDerivation()
-    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
@@ -66,7 +78,7 @@ export async function getWatchRootsForActiveView(vaultPath: FilePath): Promise<r
         return [...store.deriveWatchRoots(map)]
     } finally {
         store.clearFolderVisibilityStoreForTests()
-        closeFolderVisibilityDb(db)
+        dbModule.closeFolderVisibilityDb(db)
     }
 }
 
@@ -75,16 +87,21 @@ export async function setActiveViewFolderState(
     folderPath: FilePath,
     state: FolderState,
 ): Promise<void> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        return
+    }
     const store = await loadFolderVisibilityStore()
-    const { closeFolderVisibilityDb, openFolderVisibilityDb } = await loadFolderVisibilityDbModule()
     const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
-    const db: FolderVisibilityDatabase = openFolderVisibilityDb(vaultPath)
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
     try {
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
         store.setFolderState(getActiveViewId(db), folderPath, state)
     } finally {
         store.clearFolderVisibilityStoreForTests()
-        closeFolderVisibilityDb(db)
+        dbModule.closeFolderVisibilityDb(db)
     }
 }

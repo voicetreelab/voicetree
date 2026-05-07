@@ -4,21 +4,13 @@ import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import type {VTSettings} from '@vt/graph-model/pure/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
-vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await importOriginal()
-    return {
-        ...actual,
-        getWritePath: vi.fn()
-    }
-})
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
+    getWritePath: vi.fn()
+}))
 
-vi.mock('@vt/graph-db-server/state/graph-store', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/state/graph-store') = await importOriginal()
-    return {
-        ...actual,
-        getGraph: vi.fn()
-    }
-})
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
+    getGraph: vi.fn()
+}))
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
@@ -29,23 +21,23 @@ vi.mock('@vt/agent-runtime', async (importOriginal) => {
     }
 })
 
-vi.mock('@vt/graph-db-server/settings/settings_IO', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/settings/settings_IO') = await importOriginal()
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+    loadSettings: vi.fn()
+}))
+
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
     return {
         ...actual,
-        loadSettings: vi.fn()
+        startMonitor: vi.fn().mockReturnValue('monitor-1')
     }
 })
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
-    return {
-        ...actual,
-        applyGraphDeltaThroughDaemonOrLocal: vi.fn().mockResolvedValue(undefined),
-    }
-})
-
-import {applyGraphDeltaThroughDaemonOrLocal} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
@@ -251,7 +243,7 @@ describe('MCP spawn_agent tool', () => {
 
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
-        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaThroughDaemonOrLocal).mock.calls[0]
+        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
         expect(claimDelta[0].type).toBe('UpsertNode')

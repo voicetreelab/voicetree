@@ -8,16 +8,21 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
+vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
+    getUnseenNodesAroundContextNode: vi.fn(),
+}))
+
 vi.mock('@vt/agent-runtime', () => ({
     getTerminalRecords: vi.fn()
 }))
 
 vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
-    loadSettings: vi.fn().mockResolvedValue({agents: []})
+    loadSettings: vi.fn()
 }))
 
 import {listAgentsTool} from '@vt/voicetree-mcp'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType"
 
@@ -143,6 +148,7 @@ describe('MCP list_agents tool', () => {
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
+        vi.mocked(getUnseenNodesAroundContextNode).mockResolvedValue([])
         vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()})
 
         const response: McpToolResponse = await listAgentsTool()
