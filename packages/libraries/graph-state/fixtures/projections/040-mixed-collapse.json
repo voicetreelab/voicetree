@@ -6,98 +6,88 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "folder",
         "label": "notes",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "notes",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "notes/",
+        "basename": "notes",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/inbox.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "inbox",
-        "data": {
-          "content": "# inbox\n\nSelected note for visibility tests.\n",
-          "summary": "",
-          "selected": true
-        },
+        "relPath": "notes/inbox.md",
+        "basename": "inbox",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
         "position": {
           "x": 520,
           "y": 90
         },
-        "classes": [
-          "selected"
-        ],
-        "kind": "node"
+        "content": "# inbox\n\nSelected note for visibility tests.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "roadmap",
-        "data": {
-          "content": "# roadmap\n\nRelates to [summary]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "notes/roadmap.md",
+        "basename": "roadmap",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "content": "# roadmap\n\nRelates to [summary]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/research/",
+        "kind": "folder-collapsed",
         "label": "research",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "research",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": "",
-          "collapsed": true,
-          "childCount": 1
-        },
-        "kind": "folder-collapsed"
+        "relPath": "research/",
+        "basename": "research",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false,
+        "childCount": 1
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder-collapsed",
         "label": "epics",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "epics",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": "",
-          "collapsed": true,
-          "childCount": 2
-        },
-        "kind": "folder-collapsed"
+        "relPath": "tasks/epics/",
+        "basename": "epics",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false,
+        "childCount": 2
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "file",
         "label": "summary",
-        "data": {
-          "content": "# summary\n\nSummarises [epic-a]*.\n",
-          "summary": ""
-        },
+        "relPath": "tasks/summary.md",
+        "basename": "summary",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
         "position": {
           "x": 90,
           "y": 120
         },
-        "kind": "node"
+        "content": "# summary\n\nSummarises [epic-a]*.\n"
       }
     ],
     "edges": [
@@ -105,24 +95,34 @@
         "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md->/tmp/graph-state-fixtures/root-a/tasks/summary.md",
         "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
-        "label": "Relates to",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Relates to"
       },
       {
         "id": "synthetic:/tmp/graph-state-fixtures/root-a/tasks/epics/:in:/tmp/graph-state-fixtures/root-a/tasks/summary.md",
         "source": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "kind": "synthetic",
         "label": "Summarises",
-        "data": {
-          "isSyntheticEdge": true
-        },
         "classes": [
           "synthetic-folder-edge"
-        ],
-        "kind": "synthetic"
+        ]
       }
     ],
-    "revision": 4
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 4,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+        },
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }

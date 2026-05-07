@@ -6,15 +6,18 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/solo.md",
+        "kind": "file",
         "label": "solo",
-        "data": {
-          "content": "# solo\n\nOnly node in the graph.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "solo.md",
+        "basename": "solo",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# solo\n\nOnly node in the graph.\n"
       }
     ],
     "edges": [],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
   }
 }

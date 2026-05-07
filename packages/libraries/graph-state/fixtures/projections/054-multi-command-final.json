@@ -6,42 +6,39 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
         "label": "overview",
-        "data": {
-          "content": "# overview\n\nTop-level summary.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# overview\n\nTop-level summary.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder-collapsed",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": "",
-          "collapsed": true,
-          "childCount": 2
-        },
-        "kind": "folder-collapsed"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false,
+        "childCount": 2
       },
       {
         "id": "/tmp/graph-state-fixtures/root-b/remote.md",
+        "kind": "file",
         "label": "remote",
-        "data": {
-          "content": "# remote\n\nSecondary root note.\n",
-          "summary": "",
-          "selected": true
-        },
-        "classes": [
-          "selected"
-        ],
-        "kind": "node"
+        "relPath": "/tmp/graph-state-fixtures/root-b/remote.md",
+        "basename": "remote",
+        "folderPath": "/tmp/graph-state-fixtures/root-b/",
+        "content": "# remote\n\nSecondary root note.\n"
       }
     ],
     "edges": [],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
   }
 }

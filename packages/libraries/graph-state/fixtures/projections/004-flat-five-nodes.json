@@ -6,48 +6,48 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "kind": "file",
         "label": "alpha",
-        "data": {
-          "content": "# Alpha\n\nTracks [Beta]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "alpha.md",
+        "basename": "alpha",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Alpha\n\nTracks [Beta]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "kind": "file",
         "label": "beta",
-        "data": {
-          "content": "# Beta\n\nExecution detail.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "beta.md",
+        "basename": "beta",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Beta\n\nExecution detail.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/delta.md",
+        "kind": "file",
         "label": "delta",
-        "data": {
-          "content": "# Delta\n\nStaging note.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "delta.md",
+        "basename": "delta",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Delta\n\nStaging note.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/epsilon.md",
+        "kind": "file",
         "label": "epsilon",
-        "data": {
-          "content": "# Epsilon\n\nArchive note.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "epsilon.md",
+        "basename": "epsilon",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Epsilon\n\nArchive note.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "kind": "file",
         "label": "gamma",
-        "data": {
-          "content": "# Gamma\n\nLoose note.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "gamma.md",
+        "basename": "gamma",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Gamma\n\nLoose note.\n"
       }
     ],
     "edges": [
@@ -55,11 +55,20 @@
         "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
         "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
         "target": "/tmp/graph-state-fixtures/root-a/beta.md",
-        "label": "Tracks",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Tracks"
       }
     ],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "target": "/tmp/graph-state-fixtures/root-a/beta.md"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }

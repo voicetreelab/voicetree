@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model'
 
 import { applyCommand } from '../src/applyCommand'
-import type { EdgeElement, ElementSpec, FolderId, NodeElement, State } from '../src/contract'
+import type { FolderId, ProjectedGraph, State } from '../src/contract'
 import { listSnapshotDocuments } from '../src/fixtures'
 import { project } from '../src/project'
 
@@ -47,7 +47,7 @@ function deriveStatesWithCollapseVariations(state: State): State[] {
     return variants
 }
 
-function assertProjectionProperties(spec: ElementSpec, state: State, label: string): void {
+function assertProjectionProperties(spec: ProjectedGraph, state: State, label: string): void {
     const nodeIds = new Set(spec.nodes.map((n) => n.id))
     const folderNodeIds = new Set(
         spec.nodes.filter((n) => n.kind === 'folder' || n.kind === 'folder-collapsed').map((n) => n.id),
@@ -67,7 +67,7 @@ function assertProjectionProperties(spec: ElementSpec, state: State, label: stri
     }
 
     // P4: Node kind is valid
-    const validKinds = new Set(['node', 'folder', 'folder-collapsed'])
+    const validKinds = new Set(['file', 'folder', 'folder-collapsed'])
     for (const node of spec.nodes) {
         expect(validKinds.has(node.kind), `[${label}] P4: invalid kind "${node.kind}" on ${node.id}`).toBe(true)
     }
@@ -130,7 +130,7 @@ function assertProjectionProperties(spec: ElementSpec, state: State, label: stri
     }
 }
 
-function assertCollapseFilteringProperties(spec: ElementSpec, state: State, label: string): void {
+function assertCollapseFilteringProperties(spec: ProjectedGraph, state: State, label: string): void {
     const visibleCollapsedFolders = new Set(
         spec.nodes.filter((n) => n.kind === 'folder-collapsed').map((n) => n.id),
     )
@@ -144,7 +144,7 @@ function assertCollapseFilteringProperties(spec: ElementSpec, state: State, labe
         for (const collapsedFolder of visibleCollapsedFolders) {
             if (nodeId.startsWith(collapsedFolder)) {
                 const appearsAsFileNode = spec.nodes.some(
-                    (n) => n.id === nodeId && n.kind === 'node',
+                    (n) => n.id === nodeId && n.kind === 'file',
                 )
                 expect(
                     appearsAsFileNode,
@@ -157,7 +157,7 @@ function assertCollapseFilteringProperties(spec: ElementSpec, state: State, labe
     // P13: Collapsed folder's childCount > 0
     for (const node of spec.nodes) {
         if (node.kind === 'folder-collapsed') {
-            const childCount = node.data['childCount']
+            const childCount = node.childCount
             expect(
                 typeof childCount === 'number' && childCount > 0,
                 `[${label}] P13: collapsed folder "${node.id}" has invalid childCount: ${childCount}`,

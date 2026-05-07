@@ -6,57 +6,55 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "folder",
         "label": "notes",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "notes",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "notes/",
+        "basename": "notes",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/retro.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "retro",
-        "data": {
-          "content": "# retro\n\nWeekly retro.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "notes/retro.md",
+        "basename": "retro",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "content": "# retro\n\nWeekly retro.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "spec",
-        "data": {
-          "content": "# spec\n\nShared reference note.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "notes/spec.md",
+        "basename": "spec",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "content": "# spec\n\nShared reference note.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "file",
         "label": "BF-117",
-        "data": {
-          "content": "# BF-117\n\nSee [spec]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "tasks/BF-117.md",
+        "basename": "BF-117",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# BF-117\n\nSee [spec]*.\n"
       }
     ],
     "edges": [
@@ -64,11 +62,20 @@
         "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/notes/spec.md",
         "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
         "target": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
-        "label": "See",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "See"
       }
     ],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          "target": "/tmp/graph-state-fixtures/root-a/notes/spec.md"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }

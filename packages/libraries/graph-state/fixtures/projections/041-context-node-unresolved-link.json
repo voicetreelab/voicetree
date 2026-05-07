@@ -6,56 +6,59 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "kind": "file",
         "label": "alpha",
-        "data": {
-          "content": "# Alpha\n\nReferenced node.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "alpha.md",
+        "basename": "alpha",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Alpha\n\nReferenced node.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "kind": "file",
         "label": "beta",
-        "data": {
-          "content": "# Beta\n\nReferenced node.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "beta.md",
+        "basename": "beta",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Beta\n\nReferenced node.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/context.md",
+        "kind": "file",
         "label": "context",
-        "data": {
-          "content": "# Context\n\nContains a dangling [missing-target]* link.\n",
-          "summary": "",
-          "additionalYAMLProps": [
-            [
-              "containedNodeIds",
-              "[\"/tmp/graph-state-fixtures/root-a/alpha.md\",\"/tmp/graph-state-fixtures/root-a/beta.md\"]"
-            ],
-            [
-              "priority",
-              "2"
-            ],
-            [
-              "status",
-              "draft"
-            ]
-          ],
-          "color": "#FF00AA",
-          "containedNodeIds": [
-            "/tmp/graph-state-fixtures/root-a/alpha.md",
-            "/tmp/graph-state-fixtures/root-a/beta.md"
-          ],
-          "isContextNode": true
-        },
+        "relPath": "context.md",
+        "basename": "context",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
         "classes": [
           "context-node"
         ],
-        "kind": "node"
+        "color": "#FF00AA",
+        "content": "# Context\n\nContains a dangling [missing-target]* link.\n",
+        "additionalYAMLProps": [
+          [
+            "containedNodeIds",
+            "[\"/tmp/graph-state-fixtures/root-a/alpha.md\",\"/tmp/graph-state-fixtures/root-a/beta.md\"]"
+          ],
+          [
+            "priority",
+            "2"
+          ],
+          [
+            "status",
+            "draft"
+          ]
+        ],
+        "isContextNode": true,
+        "containedNodeIds": [
+          "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "/tmp/graph-state-fixtures/root-a/beta.md"
+        ]
       }
     ],
     "edges": [],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
   }
 }

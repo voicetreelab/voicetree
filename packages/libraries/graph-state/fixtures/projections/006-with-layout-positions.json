@@ -6,42 +6,42 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "kind": "file",
         "label": "alpha",
-        "data": {
-          "content": "# Alpha\n\nTracks [Beta]*.\n",
-          "summary": ""
-        },
+        "relPath": "alpha.md",
+        "basename": "alpha",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
         "position": {
           "x": 80,
           "y": 100
         },
-        "kind": "node"
+        "content": "# Alpha\n\nTracks [Beta]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "kind": "file",
         "label": "beta",
-        "data": {
-          "content": "# Beta\n\nExecution detail.\n",
-          "summary": ""
-        },
+        "relPath": "beta.md",
+        "basename": "beta",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
         "position": {
           "x": 220,
           "y": 100
         },
-        "kind": "node"
+        "content": "# Beta\n\nExecution detail.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "kind": "file",
         "label": "gamma",
-        "data": {
-          "content": "# Gamma\n\nLoose note.\n",
-          "summary": ""
-        },
+        "relPath": "gamma.md",
+        "basename": "gamma",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
         "position": {
           "x": 360,
           "y": 100
         },
-        "kind": "node"
+        "content": "# Gamma\n\nLoose note.\n"
       }
     ],
     "edges": [
@@ -49,11 +49,20 @@
         "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
         "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
         "target": "/tmp/graph-state-fixtures/root-a/beta.md",
-        "label": "Tracks",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Tracks"
       }
     ],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "target": "/tmp/graph-state-fixtures/root-a/beta.md"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }

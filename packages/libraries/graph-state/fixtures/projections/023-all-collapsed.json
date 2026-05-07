@@ -6,39 +6,36 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "folder",
         "label": "notes",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "notes",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "notes/",
+        "basename": "notes",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "roadmap",
-        "data": {
-          "content": "# roadmap\n\nRelates to [summary]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "notes/roadmap.md",
+        "basename": "roadmap",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "content": "# roadmap\n\nRelates to [summary]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder-collapsed",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": "",
-          "collapsed": true,
-          "childCount": 2
-        },
-        "kind": "folder-collapsed"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false,
+        "childCount": 2
       }
     ],
     "edges": [
@@ -46,16 +43,23 @@
         "id": "synthetic:/tmp/graph-state-fixtures/root-a/tasks/:in:/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
         "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "synthetic",
         "label": "Relates to",
-        "data": {
-          "isSyntheticEdge": true
-        },
         "classes": [
           "synthetic-folder-edge"
-        ],
-        "kind": "synthetic"
+        ]
       }
     ],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }
