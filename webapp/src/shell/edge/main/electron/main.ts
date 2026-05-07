@@ -39,7 +39,7 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
-import {getActiveDaemonClient} from './graph-daemon';
+import {type CachedDaemonConnection, getActiveDaemonClient, getActiveDaemonConnection} from './graph-daemon';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -142,7 +142,7 @@ void app.whenReady().then(async () => {
     // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
-    const orphanCleanup = killOrphanVtGraphdDaemons();
+    const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
@@ -225,6 +225,12 @@ let isQuitting: boolean = false;
 app.on('before-quit', () => {
     isQuitting = true;
     //console.log('[App] before-quit event - cleaning up resources...');
+    // Shut down the graph daemon (spawned as a separate process by ensureDaemon)
+    const daemonConnection: CachedDaemonConnection | null = getActiveDaemonConnection();
+    if (daemonConnection) {
+        void daemonConnection.client.shutdown().catch(() => {});
+    }
+
     // Remove instance file so vt-debug stops discovering this pid
     unregisterInstance();
 
