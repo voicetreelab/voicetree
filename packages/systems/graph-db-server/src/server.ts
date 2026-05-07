@@ -123,6 +123,12 @@ export async function startDaemon(
   let watcher: Watcher
   try {
     watcher = mountWatcher(await getVaultPaths(), vault)
+    try {
+      await watcher.ready
+    } catch (err) {
+      await watcher.unmount().catch(() => {})
+      throw err
+    }
   } catch (err) {
     await lockHandle.release()
     throw err
@@ -139,7 +145,18 @@ export async function startDaemon(
         }
         await watcher.unmount()
         if (!watcherStopped) {
-          watcher = mountWatcher(watchPaths, vault)
+          const nextWatcher = mountWatcher(watchPaths, vault)
+          try {
+            await nextWatcher.ready
+          } catch (err) {
+            await nextWatcher.unmount().catch(() => {})
+            throw err
+          }
+          if (watcherStopped) {
+            await nextWatcher.unmount()
+            return
+          }
+          watcher = nextWatcher
         }
       })
       .catch((error: unknown) => {

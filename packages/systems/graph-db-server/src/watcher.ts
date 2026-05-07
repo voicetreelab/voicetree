@@ -10,7 +10,30 @@ import {
 import { handleFSEventWithStateAndUISides } from './graph/handleFSEvent.ts'
 import { readFileWithRetry } from './watch-folder/file-watcher-setup.ts'
 
-export type Watcher = { unmount(): Promise<void> }
+export type Watcher = {
+  readonly ready: Promise<void>
+  unmount(): Promise<void>
+}
+
+function waitForReady(watcher: FSWatcher): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => {
+      watcher.off('ready', onReady)
+      watcher.off('error', onError)
+    }
+    const onReady = (): void => {
+      cleanup()
+      resolve()
+    }
+    const onError = (error: unknown): void => {
+      cleanup()
+      reject(error)
+    }
+
+    watcher.once('ready', onReady)
+    watcher.once('error', onError)
+  })
+}
 
 function buildWatcherOptions() {
   const usePolling =
@@ -48,6 +71,7 @@ export function mountWatcher(
   watchedDir: string,
 ): Watcher {
   const watcher: FSWatcher = chokidar.watch([...readPaths], buildWatcherOptions())
+  const ready = waitForReady(watcher)
 
   watcher.on('add', (filePath: string) => {
     const contentPromise = isImageNode(filePath)
@@ -100,6 +124,7 @@ export function mountWatcher(
   })
 
   return {
+    ready,
     async unmount(): Promise<void> {
       await watcher.close()
     },

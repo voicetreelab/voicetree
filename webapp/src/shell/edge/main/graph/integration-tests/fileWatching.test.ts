@@ -18,7 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching, setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta, Graph, GraphNode } from '@vt/graph-model/graph'
+import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import path from 'path'
 import os from 'os'
@@ -36,6 +36,17 @@ function hasEdgeToBasename(node: GraphNode | undefined, basename: string): boole
 let testProjectPath: string
 let testVoicetreeDir: string
 const INTEGRATION_TEST_TIMEOUT_MS: number = 30_000
+const FILE_WATCH_SYNC_TIMEOUT_MS: number = 15_000
+
+async function waitForGraphCondition(
+  condition: () => boolean,
+  errorMessage: string,
+): Promise<void> {
+  await waitForCondition(condition, {
+    maxWaitMs: FILE_WATCH_SYNC_TIMEOUT_MS,
+    errorMessage,
+  })
+}
 
 vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
   getMainWindow: vi.fn(() => ({
@@ -86,9 +97,9 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(testFilePath, '# Test Edge With Ext\n\nThis is a test file.', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 5000, errorMessage: 'test-edge-with-ext node not added to graph' }
+        'test-edge-with-ext node not added to graph',
       )
 
       const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
@@ -96,9 +107,9 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(targetFilePath, originalContent + '\n\n[[test-edge-with-ext.md]]', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-edge-with-ext'),
-        { maxWaitMs: 5000, errorMessage: 'Edge to test-edge-with-ext not created' }
+        'Edge to test-edge-with-ext not created',
       )
 
       const graph: Graph = getGraph()
@@ -112,9 +123,9 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(testFilePath, '# Test Edge No Ext\n\nThis is a test file.', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 5000, errorMessage: 'test-edge-no-ext node not added to graph' }
+        'test-edge-no-ext node not added to graph',
       )
 
       const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
@@ -122,9 +133,9 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(targetFilePath, originalContent + '\n\n[[test-edge-no-ext]]', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-edge-no-ext'),
-        { maxWaitMs: 5000, errorMessage: 'Edge to test-edge-no-ext not created' }
+        'Edge to test-edge-no-ext not created',
       )
 
       const graph: Graph = getGraph()
@@ -138,9 +149,9 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(testFilePath, '# Test Edge Removal\n\nThis is a test file.', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => !!getGraph().nodes[testFilePath],
-        { maxWaitMs: 5000, errorMessage: 'test-edge-removal node not added to graph' }
+        'test-edge-removal node not added to graph',
       )
 
       const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
@@ -149,17 +160,17 @@ describe('File Watching - Edge Management Tests', () => {
       await fs.writeFile(targetFilePath, contentBeforeLink + '\n\n[[test-edge-removal]]', 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-edge-removal'),
-        { maxWaitMs: 5000, errorMessage: 'Edge not added before removal test' }
+        'Edge not added before removal test',
       )
 
       await fs.writeFile(targetFilePath, contentBeforeLink, 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => !hasEdgeToBasename(getGraph().nodes[targetFilePath], 'test-edge-removal'),
-        { maxWaitMs: 5000, errorMessage: 'Edge to test-edge-removal not removed' }
+        'Edge to test-edge-removal not removed',
       )
 
       const graph: Graph = getGraph()
@@ -192,12 +203,12 @@ Parent:
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
       await waitForFSEvent()
-      await waitForCondition(
+      await waitForGraphCondition(
         () => {
           const node: GraphNode = getGraph().nodes[testFilePath]
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
-        { maxWaitMs: 5000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
+        'test-color-node not added with color parsed from frontmatter',
       )
 
       const graph: Graph = getGraph()
