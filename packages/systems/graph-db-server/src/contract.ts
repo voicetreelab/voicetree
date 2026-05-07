@@ -1,7 +1,7 @@
 // OPEN: log file location + --log-level default — design.md Open Question #1, confirm before P3
 import { z } from 'zod'
 
-export const CONTRACT_VERSION = '0.2.0'
+export const CONTRACT_VERSION = '0.3.0'
 
 export const HealthResponseSchema = z.object({
   version: z.string(),
@@ -160,3 +160,112 @@ export const SetWritePathRequestSchema = z.object({
   path: z.string(),
 })
 export type SetWritePathRequest = z.infer<typeof SetWritePathRequestSchema>
+
+// --- 0.3.0 / graph admin ---
+export const UndoResponseSchema = z.object({ performed: z.boolean() })
+export type UndoResponse = z.infer<typeof UndoResponseSchema>
+
+export const RedoResponseSchema = z.object({ performed: z.boolean() })
+export type RedoResponse = z.infer<typeof RedoResponseSchema>
+
+export const WritePositionsResponseSchema = z.object({ ok: z.literal(true) })
+export type WritePositionsResponse = z.infer<typeof WritePositionsResponseSchema>
+
+// --- 0.3.0 / context nodes ---
+export const CreateContextNodeRequestSchema = z.object({
+  parentNodeId: z.string(),
+})
+export type CreateContextNodeRequest = z.infer<typeof CreateContextNodeRequestSchema>
+
+export const CreateContextNodeResponseSchema = z.object({
+  contextNodeId: z.string(),
+})
+export type CreateContextNodeResponse = z.infer<typeof CreateContextNodeResponseSchema>
+
+export const CreateContextNodeFromQuestionRequestSchema = z.object({
+  relevantNodeIds: z.array(z.string()),
+  question: z.string(),
+})
+export type CreateContextNodeFromQuestionRequest = z.infer<typeof CreateContextNodeFromQuestionRequestSchema>
+
+export const CreateContextNodeFromSelectionRequestSchema = z.object({
+  taskNodeId: z.string(),
+  selectedNodeIds: z.array(z.string()),
+})
+export type CreateContextNodeFromSelectionRequest = z.infer<typeof CreateContextNodeFromSelectionRequestSchema>
+
+export const UnseenNodeSchema = z.object({
+  nodeId: z.string(),
+  content: z.string(),
+})
+export type UnseenNode = z.infer<typeof UnseenNodeSchema>
+
+export const UnseenNodesResponseSchema = z.object({
+  nodes: z.array(UnseenNodeSchema),
+})
+export type UnseenNodesResponse = z.infer<typeof UnseenNodesResponseSchema>
+
+export const UpdateContainedIdsRequestSchema = z.object({
+  newNodeIds: z.array(z.string()),
+})
+export type UpdateContainedIdsRequest = z.infer<typeof UpdateContainedIdsRequestSchema>
+
+export const PreviewContainedNodeIdsResponseSchema = z.object({
+  nodeIds: z.array(z.string()),
+})
+export type PreviewContainedNodeIdsResponse = z.infer<typeof PreviewContainedNodeIdsResponseSchema>
+
+// --- 0.3.0 / search ---
+export const BuildIndexRequestSchema = z.object({
+  vaultPath: z.string(),
+})
+export type BuildIndexRequest = z.infer<typeof BuildIndexRequestSchema>
+
+export const NodeSearchHitSchema = z.object({
+  nodePath: z.string(),
+  title: z.string(),
+  score: z.number(),
+  snippet: z.string(),
+})
+export type NodeSearchHit = z.infer<typeof NodeSearchHitSchema>
+
+export const SearchResponseSchema = z.object({
+  hits: z.array(NodeSearchHitSchema),
+})
+export type SearchResponse = z.infer<typeof SearchResponseSchema>
+
+export const FindFileResponseSchema = z.object({
+  files: z.array(z.string()),
+})
+export type FindFileResponse = z.infer<typeof FindFileResponseSchema>
+
+// --- 0.3.0 / watch ---
+export const ProjectRootResponseSchema = z.object({
+  projectRoot: z.string().nullable(),
+})
+export type ProjectRootResponse = z.infer<typeof ProjectRootResponseSchema>
+
+export const SetProjectRootRequestSchema = z.object({
+  projectRoot: z.string(),
+})
+export type SetProjectRootRequest = z.infer<typeof SetProjectRootRequestSchema>
+
+export const WatchStatusResponseSchema = z.object({
+  isWatching: z.boolean(),
+  directory: z.string().optional(),
+})
+export type WatchStatusResponse = z.infer<typeof WatchStatusResponseSchema>
+
+// --- 0.3.0 / vault extension ---
+export const LoadAndMergeRequestSchema = z.object({
+  vaultPath: z.string(),
+  isWritePath: z.boolean().optional(),
+  createStarterIfEmpty: z.boolean().optional(),
+})
+export type LoadAndMergeRequest = z.infer<typeof LoadAndMergeRequestSchema>
+
+export const LoadAndMergeResponseSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+})
+export type LoadAndMergeResponse = z.infer<typeof LoadAndMergeResponseSchema>

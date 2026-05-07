@@ -5,90 +5,64 @@ import {
   LayoutPartialSchema,
   LayoutResponseSchema,
   LiveStateSnapshotSchema,
+  LoadAndMergeRequestSchema,
+  LoadAndMergeResponseSchema,
+  RedoResponseSchema,
   SelectionRequestSchema,
   SelectionResponseSchema,
   SessionCreateResponseSchema,
   SessionInfoSchema,
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
+  UndoResponseSchema,
   VaultStateSchema,
   ViewResponseSchema,
+  WritePositionsResponseSchema,
   type GraphState,
   type HealthResponse,
   type LayoutPartial,
   type LayoutResponse,
   type LiveStateSnapshot,
+  type LoadAndMergeResponse,
+  type RedoResponse,
   type SelectionRequest,
   type SelectionResponse,
   type SessionInfo,
   type ShutdownResponse,
+  type UndoResponse,
   type VaultState,
   type ViewResponse,
+  type WritePositionsResponse,
 } from '@vt/graph-db-server/contract'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
+import { makeRequest } from './requestHelper.ts'
+import type { RequestOpts } from './requestHelper.ts'
 
-type Schema<T> = {
-  parse(input: unknown): T
-}
-
-type RequestOptions<T> = {
-  body?: unknown
-  expectNoContent?: boolean
-  headers?: Record<string, string>
-  method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
-  responseSchema?: Schema<T>
-}
-
-type ErrorPayload = {
-  code?: string
-  error?: string
-  message?: string
-}
-
-const ReadPathsMutationResponseSchema: Schema<{ readPaths: string[] }> = {
+const ReadPathsMutationResponseSchema: { parse(input: unknown): { readPaths: string[] } } = {
   parse(input: unknown) {
-    if (!isObject(input) || !Array.isArray(input.readPaths)) {
+    if (typeof input !== 'object' || input === null || !Array.isArray((input as Record<string, unknown>).readPaths)) {
       throw new Error('Invalid read-paths response body')
     }
-    if (!input.readPaths.every((value) => typeof value === 'string')) {
+    const r = input as { readPaths: unknown[] }
+    if (!r.readPaths.every((value) => typeof value === 'string')) {
       throw new Error('Invalid read-paths response body')
     }
-    return { readPaths: [...input.readPaths] }
+    return { readPaths: [...(r.readPaths as string[])] }
   },
 }
 
-const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
+const WritePathMutationResponseSchema: { parse(input: unknown): { writePath: string } } = {
   parse(input: unknown) {
-    if (!isObject(input) || typeof input.writePath !== 'string') {
+    if (typeof input !== 'object' || input === null || typeof (input as Record<string, unknown>).writePath !== 'string') {
       throw new Error('Invalid write-path response body')
     }
-    return { writePath: input.writePath }
+    return { writePath: (input as { writePath: string }).writePath }
   },
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
-  try {
-    const body = (await response.json()) as unknown
-    if (!isObject(body)) {
-      return {}
-    }
-    return {
-      code: typeof body.code === 'string' ? body.code : undefined,
-      error: typeof body.error === 'string' ? body.error : undefined,
-      message: typeof body.message === 'string' ? body.message : undefined,
-    }
-  } catch {
-    return {}
-  }
 }
 
 export class GraphDbClient {
@@ -125,63 +99,51 @@ export class GraphDbClient {
   }
 
   async health(): Promise<HealthResponse> {
-    return await this.request('/health', {
-      responseSchema: HealthResponseSchema,
-    })
+    return this.req('/health', { responseSchema: HealthResponseSchema })
   }
 
   async shutdown(): Promise<ShutdownResponse> {
-    return await this.request('/shutdown', {
-      method: 'POST',
-      responseSchema: ShutdownResponseSchema,
-    })
+    return this.req('/shutdown', { method: 'POST', responseSchema: ShutdownResponseSchema })
   }
 
   async getVault(): Promise<VaultState> {
-    return await this.request('/vault', {
-      responseSchema: VaultStateSchema,
-    })
+    return this.req('/vault', { responseSchema: VaultStateSchema })
   }
 
   async addReadPath(path: string): Promise<VaultState> {
-    await this.request('/vault/read-paths', {
+    await this.req('/vault/read-paths', {
       body: AddReadPathRequestSchema.parse({ path }),
       method: 'POST',
       responseSchema: ReadPathsMutationResponseSchema,
     })
-    return await this.getVault()
+    return this.getVault()
   }
 
   async removeReadPath(path: string): Promise<VaultState> {
-    await this.request(`/vault/read-paths/${encodeURIComponent(path)}`, {
+    await this.req(`/vault/read-paths/${encodeURIComponent(path)}`, {
       method: 'DELETE',
       responseSchema: ReadPathsMutationResponseSchema,
     })
-    return await this.getVault()
+    return this.getVault()
   }
 
   async setWritePath(path: string): Promise<VaultState> {
-    await this.request('/vault/write-path', {
+    await this.req('/vault/write-path', {
       body: SetWritePathRequestSchema.parse({ path }),
       method: 'PUT',
       responseSchema: WritePathMutationResponseSchema,
     })
-    return await this.getVault()
+    return this.getVault()
   }
 
   async getGraph(): Promise<GraphState> {
-    return await this.request('/graph', {
-      responseSchema: GraphStateSchema,
-    })
+    return this.req('/graph', { responseSchema: GraphStateSchema })
   }
 
   async postDelta(delta: unknown[], sessionId?: string): Promise<void> {
     const headers: Record<string, string> = {}
-    if (sessionId) {
-      headers['X-Session-Id'] = sessionId
-    }
-
-    await this.request('/graph/delta', {
+    if (sessionId) headers['X-Session-Id'] = sessionId
+    await this.req('/graph/delta', {
       body: delta,
       expectNoContent: false,
       headers,
@@ -191,92 +153,60 @@ export class GraphDbClient {
   }
 
   async createSession(): Promise<{ sessionId: string }> {
-    return await this.request('/sessions', {
-      method: 'POST',
-      responseSchema: SessionCreateResponseSchema,
-    })
+    return this.req('/sessions', { method: 'POST', responseSchema: SessionCreateResponseSchema })
   }
 
   async getSession(id: string): Promise<SessionInfo> {
-    return await this.request(`/sessions/${encodeURIComponent(id)}`, {
-      responseSchema: SessionInfoSchema,
-    })
+    return this.req(`/sessions/${encodeURIComponent(id)}`, { responseSchema: SessionInfoSchema })
   }
 
   async deleteSession(id: string): Promise<void> {
-    await this.request(`/sessions/${encodeURIComponent(id)}`, {
+    await this.req(`/sessions/${encodeURIComponent(id)}`, {
       expectNoContent: true,
       method: 'DELETE',
     })
   }
 
   async getSessionState(id: string): Promise<LiveStateSnapshot> {
-    return await this.request(`/sessions/${encodeURIComponent(id)}/state`, {
+    return this.req(`/sessions/${encodeURIComponent(id)}/state`, {
       responseSchema: LiveStateSnapshotSchema,
     })
   }
 
-  async collapse(
-    sessionId: string,
-    folderId: string,
-  ): Promise<unknown> {
-    return await this.request(
+  async collapse(sessionId: string, folderId: string): Promise<unknown> {
+    return this.req(
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
-      {
-        method: 'POST',
-        responseSchema: { parse: (value: unknown) => value },
-      },
+      { method: 'POST', responseSchema: { parse: (value: unknown) => value } },
     )
   }
 
-  async expand(
-    sessionId: string,
-    folderId: string,
-  ): Promise<unknown> {
-    return await this.request(
+  async expand(sessionId: string, folderId: string): Promise<unknown> {
+    return this.req(
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
-      {
-        method: 'DELETE',
-        responseSchema: { parse: (value: unknown) => value },
-      },
+      { method: 'DELETE', responseSchema: { parse: (value: unknown) => value } },
     )
   }
 
-  async setSelection(
-    sessionId: string,
-    req: SelectionRequest,
-  ): Promise<SelectionResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/selection`,
-      {
-        body: SelectionRequestSchema.parse(req),
-        method: 'POST',
-        responseSchema: SelectionResponseSchema,
-      },
-    )
+  async setSelection(sessionId: string, req: SelectionRequest): Promise<SelectionResponse> {
+    return this.req(`/sessions/${encodeURIComponent(sessionId)}/selection`, {
+      body: SelectionRequestSchema.parse(req),
+      method: 'POST',
+      responseSchema: SelectionResponseSchema,
+    })
   }
 
   async getProjectedGraph(sessionId: string): Promise<unknown> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
-      {
-        responseSchema: { parse: (value: unknown) => value },
-      },
-    )
+    return this.req(`/sessions/${encodeURIComponent(sessionId)}/projected-graph`, {
+      responseSchema: { parse: (value: unknown) => value },
+    })
   }
 
-  async updateLayout(
-    sessionId: string,
-    partial: LayoutPartial,
-  ): Promise<LayoutResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/layout`,
-      {
-        body: LayoutPartialSchema.parse(partial),
-        method: 'PUT',
-        responseSchema: LayoutResponseSchema,
-      },
-    )
+  async updateLayout(sessionId: string, partial: LayoutPartial): Promise<LayoutResponse> {
+    return this.req(`/sessions/${encodeURIComponent(sessionId)}/layout`, {
+      body: LayoutPartialSchema.parse(partial),
+      method: 'PUT',
+      responseSchema: LayoutResponseSchema,
+    })
   }
 
   async getView(
@@ -287,49 +217,48 @@ export class GraphDbClient {
     if (opts?.budget !== undefined) params.set('budget', String(opts.budget))
     for (const id of opts?.expand ?? []) params.append('expand', id)
     const query = params.toString()
-    const suffix = query ? `?${query}` : ''
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/view${suffix}`,
+    return this.req(
+      `/sessions/${encodeURIComponent(sessionId)}/view${query ? `?${query}` : ''}`,
       { responseSchema: ViewResponseSchema },
     )
   }
 
-  private async request<T>(
-    path: string,
-    opts: RequestOptions<T>,
-  ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      headers: {
-        ...(opts.body === undefined
-          ? undefined
-          : { 'content-type': 'application/json' }),
-        ...opts.headers,
-      },
-      method: opts.method ?? 'GET',
-    })
+  // --- 0.3.0 graph admin ---
 
-    if (!response.ok) {
-      throw await this.toGraphDbClientError(response)
-    }
-
-    if (opts.expectNoContent) {
-      return undefined as T
-    }
-
-    if (!opts.responseSchema) {
-      throw new Error(`Missing response schema for ${opts.method ?? 'GET'} ${path}`)
-    }
-
-    return opts.responseSchema.parse(await response.json())
+  async undo(): Promise<UndoResponse> {
+    return this.req('/graph/undo', { method: 'POST', responseSchema: UndoResponseSchema })
   }
 
-  private async toGraphDbClientError(
-    response: Response,
-  ): Promise<GraphDbClientError> {
-    const payload = await parseErrorPayload(response)
-    const code = payload.code ?? `http_${response.status}`
-    const message = payload.message ?? payload.error ?? response.statusText
-    return new GraphDbClientError(response.status, code, message)
+  async redo(): Promise<RedoResponse> {
+    return this.req('/graph/redo', { method: 'POST', responseSchema: RedoResponseSchema })
+  }
+
+  async writePositions(): Promise<WritePositionsResponse> {
+    return this.req('/graph/positions', { method: 'PUT', responseSchema: WritePositionsResponseSchema })
+  }
+
+  async reloadGraph(): Promise<GraphState> {
+    return this.req('/graph/reload', { method: 'POST', responseSchema: GraphStateSchema })
+  }
+
+  // --- 0.3.0 vault extension ---
+
+  async loadAndMergeVaultPath(
+    vaultPath: string,
+    opts?: { isWritePath?: boolean; createStarterIfEmpty?: boolean },
+  ): Promise<LoadAndMergeResponse> {
+    return this.req('/vault/load-and-merge', {
+      body: LoadAndMergeRequestSchema.parse({
+        vaultPath,
+        isWritePath: opts?.isWritePath,
+        createStarterIfEmpty: opts?.createStarterIfEmpty,
+      }),
+      method: 'POST',
+      responseSchema: LoadAndMergeResponseSchema,
+    })
+  }
+
+  private req<T>(path: string, opts: RequestOpts<T>): Promise<T> {
+    return makeRequest(this.baseUrl, path, opts)
   }
 }
