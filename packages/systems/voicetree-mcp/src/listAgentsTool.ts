@@ -7,7 +7,7 @@
 import type {Graph} from '@vt/graph-model/graph'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {getNewNodesForAgent} from './getNewNodesForAgent'

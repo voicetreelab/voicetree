@@ -20,8 +20,8 @@ import { promises as fs } from "fs";
 import fsSync from "fs";
 import type { FSWatcher } from "chokidar";
 import { getCallbacks } from "@vt/graph-model";
-import { copyMarkdownFiles, pathExists, createDatedSubfolder, findExistingVoicetreeDir } from "../project/project-utils";
-import { loadSettings } from "../settings/settings_IO";
+import { copyMarkdownFiles, pathExists, createDatedSubfolder, findExistingVoicetreeDir } from "@vt/app-config/project";
+import { loadSettings } from "@vt/app-config/settings";
 import { type VTSettings } from '@vt/graph-model/settings';
 import {
     getWatcher,
@@ -36,7 +36,7 @@ import {
     getLastDirectory,
     saveLastDirectory,
     saveVaultConfigForDirectory,
-} from "./voicetree-config-io";
+} from "@vt/app-config/vault-config";
 import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
@@ -49,7 +49,7 @@ import type { WatcherOptions } from "./file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "./broadcast-vault-state";
-import { loadPositions, savePositionsSync } from "../graph/positions-store";
+import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 
 // Re-export vault-allowlist functions for api.ts and tests
 export {

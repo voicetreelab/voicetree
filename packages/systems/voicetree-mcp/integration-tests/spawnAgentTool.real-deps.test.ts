@@ -23,7 +23,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {initGraphModel} from '@vt/graph-model'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
-import {clearSettingsCache} from '@vt/graph-db-server/settings/settings_IO'
+import {clearSettingsCache} from '@vt/app-config/settings'
 import {
     recordTerminalSpawn,
     clearTerminalRecords,

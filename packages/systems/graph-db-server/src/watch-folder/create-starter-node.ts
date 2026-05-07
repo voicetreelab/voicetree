@@ -7,7 +7,7 @@ import { promises as fs } from 'fs'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
-import { loadSettings } from '../settings/settings_IO'
+import { loadSettings } from '@vt/app-config/settings'
 import type { VTSettings } from '@vt/graph-model/settings'
 
 /**

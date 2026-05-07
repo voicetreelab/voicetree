@@ -36,7 +36,7 @@ import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixtu
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'

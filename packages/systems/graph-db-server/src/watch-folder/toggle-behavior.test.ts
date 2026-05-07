@@ -62,7 +62,7 @@ import {
     clearWatchFolderState,
     setWatcher,
 } from '../state/watch-folder-store'
-import { saveVaultConfigForDirectory } from './voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setActiveViewFolderState } from './folder-visibility-active-view'
 import {
     removeReadPath,
@@ -72,7 +72,7 @@ import {
     getVaultPaths,
     createDatedVoiceTreeFolder,
 } from './vault-allowlist'
-import { saveSettings, clearSettingsCache } from '../settings/settings_IO'
+import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 
 // ── Bug 1: removeReadPath toggle — broadcast must complete before return ─

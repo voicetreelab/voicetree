@@ -29,7 +29,7 @@ import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/t
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 // State for mocks
 let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }

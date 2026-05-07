@@ -1,8 +1,8 @@
-// Re-export shim — actual implementation in @vt/graph-db-server
+// Re-export shim — actual implementation in @vt/app-config
 export {
     generateDateSubfolder,
     createDatedSubfolder,
     findExistingVoicetreeDir,
     pathExists,
     copyMarkdownFiles,
-} from '@vt/graph-db-server/project/project-utils'
+} from '@vt/app-config/project'

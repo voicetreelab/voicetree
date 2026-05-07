@@ -14,7 +14,7 @@ import {getExistingAgentNames} from '../terminals/terminal-registry';
 import {getGraph} from '@vt/graph-db-server/state/graph-store';
 import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
+import {loadSettings} from '@vt/app-config/settings';
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
 import type {TerminalData} from '../types';

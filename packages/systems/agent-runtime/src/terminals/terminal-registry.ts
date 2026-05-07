@@ -6,7 +6,7 @@ import {getNodeTitle} from '@vt/graph-model/markdown'
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 
 import type {TerminalData} from '../types';
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO';
+import {loadSettings} from '@vt/app-config/settings';
 import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
 import {classifyExit} from '../lifecycle/exit'

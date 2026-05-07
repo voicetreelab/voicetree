@@ -21,7 +21,7 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph';
 import { mergePositionsIntoGraph } from '@vt/graph-model/spatial';
 import type { VaultConfig } from '@vt/graph-model/settings';
 import { loadVaultPathAdditively, resolveLinkedNodesInWatchedFolder } from "../graph/loadGraphFromDisk";
-import { createDatedSubfolder } from "../project/project-utils";
+import { createDatedSubfolder } from "@vt/app-config/project";
 import { createStarterNode } from "./create-starter-node";
 import type { FileLimitExceededError } from "../graph/fileLimitEnforce";
 import * as E from "fp-ts/lib/Either.js";
@@ -36,12 +36,12 @@ import {
     applyGraphDeltaToMemState,
     broadcastGraphDeltaToUI
 } from "../graph/applyGraphDelta";
-import { loadPositions } from "../graph/positions-store";
+import { loadPositions } from "@vt/app-config/positions";
 import { notifyTextToTreeServerOfDirectory } from "../graph/notifyTextToTreeServer";
 import {
     getVaultConfigForDirectory,
     saveVaultConfigForDirectory,
-} from "./voicetree-config-io";
+} from "@vt/app-config/vault-config";
 import { broadcastVaultState } from "./broadcast-vault-state";
 import {getCallbacks} from '@vt/graph-model';
 import {

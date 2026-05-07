@@ -8,7 +8,7 @@ import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "../state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "./loadGraphFromDisk";
 import {getProjectRootWatchedDirectory} from "../state/watch-folder-store";
-import {loadSettings} from "../settings/settings_IO";
+import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
 
 /**

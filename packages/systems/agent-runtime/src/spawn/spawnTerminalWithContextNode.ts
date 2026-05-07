@@ -20,7 +20,7 @@ import { promises as fs } from 'fs';
 import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode';
 import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store';
-import { loadSettings } from '@vt/graph-db-server/settings/settings_IO';
+import { loadSettings } from '@vt/app-config/settings';
 import { createTerminalData, getTerminalId, type TerminalId } from '../types';
 import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/graph';
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph';

@@ -105,7 +105,7 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
         || command.type === 'Deselect',
 }))
 
-vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({ nodeLineLimit: 70, agents: [] }),
     saveSettings: vi.fn(),
 }))

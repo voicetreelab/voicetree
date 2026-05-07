@@ -17,7 +17,7 @@ import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-reg
 import {getTerminalManager} from '../terminals/terminal-manager-instance'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'

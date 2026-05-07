@@ -1,7 +1,7 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
 import {getGraph} from '../state/graph-store'
-import {loadSettings} from '../settings/settings_IO'
+import { loadSettings } from '@vt/app-config/settings'
 import {type VTSettings} from '@vt/graph-model/settings'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {fromCreateChildToUpsertNode} from '@vt/graph-model/graph'

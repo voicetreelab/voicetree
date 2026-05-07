@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateDateSubfolder } from '../../src/project/project-utils';
+import { generateDateSubfolder } from '@vt/app-config/project';
 
 describe('generateDateSubfolder', () => {
     beforeEach(() => {

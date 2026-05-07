@@ -24,7 +24,7 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
 }))
 
 // Mock settings
-vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({nodeLineLimit: 70})
 }))
 

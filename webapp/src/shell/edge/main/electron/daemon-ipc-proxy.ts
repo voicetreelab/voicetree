@@ -4,7 +4,7 @@ import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, typ
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
-import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'

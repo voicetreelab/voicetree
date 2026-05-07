@@ -31,7 +31,7 @@ import {
     extractMermaidBlocks,
     parseDiagramParam,
 } from './addProgressNodeTool'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {
     type ValidationResult,

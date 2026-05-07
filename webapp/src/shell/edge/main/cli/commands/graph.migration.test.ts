@@ -15,7 +15,7 @@ import {
     createEmptyGraph,
     initGraphModel,
 } from '@vt/graph-model'
-import {saveVaultConfigForDirectory} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
 import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 // eslint-disable-next-line no-restricted-imports
 import {type DaemonHandle, startDaemon} from '../../../../../../../packages/systems/graph-db-server/src/server.ts'

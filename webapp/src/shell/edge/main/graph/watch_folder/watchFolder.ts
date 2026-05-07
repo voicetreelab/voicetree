@@ -12,15 +12,15 @@ import {
     getOnFolderSwitchCleanup,
     setProjectRootWatchedDirectory,
 } from '@/shell/edge/main/state/watch-folder-store'
-import { initializeProject } from '@vt/graph-db-server/project/project-initializer'
-import { createDatedSubfolder } from '@vt/graph-db-server/project/project-utils'
+import { initializeProject } from '@vt/app-config/project'
+import { createDatedSubfolder } from '@vt/app-config/project'
 import {
     getLastDirectory,
     getVaultConfigForDirectory,
     saveLastDirectory,
     saveVaultConfigForDirectory,
-} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
-import { savePositionsSync } from '@vt/graph-db-server/graph/positions-store'
+} from '@vt/app-config/vault-config'
+import { savePositionsSync } from '@vt/app-config/positions'
 
 import {
     isDaemonGraphSyncActive,

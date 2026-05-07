@@ -14,7 +14,7 @@ import { getExpandedFolderPathsForVault } from "./folder-visibility-active-view"
 import {
     getVaultConfigForDirectory,
     hasLegacyReadPathsForDirectory,
-} from "./voicetree-config-io";
+} from "@vt/app-config/vault-config";
 
 /**
  * Resolve a writePath to an absolute path with normalized separators.

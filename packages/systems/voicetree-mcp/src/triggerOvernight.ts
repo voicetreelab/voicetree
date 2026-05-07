@@ -10,7 +10,7 @@ import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 

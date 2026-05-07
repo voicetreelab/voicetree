@@ -16,7 +16,7 @@ import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWi
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {startMonitor} from './agent-completion-monitor'

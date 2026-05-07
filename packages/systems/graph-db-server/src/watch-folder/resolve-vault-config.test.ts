@@ -13,7 +13,7 @@ vi.mock('./folder-visibility-active-view', () => ({
 
 import { initGraphModel } from '@vt/graph-model'
 import { resolveAllowlistForProject } from './resolve-vault-config'
-import { saveVaultConfigForDirectory } from './voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 describe('resolveAllowlistForProject', () => {
     let root: string
