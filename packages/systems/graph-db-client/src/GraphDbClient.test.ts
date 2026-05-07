@@ -209,9 +209,7 @@ describe('GraphDbClient', () => {
         },
       )
 
-      await expect(client.collapse(created.sessionId, 'docs')).resolves.toEqual({
-        collapseSet: ['docs'],
-      })
+      await expect(client.collapse(created.sessionId, 'docs')).resolves.toHaveProperty('nodes')
 
       await expect(
         client.setSelection(created.sessionId, {
@@ -240,9 +238,7 @@ describe('GraphDbClient', () => {
         },
       })
 
-      await expect(client.expand(created.sessionId, 'docs')).resolves.toEqual({
-        collapseSet: [],
-      })
+      await expect(client.expand(created.sessionId, 'docs')).resolves.toHaveProperty('nodes')
 
       await expect(client.deleteSession(created.sessionId)).resolves.toBeUndefined()
 

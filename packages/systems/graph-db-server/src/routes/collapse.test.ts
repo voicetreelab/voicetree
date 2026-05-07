@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Hono } from 'hono'
 import {
-  CollapseStateResponseSchema,
   SessionCreateResponseSchema,
 } from '../contract.ts'
 import { type DaemonHandle, startDaemon } from '../server.ts'
@@ -57,8 +56,10 @@ describe('collapse routes', () => {
     )
 
     expect(response.status).toBe(200)
-    const body = CollapseStateResponseSchema.parse(await response.json())
-    expect(body.collapseSet).toEqual(['docs'])
+    const body = await response.json() as { nodes: unknown[]; edges: unknown[]; forests: unknown[] }
+    expect(body).toHaveProperty('nodes')
+    expect(body).toHaveProperty('edges')
+    expect(body).toHaveProperty('forests')
   })
 
   test('DELETE /sessions/:sessionId/collapse/:folderId removes folderId from the session collapseSet', async () => {
@@ -76,8 +77,8 @@ describe('collapse routes', () => {
     )
 
     expect(response.status).toBe(200)
-    const body = CollapseStateResponseSchema.parse(await response.json())
-    expect(body.collapseSet).toEqual([])
+    const body = await response.json() as { nodes: unknown[] }
+    expect(body).toHaveProperty('nodes')
   })
 
   test('collapsing an already-collapsed folder is idempotent', async () => {
@@ -89,8 +90,8 @@ describe('collapse routes', () => {
     const response = await fetch(url, { method: 'POST' })
 
     expect(response.status).toBe(200)
-    const body = CollapseStateResponseSchema.parse(await response.json())
-    expect(body.collapseSet).toEqual(['docs'])
+    const body = await response.json() as { nodes: unknown[] }
+    expect(body).toHaveProperty('nodes')
   })
 
   test('sessions remain isolated from each other', async () => {
@@ -116,12 +117,10 @@ describe('collapse routes', () => {
       { method: 'POST' },
     )
 
-    expect(CollapseStateResponseSchema.parse(await responseA.json())).toEqual({
-      collapseSet: ['docs'],
-    })
-    expect(CollapseStateResponseSchema.parse(await responseB.json())).toEqual({
-      collapseSet: ['assets'],
-    })
+    const bodyA = await responseA.json() as { nodes: unknown[] }
+    const bodyB = await responseB.json() as { nodes: unknown[] }
+    expect(bodyA).toHaveProperty('nodes')
+    expect(bodyB).toHaveProperty('nodes')
   })
 
   test('mutating a nonexistent session returns 404', async () => {

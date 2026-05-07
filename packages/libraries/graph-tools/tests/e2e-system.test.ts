@@ -102,8 +102,8 @@ describe('@vt/graph-tools system contract', () => {
 
     const view = runCli(['structure', vault, '--ascii', '--no-auto'])
     expect(view.status).toBe(0)
-    expect(view.stdout).toContain('Index')
-    expect(view.stdout).toContain('Task')
+    expect(view.stdout).toContain('index')
+    expect(view.stdout).toContain('task')
 
     const lint = runCli(['lint', vault, '--json'])
     expect(lint.status).toBe(0)
@@ -136,6 +136,6 @@ describe('@vt/graph-tools system contract', () => {
 
     const liveView = runCli(['live', 'view', '--port', String(server.port)])
     expect(liveView.status).toBe(0)
-    expect(liveView.stdout).toContain('Index')
+    expect(liveView.stdout).toContain('index')
   }, SYSTEM_CONTRACT_TIMEOUT_MS)
 })

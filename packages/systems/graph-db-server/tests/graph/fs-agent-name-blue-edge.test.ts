@@ -14,7 +14,7 @@ import { mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { project } from '@vt/graph-state'
 import type { Graph, GraphDelta, FSUpdate } from '@vt/graph-model/graph'
-import type { ElementSpec, NodeElement, State } from '@vt/graph-state/contract'
+import type { ProjectedGraph, ProjectedNode, State } from '@vt/graph-state/contract'
 
 vi.mock('../../src/watch-folder/vault-allowlist', () => ({
     getVaultPaths: vi.fn(async () => []),
@@ -31,8 +31,8 @@ function buildMinimalState(graph: Graph): State {
     }
 }
 
-function getAgentNameFromSpec(node: NodeElement): string | undefined {
-    const props: unknown = node.data['additionalYAMLProps']
+function getAgentNameFromProjectedNode(node: ProjectedNode): string | undefined {
+    const props = node.additionalYAMLProps
     if (!Array.isArray(props)) return undefined
     for (const entry of props) {
         if (Array.isArray(entry) && entry.length === 2 && entry[0] === 'agent_name') {
@@ -81,13 +81,13 @@ Some work was done.
         expect(node).toBeDefined()
         expect(node.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('Victor')
 
-        // Step 3: Project graph state to ElementSpec, verify agent_name survives
+        // Step 3: Project graph state to ProjectedGraph, verify agent_name survives
         const state: State = buildMinimalState(graph)
-        const spec: ElementSpec = project(state)
-        const specNode: NodeElement | undefined = spec.nodes.find(n => n.id === '/vault/agent-progress.md')
-        expect(specNode).toBeDefined()
+        const projected: ProjectedGraph = project(state)
+        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/vault/agent-progress.md')
+        expect(projNode).toBeDefined()
 
-        const agentName = getAgentNameFromSpec(specNode!)
+        const agentName = getAgentNameFromProjectedNode(projNode!)
         expect(agentName).toBe('Victor')
     })
 
@@ -108,11 +108,11 @@ No agent here.`
         const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, emptyGraph)
         const graph: Graph = applyGraphDeltaToGraph(emptyGraph, delta)
         const state: State = buildMinimalState(graph)
-        const spec: ElementSpec = project(state)
-        const specNode: NodeElement | undefined = spec.nodes.find(n => n.id === '/vault/regular-node.md')
-        expect(specNode).toBeDefined()
+        const projected: ProjectedGraph = project(state)
+        const projNode: ProjectedNode | undefined = projected.nodes.find(n => n.id === '/vault/regular-node.md')
+        expect(projNode).toBeDefined()
 
-        const agentName = getAgentNameFromSpec(specNode!)
+        const agentName = getAgentNameFromProjectedNode(projNode!)
         expect(agentName).toBeUndefined()
     })
 })

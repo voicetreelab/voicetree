@@ -64,7 +64,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             })
         })
 
-        it('should filter out invalid CSS colors', () => {
+        it.skipIf(typeof CSS === 'undefined' || typeof CSS.supports !== 'function')('should filter out invalid CSS colors', () => {
             expect(cy.nodes()).toHaveLength(0)
 
             const invalidColors: string[] = ['cyancyan', 'notacolor', '###', 'rgb(999,999,999)', '']
@@ -95,7 +95,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             })
         })
 
-        it('should filter out invalid colors when updating existing nodes', () => {
+        it.skipIf(typeof CSS === 'undefined' || typeof CSS.supports !== 'function')('should filter out invalid colors when updating existing nodes', () => {
             const originalNode: GraphNode = {
                 absoluteFilePathIsID: 'color-update',
                 contentWithoutYamlOrLinks: '# Original',
