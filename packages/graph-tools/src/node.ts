@@ -65,6 +65,7 @@ export {
 
 export { graphRename } from './rename'
 export { graphMove } from './move'
+export { graphGroup } from './group'
 
 export {
     computeMetricsFromVault,

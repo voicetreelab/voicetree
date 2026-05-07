@@ -5,7 +5,7 @@ import {error, output} from './output'
 
 const BRAIN = resolve(join(homedir(), 'brain'))
 
-type PathMapping = {
+export type PathMapping = {
     oldAbsPath: string
     newAbsPath: string
 }
@@ -25,7 +25,7 @@ type GraphMoveOptions = {
     requireFile?: boolean
 }
 
-type ReferenceUpdateSummary = {
+export type ReferenceUpdateSummary = {
     filesChanged: string[]
     referencesUpdated: number
     details: Array<{file: string; count: number}>
@@ -166,7 +166,7 @@ function buildReferencePatterns(
     return patterns
 }
 
-function resolveFilePath(inputPath: string, vaultRoot: string): string {
+export function resolveFilePath(inputPath: string, vaultRoot: string): string {
     if (inputPath.startsWith('~/brain/')) {
         return join(vaultRoot, inputPath.slice('~/brain/'.length))
     }
@@ -271,7 +271,7 @@ function validateMovePlan(plan: GraphMovePlan, options: GraphMoveOptions): void 
     }
 }
 
-function updateReferences(
+export function updateReferences(
     vaultRoot: string,
     mappings: PathMapping[],
     dryRun: boolean
