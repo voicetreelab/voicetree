@@ -126,12 +126,12 @@ describe('graph CLI module resolution', () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-structure-'))
         tempDirs.push(tempDir)
 
-        const result: SpawnResult = await spawnCli(['graph', 'structure'], tempDir)
+        const result: SpawnResult = await spawnCli(['graph', 'structure', '--bogus'], tempDir)
 
         expect(result.code, result.stderr).toBe(1)
         expect(result.signal).toBeNull()
         expect(result.stdout).toBe('')
-        expect(result.stderr).toContain('Usage: vt graph structure <folder-path>')
+        expect(result.stderr).toContain('Unknown argument: --bogus')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
     }, 30000)
 
