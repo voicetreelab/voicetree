@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@vt/app-config": "*",
-    "@vt/graph-db-server": "*",
+    "@vt/graph-db-client": "*",
     "@vt/graph-model": "*",
     "@xterm/headless": "^6.0.0",
     "fp-ts": "^2.16.9",

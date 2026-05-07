@@ -39,6 +39,7 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {getActiveDaemonClient} from './graph-daemon';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -68,6 +69,7 @@ configureMcpServer({
 
 // Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
 configureAgentRuntime({
+    graphDbClient: getActiveDaemonClient,
     env: {
         getAppSupportPath,
         getMcpPort,

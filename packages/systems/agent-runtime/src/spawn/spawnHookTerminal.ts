@@ -15,13 +15,10 @@ import {createTerminalData, type TerminalId} from '../types'
 import type {TerminalData} from '../types'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
 import {getTerminalManager} from '../terminals/terminal-manager-instance'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder'
+import {getWatchStatus} from '@vt/graph-db-client'
 import {loadSettings} from '@vt/app-config/settings'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {getRuntimeUI} from '../runtime-config'
+import {getRuntimeGraphDbClient, getRuntimeUI} from '../runtime-config'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
 const TERMINAL_READY_POLL_MS: number = 100
@@ -58,13 +55,13 @@ async function waitForTerminalReady(): Promise<boolean> {
 }
 
 async function createHookNode(): Promise<string> {
-    const writePathOption: O.Option<string> = await getWritePath()
-    const writePath: string = O.getOrElse(() => '')(writePathOption)
+    const client = getRuntimeGraphDbClient()
+    const writePath: string = (await client.getVault()).writePath
     if (!writePath) {
         throw new Error('No write path available for hook terminal node')
     }
 
-    const graph: Graph = getGraph()
+    const graph: Graph = await client.getGraph() as unknown as Graph
     const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
     const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
@@ -77,20 +74,22 @@ async function createHookNode(): Promise<string> {
         previousNode: O.none
     }]
 
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(hookDelta)
+    await client.postDelta([...hookDelta])
     return hookNode.absoluteFilePathIsID
 }
 
 async function spawnHookTerminal(): Promise<void> {
     const settings: VTSettings = await loadSettings()
 
-    if (!hookNodeId || !getGraph().nodes[hookNodeId]) {
+    const client = getRuntimeGraphDbClient()
+    if (!hookNodeId || !(await client.getGraph() as unknown as Graph).nodes[hookNodeId]) {
         hookNodeId = await createHookNode()
     }
 
     // Spawn in project root (watched directory), not the terminal-relative path —
     // hook scripts use absolute node paths and expect project root as CWD
-    const watchStatus: {readonly isWatching: boolean; readonly directory: string | undefined} = getWatchStatus()
+    const watchStatus: {readonly isWatching: boolean; readonly directory?: string} =
+        await getWatchStatus(client.baseUrl)
     const initialSpawnDirectory: string | undefined = watchStatus.directory
 
     const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({

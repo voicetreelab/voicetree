@@ -6,12 +6,12 @@ import {getTerminalId} from '../types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords, updateTerminalPromptDetected} from './terminal-registry';
 import {startPromptDetection, feedPromptDetector, stopPromptDetection} from '../lifecycle/prompt-runner';
 import type {TerminalData} from '../types';
-import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
+import {getProjectRoot} from '@vt/graph-db-client';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {loadSettings} from '@vt/app-config/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
-import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
+import {getRuntimeEnv, getRuntimeGraphDbClient, getRuntimeTrace} from '../runtime-config';
 
 /**
  * Convert a numeric signal (as reported by node-pty on Unix) into the
@@ -106,7 +106,9 @@ export class TerminalManager {
       }
 
       // Build custom environment with terminal data
-      const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData);
+      const graphDbClient = getRuntimeGraphDbClient();
+      const vaultPath: string | null = (await getProjectRoot(graphDbClient.baseUrl)).projectRoot;
+      const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData, vaultPath);
 
       //console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
       //console.log(`Terminal data:`, terminalData);
@@ -341,7 +343,8 @@ export class TerminalManager {
    * Note: PATH is already fixed by fix-absolutePath in main.ts
    */
   private buildEnvironment(
-    terminalData: TerminalData
+    terminalData: TerminalData,
+    vaultPath: string | null
   ): NodeJS.ProcessEnv {
       //console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
       const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...process.env};
@@ -356,7 +359,6 @@ export class TerminalManager {
       }
 
       // Always set vault path from watched directory (which IS the vault path, no suffix)
-      const vaultPath: string | null = getProjectRootWatchedDirectory();
       //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;

@@ -1,6 +1,7 @@
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
+import {GraphDbClient} from '@vt/graph-db-client'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     configureMcpServer,
@@ -102,7 +103,10 @@ function defaultAppSupportPath(): string {
     )
 }
 
-function configureHeadlessBridges(appSupportPath: string): void {
+function configureHeadlessBridges(
+    appSupportPath: string,
+    getGraphDbClient: () => GraphDbClient | null,
+): void {
     configureMcpServer({
         liveState: {
             applyLiveCommand: (): Promise<never> =>
@@ -117,6 +121,7 @@ function configureHeadlessBridges(appSupportPath: string): void {
     })
 
     configureAgentRuntime({
+        graphDbClient: getGraphDbClient,
         env: {
             getAppSupportPath: (): string => appSupportPath,
             getMcpPort,
@@ -130,8 +135,9 @@ function configureHeadlessBridges(appSupportPath: string): void {
 export async function runServeCommand(argv: string[]): Promise<void> {
     const args: ServeArgs = parseServeArgs(argv)
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
+    let graphDbClient: GraphDbClient | null = null
 
-    configureHeadlessBridges(appSupportPath)
+    configureHeadlessBridges(appSupportPath, () => graphDbClient)
 
     let daemonHandle: DaemonHandle
     try {
@@ -149,6 +155,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
             + 'Stop it before starting vt serve in headless mode.',
         )
     }
+    graphDbClient = new GraphDbClient({baseUrl: `http://127.0.0.1:${daemonHandle.port}`})
 
     let mcpHandle: McpServerHandle
     try {
