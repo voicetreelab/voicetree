@@ -39,13 +39,13 @@ import {
     getIdleSince,
     resetAuditRetryCount,
     type TerminalRecord
-} from '@/shell/edge/main/terminals/terminal-registry'
+} from '@vt/agent-runtime'
 import {
     registerAgentNodes,
     getAgentNodes,
     clearAgentNodes
-} from '@/shell/edge/main/mcp-server/agentNodeIndex'
-import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
+} from '@vt/voicetree-mcp'
+import {isAgentComplete} from '@vt/voicetree-mcp'
 
 /**
  * Production callback from graph-model-init.ts (Electron-only).

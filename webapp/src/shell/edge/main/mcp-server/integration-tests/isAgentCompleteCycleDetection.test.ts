@@ -11,9 +11,13 @@ vi.mock('@vt/agent-runtime', () => ({
     getIdleSince: vi.fn()
 }))
 
-vi.mock('@vt/voicetree-mcp', () => ({
-    getAgentNodes: vi.fn()
-}))
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+    return {
+        ...actual,
+        getAgentNodes: vi.fn()
+    }
+})
 
 import {isAgentComplete} from '@vt/voicetree-mcp'
 import {getIdleSince} from '@vt/agent-runtime'
@@ -243,7 +247,9 @@ describe('isAgentComplete progress-node gate', () => {
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
-        const graph: Graph = buildGraph()
+        const graph: Graph = buildGraph([
+            buildGraphNode('node.md', 'My Progress', 'alpha')
+        ])
 
         const result: boolean = isAgentComplete(record, graph, NOW, [record])
         expect(result).toBe(true)

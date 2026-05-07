@@ -5,11 +5,11 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
 
-vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
     getWritePath: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
@@ -27,17 +27,25 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
-    postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined),
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@vt/voicetree-mcp', () => ({
-    startMonitor: vi.fn().mockReturnValue('monitor-1')
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+    loadSettings: vi.fn().mockResolvedValue({agents: []})
 }))
+
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+    return {
+        ...actual,
+        startMonitor: vi.fn().mockReturnValue('monitor-1')
+    }
+})
 
 import {spawnAgentTool} from '@vt/voicetree-mcp'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

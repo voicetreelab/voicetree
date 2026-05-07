@@ -98,6 +98,20 @@ const test = base.extend<{
           content: 'Fake-agent Electron smoke coverage marker.',
           color: 'green'
         },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Two',
+          summary: 'Second node verifying SSE delta rendering.',
+          content: 'Second smoke node content.',
+          color: 'blue'
+        },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Three',
+          summary: 'Third node verifying SSE delta rendering.',
+          content: 'Third smoke node content.',
+          color: 'blue'
+        },
         { type: 'exit', code: 0 }
       ]
     };
@@ -320,6 +334,12 @@ test.describe('Smoke Test', () => {
     });
     const parentNodeId = nodeIds[0];
 
+    const cyNodeCountBeforeAgent: number = await appWindow.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? 0;
+    });
+    console.log(`[Smoke Test] Cytoscape nodes before fake agent: ${cyNodeCountBeforeAgent}`);
+
     const callerTerminalId = 'e2e-smoke-caller';
     const spawnCallerResult = await appWindow.evaluate(async ({ callerId, parentId }) => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -403,6 +423,19 @@ test.describe('Smoke Test', () => {
     const progressNodeContent = await fs.readFile(path.join(fixtureVaultPath, progressNodeFile!), 'utf8');
     expect(progressNodeContent).toContain('# Smoke Fake Agent Progress Node');
     expect(progressNodeContent).toContain('Fake-agent Electron smoke coverage marker.');
+
+    // Verify SSE delta rendering: all 3 agent-created nodes must appear in Cytoscape
+    await expect.poll(async () => {
+      return await appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy?.nodes().length ?? 0;
+      });
+    }, {
+      message: `Waiting for 3 new nodes to render in Cytoscape (started with ${cyNodeCountBeforeAgent})`,
+      timeout: 15000,
+      intervals: [500, 1000, 2000, 3000]
+    }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
+    console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');

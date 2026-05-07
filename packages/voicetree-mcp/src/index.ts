@@ -64,6 +64,7 @@ export {
 } from './createGraphTool'
 export {graphStructureTool, type GraphStructureParams} from './graphStructureTool'
 export {
+    dispatchLiveCommand,
     dispatchLiveCommandTool,
     type DispatchLiveCommandParams,
     type DispatchLiveCommandResult,

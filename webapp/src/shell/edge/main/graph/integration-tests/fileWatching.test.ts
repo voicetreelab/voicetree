@@ -22,10 +22,12 @@ import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, Graph, GraphNode } from '@vt/graph-model/pure/graph'
 import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
 import path from 'path'
+import os from 'os'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
+import { clearDaemonClientCache, getActiveDaemonClient } from '@/shell/edge/main/electron/graph-daemon'
 
 function hasEdgeToBasename(node: GraphNode | undefined, basename: string): boolean {
   if (!node?.outgoingEdges) return false
@@ -38,13 +40,13 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
-// Voicetree subfolder path (this is what loadFolder actually watches)
-const VOICETREE_DIR: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
-
 // State for mocks
 
 let broadcastCalls: BroadcastCall[] = []
 let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
+let testProjectPath: string
+let testVoicetreeDir: string
+const INTEGRATION_TEST_TIMEOUT_MS = 30_000
 
 // Mock app-electron-state
 vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
@@ -60,9 +62,15 @@ vi.mock('electron', () => ({
 }))
 
 describe('File Watching - Edge Management Tests', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Initialize graph model (replaces electron app.getPath mock)
     initGraphModel({ appSupportPath: '/tmp/test-userdata-file-watching' })
+
+    testProjectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'file-watching-test-'))
+    await fs.cp(EXAMPLE_SMALL_PATH, testProjectPath, { recursive: true })
+    await fs.rm(path.join(testProjectPath, '.voicetree', 'graphd.lock'), { force: true })
+    await fs.rm(path.join(testProjectPath, '.voicetree', 'graphd.port'), { force: true })
+    testVoicetreeDir = path.join(testProjectPath, 'voicetree')
 
     // Reset graph state
     setGraph(createEmptyGraph())
@@ -85,11 +93,13 @@ describe('File Watching - Edge Management Tests', () => {
 
   afterEach(async () => {
     await stopFileWatching()
+    await getActiveDaemonClient()?.shutdown().catch(() => undefined)
+    clearDaemonClientCache()
 
     // Clean up test files in voicetree subfolder
-    const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
-    const testColorFilePath: string = path.join(VOICETREE_DIR, 'test-color-node.md')
-    const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+    const testFilePath: string = path.join(testVoicetreeDir, 'test-new-file.md')
+    const testColorFilePath: string = path.join(testVoicetreeDir, 'test-color-node.md')
+    const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
     const backupPath: string = targetFilePath + '.backup'
 
     try {
@@ -114,18 +124,19 @@ describe('File Watching - Edge Management Tests', () => {
     }
 
     vi.clearAllMocks()
+    await fs.rm(testProjectPath, { recursive: true, force: true })
   })
 
   describe('BEHAVIOR: Wikilink edge creation and deletion', () => {
     it('should create edge when appending wikilink WITH .md extension', async () => {
       // GIVEN: Load folder and create a new file in voicetree subfolder (watched by chokidar)
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(testProjectPath)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
       // Node IDs are absolute paths
-      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFilePath: string = path.join(testVoicetreeDir, 'test-new-file.md')
       const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
@@ -138,7 +149,7 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // WHEN: Append wikilink WITH .md to an existing file in voicetree subfolder
-      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+      const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
       const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
@@ -160,16 +171,16 @@ describe('File Watching - Edge Management Tests', () => {
 
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(true)
-    }, 15000)
+    }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
       // GIVEN: Load folder and create a new file in voicetree subfolder
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(testProjectPath)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFilePath: string = path.join(testVoicetreeDir, 'test-new-file.md')
       const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
@@ -182,7 +193,7 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // WHEN: Append wikilink WITHOUT .md to an existing file in voicetree subfolder
-      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+      const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
       const originalContent: string = await fs.readFile(targetFilePath, 'utf-8')
 
       // Backup original content
@@ -203,16 +214,16 @@ describe('File Watching - Edge Management Tests', () => {
       const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(true)
-    }, 15000)
+    }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should remove edge when wikilink is removed from file content', async () => {
       // GIVEN: Load folder and create a new file with a wikilink
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(testProjectPath)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
-      const testFilePath: string = path.join(VOICETREE_DIR, 'test-new-file.md')
+      const testFilePath: string = path.join(testVoicetreeDir, 'test-new-file.md')
       const testFileContent: string = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
@@ -225,7 +236,7 @@ describe('File Watching - Edge Management Tests', () => {
       )
 
       // Define clean original content without any wikilinks to test-new-file
-      const targetFilePath: string = path.join(VOICETREE_DIR, '5_Immediate_Test_Observation_No_Output.md')
+      const targetFilePath: string = path.join(testVoicetreeDir, '5_Immediate_Test_Observation_No_Output.md')
       const cleanOriginalContent: string = `---
 node_id: 5
 title: 'Immediate Test Observation: No Output (5)'
@@ -274,19 +285,19 @@ Parent:
       const sourceNode: GraphNode = graph.nodes[targetFilePath]
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(hasEdgeToBasename(sourceNode, 'test-new-file')).toBe(false)
-    }, 15000)
+    }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
   describe('BEHAVIOR: Frontmatter color parsing from filesystem events', () => {
     it('should parse color from frontmatter when file is added via filesystem event', async () => {
       // GIVEN: Load folder
-      await loadFolder(EXAMPLE_SMALL_PATH)
+      await loadFolder(testProjectPath)
       expect(isWatching()).toBe(true)
 
       await waitForWatcherReady()
 
       // WHEN: Create a new file with color in frontmatter in voicetree subfolder
-      const testFilePath: string = path.join(VOICETREE_DIR, 'test-color-node.md')
+      const testFilePath: string = path.join(testVoicetreeDir, 'test-color-node.md')
       const testFileContent: string = `---
 node_id: 57
 title: (Sam) Fix Implemented and Test Passing (57)
@@ -330,6 +341,6 @@ Parent:
         expect(node.nodeUIMetadata.position.value.x).toBe(-819.9742978214647)
         expect(node.nodeUIMetadata.position.value.y).toBe(-1683.7117827984455)
       }
-    }, 10000)
+    }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 })

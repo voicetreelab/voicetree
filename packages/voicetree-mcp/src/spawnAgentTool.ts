@@ -12,7 +12,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'

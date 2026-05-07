@@ -21,7 +21,7 @@ import {calculateNodePosition} from '@vt/graph-model/pure/graph/positioning/calc
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/pure/graph/positioning/spatialAdapters'
 import type {SpatialIndex} from '@vt/graph-model/pure/graph/spatial'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {

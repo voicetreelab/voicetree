@@ -25,6 +25,11 @@ type MonitorEntry = {
 const monitors: Map<string, MonitorEntry> = new Map()
 let nextMonitorId: number = 1
 
+function getTerminalRecordsSnapshot(): TerminalRecord[] {
+    const records: unknown = getTerminalRecords()
+    return Array.isArray(records) ? records : []
+}
+
 export function startMonitor(
     callerTerminalId: string,
     terminalIds: string[],
@@ -35,7 +40,7 @@ export function startMonitor(
 
     const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
         const now: number = Date.now()
-        const currentRecords: TerminalRecord[] = getTerminalRecords()
+        const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
@@ -144,7 +149,7 @@ export function registerChildIfMonitored(
  * Called once in startMonitor to catch children spawned before the monitor was created.
  */
 function findExistingDescendants(parentIds: string[]): string[] {
-    const records: TerminalRecord[] = getTerminalRecords()
+    const records: TerminalRecord[] = getTerminalRecordsSnapshot()
     const watched: Set<string> = new Set(parentIds)
     const descendants: string[] = []
     let changed: boolean = true
@@ -167,7 +172,7 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
 export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): string[] {
-    const currentRecords: TerminalRecord[] = getTerminalRecords()
+    const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
     const graph: Graph = getGraph()
     const now: number = Date.now()
     const names: string[] = []
