@@ -188,7 +188,7 @@ export function renderTreeCover(graph: AutoViewGraph, opts?: RenderTreeCoverOpti
     const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(graph, requestedPinnedIds)
     const pinnedNodeIds = new Set<string>(pinnedClusters.flatMap(cluster => cluster.nodeIds))
     const remainingNodes: readonly AutoViewNode[] = graph.nodes.filter(node => !pinnedNodeIds.has(node.id))
-    const remainingBudget: number = budget - pinnedClusters.length
+    const remainingBudget: number = budget - pinnedNodeIds.size
     const selectedIds: readonly string[] | undefined = opts?.selected ? [...opts.selected] : undefined
     const autoClusters: readonly CollapseCluster[] =
         remainingBudget <= 0
@@ -201,7 +201,7 @@ export function renderTreeCover(graph: AutoViewGraph, opts?: RenderTreeCoverOpti
                       focusNodeId: opts?.focusNodeId,
                   },
               )
-    const clusters: readonly CollapseCluster[] = [...pinnedClusters, ...autoClusters]
+    const clusters: readonly CollapseCluster[] = autoClusters
     const displayLabelByClusterId: ClusterDisplayLabelMap = buildClusterDisplayLabelMap(clusters)
     const visibleEntityCount: number = countVisibleEntities(graph.nodes.length, clusters)
     const userCollapsedClusterIds: ReadonlySet<string> = buildUserCollapsedClusterIds(graph, clusters, opts?.collapsed)
