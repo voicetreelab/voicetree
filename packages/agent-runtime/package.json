@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./lifecycle": "./src/lifecycle/index.ts",
+    "./lifecycle/output-transition": "./src/lifecycle/output-transition.ts",
     "./terminals/*": "./src/terminals/*",
     "./headless/*": "./src/headless/*",
     "./spawn/*": "./src/spawn/*",

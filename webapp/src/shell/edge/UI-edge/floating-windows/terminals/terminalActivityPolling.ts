@@ -14,7 +14,10 @@ import {
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@vt/graph-model/pure/agentTabs';
-import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime';
+// Use the leaf subpath, not the barrel — the barrel re-exports `createEmulator`
+// and the prompt-runner, which transitively pull node-pty + node:module into
+// the renderer bundle and crash with "process is not defined" at module init.
+import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
