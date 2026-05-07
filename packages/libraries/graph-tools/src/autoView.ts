@@ -1,6 +1,50 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type {Graph, GraphNode} from '@vt/graph-model'
+import type {Graph} from '@vt/graph-model'
+
+interface ProjectedNode {
+    readonly id: string
+    readonly kind: 'file' | 'folder' | 'folder-collapsed'
+    readonly label: string
+    readonly relPath: string
+    readonly basename: string
+    readonly folderPath: string
+    readonly parent?: string
+    readonly position?: {readonly x: number; readonly y: number}
+    readonly classes?: readonly string[]
+    readonly color?: string
+    readonly content: string
+    readonly additionalYAMLProps?: readonly (readonly [string, string])[]
+    readonly loadState?: 'loaded' | 'not-loaded'
+    readonly isWriteTarget?: boolean
+    readonly childCount?: number
+    readonly isContextNode?: boolean
+    readonly containedNodeIds?: readonly string[]
+}
+
+interface ProjectedEdge {
+    readonly id: string
+    readonly source: string
+    readonly target: string
+    readonly kind: 'real' | 'synthetic'
+    readonly label?: string
+    readonly classes?: readonly string[]
+    readonly edgeCount?: number
+}
+
+interface TreeEdge {
+    readonly source: string
+    readonly target: string
+}
+
+export interface ProjectedGraph {
+    readonly nodes: readonly ProjectedNode[]
+    readonly edges: readonly ProjectedEdge[]
+    readonly rootPath: string
+    readonly revision: number
+    readonly forests: readonly (readonly TreeEdge[])[]
+    readonly arboricity: number
+}
 import {
     scanMarkdownFiles,
     getNodeId,
@@ -12,7 +56,6 @@ import {
 import {
     countVisibleEntities,
     findCollapseBoundary,
-    type CollapseBoundaryGraph,
     type CollapseBoundaryNode,
     type CollapseCluster,
 } from './collapseBoundary'
@@ -21,7 +64,6 @@ import {
     deriveTitle,
     relId,
     type DirectedEdge,
-    type JsonState,
 } from '../scripts/L3-BF-192-tree-cover-render'
 import {
     buildAutoHeader,
@@ -30,7 +72,6 @@ import {
     buildClusterDisplayLabelMap,
     ancestorFolders,
     type ClusterDisplayLabelMap,
-    type AutoHeaderOptions,
 } from './autoViewRender'
 import {buildPinnedClusters} from './autoViewPinning'
 
@@ -46,20 +87,52 @@ export interface AutoViewOptions {
     readonly pinnedFolderIds?: readonly string[]
 }
 
-export interface AutoViewNode extends CollapseBoundaryNode {
+export interface RenderNode extends CollapseBoundaryNode {
     readonly basename: string
 }
 
-export interface AutoViewGraph extends CollapseBoundaryGraph {
+export interface RenderGraph {
     readonly rootPath: string
-    readonly nodes: readonly AutoViewNode[]
-    readonly nodeById: ReadonlyMap<string, AutoViewNode>
+    readonly rootName: string
+    readonly nodes: readonly RenderNode[]
+    readonly nodeById: ReadonlyMap<string, RenderNode>
     readonly edges: readonly DirectedEdge[]
     readonly forests: readonly (readonly DirectedEdge[])[]
     readonly arboricity: number
 }
 
-function buildJsonStateFromVault(root: string): JsonState {
+export function deriveRenderGraph(graph: ProjectedGraph): RenderGraph {
+    const rootName = path.basename(graph.rootPath)
+
+    const outgoingMap = new Map<string, string[]>()
+    const edges: DirectedEdge[] = []
+    for (const edge of graph.edges) {
+        edges.push({src: edge.source, tgt: edge.target})
+        const list = outgoingMap.get(edge.source) ?? []
+        list.push(edge.target)
+        outgoingMap.set(edge.source, list)
+    }
+
+    const nodes: RenderNode[] = graph.nodes.map(n => ({
+        id: n.id,
+        title: n.label,
+        relPath: n.relPath,
+        folderPath: n.folderPath,
+        basename: n.basename,
+        outgoingIds: outgoingMap.get(n.id) ?? [],
+        kind: n.kind === 'folder-collapsed' ? 'folder' as const : n.kind,
+    }))
+
+    const nodeById = new Map(nodes.map(n => [n.id, n]))
+
+    const forests = graph.forests.map(forest =>
+        forest.map(e => ({src: e.source, tgt: e.target}) as DirectedEdge),
+    )
+
+    return {rootPath: graph.rootPath, rootName, nodes, nodeById, edges, forests, arboricity: graph.arboricity}
+}
+
+function buildProjectedGraphFromVault(root: string): ProjectedGraph {
     const mdFiles = scanMarkdownFiles(root)
     const structureNodes = new Map<string, StructureNode>()
     const contentMap = new Map<string, string>()
@@ -70,103 +143,103 @@ function buildJsonStateFromVault(root: string): JsonState {
         contentMap.set(id, content)
     }
     const uniqueBasenames = buildUniqueBasenameMap(structureNodes)
-    const nodes: JsonState['graph']['nodes'] = {}
+
+    const projectedNodes: ProjectedNode[] = []
+    const projectedEdges: ProjectedEdge[] = []
+    const directedEdges: DirectedEdge[] = []
+
     for (const [id, content] of contentMap) {
         const absPath = path.join(root, id + '.md')
-        const outgoingEdges: {targetId: string}[] = []
+        const nodeRelPath: string = relId(absPath, root)
+        const basename: string = path.posix.basename(nodeRelPath)
+        const folderPathRaw: string = path.posix.dirname(nodeRelPath)
+        const folderPath: string = folderPathRaw === '.' ? '' : folderPathRaw
+        const label: string = deriveTitle(content, path.basename(absPath, '.md'))
+
         for (const link of extractLinks(content)) {
             const target = resolveLinkTarget(link, id, structureNodes, uniqueBasenames)
             if (target && target !== id) {
-                outgoingEdges.push({targetId: path.join(root, target + '.md')})
+                const targetAbsPath = path.join(root, target + '.md')
+                projectedEdges.push({id: `${absPath}->${targetAbsPath}`, source: absPath, target: targetAbsPath, kind: 'real'})
+                directedEdges.push({src: absPath, tgt: targetAbsPath})
             }
         }
-        nodes[absPath] = {absoluteFilePathIsID: absPath, contentWithoutYamlOrLinks: content, outgoingEdges}
+
+        projectedNodes.push({id: absPath, kind: 'file', label, relPath: nodeRelPath, basename, folderPath, content})
     }
-    return {graph: {nodes}}
+
+    const cover = computeArboricity(projectedNodes.length, directedEdges)
+    const forests: (readonly TreeEdge[])[] = cover.forests.map(forest =>
+        forest.map(e => ({source: e.src, target: e.tgt})),
+    )
+
+    return {nodes: projectedNodes, edges: projectedEdges, rootPath: root, revision: 0, forests, arboricity: cover.arboricityUpperBound}
 }
 
-interface MappableEntry {
-    readonly id: string
-    readonly content: string | undefined
-    readonly outgoingEdges: readonly {targetId: string}[]
-    readonly kind?: 'file' | 'folder'
-}
+export function buildAutoViewGraphFromState(graphState: Graph, rootPath: string): ProjectedGraph {
+    const projectedNodes: ProjectedNode[] = []
+    const projectedEdges: ProjectedEdge[] = []
+    const directedEdges: DirectedEdge[] = []
+    const existingIds = new Set<string>()
 
-function mapEntriesToAutoViewGraph(entries: readonly MappableEntry[], rootPath: string): AutoViewGraph {
-    const nodes: AutoViewNode[] = []
-    const nodeById = new Map<string, AutoViewNode>()
-    const edges: DirectedEdge[] = []
-
-    for (const entry of entries) {
-        const {id} = entry
-        const relPath: string = relId(id, rootPath)
-        const basename: string = path.posix.basename(relPath)
-        const folderPathRaw: string = path.posix.dirname(relPath)
+    for (const [id, node] of Object.entries(graphState.nodes)) {
+        existingIds.add(id)
+        const nodeRelPath: string = relId(id, rootPath)
+        const basename: string = path.posix.basename(nodeRelPath)
+        const folderPathRaw: string = path.posix.dirname(nodeRelPath)
         const folderPath: string = folderPathRaw === '.' ? '' : folderPathRaw
-        const title: string = deriveTitle(entry.content, path.basename(id, '.md'))
-        const outgoingIds: readonly string[] = entry.outgoingEdges
-            .map(edge => edge.targetId)
-            .filter(targetId => targetId !== id)
-        const autoNode: AutoViewNode = entry.kind !== undefined
-            ? {id, title, relPath, folderPath, outgoingIds, basename, kind: entry.kind}
-            : {id, title, relPath, folderPath, outgoingIds, basename}
-        nodes.push(autoNode)
-        nodeById.set(id, autoNode)
-        outgoingIds.forEach(targetId => edges.push({src: id, tgt: targetId}))
+        const label: string = deriveTitle(node.contentWithoutYamlOrLinks, path.basename(id, '.md'))
+        const kind: 'file' | 'folder' = node.kind === 'folder' ? 'folder' : 'file'
+
+        projectedNodes.push({id, kind, label, relPath: nodeRelPath, basename, folderPath, content: node.contentWithoutYamlOrLinks ?? ''})
+
+        for (const edge of node.outgoingEdges) {
+            if (edge.targetId === id) continue
+            projectedEdges.push({id: `${id}->${edge.targetId}`, source: id, target: edge.targetId, kind: 'real'})
+            directedEdges.push({src: id, tgt: edge.targetId})
+        }
     }
 
-    const cover = computeArboricity(nodes.length, edges)
-    return {
-        rootPath,
-        rootName: path.basename(rootPath),
-        nodes,
-        nodeById,
-        edges,
-        forests: cover.forests,
-        arboricity: cover.arboricityUpperBound,
-    }
-}
-
-export function buildAutoViewGraph(root: string): AutoViewGraph {
-    const state = buildJsonStateFromVault(root)
-    const entries: MappableEntry[] = Object.entries(state.graph.nodes).map(([id, node]) => ({
-        id,
-        content: node.contentWithoutYamlOrLinks,
-        outgoingEdges: node.outgoingEdges,
-    }))
-    return mapEntriesToAutoViewGraph(entries, root)
-}
-
-export function buildAutoViewGraphFromState(graphState: Graph, rootPath: string): AutoViewGraph {
-    const baseEntries: MappableEntry[] = Object.entries(graphState.nodes).map(([id, node]) => ({
-        id,
-        content: node.contentWithoutYamlOrLinks,
-        outgoingEdges: node.outgoingEdges,
-        kind: node.kind === 'folder' ? 'folder' as const : 'file' as const,
-    }))
-
-    const existingIds = new Set(baseEntries.map(e => e.id))
     const folderPaths = new Set<string>()
-    for (const entry of baseEntries) {
-        if (entry.kind !== 'folder') {
-            const folderPathRaw = path.posix.dirname(relId(entry.id, rootPath))
-            const folderPath = folderPathRaw === '.' ? '' : folderPathRaw
-            if (folderPath.length > 0) {
-                for (const folder of ancestorFolders(folderPath)) {
+    for (const node of projectedNodes) {
+        if (node.kind !== 'folder') {
+            const fp: string = path.posix.dirname(relId(node.id, rootPath))
+            const nodeFolderPath: string = fp === '.' ? '' : fp
+            if (nodeFolderPath.length > 0) {
+                for (const folder of ancestorFolders(nodeFolderPath)) {
                     folderPaths.add(folder)
                 }
             }
         }
     }
-    const syntheticFolderEntries: MappableEntry[] = []
+
     for (const fp of folderPaths) {
         const folderId = path.join(rootPath, fp)
         if (!existingIds.has(folderId)) {
-            syntheticFolderEntries.push({id: folderId, content: '', outgoingEdges: [], kind: 'folder'})
+            const folderBasename: string = path.posix.basename(fp)
+            const parentFolder: string = path.posix.dirname(fp)
+            projectedNodes.push({
+                id: folderId,
+                kind: 'folder',
+                label: folderBasename,
+                relPath: fp,
+                basename: folderBasename,
+                folderPath: parentFolder === '.' ? '' : parentFolder,
+                content: '',
+            })
         }
     }
 
-    return mapEntriesToAutoViewGraph([...baseEntries, ...syntheticFolderEntries], rootPath)
+    const cover = computeArboricity(projectedNodes.length, directedEdges)
+    const forests: (readonly TreeEdge[])[] = cover.forests.map(forest =>
+        forest.map(e => ({source: e.src, target: e.tgt})),
+    )
+
+    return {nodes: projectedNodes, edges: projectedEdges, rootPath, revision: 0, forests, arboricity: cover.arboricityUpperBound}
+}
+
+export function buildAutoViewGraph(root: string): ProjectedGraph {
+    return buildProjectedGraphFromVault(root)
 }
 
 export interface RenderTreeCoverOptions {
@@ -178,42 +251,44 @@ export interface RenderTreeCoverOptions {
     readonly pinnedFolderIds?: readonly string[]
 }
 
-export function renderTreeCover(graph: AutoViewGraph, opts?: RenderTreeCoverOptions): string {
+export function renderTreeCover(graph: ProjectedGraph, opts?: RenderTreeCoverOptions): string {
     if (graph.nodes.length === 0) {
         return ''
     }
 
+    const rg: RenderGraph = deriveRenderGraph(graph)
+
     const budget: number = Math.max(1, Math.trunc(opts?.budget ?? DEFAULT_BUDGET))
     const requestedPinnedIds: readonly string[] = opts?.pinnedFolderIds ?? []
-    const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(graph, requestedPinnedIds)
+    const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(rg, requestedPinnedIds)
     const pinnedNodeIds = new Set<string>(pinnedClusters.flatMap(cluster => cluster.nodeIds))
-    const remainingNodes: readonly AutoViewNode[] = graph.nodes.filter(node => !pinnedNodeIds.has(node.id))
+    const remainingNodes: readonly RenderNode[] = rg.nodes.filter(node => !pinnedNodeIds.has(node.id))
     const remainingBudget: number = budget - pinnedNodeIds.size
     const selectedIds: readonly string[] | undefined = opts?.selected ? [...opts.selected] : undefined
     const autoClusters: readonly CollapseCluster[] =
         remainingBudget <= 0
             ? []
             : findCollapseBoundary(
-                  {rootName: graph.rootName, nodes: remainingNodes},
+                  {rootName: rg.rootName, nodes: remainingNodes},
                   remainingBudget,
                   {
                       selectedIds,
                       focusNodeId: opts?.focusNodeId,
                   },
               )
-    const clusters: readonly CollapseCluster[] = autoClusters
+    const clusters: readonly CollapseCluster[] = [...pinnedClusters, ...autoClusters]
     const displayLabelByClusterId: ClusterDisplayLabelMap = buildClusterDisplayLabelMap(clusters)
-    const visibleEntityCount: number = countVisibleEntities(graph.nodes.length, clusters)
-    const userCollapsedClusterIds: ReadonlySet<string> = buildUserCollapsedClusterIds(graph, clusters, opts?.collapsed)
-    const body: string = renderTreeCoverBody(graph, clusters, displayLabelByClusterId, opts?.selected, userCollapsedClusterIds)
-    const header: string = buildAutoHeader(graph, clusters, budget, visibleEntityCount, {
+    const visibleEntityCount: number = countVisibleEntities(rg.nodes.length, clusters)
+    const userCollapsedClusterIds: ReadonlySet<string> = buildUserCollapsedClusterIds(rg, clusters, opts?.collapsed)
+    const body: string = renderTreeCoverBody(rg, clusters, displayLabelByClusterId, opts?.selected, userCollapsedClusterIds)
+    const header: string = buildAutoHeader(rg, clusters, budget, visibleEntityCount, {
         pinningRequested: requestedPinnedIds.length > 0,
         pinnedClusterCount: pinnedClusters.length,
         autoClusterCount: autoClusters.length,
     }, displayLabelByClusterId, userCollapsedClusterIds)
     const footer: string = buildAutoFooter(clusters)
 
-    const folderName: string = path.basename(graph.rootPath)
+    const folderName: string = path.basename(rg.rootPath)
     const viewApplied: boolean = (opts?.collapsed !== undefined && opts.collapsed.size > 0) || (opts?.selected !== undefined && opts.selected.size > 0)
     const structureHeader: string = `═══ STRUCTURE ${folderName}${viewApplied ? ' (view applied)' : ''} ═══`
 
@@ -223,7 +298,7 @@ export function renderTreeCover(graph: AutoViewGraph, opts?: RenderTreeCoverOpti
 }
 
 function buildUserCollapsedClusterIds(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     clusters: readonly CollapseCluster[],
     collapsed: ReadonlySet<string> | undefined,
 ): ReadonlySet<string> {
@@ -249,7 +324,7 @@ export function renderAutoView(
     options: AutoViewOptions = {},
 ): {output: string; format: string} {
     const root: string = path.resolve(vaultPath)
-    const graph: AutoViewGraph = buildAutoViewGraph(root)
+    const graph: ProjectedGraph = buildProjectedGraphFromVault(root)
 
     const output: string = renderTreeCover(graph, {
         budget: options.budget,

@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 import {type CollapseCluster} from './collapseBoundary'
-import {type AutoViewNode, type AutoViewGraph} from './autoView'
+import {type RenderNode, type RenderGraph} from './autoView'
 import {type DirectedEdge} from '../scripts/L3-BF-192-tree-cover-render'
 import {ancestorFolders, parentFolderPath} from './autoViewRender'
 
@@ -22,12 +22,12 @@ interface PinnedResolutionIndex {
     readonly folderByNormalizedAbsPath: ReadonlyMap<string, FolderSeed>
     readonly folderByNormalizedRelPath: ReadonlyMap<string, FolderSeed>
     readonly foldersByBasename: ReadonlyMap<string, readonly FolderSeed[]>
-    readonly nodeByNormalizedRelPath: ReadonlyMap<string, AutoViewNode>
-    readonly nodesByBasename: ReadonlyMap<string, readonly AutoViewNode[]>
+    readonly nodeByNormalizedRelPath: ReadonlyMap<string, RenderNode>
+    readonly nodesByBasename: ReadonlyMap<string, readonly RenderNode[]>
 }
 
 export function buildPinnedClusters(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     pinnedFolderIds: readonly string[],
 ): readonly CollapseCluster[] {
     if (pinnedFolderIds.length === 0) {
@@ -77,9 +77,9 @@ export function buildPinnedClusters(
     return [...clusters].sort((left, right) => left.label.localeCompare(right.label))
 }
 
-function buildFolderSeeds(graph: AutoViewGraph): readonly FolderSeed[] {
+function buildFolderSeeds(graph: RenderGraph): readonly FolderSeed[] {
     const explicitFolderSeeds: readonly FolderSeed[] = graph.nodes
-        .filter((node): node is AutoViewNode & {readonly kind: 'folder'} => node.kind === 'folder')
+        .filter((node): node is RenderNode & {readonly kind: 'folder'} => node.kind === 'folder')
         .map(node => {
             const folderPath: string = normalizeFolderSeedPath(node.relPath)
             return {
@@ -91,11 +91,6 @@ function buildFolderSeeds(graph: AutoViewGraph): readonly FolderSeed[] {
         .filter(seed => seed.folderPath.length > 0)
     if (explicitFolderSeeds.length > 0) {
         return dedupeFolderSeeds(explicitFolderSeeds)
-    }
-
-    const hasMissingKindMetadata: boolean = graph.nodes.some(node => node.kind === undefined)
-    if (!hasMissingKindMetadata) {
-        return []
     }
 
     const legacyFolderPaths = new Set<string>()
@@ -122,7 +117,7 @@ function dedupeFolderSeeds(folderSeeds: readonly FolderSeed[]): readonly FolderS
 }
 
 function buildPinnedResolutionIndex(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     folderSeeds: readonly FolderSeed[],
 ): PinnedResolutionIndex {
     const folderByNormalizedAbsPath = new Map<string, FolderSeed>()
@@ -136,12 +131,12 @@ function buildPinnedResolutionIndex(
         foldersByBasename.set(folderSeed.basename, entries)
     }
 
-    const nodeByNormalizedRelPath = new Map<string, AutoViewNode>()
-    const nodesByBasename = new Map<string, AutoViewNode[]>()
+    const nodeByNormalizedRelPath = new Map<string, RenderNode>()
+    const nodesByBasename = new Map<string, RenderNode[]>()
     for (const node of graph.nodes) {
         nodeByNormalizedRelPath.set(normalizeSelectableId(node.relPath), node)
         const basename: string = path.posix.basename(normalizeSelectableId(node.relPath))
-        const entries: AutoViewNode[] = nodesByBasename.get(basename) ?? []
+        const entries: RenderNode[] = nodesByBasename.get(basename) ?? []
         entries.push(node)
         nodesByBasename.set(basename, entries)
     }
@@ -156,7 +151,7 @@ function buildPinnedResolutionIndex(
 }
 
 function resolvePinnedFolderPath(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     index: PinnedResolutionIndex,
     rawPinnedId: string,
 ): string | undefined {
@@ -165,7 +160,7 @@ function resolvePinnedFolderPath(
         return undefined
     }
 
-    const directNodeMatch: AutoViewNode | undefined = graph.nodeById.get(trimmed)
+    const directNodeMatch: RenderNode | undefined = graph.nodeById.get(trimmed)
     if (directNodeMatch) {
         return resolveFolderPathFromNode(rawPinnedId, directNodeMatch)
     }
@@ -180,7 +175,7 @@ function resolvePinnedFolderPath(
         return directFolderMatch.folderPath
     }
 
-    const relPathNodeMatch: AutoViewNode | undefined = index.nodeByNormalizedRelPath.get(normalizedNodeSeed)
+    const relPathNodeMatch: RenderNode | undefined = index.nodeByNormalizedRelPath.get(normalizedNodeSeed)
     if (relPathNodeMatch) {
         return resolveFolderPathFromNode(rawPinnedId, relPathNodeMatch)
     }
@@ -191,7 +186,7 @@ function resolvePinnedFolderPath(
         return folderBasenameMatches[0]!.folderPath
     }
 
-    const nodeBasenameMatches: readonly AutoViewNode[] = index.nodesByBasename.get(path.posix.basename(normalizedNodeSeed)) ?? []
+    const nodeBasenameMatches: readonly RenderNode[] = index.nodesByBasename.get(path.posix.basename(normalizedNodeSeed)) ?? []
     if (nodeBasenameMatches.length === 1) {
         return resolveFolderPathFromNode(rawPinnedId, nodeBasenameMatches[0]!)
     }
@@ -202,7 +197,7 @@ function resolvePinnedFolderPath(
 
 function resolveFolderPathFromNode(
     rawPinnedId: string,
-    node: AutoViewNode,
+    node: RenderNode,
 ): string | undefined {
     if (node.kind === 'folder') {
         return normalizeFolderSeedPath(node.relPath)
@@ -221,7 +216,7 @@ function normalizeFolderSeedPath(value: string): string {
     return normalizeSelectableId(value).replace(/\/+$/g, '')
 }
 
-function isNodeInsidePinnedFolder(node: AutoViewNode, folderPath: string): boolean {
+function isNodeInsidePinnedFolder(node: RenderNode, folderPath: string): boolean {
     if (folderPath.length === 0) {
         return false
     }
@@ -269,12 +264,12 @@ function computeClusterStats(
 }
 
 function pickPinnedRepresentativeRelPath(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     nodeIds: readonly string[],
     folderPath: string,
 ): string {
     const preferredRelPath: string = `${folderPath}/index.md`
-    const preferredNode: AutoViewNode | undefined = nodeIds
+    const preferredNode: RenderNode | undefined = nodeIds
         .map(nodeId => graph.nodeById.get(nodeId))
         .find(node => node?.relPath === preferredRelPath)
     if (preferredNode) {
@@ -282,6 +277,6 @@ function pickPinnedRepresentativeRelPath(
     }
     return [...nodeIds]
         .map(nodeId => graph.nodeById.get(nodeId))
-        .filter((node): node is AutoViewNode => node !== undefined)
+        .filter((node): node is RenderNode => node !== undefined)
         .sort((left, right) => left.relPath.localeCompare(right.relPath))[0]?.relPath ?? ''
 }
