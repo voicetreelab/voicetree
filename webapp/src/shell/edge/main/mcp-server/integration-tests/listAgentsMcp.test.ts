@@ -4,25 +4,20 @@ import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@vt/agent-runtime'
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
-}))
-
-vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
-    getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
 vi.mock('@vt/agent-runtime', () => ({
     getTerminalRecords: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
-    loadSettings: vi.fn()
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+    loadSettings: vi.fn().mockResolvedValue({agents: []})
 }))
 
 import {listAgentsTool} from '@vt/voicetree-mcp'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType"
 
@@ -148,7 +143,6 @@ describe('MCP list_agents tool', () => {
         ]
 
         vi.mocked(getTerminalRecords).mockReturnValue(records)
-        vi.mocked(getUnseenNodesAroundContextNode).mockResolvedValue([])
         vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()})
 
         const response: McpToolResponse = await listAgentsTool()

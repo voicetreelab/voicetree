@@ -5,13 +5,21 @@ import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
 
-vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
-    getWritePath: vi.fn()
-}))
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await importOriginal()
+    return {
+        ...actual,
+        getWritePath: vi.fn()
+    }
+})
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn()
-}))
+vi.mock('@vt/graph-db-server/state/graph-store', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/state/graph-store') = await importOriginal()
+    return {
+        ...actual,
+        getGraph: vi.fn()
+    }
+})
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
@@ -27,17 +35,17 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
-    postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined),
-}))
-
-vi.mock('@vt/voicetree-mcp', () => ({
-    startMonitor: vi.fn().mockReturnValue('monitor-1')
-}))
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
+    return {
+        ...actual,
+        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+    }
+})
 
 import {spawnAgentTool} from '@vt/voicetree-mcp'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

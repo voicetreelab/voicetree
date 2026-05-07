@@ -17,7 +17,7 @@ import {z} from 'zod'
 import express, {type Express} from 'express'
 import type {Server} from 'node:http'
 import {findAvailablePort} from './util/findAvailablePort'
-import {enableMcpJsonIntegration} from './mcp-client-config'
+import {enableMcpJsonIntegration, enableMcpClientIntegrations} from './mcp-client-config'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'

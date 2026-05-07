@@ -2,33 +2,39 @@ import {describe, it, expect, beforeEach, vi} from 'vitest'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {Graph} from '@vt/graph-model/pure/graph'
 
-vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
-    sendTextToTerminal: vi.fn()
-}))
+vi.mock('@vt/agent-runtime', async (importOriginal) => {
+    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    return {
+        ...actual,
+        sendTextToTerminal: vi.fn(),
+        runStopHooks: vi.fn().mockResolvedValue({passed: true}),
+        clearBudget: vi.fn(),
+    }
+})
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn().mockReturnValue({
-        nodes: {},
-        incomingEdgesIndex: new Map(),
-        nodeByBaseName: new Map(),
-        unresolvedLinksIndex: new Map()
-    } satisfies Graph)
-}))
+vi.mock('@vt/graph-db-server/state/graph-store', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/state/graph-store') = await importOriginal()
+    return {
+        ...actual,
+        getGraph: vi.fn().mockReturnValue({
+            nodes: {},
+            incomingEdgesIndex: new Map(),
+            nodeByBaseName: new Map(),
+            unresolvedLinksIndex: new Map()
+        } satisfies Graph)
+    }
+})
 
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
-    loadSettings: vi.fn().mockResolvedValue({})
-}))
+vi.mock('@vt/graph-db-server/settings/settings_IO', async (importOriginal) => {
+    const actual: typeof import('@vt/graph-db-server/settings/settings_IO') = await importOriginal()
+    return {
+        ...actual,
+        loadSettings: vi.fn().mockResolvedValue({})
+    }
+})
 
 vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () => ({
     getUnseenNodesAroundContextNode: vi.fn().mockResolvedValue([])
-}))
-
-vi.mock('@/shell/edge/main/terminals/stopGateHookRunner', () => ({
-    runStopHooks: vi.fn().mockResolvedValue({passed: true})
-}))
-
-vi.mock('@/shell/edge/main/terminals/global-budget-registry', () => ({
-    clearBudget: vi.fn()
 }))
 
 import {
@@ -39,13 +45,15 @@ import {
     getIdleSince,
     resetAuditRetryCount,
     type TerminalRecord
-} from '@/shell/edge/main/terminals/terminal-registry'
+} from '@vt/agent-runtime'
 import {
     registerAgentNodes,
     getAgentNodes,
-    clearAgentNodes
-} from '@/shell/edge/main/mcp-server/agentNodeIndex'
-import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
+    clearAgentNodes,
+    isAgentComplete,
+    type AgentNodeEntry
+} from '@vt/voicetree-mcp'
+import type {TerminalData} from '@vt/agent-runtime'
 
 /**
  * Production callback from graph-model-init.ts (Electron-only).
@@ -61,10 +69,10 @@ function onFSNodeWithAgentName(agentName: string, nodeId: string, title: string)
     resetAuditRetryCount(record.terminalId)
 }
 
-const TERMINAL_ID = 'test-fs-terminal'
-const AGENT_NAME = 'TestFS'
-const NODE_ID = '/vault/voicetree-1/progress-node.md'
-const NODE_TITLE = 'Progress Node'
+const TERMINAL_ID: string = 'test-fs-terminal'
+const AGENT_NAME: string = 'TestFS'
+const NODE_ID: string = '/vault/voicetree-1/progress-node.md'
+const NODE_TITLE: string = 'Progress Node'
 
 const emptyGraph: Graph = {
     nodes: {},
@@ -74,7 +82,7 @@ const emptyGraph: Graph = {
 }
 
 function registerTestTerminal(agentName: string = AGENT_NAME, terminalId: string = TERMINAL_ID): void {
-    const terminalData = createTerminalData({
+    const terminalData: TerminalData = createTerminalData({
         terminalId: terminalId as TerminalId,
         attachedToNodeId: 'ctx-nodes/test.md',
         terminalCount: 0,
@@ -95,7 +103,7 @@ describe('FS node agent_name → agentNodeIndex → blue edge', () => {
 
         onFSNodeWithAgentName(AGENT_NAME, NODE_ID, NODE_TITLE)
 
-        const nodes = getAgentNodes(TERMINAL_ID)
+        const nodes: readonly AgentNodeEntry[] = getAgentNodes(TERMINAL_ID)
         expect(nodes).toHaveLength(1)
         expect(nodes[0]).toEqual({nodeId: NODE_ID, title: NODE_TITLE})
     })
@@ -114,7 +122,7 @@ describe('FS node agent_name → agentNodeIndex → blue edge', () => {
         onFSNodeWithAgentName(AGENT_NAME, '/vault/node1.md', 'Node 1')
         onFSNodeWithAgentName(AGENT_NAME, '/vault/node2.md', 'Node 2')
 
-        const nodes = getAgentNodes(TERMINAL_ID)
+        const nodes: readonly AgentNodeEntry[] = getAgentNodes(TERMINAL_ID)
         expect(nodes).toHaveLength(2)
         expect(nodes[0].nodeId).toBe('/vault/node1.md')
         expect(nodes[1].nodeId).toBe('/vault/node2.md')

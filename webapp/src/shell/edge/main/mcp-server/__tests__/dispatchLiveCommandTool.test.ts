@@ -78,13 +78,16 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
 
 import { getGraph } from '@vt/graph-model'
 import {
+    configureMcpServer,
     dispatchLiveCommand,
     dispatchLiveCommandTool,
 } from '@vt/voicetree-mcp'
 import {
+    applyLiveCommand,
     getCurrentLiveState,
     __resetLiveStoreForTests,
 } from '@/shell/edge/main/state/live-state-store'
+import { serializeState } from '@vt/graph-state'
 
 function emptyGraph(): Graph {
     return {
@@ -99,6 +102,12 @@ beforeEach(() => {
     __resetLiveStoreForTests()
     resetRendererState()
     vi.mocked(getGraph).mockReturnValue(emptyGraph())
+    configureMcpServer({
+        liveState: {
+            applyLiveCommand,
+            getLiveStateSnapshot: async () => serializeState(await getCurrentLiveState()),
+        },
+    })
 })
 
 describe('vt_dispatch_live_command', () => {

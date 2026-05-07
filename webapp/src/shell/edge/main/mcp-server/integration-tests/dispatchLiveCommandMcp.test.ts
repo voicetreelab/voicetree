@@ -105,17 +105,13 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
         || command.type === 'Deselect',
 }))
 
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
     loadSettings: vi.fn().mockResolvedValue({ nodeLineLimit: 70, agents: [] }),
     saveSettings: vi.fn(),
 }))
 
-<<<<<<< Updated upstream
-vi.mock('@vt/voicetree-mcp', () => ({
-=======
-vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
+vi.mock('@vt/voicetree-mcp/mcp-client-config', () => ({
     enableMcpClientIntegrations: vi.fn().mockResolvedValue(undefined),
->>>>>>> Stashed changes
     enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
     isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
     setMcpIntegration: vi.fn(),
@@ -126,10 +122,11 @@ vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
 }))
 
 import { getGraph as mockedGetGraph } from '@vt/graph-model'
-import { createMcpServer } from '@vt/voicetree-mcp'
+import { configureMcpServer, createMcpServer } from '@vt/voicetree-mcp'
 import { findAvailablePort } from '@/shell/edge/main/port-utils'
 import {
     __resetLiveStoreForTests,
+    applyLiveCommand,
     getCurrentLiveState,
 } from '@/shell/edge/main/state/live-state-store'
 import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/electron/daemon-ipc-proxy'
@@ -203,6 +200,12 @@ describe('vt_dispatch_live_command real MCP roundtrip', () => {
         vi.mocked(getLiveStateSnapshotFromDaemon).mockImplementation(async () =>
             serializeState(await getCurrentLiveState())
         )
+        configureMcpServer({
+            liveState: {
+                applyLiveCommand,
+                getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
+            },
+        })
     })
 
     afterEach(async () => {

@@ -35,6 +35,7 @@ import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/pure/settings/types'
 import {
     type ValidationResult,
+    type OverrideEntry,
     ALL_RULES,
     runValidations,
     resolveOverrides,
@@ -408,7 +409,7 @@ export async function createGraphTool({
 
     // Apply all collected deltas in a single batch
     if (batchDelta.length > 0) {
-        await postDeltaThroughDaemonWithEditors(batchDelta)
+        await applyGraphDeltaToDBThroughMemAndUIAndEditors(batchDelta)
     }
 
     // Register in agent node index (eliminates race with file watcher)
@@ -437,7 +438,7 @@ export async function createGraphTool({
                 nodeToUpsert: updatedContextNode,
                 previousNode: O.some(callerContextNode),
             }]
-            await postDeltaThroughDaemonWithEditors(contextDelta)
+            await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
         }
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created
