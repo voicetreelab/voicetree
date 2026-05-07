@@ -6,7 +6,9 @@
   ],
   "scripts": {
     "test": "npm --workspace webapp run test",
-    "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests",
+    "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests && npm run check:circular-deps && npm run check:coupling",
+    "check:circular-deps": "node scripts/check-circular-deps.mjs",
+    "check:coupling": "node scripts/check-coupling.mjs",
     "check:e2e-taxonomy": "npm --workspace webapp run check:e2e-taxonomy",
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/graph-model/**/*.{ts,tsx}\" \"packages/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
     "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs",

@@ -1,15 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const browserTestPort = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
+const browserTestBaseURL = `http://127.0.0.1:${browserTestPort}`;
+
 export default defineConfig({
   // Tier 2: curated browser subsystem verification.
   testDir: './e2e-tests/playwright-browser/critical_for_verification',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 5, // Limit to f workers locally to prevent CPU overload
+  workers: process.env.CI ? 1 : 5, // Limit to 5 workers locally to prevent CPU overload
   reporter: 'line',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: browserTestBaseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -43,9 +46,9 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true, // Always reuse existing server
+    command: `npm run dev -- --host 127.0.0.1 --port ${browserTestPort} --strictPort`,
+    url: browserTestBaseURL,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === '1',
     timeout: 12 * 1000,
     env: {
       VITE_DISABLE_ANALYTICS: 'true',

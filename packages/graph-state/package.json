@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@vt/graph-model": "*",
-    "@vt/graph-tools": "*",
     "fp-ts": "^2.16.9"
   },
   "devDependencies": {
