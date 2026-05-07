@@ -55,6 +55,9 @@ describe('@vt/graph-db-server system contract', () => {
     handle = await startDaemon({
       vault,
       appSupportPath: path.join(root, 'app-support'),
+      // Test owns the graph it creates — opt out of the daemon's first-run
+      // starter-node side effect so layout.positions stays predictable.
+      createStarterIfEmpty: false,
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`
 
