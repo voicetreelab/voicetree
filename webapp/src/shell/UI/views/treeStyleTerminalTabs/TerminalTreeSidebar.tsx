@@ -182,25 +182,9 @@ function useResizeHandle(sidebarRef: React.RefObject<HTMLDivElement | null>): Re
  */
 function renderSummaryChip(s: ChildStatusSummary): JSX.Element | null {
     if (s.total === 0) return null;
-    const pips: JSX.Element[] = [];
-    if (s.awaiting > 0) pips.push(<Pip key="a" kind="awaiting" n={s.awaiting} />);
-    if (s.errored > 0) pips.push(<Pip key="e" kind="errored" n={s.errored} />);
-    if (s.active > 0) pips.push(<Pip key="r" kind="active" n={s.active} />);
-    if (s.completed > 0) pips.push(<Pip key="c" kind="completed" n={s.completed} />);
-    if (s.spawning > 0) pips.push(<Pip key="s" kind="spawning" n={s.spawning} />);
     return (
         <span className="terminal-tree-summary" title={summaryTitle(s)}>
             <span className="terminal-tree-summary-count">{s.total}</span>
-            {pips}
-        </span>
-    );
-}
-
-function Pip({ kind, n }: { readonly kind: string; readonly n: number }): JSX.Element {
-    return (
-        <span className="terminal-tree-summary-pipgroup">
-            <span className={`terminal-tree-summary-pip ${kind}`} />
-            <span className="terminal-tree-summary-pipn">{n}</span>
         </span>
     );
 }
