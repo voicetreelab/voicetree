@@ -13,9 +13,6 @@ import { mountVaultRoutes } from './routes/vault.ts'
 import { mountSessionRoutes } from './routes/sessions.ts'
 import { mountSessionEventsRoute } from './routes/sessionEvents.ts'
 import { mountViewRoutes } from './routes/view.ts'
-import { createContextNodeRoutes } from './routes/contextNodes.ts'
-import { createSearchRoutes } from './routes/search.ts'
-import { createWatchRoutes } from './routes/watch.ts'
 import { type SessionRegistry } from './session/registry.ts'
 
 export type CreateDaemonAppOptions = {
@@ -46,9 +43,6 @@ export function mountDaemonRoutes(
   })
 
   app.route('/graph', createGraphRoutes(opts.registry))
-  app.route('/context-nodes', createContextNodeRoutes())
-  app.route('/search', createSearchRoutes())
-  app.route('/watch', createWatchRoutes())
   mountVaultRoutes(app)
 }
 

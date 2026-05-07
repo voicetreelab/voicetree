@@ -5,7 +5,6 @@ import {
   addReadPath,
   getReadPaths,
   getWritePath,
-  loadAndMergeVaultPath,
   removeReadPath,
   setWritePath,
 } from '../watch-folder/vault-allowlist.ts'
@@ -19,9 +18,6 @@ import {
   type SetWritePathRequest,
   VaultStateSchema,
   type VaultState,
-  LoadAndMergeRequestSchema,
-  type LoadAndMergeRequest,
-  LoadAndMergeResponseSchema,
 } from '../contract.ts'
 import { validateAbsolutePath } from '../util/validatePath.ts'
 
@@ -219,21 +215,5 @@ export function mountVaultRoutes(app: Hono): void {
         writePath: validatedPath.path,
       }),
     )
-  })
-
-  app.post('/vault/load-and-merge', async (c) => {
-    let body: LoadAndMergeRequest
-    try {
-      body = LoadAndMergeRequestSchema.parse(await c.req.json())
-    } catch {
-      return jsonError(c, 'Invalid request body', 'INVALID_REQUEST_BODY')
-    }
-
-    const result = await loadAndMergeVaultPath(body.vaultPath, {
-      isWritePath: body.isWritePath ?? false,
-      createStarterIfEmpty: body.createStarterIfEmpty,
-    })
-
-    return c.json(LoadAndMergeResponseSchema.parse(result))
   })
 }

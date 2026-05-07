@@ -3,29 +3,15 @@ import { createDaemonApp } from './daemonApp.ts'
 import { SessionRegistry } from './session/registry.ts'
 
 const DAEMON_ROUTE_IDS = [
-  'context-nodes.create',
-  'context-nodes.create-from-question',
-  'context-nodes.create-from-selection',
-  'context-nodes.preview-contained',
-  'context-nodes.update-contained-ids',
-  'context-nodes.unseen-nearby',
   'graph.delta',
   'graph.delete-node',
-  'graph.positions',
   'graph.read',
-  'graph.redo',
-  'graph.reload',
-  'graph.undo',
   'graph.view',
-  'search.build-index',
-  'search.file',
-  'search.nodes',
   'session.create',
   'session.delete',
   'session.events',
   'session.show',
   'vault.add-read-path',
-  'vault.load-and-merge',
   'vault.remove-read-path',
   'vault.set-write-path',
   'vault.show',
@@ -34,14 +20,11 @@ const DAEMON_ROUTE_IDS = [
   'view.layout',
   'view.selection',
   'view.show',
-  'watch.project-root-read',
-  'watch.project-root-write',
-  'watch.status',
 ] as const
 
 export type DaemonRouteId = (typeof DAEMON_ROUTE_IDS)[number]
 
-export type DaemonRouteMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
+export type DaemonRouteMethod = 'DELETE' | 'GET' | 'POST' | 'PUT'
 
 export type NormalizedDaemonRoute = {
   id: DaemonRouteId
@@ -56,43 +39,23 @@ export type DaemonRouteExemption = {
 }
 
 const DAEMON_ROUTE_ID_BY_SIGNATURE = {
-  'GET /context-nodes/:encodedNodeId/preview-contained':
-    'context-nodes.preview-contained',
-  'GET /context-nodes/:encodedNodeId/unseen-nearby':
-    'context-nodes.unseen-nearby',
-  'PATCH /context-nodes/:encodedNodeId/contained-ids':
-    'context-nodes.update-contained-ids',
   'DELETE /graph/node/:encodedNodeId': 'graph.delete-node',
   'DELETE /sessions/:sessionId': 'session.delete',
   'DELETE /sessions/:sessionId/collapse/:folderId': 'view.expand',
   'DELETE /vault/read-paths/:encodedPath': 'vault.remove-read-path',
   'GET /graph': 'graph.read',
-  'GET /search': 'search.nodes',
-  'GET /search/file': 'search.file',
   'GET /sessions/:sessionId': 'session.show',
   'GET /sessions/:sessionId/events': 'session.events',
   'GET /sessions/:sessionId/state': 'view.show',
   'GET /sessions/:sessionId/view': 'graph.view',
   'GET /vault': 'vault.show',
-  'GET /watch/project-root': 'watch.project-root-read',
-  'GET /watch/status': 'watch.status',
-  'POST /context-nodes': 'context-nodes.create',
-  'POST /context-nodes/from-question': 'context-nodes.create-from-question',
-  'POST /context-nodes/from-selection': 'context-nodes.create-from-selection',
-  'POST /graph/reload': 'graph.reload',
-  'POST /graph/redo': 'graph.redo',
   'POST /graph/delta': 'graph.delta',
-  'POST /graph/undo': 'graph.undo',
-  'POST /search/build-index': 'search.build-index',
   'POST /sessions': 'session.create',
   'POST /sessions/:sessionId/collapse/:folderId': 'view.collapse',
   'POST /sessions/:sessionId/selection': 'view.selection',
-  'POST /vault/load-and-merge': 'vault.load-and-merge',
   'POST /vault/read-paths': 'vault.add-read-path',
-  'PUT /graph/positions': 'graph.positions',
   'PUT /sessions/:sessionId/layout': 'view.layout',
   'PUT /vault/write-path': 'vault.set-write-path',
-  'PUT /watch/project-root': 'watch.project-root-write',
 } as const satisfies Record<string, DaemonRouteId>
 
 export const DAEMON_ROUTE_PARITY_EXEMPTIONS = [
@@ -138,7 +101,6 @@ function toDaemonRouteMethod(method: string): DaemonRouteMethod {
   switch (method) {
     case 'DELETE':
     case 'GET':
-    case 'PATCH':
     case 'POST':
     case 'PUT':
       return method

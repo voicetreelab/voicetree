@@ -1,24 +1,13 @@
 import * as O from 'fp-ts/lib/Option.js'
-import * as E from 'fp-ts/lib/Either.js'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
-import {
-  GraphStateSchema,
-  UndoResponseSchema,
-  RedoResponseSchema,
-  WritePositionsResponseSchema,
-} from '../contract.ts'
+import { GraphStateSchema } from '../contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
-import { getGraph, getNode, setGraph } from '../state/graph-store.ts'
+import { getGraph, getNode } from '../state/graph-store.ts'
 import { publish } from '../events/deltaEventBus.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
-import { performUndo, performRedo } from '../graph/undoOperations.ts'
-import { writeAllPositionsSync } from '../graph/writeAllPositionsOnExit.ts'
-import { loadGraphFromDisk } from '../graph/loadGraphFromDisk.ts'
-import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
-import { getVaultPaths } from '../watch-folder/vault-allowlist.ts'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -166,59 +155,6 @@ export function createGraphRoutes(registry: SessionRegistry): Hono {
         'GRAPH_NODE_DELETE_FAILED',
         500,
       )
-    }
-  })
-
-  app.post('/undo', async (c) => {
-    try {
-      const performed = await performUndo()
-      return c.json(UndoResponseSchema.parse({ performed }))
-    } catch (error) {
-      return jsonError(c, (error as Error).message, 'UNDO_FAILED', 500)
-    }
-  })
-
-  app.post('/redo', async (c) => {
-    try {
-      const performed = await performRedo()
-      return c.json(RedoResponseSchema.parse({ performed }))
-    } catch (error) {
-      return jsonError(c, (error as Error).message, 'REDO_FAILED', 500)
-    }
-  })
-
-  app.put('/positions', (c) => {
-    const projectRoot = getProjectRootWatchedDirectory()
-    if (!projectRoot) {
-      return jsonError(c, 'No project root set', 'NO_PROJECT_ROOT', 400)
-    }
-    try {
-      writeAllPositionsSync(getGraph(), projectRoot)
-      return c.json(WritePositionsResponseSchema.parse({ ok: true }))
-    } catch (error) {
-      return jsonError(c, (error as Error).message, 'WRITE_POSITIONS_FAILED', 500)
-    }
-  })
-
-  app.post('/reload', async (c) => {
-    try {
-      const vaultPaths = await getVaultPaths()
-      if (vaultPaths.length === 0) {
-        return jsonError(c, 'No vault paths configured', 'NO_VAULT_PATHS', 400)
-      }
-      const result = await loadGraphFromDisk(vaultPaths)
-      if (E.isLeft(result)) {
-        return jsonError(
-          c,
-          `File limit exceeded: ${result.left.fileCount} files (max: ${result.left.maxFiles})`,
-          'FILE_LIMIT_EXCEEDED',
-          400,
-        )
-      }
-      setGraph(result.right)
-      return c.json(GraphStateSchema.parse(result.right))
-    } catch (error) {
-      return jsonError(c, (error as Error).message, 'RELOAD_FAILED', 500)
     }
   })
 
