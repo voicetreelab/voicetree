@@ -358,11 +358,12 @@ export function project(state: State): ElementSpec {
                     continue
                 }
                 seenRealEdgeIds.add(id)
+                const label = normalizeLabel(edge.label)
                 realEdges.push({
                     id,
                     source: sourceId,
                     target: edge.targetId,
-                    ...(normalizeLabel(edge.label) ? { label: normalizeLabel(edge.label) } : {}),
+                    ...(label ? { label } : {}),
                     data: {},
                     kind: 'real',
                 })
