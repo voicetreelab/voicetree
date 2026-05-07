@@ -87,7 +87,7 @@ function buildJsonStateFromVault(root: string): JsonState {
 
 interface MappableEntry {
     readonly id: string
-    readonly content: string
+    readonly content: string | undefined
     readonly outgoingEdges: readonly {targetId: string}[]
     readonly kind?: 'file' | 'folder'
 }

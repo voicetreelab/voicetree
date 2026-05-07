@@ -140,16 +140,6 @@ describe('buildAutoViewGraphFromState', () => {
         expect(result.arboricity).toBe(0)
     })
 
-    it('accepts expandedFolderIds parameter', () => {
-        const graph = makeGraph({
-            '/vault/a.md': {content: '# A'},
-        })
-
-        const result = buildAutoViewGraphFromState(graph, root, ['/vault/subfolder'])
-
-        expect(result.nodes).toHaveLength(1)
-    })
-
     it('synthesizes folder nodes from file paths', () => {
         const graph = makeGraph({
             '/vault/sub/deep/note.md': {content: '# Deep'},

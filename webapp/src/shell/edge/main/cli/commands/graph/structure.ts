@@ -136,8 +136,12 @@ async function viewViaDaemon(folderPath: string, budget: number, expandIds: stri
             const client: GraphDbClient = new GraphDbClient({baseUrl: `http://127.0.0.1:${daemonPort}`})
             const response: ViewResponse = await client.getView('cli', {budget, expand: expandIds})
             return response.output
-        } catch {
-            // Daemon unreachable or endpoint error — fall through to local rendering
+        } catch (err: unknown) {
+            if (err instanceof TypeError || (err instanceof Error && err.message.toLowerCase().includes('fetch'))) {
+                // Daemon unreachable — fall through to local rendering
+            } else {
+                throw err
+            }
         }
     }
 
