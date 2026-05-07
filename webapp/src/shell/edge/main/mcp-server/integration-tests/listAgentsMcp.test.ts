@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports */
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'

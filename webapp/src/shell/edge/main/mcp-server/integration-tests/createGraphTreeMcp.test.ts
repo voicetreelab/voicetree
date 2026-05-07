@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports */
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
@@ -28,7 +29,7 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-const mockPostDelta = vi.fn(async () => undefined)
+const mockPostDelta: ReturnType<typeof vi.fn> = vi.fn(async () => undefined)
 
 vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
     const graphStore: typeof import('@vt/graph-db-server/state/graph-store') = await import('@vt/graph-db-server/state/graph-store')
@@ -38,7 +39,7 @@ vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
         getConfiguredGraphDbClient: vi.fn(() => ({
             getGraph: vi.fn(async () => ({ nodes: graphStore.getGraph().nodes })),
             getVault: vi.fn(async () => {
-                const wp = await vaultAllowlist.getWritePath()
+                const wp: Awaited<ReturnType<typeof vaultAllowlist.getWritePath>> = await vaultAllowlist.getWritePath()
                 const vaultPaths: string[] = (await vaultAllowlist.getVaultPaths()) ?? []
                 const writePath: string | undefined = wp._tag === 'Some' ? wp.value : undefined
                 return { writePath, readPaths: vaultPaths.filter((p: string) => p !== writePath), vaultPath: writePath ?? '' }

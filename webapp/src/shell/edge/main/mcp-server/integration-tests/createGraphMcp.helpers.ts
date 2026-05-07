@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports */
 /**
  * Shared test helpers for createGraphTool integration tests.
  */

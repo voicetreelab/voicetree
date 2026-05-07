@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-imports */
 /**
  * Integration test for applyGraphDeltaToDB
  *
@@ -23,6 +24,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
+import { setGraph as setServerGraph } from '@vt/graph-db-server/state/graph-store'
+import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { setVaultPath, clearVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
@@ -40,7 +43,9 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     initGraphModel({ appSupportPath: '/tmp/test-userdata-apply-graph-delta' })
     // Initialize state with empty graph and example_small vault path
     setGraph(createEmptyGraph())
+    setServerGraph(createEmptyGraph())
     setVaultPath(EXAMPLE_SMALL_PATH)
+    setProjectRootWatchedDirectory(EXAMPLE_SMALL_PATH)
   })
 
   afterEach(async () => {
@@ -244,7 +249,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
   describe('BEHAVIOR: Error handling', () => {
     it('should throw error if vault path is not initialized', async () => {
       // GIVEN: Vault path not set
-      clearVaultPath() // Clear vault path to None
+      clearVaultPath()
+      setProjectRootWatchedDirectory(null)
 
       const delta: GraphDelta = [{
         type: 'UpsertNode',
