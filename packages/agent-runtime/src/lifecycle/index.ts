@@ -23,6 +23,8 @@ export {
 
 export { derive, deriveAll, withKillReason } from './derive';
 
+export { shouldFlipToActiveOnOutput } from './output-transition';
+
 export { classifyExit, type ExitClassification } from './exit';
 
 export {
