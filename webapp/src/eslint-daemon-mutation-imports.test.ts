@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 import { describe, expect, it } from 'vitest'
 
+const GRAPH_DB_SERVER_RESTRICTED_IMPORT_MESSAGE =
+  "'@vt/graph-db-server/state/graph-store' import is restricted from being used by a pattern. Do not import graph-db-server internals directly. Use @vt/graph-db-client, @vt/graph-db-server/contract, the package root daemon API, or the daemonRouteParity tooling module."
+
 const srcDir: string = path.dirname(fileURLToPath(import.meta.url))
 const webappDir: string = path.resolve(srcDir, '..')
 const repoRootDir: string = path.resolve(webappDir, '..')
@@ -86,5 +89,49 @@ describe('daemon mutation import lint rule', () => {
     )
 
     expect(messages).toEqual([])
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
+
+  it('warns on direct graph-db-server implementation imports in webapp code', async () => {
+    const messages: readonly string[] = await lintText(
+      `
+        import { getGraph } from '@vt/graph-db-server/state/graph-store'
+        void getGraph
+      `,
+      'webapp/src/__generated__/bad-graph-db-server-import.ts',
+    )
+
+    expect(messages).toEqual([
+      GRAPH_DB_SERVER_RESTRICTED_IMPORT_MESSAGE,
+    ])
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
+
+  it('allows graph-db-server root, contract, and daemon route parity imports', async () => {
+    const messages: readonly string[] = await lintText(
+      `
+        import { startDaemon } from '@vt/graph-db-server'
+        import type { GraphState } from '@vt/graph-db-server/contract'
+        import type { DaemonRouteId } from '@vt/graph-db-server/daemonRouteParity'
+        declare const used: GraphState | DaemonRouteId
+        void startDaemon
+        void used
+      `,
+      'webapp/src/__generated__/allowed-graph-db-server-imports.ts',
+    )
+
+    expect(messages).toEqual([])
+  }, ESLINT_INTEGRATION_TIMEOUT_MS)
+
+  it('warns on direct graph-db-server implementation imports in daemon consumers', async () => {
+    const messages: readonly string[] = await lintText(
+      `
+        import { getGraph } from '@vt/graph-db-server/state/graph-store'
+        void getGraph
+      `,
+      'packages/systems/voicetree-mcp/src/__generated__/bad-graph-db-server-import.ts',
+    )
+
+    expect(messages).toEqual([
+      GRAPH_DB_SERVER_RESTRICTED_IMPORT_MESSAGE,
+    ])
   }, ESLINT_INTEGRATION_TIMEOUT_MS)
 })

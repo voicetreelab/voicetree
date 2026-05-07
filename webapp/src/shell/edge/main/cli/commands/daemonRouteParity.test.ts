@@ -27,10 +27,27 @@ describe('daemon CLI route parity', () => {
             {id: 'graph.read', method: 'GET', path: '/graph'},
             {id: 'graph.delta', method: 'POST', path: '/graph/delta'},
             {id: 'graph.delete-node', method: 'DELETE', path: '/graph/node/:encodedNodeId'},
+            {id: 'graph.undo', method: 'POST', path: '/graph/undo'},
+            {id: 'graph.redo', method: 'POST', path: '/graph/redo'},
+            {id: 'graph.positions', method: 'PUT', path: '/graph/positions'},
+            {id: 'graph.reload', method: 'POST', path: '/graph/reload'},
+            {id: 'context-nodes.create', method: 'POST', path: '/context-nodes'},
+            {id: 'context-nodes.create-from-question', method: 'POST', path: '/context-nodes/from-question'},
+            {id: 'context-nodes.create-from-selection', method: 'POST', path: '/context-nodes/from-selection'},
+            {id: 'context-nodes.unseen-nearby', method: 'GET', path: '/context-nodes/:encodedNodeId/unseen-nearby'},
+            {id: 'context-nodes.update-contained-ids', method: 'PATCH', path: '/context-nodes/:encodedNodeId/contained-ids'},
+            {id: 'context-nodes.preview-contained', method: 'GET', path: '/context-nodes/:encodedNodeId/preview-contained'},
+            {id: 'search.build-index', method: 'POST', path: '/search/build-index'},
+            {id: 'search.file', method: 'GET', path: '/search/file'},
+            {id: 'search.nodes', method: 'GET', path: '/search'},
+            {id: 'watch.project-root-read', method: 'GET', path: '/watch/project-root'},
+            {id: 'watch.project-root-write', method: 'PUT', path: '/watch/project-root'},
+            {id: 'watch.status', method: 'GET', path: '/watch/status'},
             {id: 'vault.show', method: 'GET', path: '/vault'},
             {id: 'vault.add-read-path', method: 'POST', path: '/vault/read-paths'},
             {id: 'vault.remove-read-path', method: 'DELETE', path: '/vault/read-paths/:encodedPath'},
             {id: 'vault.set-write-path', method: 'PUT', path: '/vault/write-path'},
+            {id: 'vault.load-and-merge', method: 'POST', path: '/vault/load-and-merge'},
         ])
         expect(DAEMON_ROUTE_PARITY_EXEMPTIONS).toEqual([
             {
@@ -104,8 +121,6 @@ describe('daemon CLI route parity', () => {
 
     it('documents graph subcommands that intentionally remain outside daemon parity', () => {
         expect(getCliCommandsWithoutDaemonRoute()).toEqual([
-            'vt graph index',
-            'vt graph search',
             'vt graph rename',
             'vt graph mv',
             'vt graph group',
