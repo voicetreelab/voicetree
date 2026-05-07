@@ -44,7 +44,10 @@ import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, cop
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
   getGraphFromDaemon as getGraph,
+  getProjectedGraphFromDaemon as getProjectedGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
@@ -87,7 +90,13 @@ export const mainAPI = {
 
   getGraph,
 
+  getProjectedGraph,
+
   getNode,
+
+  // Collapse/expand through daemon RPC
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
 
   // Position saving - lightweight in-memory update
   saveNodePositions,

@@ -6,80 +6,77 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "folder",
         "label": "notes",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "notes",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "notes/",
+        "basename": "notes",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "kind": "file",
         "label": "roadmap",
-        "data": {
-          "content": "# roadmap\n\nRelates to [summary]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "notes/roadmap.md",
+        "basename": "roadmap",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/notes/",
+        "parent": "/tmp/graph-state-fixtures/root-a/notes/",
+        "content": "# roadmap\n\nRelates to [summary]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
         "label": "epics",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "epics",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "tasks/epics/",
+        "basename": "epics",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "kind": "file",
         "label": "epic-a",
-        "data": {
-          "content": "# epic-a\n\nDepends on [epic-b]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "tasks/epics/epic-a.md",
+        "basename": "epic-a",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "content": "# epic-a\n\nDepends on [epic-b]*.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "kind": "file",
         "label": "epic-b",
-        "data": {
-          "content": "# epic-b\n\nLeaf note.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "tasks/epics/epic-b.md",
+        "basename": "epic-b",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/epics/",
+        "content": "# epic-b\n\nLeaf note.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "file",
         "label": "summary",
-        "data": {
-          "content": "# summary\n\nSummarises [epic-a]*.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "tasks/summary.md",
+        "basename": "summary",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# summary\n\nSummarises [epic-a]*.\n"
       }
     ],
     "edges": [
@@ -87,27 +84,42 @@
         "id": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md->/tmp/graph-state-fixtures/root-a/tasks/summary.md",
         "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
-        "label": "Relates to",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Relates to"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
         "source": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
-        "label": "Depends on",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Depends on"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/summary.md->/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
         "source": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
         "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
-        "label": "Summarises",
-        "data": {},
-        "kind": "real"
+        "kind": "real",
+        "label": "Summarises"
       }
     ],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/notes/roadmap.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/summary.md"
+        },
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md"
+        },
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md"
+        }
+      ]
+    ],
+    "arboricity": 1
   }
 }

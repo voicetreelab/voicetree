@@ -42,7 +42,7 @@ export function mountDaemonRoutes(
     return c.json(ShutdownResponseSchema.parse({ ok: true }))
   })
 
-  app.route('/graph', createGraphRoutes())
+  app.route('/graph', createGraphRoutes(opts.registry))
   mountVaultRoutes(app)
 }
 

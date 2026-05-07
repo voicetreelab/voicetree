@@ -1,19 +1,13 @@
 import { dispatchCollapse, dispatchExpand } from '@vt/graph-state/state/collapseSetStore'
 import type { Hono } from 'hono'
-import { CollapseStateResponseSchema } from '../contract.ts'
 import { SessionRegistry } from '../session/registry.ts'
-
-function buildCollapseStateResponse(collapseSet: Set<string>) {
-  return CollapseStateResponseSchema.parse({
-    collapseSet: [...collapseSet],
-  })
-}
+import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
 
 export function mountCollapseRoutes(
   app: Hono,
   registry: SessionRegistry,
 ): void {
-  app.post('/sessions/:sessionId/collapse/:folderId', (c) => {
+  app.post('/sessions/:sessionId/collapse/:folderId', async (c) => {
     const sessionId = c.req.param('sessionId')
     const session = registry.get(sessionId)
     if (!session) {
@@ -26,10 +20,11 @@ export function mountCollapseRoutes(
     )
     registry.touch(sessionId)
 
-    return c.json(buildCollapseStateResponse(session.collapseSet))
+    const graph = await projectAndBroadcast(session)
+    return c.json(graph)
   })
 
-  app.delete('/sessions/:sessionId/collapse/:folderId', (c) => {
+  app.delete('/sessions/:sessionId/collapse/:folderId', async (c) => {
     const sessionId = c.req.param('sessionId')
     const session = registry.get(sessionId)
     if (!session) {
@@ -42,6 +37,7 @@ export function mountCollapseRoutes(
     )
     registry.touch(sessionId)
 
-    return c.json(buildCollapseStateResponse(session.collapseSet))
+    const graph = await projectAndBroadcast(session)
+    return c.json(graph)
   })
 }

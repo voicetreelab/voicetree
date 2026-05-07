@@ -178,10 +178,58 @@ export interface ElementSpec {
 }
 
 // ============================================================================
+// PROJECTED GRAPH (BF-253) — typed projection, replaces ElementSpec long-term
+// ============================================================================
+
+export interface ProjectedGraph {
+    readonly nodes: readonly ProjectedNode[]
+    readonly edges: readonly ProjectedEdge[]
+    readonly rootPath: string
+    readonly revision: number
+    readonly forests: readonly (readonly TreeEdge[])[]
+    readonly arboricity: number
+}
+
+export interface ProjectedNode {
+    readonly id: string                                              // absolute path (file) or path/ (folder)
+    readonly kind: 'file' | 'folder' | 'folder-collapsed'
+    readonly label: string
+    readonly relPath: string
+    readonly basename: string
+    readonly folderPath: string
+    readonly parent?: string                                         // compound parent ID (Cytoscape grouping)
+    readonly position?: Position                                     // initial seed; renderer owns after first apply
+    readonly classes?: readonly string[]
+    readonly color?: string
+    readonly content: string
+    readonly additionalYAMLProps?: readonly (readonly [string, string])[]
+    readonly loadState?: 'loaded' | 'not-loaded'                    // folders only
+    readonly isWriteTarget?: boolean                                 // folders only
+    readonly childCount?: number                                     // collapsed folders only
+    readonly isContextNode?: boolean
+    readonly containedNodeIds?: readonly string[]
+}
+
+export interface ProjectedEdge {
+    readonly id: string
+    readonly source: string
+    readonly target: string
+    readonly kind: 'real' | 'synthetic'
+    readonly label?: string
+    readonly classes?: readonly string[]
+    readonly edgeCount?: number                                      // synthetic only: aggregated count
+}
+
+export interface TreeEdge {
+    readonly source: string
+    readonly target: string
+}
+
+// ============================================================================
 // PURE API (implemented in BF-142 / BF-143 / BF-144..BF-152)
 // ============================================================================
 
-export declare function project(state: State): ElementSpec
+export declare function project(state: State): ProjectedGraph
 export declare function applyCommand(state: State, cmd: Command): State
 export declare function applyCommandWithDelta(state: State, cmd: Command): { readonly state: State; readonly delta: Delta }
 export declare function emptyState(): State

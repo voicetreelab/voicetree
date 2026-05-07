@@ -1,6 +1,5 @@
 import {
   AddReadPathRequestSchema,
-  CollapseStateResponseSchema,
   GraphStateSchema,
   HealthResponseSchema,
   LayoutPartialSchema,
@@ -25,7 +24,6 @@ import {
   type ShutdownResponse,
   type VaultState,
   type ViewResponse,
-  type CollapseStateResponse,
 } from '@vt/graph-db-server/contract'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
@@ -221,12 +219,12 @@ export class GraphDbClient {
   async collapse(
     sessionId: string,
     folderId: string,
-  ): Promise<CollapseStateResponse> {
+  ): Promise<unknown> {
     return await this.request(
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'POST',
-        responseSchema: CollapseStateResponseSchema,
+        responseSchema: { parse: (value: unknown) => value },
       },
     )
   }
@@ -234,12 +232,12 @@ export class GraphDbClient {
   async expand(
     sessionId: string,
     folderId: string,
-  ): Promise<CollapseStateResponse> {
+  ): Promise<unknown> {
     return await this.request(
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'DELETE',
-        responseSchema: CollapseStateResponseSchema,
+        responseSchema: { parse: (value: unknown) => value },
       },
     )
   }
@@ -254,6 +252,15 @@ export class GraphDbClient {
         body: SelectionRequestSchema.parse(req),
         method: 'POST',
         responseSchema: SelectionResponseSchema,
+      },
+    )
+  }
+
+  async getProjectedGraph(sessionId: string): Promise<unknown> {
+    return await this.request(
+      `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
+      {
+        responseSchema: { parse: (value: unknown) => value },
       },
     )
   }

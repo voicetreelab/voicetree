@@ -1,52 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as O from 'fp-ts/lib/Option.js'
-import type { GraphDelta } from '@vt/graph-model/graph'
-
-const { daemonEditorUpdates } = vi.hoisted(() => ({
-    daemonEditorUpdates: [] as GraphDelta[],
-}))
-
-vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
-    uiAPI: {
-        updateFloatingEditorsFromDaemon(delta: GraphDelta): void {
-            daemonEditorUpdates.push(delta)
-        },
-    },
-}))
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 import {
     subscribeToDaemonSSE,
     unsubscribeFromDaemonSSE,
 } from './daemon-sse-subscription'
 
-type SentMessage = { channel: string; data: GraphDelta }
+type SentMessage = { channel: string; data: unknown }
 
-function makeDelta(content: string): GraphDelta {
-    return [{
-        type: 'UpsertNode',
-        nodeToUpsert: {
-            kind: 'leaf',
-            absoluteFilePathIsID: `${content}.md`,
-            contentWithoutYamlOrLinks: content,
-            outgoingEdges: [],
-            nodeUIMetadata: {
-                color: O.none,
-                position: O.none,
-                additionalYAMLProps: new Map(),
-            },
-        },
-        previousNode: O.none,
-    }]
+function makeProjectedGraph(label: string): ProjectedGraph {
+    return {
+        nodes: [{
+            id: `${label}.md`,
+            kind: 'file',
+            label,
+            relPath: `${label}.md`,
+            basename: `${label}.md`,
+            folderPath: '/',
+            content: label,
+        }],
+        edges: [],
+        rootPath: '/',
+        revision: 0,
+        forests: [],
+        arboricity: 0,
+    }
 }
 
-function encodeSSE(source: string, delta: GraphDelta): Uint8Array {
+function encodeSSE(graph: ProjectedGraph): Uint8Array {
     return new TextEncoder().encode(
-        `event: graphDelta\ndata: ${JSON.stringify({ source, delta }, (_key, value) => {
-            if (value instanceof Map) {
-                return Object.fromEntries(value.entries())
-            }
-            return value
-        })}\n\n`,
+        `event: projectedGraph\ndata: ${JSON.stringify(graph)}\n\n`,
     )
 }
 
@@ -54,7 +37,7 @@ function makeMainWindow(sent: SentMessage[]): Electron.BrowserWindow {
     return {
         isDestroyed: () => false,
         webContents: {
-            send(channel: string, data: GraphDelta): void {
+            send(channel: string, data: unknown): void {
                 sent.push({ channel, data })
             },
         },
@@ -76,44 +59,35 @@ function installFetchStream(chunks: Uint8Array[]): void {
 }
 
 describe('daemon SSE subscription', () => {
-    beforeEach(() => {
-        daemonEditorUpdates.length = 0
-    })
-
     afterEach(() => {
         unsubscribeFromDaemonSSE()
         vi.unstubAllGlobals()
     })
 
-    it('forwards all deltas to graph IPC and daemon editor updates', async () => {
+    it('forwards projected graph to renderer via IPC', async () => {
         const sent: SentMessage[] = []
-        const externalDelta: GraphDelta = makeDelta('external update')
-        const expectedDelta: GraphDelta = JSON.parse(JSON.stringify(externalDelta)) as GraphDelta
-        installFetchStream([
-            encodeSSE('fs:external', externalDelta),
-        ])
+        const graph: ProjectedGraph = makeProjectedGraph('external update')
+        installFetchStream([encodeSSE(graph)])
 
         subscribeToDaemonSSE('renderer-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
 
         await vi.waitFor(() => {
-            expect(sent).toEqual([{ channel: 'graph:stateChanged', data: expectedDelta }])
-            expect(daemonEditorUpdates).toEqual([expectedDelta])
+            expect(sent).toEqual([{ channel: 'graph:projectedGraphUpdate', data: graph }])
         })
     })
 
-    it('forwards own-session deltas without filtering', async () => {
+    it('forwards multiple SSE events', async () => {
         const sent: SentMessage[] = []
-        const ownDelta: GraphDelta = makeDelta('own write')
-        const expectedDelta: GraphDelta = JSON.parse(JSON.stringify(ownDelta)) as GraphDelta
-        installFetchStream([
-            encodeSSE('session:renderer-session', ownDelta),
-        ])
+        const graph1: ProjectedGraph = makeProjectedGraph('first')
+        const graph2: ProjectedGraph = makeProjectedGraph('second')
+        installFetchStream([encodeSSE(graph1), encodeSSE(graph2)])
 
         subscribeToDaemonSSE('renderer-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
 
         await vi.waitFor(() => {
-            expect(sent).toEqual([{ channel: 'graph:stateChanged', data: expectedDelta }])
+            expect(sent).toHaveLength(2)
+            expect(sent[0]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph1 })
+            expect(sent[1]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph2 })
         })
     })
-
 })

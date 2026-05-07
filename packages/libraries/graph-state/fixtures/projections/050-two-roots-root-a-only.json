@@ -6,37 +6,39 @@
     "nodes": [
       {
         "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
         "label": "overview",
-        "data": {
-          "content": "# overview\n\nTop-level summary.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# overview\n\nTop-level summary.\n"
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
         "label": "tasks",
-        "data": {
-          "isFolderNode": true,
-          "folderLabel": "tasks",
-          "loadState": "not-loaded",
-          "isWriteTarget": false,
-          "content": ""
-        },
-        "kind": "folder"
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
       },
       {
         "id": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
-        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "file",
         "label": "seed",
-        "data": {
-          "content": "# seed\n\nCore task file.\n",
-          "summary": ""
-        },
-        "kind": "node"
+        "relPath": "tasks/seed.md",
+        "basename": "seed",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# seed\n\nCore task file.\n"
       }
     ],
     "edges": [],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
   }
 }

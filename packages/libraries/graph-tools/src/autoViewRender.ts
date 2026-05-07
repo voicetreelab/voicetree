@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 import {type CollapseCluster} from './collapseBoundary'
-import {type AutoViewNode, type AutoViewGraph} from './autoView'
+import {type RenderNode, type RenderGraph} from './autoView'
 
 export type ClusterDisplayLabelMap = ReadonlyMap<string, string>
 
@@ -13,10 +13,10 @@ export interface AutoHeaderOptions {
 type SpineEntry =
     | {readonly kind: 'folder'; readonly folderPath: string; readonly sortKey: string}
     | {readonly kind: 'summary'; readonly cluster: CollapseCluster; readonly sortKey: string}
-    | {readonly kind: 'file'; readonly node: AutoViewNode; readonly sortKey: string}
+    | {readonly kind: 'file'; readonly node: RenderNode; readonly sortKey: string}
 
 export function buildAutoHeader(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     clusters: readonly CollapseCluster[],
     budget: number,
     visibleEntityCount: number,
@@ -56,7 +56,7 @@ export function buildAutoFooter(clusters: readonly CollapseCluster[]): string {
 }
 
 export function renderTreeCoverBody(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
     selectedIds?: ReadonlySet<string>,
@@ -73,21 +73,21 @@ export function renderTreeCoverBody(
 }
 
 function renderSpine(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
     selectedIds?: ReadonlySet<string>,
     userCollapsedClusterIds?: ReadonlySet<string>,
 ): string {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
-    const visibleFilesByFolder = new Map<string, AutoViewNode[]>()
+    const visibleFilesByFolder = new Map<string, RenderNode[]>()
     const summariesByAnchor = new Map<string, CollapseCluster[]>()
     const requiredFolders = new Set<string>()
 
     for (const node of graph.nodes) {
         if (node.kind === 'folder') continue
         if (clusterByNodeId.has(node.id)) continue
-        const files: AutoViewNode[] = visibleFilesByFolder.get(node.folderPath) ?? []
+        const files: RenderNode[] = visibleFilesByFolder.get(node.folderPath) ?? []
         files.push(node)
         visibleFilesByFolder.set(node.folderPath, files)
         ancestorFolders(node.folderPath).forEach(folderPath => requiredFolders.add(folderPath))
@@ -130,7 +130,7 @@ function renderFolderEntries(
     isRoot: boolean,
     out: string[],
     childFoldersByParent: ReadonlyMap<string, readonly string[]>,
-    visibleFilesByFolder: ReadonlyMap<string, readonly AutoViewNode[]>,
+    visibleFilesByFolder: ReadonlyMap<string, readonly RenderNode[]>,
     summariesByAnchor: ReadonlyMap<string, readonly CollapseCluster[]>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
     selectedIds?: ReadonlySet<string>,
@@ -139,7 +139,7 @@ function renderFolderEntries(
     const childFolders: readonly string[] = [...(childFoldersByParent.get(folderPath) ?? [])]
         .sort((left, right) => path.posix.basename(left).localeCompare(path.posix.basename(right)))
     const summaries: readonly CollapseCluster[] = [...(summariesByAnchor.get(folderPath) ?? [])]
-    const files: readonly AutoViewNode[] = [...(visibleFilesByFolder.get(folderPath) ?? [])]
+    const files: readonly RenderNode[] = [...(visibleFilesByFolder.get(folderPath) ?? [])]
 
     const entries: SpineEntry[] = [
         ...childFolders.map(childFolderPath => ({
@@ -204,7 +204,7 @@ function compareSpineEntries(left: SpineEntry, right: SpineEntry): number {
 }
 
 function renderForests(
-    graph: AutoViewGraph,
+    graph: RenderGraph,
     clusters: readonly CollapseCluster[],
     displayLabelByClusterId: ClusterDisplayLabelMap,
     selectedIds?: ReadonlySet<string>,
@@ -263,7 +263,7 @@ function renderForests(
 
 function renderForestEntity(
     entityId: string,
-    nodeById: ReadonlyMap<string, AutoViewNode>,
+    nodeById: ReadonlyMap<string, RenderNode>,
     clusterById: ReadonlyMap<string, CollapseCluster>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
     selectedIds?: ReadonlySet<string>,
@@ -273,7 +273,7 @@ function renderForestEntity(
     if (cluster) {
         return formatCollapsedSummary(cluster, displayLabelByClusterId, userCollapsedClusterIds)
     }
-    const node: AutoViewNode | undefined = nodeById.get(entityId)
+    const node: RenderNode | undefined = nodeById.get(entityId)
     if (!node) {
         return entityId
     }
@@ -283,7 +283,7 @@ function renderForestEntity(
 
 function entitySortKey(
     entityId: string,
-    nodeById: ReadonlyMap<string, AutoViewNode>,
+    nodeById: ReadonlyMap<string, RenderNode>,
     clusterById: ReadonlyMap<string, CollapseCluster>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
 ): string {

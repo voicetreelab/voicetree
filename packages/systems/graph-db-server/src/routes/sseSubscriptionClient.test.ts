@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../server.ts'
 import { SessionCreateResponseSchema } from '../contract.ts'
-import type { SourceTaggedDelta } from '../events/deltaEventBus.ts'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 async function withTempVault(): Promise<string> {
     return await mkdtemp(join(tmpdir(), 'sse-client-test-'))
@@ -21,7 +21,7 @@ async function createAppSupport(vault: string): Promise<string> {
     return appSupport
 }
 
-function parseSSEBlock(block: string): SourceTaggedDelta | null {
+function parseSSEGraphBlock(block: string): ProjectedGraph | null {
     const dataLine = block.split('\n').find(l => l.startsWith('data:'))
     if (!dataLine) return null
     try {
@@ -31,7 +31,7 @@ function parseSSEBlock(block: string): SourceTaggedDelta | null {
     }
 }
 
-type ForwardedDelta = { channel: string; data: unknown }
+type ForwardedGraph = { channel: string; data: unknown }
 
 function isAbortError(error: unknown): boolean {
     return typeof error === 'object'
@@ -44,7 +44,7 @@ async function subscribeAndCollect(
     baseUrl: string,
     sessionId: string,
     controller: AbortController,
-    forwarded: ForwardedDelta[],
+    forwarded: ForwardedGraph[],
 ): Promise<void> {
     const response = await fetch(`${baseUrl}/sessions/${sessionId}/events`, {
         signal: controller.signal,
@@ -63,9 +63,9 @@ async function subscribeAndCollect(
             const blocks = buffered.split('\n\n')
             buffered = blocks.pop() ?? ''
             for (const block of blocks) {
-                const event = parseSSEBlock(block)
-                if (event) {
-                    forwarded.push({ channel: 'graph:stateChanged', data: event.delta })
+                const graph = parseSSEGraphBlock(block)
+                if (graph) {
+                    forwarded.push({ channel: 'graph:projectedGraphUpdate', data: graph })
                 }
             }
         }
@@ -99,7 +99,7 @@ describe('SSE subscription client round-trip', () => {
         await rm(appSupport, { recursive: true, force: true })
     }, 15000)
 
-    test('client receives and can forward HTTP-posted deltas via SSE', async () => {
+    test('client receives and can forward HTTP-posted deltas via SSE as ProjectedGraph', async () => {
         const handle = await startDaemon({ vault, appSupportPath: appSupport })
         handles.push(handle)
         const base = `http://127.0.0.1:${handle.port}`
@@ -109,7 +109,7 @@ describe('SSE subscription client round-trip', () => {
         const { sessionId } = SessionCreateResponseSchema.parse(await createRes.json())
 
         sseController = new AbortController()
-        const forwarded: ForwardedDelta[] = []
+        const forwarded: ForwardedGraph[] = []
         void subscribeAndCollect(base, sessionId, sseController, forwarded)
 
         await new Promise(r => setTimeout(r, 200))
@@ -137,7 +137,7 @@ describe('SSE subscription client round-trip', () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Session-Id': 'client-test-session',
+                'X-Session-Id': sessionId,
             },
             body: JSON.stringify(delta),
         })
@@ -148,10 +148,12 @@ describe('SSE subscription client round-trip', () => {
             await new Promise(r => setTimeout(r, 100))
         }
 
-        const match = forwarded.find(f => f.channel === 'graph:stateChanged')
+        const match = forwarded.find(f => f.channel === 'graph:projectedGraphUpdate')
         expect(match).toBeDefined()
-        expect(match!.data).toEqual(expect.arrayContaining([
-            expect.objectContaining({ type: 'UpsertNode' }),
-        ]))
+        const graph = match!.data as ProjectedGraph
+        expect(graph.nodes).toBeDefined()
+        expect(graph.edges).toBeDefined()
+        const node = graph.nodes.find(n => n.id === testNodePath)
+        expect(node).toBeDefined()
     }, 20000)
 })

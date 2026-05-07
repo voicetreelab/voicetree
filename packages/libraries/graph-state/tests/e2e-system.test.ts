@@ -66,7 +66,7 @@ describe('@vt/graph-state system contract', () => {
 
     expect(project(state).nodes).toContainEqual(expect.objectContaining({
       id: alphaId,
-      kind: 'node',
+      kind: 'file',
       parent: folderId,
     }))
 
@@ -94,7 +94,7 @@ describe('@vt/graph-state system contract', () => {
     }))
     expect(collapsedProjection.nodes).not.toContainEqual(expect.objectContaining({
       id: betaId,
-      kind: 'node',
+      kind: 'file',
     }))
 
     expect(apply({ type: 'Expand', folder: folderId }).collapseRemoved).toEqual([folderId])

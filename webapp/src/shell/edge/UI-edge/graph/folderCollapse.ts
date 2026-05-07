@@ -1,262 +1,37 @@
-import type { Core, CollectionReturnValue } from 'cytoscape'
-import type { Graph } from '@vt/graph-model/graph'
-import type { Position } from '@vt/graph-model/graph'
-import * as O from 'fp-ts/lib/Option.js'
-import { computeSyntheticEdgeSpecs, computeExpandPlan, getFolderChildNodeIds } from '@vt/graph-model/graph'
-import type { SyntheticEdgeSpec, ExpandPlan } from '@vt/graph-model/graph'
-import { getNodeTitle } from '@vt/graph-model/markdown'
+import type { Core } from 'cytoscape'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type {} from '@/shell/electron'
-import {
-    addCollapsedFolder,
-    addCollapsedFolderLocally,
-    removeCollapsedFolder,
-    removeCollapsedFolderLocally,
-    isGraphFolderCollapsed,
-    getGraphCollapseSet,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
-// ── Ephemeral UI state ──
-const expandingFolders: Set<string> = new Set() // H1 guard: prevents collapse during async expand
-
-// ── Synthetic edge tracking ──
-interface OriginalEdge {
-    sourceId: string
-    targetId: string
-    label?: string
+export function isFolderCollapsed(folderId: string): boolean {
+    return typeof document !== 'undefined'
+        && document.querySelector != null
+        && (globalThis as unknown as { cy?: Core }).cy?.getElementById(folderId).data('collapsed') === true
 }
 
-interface SyntheticEdgeRecord {
-    syntheticEdgeId: string
-    direction: 'incoming' | 'outgoing'
-    externalNodeId: string
-    originalEdges: OriginalEdge[]
-}
-
-const syntheticEdgeRegistry: Map<string, SyntheticEdgeRecord[]> = new Map<string, SyntheticEdgeRecord[]>()
-
-type CollapseSyncMode = 'daemon' | 'local'
-
-export const isFolderCollapsed: (folderId: string) => boolean = (folderId) =>
-    isGraphFolderCollapsed(folderId)
-
-// ── Collapse ──
-export function collapseFolder(cy: Core, folderId: string, syncMode: CollapseSyncMode = 'daemon'): void {
-    if (expandingFolders.has(folderId)) return // H1: skip if expand is in-flight
-    const folder: CollectionReturnValue = cy.getElementById(folderId)
-    if (!folder.length || !folder.data('isFolderNode')) return
-
-    folder.data('collapsed', true)
-
-    // Count children before removing (for badge)
-    const childCount: number = folder.children().length
-    folder.data('childCount', childCount)
-
-    // D1: Extract data from cy, then compute synthetics via pure function
-    const descendants: CollectionReturnValue = cy.getElementById(folderId).descendants()
-    const descendantIds: Set<string> = new Set(descendants.map(n => n.id()))
-    descendantIds.add(folderId)
-    const connectedEdges: { sourceId: string; targetId: string; label: string | undefined }[] = descendants.connectedEdges().map(e => ({
-        sourceId: e.source().id(),
-        targetId: e.target().id(),
-        label: e.data('label') as string | undefined
-    }))
-    const specs: readonly SyntheticEdgeSpec[] = computeSyntheticEdgeSpecs(folderId, descendantIds, connectedEdges)
-    const synthetics: SyntheticEdgeRecord[] = specs.map(s => ({
-        syntheticEdgeId: s.syntheticEdgeId,
-        direction: s.direction,
-        externalNodeId: s.externalNodeId,
-        originalEdges: [...s.originalEdges]
-    }))
-
-    cy.batch(() => {
-        // Create synthetic edges for cross-boundary connections
-        for (const rec of synthetics) {
-            const [source, target]: [string, string] = rec.direction === 'incoming'
-                ? [rec.externalNodeId, folderId] : [folderId, rec.externalNodeId]
-            cy.add({
-                group: 'edges' as const,
-                data: {
-                    id: rec.syntheticEdgeId,
-                    source,
-                    target,
-                    isSyntheticEdge: true,
-                    edgeCount: rec.originalEdges.length > 1 ? rec.originalEdges.length : undefined,
-                    label: rec.originalEdges.length === 1 ? rec.originalEdges[0].label : undefined
-                },
-                classes: 'synthetic-folder-edge'
-            })
-        }
-        syntheticEdgeRegistry.set(folderId, synthetics)
-
-        // Remove all children (nodes + connected edges removed automatically)
-        // Also removes nested sub-folder compound nodes
-        folder.children().remove()
-    })
-
-    if (syncMode === 'local') {
-        addCollapsedFolderLocally(folderId)
-        return
-    }
-
-    void addCollapsedFolder(folderId)
-}
-
-// ── Expand ──
-export async function expandFolder(
-    cy: Core,
-    folderId: string,
-    syncMode: CollapseSyncMode = 'daemon',
-): Promise<void> {
-    const folder: CollectionReturnValue = cy.getElementById(folderId)
-    if (!folder.length || !folder.data('isFolderNode')) return
-    if (expandingFolders.has(folderId)) return // H1: already expanding
-
-    expandingFolders.add(folderId) // H1: mark as expanding
-
-    const savedChildCount: number | undefined = folder.data('childCount') as number | undefined
-    folder.data('collapsed', false)
-    folder.removeData('childCount')
-
-    // Re-derive children from Graph (source of truth)
-    let graph: Graph | undefined
-    try {
-        graph = await window.electronAPI?.main.getGraph()
-    } catch {
-        // M3: rollback state on IPC failure (store still has folder as collapsed)
-        folder.data('collapsed', true)
-        if (savedChildCount !== undefined) folder.data('childCount', savedChildCount)
-        expandingFolders.delete(folderId)
-        return
-    }
-    if (!graph) {
-        folder.data('collapsed', true)
-        if (savedChildCount !== undefined) folder.data('childCount', savedChildCount)
-        expandingFolders.delete(folderId)
-        return
-    }
-
-    // Collect visible node IDs from cy
-    const visibleNodeIds: Set<string> = new Set(cy.nodes().map(n => n.id()))
-
-    // Pure computation: expand plan from graph data
-    const collapseSet: ReadonlySet<string> = getGraphCollapseSet()
-    const plan: ExpandPlan = computeExpandPlan(graph, folderId, collapseSet, visibleNodeIds)
-
-    cy.batch(() => {
-        // Remove old synthetic edges for this folder
-        const oldSynthetics: SyntheticEdgeRecord[] | undefined = syntheticEdgeRegistry.get(folderId)
-        if (oldSynthetics) {
-            for (const rec of oldSynthetics) cy.getElementById(rec.syntheticEdgeId).remove()
-            syntheticEdgeRegistry.delete(folderId)
-        }
-
-        // Add sub-folder compound nodes
-        for (const sf of plan.subFolders) {
-            if (!cy.getElementById(sf).length) {
-                const isStillCollapsed: boolean = collapseSet.has(sf)
-                cy.add({
-                    group: 'nodes' as const,
-                    data: {
-                        id: sf,
-                        folderLabel: sf.replace(/\/$/, '').split('/').pop()!,
-                        isFolderNode: true,
-                        parent: folderId,
-                        ...(isStillCollapsed ? {
-                            collapsed: true,
-                            childCount: getFolderChildNodeIds(graph.nodes, sf).length
-                        } : {})
-                    }
-                })
-            }
-        }
-
-        // Add child nodes
-        for (const { id, node, parentFolder } of plan.childNodes) {
-            if (cy.getElementById(id).length) continue
-            const pos: Position = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position)
-            const colorValue: string | undefined = O.isSome(node.nodeUIMetadata.color) ? node.nodeUIMetadata.color.value : undefined
-            cy.add({
-                group: 'nodes' as const,
-                data: { id, label: getNodeTitle(node), content: node.contentWithoutYamlOrLinks, summary: '', color: colorValue, isContextNode: false, parent: parentFolder ?? undefined },
-                position: { x: pos.x, y: pos.y }
-            })
-        }
-
-        // Add real edges
-        for (const { id, source, target, label } of plan.realEdges) {
-            if (!cy.getElementById(id).length) {
-                cy.add({ group: 'edges' as const, data: { id, source, target, label } })
-            }
-        }
-
-        // Add synthetic edges for still-collapsed folders
-        for (const se of plan.syntheticEdges) {
-            addOrUpdateSyntheticEdge(cy, se.folderId, se.direction, se.externalId, se.original)
-        }
-    })
-
-    try {
-        if (syncMode === 'local') {
-            removeCollapsedFolderLocally(folderId)
-            return
-        }
-
-        await removeCollapsedFolder(folderId)
-    } finally {
-        expandingFolders.delete(folderId) // H1: clear expanding guard
+export async function collapseFolder(cy: Core, folderId: string, syncMode: 'daemon' | 'local' = 'daemon'): Promise<void> {
+    if (syncMode === 'local') return
+    const graph: unknown = await window.electronAPI?.main.collapseFolderThroughDaemon(folderId)
+    if (graph && typeof graph === 'object' && 'nodes' in graph) {
+        applyGraphDeltaToUI(cy, graph as ProjectedGraph)
     }
 }
 
-// ── Toggle ──
+export async function expandFolder(cy: Core, folderId: string, syncMode: 'daemon' | 'local' = 'daemon'): Promise<void> {
+    if (syncMode === 'local') return
+    const graph: unknown = await window.electronAPI?.main.expandFolderThroughDaemon(folderId)
+    if (graph && typeof graph === 'object' && 'nodes' in graph) {
+        applyGraphDeltaToUI(cy, graph as ProjectedGraph)
+    }
+}
+
 export async function toggleFolderCollapse(cy: Core, folderId: string): Promise<void> {
-    if (isFolderCollapsed(folderId)) {
+    const folder: ReturnType<typeof cy.getElementById> = cy.getElementById(folderId)
+    if (!folder.length || !folder.data('isFolderNode')) return
+
+    if (folder.data('collapsed') === true) {
         await expandFolder(cy, folderId)
     } else {
-        collapseFolder(cy, folderId)
+        await collapseFolder(cy, folderId)
     }
-}
-
-// ── Synthetic edge helpers ──
-
-export function addOrUpdateSyntheticEdge(
-    cy: Core, folderId: string, direction: 'incoming' | 'outgoing',
-    externalId: string, original: OriginalEdge
-): void {
-    // Filter self-loops (both endpoints in same folder)
-    if (externalId === folderId) return
-
-    const key: string = direction === 'incoming' ? `in:${externalId}` : `out:${externalId}`
-    const edgeId: string = `synthetic:${folderId}:${key}`
-    const existing: CollectionReturnValue = cy.getElementById(edgeId)
-
-    if (existing.length) {
-        // Update: increment count, clear label (now ambiguous)
-        const count: number = (existing.data('edgeCount') ?? 1) + 1
-        existing.data('edgeCount', count)
-        existing.removeData('label')
-    } else {
-        const [source, target]: [string, string] = direction === 'incoming'
-            ? [externalId, folderId] : [folderId, externalId]
-        cy.add({
-            group: 'edges' as const,
-            data: {
-                id: edgeId,
-                source,
-                target,
-                isSyntheticEdge: true,
-                label: original.label
-            },
-            classes: 'synthetic-folder-edge'
-        })
-    }
-
-    // Update registry
-    const recs: SyntheticEdgeRecord[] = syntheticEdgeRegistry.get(folderId) ?? []
-    const rec: SyntheticEdgeRecord | undefined = recs.find(r => r.syntheticEdgeId === edgeId)
-    if (rec) {
-        rec.originalEdges.push(original)
-    } else {
-        recs.push({ syntheticEdgeId: edgeId, direction, externalNodeId: externalId, originalEdges: [original] })
-    }
-    syntheticEdgeRegistry.set(folderId, recs)
 }

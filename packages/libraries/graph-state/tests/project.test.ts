@@ -152,7 +152,7 @@ describe('project()', () => {
         expect(folderIds).toContain('/tmp/project/notes/')
         expect(spec.nodes).toContainEqual(expect.objectContaining({
             id: notePath,
-            kind: 'node',
+            kind: 'file',
             parent: '/tmp/project/notes/',
         }))
     })
@@ -170,9 +170,7 @@ describe('project()', () => {
             expect(project(state).nodes).toContainEqual(expect.objectContaining({
                 id: folderId,
                 kind: 'folder',
-                data: expect.objectContaining({
-                    content: '# Topic\n\nbody',
-                }),
+                content: '# Topic\n\nbody',
             }))
         })
 
@@ -187,9 +185,7 @@ describe('project()', () => {
             expect(project(state).nodes).toContainEqual(expect.objectContaining({
                 id: folderId,
                 kind: 'folder',
-                data: expect.objectContaining({
-                    content: '# Topic\n\nbody',
-                }),
+                content: '# Topic\n\nbody',
             }))
         })
 
@@ -203,9 +199,7 @@ describe('project()', () => {
             expect(project(state).nodes).toContainEqual(expect.objectContaining({
                 id: folderId,
                 kind: 'folder',
-                data: expect.objectContaining({
-                    content: '',
-                }),
+                content: '',
             }))
         })
 
@@ -222,9 +216,7 @@ describe('project()', () => {
             expect(project(state).nodes).toContainEqual(expect.objectContaining({
                 id: folderId,
                 kind: 'folder-collapsed',
-                data: expect.objectContaining({
-                    content: '# Topic\n\nbody',
-                }),
+                content: '# Topic\n\nbody',
             }))
         })
     })

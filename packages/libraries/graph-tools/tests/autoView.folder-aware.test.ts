@@ -2,7 +2,7 @@ import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {findCollapseBoundary} from '../src/collapseBoundary'
-import {buildAutoViewGraph, buildPinnedClusters, renderAutoView} from '../src/autoView'
+import {buildAutoViewGraph, buildPinnedClusters, renderAutoView, deriveRenderGraph} from '../src/autoView'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot: string = path.resolve(testDir, '../../../..')
@@ -31,10 +31,11 @@ describe('renderAutoView folder-aware pinning', () => {
     it('keeps pinned descendants out of the spine and out of auto-selected clusters', () => {
         const output = renderAutoView(fixturePath, {budget: 30, pinnedFolderIds: ['archive']}).output
         const graph = buildAutoViewGraph(fixturePath)
-        const pinnedClusters = buildPinnedClusters(graph, ['archive'])
+        const rg = deriveRenderGraph(graph)
+        const pinnedClusters = buildPinnedClusters(rg, ['archive'])
         const pinnedNodeIds = new Set(pinnedClusters.flatMap(cluster => cluster.nodeIds))
-        const remainingNodes = graph.nodes.filter(node => !pinnedNodeIds.has(node.id))
-        const autoClusters = findCollapseBoundary({rootName: graph.rootName, nodes: remainingNodes}, 5)
+        const remainingNodes = rg.nodes.filter(node => !pinnedNodeIds.has(node.id))
+        const autoClusters = findCollapseBoundary({rootName: rg.rootName, nodes: remainingNodes}, 5)
 
         expect(output).not.toContain('@[archive/index]')
         expect(output).not.toContain('@[archive/old-1]')
@@ -77,7 +78,8 @@ describe('renderAutoView folder-aware pinning', () => {
 
     it('resolves pinned folders by absolute folder path as well as basename', () => {
         const graph = buildAutoViewGraph(fixturePath)
-        const clusters = buildPinnedClusters(graph, ['archive', path.join(fixturePath, 'projects')])
+        const rg = deriveRenderGraph(graph)
+        const clusters = buildPinnedClusters(rg, ['archive', path.join(fixturePath, 'projects')])
 
         expect(clusters.map(cluster => cluster.label)).toEqual(['archive/', 'projects/'])
         expect(clusters[0]?.nodeIds).toHaveLength(4)

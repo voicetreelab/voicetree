@@ -5,6 +5,9 @@
   "elementSpec": {
     "nodes": [],
     "edges": [],
-    "revision": 0
+    "rootPath": "/tmp/graph-state-fixtures/root-empty",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
   }
 }
