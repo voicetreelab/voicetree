@@ -8,6 +8,7 @@ import {
     agentWait,
 } from './commands/agent.ts'
 import {runDebugCommand} from './commands/debug.ts'
+import {runServeCommand} from './commands/serve.ts'
 import {runSessionCommand} from './commands/session.ts'
 import {runVaultCommand} from './commands/vault.ts'
 import {runViewCommand} from './commands/view.ts'
@@ -37,6 +38,7 @@ Commands:
   agent send      Send a message to an agent terminal
   agent output    Read buffered agent output
   debug <cmd>     Run vt-debug subcommands (ls, eval, run, screenshot, ...)
+  serve           Start headless daemon (graph-db + MCP server) for a vault
   graph view      Render a folder as tree-cover with progressive-disclosure collapse (default)
   graph create    Create progress nodes in the graph
   graph index     Build a local semantic search index for a vault
@@ -66,6 +68,7 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
     const commandArgs: string[] = []
     let port: number = parsePort(process.env.VOICETREE_MCP_PORT ?? '3002')
     let terminalId: string | undefined = process.env.VOICETREE_TERMINAL_ID
+    let commandStarted: boolean = false
 
     for (let index: number = 0; index < argv.length; index += 1) {
         const current: string = argv[index]
@@ -74,7 +77,7 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current === '--port' || current === '-p') {
+        if (!commandStarted && (current === '--port' || current === '-p')) {
             const rawPort: string | undefined = argv[index + 1]
             if (!rawPort) {
                 error(`${current} requires a value`)
@@ -85,12 +88,12 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current.startsWith('--port=')) {
+        if (!commandStarted && current.startsWith('--port=')) {
             port = parsePort(current.slice('--port='.length))
             continue
         }
 
-        if (current === '--terminal' || current === '-t') {
+        if (!commandStarted && (current === '--terminal' || current === '-t')) {
             const rawTerminalId: string | undefined = argv[index + 1]
             if (!rawTerminalId) {
                 error(`${current} requires a value`)
@@ -101,11 +104,12 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current.startsWith('--terminal=')) {
+        if (!commandStarted && current.startsWith('--terminal=')) {
             terminalId = current.slice('--terminal='.length)
             continue
         }
 
+        commandStarted = true
         commandArgs.push(current)
     }
 
@@ -291,7 +295,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         return
     }
 
-    if (commandArgs.includes('--help') || commandArgs.includes('-h')) {
+    if (commandArgs[0] === '--help' || commandArgs[0] === '-h') {
         printHelp()
         return
     }
@@ -322,6 +326,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'debug':
             await runDebugCommand(commandArgs.slice(1))
+            return
+        case 'serve':
+            await runServeCommand(commandArgs.slice(1))
             return
         default:
             error(`Unknown command: ${command}`)

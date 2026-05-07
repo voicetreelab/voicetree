@@ -7,7 +7,7 @@ import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
 import { createEmptyGraph } from '@vt/graph-model'
-import { getVaultPaths, setVaultPath } from './watch-folder/vault-allowlist.ts'
+import { getVaultPaths, setVaultPath, setWritePath } from './watch-folder/vault-allowlist.ts'
 import { setGraph } from './state/graph-store.ts'
 import { loadGraphFromDisk } from './graph/loadGraphFromDisk.ts'
 import { getDirectoryTree } from './watch-folder/folder-scanner.ts'
@@ -95,6 +95,11 @@ export async function startDaemon(
     loadGraphFromDisk,
   })
   setVaultPath(vault)
+  const loadWritePathResult = await setWritePath(vault)
+  if (!loadWritePathResult.success) {
+    await lockHandle.release()
+    throw new Error(loadWritePathResult.error ?? `Failed to load vault ${vault}`)
+  }
   try {
     const folderVisibilityDb = openFolderVisibilityDb(vault)
     try {
