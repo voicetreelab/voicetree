@@ -321,8 +321,8 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
 
         // PASS 4 — add edges from spec (data-driven)
         for (const specEdge of specEdges) {
-            if (cy.getElementById(specEdge.id).length > 0) {
-                const existing: CollectionReturnValue = cy.getElementById(specEdge.id)
+            const existing: CollectionReturnValue = cy.getElementById(specEdge.id)
+            if (existing.length > 0) {
                 existing.data('label', truncatedEdgeLabel(specEdge.label))
                 continue
             }
