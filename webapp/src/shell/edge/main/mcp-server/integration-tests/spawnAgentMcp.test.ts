@@ -37,6 +37,25 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
     }
 })
 
+const mockPostDelta = vi.fn(async () => undefined)
+
+vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
+    const graphStore: typeof import('@vt/graph-db-server/state/graph-store') = await import('@vt/graph-db-server/state/graph-store')
+    const vaultAllowlist: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await import('@vt/graph-db-server/watch-folder/vault-allowlist')
+    return {
+        configureGraphDbClient: vi.fn(),
+        getConfiguredGraphDbClient: vi.fn(() => ({
+            getGraph: vi.fn(async () => ({ nodes: graphStore.getGraph().nodes })),
+            getVault: vi.fn(async () => {
+                const wp = await vaultAllowlist.getWritePath()
+                return { writePath: wp._tag === 'Some' ? wp.value : undefined, readPaths: [] }
+            }),
+            postDelta: mockPostDelta,
+        })),
+        getConfiguredGraph: vi.fn(async () => graphStore.getGraph()),
+    }
+})
+
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
@@ -243,7 +262,7 @@ describe('MCP spawn_agent tool', () => {
 
         await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
 
-        const claimCall: unknown[] | undefined = vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mock.calls[0]
+        const claimCall: unknown[] | undefined = mockPostDelta.mock.calls[0]
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
         expect(claimDelta[0].type).toBe('UpsertNode')

@@ -117,11 +117,30 @@ vi.mock('@vt/voicetree-mcp/mcp-client-config', () => ({
     setMcpIntegration: vi.fn(),
 }))
 
+vi.mock('@vt/voicetree-mcp/graphDbClientProvider', () => ({
+    configureGraphDbClient: vi.fn(),
+    getConfiguredGraphDbClient: vi.fn(() => ({
+        getGraph: vi.fn(async () => ({ nodes: {} })),
+        getVault: vi.fn(async () => ({ writePath: '/tmp/vault', readPaths: [], vaultPath: '/tmp/vault' })),
+        postDelta: vi.fn(async () => undefined),
+        getProjectRoot: vi.fn(async () => ({ projectRoot: '/tmp' })),
+    })),
+    getConfiguredGraph: vi.fn(async () => ({
+        nodes: {},
+        incomingEdgesIndex: new Map(),
+        nodeByBaseName: new Map(),
+        unresolvedLinksIndex: new Map(),
+    })),
+}))
+
 vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
     getLiveStateSnapshotFromDaemon: vi.fn(),
+    getActiveDaemonVaultState: vi.fn().mockResolvedValue(null),
+    getActiveDaemonConnection: vi.fn().mockReturnValue(null),
 }))
 
 import { getGraph as mockedGetGraph } from '@vt/graph-model'
+import { getGraph as mockedGetGraphFromStore } from '@/shell/edge/main/state/graph-store'
 import { configureMcpServer, createMcpServer } from '@vt/voicetree-mcp'
 import { findAvailablePort } from '@/shell/edge/main/port-utils'
 import {
@@ -197,6 +216,7 @@ describe('vt_dispatch_live_command real MCP roundtrip', () => {
         resetRendererState()
         server = await startTestMcpServer()
         vi.mocked(mockedGetGraph).mockReturnValue(emptyGraph())
+        vi.mocked(mockedGetGraphFromStore).mockReturnValue(emptyGraph())
         configureMcpServer({
             liveState: {
                 getLiveStateSnapshot: async () => serializeState(await getCurrentLiveState()),
