@@ -149,4 +149,54 @@ describe('buildAutoViewGraphFromState', () => {
 
         expect(result.nodes).toHaveLength(1)
     })
+
+    it('synthesizes folder nodes from file paths', () => {
+        const graph = makeGraph({
+            '/vault/sub/deep/note.md': {content: '# Deep'},
+            '/vault/sub/other.md': {content: '# Other'},
+            '/vault/top.md': {content: '# Top'},
+        })
+
+        const result = buildAutoViewGraphFromState(graph, root)
+
+        const folderNodes = result.nodes.filter(n => n.kind === 'folder')
+        expect(folderNodes).toHaveLength(2)
+
+        const sub = result.nodeById.get('/vault/sub')
+        expect(sub).toBeDefined()
+        expect(sub!.kind).toBe('folder')
+        expect(sub!.relPath).toBe('sub')
+        expect(sub!.folderPath).toBe('')
+
+        const deep = result.nodeById.get('/vault/sub/deep')
+        expect(deep).toBeDefined()
+        expect(deep!.kind).toBe('folder')
+        expect(deep!.relPath).toBe('sub/deep')
+        expect(deep!.folderPath).toBe('sub')
+    })
+
+    it('does not synthesize folders for root-level files', () => {
+        const graph = makeGraph({
+            '/vault/a.md': {content: '# A'},
+            '/vault/b.md': {content: '# B'},
+        })
+
+        const result = buildAutoViewGraphFromState(graph, root)
+
+        const folderNodes = result.nodes.filter(n => n.kind === 'folder')
+        expect(folderNodes).toHaveLength(0)
+    })
+
+    it('does not duplicate existing folder nodes from graph', () => {
+        const graph = makeGraph({
+            '/vault/sub/note.md': {content: '# Note'},
+            '/vault/sub': {content: '', kind: 'folder'},
+        })
+
+        const result = buildAutoViewGraphFromState(graph, root)
+
+        const folderNodes = result.nodes.filter(n => n.kind === 'folder')
+        expect(folderNodes).toHaveLength(1)
+        expect(folderNodes[0]!.id).toBe('/vault/sub')
+    })
 })

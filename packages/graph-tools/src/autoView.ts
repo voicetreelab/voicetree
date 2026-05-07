@@ -28,6 +28,7 @@ import {
     buildAutoFooter,
     renderTreeCoverBody,
     buildClusterDisplayLabelMap,
+    ancestorFolders,
     type ClusterDisplayLabelMap,
     type AutoHeaderOptions,
 } from './autoViewRender'
@@ -84,59 +85,31 @@ function buildJsonStateFromVault(root: string): JsonState {
     return {graph: {nodes}}
 }
 
-export function buildAutoViewGraph(root: string): AutoViewGraph {
-    const state = buildJsonStateFromVault(root)
-    const nodes: AutoViewNode[] = []
-    const nodeById = new Map<string, AutoViewNode>()
-    const edges: DirectedEdge[] = []
-
-    for (const [id, node] of Object.entries(state.graph.nodes)) {
-        const relPath: string = relId(id, root)
-        const basename: string = path.posix.basename(relPath)
-        const folderPathRaw: string = path.posix.dirname(relPath)
-        const folderPath: string = folderPathRaw === '.' ? '' : folderPathRaw
-        const title: string = deriveTitle(node.contentWithoutYamlOrLinks, path.basename(id, '.md'))
-        const outgoingIds: readonly string[] = node.outgoingEdges
-            .map(edge => edge.targetId)
-            .filter(targetId => targetId !== id)
-        const autoNode: AutoViewNode = {id, title, relPath, folderPath, outgoingIds, basename}
-        nodes.push(autoNode)
-        nodeById.set(id, autoNode)
-        outgoingIds.forEach(targetId => edges.push({src: id, tgt: targetId}))
-    }
-
-    const cover = computeArboricity(nodes.length, edges)
-    return {
-        rootPath: root,
-        rootName: path.basename(root),
-        nodes,
-        nodeById,
-        edges,
-        forests: cover.forests,
-        arboricity: cover.arboricityUpperBound,
-    }
+interface MappableEntry {
+    readonly id: string
+    readonly content: string
+    readonly outgoingEdges: readonly {targetId: string}[]
+    readonly kind?: 'file' | 'folder'
 }
 
-export function buildAutoViewGraphFromState(
-    graphState: Graph,
-    rootPath: string,
-    expandedFolderIds?: readonly string[],
-): AutoViewGraph {
+function mapEntriesToAutoViewGraph(entries: readonly MappableEntry[], rootPath: string): AutoViewGraph {
     const nodes: AutoViewNode[] = []
     const nodeById = new Map<string, AutoViewNode>()
     const edges: DirectedEdge[] = []
 
-    for (const [id, node] of Object.entries(graphState.nodes)) {
+    for (const entry of entries) {
+        const {id} = entry
         const relPath: string = relId(id, rootPath)
         const basename: string = path.posix.basename(relPath)
         const folderPathRaw: string = path.posix.dirname(relPath)
         const folderPath: string = folderPathRaw === '.' ? '' : folderPathRaw
-        const title: string = deriveTitle(node.contentWithoutYamlOrLinks, path.basename(id, '.md'))
-        const kind: 'file' | 'folder' = node.kind === 'folder' ? 'folder' : 'file'
-        const outgoingIds: readonly string[] = node.outgoingEdges
+        const title: string = deriveTitle(entry.content, path.basename(id, '.md'))
+        const outgoingIds: readonly string[] = entry.outgoingEdges
             .map(edge => edge.targetId)
             .filter(targetId => targetId !== id)
-        const autoNode: AutoViewNode = {id, title, relPath, folderPath, outgoingIds, basename, kind}
+        const autoNode: AutoViewNode = entry.kind !== undefined
+            ? {id, title, relPath, folderPath, outgoingIds, basename, kind: entry.kind}
+            : {id, title, relPath, folderPath, outgoingIds, basename}
         nodes.push(autoNode)
         nodeById.set(id, autoNode)
         outgoingIds.forEach(targetId => edges.push({src: id, tgt: targetId}))
@@ -152,6 +125,48 @@ export function buildAutoViewGraphFromState(
         forests: cover.forests,
         arboricity: cover.arboricityUpperBound,
     }
+}
+
+export function buildAutoViewGraph(root: string): AutoViewGraph {
+    const state = buildJsonStateFromVault(root)
+    const entries: MappableEntry[] = Object.entries(state.graph.nodes).map(([id, node]) => ({
+        id,
+        content: node.contentWithoutYamlOrLinks,
+        outgoingEdges: node.outgoingEdges,
+    }))
+    return mapEntriesToAutoViewGraph(entries, root)
+}
+
+export function buildAutoViewGraphFromState(graphState: Graph, rootPath: string): AutoViewGraph {
+    const baseEntries: MappableEntry[] = Object.entries(graphState.nodes).map(([id, node]) => ({
+        id,
+        content: node.contentWithoutYamlOrLinks,
+        outgoingEdges: node.outgoingEdges,
+        kind: node.kind === 'folder' ? 'folder' as const : 'file' as const,
+    }))
+
+    const existingIds = new Set(baseEntries.map(e => e.id))
+    const folderPaths = new Set<string>()
+    for (const entry of baseEntries) {
+        if (entry.kind !== 'folder') {
+            const folderPathRaw = path.posix.dirname(relId(entry.id, rootPath))
+            const folderPath = folderPathRaw === '.' ? '' : folderPathRaw
+            if (folderPath.length > 0) {
+                for (const folder of ancestorFolders(folderPath)) {
+                    folderPaths.add(folder)
+                }
+            }
+        }
+    }
+    const syntheticFolderEntries: MappableEntry[] = []
+    for (const fp of folderPaths) {
+        const folderId = path.join(rootPath, fp)
+        if (!existingIds.has(folderId)) {
+            syntheticFolderEntries.push({id: folderId, content: '', outgoingEdges: [], kind: 'folder'})
+        }
+    }
+
+    return mapEntriesToAutoViewGraph([...baseEntries, ...syntheticFolderEntries], rootPath)
 }
 
 export interface RenderTreeCoverOptions {
