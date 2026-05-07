@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-imports */
 /**
  * Integration test for createContextNode
  *
@@ -31,8 +30,6 @@ vi.mock('electron', () => ({
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'
-import { setGraph as setServerGraph } from '@vt/graph-db-server/state/graph-store'
-import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
@@ -59,14 +56,12 @@ describe('createContextNode - Integration Tests', () => {
 
     // Initialize vault path with example_small fixture
     setVaultPath(EXAMPLE_SMALL_PATH)
-    setProjectRootWatchedDirectory(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_WRITE_PATH])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
     setGraph(graph)
-    setServerGraph(graph)
 
     // Clear parent node backups
     parentNodeBackups = new Map()
@@ -317,7 +312,6 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      setProjectRootWatchedDirectory(EXAMPLE_LARGE_PATH)
       initGraphModel(
         { appSupportPath: '/tmp/test-userdata-context-node' },
         { getWritePath: async () => EXAMPLE_LARGE_WRITE_PATH }
@@ -326,7 +320,6 @@ describe('createContextNode - Integration Tests', () => {
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right
       setGraph(largeGraph)
-      setServerGraph(largeGraph)
 
       // VERIFY: Graph has at least 5 nodes
       const nodeCount: number = Object.keys(largeGraph.nodes).length

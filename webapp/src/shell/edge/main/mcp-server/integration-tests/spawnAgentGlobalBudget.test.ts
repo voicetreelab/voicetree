@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-imports */
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
@@ -41,23 +40,6 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
     return {
         ...actual,
         startMonitor: vi.fn().mockReturnValue('monitor-1')
-    }
-})
-
-vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
-    const graphStore: typeof import('@vt/graph-db-server/state/graph-store') = await import('@vt/graph-db-server/state/graph-store')
-    const vaultAllowlist: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await import('@vt/graph-db-server/watch-folder/vault-allowlist')
-    return {
-        configureGraphDbClient: vi.fn(),
-        getConfiguredGraphDbClient: vi.fn(() => ({
-            getGraph: vi.fn(async () => ({ nodes: graphStore.getGraph().nodes })),
-            getVault: vi.fn(async () => {
-                const wp: Awaited<ReturnType<typeof vaultAllowlist.getWritePath>> = await vaultAllowlist.getWritePath()
-                return { writePath: wp._tag === 'Some' ? wp.value : undefined, readPaths: [] }
-            }),
-            postDelta: vi.fn(async () => undefined),
-        })),
-        getConfiguredGraph: vi.fn(async () => graphStore.getGraph()),
     }
 })
 

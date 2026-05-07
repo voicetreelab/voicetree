@@ -23,8 +23,8 @@ import {
 } from './contract.ts'
 
 describe('contract', () => {
-  test('CONTRACT_VERSION is 0.3.0', () => {
-    expect(CONTRACT_VERSION).toBe('0.3.0')
+  test('CONTRACT_VERSION is 0.2.0', () => {
+    expect(CONTRACT_VERSION).toBe('0.2.0')
   })
 
   test('HealthResponse round-trips a valid sample', () => {

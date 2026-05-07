@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-imports */
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
@@ -20,18 +19,6 @@ vi.mock('@vt/agent-runtime', () => ({
 vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn()
 }))
-
-vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
-    const graphStore: typeof import('@vt/graph-db-server/state/graph-store') = await import('@vt/graph-db-server/state/graph-store')
-    return {
-        configureGraphDbClient: vi.fn(),
-        getConfiguredGraphDbClient: vi.fn(() => ({
-            getGraph: vi.fn(async () => ({ nodes: graphStore.getGraph().nodes })),
-            postDelta: vi.fn(async () => undefined),
-        })),
-        getConfiguredGraph: vi.fn(async () => graphStore.getGraph()),
-    }
-})
 
 import {listAgentsTool} from '@vt/voicetree-mcp'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
