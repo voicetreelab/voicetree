@@ -14,7 +14,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToGraph, createEmptyGraph } from '@vt/graph-model'
 import type { FolderTreeNode, Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model'
 
-import type { ElementSpec, State } from '@vt/graph-state/contract'
+import type { ProjectedGraph, State } from '@vt/graph-state/contract'
 import { emptyState } from '@vt/graph-state/emptyState'
 import type { SerializedState } from '@vt/graph-state/fixtures/serialization'
 import { project } from '@vt/graph-state/project'
@@ -152,42 +152,12 @@ function refreshProjectionFromStores(): void {
     applyGraphDeltaToUI(getCyInstance(), projectRendererState())
 }
 
-function reviveAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
-    if (value instanceof Map) return value
-    if (typeof value === 'object' && value !== null) {
-        return new Map(
-            Object.entries(value as Record<string, string>).map(
-                ([k, v]) => [k, typeof v === 'string' ? v : String(v)] as const
-            )
-        )
-    }
-    return new Map()
-}
-
-function normalizeDeltaMaps(delta: GraphDelta): GraphDelta {
-    return delta.map(op => {
-        if (op.type !== 'UpsertNode') return op
-        const props: unknown = op.nodeToUpsert.nodeUIMetadata.additionalYAMLProps
-        if (props instanceof Map) return op
-        return {
-            ...op,
-            nodeToUpsert: {
-                ...op.nodeToUpsert,
-                nodeUIMetadata: {
-                    ...op.nodeToUpsert.nodeUIMetadata,
-                    additionalYAMLProps: reviveAdditionalYAMLProps(props),
-                },
-            },
-        }
-    })
-}
-
 export function applyDeltaToRendererStateMirror(delta: GraphDelta): void {
     if (delta.length === 0) return
-    const normalized: GraphDelta = normalizeDeltaMaps(delta)
-    mirror.graph = applyGraphDeltaToGraph(mirror.graph, normalized)
-    updatePositionsFromDelta(normalized)
+    mirror.graph = applyGraphDeltaToGraph(mirror.graph, delta)
+    updatePositionsFromDelta(delta)
     mirror.revision += 1
+    void refreshFolderTreeFromMain()
 }
 
 export function resetRendererStateMirror(): void {
@@ -202,11 +172,11 @@ export function resetRendererStateMirror(): void {
     shouldRefetchFolderTreeFromMain = false
 }
 
-export function projectRendererState(): ElementSpec {
+export function projectRendererState(): ProjectedGraph {
     return project(buildStateFromMirror())
 }
 
-export function projectDelta(delta: GraphDelta): ElementSpec {
+export function projectDelta(delta: GraphDelta): ProjectedGraph {
     applyDeltaToRendererStateMirror(delta)
     return projectRendererState()
 }
