@@ -36,7 +36,7 @@ export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promi
     try {
         dbModule = await loadFolderVisibilityDbModule()
     } catch {
-        // better-sqlite3 ABI mismatch when running inside Electron — safe to
+        // node:sqlite is unavailable in this runtime — safe to
         // return empty because the daemon manages folder visibility in that mode.
         return []
     }

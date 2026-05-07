@@ -34,7 +34,7 @@ export interface ExtendedWindow {
 
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {
   try {
-    execFileSync(nodeBin, ['-e', "const Database = require('better-sqlite3'); new Database(':memory:').close()"], {
+    execFileSync(nodeBin, ['-e', "const { DatabaseSync } = require('node:sqlite'); new DatabaseSync(':memory:').close()"], {
       cwd: REPO_ROOT,
       stdio: 'ignore'
     });
@@ -180,7 +180,6 @@ export function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics)
   const criticalErrorPatterns = [
     /NODE_MODULE_VERSION/i,
     /was compiled against a different Node\.js version/i,
-    /better-sqlite3/i,
     /DaemonLaunchTimeout/i,
     /ERR_DLOPEN_FAILED/i,
     /Error invoking remote method/i,

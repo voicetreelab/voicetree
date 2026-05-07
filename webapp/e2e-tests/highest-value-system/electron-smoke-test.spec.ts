@@ -255,8 +255,7 @@ test.describe('Smoke Test', () => {
     console.log('✅ Smoke test passed!');
   });
 
-  // TODO: flaky — fake agent spawn times out waiting for list_agents idle status
-  test.skip('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
+  test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
     test.setTimeout(process.env.CI ? 120000 : 60000);
     console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
 
