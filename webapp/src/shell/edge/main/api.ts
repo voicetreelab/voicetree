@@ -10,7 +10,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
-import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
+import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon-graph-queries'
@@ -100,7 +100,7 @@ export const mainAPI = {
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
 
-  // Position saving - lightweight in-memory update
+  // Position saving through daemon persistence
   saveNodePositions,
 
   // Settings operations

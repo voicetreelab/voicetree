@@ -3,10 +3,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { buildIncomingEdgesIndex } from '@vt/graph-model/graph'
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-  getGraph: vi.fn()
-}))
-
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
   getWritePath: vi.fn()
 }))
@@ -16,14 +12,14 @@ vi.mock('@vt/agent-runtime', () => ({
 }))
 
 vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+  getGraphFromDaemon: vi.fn(),
   postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
 import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
-import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
-import { postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
   return {
@@ -64,7 +60,7 @@ describe('runAgentOnSelectedNodes', () => {
       [selectedNodeIds[1]]: createNode(selectedNodeIds[1], '# B')
     })
 
-    vi.mocked(getGraph).mockReturnValue(graph)
+    vi.mocked(getGraphFromDaemon).mockResolvedValue(graph)
     vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
     vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
       terminalId: 'agent-1',

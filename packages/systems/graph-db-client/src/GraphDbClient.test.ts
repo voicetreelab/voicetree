@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
@@ -183,6 +183,36 @@ describe('GraphDbClient', () => {
       })
 
       expect(graph.nodes[filePath]).toBeDefined()
+    })
+
+    test('creates context nodes and writes positions through graph helpers', async () => {
+      await start()
+      const client = await connect()
+      const filePath = join(harness.vault, 'source.md')
+
+      await writeFile(filePath, '# Source\n\nbody\n', 'utf8')
+
+      await waitFor(async () => {
+        const graph = await client.getGraph()
+        return graph.nodes[filePath] ? true : null
+      })
+
+      const contextNode = await client.createContextNode(filePath, [])
+      expect(contextNode.nodeId).toContain('ctx-nodes')
+      await expect(readFile(contextNode.nodeId, 'utf8')).resolves.toContain('# ctx')
+
+      await expect(
+        client.writePositions({
+          [filePath]: { x: 12.4, y: 99.6 },
+          missing: { x: 1, y: 2 },
+        }),
+      ).resolves.toEqual({ written: 1 })
+
+      const positions = JSON.parse(
+        await readFile(join(harness.vault, '.voicetree', 'positions.json'), 'utf8'),
+      )
+      expect(positions[filePath]).toEqual({ x: 12, y: 100 })
+      expect(positions.missing).toBeUndefined()
     })
   })
 

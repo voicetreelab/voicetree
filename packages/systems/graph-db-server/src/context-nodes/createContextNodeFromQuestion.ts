@@ -27,13 +27,17 @@ function truncateToFiveWords(text: string): string {
  */
 export async function createContextNodeFromQuestion(
     relevantNodeIds: readonly NodeIdAndFilePath[],
-    question: string
+    question: string,
+    semanticNodeIds: readonly NodeIdAndFilePath[] = []
 ): Promise<NodeIdAndFilePath> {
     const currentGraph: Graph = getGraph()
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.askModeContextDistance
 
-    const validNodeIds: readonly NodeIdAndFilePath[] = relevantNodeIds
+    const validNodeIds: readonly NodeIdAndFilePath[] = [...new Set([
+        ...relevantNodeIds,
+        ...semanticNodeIds,
+    ])]
         .filter(id => currentGraph.nodes[id])
 
     if (validNodeIds.length === 0) {

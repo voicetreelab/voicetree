@@ -13,10 +13,12 @@ import type {
     StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
-import { getGraph } from './graph-store'
+import { createEmptyGraph, type Graph } from '@vt/graph-model'
 import { getProjectRootWatchedDirectory } from './watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
+import { getActiveDaemonClient } from '@/shell/edge/main/electron/graph-daemon'
+import { getNormalizedDaemonGraph } from '@/shell/edge/main/electron/daemon-graph-normalization'
 
 import {
     applyRendererLiveCommand,
@@ -57,6 +59,11 @@ function commitMainOwnedState(state: State): void {
     liveParts.layout = state.layout
 }
 
+async function readGraphFromDaemonSessionState(): Promise<Graph> {
+    const client = getActiveDaemonClient()
+    return client ? await getNormalizedDaemonGraph(client) : createEmptyGraph()
+}
+
 async function bootstrapRootsFromProjectConfig(): Promise<void> {
     if (hasExplicitRootState || liveParts.roots.loaded.size > 0) {
         return
@@ -87,7 +94,7 @@ export async function getCurrentLiveState(): Promise<State> {
         await readRendererLiveState()
 
     return {
-        graph: getGraph(),
+        graph: await readGraphFromDaemonSessionState(),
         roots: liveParts.roots,
         collapseSet: new Set(rendererState.collapseSet),
         selection: new Set(rendererState.selection),

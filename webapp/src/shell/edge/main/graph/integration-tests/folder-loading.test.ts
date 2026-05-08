@@ -22,7 +22,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'

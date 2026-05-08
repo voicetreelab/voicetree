@@ -27,7 +27,6 @@ import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
@@ -103,27 +102,6 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', asyn
     }
 })
 
-// Mock graph store
-vi.mock('@/shell/edge/main/state/graph-store', () => {
-    return {
-        getGraph: () => {
-            if (!currentGraph) {
-                throw new Error('Graph not initialized')
-            }
-            return currentGraph
-        },
-        setGraph: (graph: Graph) => {
-            currentGraph = graph
-        },
-        getNode: (nodeId: string) => {
-            if (!currentGraph) {
-                throw new Error('Graph not initialized')
-            }
-            return currentGraph.nodes[nodeId]
-        }
-    }
-})
-
 // Mock watch-folder-store for watched directory state
 vi.mock('@/shell/edge/main/state/watch-folder-store', () => {
     return {
@@ -194,7 +172,6 @@ function installWindowElectronApi(cy: Core): void {
                 setGraphReal(currentGraph)
                 await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta)
                 currentGraph = getGraphReal()
-                setGraph(currentGraph)
                 applyDeltaToUI(cy, delta)
                 for (const op of delta) {
                     if (op.type === 'DeleteNode') {
@@ -275,7 +252,6 @@ Child content`
         })
 
         currentGraph = mockGraph
-        setGraph(mockGraph)
         setGraphReal(mockGraph)
         applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
@@ -452,7 +428,6 @@ Child content`
         })
 
         currentGraph = mockGraph
-        setGraph(mockGraph)
         setGraphReal(mockGraph)
         applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 

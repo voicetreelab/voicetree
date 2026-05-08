@@ -5,11 +5,10 @@ import type {getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
-import {writeAllPositionsSync} from '@vt/graph-db-server/graph/writeAllPositionsOnExit';
-import {getGraph} from '@/shell/edge/main/state/graph-store';
 import {getProjectRootWatchedDirectory} from '@/shell/edge/main/state/watch-folder-store';
 import {recordAppUsage} from './notification-scheduler';
 import {registerDebugAutoSetup} from './debug-auto-setup';
+import {writeCurrentPositionsThroughDaemon} from './daemon-graph-queries';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 
@@ -145,6 +144,8 @@ export function createWindow(deps: {
         void recordAppUsage();
     });
 
+    let persistedPositionsBeforeClose: boolean = false;
+
     // macOS: Hide window instead of destroying on close (red X button)
     // This preserves state (terminals, editors, graph) for quick reopen from dock
     // Cmd+Q or menu Quit will still fully quit the app via before-quit event
@@ -152,6 +153,20 @@ export function createWindow(deps: {
         if (process.platform === 'darwin' && !deps.isQuitting()) {
             event.preventDefault();
             mainWindow.hide();
+            return;
+        }
+
+        const projectRoot: string | null = getProjectRootWatchedDirectory();
+        if (deps.isQuitting() && projectRoot && !persistedPositionsBeforeClose) {
+            event.preventDefault();
+            persistedPositionsBeforeClose = true;
+            void writeCurrentPositionsThroughDaemon()
+                .catch((error: unknown) => {
+                    console.warn('[Main] Failed to persist node positions before quit:', error);
+                })
+                .finally(() => {
+                    mainWindow.destroy();
+                });
         }
     });
 
@@ -160,8 +175,10 @@ export function createWindow(deps: {
         cleanupTerminalsForWindow(deps.terminalManager, windowId);
         // Persist node positions to .voicetree/positions.json before exit
         const projectRoot: string | null = getProjectRootWatchedDirectory();
-        if (projectRoot) {
-            writeAllPositionsSync(getGraph(), projectRoot);
+        if (projectRoot && !persistedPositionsBeforeClose) {
+            void writeCurrentPositionsThroughDaemon().catch((error: unknown) => {
+                console.warn('[Main] Failed to persist node positions on window close:', error);
+            });
         }
     });
 
