@@ -71,6 +71,46 @@ const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
   },
 }
 
+const ContextNodeResponseSchema: Schema<{ nodeId: string }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || typeof input.nodeId !== 'string') {
+      throw new Error('Invalid context-node response body')
+    }
+    return { nodeId: input.nodeId }
+  },
+}
+
+const ContextNodeFromQuestionResponseSchema: Schema<{
+  nodeId: string
+  parentNodePath: string
+  title: string
+}> = {
+  parse(input: unknown) {
+    if (
+      !isObject(input)
+      || typeof input.nodeId !== 'string'
+      || typeof input.parentNodePath !== 'string'
+      || typeof input.title !== 'string'
+    ) {
+      throw new Error('Invalid question context-node response body')
+    }
+    return {
+      nodeId: input.nodeId,
+      parentNodePath: input.parentNodePath,
+      title: input.title,
+    }
+  },
+}
+
+const WritePositionsResponseSchema: Schema<{ written: number }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || typeof input.written !== 'number') {
+      throw new Error('Invalid write-positions response body')
+    }
+    return { written: input.written }
+  },
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 }
@@ -191,6 +231,39 @@ export class GraphDbClient {
       headers,
       method: 'POST',
       responseSchema: { parse: (value) => value },
+    })
+  }
+
+  async createContextNode(
+    parentNodeId: string,
+    semanticNodeIds: string[],
+  ): Promise<{ nodeId: string }> {
+    return await this.request('/graph/context-node', {
+      body: { parentNodeId, semanticNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeResponseSchema,
+    })
+  }
+
+  async createContextNodeFromQuestion(
+    nodeIds: string[],
+    question: string,
+    semanticNodeIds: string[],
+  ): Promise<{ nodeId: string; parentNodePath: string; title: string }> {
+    return await this.request('/graph/context-node-from-question', {
+      body: { nodeIds, question, semanticNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeFromQuestionResponseSchema,
+    })
+  }
+
+  async writePositions(
+    positions: Record<string, { x: number; y: number }>,
+  ): Promise<{ written: number }> {
+    return await this.request('/graph/write-positions', {
+      body: { positions },
+      method: 'POST',
+      responseSchema: WritePositionsResponseSchema,
     })
   }
 
