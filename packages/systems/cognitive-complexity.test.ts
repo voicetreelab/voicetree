@@ -9,8 +9,6 @@ const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
 const MAX_COGNITIVE_COMPLEXITY = 25
 const HIGH_COMPLEXITY_THRESHOLD = 15
 const BASELINE_COMPLEXITY_BUDGETS: ReadonlyMap<string, number> = new Map([
-    ['packages/systems/agent-runtime/src/lifecycle/derive.ts::derive', 31],
-    ['packages/systems/voicetree-mcp/src/spawnAgentTool.ts::spawnAgentTool', 64],
 ])
 
 type PackageInfo = {
