@@ -93,6 +93,37 @@ describe('daemon SSE subscription', () => {
         })
     })
 
+    it('reconnects with the last seen sequence number', async () => {
+        vi.useFakeTimers()
+        const sent: SentMessage[] = []
+        const graph: ProjectedGraph = { ...makeProjectedGraph('sequenced'), seq: 7 }
+        const fetchSpy: ReturnType<typeof vi.fn> = vi.fn(async () => new Response(
+            new ReadableStream<Uint8Array>({
+                start(controller): void {
+                    if (fetchSpy.mock.calls.length === 1) {
+                        controller.enqueue(encodeSSE(graph))
+                    }
+                    controller.close()
+                },
+            }),
+            { status: 200 },
+        ))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        subscribeToDaemonSSE('seq-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
+        await vi.advanceTimersByTimeAsync(0)
+
+        await vi.waitFor(() => {
+            expect(sent).toEqual([{ channel: 'graph:projectedGraphUpdate', data: graph }])
+        })
+
+        await vi.advanceTimersByTimeAsync(3_000)
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+        expect(fetchSpy.mock.calls[0][0]).toBe('http://127.0.0.1:3210/sessions/seq-session/events?since=0')
+        expect(fetchSpy.mock.calls[1][0]).toBe('http://127.0.0.1:3210/sessions/seq-session/events?since=7')
+    })
+
     it('recovers when SSE stream goes silent', async () => {
         vi.useFakeTimers()
         const sent: SentMessage[] = []

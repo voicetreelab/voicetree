@@ -4,6 +4,8 @@ const SSE_SILENCE_TIMEOUT_MS: number = 45_000
 
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let currentSubscriptionKey: string | null = null
+let lastSeenSeq: number = 0
 
 function clearReconnectTimer(): void {
     if (currentReconnectTimer !== null) {
@@ -26,6 +28,11 @@ function parseSSEBlock(block: string): ProjectedGraph | null {
     }
 }
 
+function getProjectedGraphSeq(graph: ProjectedGraph): number | null {
+    const seq: unknown = (graph as ProjectedGraph & { readonly seq?: unknown }).seq;
+    return typeof seq === 'number' && Number.isFinite(seq) ? seq : null;
+}
+
 function forwardProjectedGraph(
     graph: ProjectedGraph,
     mainWindow: Electron.BrowserWindow,
@@ -40,7 +47,7 @@ async function connectToDaemonSSE(
     mainWindow: Electron.BrowserWindow,
     controller: AbortController,
 ): Promise<void> {
-    const response: Response = await fetch(`${baseUrl}/sessions/${sessionId}/events`, {
+    const response: Response = await fetch(`${baseUrl}/sessions/${sessionId}/events?since=${lastSeenSeq}`, {
         signal: controller.signal,
     })
 
@@ -82,6 +89,10 @@ async function connectToDaemonSSE(
         for (const block of blocks) {
             const graph: ProjectedGraph | null = parseSSEBlock(block)
             if (graph) {
+                const seq: number | null = getProjectedGraphSeq(graph);
+                if (seq !== null) {
+                    lastSeenSeq = Math.max(lastSeenSeq, seq);
+                }
                 forwardProjectedGraph(graph, mainWindow)
             }
         }
@@ -109,6 +120,12 @@ export function subscribeToDaemonSSE(
     mainWindow: Electron.BrowserWindow,
 ): void {
     unsubscribeFromDaemonSSE()
+
+    const subscriptionKey: string = `${baseUrl}|${sessionId}`;
+    if (currentSubscriptionKey !== subscriptionKey) {
+        currentSubscriptionKey = subscriptionKey;
+        lastSeenSeq = 0;
+    }
 
     const controller: AbortController = new AbortController()
     currentController = controller
