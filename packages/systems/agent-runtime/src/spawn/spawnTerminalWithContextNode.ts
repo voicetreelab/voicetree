@@ -35,7 +35,7 @@ import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager';
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/graph';
-import {broadcastGraphDeltaToUI} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {refreshGraphChangeSideEffects} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {getRuntimeUI} from '../runtime-config';
 
 /**
@@ -402,7 +402,7 @@ async function tryReloadNodeFromDisk(nodeId: NodeIdAndFilePath): Promise<GraphNo
         if (delta.length === 0) return undefined
         const newGraph: Graph = applyGraphDeltaToGraph(graph, delta)
         setGraph(newGraph)
-        broadcastGraphDeltaToUI(delta)
+        refreshGraphChangeSideEffects()
         console.warn(`[spawnTerminal] Self-healed missing node from disk: ${nodeId}`)
         return newGraph.nodes[nodeId]
     } catch {

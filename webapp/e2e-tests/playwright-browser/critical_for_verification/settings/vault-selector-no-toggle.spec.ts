@@ -218,13 +218,13 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onGraphUpdate: (callback: (delta: any) => void) => {
-          mockElectronAPI.graph._updateCallback = callback;
+        onProjectedGraphUpdate: (callback: (graph: any) => void) => {
+          mockElectronAPI.graph._projectedGraphCallback = callback;
           return () => {};
         },
         onGraphClear: () => () => {},
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _updateCallback: undefined as ((delta: any) => void) | undefined
+        _projectedGraphCallback: undefined as ((graph: any) => void) | undefined
       },
 
       // General IPC communication

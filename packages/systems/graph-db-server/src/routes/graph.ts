@@ -7,7 +7,6 @@ import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
 import { getGraph, getNode } from '../state/graph-store.ts'
 import { publish } from '../events/deltaEventBus.ts'
 import type { SessionRegistry } from '../session/registry.ts'
-import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -95,7 +94,7 @@ function jsonError(
   return c.json(ErrorResponseSchema.parse({ error, code }), status)
 }
 
-export function createGraphRoutes(registry: SessionRegistry): Hono {
+export function createGraphRoutes(_registry: SessionRegistry): Hono {
   const app = new Hono()
 
   app.get('/', (c) => {
@@ -115,10 +114,6 @@ export function createGraphRoutes(registry: SessionRegistry): Hono {
       await applyGraphDeltaToDBThroughMemAndUI(delta)
       const sessionId = c.req.header('X-Session-Id') ?? 'anonymous'
       publish({ delta, source: `session:${sessionId}` })
-      const session = registry.get(sessionId)
-      if (session) {
-        await projectAndBroadcast(session)
-      }
       return c.json({ delta, graph: GraphStateSchema.parse(getGraph()) })
     } catch (error) {
       return jsonError(

@@ -34,10 +34,6 @@ export function initializeGraphModel(): void {
     })
 
     const callbacks: GraphModelCallbacks = {
-        // Core graph broadcasting
-        onGraphDelta(_delta: GraphDelta): void {
-            // No-op: daemon-ipc-proxy.syncRendererFromDaemon sends directly via IPC
-        },
         onFloatingEditorUpdate(delta: GraphDelta): void {
             uiAPI.updateFloatingEditorsFromExternal(delta)
         },

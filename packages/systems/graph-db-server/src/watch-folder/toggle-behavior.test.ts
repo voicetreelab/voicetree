@@ -36,7 +36,7 @@ vi.mock('./create-starter-node', () => ({
 
 vi.mock('../graph/applyGraphDelta', () => ({
     applyGraphDeltaToMemState: vi.fn().mockResolvedValue([]),
-    broadcastGraphDeltaToUI: vi.fn(),
+    refreshGraphChangeSideEffects: vi.fn(),
 }))
 
 vi.mock('../graph/notifyTextToTreeServer', () => ({

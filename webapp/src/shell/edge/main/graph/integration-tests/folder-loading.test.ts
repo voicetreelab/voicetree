@@ -121,7 +121,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
   beforeEach(async () => {
     // Drain fire-and-forget async operations from previous test (e.g. void applyAndBroadcast
-    // which does async wikilink resolution before broadcasting graph:stateChanged)
+    // which does async wikilink resolution before publishing projected graph updates)
     await new Promise(resolve => setTimeout(resolve, 500))
 
     // Reset broadcast tracking before wiring graph-model callbacks.
@@ -131,9 +131,6 @@ describe.skip('Folder Loading - Integration Tests', () => {
     initGraphModel(
       { appSupportPath: path.join(tempFixtureRoot, 'app-support') },
       {
-        onGraphDelta: (delta: GraphDelta): void => {
-          broadcastCalls.push({ channel: 'graph:stateChanged', delta })
-        },
         onGraphCleared: (): void => {
           broadcastCalls.push({ channel: 'graph:clear', delta: [] })
         },
@@ -256,11 +253,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
       // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
       expect(graphBroadcasts.length).toBe(3)
       expect(graphBroadcasts[0].channel).toBe('graph:clear')
-      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
+      expect(graphBroadcasts[1].channel).toBe('graph:projectedGraphUpdate')
       expect(graphBroadcasts[1].delta).toBeDefined()
       expect(graphBroadcasts[2].channel).toBe('watching-started')
     }, INTEGRATION_TEST_TIMEOUT_MS)
@@ -286,11 +283,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
       // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
       expect(graphBroadcasts.length).toBe(3)
       expect(graphBroadcasts[0].channel).toBe('graph:clear')
-      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
+      expect(graphBroadcasts[1].channel).toBe('graph:projectedGraphUpdate')
       expect(graphBroadcasts[2].channel).toBe('watching-started')
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
@@ -391,11 +388,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // Node IDs now include .md extension
       expect(testNode.outgoingEdges.some((e: Edge) => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
 
-      // Verify broadcast was sent (graph:stateChanged)
+      // Verify broadcast was sent (graph:projectedGraphUpdate)
       // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
-      // 1. graph:stateChanged (for cytoscape UI)
+      // 1. graph:projectedGraphUpdate (for cytoscape UI)
       // 2. ui:call (for floating editors)
-      const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      const graphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
       if (graphStateChangedBroadcasts.length > 0) {
         const addBroadcast: BroadcastCall | undefined = graphStateChangedBroadcasts.find(call =>
           call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.absoluteFilePathIsID === testFilePath)
@@ -427,11 +424,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
       const graphAfterDelete: Graph = getGraph()
       expect(graphAfterDelete.nodes[testFilePath]).toBeUndefined()
 
-      // Verify broadcast was sent (graph:stateChanged)
+      // Verify broadcast was sent (graph:projectedGraphUpdate)
       // Note: handleFSEventWithStateAndUISides sends 2 broadcasts:
-      // 1. graph:stateChanged (for cytoscape UI)
+      // 1. graph:projectedGraphUpdate (for cytoscape UI)
       // 2. ui:call (for floating editors)
-      const deleteGraphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      const deleteGraphStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
       if (deleteGraphStateChangedBroadcasts.length > 0) {
         const deleteBroadcast: BroadcastCall | undefined = deleteGraphStateChangedBroadcasts.find(call =>
           call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === testFilePath)
@@ -478,8 +475,8 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // Verify all broadcasts used valid channels (includes ui:call from settings/vault state)
       broadcastCalls.forEach(call => {
-        expect(['graph:stateChanged', 'graph:clear', 'watching-started', 'ui:call']).toContain(call.channel)
-        if (call.channel === 'graph:stateChanged') {
+        expect(['graph:projectedGraphUpdate', 'graph:clear', 'watching-started', 'ui:call']).toContain(call.channel)
+        if (call.channel === 'graph:projectedGraphUpdate') {
           expect(Array.isArray(call.delta)).toBe(true)
         }
       })
@@ -519,7 +516,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // Wait for async applyAndBroadcast to complete (involves FS I/O for wikilink resolution)
       // Must wait for both graph state AND broadcast since the broadcast fires after async wikilink resolution
       await waitForCondition(
-        () => !!getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:stateChanged'),
+        () => !!getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:projectedGraphUpdate'),
         { maxWaitMs: 5000, errorMessage: 'test-new-file node not added to graph via handleFSEvent' }
       )
 
@@ -528,10 +525,10 @@ describe.skip('Folder Loading - Integration Tests', () => {
       expect(graph.nodes[newFilePath]).toBeDefined()
       expect(graph.nodes[newFilePath].contentWithoutYamlOrLinks).toBe(newFileContent)
 
-      // AND: Broadcast should have been sent (graph:stateChanged)
-      const stateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      // AND: Broadcast should have been sent (graph:projectedGraphUpdate)
+      const stateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
       expect(stateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
-      expect(stateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
+      expect(stateChangedBroadcasts[0].channel).toBe('graph:projectedGraphUpdate')
 
       // Verify the delta contains UpsertNode action
       const addDelta: UpsertNodeDelta | undefined = stateChangedBroadcasts[0].delta.find(d => d.type === 'UpsertNode')
@@ -551,7 +548,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // Wait for async applyAndBroadcast to complete (wait for both graph state and broadcast)
       await waitForCondition(
-        () => !getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:stateChanged'),
+        () => !getGraph().nodes[newFilePath] && broadcastCalls.some(call => call.channel === 'graph:projectedGraphUpdate'),
         { maxWaitMs: 5000, errorMessage: 'test-new-file node not removed from graph via handleFSEvent' }
       )
 
@@ -559,10 +556,10 @@ describe.skip('Folder Loading - Integration Tests', () => {
       const graphAfterDelete: Graph = getGraph()
       expect(graphAfterDelete.nodes[newFilePath]).toBeUndefined()
 
-      // AND: Broadcast should have been sent (graph:stateChanged)
-      const deleteStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:stateChanged')
+      // AND: Broadcast should have been sent (graph:projectedGraphUpdate)
+      const deleteStateChangedBroadcasts: BroadcastCall[] = broadcastCalls.filter(call => call.channel === 'graph:projectedGraphUpdate')
       expect(deleteStateChangedBroadcasts.length).toBeGreaterThanOrEqual(1)
-      expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:stateChanged')
+      expect(deleteStateChangedBroadcasts[0].channel).toBe('graph:projectedGraphUpdate')
 
       const deleteDelta: DeleteNode | undefined = deleteStateChangedBroadcasts[0].delta.find(d => d.type === 'DeleteNode')
       expect(deleteDelta).toBeDefined()
@@ -577,7 +574,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // THEN: Should have broadcast graph-specific channels (clear + stateChanged + watching-started)
       // Additional ui:call broadcasts may come from settings/vault state updates
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
       expect(graphBroadcasts.length).toBe(3)
 
@@ -588,8 +585,8 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // AND: First broadcast should be graph:clear
       expect(clearBroadcast.channel).toBe('graph:clear')
 
-      // AND: Second broadcast should use graph:stateChanged channel
-      expect(stateChangedBroadcast.channel).toBe('graph:stateChanged')
+      // AND: Second broadcast should use graph:projectedGraphUpdate channel
+      expect(stateChangedBroadcast.channel).toBe('graph:projectedGraphUpdate')
 
       // AND: Third broadcast should be watching-started
       expect(watchingStartedBroadcast.channel).toBe('watching-started')
@@ -614,7 +611,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // GIVEN: Load first directory
       await loadFixtureFolder(exampleSmallPath)
       const firstGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
       expect(firstGraphBroadcasts.length).toBe(3) // clear + stateChanged + watching-started
 
@@ -623,7 +620,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // THEN: Should have 6 graph-specific broadcasts total (3 for each load)
       const allGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
+        ['graph:clear', 'graph:projectedGraphUpdate', 'watching-started'].includes(c.channel)
       )
       expect(allGraphBroadcasts.length).toBe(6)
 
@@ -632,7 +629,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       const secondStateChangedBroadcast: BroadcastCall = allGraphBroadcasts[4]
       const secondWatchingStartedBroadcast: BroadcastCall = allGraphBroadcasts[5]
       expect(secondClearBroadcast.channel).toBe('graph:clear')
-      expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
+      expect(secondStateChangedBroadcast.channel).toBe('graph:projectedGraphUpdate')
       expect(secondWatchingStartedBroadcast.channel).toBe('watching-started')
       expect(Array.isArray(secondStateChangedBroadcast.delta)).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)

@@ -6,7 +6,7 @@
  * 4. If the badge exists, attempt to force-show it via the InjectBar registry.
  * 5. Take screenshots to document the state.
  * 6. (Pipeline test) Create a new node in the vault, verify badge becomes visible via the
- *    full pipeline: file watcher → graph delta → broadcastGraphDeltaToUI →
+ *    full pipeline: file watcher → graph delta → projected graph update →
  *    refreshAllInjectBadges (debounced 500ms) → getUnseenNodesForTerminal → updateBadge.
  *
  * PURPOSE: Reproduce reported issue that the inject badge no longer appears in terminal titles,
@@ -464,7 +464,7 @@ test.describe('Inject Badge in Terminal Title Bar', () => {
     console.log('=== PIPELINE TEST STEP 5: Create new markdown file in vault ===');
     // Creating a new .md file in the vault triggers:
     // file watcher 'add' → handleFSEventWithStateAndUISides → applyGraphDeltaToMemState →
-    // broadcastGraphDeltaToUI → refreshAllInjectBadges (debounced 500ms) →
+    // projected graph update → refreshAllInjectBadges (debounced 500ms) →
     // getUnseenNodesForTerminal → updateInjectBadge IPC → badge visible
     const testNodeFilename = `test_pipeline_unseen_${Date.now()}.md`;
     const testNodePath = path.join(FIXTURE_VAULT_PATH, 'voicetree', testNodeFilename);

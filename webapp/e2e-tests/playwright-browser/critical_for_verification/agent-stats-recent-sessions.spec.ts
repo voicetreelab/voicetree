@@ -142,12 +142,12 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         _graphState: { nodes: {}, edges: [] },
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
-        onGraphUpdate: (callback: (delta: unknown) => void) => {
-          mockElectronAPI.graph._updateCallback = callback;
+        onProjectedGraphUpdate: (callback: (graph: unknown) => void) => {
+          mockElectronAPI.graph._projectedGraphCallback = callback;
           return () => {};
         },
         onGraphClear: () => () => {},
-        _updateCallback: undefined as ((delta: unknown) => void) | undefined
+        _projectedGraphCallback: undefined as ((graph: unknown) => void) | undefined
       },
       invoke: async () => {},
       _ipcListeners: {} as Record<string, ((event: unknown, ...args: unknown[]) => void)[]>,

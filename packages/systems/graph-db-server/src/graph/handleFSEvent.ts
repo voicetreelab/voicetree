@@ -6,7 +6,7 @@ import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {
     applyGraphDeltaToMemState,
-    broadcastGraphDeltaToUI
+    refreshGraphChangeSideEffects
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
 import {publish} from "../events/deltaEventBus";
@@ -57,8 +57,7 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     // Apply to memory and resolve any new wikilinks (returns merged delta)
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
 
-    // Broadcast merged delta (includes resolved links) to UI
-    broadcastGraphDeltaToUI(mergedDelta)
+    refreshGraphChangeSideEffects()
 
     // Publish to SSE event bus for daemon clients
     publish({ delta: mergedDelta, source: 'fs:external' })
