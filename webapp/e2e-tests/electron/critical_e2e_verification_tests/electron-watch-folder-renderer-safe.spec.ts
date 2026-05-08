@@ -4,7 +4,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, pollForCondition } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, pollForCondition } from './electron-smoke-helpers';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 const ELECTRON_CLI_PATH: string = path.join(PROJECT_ROOT, 'node_modules', 'electron', 'cli.js');

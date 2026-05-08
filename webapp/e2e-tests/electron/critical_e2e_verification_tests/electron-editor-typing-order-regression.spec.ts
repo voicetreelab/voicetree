@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes, pollForCondition } from './electron-smoke-helpers';
+import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes, pollForCondition } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 

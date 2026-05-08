@@ -14,7 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
