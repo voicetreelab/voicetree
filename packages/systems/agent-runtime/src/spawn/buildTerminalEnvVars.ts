@@ -27,11 +27,17 @@ export async function buildTerminalEnvVars(params: {
     }
     const env = getRuntimeEnv()
     const appSupportPath: string = env.getAppSupportPath()
-    const allVaultPaths: readonly string[] = await getVaultPaths()
+    const allVaultPaths: readonly string[] = env.getVaultPaths
+        ? await env.getVaultPaths()
+        : await getVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
-    const vaultPath: string = O.getOrElse(() => '')(await getWritePath())
+    const vaultPath: string = env.getWritePath
+        ? (await env.getWritePath()) ?? ''
+        : O.getOrElse(() => '')(await getWritePath())
 
-    const projectRoot: string | null = getProjectRootWatchedDirectory()
+    const projectRoot: string | null = env.getProjectRootWatchedDirectory
+        ? env.getProjectRootWatchedDirectory()
+        : getProjectRootWatchedDirectory()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
 
     const unexpandedEnvVars: Record<string, string> = {

@@ -356,7 +356,10 @@ export class TerminalManager {
       }
 
       // Always set vault path from watched directory (which IS the vault path, no suffix)
-      const vaultPath: string | null = getProjectRootWatchedDirectory();
+      const runtimeEnv = getRuntimeEnv();
+      const vaultPath: string | null = runtimeEnv.getProjectRootWatchedDirectory
+        ? runtimeEnv.getProjectRootWatchedDirectory()
+        : getProjectRootWatchedDirectory();
       //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
@@ -364,7 +367,7 @@ export class TerminalManager {
       // Set node-based environment variables from attachedToContextNodeId
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
-      const otlpPort: number | null = getRuntimeEnv().getOTLPReceiverPort?.() ?? null;
+      const otlpPort: number | null = runtimeEnv.getOTLPReceiverPort?.() ?? null;
       if (otlpPort) {
         customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
         customEnv.OTEL_METRICS_EXPORTER = 'otlp';

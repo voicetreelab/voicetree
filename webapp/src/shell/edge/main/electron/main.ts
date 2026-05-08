@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import {app, BrowserWindow, nativeImage} from 'electron';
 import path from 'path';
+import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
@@ -16,6 +17,7 @@ import {
     getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
+    syncMcpGraphDbServerState,
 } from '@vt/voicetree-mcp';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
@@ -28,10 +30,18 @@ import {subscribeToRegistry, type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/state/live-state-store';
-import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {
+    getGraphFromDaemon,
+    getLiveStateSnapshotFromDaemon,
+    postDeltaThroughDaemonWithEditors,
+} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
-import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
+import {
+    getProjectRootWatchedDirectory,
+    setOnFolderSwitchCleanup,
+} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
@@ -57,6 +67,19 @@ initializeGraphModel();
 // Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
+    graph: {
+        getGraph: async () => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            return graph;
+        },
+        getVaultPaths,
+        getWritePath: async () => {
+            const writePath: O.Option<string> = await getWritePath();
+            return O.isSome(writePath) ? writePath.value : null;
+        },
+        applyGraphDelta: postDeltaThroughDaemonWithEditors,
+    },
     liveState: {
         applyLiveCommand,
         getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
@@ -72,6 +95,12 @@ configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
+        getProjectRootWatchedDirectory,
+        getVaultPaths,
+        getWritePath: async () => {
+            const writePath: O.Option<string> = await getWritePath();
+            return O.isSome(writePath) ? writePath.value : null;
+        },
     },
     trace,
     ui: {

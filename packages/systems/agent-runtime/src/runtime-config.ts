@@ -17,6 +17,9 @@ export type RuntimeEnvProvider = {
     readonly getAppSupportPath: () => string;
     readonly getMcpPort: () => number;
     readonly getOTLPReceiverPort?: () => number | null;
+    readonly getProjectRootWatchedDirectory?: () => string | null;
+    readonly getVaultPaths?: () => Promise<readonly string[]>;
+    readonly getWritePath?: () => Promise<string | null>;
 };
 
 export type AgentRuntimeConfig = {

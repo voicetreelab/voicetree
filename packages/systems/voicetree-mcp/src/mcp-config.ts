@@ -4,6 +4,7 @@
 // keeping this package free of Electron and renderer-side imports.
 
 import type { Command, Delta, SerializedState } from '@vt/graph-state'
+import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 
 export type LiveStateBridge = {
     readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
@@ -24,7 +25,15 @@ export type SearchBridge = {
     readonly askQuery: (query: string, topK?: number) => Promise<AskQueryResponse>
 }
 
+export type GraphBridge = {
+    readonly getGraph: () => Promise<Graph>
+    readonly getVaultPaths: () => Promise<readonly string[]>
+    readonly getWritePath: () => Promise<string | null>
+    readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
+}
+
 export type McpServerConfig = {
+    readonly graph?: GraphBridge
     readonly liveState?: LiveStateBridge
     readonly search?: SearchBridge
 }
@@ -46,4 +55,8 @@ export function getLiveStateBridge(): LiveStateBridge {
 
 export function getSearchBridge(): SearchBridge | undefined {
     return config.search
+}
+
+export function getGraphBridge(): GraphBridge | undefined {
+    return config.graph
 }
