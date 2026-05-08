@@ -260,21 +260,18 @@ function validateDaemonRuntime(
     },
   )
 
-  const validation =
-    result.status === 0
-      ? { ok: true }
-      : result.error
-        ? { ok: false, reason: result.error.message }
-        : (() => {
-            const stderr = result.stderr.trim()
-            const stdout = result.stdout.trim()
-            const detail =
-              stderr || stdout || `exit status ${result.status ?? 'unknown'}`
-            return {
-              ok: false,
-              reason: detail.split('\n').at(-1) ?? detail,
-            }
-          })()
+  let validation: RuntimeValidation
+  if (result.status === 0) {
+    validation = { ok: true }
+  } else if (result.error) {
+    validation = { ok: false, reason: result.error.message }
+  } else {
+    const stderr = result.stderr.trim()
+    const stdout = result.stdout.trim()
+    const detail =
+      stderr || stdout || `exit status ${result.status ?? 'unknown'}`
+    validation = { ok: false, reason: detail.split('\n').at(-1) ?? detail }
+  }
 
   runtimeValidationCache.set(cacheKey, validation)
   return validation
