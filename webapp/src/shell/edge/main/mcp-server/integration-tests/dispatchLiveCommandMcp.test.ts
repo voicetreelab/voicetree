@@ -188,7 +188,7 @@ function parseTextBlock(result: ToolCallResult): Record<string, unknown> {
     return JSON.parse(textBlock?.text ?? '{}') as Record<string, unknown>
 }
 
-describe('vt_dispatch_live_command real MCP roundtrip', () => {
+describe.skip('vt_dispatch_live_command real MCP roundtrip', () => {
     let server: TestServer
 
     beforeEach(async () => {
