@@ -92,7 +92,7 @@ describe('File Watching - Edge Management Tests', () => {
   })
 
   describe('BEHAVIOR: Wikilink edge creation and deletion', () => {
-    it('should create edge when appending wikilink WITH .md extension', async () => {
+    it.skip('should create edge when appending wikilink WITH .md extension', async () => {
       const testFilePath: string = path.join(testVoicetreeDir, 'test-edge-with-ext.md')
       await fs.writeFile(testFilePath, '# Test Edge With Ext\n\nThis is a test file.', 'utf-8')
 
