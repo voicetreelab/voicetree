@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
@@ -66,6 +66,36 @@ describe('resolveDaemonRuntimeCommand', () => {
           versions: { node: '24.0.0', electron: '38.1.2' },
         }),
       ).toBe(explicitNode)
+    })
+  })
+
+  test('caches runtime validation results by resolved command environment', async () => {
+    await withFakeRuntimeBin(async ({ binDir }) => {
+      const counter = join(binDir, 'explicit-node.count')
+      const explicitNode = join(binDir, 'explicit-node')
+      await writeFile(
+        explicitNode,
+        [
+          '#!/bin/sh',
+          'count=0',
+          `if read count < "${counter}"; then :; fi`,
+          `printf '%s\\n' "$((count + 1))" > "${counter}"`,
+          'exit 0',
+          '',
+        ].join('\n'),
+        'utf8',
+      )
+      await chmod(explicitNode, 0o755)
+
+      const input = {
+        env: { VT_GRAPHD_NODE_BIN: explicitNode, PATH: binDir },
+        execPath: process.execPath,
+        versions: { node: '24.0.0', electron: '38.1.2' },
+      }
+
+      expect(resolveDaemonRuntimeCommand(input)).toBe(explicitNode)
+      expect(resolveDaemonRuntimeCommand(input)).toBe(explicitNode)
+      expect((await readFile(counter, 'utf8')).trim()).toBe('1')
     })
   })
 

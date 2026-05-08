@@ -64,10 +64,6 @@ function selectNewVaultFiles(
     return files.filter((relativePath: string) => !(nodeIdForVaultRelativePath(vaultPath, relativePath) in existingGraph.nodes));
 }
 
-function collectUpsertNodeIds(delta: GraphDelta): readonly string[] {
-    return delta.flatMap(d => d.type === 'UpsertNode' ? [d.nodeToUpsert.absoluteFilePathIsID] : []);
-}
-
 function createUpsertDeltaForNodeIds(graph: Graph, nodeIds: readonly string[]): GraphDelta {
     return nodeIds.map(nodeId => ({
         type: 'UpsertNode' as const,

@@ -1,17 +1,28 @@
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DaemonUnreachableError } from './errors.ts'
 
 const PORT_FILENAME = 'graphd.port'
+const LOCK_FILENAME = 'graphd.lock'
 
 export type PortDiscoveryDeps = {
   now: () => number
   readPortFile: (vault: string) => Promise<number | null>
+  lockFileExists: (vault: string) => boolean
   sleep: (ms: number) => Promise<void>
 }
 
 function portFilePath(vault: string): string {
   return join(vault, '.voicetree', PORT_FILENAME)
+}
+
+function lockFilePath(vault: string): string {
+  return join(vault, '.voicetree', LOCK_FILENAME)
+}
+
+function lockFileExists(vault: string): boolean {
+  return existsSync(lockFilePath(vault))
 }
 
 function sleep(ms: number): Promise<void> {
@@ -56,6 +67,7 @@ export async function discoverPort(
   deps: PortDiscoveryDeps = {
     now: nowMs,
     readPortFile,
+    lockFileExists,
     sleep,
   },
 ): Promise<number> {
@@ -63,12 +75,18 @@ export async function discoverPort(
   const deadline = deps.now() + timeoutMs
   let backoffMs = 50
 
-  while (deps.now() <= deadline) {
-    const port = await deps.readPortFile(vault)
-    if (port !== null) {
-      return port
-    }
+  const initialPort = await deps.readPortFile(vault)
+  if (initialPort !== null) {
+    return initialPort
+  }
 
+  if (!deps.lockFileExists(vault)) {
+    throw new DaemonUnreachableError(
+      `No vt-graphd port or lock file for vault ${vault}`,
+    )
+  }
+
+  while (deps.now() <= deadline) {
     const remainingMs = deadline - deps.now()
     if (remainingMs <= 0) {
       break
@@ -76,6 +94,11 @@ export async function discoverPort(
 
     await deps.sleep(pollDelayMs(backoffMs, remainingMs))
     backoffMs = nextBackoffMs(backoffMs)
+
+    const port = await deps.readPortFile(vault)
+    if (port !== null) {
+      return port
+    }
   }
 
   throw new DaemonUnreachableError(
