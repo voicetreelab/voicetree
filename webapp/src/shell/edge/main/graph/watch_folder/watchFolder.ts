@@ -5,7 +5,6 @@ import { getCallbacks, type FilePath } from '@vt/graph-model'
 import { getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
 import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model'
 import type { ParsedQuery } from '@vt/graph-model'
-import { getGraph } from '@/shell/edge/main/state/graph-store'
 import {
     getProjectRootWatchedDirectory,
     getStartupFolderOverride,
@@ -20,7 +19,6 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from '@vt/app-config/vault-config'
-import { savePositionsSync } from '@vt/app-config/positions'
 
 import {
     isDaemonGraphSyncActive,
@@ -36,6 +34,7 @@ import {
     ensureDaemonClientForVault,
     type CachedDaemonConnection,
 } from '@/shell/edge/main/electron/graph-daemon'
+import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/electron/daemon-graph-queries'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/state/live-state-store'
 import type { VaultState } from '@vt/graph-db-client'
 import {
@@ -248,7 +247,7 @@ async function doLoadFolder(
 
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (previousRoot) {
-        savePositionsSync(getGraph(), previousRoot)
+        await writeCurrentPositionsThroughDaemon()
     }
 
     setProjectRootWatchedDirectory(watchedFolderPath)

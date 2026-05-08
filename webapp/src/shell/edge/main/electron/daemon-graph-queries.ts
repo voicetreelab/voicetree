@@ -1,5 +1,6 @@
+import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks } from '@vt/graph-model'
-import type { FilePath, Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { FilePath, Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import type { GraphDbClient } from '@vt/graph-db-client'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { ensureDaemonClientForVault, type CachedDaemonConnection } from './graph-daemon'
@@ -9,6 +10,7 @@ import type { VTSettings } from '@vt/graph-model/settings'
 import path from 'path'
 
 const TIMEOUT_MS: number = 10_000
+type PositionMap = Record<string, Position>
 
 async function getClient(): Promise<GraphDbClient> {
     const vault: FilePath | null = getProjectRootWatchedDirectory()
@@ -129,4 +131,29 @@ export async function performUndoThroughDaemon(): Promise<boolean> {
 export async function performRedoThroughDaemon(): Promise<boolean> {
     const client: GraphDbClient = await getClient()
     return await client.redo()
+}
+
+export async function writePositionsThroughDaemon(
+    positions: PositionMap,
+): Promise<{ written: number }> {
+    const client: GraphDbClient = await getClient()
+    return await client.writePositions(positions)
+}
+
+export async function writeCurrentPositionsThroughDaemon(): Promise<{ written: number }> {
+    const client: GraphDbClient = await getClient()
+    const graph: Graph = await getNormalizedDaemonGraph(client)
+    return await client.writePositions(collectPositionsFromGraph(graph))
+}
+
+function collectPositionsFromGraph(graph: Graph): PositionMap {
+    return Object.entries(graph.nodes).reduce(
+        (acc: PositionMap, [nodeId, node]: [string, GraphNode]) => {
+            const position = node.nodeUIMetadata.position
+            return O.isSome(position)
+                ? { ...acc, [nodeId]: position.value }
+                : acc
+        },
+        {},
+    )
 }

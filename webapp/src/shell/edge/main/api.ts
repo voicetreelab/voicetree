@@ -100,7 +100,7 @@ export const mainAPI = {
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
 
-  // Position saving - lightweight in-memory update
+  // Position saving through daemon persistence
   saveNodePositions,
 
   // Settings operations
