@@ -59,6 +59,7 @@ import {
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon-sse-subscription';
+import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/graph-daemon';
 import path from 'path';
 
 /**
@@ -113,6 +114,8 @@ export const mainAPI = {
   startFileWatching,
 
   stopFileWatching,
+
+  shutdownGraphDaemon,
 
   getWatchStatus,
 

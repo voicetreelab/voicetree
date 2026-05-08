@@ -165,6 +165,8 @@ export async function pollForCondition(page: import('@playwright/test').Page, fn
 }
 
 export async function robustElectronTeardown(electronApp: import('@playwright/test').ElectronApplication): Promise<void> {
+  await safeDaemonShutdown(electronApp);
+
   const proc = electronApp.process();
   if (proc?.pid) {
     try {
@@ -180,6 +182,23 @@ export async function robustElectronTeardown(electronApp: import('@playwright/te
     ]);
   } catch {
     // Close may fail if already killed
+  }
+}
+
+export async function safeDaemonShutdown(electronApp: import('@playwright/test').ElectronApplication): Promise<void> {
+  try {
+    await Promise.race([
+      (async () => {
+        const page = await electronApp.firstWindow();
+        await page.evaluate(async () => {
+          const api = (window as unknown as { electronAPI?: { main: { shutdownGraphDaemon?: () => Promise<unknown> } } }).electronAPI;
+          await api?.main.shutdownGraphDaemon?.();
+        });
+      })(),
+      new Promise(resolve => setTimeout(resolve, 3000))
+    ]);
+  } catch {
+    // Window may already be closed or app in bad state
   }
 }
 
