@@ -38,7 +38,8 @@ export function startMonitor(
     const monitorId: string = `monitor-${nextMonitorId++}`
     const effectiveIds: string[] = [...terminalIds, ...findExistingDescendants(terminalIds)]
 
-    const intervalId: ReturnType<typeof setInterval> = setInterval(async () => {
+    const intervalId: ReturnType<typeof setInterval> = setInterval(() => { void (async () => {
+        try {
         const now: number = Date.now()
         const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
@@ -121,7 +122,10 @@ export function startMonitor(
             clearInterval(intervalId)
             monitors.delete(monitorId)
         }
-    }, pollIntervalMs)
+        } catch (e: unknown) {
+            console.warn('[agent-completion-monitor] poll error:', e)
+        }
+    })() }, pollIntervalMs)
 
     monitors.set(monitorId, {intervalId, callerTerminalId, terminalIds: effectiveIds})
     return monitorId

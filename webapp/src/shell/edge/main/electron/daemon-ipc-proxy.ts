@@ -196,6 +196,7 @@ async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void
       nodeCount: Object.keys(nextGraph.nodes).length,
     })
   }
+  syncMcpGraphDbServerState(nextGraph, getProjectRootWatchedDirectory())
   await syncRendererFromDaemon(client, nextGraph, vaultState)
   if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }

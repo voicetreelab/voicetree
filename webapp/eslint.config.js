@@ -254,10 +254,8 @@ export default tseslint.config([
       'no-restricted-imports': ['error', {
         patterns: [{
           group: [
-            '@vt/graph-db-server/state/*',
-            '@vt/graph-db-server/watch-folder/*',
-            '@vt/graph-db-server/graph/*',
-            '@vt/graph-db-server/context-nodes/*',
+            '@vt/graph-db-server',
+            '@vt/graph-db-server/*',
           ],
           message: 'Use bridge accessors (graph-bridge.ts / mcp-graph-bridge.ts) instead of direct @vt/graph-db-server imports.',
         }],
