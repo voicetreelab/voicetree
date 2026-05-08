@@ -8,7 +8,20 @@ import type {TerminalRecord} from '@vt/agent-runtime'
 
 // Mock leaf dependencies
 vi.mock('@vt/agent-runtime', () => ({
-    getIdleSince: vi.fn()
+    closeHeadlessAgent: vi.fn(),
+    enqueuePendingMessage: vi.fn(),
+    getHeadlessAgentOutput: vi.fn(),
+    getIdleSince: vi.fn(),
+    getOutput: vi.fn(),
+    getPendingTerminal: vi.fn(),
+    getRuntimeUI: vi.fn(),
+    getTerminalRecords: vi.fn(),
+    registerChild: vi.fn(),
+    resetAuditRetryCount: vi.fn(),
+    runStopHooks: vi.fn(),
+    sendTextToTerminal: vi.fn(),
+    spawnTerminalWithContextNode: vi.fn(),
+    tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
 }))
 
 vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
