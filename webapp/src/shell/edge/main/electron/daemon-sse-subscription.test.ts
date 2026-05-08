@@ -24,6 +24,7 @@ function makeProjectedGraph(label: string): ProjectedGraph {
         revision: 0,
         forests: [],
         arboricity: 0,
+        recentNodeIds: [],
     }
 }
 
@@ -61,6 +62,7 @@ function installFetchStream(chunks: Uint8Array[]): void {
 describe('daemon SSE subscription', () => {
     afterEach(() => {
         unsubscribeFromDaemonSSE()
+        vi.useRealTimers()
         vi.unstubAllGlobals()
     })
 
@@ -89,5 +91,33 @@ describe('daemon SSE subscription', () => {
             expect(sent[0]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph1 })
             expect(sent[1]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph2 })
         })
+    })
+
+    it('recovers when SSE stream goes silent', async () => {
+        vi.useFakeTimers()
+        const sent: SentMessage[] = []
+        const graph: ProjectedGraph = makeProjectedGraph('initial')
+
+        let streamController!: ReadableStreamDefaultController<Uint8Array>
+        const fetchSpy: ReturnType<typeof vi.fn> = vi.fn(async () => new Response(
+            new ReadableStream<Uint8Array>({
+                start(ctrl) { streamController = ctrl },
+            }),
+            { status: 200 },
+        ))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        subscribeToDaemonSSE('s', 'http://127.0.0.1:3210', makeMainWindow(sent))
+        await vi.advanceTimersByTimeAsync(0)
+
+        streamController.enqueue(encodeSSE(graph))
+        await vi.advanceTimersByTimeAsync(0)
+        expect(sent).toHaveLength(1)
+
+        // Stream goes silent — simulates TCP death. Advance past silence timeout + reconnect delay.
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        // System should have detected silence and reconnected (fetch called again).
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
     })
 })

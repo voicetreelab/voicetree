@@ -116,7 +116,7 @@ const test = base.extend<{
     console.log('[Smoke Test] vt-graphd Node:', graphDaemonNodeBin);
 
     const ciFlags = process.env.CI
-      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
       : [];
 
     const electronApp = await electron.launch({
@@ -186,11 +186,19 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
 
     // --open-folder triggers auto-load: initialLoad() → loadFolder() → graph view.
-    // Just wait for Cytoscape to initialize.
-    await window.waitForFunction(
-      () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-      { timeout: 30000 }
-    );
+    // Use timer-based polling (not rAF) — headless Electron on CI throttles
+    // requestAnimationFrame, causing waitForFunction's default raf polling to
+    // never observe cytoscapeInstance despite it being set.
+    await expect.poll(async () => {
+      return await window.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return !!cy && !cy.destroyed();
+      });
+    }, {
+      message: 'Waiting for Cytoscape to initialize via --open-folder auto-load',
+      timeout: 30000,
+      intervals: [250, 500, 1000, 2000]
+    }).toBe(true);
     console.log('[Smoke Test] Graph view loaded via --open-folder auto-load');
 
     await use(window);

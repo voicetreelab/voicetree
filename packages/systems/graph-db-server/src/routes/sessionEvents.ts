@@ -5,6 +5,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { subscribe as subscribeDelta } from '../events/deltaEventBus.ts'
 import { subscribeToProjectedGraph, type ProjectedGraphEvent } from '../events/projectedGraphEventBus.ts'
 import { project } from '@vt/graph-state'
+import { extractRecentNodesFromDelta } from '@vt/graph-model/graph'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { Session } from '../session/types.ts'
 
@@ -51,12 +52,14 @@ export function mountSessionEventsRoute(
         sendGraph(event.graph)
       })
 
-      unsubscribeDelta = subscribeDelta(() => {
+      unsubscribeDelta = subscribeDelta((event) => {
         void (async () => {
           const freshSession: Session | null = registry.get(sessionId)
           if (!freshSession) return
           const state = await buildDaemonState(freshSession)
-          const graph = project(state)
+          const recentNodeIds = extractRecentNodesFromDelta(event.delta)
+            .map(delta => delta.nodeToUpsert.absoluteFilePathIsID)
+          const graph = { ...project(state), recentNodeIds }
           sendGraph(graph)
         })()
       })

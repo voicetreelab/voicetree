@@ -270,5 +270,5 @@ export function project(state: State): ProjectedGraph {
     )
     const edges = projectEdges(nodeEntries, visibleEndpointByNodeId, state.graph.nodes)
     const { forests, arboricity } = computeForests(edges)
-    return { nodes, edges, rootPath, revision: state.meta.revision, forests, arboricity }
+    return { nodes, edges, rootPath, revision: state.meta.revision, forests, arboricity, recentNodeIds: [] }
 }
