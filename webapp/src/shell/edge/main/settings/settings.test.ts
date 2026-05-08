@@ -3,9 +3,9 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { loadSettings, saveSettings, clearSettingsCache, migrateAgentPromptCoreOnAppUpdateIfNeeded } from './settings_IO';
-import type { VTSettings } from '@vt/graph-model/pure/settings/types';
+import type { VTSettings } from '@vt/graph-model/settings';
 
-import {DEFAULT_SETTINGS} from "@vt/graph-model/pure/settings";
+import {DEFAULT_SETTINGS} from "@vt/graph-model/settings";
 import { initGraphModel } from '@vt/graph-model';
 
 vi.mock('electron', () => ({

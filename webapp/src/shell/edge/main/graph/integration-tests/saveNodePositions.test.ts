@@ -18,8 +18,8 @@ import { saveNodePositions } from '@/shell/edge/main/saveNodePositions'
 import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/watchFolder'
 import { loadFolder, stopFileWatching, isWatching } from '@vt/graph-db-server/watch-folder/watchFolder'
-import type { GraphNode, Graph, GraphDelta } from '@vt/graph-model/pure/graph'
-import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
+import type { GraphNode, Graph, GraphDelta } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
 import type { NodeDefinition } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
@@ -29,7 +29,7 @@ import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/t
 import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 // State for mocks
 let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }

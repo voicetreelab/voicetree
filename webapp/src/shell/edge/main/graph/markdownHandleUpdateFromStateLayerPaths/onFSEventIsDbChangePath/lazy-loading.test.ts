@@ -5,8 +5,8 @@ import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk, isReadPath, extractLinkTargets, resolveLinkTarget } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph'
-import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/pure/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta, GraphNode, Edge } from '@vt/graph-model/graph'
 
 /**
  * Tests for isReadPath helper and resolveLinkedNodesInWatchedFolder.

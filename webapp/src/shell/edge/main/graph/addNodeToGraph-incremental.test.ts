@@ -4,12 +4,12 @@ import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@vt/graph-model/pure/graph'
-import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { applyGraphDeltaToGraph } from '@vt/graph-model/pure/graph/graphDelta/applyGraphDeltaToGraph'
+import type { Graph, FSUpdate, GraphDelta, GraphNode } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
+import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
-import { mapFSEventsToGraphDelta } from '@vt/graph-model/pure/graph/mapFSEventsToGraphDelta'
+import { mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
 
 function findNodeByFilename(graph: Graph, relativePathOrFilename: string): GraphNode | undefined {
   const normalized: string = relativePathOrFilename.replace(/\\/g, '/')

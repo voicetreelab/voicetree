@@ -38,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -101,7 +101,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -143,7 +143,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -175,7 +175,7 @@ jobs:
           echo "# warmup" > /tmp/daemon-warmup/root.md
           TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
           timeout 30 node --import "$TSX_PATH" \
-            packages/graph-db-server/bin/vt-graphd.ts \
+            packages/systems/graph-db-server/bin/vt-graphd.ts \
             --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
           rm -rf /tmp/daemon-warmup
 

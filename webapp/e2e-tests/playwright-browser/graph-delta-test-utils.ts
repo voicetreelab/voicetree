@@ -4,12 +4,14 @@
 import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { GraphDelta } from '@/pure/graph';
+import type { ProjectedGraph } from '@vt/graph-state/contract';
 
 export interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
     graph?: {
       _updateCallback?: (delta: GraphDelta) => void;
+      _projectedGraphCallback?: (graph: ProjectedGraph) => void;
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     _triggerIpc?: (channel: string, ...args: any[]) => void;
@@ -36,37 +38,44 @@ export interface ExtendedWindow extends Window {
  */
 export async function setupMockElectronAPI(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    const updateMockGraphState = (delta: GraphDelta): void => {
+      delta.forEach((nodeDelta) => {
+        if (nodeDelta.type === 'UpsertNode') {
+          const node = nodeDelta.nodeToUpsert;
+          mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
+        } else if (nodeDelta.type === 'DeleteNode') {
+          delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
+        }
+      });
+    };
+
+    const emitMockGraphUpdates = async (delta: GraphDelta): Promise<{ success: true }> => {
+      updateMockGraphState(delta);
+
+      const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
+      const projectedGraph: ProjectedGraph = projectDelta(delta);
+      mockElectronAPI.graph._projectedGraph = projectedGraph;
+
+      setTimeout(() => {
+        mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
+        mockElectronAPI.graph._updateCallback?.(delta);
+      }, 10);
+
+      return { success: true };
+    };
+
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
       // Main API (RPC-based, matches mainAPI from functional/shell/main/api.ts)
       main: {
         // Graph operations
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
-        applyGraphDeltaToDBThroughMem: async (delta: GraphDelta) => {
-          // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher
-          // Update mock graph state
-          delta.forEach((nodeDelta) => {
-            if (nodeDelta.type === 'UpsertNode') {
-              const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
-            } else if (nodeDelta.type === 'DeleteNode') {
-              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
-            }
-          });
-
-          // Trigger graph update callback (simulating file watcher event)
-          if (mockElectronAPI.graph._updateCallback) {
-            // Use setTimeout to simulate async file system operation
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
-          return { success: true };
-        },
+        applyGraphDeltaToDBThroughMem: emitMockGraphUpdates,
         getGraph: async () => {
           // Return the current graph state that's updated by sendGraphDelta
           return mockElectronAPI.graph._graphState;
         },
+        getProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         getNode: async (nodeId: string) => {
           // Return a specific node from the graph state
           return mockElectronAPI.graph._graphState.nodes[nodeId];
@@ -99,7 +108,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         loadPreviousFolder: async () => ({ success: false }),
 
         // Backend server configuration
-        getBackendPort: async () => 5001,
+        getBackendPort: async () => null,
 
         // Agent metrics
         getMetrics: async () => ({ sessions: [] }),
@@ -129,47 +138,10 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         },
 
         // UI-edge graph delta operations (used by handleUIActions.ts)
-        applyGraphDeltaToDBThroughMemUIAndEditorExposed: async (delta: GraphDelta) => {
-          // Simulate what the real implementation does: write to DB, then trigger graph update via file watcher
-          // Update mock graph state
-          delta.forEach((nodeDelta) => {
-            if (nodeDelta.type === 'UpsertNode') {
-              const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
-            } else if (nodeDelta.type === 'DeleteNode') {
-              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
-            }
-          });
-
-          // Trigger graph update callback (simulating file watcher event)
-          if (mockElectronAPI.graph._updateCallback) {
-            // Use setTimeout to simulate async file system operation
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
-          return { success: true };
-        },
+        applyGraphDeltaToDBThroughMemUIAndEditorExposed: emitMockGraphUpdates,
 
         // Another UI-edge method (used by modifyNodeContentFromFloatingEditor.ts)
-        applyGraphDeltaToDBThroughMemAndUIExposed: async (delta: GraphDelta) => {
-          // Same as above - update mock graph state and trigger callback
-          delta.forEach((nodeDelta) => {
-            if (nodeDelta.type === 'UpsertNode') {
-              const node = nodeDelta.nodeToUpsert;
-              mockElectronAPI.graph._graphState.nodes[node.absoluteFilePathIsID] = node;
-            } else if (nodeDelta.type === 'DeleteNode') {
-              delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
-            }
-          });
-
-          if (mockElectronAPI.graph._updateCallback) {
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
-          return { success: true };
-        },
+        applyGraphDeltaToDBThroughMemAndUIExposed: emitMockGraphUpdates,
 
         // Terminal state mutations (renderer -> main for MCP and tests)
         updateTerminalIsDone: async () => {},
@@ -226,6 +198,14 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
       graph: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         _graphState: { nodes: {}, edges: [] } as any,
+        _projectedGraph: {
+          nodes: [],
+          edges: [],
+          rootPath: '',
+          revision: 0,
+          forests: [],
+          arboricity: 0
+        } as ProjectedGraph,
         applyGraphDelta: async () => ({ success: true }),
          
         getState: async () => mockElectronAPI.graph._graphState,
@@ -238,9 +218,17 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
             console.log('[Mock] onGraphUpdate cleanup called');
           };
         },
+        onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
+          console.log('[Mock] onProjectedGraphUpdate callback registered');
+          mockElectronAPI.graph._projectedGraphCallback = callback;
+          return () => {
+            console.log('[Mock] onProjectedGraphUpdate cleanup called');
+          };
+        },
         onGraphClear: () => () => {},
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _updateCallback: undefined as ((delta: any) => void) | undefined
+        _updateCallback: undefined as ((delta: any) => void) | undefined,
+        _projectedGraphCallback: undefined as ((graph: ProjectedGraph) => void) | undefined,
       },
 
       // General IPC communication methods
@@ -488,7 +476,7 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
     return action;
   });
 
-  await page.evaluate((delta) => {
+  await page.evaluate(async (delta) => {
     // Reconstruct Maps from serialized arrays inside browser context
     const reconstructedDelta = delta.map((action) => {
       if (action.type === 'UpsertNode' && Array.isArray(action.nodeToUpsert.nodeUIMetadata.additionalYAMLProps)) {
@@ -509,9 +497,13 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
     const electronAPI = (window as unknown as ExtendedWindow).electronAPI;
     if (!electronAPI) throw new Error('electronAPI not available');
 
-    // Access the internal callback that was registered via onGraphUpdate
+    const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
+    const projectedGraph = projectDelta(reconstructedDelta);
+
+    // Access the internal callbacks registered by VoiceTreeGraphView.
     const mockGraphAPI = electronAPI.graph as {
       _updateCallback?: (delta: GraphDelta) => void;
+      _projectedGraphCallback?: (graph: ProjectedGraph) => void;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       _graphState: { nodes: Record<string, any>; edges: any[] };
     };
@@ -525,6 +517,13 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
         delete mockGraphAPI._graphState.nodes[nodeDelta.nodeId];
       }
     });
+
+    if (mockGraphAPI._projectedGraphCallback) {
+      mockGraphAPI._projectedGraphCallback(projectedGraph);
+      console.log('[Test] Triggered projected graph update via electronAPI callback');
+    } else {
+      console.error('[Test] No projected graph update callback registered!');
+    }
 
     if (mockGraphAPI._updateCallback) {
       mockGraphAPI._updateCallback(reconstructedDelta);

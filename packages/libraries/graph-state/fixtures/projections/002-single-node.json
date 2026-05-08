@@ -1,0 +1,23 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "002-single-node",
+  "sourceSnapshot": "002-single-node",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/solo.md",
+        "kind": "file",
+        "label": "solo",
+        "relPath": "solo.md",
+        "basename": "solo",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# solo\n\nOnly node in the graph.\n"
+      }
+    ],
+    "edges": [],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
+  }
+}

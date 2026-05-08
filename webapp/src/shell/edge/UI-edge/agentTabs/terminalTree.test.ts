@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildTerminalTree } from '@vt/graph-model/pure/agentTabs/terminalTree';
-import type { TerminalTreeNode } from '@vt/graph-model/pure/agentTabs/terminalTree';
-import type { TerminalLifecycle } from '@vt/graph-model/pure/agentTabs/types';
+import { buildTerminalTree } from '@vt/graph-model/agent-tabs';
+import type { TerminalTreeNode } from '@vt/graph-model/agent-tabs';
+import type { TerminalLifecycle } from '@vt/graph-model/agent-tabs';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 

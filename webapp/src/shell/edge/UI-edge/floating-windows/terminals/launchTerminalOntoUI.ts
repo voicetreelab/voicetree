@@ -5,7 +5,7 @@ import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/term
 import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
 import * as O from "fp-ts/lib/Option.js";
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
 

@@ -5,7 +5,7 @@
 
 import * as O from 'fp-ts/lib/Option.js'
 import { vi } from 'vitest'
-import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
+import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/types'
 import type { EditorData } from '@/shell/edge/UI-edge/state/UIAppState'
 import { addEditor } from '@/shell/edge/UI-edge/state/EditorStore'

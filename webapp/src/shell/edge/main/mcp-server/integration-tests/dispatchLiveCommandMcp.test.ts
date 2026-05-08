@@ -19,7 +19,7 @@ import path from 'path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import type { Graph } from '@vt/graph-model/pure/graph'
+import type { Graph } from '@vt/graph-model/graph'
 import { serializeState } from '@vt/graph-state'
 
 vi.mock('@vt/graph-model', async () => {
@@ -105,7 +105,7 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
         || command.type === 'Deselect',
 }))
 
-vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({ nodeLineLimit: 70, agents: [] }),
     saveSettings: vi.fn(),
 }))

@@ -39,7 +39,7 @@ describe('daemon mutation import lint rule', () => {
         import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-model'
         import { dispatchCollapse, dispatchExpand } from '@vt/graph-state/state/collapseSetStore'
       `,
-      'packages/graph-db-server/src/__generated__/allowed-daemon-imports.ts',
+      'packages/systems/graph-db-server/src/__generated__/allowed-daemon-imports.ts',
     )
 
     expect(messages).toEqual([])
@@ -56,8 +56,8 @@ describe('daemon mutation import lint rule', () => {
     )
 
     expect(messages).toEqual([
-      'addReadPath is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
-      'dispatchCollapse is daemon-owned. Route it through packages/graph-db-server or a daemon/session-backed main API path.',
+      'addReadPath is daemon-owned. Route it through packages/systems/graph-db-server or a daemon/session-backed main API path.',
+      'dispatchCollapse is daemon-owned. Route it through packages/systems/graph-db-server or a daemon/session-backed main API path.',
     ])
   }, ESLINT_INTEGRATION_TIMEOUT_MS)
 

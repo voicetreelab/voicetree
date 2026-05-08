@@ -1,0 +1,24 @@
+{
+  "name": "@vt/app-config",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./settings": "./src/settings/settings_IO.ts",
+    "./vault-config": "./src/vault-config/voicetree-config-io.ts",
+    "./project": "./src/project/index.ts",
+    "./positions": "./src/positions/positions-store.ts"
+  },
+  "dependencies": {
+    "@vt/graph-model": "*",
+    "@vscode/ripgrep": "^1.15.9",
+    "fp-ts": "^2.16.9",
+    "normalize-path": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/normalize-path": "^3.0.2",
+    "typescript": "~5.8.3"
+  }
+}

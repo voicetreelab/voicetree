@@ -1,6 +1,6 @@
 import type { CollectionReturnValue, NodeSingular } from 'cytoscape';
 
-import { CIRCLE_SIZE } from '@vt/graph-model/pure/graph/node-presentation/types';
+import { CIRCLE_SIZE } from '@vt/graph-model/graph';
 
 type AnyNode = NodeSingular | CollectionReturnValue;
 

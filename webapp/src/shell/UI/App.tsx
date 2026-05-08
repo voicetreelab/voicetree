@@ -9,8 +9,8 @@ import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
 import type {} from "@/shell/electron";
-import type { SavedProject } from "@vt/graph-model/pure/project/types";
-import type { VTSettings } from "@vt/graph-model/pure/settings/types";
+import type { SavedProject } from "@vt/graph-model/project";
+import type { VTSettings } from "@vt/graph-model/settings";
 
 type AppView = 'project-selection' | 'graph-view';
 

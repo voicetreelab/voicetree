@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { JSX } from 'react';
-import type { VTSettings } from '@vt/graph-model/pure/settings/types';
+import type { VTSettings } from '@vt/graph-model/settings';
 import { SettingsSection } from './SettingsSection';
 import type { Section } from './settingsUtils';
 

@@ -7,11 +7,11 @@
 
 import { useCallback, useState, useRef, useEffect } from 'react';
 import type { JSX } from 'react';
-import type { FolderTreeNode as FolderTreeNodeType, FileTreeNode as FileTreeNodeType } from '@vt/graph-model/pure/folders/types';
-import { isFolderTreeNode } from '@vt/graph-model/pure/folders/types';
+import type { FolderTreeNode as FolderTreeNodeType, FileTreeNode as FileTreeNodeType } from '@vt/graph-model/folders';
+import { isFolderTreeNode } from '@vt/graph-model/folders';
 import type { ActionMenuItem } from '@/shell/UI/lib/ctxmenu';
 import '@/shell/electron.d.ts';
-import { absolutePathToGraphFolderId } from '@vt/graph-model/pure/graph/folderCollapse';
+import { absolutePathToGraphFolderId } from '@vt/graph-model/graph';
 
 interface FolderNodeProps {
     readonly node: FolderTreeNodeType;

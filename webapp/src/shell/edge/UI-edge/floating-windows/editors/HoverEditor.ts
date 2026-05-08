@@ -2,8 +2,8 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import {isImageNode} from '@vt/graph-model/pure/graph';
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
+import {isImageNode} from '@vt/graph-model/graph';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';

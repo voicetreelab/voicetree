@@ -1,10 +1,4 @@
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
-import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
-
-type SourceTaggedDelta = {
-    delta: GraphDelta
-    source: string
-}
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -16,7 +10,7 @@ function clearReconnectTimer(): void {
     }
 }
 
-function parseSSEBlock(block: string): SourceTaggedDelta | null {
+function parseSSEBlock(block: string): ProjectedGraph | null {
     const dataLine: string | undefined = block
         .split('\n')
         .find((line: string) => line.startsWith('data:'))
@@ -24,19 +18,18 @@ function parseSSEBlock(block: string): SourceTaggedDelta | null {
     if (!dataLine) return null
 
     try {
-        return JSON.parse(dataLine.slice('data:'.length).trim()) as SourceTaggedDelta
+        return JSON.parse(dataLine.slice('data:'.length).trim()) as ProjectedGraph
     } catch {
         return null
     }
 }
 
-function forwardDelta(
-    event: SourceTaggedDelta,
+function forwardProjectedGraph(
+    graph: ProjectedGraph,
     mainWindow: Electron.BrowserWindow,
 ): void {
     if (mainWindow.isDestroyed()) return
-    mainWindow.webContents.send('graph:stateChanged', event.delta)
-    uiAPI.updateFloatingEditorsFromDaemon(event.delta)
+    mainWindow.webContents.send('graph:projectedGraphUpdate', graph)
 }
 
 async function connectToDaemonSSE(
@@ -66,9 +59,9 @@ async function connectToDaemonSSE(
         buffered = blocks.pop() ?? ''
 
         for (const block of blocks) {
-            const event: SourceTaggedDelta | null = parseSSEBlock(block)
-            if (event) {
-                forwardDelta(event, mainWindow)
+            const graph: ProjectedGraph | null = parseSSEBlock(block)
+            if (graph) {
+                forwardProjectedGraph(graph, mainWindow)
             }
         }
     }

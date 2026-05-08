@@ -23,7 +23,7 @@ echo "→ rebuild-native: webapp (Electron ABI)"
 ( cd "$ROOT/webapp" && "$REBUILD" )
 
 # 2. agent-runtime's direct native deps (node-pty).
-echo "→ rebuild-native: packages/agent-runtime (Electron ABI)"
-( cd "$ROOT/packages/agent-runtime" && "$REBUILD" -f -w node-pty )
+echo "→ rebuild-native: packages/systems/agent-runtime (Electron ABI)"
+( cd "$ROOT/packages/systems/agent-runtime" && "$REBUILD" -f -w node-pty )
 
 echo "✔ rebuild-native: all native modules built for correct ABIs"

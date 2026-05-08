@@ -1,0 +1,38 @@
+{
+  "name": "@vt/agent-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless agent + terminal runtime: PTY orchestration, terminal registry, headless agent manager, hook dispatch, node injection. Embedded in Electron and consumed by vt-mcpd.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./lifecycle": "./src/lifecycle/index.ts",
+    "./lifecycle/output-transition": "./src/lifecycle/output-transition.ts",
+    "./terminals/*": "./src/terminals/*",
+    "./headless/*": "./src/headless/*",
+    "./spawn/*": "./src/spawn/*",
+    "./hooks/*": "./src/hooks/*",
+    "./inject/*": "./src/inject/*",
+    "./util/*": "./src/util/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vt/app-config": "*",
+    "@vt/graph-db-server": "*",
+    "@vt/graph-model": "*",
+    "@xterm/headless": "^6.0.0",
+    "fp-ts": "^2.16.9",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

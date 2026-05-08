@@ -1,0 +1,107 @@
+import type { FolderVisibilityDatabase } from '../views/folderVisibilitySqlite'
+import type { FilePath } from '@vt/graph-model/graph'
+
+type FolderState = 'expanded' | 'collapsed' | 'hidden'
+type FolderVisibilityState = ReadonlyMap<string, FolderState>
+
+type FolderVisibilityStoreApi = {
+    configureFolderVisibilityStore(db: FolderVisibilityDatabase): void
+    clearFolderVisibilityStoreForTests(): void
+    getFolderVisibility(viewId: string): FolderVisibilityState
+    setFolderState(viewId: string, path: string, state: FolderState): void
+}
+
+type FolderVisibilityStoreAndDerivation = FolderVisibilityStoreApi & {
+    deriveWatchRoots(map: FolderVisibilityState): Set<string>
+}
+
+async function loadFolderVisibilityDbModule(): Promise<typeof import('../views/folderVisibilitySqlite')> {
+    return await import('../views/folderVisibilitySqlite')
+}
+
+async function loadViewsRepository(): Promise<typeof import('../views/viewsRepository')> {
+    return await import('../views/viewsRepository')
+}
+
+async function loadFolderVisibilityStore(): Promise<FolderVisibilityStoreApi> {
+    return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreApi
+}
+
+async function loadStoreWithDerivation(): Promise<FolderVisibilityStoreAndDerivation> {
+    return (await import('@vt/graph-state')) as unknown as FolderVisibilityStoreAndDerivation
+}
+
+export async function getExpandedFolderPathsForVault(vaultPath: FilePath): Promise<readonly FilePath[]> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        // node:sqlite is unavailable in this runtime — safe to
+        // return empty because the daemon manages folder visibility in that mode.
+        return []
+    }
+    const store = await loadFolderVisibilityStore()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
+    try {
+        ensureDefaultView(db)
+        store.configureFolderVisibilityStore(db)
+        const activeViewId: string = getActiveViewId(db)
+        return [...store.getFolderVisibility(activeViewId)]
+            .filter(([, state]) => state === 'expanded')
+            .map(([folderPath]) => folderPath)
+    } finally {
+        store.clearFolderVisibilityStoreForTests()
+        dbModule.closeFolderVisibilityDb(db)
+    }
+}
+
+/**
+ * Get the topmost expanded folder paths for the active view (watch roots).
+ * Uses deriveWatchRoots so nested expanded folders don't add redundant mounts.
+ */
+export async function getWatchRootsForActiveView(vaultPath: FilePath): Promise<readonly string[]> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        return []
+    }
+    const store = await loadStoreWithDerivation()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
+    try {
+        ensureDefaultView(db)
+        store.configureFolderVisibilityStore(db)
+        const activeViewId: string = getActiveViewId(db)
+        const map = store.getFolderVisibility(activeViewId)
+        return [...store.deriveWatchRoots(map)]
+    } finally {
+        store.clearFolderVisibilityStoreForTests()
+        dbModule.closeFolderVisibilityDb(db)
+    }
+}
+
+export async function setActiveViewFolderState(
+    vaultPath: FilePath,
+    folderPath: FilePath,
+    state: FolderState,
+): Promise<void> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        return
+    }
+    const store = await loadFolderVisibilityStore()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
+    try {
+        ensureDefaultView(db)
+        store.configureFolderVisibilityStore(db)
+        store.setFolderState(getActiveViewId(db), folderPath, state)
+    } finally {
+        store.clearFolderVisibilityStoreForTests()
+        dbModule.closeFolderVisibilityDb(db)
+    }
+}

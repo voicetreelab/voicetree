@@ -1,0 +1,56 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "005-with-selection",
+  "sourceSnapshot": "005-with-selection",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "kind": "file",
+        "label": "alpha",
+        "relPath": "alpha.md",
+        "basename": "alpha",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Alpha\n\nTracks [Beta]*.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "kind": "file",
+        "label": "beta",
+        "relPath": "beta.md",
+        "basename": "beta",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Beta\n\nExecution detail.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/gamma.md",
+        "kind": "file",
+        "label": "gamma",
+        "relPath": "gamma.md",
+        "basename": "gamma",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Gamma\n\nLoose note.\n"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/alpha.md->/tmp/graph-state-fixtures/root-a/beta.md",
+        "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+        "target": "/tmp/graph-state-fixtures/root-a/beta.md",
+        "kind": "real",
+        "label": "Tracks"
+      }
+    ],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/alpha.md",
+          "target": "/tmp/graph-state-fixtures/root-a/beta.md"
+        }
+      ]
+    ],
+    "arboricity": 1
+  }
+}

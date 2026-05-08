@@ -3,7 +3,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import * as E from 'fp-ts/lib/Either.js'
-import type { Graph, GraphNode } from '@vt/graph-model/pure/graph'
+import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 

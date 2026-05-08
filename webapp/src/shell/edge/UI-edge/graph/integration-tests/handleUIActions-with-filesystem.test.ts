@@ -23,23 +23,23 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph, GraphDelta } from '@vt/graph-model/pure/graph'
-import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
+import type { Graph, GraphDelta } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import {
-    applyDeltaToRendererStateMirror,
+    applyDeltaToTestProjectionState,
     projectDelta,
-    resetRendererStateMirror,
-} from '@/shell/edge/UI-edge/state/rendererStateMirror'
+    resetTestProjectionState,
+} from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
 import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { getGraph as getGraphReal, setGraph as setGraphReal } from '@vt/graph-db-server/state/graph-store'
-import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
+import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
@@ -211,7 +211,7 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
     let mockGraph: Graph
 
     beforeEach(async () => {
-        resetRendererStateMirror()
+        resetTestProjectionState()
         initGraphModel({ appSupportPath: '/tmp/test-userdata-ui-actions' })
         // Import IPC handlers once - they auto-register on import
         await ensureHandlersImported()
@@ -277,7 +277,7 @@ Child content`
         currentGraph = mockGraph
         setGraph(mockGraph)
         setGraphReal(mockGraph)
-        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
+        applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({
@@ -454,7 +454,7 @@ Child content`
         currentGraph = mockGraph
         setGraph(mockGraph)
         setGraphReal(mockGraph)
-        applyDeltaToRendererStateMirror(mapNewGraphToDelta(mockGraph))
+        applyDeltaToTestProjectionState(mapNewGraphToDelta(mockGraph))
 
         // Initialize headless cytoscape
         cy = cytoscape({

@@ -6,8 +6,8 @@ on:
       - 'package.json'
       - 'webapp/eslint.config.js'
       - 'webapp/**'
-      - 'packages/graph-model/**'
-      - 'packages/graph-tools/**'
+      - 'packages/libraries/graph-model/**'
+      - 'packages/libraries/graph-tools/**'
       - '.github/workflows/lint.yml'
   push:
     branches: [main]
@@ -15,8 +15,8 @@ on:
       - 'package.json'
       - 'webapp/eslint.config.js'
       - 'webapp/**'
-      - 'packages/graph-model/**'
-      - 'packages/graph-tools/**'
+      - 'packages/libraries/graph-model/**'
+      - 'packages/libraries/graph-tools/**'
       - '.github/workflows/lint.yml'
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
 

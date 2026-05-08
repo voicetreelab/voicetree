@@ -32,9 +32,9 @@ import {
   clearVaultPath,
 } from '@vt/graph-db-server/watch-folder/watchFolder'
 import { setGraph, getGraph } from '@vt/graph-db-server/state/graph-store'
-import type { GraphDelta, Graph } from '@vt/graph-model/pure/graph'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import type { GraphDelta, Graph } from '@vt/graph-model/graph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 /**
  * Pre-seed vault config so resolveOrCreateConfig uses it directly

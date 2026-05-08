@@ -1,15 +1,14 @@
 /**
- * Graph subscription effect - subscribes to graph delta updates from main process
+ * Graph subscription effect - subscribes to graph updates from main process
  * Extracted from VoiceTreeGraphView to separate concerns
  */
 import type {Core} from 'cytoscape';
-import {mapNewGraphToDelta} from '@vt/graph-model';
-import type {Graph, GraphDelta, UpsertNodeDelta} from '@vt/graph-model/pure/graph';
+import type {GraphDelta, UpsertNodeDelta} from '@vt/graph-model/graph';
+import type {ProjectedGraph} from '@vt/graph-state/contract';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
-import {projectDelta} from '@/shell/edge/UI-edge/state/rendererStateMirror';
-import {extractRecentNodesFromDelta} from '@vt/graph-model/pure/graph/recentNodeHistoryV2';
+import {extractRecentNodesFromDelta} from '@vt/graph-model/graph';
 import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
@@ -45,20 +44,20 @@ export function subscribeToGraphUpdates(
     const cy: Core = navigationService.getCy();
     let disposed: boolean = false;
 
-    const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
-        //console.log('[subscribeToGraphUpdates] Received graph delta, length:', delta.length);
-
-        markRendererLoadTiming('renderer:graph-delta-received', {deltaLength: delta.length});
+    const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
+        markRendererLoadTiming('renderer:projected-graph-received', {nodeCount: graph.nodes.length});
         setLoadingState(false);
         setEmptyStateVisible(false);
         markRendererLoadTiming('renderer:loading-cleared');
 
-        // applyGraphDeltaToUI handles auto-pinning editors for new external nodes.
-        // BF-L5-202b: renderer folds delta into the State mirror + projects
-        // through `project(state)` so cy reflects the true ElementSpec.
-        applyGraphDeltaToUI(cy, projectDelta(delta));
+        applyGraphDeltaToUI(cy, graph);
 
-        // Track last created node for "fit to last node" hotkey (Space)
+        updateNavigatorVisibility();
+    };
+
+    const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
+        markRendererLoadTiming('renderer:graph-delta-received', {deltaLength: delta.length});
+
         const lastUpsertedNode: UpsertNodeDelta | undefined = extractRecentNodesFromDelta(delta)[0];
         if (lastUpsertedNode) {
             navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.absoluteFilePathIsID);
@@ -66,53 +65,39 @@ export function subscribeToGraphUpdates(
 
         searchService.updateSearchDataIncremental(delta);
 
-        // Update navigator visibility based on node count
-        updateNavigatorVisibility();
-
-        // Defer recent node history update to idle time
-        // Store update triggers React re-render via subscribeToRecentNodeHistoryChange
         scheduleIdleWork(() => {
             updateRecentNodeHistoryFromDelta(delta);
         }, 500);
     };
 
     const handleGraphClear: () => void = (): void => {
-        //console.log('[subscribeToGraphUpdates] Received graph:clear event');
         setLoadingState(true, 'Loading Voicetree...');
 
-        // Close all open terminals (UI cleanup - PTY processes already killed by main process)
         closeAllTerminals(cy);
-
         clearCytoscapeState(cy);
-
-        // Close all open floating editors
         closeAllEditors(cy);
-
-        // Clear recent node history — React component re-renders via store subscription
         clearRecentNodeHistory();
-
-        // Reset ninja-keys search data (now rebuilds from empty cytoscape)
         searchService.updateSearchData();
 
         setEmptyStateVisible(true);
     };
 
-    // Subscribe to graph updates via electronAPI (returns cleanup function)
     const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
+    const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
     void (async () => {
-        const graph: Graph | undefined = await electronAPI.main.getGraph();
-        if (disposed || !graph || Object.keys(graph.nodes).length === 0) return;
-        handleGraphDelta(mapNewGraphToDelta(graph));
+        const graph: ProjectedGraph | undefined = await electronAPI.main.getProjectedGraph?.();
+        if (disposed || !graph || graph.nodes.length === 0) return;
+        handleProjectedGraph(graph);
     })().catch((error: unknown) => {
-        console.error('[subscribeToGraphUpdates] Failed to hydrate initial graph:', error);
+        console.error('[subscribeToGraphUpdates] Failed to hydrate initial projected graph:', error);
     });
 
-    // Return combined cleanup function
     return (): void => {
         disposed = true;
         cleanupUpdate();
+        cleanupProjected();
         cleanupClear();
     };
 }

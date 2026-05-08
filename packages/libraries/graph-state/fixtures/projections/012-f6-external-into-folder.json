@@ -1,0 +1,80 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "012-f6-external-into-folder",
+  "sourceSnapshot": "012-f6-external-into-folder",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
+        "label": "overview",
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Overview\n\nTracks [BF-117]*.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
+        "label": "tasks",
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "kind": "file",
+        "label": "BF-117",
+        "relPath": "tasks/BF-117.md",
+        "basename": "BF-117",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# BF-117\n\nDepends on [BF-118]*.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "kind": "file",
+        "label": "BF-118",
+        "relPath": "tasks/BF-118.md",
+        "basename": "BF-118",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# BF-118\n\nReady for execution.\n"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md->/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "source": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "target": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "kind": "real",
+        "label": "Tracks"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "target": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "kind": "real",
+        "label": "Depends on"
+      }
+    ],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/overview.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md"
+        },
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md"
+        }
+      ]
+    ],
+    "arboricity": 1
+  }
+}

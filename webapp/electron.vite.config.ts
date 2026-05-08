@@ -51,7 +51,7 @@ const graphStateFixtureFilenameShimPlugin = {
   name: 'graph-state-fixture-filename-shim',
   enforce: 'pre' as const,
   transform(code: string, id: string) {
-    if (!id.includes('/packages/graph-state/src/fixtures.ts')) {
+    if (!id.includes('/packages/libraries/graph-state/src/fixtures.ts')) {
       return null
     }
 
@@ -206,13 +206,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -232,13 +237,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -288,10 +298,10 @@ export default defineConfig({
     base: './',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-state$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/index.ts') },
-        { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/$1') },
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-state$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-state/src/index.ts') },
+        { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-state/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
         { find: '@', replacement: path.resolve(__dirname, './src') },
         { find: '@wasm', replacement: path.resolve(__dirname, './tidy/wasm_dist') },
         // Alias CSS imports from @material to prevent import errors

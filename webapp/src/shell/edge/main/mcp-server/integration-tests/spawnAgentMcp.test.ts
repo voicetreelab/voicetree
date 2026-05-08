@@ -1,7 +1,7 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import type {VTSettings} from '@vt/graph-model/pure/settings'
+import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
@@ -21,7 +21,7 @@ vi.mock('@vt/agent-runtime', async (importOriginal) => {
     }
 })
 
-vi.mock('@vt/graph-db-server/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn()
 }))
 
@@ -43,7 +43,7 @@ import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords} from '@vt/agent-runtime'
-import {loadSettings} from '@vt/graph-db-server/settings/settings_IO'
+import {loadSettings} from '@vt/app-config/settings'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 type McpToolResponse = {

@@ -5,7 +5,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import { getFolderNotePath } from '@vt/graph-model';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {applyAnchoredEditorOpenStyle, applyAnchoredEditorCloseStyle} from './anchoredEditorVisualStyle';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';

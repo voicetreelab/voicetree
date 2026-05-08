@@ -6,7 +6,7 @@
  */
 
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
@@ -46,7 +46,10 @@ import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, cop
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
   getGraphFromDaemon as getGraph,
+  getProjectedGraphFromDaemon as getProjectedGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
@@ -89,7 +92,13 @@ export const mainAPI = {
 
   getGraph,
 
+  getProjectedGraph,
+
   getNode,
+
+  // Collapse/expand through daemon RPC
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
 
   // Position saving - lightweight in-memory update
   saveNodePositions,

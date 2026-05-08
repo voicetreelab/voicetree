@@ -4,9 +4,9 @@ import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, typ
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
-import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
+import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
@@ -286,18 +286,6 @@ async function syncRendererSessionState(
         zoom: undefined,
       }
 
-  for (const folderId of localState.collapseSet) {
-    if (!previous.collapseSet.has(folderId)) {
-      await client.collapse(sessionId, folderId)
-    }
-  }
-
-  for (const folderId of previous.collapseSet) {
-    if (!localState.collapseSet.has(folderId)) {
-      await client.expand(sessionId, folderId)
-    }
-  }
-
   if (!sameStringSet(previous.selection, localState.selection)) {
     await client.setSelection(sessionId, {
       mode: 'replace',
@@ -402,6 +390,12 @@ export async function getGraphFromDaemon(): Promise<Graph> {
   return graphWithLocalPositionOverlays(await getNormalizedDaemonGraph(client), getLocalGraph())
 }
 
+export async function getProjectedGraphFromDaemon(): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.getProjectedGraph(sessionId)
+}
+
 export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const sessionId: string = await ensureRendererSession(client)
@@ -449,6 +443,18 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   return await syncRendererSessionState(client, localState)
+}
+
+export async function collapseFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.collapse(sessionId, folderId)
+}
+
+export async function expandFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.expand(sessionId, folderId)
 }
 
 export async function getActiveDaemonVaultState(): Promise<VaultState | null> {

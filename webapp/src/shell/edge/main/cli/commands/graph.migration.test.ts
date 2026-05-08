@@ -8,7 +8,6 @@ import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-stor
 import {
     formatLintReportHuman,
     lintGraph,
-    renderAutoView,
     renderGraphView,
     type ViewGraphResult,
 } from '@vt/graph-tools/node'
@@ -16,10 +15,10 @@ import {
     createEmptyGraph,
     initGraphModel,
 } from '@vt/graph-model'
-import {saveVaultConfigForDirectory} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
 import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 // eslint-disable-next-line no-restricted-imports
-import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
+import {type DaemonHandle, startDaemon} from '../../../../../../../packages/systems/graph-db-server/src/server.ts'
 import {main} from '@/shell/edge/main/cli/voicetree-cli.ts'
 
 class ExitCalled extends Error {
@@ -190,8 +189,8 @@ describe('graph daemon migration', () => {
         vi.restoreAllMocks()
     })
 
-    it('routes graph structure through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot()).output
+    it('routes graph structure through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli')).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'structure', 'docs']),
@@ -219,8 +218,8 @@ describe('graph daemon migration', () => {
         expect(result.stdout).toBe(expectedStdout)
     }, 15000)
 
-    it('routes auto graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot(), {budget: 2}).output
+    it('routes auto graph view rendering through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli', {budget: 2})).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'view', 'docs', '--auto', '--budget', '2']),

@@ -49,12 +49,12 @@ This file is the BF-230 coordination artifact for archive-time citation.
   - Treat daemon-backed `vt vault`, `vt session`, and `vt view` flows as the stable default interface for live graph state.
   - Do not overclaim full daemon migration: agent-control flows still live on the MCP/Electron side in v1.
 - `brain/working-memory/tasks/BF-104-decouple-webapp/arch.md`
-  - The backend split for graph/vault/view state is now real in repo code through `packages/graph-db-server/` and `packages/graph-db-client/`.
+  - The backend split for graph/vault/view state is now real in repo code through `packages/systems/graph-db-server/` and `packages/systems/graph-db-client/`.
   - Remaining BF-104 extraction work should be framed as the engine/agent-control split, not as graph-state ownership still living in Electron main.
 
 ## Files To Cite
 
-- `packages/graph-db-server/README.md`
+- `packages/systems/graph-db-server/README.md`
 - `CLAUDE.md`
 - `docs/daemon-first-architecture.md`
 

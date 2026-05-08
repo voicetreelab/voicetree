@@ -36,10 +36,10 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
+import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/graph'
 import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 const EXAMPLE_SMALL_WRITE_PATH: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
 const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree-24-2')

@@ -16,7 +16,8 @@
 // =============================================================================
 
 import {contextBridge, ipcRenderer} from 'electron';
-import type {GraphDelta} from "@vt/graph-model/pure/graph";
+import type {GraphDelta} from "@vt/graph-model/graph";
+import type {ProjectedGraph} from "@vt/graph-state/contract";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api';
 
@@ -95,6 +96,13 @@ async function exposeElectronAPI(): Promise<void> {
                 return () => ipcRenderer.off('graph:stateChanged', handler);
             },
 
+            // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
+            onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
+                const handler: (_event: unknown, graph: ProjectedGraph) => void = (_event: unknown, graph: ProjectedGraph) => callback(graph);
+                ipcRenderer.on('graph:projectedGraphUpdate', handler);
+                return () => ipcRenderer.off('graph:projectedGraphUpdate', handler);
+            },
+
             // Subscribe to graph clear events (returns unsubscribe function)
             onGraphClear: (callback: () => void) => {
                 const handler: () => void = () => callback();
@@ -107,7 +115,7 @@ async function exposeElectronAPI(): Promise<void> {
         // These generic methods are kept for backwards compatibility but restricted to safe channels
         invoke: (channel: string, ...args: unknown[]) => {
             // Security: Only allow specific IPC channels to prevent XSS escalation to RCE
-            const ALLOWED_INVOKE_CHANNELS = new Set([
+            const ALLOWED_INVOKE_CHANNELS: Set<string> = new Set([
                 'rpc:call',
                 'rpc:getApiKeys',
                 'terminal:spawn',
@@ -123,11 +131,12 @@ async function exposeElectronAPI(): Promise<void> {
         },
         on: (channel: string, listener: (...args: unknown[]) => void) => {
             // Security: Only allow subscribing to specific event channels
-            const ALLOWED_ON_CHANNELS = new Set([
+            const ALLOWED_ON_CHANNELS: Set<string> = new Set([
                 'terminal:data',
                 'terminal:exit',
                 'backend-log',
                 'graph:stateChanged',
+                'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
                 'ui:call',
@@ -140,11 +149,12 @@ async function exposeElectronAPI(): Promise<void> {
         },
         off: (channel: string, listener: (...args: unknown[]) => void) => {
             // Security: Match the same allowlist as 'on'
-            const ALLOWED_OFF_CHANNELS = new Set([
+            const ALLOWED_OFF_CHANNELS: Set<string> = new Set([
                 'terminal:data',
                 'terminal:exit',
                 'backend-log',
                 'graph:stateChanged',
+                'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
                 'ui:call',
