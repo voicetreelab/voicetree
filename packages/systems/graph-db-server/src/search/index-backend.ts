@@ -3,9 +3,13 @@ import {SearchIndexNotFoundError} from './types'
 
 void SearchIndexNotFoundError
 
-export async function buildIndex(vaultPath: string): Promise<void> {
+type SearchLogger = {
+    log(message: string): void
+}
+
+export async function buildIndex(vaultPath: string, logger: SearchLogger = console): Promise<void> {
     void vaultPath
-    console.log('vector search todo')
+    logger.log('vector search todo')
 }
 
 export async function search(vaultPath: string, query: string, topK: number): Promise<readonly NodeSearchHit[]> {

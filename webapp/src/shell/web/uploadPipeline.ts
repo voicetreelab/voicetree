@@ -50,7 +50,7 @@ export const uploadPipeline: (baseUrl: string) => (droppedFiles: FileList) => TE
             )
         ),
         TE.chain(({ files, paths }) => {
-            const manifest: ShareManifest = buildManifest(paths, extractFolderName(droppedFiles))
+            const manifest: ShareManifest = buildManifest(paths, extractFolderName(droppedFiles), new Date().toISOString())
             return TE.tryCatch(
                 () => uploadToR2(baseUrl, files, manifest),
                 (err: unknown): UploadError => ({ tag: 'UploadFailed', error: String(err) })

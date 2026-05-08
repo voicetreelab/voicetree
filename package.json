@@ -17,13 +17,15 @@
     "test:e2e:tier1": "npm --workspace webapp run test:e2e:tier1",
     "test:e2e:tier2": "npm --workspace webapp run test:e2e:tier2",
     "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
-    "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron"
+    "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron",
+    "check:dead-code": "knip --no-progress --include files,exports"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
-    "jsdom": "^27.0.0"
+    "jsdom": "^27.0.0",
+    "knip": "^6.12.1"
   },
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
 }

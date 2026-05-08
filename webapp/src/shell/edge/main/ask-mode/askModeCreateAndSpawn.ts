@@ -5,7 +5,7 @@
 import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph';
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings';
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
@@ -61,7 +61,10 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   }
 
   // 5. Prepare terminal data
-  const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
+  const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
+    settings.INJECT_ENV_VARS,
+    (values: readonly string[]) => Math.floor(Math.random() * values.length)
+  );
   const strippedTitle: string = contextNodeResult.title.replace(/^ASK:\s*/i, '');
   // Generate unique agent name with collision handling
   const baseAgentName: string = getNextAgentName();

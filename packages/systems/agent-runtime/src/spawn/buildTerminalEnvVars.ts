@@ -4,7 +4,7 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings'
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store'
@@ -20,7 +20,10 @@ export async function buildTerminalEnvVars(params: {
     readonly promptTemplate?: string
     readonly envOverrides?: Record<string, string>
 }): Promise<Record<string, string>> {
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(params.settings.INJECT_ENV_VARS)
+    const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
+        params.settings.INJECT_ENV_VARS,
+        (values: readonly string[]) => Math.floor(Math.random() * values.length)
+    )
 
     if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]

@@ -32,11 +32,37 @@ export interface SpawnAgentParams {
     depthBudget?: number
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams): Promise<McpToolResponse> {
-    //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
+export interface SpawnAgentDeps {
+    readonly listTerminalRecords: () => TerminalRecord[]
+    readonly consumeBudget: typeof tryConsumeAndSplitBudget
+    readonly loadAgentSettings: typeof loadSettings
+    readonly loadWritePath: typeof getMcpWritePath
+    readonly loadGraph: typeof getMcpGraph
+    readonly applyDelta: typeof applyMcpGraphDelta
+    readonly spawnTerminal: typeof spawnTerminalWithContextNode
+    readonly rememberChild: typeof registerChild
+    readonly monitorChildren: typeof startMonitor
+}
+
+const defaultSpawnAgentDeps: SpawnAgentDeps = {
+    listTerminalRecords: getTerminalRecords,
+    consumeBudget: tryConsumeAndSplitBudget,
+    loadAgentSettings: loadSettings,
+    loadWritePath: getMcpWritePath,
+    loadGraph: getMcpGraph,
+    applyDelta: applyMcpGraphDelta,
+    spawnTerminal: spawnTerminalWithContextNode,
+    rememberChild: registerChild,
+    monitorChildren: startMonitor,
+}
+
+export async function spawnAgentTool(
+    {nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams,
+    deps: SpawnAgentDeps = defaultSpawnAgentDeps,
+): Promise<McpToolResponse> {
 
     // Validate caller terminal exists
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
     const callerExists: boolean = terminalRecords.some(
         (record: TerminalRecord) => record.terminalId === callerTerminalId
     )
@@ -62,7 +88,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
     }
 
     // Check global spawn budget before proceeding (fair rebalancing: splits caller's budget among siblings)
-    const budgetResult: { allowed: boolean; childBudget: number | undefined } = tryConsumeAndSplitBudget(callerTerminalId)
+    const budgetResult: { allowed: boolean; childBudget: number | undefined } = deps.consumeBudget(callerTerminalId)
     if (!budgetResult.allowed) {
         return buildJsonResponse({
             success: false,
@@ -89,7 +115,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
     let resolvedAgentCommand: string | undefined
     const callerAgentTypeName: string | undefined = callerRecord?.terminalData.agentTypeName
     if (agentName || callerAgentTypeName) {
-        const settings: VTSettings = await loadSettings()
+        const settings: VTSettings = await deps.loadAgentSettings()
         const agents: readonly { readonly name: string; readonly command: string }[] = settings?.agents ?? []
         if (agentName) {
             const matchedAgent: { readonly name: string; readonly command: string } | undefined =
@@ -117,7 +143,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         return callerRecord?.terminalData.initialSpawnDirectory
     })()
 
-    const vaultPathOpt: O.Option<string> = await getMcpWritePath()
+    const vaultPathOpt: O.Option<string> = await deps.loadWritePath()
     if (O.isNone(vaultPathOpt)) {
         return buildJsonResponse({
             success: false,
@@ -126,7 +152,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
     }
     const writePath: string = vaultPathOpt.value
 
-    const graph: Graph = await getMcpGraph()
+    const graph: Graph = await deps.loadGraph()
 
     // Branch: If task is provided, create a new task node first
     if (task) {
@@ -201,7 +227,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 : []
 
             // Apply task-node creation + caller-context update as one batched delta.
-            await applyMcpGraphDelta([...taskNodeDelta, ...callerContextUpdateDelta])
+            await deps.applyDelta([...taskNodeDelta, ...callerContextUpdateDelta])
 
             // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
             // When replaceSelf, the successor inherits the caller's terminal ID and its parent
@@ -210,11 +236,11 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
                 : callerTerminalId
             const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+                await deps.spawnTerminal(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
             if (!replaceSelf) {
-                registerChild(callerTerminalId, terminalId)
-                startMonitor(callerTerminalId, [terminalId], 5000)
+                deps.rememberChild(callerTerminalId, terminalId)
+                deps.monitorChildren(callerTerminalId, [terminalId], 5000)
             }
 
             return buildJsonResponse({
@@ -276,7 +302,7 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
                 },
                 previousNode: O.some(targetNode)
             }]
-            await applyMcpGraphDelta(claimDelta)
+            await deps.applyDelta(claimDelta)
         }
 
         // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
@@ -286,11 +312,11 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
             : callerTerminalId
         const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+            await deps.spawnTerminal(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
 
         if (!replaceSelf) {
-            registerChild(callerTerminalId, terminalId)
-            startMonitor(callerTerminalId, [terminalId], 5000)
+            deps.rememberChild(callerTerminalId, terminalId)
+            deps.monitorChildren(callerTerminalId, [terminalId], 5000)
         }
 
         return buildJsonResponse({

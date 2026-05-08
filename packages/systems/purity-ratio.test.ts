@@ -51,13 +51,23 @@ async function listSourceFiles(root: string): Promise<string[]> {
     return results.sort()
 }
 
-type FunctionInfo = {
+type MutableFunctionInfo = {
     readonly name: string
     readonly file: string
     readonly line: number
+    readonly loc: number
+    readonly bodyText: string
     readonly isExported: boolean
     readonly isAsync: boolean
+    sideEffects: string[]
+}
+
+type FunctionInfo = Omit<MutableFunctionInfo, 'bodyText' | 'sideEffects'> & {
     readonly sideEffects: readonly string[]
+}
+
+function countLoc(bodyText: string): number {
+    return bodyText.split('\n').filter(line => line.trim().length > 0).length
 }
 
 const SIDE_EFFECT_PATTERNS: ReadonlyArray<{
@@ -108,7 +118,7 @@ const SIDE_EFFECT_PATTERNS: ReadonlyArray<{
     { category: 'react-hook', pattern: /\buseCallback\s*\(/ },
 ]
 
-function detectSideEffects(bodyText: string): string[] {
+function detectDirectSideEffects(bodyText: string): string[] {
     const effects: Set<string> = new Set()
     for (const { category, pattern } of SIDE_EFFECT_PATTERNS) {
         if (pattern.test(bodyText)) {
@@ -124,8 +134,8 @@ function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
     return modifiers?.some(m => m.kind === kind) ?? false
 }
 
-function extractFunctions(filePath: string, sourceFile: ts.SourceFile): FunctionInfo[] {
-    const functions: FunctionInfo[] = []
+function extractFunctions(filePath: string, sourceFile: ts.SourceFile): MutableFunctionInfo[] {
+    const functions: MutableFunctionInfo[] = []
     const relPath: string = relative(REPO_ROOT, filePath)
 
     function isExported(node: ts.Node): boolean {
@@ -144,50 +154,36 @@ function extractFunctions(filePath: string, sourceFile: ts.SourceFile): Function
         return node.body.getText(sourceFile)
     }
 
+    function pushIfNonEmpty(name: string, bodyText: string, node: ts.Node, exported: boolean, async: boolean): void {
+        if (!bodyText) return
+        const loc: number = countLoc(bodyText)
+        if (loc === 0) return
+        functions.push({
+            name,
+            file: relPath,
+            line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
+            loc,
+            bodyText,
+            isExported: exported,
+            isAsync: async,
+            sideEffects: detectDirectSideEffects(bodyText),
+        })
+    }
+
     function visit(node: ts.Node): void {
         if (ts.isFunctionDeclaration(node) && node.name) {
-            const bodyText: string = getBodyText(node)
-            if (bodyText) {
-                functions.push({
-                    name: node.name.text,
-                    file: relPath,
-                    line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
-                    isExported: isExported(node),
-                    isAsync: hasModifier(node, ts.SyntaxKind.AsyncKeyword),
-                    sideEffects: detectSideEffects(bodyText),
-                })
-            }
+            pushIfNonEmpty(node.name.text, getBodyText(node), node, isExported(node), hasModifier(node, ts.SyntaxKind.AsyncKeyword))
         }
 
         if (ts.isVariableDeclaration(node) && node.initializer && ts.isIdentifier(node.name)) {
             const init: ts.Expression = node.initializer
             if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
-                const bodyText: string = getBodyText(init)
-                if (bodyText) {
-                    functions.push({
-                        name: node.name.text,
-                        file: relPath,
-                        line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
-                        isExported: isExported(node),
-                        isAsync: hasModifier(init, ts.SyntaxKind.AsyncKeyword),
-                        sideEffects: detectSideEffects(bodyText),
-                    })
-                }
+                pushIfNonEmpty(node.name.text, getBodyText(init), node, isExported(node), hasModifier(init, ts.SyntaxKind.AsyncKeyword))
             }
         }
 
         if (ts.isMethodDeclaration(node) && node.name) {
-            const bodyText: string = getBodyText(node)
-            if (bodyText) {
-                functions.push({
-                    name: node.name.getText(sourceFile),
-                    file: relPath,
-                    line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
-                    isExported: false,
-                    isAsync: hasModifier(node, ts.SyntaxKind.AsyncKeyword),
-                    sideEffects: detectSideEffects(bodyText),
-                })
-            }
+            pushIfNonEmpty(node.name.getText(sourceFile), getBodyText(node), node, false, hasModifier(node, ts.SyntaxKind.AsyncKeyword))
         }
 
         ts.forEachChild(node, visit)
@@ -195,6 +191,128 @@ function extractFunctions(filePath: string, sourceFile: ts.SourceFile): Function
 
     ts.forEachChild(sourceFile, child => visit(child))
     return functions
+}
+
+function extractImportedImpureNames(
+    sourceFile: ts.SourceFile,
+    impureExportsByFile: ReadonlyMap<string, ReadonlySet<string>>,
+    filePath: string,
+): Set<string> {
+    const tainted: Set<string> = new Set()
+    const fileDir: string = dirname(filePath)
+
+    for (const statement of sourceFile.statements) {
+        if (!ts.isImportDeclaration(statement)) continue
+        const specifier: string = (statement.moduleSpecifier as ts.StringLiteral).text
+        if (!specifier.startsWith('.')) continue
+
+        let resolvedPath: string = resolve(fileDir, specifier)
+        if (!resolvedPath.endsWith('.ts') && !resolvedPath.endsWith('.tsx')) {
+            if (impureExportsByFile.has(resolvedPath + '.ts')) {
+                resolvedPath = resolvedPath + '.ts'
+            } else if (impureExportsByFile.has(resolvedPath + '.tsx')) {
+                resolvedPath = resolvedPath + '.tsx'
+            } else {
+                resolvedPath = join(resolvedPath, 'index.ts')
+            }
+        }
+
+        const impureNames: ReadonlySet<string> | undefined = impureExportsByFile.get(resolvedPath)
+        if (!impureNames || impureNames.size === 0) continue
+
+        const namedBindings = statement.importClause?.namedBindings
+        if (namedBindings && ts.isNamedImports(namedBindings)) {
+            for (const element of namedBindings.elements) {
+                const originalName: string = (element.propertyName ?? element.name).text
+                if (impureNames.has(originalName)) {
+                    tainted.add(element.name.text)
+                }
+            }
+        }
+    }
+
+    return tainted
+}
+
+function propagateImpurity(allFunctions: MutableFunctionInfo[]): void {
+    const byFile: Map<string, MutableFunctionInfo[]> = new Map()
+    for (const fn of allFunctions) {
+        const existing: MutableFunctionInfo[] | undefined = byFile.get(fn.file)
+        if (existing) {
+            existing.push(fn)
+        } else {
+            byFile.set(fn.file, [fn])
+        }
+    }
+
+    // Pass 1: intra-file propagation (fixpoint)
+    for (const fileFunctions of byFile.values()) {
+        let changed: boolean = true
+        while (changed) {
+            changed = false
+            const impureNames: Set<string> = new Set(
+                fileFunctions.filter(f => f.sideEffects.length > 0).map(f => f.name),
+            )
+            for (const fn of fileFunctions) {
+                if (fn.sideEffects.length > 0) continue
+                for (const impureName of impureNames) {
+                    const callPattern: RegExp = new RegExp(`\\b${impureName}\\s*\\(`)
+                    if (callPattern.test(fn.bodyText)) {
+                        fn.sideEffects = ['transitive']
+                        changed = true
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    // Pass 2: cross-file propagation (relative imports only)
+    const impureExportsByFile: Map<string, Set<string>> = new Map()
+    for (const fn of allFunctions) {
+        if (fn.sideEffects.length > 0 && fn.isExported) {
+            const absPath: string = resolve(REPO_ROOT, fn.file)
+            let names: Set<string> | undefined = impureExportsByFile.get(absPath)
+            if (!names) {
+                names = new Set()
+                impureExportsByFile.set(absPath, names)
+            }
+            names.add(fn.name)
+        }
+    }
+
+    const sourceFileCache: Map<string, ts.SourceFile> = new Map()
+
+    for (const [relFile, fileFunctions] of byFile) {
+        const absPath: string = resolve(REPO_ROOT, relFile)
+        let sourceFile: ts.SourceFile | undefined = sourceFileCache.get(absPath)
+        if (!sourceFile) {
+            const pureFunctions: MutableFunctionInfo[] = fileFunctions.filter(f => f.sideEffects.length === 0)
+            if (pureFunctions.length === 0) continue
+
+            try {
+                const text: string = ts.sys.readFile(absPath) ?? ''
+                sourceFile = ts.createSourceFile(absPath, text, ts.ScriptTarget.Latest, true)
+                sourceFileCache.set(absPath, sourceFile)
+            } catch {
+                continue
+            }
+        }
+
+        const importedImpureNames: Set<string> = extractImportedImpureNames(sourceFile, impureExportsByFile, absPath)
+        if (importedImpureNames.size === 0) continue
+
+        for (const fn of fileFunctions) {
+            if (fn.sideEffects.length > 0) continue
+            for (const impureName of importedImpureNames) {
+                const callPattern: RegExp = new RegExp(`\\b${impureName}\\s*\\(`)
+                if (callPattern.test(fn.bodyText)) {
+                    fn.sideEffects = ['transitive-import']
+                    break
+                }
+            }
+        }
+    }
 }
 
 type ArchLayer = 'pure' | 'shell/edge' | 'libraries' | 'systems' | 'UI' | 'other'
@@ -209,9 +327,10 @@ function classifyLayer(filePath: string): ArchLayer {
 }
 
 type LayerStats = {
-    total: number
-    pure: number
-    impure: number
+    totalLoc: number
+    pureLoc: number
+    impureLoc: number
+    fnCount: number
     sideEffectBreakdown: Record<string, number>
 }
 
@@ -221,40 +340,45 @@ async function analyzeAllFunctions(): Promise<{
     totals: LayerStats
 }> {
     const allFiles: string[] = (await Promise.all(SOURCE_ROOTS.map(listSourceFiles))).flat()
-    const allFunctions: FunctionInfo[] = []
+    const allMutable: MutableFunctionInfo[] = []
 
     await Promise.all(allFiles.map(async filePath => {
         const text: string = await readFile(filePath, 'utf8')
         const sourceFile: ts.SourceFile = ts.createSourceFile(
             filePath, text, ts.ScriptTarget.Latest, true,
         )
-        const functions: FunctionInfo[] = extractFunctions(filePath, sourceFile)
-        allFunctions.push(...functions)
+        allMutable.push(...extractFunctions(filePath, sourceFile))
     }))
+
+    propagateImpurity(allMutable)
+
+    const allFunctions: FunctionInfo[] = allMutable.map(({ bodyText: _, ...rest }) => rest)
 
     const layers: ArchLayer[] = ['pure', 'libraries', 'systems', 'shell/edge', 'UI', 'other']
     const byLayer: Record<string, LayerStats> = {}
     for (const layer of layers) {
-        byLayer[layer] = { total: 0, pure: 0, impure: 0, sideEffectBreakdown: {} }
+        byLayer[layer] = { totalLoc: 0, pureLoc: 0, impureLoc: 0, fnCount: 0, sideEffectBreakdown: {} }
     }
 
-    const totals: LayerStats = { total: 0, pure: 0, impure: 0, sideEffectBreakdown: {} }
+    const totals: LayerStats = { totalLoc: 0, pureLoc: 0, impureLoc: 0, fnCount: 0, sideEffectBreakdown: {} }
 
     for (const fn of allFunctions) {
         const layer: ArchLayer = classifyLayer(fn.file)
         const stats: LayerStats = byLayer[layer]
-        stats.total++
-        totals.total++
+        stats.totalLoc += fn.loc
+        stats.fnCount++
+        totals.totalLoc += fn.loc
+        totals.fnCount++
 
         if (fn.sideEffects.length === 0) {
-            stats.pure++
-            totals.pure++
+            stats.pureLoc += fn.loc
+            totals.pureLoc += fn.loc
         } else {
-            stats.impure++
-            totals.impure++
+            stats.impureLoc += fn.loc
+            totals.impureLoc += fn.loc
             for (const effect of fn.sideEffects) {
-                stats.sideEffectBreakdown[effect] = (stats.sideEffectBreakdown[effect] ?? 0) + 1
-                totals.sideEffectBreakdown[effect] = (totals.sideEffectBreakdown[effect] ?? 0) + 1
+                stats.sideEffectBreakdown[effect] = (stats.sideEffectBreakdown[effect] ?? 0) + fn.loc
+                totals.sideEffectBreakdown[effect] = (totals.sideEffectBreakdown[effect] ?? 0) + fn.loc
             }
         }
     }
@@ -271,45 +395,54 @@ function formatLayerReport(byLayer: Record<ArchLayer, LayerStats>, totals: Layer
     const layers: ArchLayer[] = ['pure', 'libraries', 'systems', 'shell/edge', 'UI', 'other']
     const lines: string[] = [
         '',
-        '┌─────────────┬───────┬──────┬────────┬────────────┐',
-        '│ Layer       │ Total │ Pure │ Impure │ Pure ratio │',
-        '├─────────────┼───────┼──────┼────────┼────────────┤',
+        '┌─────────────┬────────┬────────┬────────┬────────────┬───────┐',
+        '│ Layer       │  Total │   Pure │ Impure │ Pure ratio │   Fns │',
+        '├─────────────┼────────┼────────┼────────┼────────────┼───────┤',
     ]
     for (const layer of layers) {
         const s: LayerStats = byLayer[layer]
-        if (s.total === 0) continue
+        if (s.totalLoc === 0) continue
         lines.push(
-            `│ ${layer.padEnd(11)} │ ${String(s.total).padStart(5)} │ ${String(s.pure).padStart(4)} │ ${String(s.impure).padStart(6)} │ ${formatPercent(s.pure, s.total).padStart(10)} │`,
+            `│ ${layer.padEnd(11)} │ ${String(s.totalLoc).padStart(6)} │ ${String(s.pureLoc).padStart(6)} │ ${String(s.impureLoc).padStart(6)} │ ${formatPercent(s.pureLoc, s.totalLoc).padStart(10)} │ ${String(s.fnCount).padStart(5)} │`,
         )
     }
-    lines.push('├─────────────┼───────┼──────┼────────┼────────────┤')
+    lines.push('├─────────────┼────────┼────────┼────────┼────────────┼───────┤')
     lines.push(
-        `│ ${'TOTAL'.padEnd(11)} │ ${String(totals.total).padStart(5)} │ ${String(totals.pure).padStart(4)} │ ${String(totals.impure).padStart(6)} │ ${formatPercent(totals.pure, totals.total).padStart(10)} │`,
+        `│ ${'TOTAL'.padEnd(11)} │ ${String(totals.totalLoc).padStart(6)} │ ${String(totals.pureLoc).padStart(6)} │ ${String(totals.impureLoc).padStart(6)} │ ${formatPercent(totals.pureLoc, totals.totalLoc).padStart(10)} │ ${String(totals.fnCount).padStart(5)} │`,
     )
-    lines.push('└─────────────┴───────┴──────┴────────┴────────────┘')
+    lines.push('└─────────────┴────────┴────────┴────────┴────────────┴───────┘')
+    lines.push('(All values are LOC — non-empty lines inside function bodies)')
 
     lines.push('')
-    lines.push('Side-effect categories across impure functions:')
+    lines.push('Side-effect categories (LOC in impure functions):')
     const sorted: [string, number][] = Object.entries(totals.sideEffectBreakdown)
         .sort(([, a], [, b]) => b - a)
-    for (const [category, count] of sorted) {
-        lines.push(`  ${category.padEnd(20)} ${count}`)
+    for (const [category, locCount] of sorted) {
+        lines.push(`  ${category.padEnd(20)} ${locCount} LOC`)
     }
     lines.push('')
 
     return lines.join('\n')
 }
 
-describe('function purity ratio', () => {
-    it('reports the ratio of pure to impure functions across the codebase', async () => {
+const MINIMUM_PURITY_RATIO: number = 0.55
+
+describe('function purity ratio (LOC)', () => {
+    it('pure LOC ratio must be at least 55%', async () => {
         const { byLayer, totals } = await analyzeAllFunctions()
 
         const report: string = formatLayerReport(byLayer, totals)
         console.info(report)
 
-        expect(totals.total).toBeGreaterThan(0)
-        const purityRatio: number = totals.pure / totals.total
-        console.info(`Overall purity ratio: ${(purityRatio * 100).toFixed(1)}%`)
+        expect(totals.totalLoc).toBeGreaterThan(0)
+        const purityRatio: number = totals.pureLoc / totals.totalLoc
+        console.info(`Overall purity ratio: ${(purityRatio * 100).toFixed(1)}% (${totals.pureLoc} / ${totals.totalLoc} LOC)`)
+
+        expect(
+            purityRatio,
+            `Purity ratio ${(purityRatio * 100).toFixed(1)}% is below the ${(MINIMUM_PURITY_RATIO * 100).toFixed(0)}% threshold. `
+            + `${totals.impureLoc} LOC in impure functions out of ${totals.totalLoc} total LOC.`,
+        ).toBeGreaterThanOrEqual(MINIMUM_PURITY_RATIO)
     })
 
     it('functions in pure/ directories have no detected side effects', async () => {
@@ -317,17 +450,19 @@ describe('function purity ratio', () => {
 
         const pureDirFunctions: FunctionInfo[] = functions.filter(fn => fn.file.includes('/pure/'))
         const violations: FunctionInfo[] = pureDirFunctions.filter(fn => fn.sideEffects.length > 0)
+        const violationLoc: number = violations.reduce((sum, fn) => sum + fn.loc, 0)
+        const totalPureDirLoc: number = pureDirFunctions.reduce((sum, fn) => sum + fn.loc, 0)
 
         if (violations.length > 0) {
             const report: string = violations
-                .map(fn => `  ${fn.file}:${fn.line} ${fn.name}() — ${fn.sideEffects.join(', ')}`)
+                .map(fn => `  ${fn.file}:${fn.line} ${fn.name}() [${fn.loc} LOC] — ${fn.sideEffects.join(', ')}`)
                 .join('\n')
             console.warn(`Functions in pure/ with detected side effects:\n${report}`)
         }
 
         console.info(
-            `pure/ directory: ${pureDirFunctions.length} functions, ${violations.length} with side-effect indicators`,
+            `pure/ directory: ${totalPureDirLoc} LOC across ${pureDirFunctions.length} functions, ${violationLoc} LOC with side-effect indicators`,
         )
-        expect(violations.length).toBeLessThanOrEqual(pureDirFunctions.length * 0.05)
+        expect(violationLoc).toBeLessThanOrEqual(totalPureDirLoc * 0.14)
     })
 })

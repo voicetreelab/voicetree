@@ -58,6 +58,12 @@ jobs:
         continue-on-error: true
         run: npm run lint:blackbox-tests
 
+      - name: Purity ratio gate (AST)
+        run: npx vitest run packages/systems/purity-ratio-ast.test.ts
+
+      - name: Dead code check (unused files + exports)
+        run: npm run check:dead-code
+
       - name: E2E taxonomy check
         run: npm run check:e2e-taxonomy
 
