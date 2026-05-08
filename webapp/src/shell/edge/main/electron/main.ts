@@ -49,6 +49,12 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {getGraph as getGraphFromStore, setGraph as setGraphInStore} from '@vt/graph-db-server/state/graph-store';
+import {refreshGraphChangeSideEffects as refreshGraphChangeSideEffectsFromDb} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/context-nodes/createContextNode';
+import {createContextNodeFromSelectedNodes as createContextNodeFromSelectedNodesFromDb} from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
+import {getUnseenNodesAroundContextNode as getUnseenNodesAroundContextNodeFromDb} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
+import {updateContextNodeContainedIds as updateContextNodeContainedIdsFromDb} from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -79,6 +85,12 @@ configureMcpServer({
             return O.isSome(writePath) ? writePath.value : null;
         },
         applyGraphDelta: postDeltaThroughDaemonWithEditors,
+        getProjectRootWatchedDirectory,
+        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+        },
     },
     liveState: {
         applyLiveCommand,
@@ -100,6 +112,39 @@ configureAgentRuntime({
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
             return O.isSome(writePath) ? writePath.value : null;
+        },
+    },
+    graph: {
+        getGraph: () => getGraphFromStore(),
+        setGraph: (g) => setGraphInStore(g),
+        getVaultPaths: () => getVaultPaths(),
+        getWritePath: () => getWritePath(),
+        getProjectRootWatchedDirectory: () => getProjectRootWatchedDirectory(),
+        getWatchStatus: () => ({
+            isWatching: getProjectRootWatchedDirectory() !== null,
+            directory: getProjectRootWatchedDirectory() ?? undefined,
+        }),
+        applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
+        refreshGraphChangeSideEffects: () => refreshGraphChangeSideEffectsFromDb(),
+        createContextNode: async (parentNodeId, semanticNodeIds) => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            return createContextNodeFromDb(parentNodeId, semanticNodeIds ?? []);
+        },
+        createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            return createContextNodeFromSelectedNodesFromDb(taskNodeId, selectedNodeIds);
+        },
+        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+        },
+        updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
+            const graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            await updateContextNodeContainedIdsFromDb(contextNodeId, newNodeIds);
         },
     },
     trace,

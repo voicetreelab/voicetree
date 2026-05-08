@@ -2,6 +2,7 @@ import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, typ
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
+import { syncMcpGraphDbServerState } from '@vt/voicetree-mcp'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
@@ -339,7 +340,9 @@ async function doRunVaultMutation(
 
 export async function getGraphFromDaemon(): Promise<Graph> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  return await getNormalizedDaemonGraph(client)
+  const graph: Graph = await getNormalizedDaemonGraph(client)
+  syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory())
+  return graph
 }
 
 export async function getProjectedGraphFromDaemon(): Promise<unknown> {

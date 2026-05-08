@@ -241,6 +241,32 @@ export default tseslint.config([
   {
     basePath: repoRootDir,
     files: [
+      'packages/systems/agent-runtime/**/*.ts',
+      'packages/systems/voicetree-mcp/**/*.ts',
+    ],
+    ignores: [
+      'packages/systems/agent-runtime/src/graph-bridge.ts',
+      'packages/systems/voicetree-mcp/src/mcp-graph-bridge.ts',
+      'packages/systems/agent-runtime/src/runtime-config.ts',
+      'packages/systems/voicetree-mcp/src/mcp-config.ts',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: [
+            '@vt/graph-db-server/state/*',
+            '@vt/graph-db-server/watch-folder/*',
+            '@vt/graph-db-server/graph/*',
+            '@vt/graph-db-server/context-nodes/*',
+          ],
+          message: 'Use bridge accessors (graph-bridge.ts / mcp-graph-bridge.ts) instead of direct @vt/graph-db-server imports.',
+        }],
+      }],
+    },
+  },
+  {
+    basePath: repoRootDir,
+    files: [
       'webapp/**/pure/**/*.ts',
       'webapp/**/functional/**/*.ts',
       'webapp/**/functional/shell/edge/**/*.ts',
