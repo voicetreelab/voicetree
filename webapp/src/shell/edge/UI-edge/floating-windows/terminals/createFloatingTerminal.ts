@@ -72,16 +72,16 @@ export async function createFloatingTerminal(
     const waitNodeId: string = O.isSome(terminalData.anchoredToNodeId)
         ? terminalData.anchoredToNodeId.value
         : nodeId;
-    await waitForNode(cy, waitNodeId, 1000);
+    const targetNode: CollectionReturnValue | null = await waitForNode(cy, waitNodeId, 1000);
 
     try {
         // Create floating terminal window (returns TerminalData with ui populated)
         const terminalWithUI: TerminalData = createFloatingTerminalWindow(cy, terminalData);
 
-        // Anchor to parent node if it exists (creates shadow node in cytoscape graph)
-        //console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
-        //console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
-        if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
+        // Anchor to parent node only if it actually appeared in Cytoscape.
+        // When waitForNode returns null (race: terminal IPC arrives before SSE graph update),
+        // skip anchoring and fall through to fallback positioning.
+        if (targetNode && terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
             anchorToNode(cy, terminalWithUI, getCurrentIndex(cy));
             // Mark the parent node as having a running terminal (changes shape to square)
             const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;

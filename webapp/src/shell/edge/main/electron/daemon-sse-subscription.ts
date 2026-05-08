@@ -1,5 +1,7 @@
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 
+const SSE_SILENCE_TIMEOUT_MS: number = 45_000
+
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -51,10 +53,29 @@ async function connectToDaemonSSE(
     let buffered: string = ''
 
     while (!controller.signal.aborted) {
-        const { done, value } = await reader.read()
-        if (done) break
+        let silenceTimer: ReturnType<typeof setTimeout> | null = null
+        const timeout: Promise<null> = new Promise<null>((resolve) => {
+            silenceTimer = setTimeout(() => resolve(null), SSE_SILENCE_TIMEOUT_MS)
+            controller.signal.addEventListener('abort', () => {
+                if (silenceTimer !== null) clearTimeout(silenceTimer)
+            }, { once: true })
+        })
 
-        buffered += decoder.decode(value, { stream: true })
+        const result: ReadableStreamReadResult<Uint8Array> | null = await Promise.race([
+            reader.read(),
+            timeout,
+        ])
+
+        if (silenceTimer !== null) clearTimeout(silenceTimer)
+
+        if (result === null) {
+            reader.cancel().catch(() => {})
+            return
+        }
+
+        if (result.done) break
+
+        buffered += decoder.decode(result.value, { stream: true })
         const blocks: string[] = buffered.split('\n\n')
         buffered = blocks.pop() ?? ''
 
