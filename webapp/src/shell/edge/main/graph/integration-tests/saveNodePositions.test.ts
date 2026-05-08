@@ -15,7 +15,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveNodePositions } from '@/shell/edge/main/saveNodePositions'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/watchFolder'
 import { loadFolder, stopFileWatching, isWatching } from '@vt/graph-db-server/watch-folder/watchFolder'
 import type { GraphNode, Graph, GraphDelta } from '@vt/graph-model/graph'
@@ -26,7 +26,7 @@ import path from 'path'
 import os from 'os'
 import { promises as fs } from 'fs'
 import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
-import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
+import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
@@ -38,6 +38,10 @@ let testProjectPath: string
 let testVoicetreeDir: string
 let testFilePath: string
 let testNodeId: string
+
+vi.mock('@/shell/edge/main/state/graph-store', async () =>
+    vi.importActual('@vt/graph-db-server/state/graph-store')
+)
 
 // Mock electron app for settings path
 vi.mock('electron', () => ({

@@ -69,8 +69,10 @@ export function configureEnvironment(): void {
         app.commandLine.appendSwitch('disable-renderer-backgrounding');
     }
 
-    // Auto-enable CDP in development so vt-debug can attach without manual setup
-    if (process.env.NODE_ENV === 'development' && process.env.ENABLE_PLAYWRIGHT_DEBUG === undefined) {
+    // Auto-enable CDP for all unpackaged builds so vt-debug can attach without manual setup.
+    // Uses app.isPackaged instead of NODE_ENV because electron:prod (electron-vite build && electron .)
+    // runs unpackaged but with NODE_ENV !== 'development', leaving CDP disabled and cdpPort=0.
+    if (!app.isPackaged && process.env.ENABLE_PLAYWRIGHT_DEBUG === undefined) {
         process.env.ENABLE_PLAYWRIGHT_DEBUG = '1';
     }
 

@@ -11,9 +11,9 @@ import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
-import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
+import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
-import {performUndo, performRedo} from '@vt/graph-db-server/graph/undoOperations'
+import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon-graph-queries'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
 import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
@@ -27,7 +27,7 @@ import {openClaudeUsage, openCodexStatus} from './usage/openUsageInTerminal';
 import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
-import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';
+import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';

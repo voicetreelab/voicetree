@@ -7,7 +7,8 @@ import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
 import { createEmptyGraph } from '@vt/graph-model'
-import { getVaultPaths, setVaultPath, setWritePath } from './watch-folder/vault-allowlist.ts'
+import { getVaultPaths, resolveWritePath, setVaultPath, setWritePath } from './watch-folder/vault-allowlist.ts'
+import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setGraph } from './state/graph-store.ts'
 import { loadGraphFromDisk } from './graph/loadGraphFromDisk.ts'
 import { getDirectoryTree } from './watch-folder/folder-scanner.ts'
@@ -99,7 +100,11 @@ export async function startDaemon(
     loadGraphFromDisk,
   })
   setVaultPath(vault)
-  const loadWritePathResult = await setWritePath(vault, {
+  const savedConfig = await getVaultConfigForDirectory(vault)
+  const writePath = savedConfig?.writePath
+    ? resolveWritePath(vault, savedConfig.writePath)
+    : vault
+  const loadWritePathResult = await setWritePath(writePath, {
     createStarterIfEmpty: opts.createStarterIfEmpty,
   })
   if (!loadWritePathResult.success) {

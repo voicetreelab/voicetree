@@ -4,7 +4,14 @@ import {
     GraphDbClientError,
 } from '@vt/graph-db-client'
 
-export const EXIT = {
+export const EXIT: {
+    readonly SUCCESS: 0
+    readonly ARG_VALIDATION: 2
+    readonly NETWORK: 3
+    readonly DAEMON_HTTP_ERROR: 4
+    readonly DAEMON_LAUNCH_FAILURE: 5
+    readonly UNKNOWN: 10
+} = {
     SUCCESS: 0,
     ARG_VALIDATION: 2,
     NETWORK: 3,
@@ -83,7 +90,7 @@ export function handleCliError(err: unknown): never {
     }
 
     if (err instanceof DaemonLaunchTimeout) {
-        exitWith(EXIT.DAEMON_LAUNCH_FAILURE, 'vt-graphd failed to launch within 5s', err)
+        exitWith(EXIT.DAEMON_LAUNCH_FAILURE, err.message, err)
     }
 
     if (err instanceof Error) {

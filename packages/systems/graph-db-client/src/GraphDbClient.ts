@@ -40,6 +40,10 @@ type RequestOptions<T> = {
   responseSchema?: Schema<T>
 }
 
+type GetSessionStateOptions = {
+  readonly content?: 'full' | 'omit'
+}
+
 type ErrorPayload = {
   code?: string
   error?: string
@@ -210,8 +214,12 @@ export class GraphDbClient {
     })
   }
 
-  async getSessionState(id: string): Promise<LiveStateSnapshot> {
-    return await this.request(`/sessions/${encodeURIComponent(id)}/state`, {
+  async getSessionState(
+    id: string,
+    opts: GetSessionStateOptions = {},
+  ): Promise<LiveStateSnapshot> {
+    const contentQuery = opts.content === 'omit' ? '?content=omit' : ''
+    return await this.request(`/sessions/${encodeURIComponent(id)}/state${contentQuery}`, {
       responseSchema: LiveStateSnapshotSchema,
     })
   }
@@ -254,6 +262,38 @@ export class GraphDbClient {
         responseSchema: SelectionResponseSchema,
       },
     )
+  }
+
+  async findFileByName(name: string): Promise<string[]> {
+    const result = await this.request(
+      `/graph/find-file?name=${encodeURIComponent(name)}`,
+      { responseSchema: { parse: (v: unknown) => (v as { matches: string[] }).matches } },
+    )
+    return result
+  }
+
+  async undo(): Promise<boolean> {
+    const result = await this.request('/graph/undo', {
+      method: 'POST',
+      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+    })
+    return result
+  }
+
+  async redo(): Promise<boolean> {
+    const result = await this.request('/graph/redo', {
+      method: 'POST',
+      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+    })
+    return result
+  }
+
+  async getPreviewContainedNodeIds(nodeId: string): Promise<readonly string[]> {
+    const result = await this.request(
+      `/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`,
+      { responseSchema: { parse: (v: unknown) => (v as { nodeIds: string[] }).nodeIds } },
+    )
+    return result
   }
 
   async getProjectedGraph(sessionId: string): Promise<unknown> {

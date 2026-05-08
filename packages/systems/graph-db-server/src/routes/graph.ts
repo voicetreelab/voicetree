@@ -5,7 +5,11 @@ import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
 import { GraphStateSchema } from '../contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
 import { getGraph, getNode } from '../state/graph-store.ts'
+import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
 import { publish } from '../events/deltaEventBus.ts'
+import { findFileByName } from '../graph/findFileByName.ts'
+import { getPreviewContainedNodeIds } from '../context-nodes/getPreviewContainedNodeIds.ts'
+import { performUndo, performRedo } from '../graph/undoOperations.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 
 const GraphDeltaRequestSchema = z.array(
@@ -151,6 +155,37 @@ export function createGraphRoutes(_registry: SessionRegistry): Hono {
         500,
       )
     }
+  })
+
+  app.get('/find-file', async (c) => {
+    const name = c.req.query('name')
+    if (!name) {
+      return jsonError(c, 'Missing required query parameter: name', 'MISSING_NAME')
+    }
+
+    const searchPath = getProjectRootWatchedDirectory()
+    if (!searchPath) {
+      return jsonError(c, 'No vault is currently open', 'NO_VAULT', 503)
+    }
+
+    const matches = await findFileByName(name, searchPath)
+    return c.json({ matches })
+  })
+
+  app.get('/preview-contained-nodes/:nodeId', async (c) => {
+    const nodeId = decodeURIComponent(c.req.param('nodeId'))
+    const nodeIds = await getPreviewContainedNodeIds(nodeId)
+    return c.json({ nodeIds })
+  })
+
+  app.post('/undo', async (c) => {
+    const applied = await performUndo()
+    return c.json({ applied })
+  })
+
+  app.post('/redo', async (c) => {
+    const applied = await performRedo()
+    return c.json({ applied })
   })
 
   return app

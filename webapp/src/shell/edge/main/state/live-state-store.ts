@@ -13,8 +13,8 @@ import type {
     StateRoots,
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getGraph } from './graph-store'
+import { getProjectRootWatchedDirectory } from './watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
 
