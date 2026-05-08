@@ -7,14 +7,18 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
-import {sendTextToTerminal} from '@vt/agent-runtime'
+import {
+    getHeadlessAgentOutput,
+    getPendingTerminal,
+    getTerminalRecords,
+    sendTextToTerminal,
+    type TerminalRecord,
+} from './agent-runtime-facade'
+import {getMcpGraphSnapshot} from './mcp-graph-bridge'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getHeadlessAgentOutput} from '@vt/agent-runtime'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -74,7 +78,7 @@ export function startMonitor(
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = getGraph()
+        const graph: Graph = getMcpGraphSnapshot()
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.

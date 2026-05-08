@@ -12,8 +12,8 @@ import type {TerminalId} from '../types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
 import type {TerminalData} from '../types'
 import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {detectCliType} from '../spawn/spawnTerminalWithContextNode'
+import {graphDbState} from '../graph-db-boundary'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
 
@@ -42,7 +42,7 @@ export type HeadlessAgentDeps = {
     readonly incrementAuditRetryCount: typeof incrementAuditRetryCount
     readonly removeTerminalFromRegistry: typeof removeTerminalFromRegistry
     readonly runStopHooks: typeof runStopHooks
-    readonly getGraph: typeof getGraph
+    readonly getGraph: typeof graphDbState.getGraph
     readonly detectCliType: typeof detectCliType
 }
 
@@ -70,7 +70,7 @@ const defaultHeadlessAgentDeps: HeadlessAgentDeps = {
     incrementAuditRetryCount,
     removeTerminalFromRegistry,
     runStopHooks,
-    getGraph,
+    getGraph: graphDbState.getGraph,
     detectCliType
 }
 

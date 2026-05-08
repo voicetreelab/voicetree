@@ -3,8 +3,13 @@
  * Sends a message directly to an agent terminal.
  */
 
-import {getTerminalRecords, getPendingTerminal, enqueuePendingMessage, type TerminalRecord} from '@vt/agent-runtime'
-import {sendTextToTerminal} from '@vt/agent-runtime'
+import {
+    enqueuePendingMessage,
+    getPendingTerminal,
+    getTerminalRecords,
+    sendTextToTerminal,
+    type TerminalRecord,
+} from './agent-runtime-facade'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 function buildPrefixedMessage(callerTerminalId: string, message: string): string {

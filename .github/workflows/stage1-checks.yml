@@ -61,6 +61,9 @@ jobs:
       - name: Purity ratio gate (AST)
         run: npx vitest run packages/systems/purity-ratio-ast.test.ts
 
+      - name: Boundary complexity gate
+        run: npx vitest run packages/systems/boundary-complexity.test.ts
+
       - name: Dead code check (unused files + exports)
         run: npm run check:dead-code
 

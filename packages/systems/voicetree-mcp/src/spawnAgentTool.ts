@@ -10,9 +10,13 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
+import {
+    getTerminalRecords,
+    registerChild,
+    spawnTerminalWithContextNode,
+    tryConsumeAndSplitBudget,
+    type TerminalRecord,
+} from './agent-runtime-facade'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'

@@ -6,10 +6,9 @@
  */
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
-import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
+import { graphDbContextNodes, graphDbState, type UnseenNode } from '../graph-db-boundary'
 
 export interface UnseenNodeInfo {
     readonly nodeId: NodeIdAndFilePath
@@ -29,8 +28,8 @@ export type GetUnseenNodesDeps = {
 
 const defaultGetUnseenNodesDeps: GetUnseenNodesDeps = {
     getTerminalRecords,
-    getGraph,
-    getUnseenNodesAroundContextNode,
+    getGraph: graphDbState.getGraph,
+    getUnseenNodesAroundContextNode: graphDbContextNodes.getUnseenNodesAroundContextNode,
     getNodeTitle,
     logError: (message: string, error: unknown): void => console.error(message, error)
 }

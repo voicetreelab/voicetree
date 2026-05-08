@@ -6,12 +6,12 @@ import {getTerminalId} from '../types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords, updateTerminalPromptDetected} from './terminal-registry';
 import {startPromptDetection, feedPromptDetector, stopPromptDetection} from '../lifecycle/prompt-runner';
 import type {TerminalData} from '../types';
-import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {loadSettings} from '@vt/app-config/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
 import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
+import {graphDbWatch} from '../graph-db-boundary';
 
 /**
  * Convert a numeric signal (as reported by node-pty on Unix) into the
@@ -380,7 +380,7 @@ export class TerminalManager {
       const runtimeEnv = getRuntimeEnv();
       const vaultPath: string | null = runtimeEnv.getProjectRootWatchedDirectory
         ? runtimeEnv.getProjectRootWatchedDirectory()
-        : getProjectRootWatchedDirectory();
+        : graphDbWatch.getProjectRootWatchedDirectory();
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
 

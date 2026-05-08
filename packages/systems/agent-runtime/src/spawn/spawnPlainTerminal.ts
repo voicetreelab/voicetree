@@ -11,24 +11,21 @@ import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '../types';
 import {getExistingAgentNames} from '../terminals/terminal-registry';
-import {getGraph} from '@vt/graph-db-server/state/graph-store';
-import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta';
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist';
 import type {TerminalData} from '../types';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
 import {getRuntimeUI} from '../runtime-config';
+import {graphDbPersistence, graphDbState, graphDbWatch} from '../graph-db-boundary';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
 
-  const graph: Graph = getGraph();
+  const graph: Graph = graphDbState.getGraph();
   const node: GraphNode | undefined = graph.nodes[nodeId];
   const title: string = node ? getNodeTitle(node) : 'Terminal';
 
-  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getWatchStatus();
+  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = graphDbWatch.getWatchStatus();
   let initialSpawnDirectory: string | undefined = watchStatus.directory;
 
   if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
@@ -79,16 +76,16 @@ export async function spawnPlainTerminalWithNode(
     terminalCount: number
 ): Promise<void> {
     // Get write path (absolute) for new node creation
-    const writePathOption: O.Option<string> = await getWritePath();
+    const writePathOption: O.Option<string> = await graphDbWatch.getWritePath();
     const writePath: string = O.getOrElse(() => '')(writePathOption);
-    const graph: Graph = getGraph();
+    const graph: Graph = graphDbState.getGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
         createNewNodeNoParent(position, writePath, graph);
 
     // Persist the node to disk and update UI
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
+    await graphDbPersistence.applyGraphDeltaToDBThroughMemAndUIAndEditors(graphDelta);
 
     // Now spawn a plain terminal attached to this node
     await spawnPlainTerminal(newNode.absoluteFilePathIsID, terminalCount);

@@ -24,7 +24,7 @@ import {
   type ShutdownResponse,
   type VaultState,
   type ViewResponse,
-} from '@vt/graph-db-server/contract'
+} from './contract.ts'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
 

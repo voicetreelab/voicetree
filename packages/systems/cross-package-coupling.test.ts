@@ -17,19 +17,21 @@ type ImportEdge = {
     readonly fromPackage: string
     readonly toPackage: string
     readonly importPath: string
+    readonly symbol: string
     readonly file: string
     readonly line: number
     readonly isTypeOnly: boolean
+    readonly isDynamic: boolean
 }
 
-// Budget: max distinct import paths allowed per directed pair.
+// Budget: max distinct VALUE symbols allowed per directed pair.
+// Type-only imports are free (zero runtime coupling).
 // Missing pairs default to 0 — any new cross-package coupling breaks CI.
-// Ratchet down over time as you decouple.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
-    'agent-runtime -> graph-db-server': 9,
-    'graph-db-client -> graph-db-server': 1,
-    'voicetree-mcp -> agent-runtime': 1,
-    'voicetree-mcp -> graph-db-server': 5,
+    'agent-runtime -> graph-db-server': 12,
+    'graph-db-client -> graph-db-server': 17,
+    'voicetree-mcp -> agent-runtime': 14,
+    'voicetree-mcp -> graph-db-server': 8,
 }
 
 async function discoverPackages(): Promise<PackageInfo[]> {
@@ -82,30 +84,92 @@ function extractImportEdges(
 ): ImportEdge[] {
     const sourceFile = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
     const edges: ImportEdge[] = []
+    const relFile = relative(REPO_ROOT, filePath)
 
-    for (const statement of sourceFile.statements) {
-        let specifier: string | undefined
-        let isTypeOnly = false
-
-        if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
-            specifier = statement.moduleSpecifier.text
-            isTypeOnly = statement.importClause?.isTypeOnly ?? false
-        } else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
-            specifier = statement.moduleSpecifier.text
-            isTypeOnly = statement.isTypeOnly
-        }
-
-        if (!specifier) continue
-
+    const resolveTarget = (specifier: string): string | undefined => {
         for (const [npmName, dirName] of siblingNames) {
             if (dirName === fromPackage) continue
-            if (specifier === npmName || specifier.startsWith(npmName + '/')) {
-                const {line} = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile))
-                edges.push({fromPackage, toPackage: dirName, importPath: specifier, file: relative(REPO_ROOT, filePath), line: line + 1, isTypeOnly})
-                break
+            if (specifier === npmName || specifier.startsWith(npmName + '/'))
+                return dirName
+        }
+        return undefined
+    }
+
+    for (const statement of sourceFile.statements) {
+        if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+            const specifier = statement.moduleSpecifier.text
+            const toPackage = resolveTarget(specifier)
+            if (!toPackage) continue
+            const {line} = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile))
+            const base = {fromPackage, toPackage, importPath: specifier, file: relFile, line: line + 1, isDynamic: false}
+            const clauseTypeOnly = statement.importClause?.isTypeOnly ?? false
+
+            if (!statement.importClause) {
+                edges.push({...base, symbol: '(side-effect)', isTypeOnly: false})
+                continue
+            }
+
+            if (statement.importClause.name) {
+                edges.push({...base, symbol: 'default', isTypeOnly: clauseTypeOnly})
+            }
+
+            const bindings = statement.importClause.namedBindings
+            if (bindings) {
+                if (ts.isNamespaceImport(bindings)) {
+                    edges.push({...base, symbol: '*', isTypeOnly: clauseTypeOnly})
+                } else if (ts.isNamedImports(bindings)) {
+                    for (const el of bindings.elements) {
+                        edges.push({
+                            ...base,
+                            symbol: (el.propertyName ?? el.name).text,
+                            isTypeOnly: clauseTypeOnly || el.isTypeOnly,
+                        })
+                    }
+                }
+            }
+        } else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+            const specifier = statement.moduleSpecifier.text
+            const toPackage = resolveTarget(specifier)
+            if (!toPackage) continue
+            const {line} = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile))
+            const base = {fromPackage, toPackage, importPath: specifier, file: relFile, line: line + 1, isDynamic: false}
+            const declTypeOnly = statement.isTypeOnly
+
+            if (statement.exportClause) {
+                if (ts.isNamedExports(statement.exportClause)) {
+                    for (const el of statement.exportClause.elements) {
+                        edges.push({
+                            ...base,
+                            symbol: (el.propertyName ?? el.name).text,
+                            isTypeOnly: declTypeOnly || el.isTypeOnly,
+                        })
+                    }
+                } else if (ts.isNamespaceExport(statement.exportClause)) {
+                    edges.push({...base, symbol: '*', isTypeOnly: declTypeOnly})
+                }
+            } else {
+                edges.push({...base, symbol: '*', isTypeOnly: declTypeOnly})
             }
         }
     }
+
+    const walkForDynamic = (node: ts.Node): void => {
+        if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+            && node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
+            const specifier = node.arguments[0].text
+            const toPackage = resolveTarget(specifier)
+            if (toPackage) {
+                const {line} = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+                edges.push({
+                    fromPackage, toPackage, importPath: specifier,
+                    symbol: '*', file: relFile, line: line + 1,
+                    isTypeOnly: false, isDynamic: true,
+                })
+            }
+        }
+        ts.forEachChild(node, walkForDynamic)
+    }
+    ts.forEachChild(sourceFile, walkForDynamic)
 
     return edges
 }
@@ -137,34 +201,43 @@ function groupByPair(edges: readonly ImportEdge[]): Map<string, ImportEdge[]> {
     return grouped
 }
 
-function distinctPaths(edges: readonly ImportEdge[]): string[] {
-    return [...new Set(edges.map(e => e.importPath))].sort()
+function distinctValueSymbols(edges: readonly ImportEdge[]): string[] {
+    return [...new Set(edges.filter(e => !e.isTypeOnly).map(e => e.symbol))].sort()
+}
+
+function distinctTypeSymbols(edges: readonly ImportEdge[]): string[] {
+    return [...new Set(edges.filter(e => e.isTypeOnly).map(e => e.symbol))].sort()
 }
 
 function formatReport(byPair: ReadonlyMap<string, ImportEdge[]>): string {
     const lines: string[] = [
         '',
-        '┌─────────────────────────────────────────────┬───────┬────────┬────────┐',
-        '│ Pair                                        │ Paths │ Budget │ Status │',
-        '├─────────────────────────────────────────────┼───────┼────────┼────────┤',
+        '┌─────────────────────────────────────────────┬───────┬───────┬────────┬────────┐',
+        '│ Pair                                        │ Value │ Types │ Budget │ Status │',
+        '├─────────────────────────────────────────────┼───────┼───────┼────────┼────────┤',
     ]
 
     for (const [pair, edges] of [...byPair].sort(([a], [b]) => a.localeCompare(b))) {
-        const paths = distinctPaths(edges)
+        const valueSyms = distinctValueSymbols(edges)
+        const typeSyms = distinctTypeSymbols(edges)
         const budget = COUPLING_BUDGET[pair] ?? 0
-        const status = paths.length <= budget ? 'OK' : 'OVER'
-        lines.push(`│ ${pair.padEnd(43)} │ ${String(paths.length).padStart(5)} │ ${String(budget).padStart(6)} │ ${status.padStart(6)} │`)
+        const status = valueSyms.length <= budget ? 'OK' : 'OVER'
+        lines.push(`│ ${pair.padEnd(43)} │ ${String(valueSyms.length).padStart(5)} │ ${String(typeSyms.length).padStart(5)} │ ${String(budget).padStart(6)} │ ${status.padStart(6)} │`)
     }
 
-    lines.push('└─────────────────────────────────────────────┴───────┴────────┴────────┘')
+    lines.push('└─────────────────────────────────────────────┴───────┴───────┴────────┴────────┘')
     lines.push('')
 
     for (const [pair, edges] of [...byPair].sort(([a], [b]) => a.localeCompare(b))) {
-        const paths = distinctPaths(edges)
+        const allSymbols = [...new Set(edges.map(e => e.symbol))].sort()
         lines.push(`${pair}:`)
-        for (const p of paths) {
-            const typeOnly = edges.filter(e => e.importPath === p).every(e => e.isTypeOnly)
-            lines.push(`  ${typeOnly ? '(type) ' : '       '}${p}`)
+        for (const sym of allSymbols) {
+            const symEdges = edges.filter(e => e.symbol === sym)
+            const typeOnly = symEdges.every(e => e.isTypeOnly)
+            const dynamic = symEdges.some(e => e.isDynamic)
+            const flags = [typeOnly ? 'type' : '', dynamic ? 'dynamic' : ''].filter(Boolean).join(',')
+            const prefix = flags ? `(${flags}) `.padEnd(7) : '       '
+            lines.push(`  ${prefix}${sym}`)
         }
     }
 
@@ -181,10 +254,10 @@ describe('cross-package coupling bounds', () => {
 
         const violations: string[] = []
         for (const [pair, pairEdges] of byPair) {
-            const count = distinctPaths(pairEdges).length
+            const count = distinctValueSymbols(pairEdges).length
             const budget = COUPLING_BUDGET[pair] ?? 0
             if (count > budget) {
-                violations.push(`${pair}: ${count} distinct import paths, budget is ${budget}`)
+                violations.push(`${pair}: ${count} value symbols, budget is ${budget}`)
             }
         }
 

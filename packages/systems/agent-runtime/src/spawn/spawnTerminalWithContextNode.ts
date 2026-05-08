@@ -17,9 +17,6 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode';
-import { createContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
-import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store';
 import { loadSettings } from '@vt/app-config/settings';
 import { createTerminalData, getTerminalId, type TerminalId } from '../types';
 import type { NodeIdAndFilePath, GraphNode, Graph, FSUpdate, GraphDelta } from '@vt/graph-model/graph';
@@ -31,12 +28,11 @@ import { getNextAgentName, getUniqueAgentName, getDefaultAgent } from '@vt/graph
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending, clearPendingTerminal } from '../terminals/terminal-registry';
 import { setTerminalBudget } from '../terminals/global-budget-registry';
 import type {TerminalData} from '../types';
-import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
 import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager';
 import {addNodeToGraphWithEdgeHealingFromFSEvent} from '@vt/graph-model/graph';
-import {refreshGraphChangeSideEffects} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {getRuntimeUI} from '../runtime-config';
+import {graphDbContextNodes, graphDbPersistence, graphDbState, graphDbWatch} from '../graph-db-boundary';
 
 type SpawnTerminalLogger = {
     error(message?: unknown, ...optionalParams: unknown[]): void
@@ -110,7 +106,7 @@ export async function spawnTerminalWithContextNode(
     }
 
     // Get task node from graph (self-heal if file exists on disk but missing from graph)
-    let graph: Graph = getGraph();
+    let graph: Graph = graphDbState.getGraph();
     let taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
     if (!taskNode) {
         taskNode = await tryReloadNodeFromDisk(taskNodeId, {
@@ -120,7 +116,7 @@ export async function spawnTerminalWithContextNode(
         if (!taskNode) {
             throw new Error(`Node ${taskNodeId} not found in graph or on disk`);
         }
-        graph = getGraph(); // re-read after self-heal mutated graph store
+        graph = graphDbState.getGraph(); // re-read after self-heal mutated graph store
     }
 
     // Create or reuse context node
@@ -134,8 +130,8 @@ export async function spawnTerminalWithContextNode(
     } else {
         // Create context node for the task node
         contextNodeId = selectedNodeIds
-            ? await createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
-            : await createContextNode(taskNodeId);
+            ? await graphDbContextNodes.createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
+            : await graphDbContextNodes.createContextNode(taskNodeId);
         resolvedTaskNodeId = taskNodeId;
     }
 
@@ -262,7 +258,7 @@ async function prepareTerminalDataInMain(
     precomputedAgentName?: string
 ): Promise<TerminalData> {
     // Get context node from graph (main has immediate access)
-    const graph: Graph = getGraph();
+    const graph: Graph = graphDbState.getGraph();
     const contextNode: GraphNode = graph.nodes[contextNodeId];
     if (!contextNode) {
         throw new Error(`Context node ${contextNodeId} not found in graph`);
@@ -289,7 +285,7 @@ async function prepareTerminalDataInMain(
     const watchStatus: {
         readonly isWatching: boolean;
         readonly directory: string | undefined;
-    } = getWatchStatus();
+    } = graphDbWatch.getWatchStatus();
 
     initialSpawnDirectory = watchStatus.directory;
 
@@ -419,12 +415,12 @@ async function tryReloadNodeFromDisk(
     try {
         const content: string = await deps.readTextFile(filePath)
         const fsEvent: FSUpdate = { absolutePath: filePath, content, eventType: 'Added' }
-        const graph: Graph = getGraph()
+        const graph: Graph = graphDbState.getGraph()
         const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph)
         if (delta.length === 0) return undefined
         const newGraph: Graph = applyGraphDeltaToGraph(graph, delta)
-        setGraph(newGraph)
-        refreshGraphChangeSideEffects()
+        graphDbState.setGraph(newGraph)
+        graphDbPersistence.refreshGraphChangeSideEffects()
         deps.logger.warn(`[spawnTerminal] Self-healed missing node from disk: ${nodeId}`)
         return newGraph.nodes[nodeId]
     } catch {

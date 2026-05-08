@@ -6,11 +6,10 @@
  */
 
 import type { NodeIdAndFilePath, Graph, GraphNode } from '@vt/graph-model/graph'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
-import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
+import { graphDbContextNodes, graphDbState } from '../graph-db-boundary'
 
 const MAX_NODES_PER_INJECTION: number = 5
 
@@ -25,10 +24,10 @@ export type InjectNodesDeps = {
 
 const defaultInjectNodesDeps: InjectNodesDeps = {
     getTerminalRecords,
-    getGraph,
+    getGraph: graphDbState.getGraph,
     getNodeTitle,
     sendTextToTerminal,
-    updateContextNodeContainedIds,
+    updateContextNodeContainedIds: graphDbContextNodes.updateContextNodeContainedIds,
     logError: (message: string, error: unknown): void => console.error(message, error)
 }
 
