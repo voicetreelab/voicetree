@@ -1,16 +1,11 @@
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
+import type { Stats } from 'node:fs'
 import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks, type FilePath } from '@vt/graph-model'
 import { getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
 import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model'
 import type { ParsedQuery } from '@vt/graph-model'
-import {
-    getProjectRootWatchedDirectory,
-    getStartupFolderOverride,
-    getOnFolderSwitchCleanup,
-    setProjectRootWatchedDirectory,
-} from '@/shell/edge/main/state/watch-folder-store'
 import { initializeProject } from '@vt/app-config/project'
 import { createDatedSubfolder } from '@vt/app-config/project'
 import {
@@ -19,6 +14,7 @@ import {
     saveLastDirectory,
     saveVaultConfigForDirectory,
 } from '@vt/app-config/vault-config'
+import type { VaultConfig } from '@vt/graph-model/settings'
 
 import {
     isDaemonGraphSyncActive,
@@ -32,6 +28,9 @@ import {
 import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {
     ensureDaemonClientForVault,
+    getActiveDaemonConnection,
+    clearDaemonClientCache,
+    shutdownActiveDaemonConnection,
     type CachedDaemonConnection,
 } from '@/shell/edge/main/electron/graph-daemon'
 import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/electron/daemon-graph-queries'
@@ -41,6 +40,7 @@ import {
     getSubfoldersWithModifiedAt,
     isValidSubdirectory,
 } from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import { getStartupFolderOverride } from '@/shell/edge/main/electron/startup-folder-override'
 
 const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
     process.env.VOICETREE_DAEMON_LOAD_TIMEOUT_MS ?? '',
@@ -49,6 +49,17 @@ const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
 const DAEMON_LOAD_TIMEOUT_MS: number = Number.isFinite(configuredDaemonLoadTimeoutMs)
     ? configuredDaemonLoadTimeoutMs
     : process.env.CI ? 45_000 : 15_000
+
+let pendingLoadedDirectory: FilePath | null = null
+let onFolderSwitchCleanup: (() => void) | null = null
+
+function getProjectRootWatchedDirectory(): FilePath | null {
+    return getActiveDaemonConnection()?.vault ?? pendingLoadedDirectory
+}
+
+export function setOnFolderSwitchCleanup(cleanup: (() => void) | null): void {
+    onFolderSwitchCleanup = cleanup
+}
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
@@ -68,7 +79,7 @@ export async function getAvailableFoldersForSelector(
 
     if (parsed.isAbsolute && parsed.basePath) {
         try {
-            const stat = await fs.stat(parsed.basePath)
+            const stat: Stats = await fs.stat(parsed.basePath)
             if (!stat.isDirectory()) {
                 return []
             }
@@ -127,7 +138,7 @@ function resolveLocalWritePath(projectPath: string, writePath: string): string {
 }
 
 async function resolveOrCreateWritePath(projectPath: string): Promise<string> {
-    const existingConfig = await getVaultConfigForDirectory(projectPath)
+    const existingConfig: VaultConfig | undefined = await getVaultConfigForDirectory(projectPath)
     if (existingConfig?.writePath) {
         const writePath: string = resolveLocalWritePath(projectPath, existingConfig.writePath)
         if (await pathIsDirectory(writePath)) {
@@ -250,11 +261,10 @@ async function doLoadFolder(
         await writeCurrentPositionsThroughDaemon()
     }
 
-    setProjectRootWatchedDirectory(watchedFolderPath)
+    pendingLoadedDirectory = watchedFolderPath
     void getCallbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ })
 
-    const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup()
-    folderCleanup?.()
+    onFolderSwitchCleanup?.()
     getCallbacks().onGraphCleared?.()
 
     const writePath: string = await resolveOrCreateWritePath(watchedFolderPath)
@@ -266,6 +276,7 @@ async function doLoadFolder(
     const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
         timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
     })
+    pendingLoadedDirectory = null
     markLoadTiming('main:daemon-ensure-end', {
         port: connection.port,
         launched: connection.launched,
@@ -306,7 +317,8 @@ export async function startFileWatching(
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     await stopDaemonGraphSync()
-    setProjectRootWatchedDirectory(null)
+    pendingLoadedDirectory = null
+    await shutdownActiveDaemonConnection()
     syncWatchedProjectRoot(null)
     getCallbacks().onFolderCleared?.()
     return { success: true }
@@ -372,7 +384,7 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
     if (!watchedDir) {
         return O.none
     }
-    const config = await getVaultConfigForDirectory(watchedDir)
+    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir)
     return O.some(config?.writePath ? resolveLocalWritePath(watchedDir, config.writePath) : watchedDir)
 }
 
@@ -381,11 +393,12 @@ export function getVaultPath(): O.Option<FilePath> {
 }
 
 export function setVaultPath(vaultPath: FilePath): void {
-    setProjectRootWatchedDirectory(vaultPath)
+    pendingLoadedDirectory = vaultPath || null
 }
 
 export function clearVaultPath(): void {
-    setProjectRootWatchedDirectory(null)
+    pendingLoadedDirectory = null
+    clearDaemonClientCache()
 }
 
 export async function createDatedVoiceTreeFolder(): Promise<{

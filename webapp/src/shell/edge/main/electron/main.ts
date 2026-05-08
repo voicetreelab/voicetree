@@ -35,13 +35,13 @@ import {
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/electron/daemon-ipc-proxy';
-import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {
+    getVaultPaths,
+    getWritePath,
+    setOnFolderSwitchCleanup,
+} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
-import {
-    getProjectRootWatchedDirectory,
-    setOnFolderSwitchCleanup,
-} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
@@ -49,6 +49,10 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {
+    getActiveDaemonConnection,
+    shutdownActiveDaemonConnection,
+} from '@/shell/edge/main/electron/graph-daemon';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -69,8 +73,8 @@ initializeGraphModel();
 configureMcpServer({
     graph: {
         getGraph: async () => {
-            const graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            const graph: Awaited<ReturnType<typeof getGraphFromDaemon>> = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return graph;
         },
         getVaultPaths,
@@ -95,7 +99,7 @@ configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory,
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
         getVaultPaths,
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
@@ -169,7 +173,7 @@ void app.whenReady().then(async () => {
     // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
-    const orphanCleanup = killOrphanVtGraphdDaemons();
+    const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
@@ -257,6 +261,9 @@ app.on('before-quit', () => {
 
     // Clean up server process
     textToTreeServerManager.stop();
+
+    // Clean up graph daemon process
+    void shutdownActiveDaemonConnection();
 
     // Clean up all terminals
     terminalManager.cleanup();

@@ -1,7 +1,6 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
@@ -42,11 +41,7 @@ function resolveLocalWritePath(projectPath: string, writePath: string): string {
     : path.join(projectPath, writePath)
 }
 
-async function getConfiguredWritePathForCurrentVault(): Promise<string | null> {
-  const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) {
-    return null
-  }
+async function getConfiguredWritePathForVault(vault: string): Promise<string | null> {
   const config: VaultConfig | undefined = await getVaultConfigForDirectory(vault)
   return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
 }
@@ -98,18 +93,14 @@ function samePan(
 async function getCurrentVaultOrThrow(): Promise<string> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
   if (activeConnection) return activeConnection.vault
-  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
-  if (writePath) return writePath
-  const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) throw new Error('Watched directory not initialized')
-  return vault
+  throw new Error('Watched directory not initialized')
 }
 
 async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
   readPaths: string[]
   writePath: string
 }> {
-  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
+  const writePath: string | null = await getConfiguredWritePathForVault(vault)
 
   return {
     readPaths: [],
@@ -367,7 +358,7 @@ export async function getNodeFromDaemon(
 }
 
 export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
-  if (!getProjectRootWatchedDirectory() && !getActiveDaemonConnection()) return null
+  if (!getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   const sessionId: string = await syncRendererSessionState(client, localState)

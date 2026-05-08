@@ -24,12 +24,12 @@ import type {
     FolderTreeNode,
 } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getProjectRootWatchedDirectory } from './watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import type { FilePath, Graph, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
 import * as O from 'fp-ts/lib/Option.js'
+import { getActiveDaemonConnection } from '@/shell/edge/main/electron/graph-daemon'
 
 import { getCurrentLiveState, rootsWereExplicitlySet } from './live-state-store'
 
@@ -37,7 +37,7 @@ async function buildRoots(
     graph: Graph,
     liveLoadedRoots: ReadonlySet<string>,
 ): Promise<{ loaded: ReadonlySet<string>; folderTree: readonly FolderTreeNode[] }> {
-    const projectRoot: FilePath | null = getProjectRootWatchedDirectory()
+    const projectRoot: FilePath | null = getActiveDaemonConnection()?.vault ?? null
     if (!projectRoot) {
         return { loaded: liveLoadedRoots, folderTree: [] }
     }

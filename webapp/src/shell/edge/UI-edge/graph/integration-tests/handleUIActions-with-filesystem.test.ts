@@ -102,21 +102,6 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD', asyn
     }
 })
 
-// Mock watch-folder-store for watched directory state
-vi.mock('@/shell/edge/main/state/watch-folder-store', () => {
-    return {
-        getWatcher: vi.fn(() => null),
-        setWatcher: vi.fn(),
-        getProjectRootWatchedDirectory: () => tempVault || null,
-        setProjectRootWatchedDirectory: vi.fn(),
-        getStartupFolderOverride: vi.fn(() => null),
-        setStartupFolderOverride: vi.fn(),
-        getOnFolderSwitchCleanup: vi.fn(() => null),
-        setOnFolderSwitchCleanup: vi.fn(),
-        clearWatchFolderState: vi.fn()
-    }
-})
-
 // Mock watchFolder for vault path functions
 vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOriginal) => {
     const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()

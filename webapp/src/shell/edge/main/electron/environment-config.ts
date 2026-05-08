@@ -4,7 +4,7 @@ import os from 'os';
 import fs from 'fs';
 import {app} from 'electron';
 import fixPath from 'fix-path';
-import {setStartupFolderOverride} from "@/shell/edge/main/state/watch-folder-store";
+import { setStartupFolderOverride } from './startup-folder-override';
 
 // Port string passed to --remote-debugging-port, null if CDP not enabled.
 // '0' means ephemeral — resolve the actual port later via DevToolsActivePort.
