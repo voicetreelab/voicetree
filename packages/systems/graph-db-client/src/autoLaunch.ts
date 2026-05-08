@@ -47,9 +47,19 @@ type RuntimeCommandInput = {
   versions?: Partial<RuntimeVersions>
 }
 type RuntimeValidation = { ok: true } | { ok: false; reason: string }
+type HealthyPortProbeDeps = {
+  now: () => number
+  probeHealth: (vault: string, port: number) => Promise<boolean>
+  readPortFile: (vault: string) => Promise<number | null>
+  sleep: (ms: number) => Promise<void>
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms))
+}
+
+function nowMs(): number {
+  return Date.now()
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,6 +113,67 @@ async function probeHealth(vault: string, port: number): Promise<boolean> {
   }
 }
 
+function nextBackoffMs(backoffMs: number, maxBackoffMs: number): number {
+  return Math.min(backoffMs * 2, maxBackoffMs)
+}
+
+function boundedAppend(
+  current: string,
+  chunk: Buffer | string,
+  maxLength: number,
+): string {
+  const next = `${current}${chunk.toString()}`
+  return next.length > maxLength ? next.slice(-maxLength) : next
+}
+
+function parseAlreadyRunningPid(stderr: string): number | null {
+  const match = ALREADY_RUNNING_RE.exec(stderr)
+  return match ? Number(match[1]) : null
+}
+
+function launchTimeoutMessage(
+  timeoutMs: number,
+  resolvedVault: string,
+  stderr: string,
+): string {
+  const stderrSuffix = stderr.trim()
+    ? `\nvt-graphd stderr:\n${stderr.trim()}`
+    : ''
+  return `vt-graphd did not become ready within ${timeoutMs}ms for vault ${resolvedVault}${stderrSuffix}`
+}
+
+async function waitForHealthyPort(
+  vault: string,
+  opts: {
+    initialBackoffMs: number
+    maxBackoffMs: number
+    timeoutMs: number
+  },
+  deps: HealthyPortProbeDeps = {
+    now: nowMs,
+    probeHealth,
+    readPortFile,
+    sleep,
+  },
+): Promise<number | null> {
+  const deadline = deps.now() + opts.timeoutMs
+  let backoffMs = opts.initialBackoffMs
+
+  while (deps.now() < deadline) {
+    const port = await deps.readPortFile(vault)
+    if (port !== null && (await deps.probeHealth(vault, port))) {
+      return port
+    }
+
+    const remainingMs = deadline - deps.now()
+    if (remainingMs <= 0) break
+    await deps.sleep(Math.min(backoffMs, remainingMs))
+    backoffMs = nextBackoffMs(backoffMs, opts.maxBackoffMs)
+  }
+
+  return null
+}
+
 export function resolveDaemonRuntimeCommand(
   input: RuntimeCommandInput = {},
 ): string {
@@ -153,10 +224,23 @@ function uniqueNonEmpty(values: Array<string | undefined>): string[] {
   return result
 }
 
+const runtimeValidationCache = new Map<string, RuntimeValidation>()
+
+function runtimeValidationCacheKey(
+  candidate: string,
+  env: NodeJS.ProcessEnv,
+): string {
+  return [candidate, env.PATH ?? '', env.Path ?? ''].join('\0')
+}
+
 function validateDaemonRuntime(
   candidate: string,
   env: NodeJS.ProcessEnv,
 ): RuntimeValidation {
+  const cacheKey = runtimeValidationCacheKey(candidate, env)
+  const cached = runtimeValidationCache.get(cacheKey)
+  if (cached) return cached
+
   const result = spawnSync(
     candidate,
     [
@@ -176,18 +260,24 @@ function validateDaemonRuntime(
     },
   )
 
-  if (result.status === 0) {
-    return { ok: true }
-  }
+  const validation =
+    result.status === 0
+      ? { ok: true }
+      : result.error
+        ? { ok: false, reason: result.error.message }
+        : (() => {
+            const stderr = result.stderr.trim()
+            const stdout = result.stdout.trim()
+            const detail =
+              stderr || stdout || `exit status ${result.status ?? 'unknown'}`
+            return {
+              ok: false,
+              reason: detail.split('\n').at(-1) ?? detail,
+            }
+          })()
 
-  if (result.error) {
-    return { ok: false, reason: result.error.message }
-  }
-
-  const stderr = result.stderr.trim()
-  const stdout = result.stdout.trim()
-  const detail = stderr || stdout || `exit status ${result.status ?? 'unknown'}`
-  return { ok: false, reason: detail.split('\n').at(-1) ?? detail }
+  runtimeValidationCache.set(cacheKey, validation)
+  return validation
 }
 
 function resolveCommand(vault: string, override: string | undefined): CommandSpec {
@@ -263,20 +353,20 @@ export async function ensureDaemon(
 
       const lockHolderPid = await readAliveLockHolder(resolvedVault)
       if (lockHolderPid !== null) {
-        const reuseDeadline = Date.now() + REUSE_PROBE_AFTER_LOCK_HELD_MS
-        while (Date.now() < reuseDeadline) {
-          const p = await readPortFile(resolvedVault)
-          if (p !== null && (await probeHealth(resolvedVault, p))) {
-            ensureSpan.setAttribute('reused', true)
-            ensureSpan.setAttribute('lockHolderPid', lockHolderPid)
-            ensureSpan.end()
-            return {
-              port: p,
-              pid: lockHolderPid,
-              launched: false,
-            }
+        const port = await waitForHealthyPort(resolvedVault, {
+          initialBackoffMs: 100,
+          maxBackoffMs: 100,
+          timeoutMs: REUSE_PROBE_AFTER_LOCK_HELD_MS,
+        })
+        if (port !== null) {
+          ensureSpan.setAttribute('reused', true)
+          ensureSpan.setAttribute('lockHolderPid', lockHolderPid)
+          ensureSpan.end()
+          return {
+            port,
+            pid: lockHolderPid,
+            launched: false,
           }
-          await sleep(100)
         }
 
         throw new DaemonLockHeldError(resolvedVault, lockHolderPid)
@@ -319,20 +409,18 @@ export async function ensureDaemon(
           const spawnedPid = child.pid ?? null
           spawnSpan.setAttribute('pid', spawnedPid ?? 0)
 
-          let spawnError: NodeJS.ErrnoException | null = null
+          const spawnState: { error: NodeJS.ErrnoException | null } = {
+            error: null,
+          }
           let stderr = ''
           let alreadyRunningPid: number | null = null
           child.on('error', (err) => {
-            spawnError = err as NodeJS.ErrnoException
+            spawnState.error = err as NodeJS.ErrnoException
           })
           child.stderr?.on('data', (chunk: Buffer | string) => {
-            stderr = `${stderr}${chunk.toString()}`
-            if (stderr.length > 4000) {
-              stderr = stderr.slice(-4000)
-            }
+            stderr = boundedAppend(stderr, chunk, 4000)
             if (alreadyRunningPid === null) {
-              const match = ALREADY_RUNNING_RE.exec(stderr)
-              if (match) alreadyRunningPid = Number(match[1])
+              alreadyRunningPid = parseAlreadyRunningPid(stderr)
             }
           })
 
@@ -340,13 +428,13 @@ export async function ensureDaemon(
           const deadline = Date.now() + timeoutMs
           let backoff = 50
           while (Date.now() < deadline) {
-            if (spawnError) {
+            if (spawnState.error) {
               spawnSpan.setStatus({
                 code: SpanStatusCode.ERROR,
-                message: spawnError.message,
+                message: spawnState.error.message,
               })
               spawnSpan.end()
-              throw spawnError
+              throw spawnState.error
             }
 
             const port = await readPortFile(resolvedVault)
@@ -362,27 +450,23 @@ export async function ensureDaemon(
             // (in case it's slow rather than dead), then surface a typed error so
             // the caller can recover by killing the orphan.
             if (alreadyRunningPid !== null) {
-              const reuseDeadline =
-                Date.now() + REUSE_PROBE_AFTER_LOCK_HELD_MS
-              while (Date.now() < reuseDeadline) {
-                const p = await readPortFile(resolvedVault)
-                if (
-                  p !== null &&
-                  (await probeHealth(resolvedVault, p))
-                ) {
-                  spawnSpan.setAttribute('port', p)
-                  spawnSpan.setAttribute(
-                    'alreadyRunningPid',
-                    alreadyRunningPid,
-                  )
-                  spawnSpan.end()
-                  return {
-                    port: p,
-                    pid: alreadyRunningPid,
-                    launched: false,
-                  }
+              const port = await waitForHealthyPort(resolvedVault, {
+                initialBackoffMs: 100,
+                maxBackoffMs: 100,
+                timeoutMs: REUSE_PROBE_AFTER_LOCK_HELD_MS,
+              })
+              if (port !== null) {
+                spawnSpan.setAttribute('port', port)
+                spawnSpan.setAttribute(
+                  'alreadyRunningPid',
+                  alreadyRunningPid,
+                )
+                spawnSpan.end()
+                return {
+                  port,
+                  pid: alreadyRunningPid,
+                  launched: false,
                 }
-                await sleep(100)
               }
               const err = new DaemonLockHeldError(
                 resolvedVault,
@@ -402,19 +486,16 @@ export async function ensureDaemon(
             backoff = Math.min(backoff * 2, 100)
           }
 
-          if (spawnError) {
+          if (spawnState.error) {
             spawnSpan.setStatus({
               code: SpanStatusCode.ERROR,
-              message: (spawnError as Error).message,
+              message: spawnState.error.message,
             })
             spawnSpan.end()
-            throw spawnError
+            throw spawnState.error
           }
-          const stderrSuffix = stderr.trim()
-            ? `\nvt-graphd stderr:\n${stderr.trim()}`
-            : ''
           const err = new DaemonLaunchTimeout(
-            `vt-graphd did not become ready within ${timeoutMs}ms for vault ${resolvedVault}${stderrSuffix}`,
+            launchTimeoutMessage(timeoutMs, resolvedVault, stderr),
           )
           spawnSpan.setStatus({
             code: SpanStatusCode.ERROR,

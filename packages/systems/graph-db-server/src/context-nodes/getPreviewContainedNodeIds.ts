@@ -20,7 +20,6 @@ export async function getPreviewContainedNodeIds(
 
     const node: GraphNode | undefined = currentGraph.nodes[nodeId]
     if (!node) {
-        console.warn(`[getPreviewContainedNodeIds] Node ${nodeId} not found in graph`)
         return []
     }
 

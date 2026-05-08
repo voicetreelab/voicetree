@@ -8,12 +8,14 @@ export {
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
+  type EnsureDaemonResult,
+} from './autoLaunch.ts'
+export {
   isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,
   terminateUnresponsiveDaemon,
-  type EnsureDaemonResult,
   type OrphanCleanupResult,
-} from './autoLaunch.ts'
+} from './orphanCleanup.ts'
 
 export {
   CONTRACT_VERSION,

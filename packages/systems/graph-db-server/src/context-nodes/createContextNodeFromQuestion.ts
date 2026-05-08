@@ -12,6 +12,18 @@ import {
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWritePath } from './contextWritePath'
 
+type ContextNodeFromQuestionClock = {
+    readonly now: () => number
+}
+
+export type CreateContextNodeFromQuestionDependencies = {
+    readonly clock: ContextNodeFromQuestionClock
+}
+
+const defaultCreateContextNodeFromQuestionDependencies: CreateContextNodeFromQuestionDependencies = {
+    clock: { now: () => Date.now() },
+}
+
 /** Truncate a title to at most 5 words */
 function truncateToFiveWords(text: string): string {
     const words: string[] = text.split(/\s+/)
@@ -28,7 +40,8 @@ function truncateToFiveWords(text: string): string {
 export async function createContextNodeFromQuestion(
     relevantNodeIds: readonly NodeIdAndFilePath[],
     question: string,
-    semanticNodeIds: readonly NodeIdAndFilePath[] = []
+    semanticNodeIds: readonly NodeIdAndFilePath[] = [],
+    dependencies: CreateContextNodeFromQuestionDependencies = defaultCreateContextNodeFromQuestionDependencies
 ): Promise<NodeIdAndFilePath> {
     const currentGraph: Graph = getGraph()
     const settings: VTSettings = await loadSettings()
@@ -50,7 +63,7 @@ export async function createContextNodeFromQuestion(
         maxDistance
     )
 
-    const timestamp: number = Date.now()
+    const timestamp: number = dependencies.clock.now()
     const writePath: string = await resolveContextWritePath(validNodeIds[0])
     const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))
 

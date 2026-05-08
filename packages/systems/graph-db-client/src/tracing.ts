@@ -23,7 +23,7 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
           const json = {
             traceId: span.spanContext().traceId,
             spanId: span.spanContext().spanId,
-            parentSpanId: span.parentSpanId,
+            parentSpanId: span.parentSpanContext?.spanId,
             name: span.name,
             startTimeMs: hrTimeToMs(span.startTime),
             endTimeMs: hrTimeToMs(span.endTime),

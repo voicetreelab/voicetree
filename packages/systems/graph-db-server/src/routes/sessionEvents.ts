@@ -16,6 +16,14 @@ import { extractRecentNodesFromDelta } from '@vt/graph-model/graph'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { Session } from '../session/types.ts'
 
+type SessionEventTimers = {
+  readonly setInterval: (
+    callback: () => void,
+    delayMs: number,
+  ) => ReturnType<typeof setInterval>
+  readonly clearInterval: (timerId: ReturnType<typeof setInterval>) => void
+}
+
 function formatSSE(event: string, data: string): string {
   return `event: ${event}\ndata: ${data}\n\n`
 }
@@ -40,6 +48,10 @@ function parseSince(rawSince: string | undefined, currentSeq: number): number {
 export function mountSessionEventsRoute(
   app: Hono,
   registry: SessionRegistry,
+  timers: SessionEventTimers = {
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval,
+  },
 ): void {
   app.get('/sessions/:sessionId/events', (c) => {
     const sessionId = c.req.param('sessionId')
@@ -54,7 +66,10 @@ export function mountSessionEventsRoute(
 
     return stream(c, async (s) => {
       await s.write(': connected\n\n')
-      const keepaliveId = setInterval(() => void s.write(': keepalive\n\n'), 20_000)
+      const keepaliveId = timers.setInterval(
+        () => void s.write(': keepalive\n\n'),
+        20_000,
+      )
 
       let unsubscribeProjected: (() => void) | null = null
       let unsubscribeDelta: (() => void) | null = null
@@ -139,7 +154,7 @@ export function mountSessionEventsRoute(
       }
 
       s.onAbort(() => {
-        clearInterval(keepaliveId)
+        timers.clearInterval(keepaliveId)
         unsubscribeProjected?.()
         unsubscribeDelta?.()
         unsubscribeProjected = null

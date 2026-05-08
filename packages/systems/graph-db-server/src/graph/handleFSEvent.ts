@@ -30,8 +30,6 @@ export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
     _watchedDirectory: string,
 ): void {
-    //console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
-
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
 
@@ -40,7 +38,6 @@ export function handleFSEventWithStateAndUISides(
 
     //  Check if this is our own recent write - skip if so
     if (isOurRecentDelta(delta)) {
-        //console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
         return
     }
 

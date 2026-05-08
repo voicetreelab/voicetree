@@ -18,6 +18,18 @@ import {
 import { ensureUniqueNodeId } from '@vt/graph-model/graph'
 import { resolveContextWritePath } from './contextWritePath'
 
+type ContextNodeFromSelectedNodesClock = {
+  readonly now: () => number
+}
+
+export type CreateContextNodeFromSelectedNodesDependencies = {
+  readonly clock: ContextNodeFromSelectedNodesClock
+}
+
+const defaultCreateContextNodeFromSelectedNodesDependencies: CreateContextNodeFromSelectedNodesDependencies = {
+  clock: { now: () => Date.now() },
+}
+
 /**
  * Creates a context node from explicitly selected nodes.
  *
@@ -27,7 +39,8 @@ import { resolveContextWritePath } from './contextWritePath'
  */
 export async function createContextNodeFromSelectedNodes(
   taskNodeId: NodeIdAndFilePath,
-  selectedNodeIds: readonly NodeIdAndFilePath[]
+  selectedNodeIds: readonly NodeIdAndFilePath[],
+  dependencies: CreateContextNodeFromSelectedNodesDependencies = defaultCreateContextNodeFromSelectedNodesDependencies
 ): Promise<NodeIdAndFilePath> {
   const currentGraph: Graph = getGraph()
 
@@ -46,7 +59,7 @@ export async function createContextNodeFromSelectedNodes(
   }
 
   // Generate unique context node ID
-  const timestamp: number = Date.now()
+  const timestamp: number = dependencies.clock.now()
   const writePath: string = await resolveContextWritePath(taskNodeId)
   const candidateContextNodeId: string = `${writePath}/${CONTEXT_NODES_FOLDER}/task_context_${timestamp}.md`
   const existingIds: ReadonlySet<string> = new Set(Object.keys(currentGraph.nodes))

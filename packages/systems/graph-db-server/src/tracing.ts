@@ -11,6 +11,29 @@ function hrTimeToMs(hrTime: [number, number]): number {
   return hrTime[0] * 1000 + hrTime[1] / 1_000_000
 }
 
+function traceDirectory(homeDirectory: string): string {
+  return join(homeDirectory, '.voicetree', 'traces')
+}
+
+function traceFilePath(homeDirectory: string, serviceName: string): string {
+  return join(traceDirectory(homeDirectory), `${serviceName}.ndjson`)
+}
+
+function serializeSpan(span: ReadableSpan): Record<string, unknown> {
+  const parentSpanId = (span as ReadableSpan & { parentSpanId?: string }).parentSpanId
+  return {
+    traceId: span.spanContext().traceId,
+    spanId: span.spanContext().spanId,
+    parentSpanId,
+    name: span.name,
+    startTimeMs: hrTimeToMs(span.startTime),
+    endTimeMs: hrTimeToMs(span.endTime),
+    durationMs: hrTimeToMs(span.duration),
+    status: span.status,
+    attributes: span.attributes,
+  }
+}
+
 // NDJSON file exporter — writes completed spans as one JSON line each
 function createNdjsonFileExporter(filePath: string): SpanExporter {
   return {
@@ -20,18 +43,7 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
     ) {
       try {
         for (const span of spans) {
-          const json = {
-            traceId: span.spanContext().traceId,
-            spanId: span.spanContext().spanId,
-            parentSpanId: span.parentSpanId,
-            name: span.name,
-            startTimeMs: hrTimeToMs(span.startTime),
-            endTimeMs: hrTimeToMs(span.endTime),
-            durationMs: hrTimeToMs(span.duration),
-            status: span.status,
-            attributes: span.attributes,
-          }
-          appendFileSync(filePath, JSON.stringify(json) + '\n')
+          appendFileSync(filePath, JSON.stringify(serializeSpan(span)) + '\n')
         }
         resultCallback({ code: ExportResultCode.SUCCESS })
       } catch {
@@ -45,9 +57,10 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
 
 // Initialize tracing — call once at process startup
 function initTracing(serviceName: string): void {
-  const traceDir = join(homedir(), '.voicetree', 'traces')
+  const homeDirectory = homedir()
+  const traceDir = traceDirectory(homeDirectory)
   mkdirSync(traceDir, { recursive: true })
-  const traceFile = join(traceDir, `${serviceName}.ndjson`)
+  const traceFile = traceFilePath(homeDirectory, serviceName)
 
   const provider = new NodeTracerProvider({
     spanProcessors: [
