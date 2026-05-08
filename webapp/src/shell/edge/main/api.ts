@@ -58,6 +58,7 @@ import {
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
+import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon-sse-subscription';
 import path from 'path';
 
 /**
@@ -216,6 +217,8 @@ export const mainAPI = {
   prettySetupAppForElectronDebugging,
   getLiveStateSnapshot,
   syncRendererSessionStateWithDaemon,
+  __debugLockSSE,
+  __debugUnlockSSE,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,

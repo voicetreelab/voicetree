@@ -114,11 +114,14 @@ function scheduleReconnect(
     }, 3_000)
 }
 
+let lockedForTest: boolean = false
+
 export function subscribeToDaemonSSE(
     sessionId: string,
     baseUrl: string,
     mainWindow: Electron.BrowserWindow,
 ): void {
+    if (lockedForTest) return
     unsubscribeFromDaemonSSE()
 
     const subscriptionKey: string = `${baseUrl}|${sessionId}`;
@@ -151,4 +154,15 @@ export function unsubscribeFromDaemonSSE(): void {
 
 export function isDaemonSSEActive(): boolean {
     return currentController !== null && !currentController.signal.aborted
+}
+
+export function __debugLockSSE(): void {
+    if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API')
+    unsubscribeFromDaemonSSE()
+    lockedForTest = true
+}
+
+export function __debugUnlockSSE(): void {
+    if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API')
+    lockedForTest = false
 }

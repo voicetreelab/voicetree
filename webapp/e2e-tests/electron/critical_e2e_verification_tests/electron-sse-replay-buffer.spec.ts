@@ -1,5 +1,4 @@
 import { expect } from '@playwright/test';
-import * as fs from 'fs/promises';
 import {
   REPO_ROOT,
   type ExtendedWindow,
@@ -10,12 +9,12 @@ import {
 } from './electron-smoke-helpers';
 import { test, readAnchorState } from './electron-anchor-test-fixtures';
 
-test.describe('spawn_agent terminal anchoring', () => {
-  test('anchors the spawned interactive terminal to the new task node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
+test.describe('SSE replay buffer', () => {
+  test('anchors terminal after SSE reconnect replays missed delta', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
     test.setTimeout(process.env.CI ? 120_000 : 90_000);
 
     const mcpPort = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getMcpPort();
     });
@@ -25,11 +24,11 @@ test.describe('spawn_agent terminal anchoring', () => {
     await mcpRequest(mcpUrl, 'initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'spawn-anchor-e2e', version: '1.0.0' },
+      clientInfo: { name: 'replay-buffer-e2e', version: '1.0.0' },
     });
 
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
     }, fixtureVaultPath);
@@ -37,19 +36,19 @@ test.describe('spawn_agent terminal anchoring', () => {
 
     await expect.poll(async () => {
       return await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes).length;
       });
     }, {
-      message: 'Waiting for graph state after explicit file watching start',
+      message: 'Waiting for graph state after file watching start',
       timeout: 15_000,
       intervals: [250, 500, 1000],
     }).toBeGreaterThan(0);
 
     const parentNodeId = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const graph = await api.main.getGraph();
       const nodeIds = Object.keys(graph.nodes);
@@ -57,16 +56,16 @@ test.describe('spawn_agent terminal anchoring', () => {
       return nodeIds[0];
     });
 
-    const callerTerminalId = 'e2e-anchor-caller';
+    const callerTerminalId = 'e2e-replay-caller';
     const callerSpawn = await appWindow.evaluate(async ({ callerTerminalId, parentNodeId }) => {
-      const api = (window as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api?.terminal) throw new Error('electronAPI.terminal not available');
       return await api.terminal.spawn({
         type: 'Terminal',
         terminalId: callerTerminalId,
         attachedToContextNodeId: parentNodeId,
         terminalCount: 0,
-        title: 'E2E Anchor Caller',
+        title: 'E2E Replay Buffer Caller',
         anchoredToNodeId: { _tag: 'None' },
         shadowNodeDimensions: { width: 600, height: 400 },
         resizable: true,
@@ -89,13 +88,32 @@ test.describe('spawn_agent terminal anchoring', () => {
       const agents = (listResult.parsed as { agents: Array<{ terminalId: string }> }).agents;
       return agents.some(agent => agent.terminalId === callerTerminalId);
     }, {
-      message: 'Waiting for caller terminal to register before MCP spawn_agent',
+      message: 'Waiting for caller terminal to register',
       timeout: 10_000,
       intervals: [250, 500, 1000],
     }).toBe(true);
 
+    // Stop file watching so the ONLY graph delivery channel is SSE.
+    // Without this, the file watcher detects new .md files written by spawn_agent
+    // and pushes the projected graph directly via IPC (syncRendererFromDaemon),
+    // bypassing SSE entirely.
+    await appWindow.evaluate(async () => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      await api.main.stopFileWatching();
+    });
+
+    // Lock SSE — drops the connection AND prevents auto-resubscription
+    // (postDeltaThroughDaemon would otherwise silently reconnect SSE)
+    await appWindow.evaluate(async () => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      await (api.main as Record<string, () => Promise<void>>).__debugLockSSE();
+    });
+
+    // Spawn agent while SSE is locked — deltas land in daemon replay buffer
     const spawnResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
-      task: 'E2E spawned terminal anchor task',
+      task: 'E2E replay buffer regression task',
       parentNodeId,
       callerTerminalId,
       agentName: 'Fake Agent',
@@ -109,51 +127,38 @@ test.describe('spawn_agent terminal anchoring', () => {
     expect(spawnPayload.terminalId).toBeTruthy();
     expect(spawnPayload.taskNodeId).toBeTruthy();
 
-    await appWindow.evaluate((nodeId) => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-      const previousTimer = (window as unknown as { __anchorRemovalTimer?: number }).__anchorRemovalTimer;
-      if (previousTimer) window.clearInterval(previousTimer);
-      const removeRenderedTaskNode = () => {
-        cy.remove(cy.getElementById(nodeId));
-      };
-      removeRenderedTaskNode();
-      const timer = window.setInterval(removeRenderedTaskNode, 50);
-      (window as unknown as { __anchorRemovalTimer?: number }).__anchorRemovalTimer = timer;
-      window.setTimeout(() => {
-        window.clearInterval(timer);
-        (window as unknown as { __anchorRemovalTimer?: number }).__anchorRemovalTimer = undefined;
-      }, 4_000);
-    }, spawnPayload.taskNodeId);
-
+    // Wait for daemon to have the task node (confirms delta published while SSE was locked)
     await expect.poll(async () => {
-      return await appWindow.evaluate((nodeId) => {
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        return (cy?.getElementById(nodeId).length ?? 0) === 0;
+      return await appWindow.evaluate(async (taskNodeId) => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        const graph = await api.main.getGraph();
+        return taskNodeId in (graph as Record<string, unknown> & { nodes: Record<string, unknown> }).nodes;
       }, spawnPayload.taskNodeId);
     }, {
-      message: 'Waiting for the task node to be absent from Cytoscape before spawn',
+      message: 'Waiting for daemon to register the spawned task node',
       timeout: 15_000,
       intervals: [250, 500, 1000],
     }).toBe(true);
 
-    await expect.poll(async () => {
-      const state = await readAnchorState(appWindow, spawnPayload.terminalId, spawnPayload.taskNodeId);
-      return state.terminalExists;
-    }, {
-      message: 'Waiting for spawned terminal to appear while the task node is absent from Cytoscape',
-      timeout: 15_000,
-      intervals: [250, 500, 1000],
-    }).toBe(true);
+    // Confirm task node has NOT reached Cytoscape (file watching stopped + SSE locked)
+    const taskNodeInCyBeforeReconnect = await appWindow.evaluate((nodeId) => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return (cy?.getElementById(nodeId).length ?? 0) > 0;
+    }, spawnPayload.taskNodeId);
+    expect(taskNodeInCyBeforeReconnect, 'Task node should not be in Cytoscape while SSE is locked').toBe(false);
 
-    await appWindow.waitForTimeout(4_200);
+    // Unlock SSE, then trigger reconnection via syncRendererSessionStateWithDaemon
+    // Post-fix: reconnection sends ?since=<lastSeenSeq> → replay buffer delivers missed delta
+    // Pre-fix: reconnection starts fresh → missed delta is lost
+    await appWindow.evaluate(async () => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      await (api.main as Record<string, () => Promise<void>>).__debugUnlockSSE();
+      await api.main.syncRendererSessionStateWithDaemon();
+    });
 
-    await fs.writeFile(
-      spawnPayload.taskNodeId,
-      `# E2E spawned terminal anchor task\n\nUpdated after spawn_agent so the watcher projects this task node back into Cytoscape.\n\n${Date.now()}\n`,
-      'utf8',
-    );
-
+    // Wait for terminal to anchor after replay delivers the missed projected graph
     await expect.poll(async () => {
       const state = await readAnchorState(appWindow, spawnPayload.terminalId, spawnPayload.taskNodeId);
       return state.taskNodeInCy &&
@@ -165,7 +170,7 @@ test.describe('spawn_agent terminal anchoring', () => {
         state.edgeSource === spawnPayload.taskNodeId &&
         state.edgeTarget === `${spawnPayload.terminalId}-anchor-shadowNode`;
     }, {
-      message: 'Waiting for spawned terminal to anchor after the task node re-enters Cytoscape',
+      message: 'Waiting for terminal to anchor after SSE replay delivers the missed delta',
       timeout: 30_000,
       intervals: [250, 500, 1000, 2000],
     }).toBe(true);
