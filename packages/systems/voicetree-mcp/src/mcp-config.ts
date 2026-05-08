@@ -4,7 +4,8 @@
 // keeping this package free of Electron and renderer-side imports.
 
 import type { Command, Delta, SerializedState } from '@vt/graph-state'
-import type { Graph, GraphDelta } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 
 export type LiveStateBridge = {
     readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
@@ -29,6 +30,11 @@ export type GraphBridge = {
     readonly getGraph: () => Promise<Graph>
     readonly getVaultPaths: () => Promise<readonly string[]>
     readonly getWritePath: () => Promise<string | null>
+    readonly getProjectRootWatchedDirectory?: () => string | null
+    readonly getUnseenNodesAroundContextNode?: (
+        contextNodeId: NodeIdAndFilePath,
+        searchFromNode?: NodeIdAndFilePath,
+    ) => Promise<readonly UnseenNode[]>
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
 }
 

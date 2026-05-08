@@ -1,7 +1,12 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphDelta } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import {
+    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
+    type UnseenNode,
+} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getGraph as getDefaultGraph } from '@vt/graph-db-server/state/graph-store'
 import { setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
+import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import {
     getVaultPaths as getDefaultVaultPaths,
     getWritePath as getDefaultWritePath,
@@ -39,6 +44,23 @@ export async function getMcpWritePath(): Promise<O.Option<string>> {
 export async function getMcpVaultPaths(): Promise<readonly string[]> {
     const bridge: GraphBridge | undefined = getGraphBridge()
     return bridge ? await bridge.getVaultPaths() : await getDefaultVaultPaths()
+}
+
+export function getMcpProjectRootWatchedDirectory(): string | null {
+    const bridge: GraphBridge | undefined = getGraphBridge()
+    return bridge?.getProjectRootWatchedDirectory
+        ? bridge.getProjectRootWatchedDirectory()
+        : getDefaultProjectRootWatchedDirectory()
+}
+
+export async function getMcpUnseenNodesAroundContextNode(
+    contextNodeId: NodeIdAndFilePath,
+    searchFromNode?: NodeIdAndFilePath,
+): Promise<readonly UnseenNode[]> {
+    const bridge: GraphBridge | undefined = getGraphBridge()
+    return bridge?.getUnseenNodesAroundContextNode
+        ? await bridge.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
+        : await getDefaultUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
 }
 
 export async function applyMcpGraphDelta(
