@@ -48,7 +48,8 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, type OrphanCleanupResult} from '@vt/graph-db-client';
+import type {Graph} from '@vt/graph-model/graph';
 import {getGraph as getGraphFromStore, setGraph as setGraphInStore} from '@vt/graph-db-server/state/graph-store';
 import {refreshGraphChangeSideEffects as refreshGraphChangeSideEffectsFromDb} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/context-nodes/createContextNode';
@@ -75,7 +76,7 @@ initializeGraphModel();
 configureMcpServer({
     graph: {
         getGraph: async () => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             return graph;
         },
@@ -87,7 +88,7 @@ configureMcpServer({
         applyGraphDelta: postDeltaThroughDaemonWithEditors,
         getProjectRootWatchedDirectory,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
         },
@@ -127,22 +128,22 @@ configureAgentRuntime({
         applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
         refreshGraphChangeSideEffects: () => refreshGraphChangeSideEffectsFromDb(),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             return createContextNodeFromDb(parentNodeId, semanticNodeIds ?? []);
         },
         createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             return createContextNodeFromSelectedNodesFromDb(taskNodeId, selectedNodeIds);
         },
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
         },
         updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
-            const graph = await getGraphFromDaemon();
+            const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
             await updateContextNodeContainedIdsFromDb(contextNodeId, newNodeIds);
         },
@@ -214,7 +215,7 @@ void app.whenReady().then(async () => {
     // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
-    const orphanCleanup = killOrphanVtGraphdDaemons();
+    const orphanCleanup: OrphanCleanupResult = killOrphanVtGraphdDaemons();
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
