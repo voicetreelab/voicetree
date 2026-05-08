@@ -6,7 +6,7 @@ import { getFolderNotePath } from '@vt/graph-model';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
-import {CIRCLE_SIZE} from '@vt/graph-model/pure/graph/node-presentation/types';
+import {applyAnchoredEditorOpenStyle, applyAnchoredEditorCloseStyle} from './anchoredEditorVisualStyle';
 import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
 import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
 import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -134,18 +134,10 @@ function anchorEditorToRealNode(cy: Core, editor: EditorData, nodeId: NodeIdAndF
     // Initial position sync
     updateWindowFromZoom(cy, windowElement, getLayout().zoom ?? 1);
 
-    // Hide the Cy circle — keep ellipse shape so edges stay rendered
-    // [L2-seam-residual] cy-only: visual style mutation on cy node
+    // Hide the Cy circle — keep ellipse shape so edges stay rendered.
+    // No-op for folder compound nodes (their bbox is the entire children area).
     const cyNode: cytoscape.CollectionReturnValue = cy.getElementById(nodeId);
-    if (cyNode.length > 0) {
-        cyNode.style({
-            'background-opacity': 0,
-            'border-opacity': 0,
-            'outline-opacity': 0,
-            'shape': 'ellipse',
-            'events': 'no',
-        } as Record<string, unknown>);
-    }
+    applyAnchoredEditorOpenStyle(cyNode);
 
     // ResizeObserver: sync DOM size → Cy node dimensions for Cola layout
     let resizeObserver: ResizeObserver | undefined;
@@ -169,17 +161,11 @@ function anchorEditorToRealNode(cy: Core, editor: EditorData, nodeId: NodeIdAndF
         dragMouseUp: (): void => {},
         resizeObserver,
         menuCleanup: (): void => {
-            // Restore Cy node to visible circle
-            if (cyNode.length > 0) {
-                cyNode.style({
-                    'background-opacity': 1,
-                    'border-opacity': 1,
-                    'outline-opacity': 1,
-                    'events': 'yes',
-                    'width': CIRCLE_SIZE,
-                    'height': CIRCLE_SIZE,
-                    'shape': 'ellipse',
-                });
+            // Restore Cy node to visible circle (no-op for folder compound nodes).
+            const stillExists: boolean = cyNode.length > 0;
+            const isFolder: boolean = stillExists && cyNode.data('isFolderNode') === true;
+            applyAnchoredEditorCloseStyle(cyNode);
+            if (stillExists && !isFolder) {
                 markNodeDirty(cy, nodeId);
             }
             // Run original menu cleanup (floating slider)
