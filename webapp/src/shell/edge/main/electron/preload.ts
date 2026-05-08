@@ -20,6 +20,15 @@ import type {GraphDelta} from "@vt/graph-model/pure/graph";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api';
 
+// Synchronously expose runtime flags so the renderer can branch before
+// async electronAPI setup finishes. PostHog init in main.tsx and other
+// boot-time decisions need this without a roundtrip.
+const perfMode: boolean =
+    process.env.VOICETREE_PERF_MODE === '1'
+    || process.env.NODE_ENV === 'test'
+    || process.env.HEADLESS_TEST === '1';
+contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode});
+
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
 async function exposeElectronAPI(): Promise<void> {
