@@ -283,7 +283,6 @@ export async function startDaemon(
     await lockHandle.release()
     throw err
   }
-
   await writePortFile(vault, assignedPort)
 
   let stopped = false

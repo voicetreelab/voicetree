@@ -22,7 +22,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "tsx bin/vt-graphd.ts"
+    "start": "tsx bin/vt-graphd.ts",
+    "build": "node build.mjs"
   },
   "bin": {
     "vt-graphd": "bin/vt-graphd.ts"
@@ -42,6 +43,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "typescript": "~5.8.3",
     "tsx": "^4.19.2",
     "vitest": "^3.2.4",

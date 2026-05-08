@@ -14,14 +14,13 @@ const ALREADY_RUNNING_RE = /vt-graphd:\s+already running for [^\n(]+\(pid (\d+)\
 const REUSE_PROBE_AFTER_LOCK_HELD_MS = 2000
 
 const requireFromHere = createRequire(import.meta.url)
-const TSX_IMPORT_PATH = requireFromHere.resolve('tsx')
 const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server')
 
 // Resolve from the installed workspace package, not from import.meta.url.
 // In the bundled Electron main process, import.meta.url points into dist output.
 const FALLBACK_BIN_PATH = resolve(
   dirname(GRAPH_DB_SERVER_ENTRYPOINT),
-  '../bin/vt-graphd.ts',
+  '../dist/vt-graphd.mjs',
 )
 
 export interface EnsureDaemonResult {
@@ -63,7 +62,7 @@ export interface OrphanCleanupResult {
  * crashed apps or aborted test runs; they hold ports and contend with the
  * fresh daemon a current load is trying to reach.
  *
- * Only matches daemons launched via the bundled `vt-graphd.ts` entry; only
+ * Only matches daemons launched via the `vt-graphd` entry; only
  * kills processes whose vault path is missing on disk. POSIX-only (macOS,
  * Linux); no-op on other platforms.
  */
@@ -91,14 +90,14 @@ function readPidCommandLine(pid: number): string | null {
 }
 
 /**
- * True when pid's command-line is a `vt-graphd.ts` invocation whose `--vault`
+ * True when pid's command-line is a `vt-graphd` invocation whose `--vault`
  * argument resolves to `vault`. Used as a safety check before SIGTERM-ing a
  * pid recovered from a lockfile we don't trust.
  */
 export function isVtGraphdProcessForVault(pid: number, vault: string): boolean {
   const cmd = readPidCommandLine(pid)
   if (!cmd) return false
-  const match = /\bvt-graphd\.ts\b.*--vault\s+(\S+)/.exec(cmd)
+  const match = /\bvt-graphd\.\w+\b.*--vault\s+(\S+)/.exec(cmd)
   if (!match) return false
   return resolve(match[1]) === resolve(vault)
 }
@@ -110,7 +109,7 @@ function delay(ms: number): Promise<void> {
 /**
  * Terminate a vt-graphd process holding the lock for a vault and clean up its
  * stale lock + port files. Refuses to kill a pid whose command-line doesn't
- * match `vt-graphd.ts ... --vault <vault>` — the lockfile contents are
+ * match `vt-graphd ... --vault <vault>` — the lockfile contents are
  * untrusted, so we verify before killing.
  *
  * Returns true when the process was terminated (or already dead) and lock /
@@ -172,7 +171,7 @@ export function killOrphanVtGraphdDaemons(): OrphanCleanupResult {
     return { killed, skipped }
   }
 
-  const matcher = /^\s*(\d+)\s+(.*\bvt-graphd\.ts\b.*--vault\s+(\S+).*)$/
+  const matcher = /^\s*(\d+)\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
 
   for (const line of result.stdout.split('\n')) {
     const match = matcher.exec(line)
@@ -319,7 +318,7 @@ function resolveCommand(vault: string, override: string | undefined): CommandSpe
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
-    args: ['--import', TSX_IMPORT_PATH, FALLBACK_BIN_PATH, '--vault', vault],
+    args: [FALLBACK_BIN_PATH, '--vault', vault],
     env: { ...process.env },
   }
 }
@@ -407,7 +406,7 @@ export async function ensureDaemon(
     const remaining = deadline - Date.now()
     if (remaining <= 0) break
     await sleep(Math.min(backoff, remaining))
-    backoff = Math.min(backoff * 2, 500)
+    backoff = Math.min(backoff * 2, 100)
   }
 
   if (spawnError) throw spawnError
