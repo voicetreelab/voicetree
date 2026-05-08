@@ -368,7 +368,57 @@ async function analyze(): Promise<{ fns: FnEntry[]; byLayer: Record<ArchLayer, S
 
 function pct(n: number, d: number): string { return d === 0 ? 'N/A' : `${((n / d) * 100).toFixed(1)}%` }
 
-function report(byLayer: Record<ArchLayer, Stats>, totals: Stats): string {
+function median(values: readonly number[]): number {
+    if (values.length === 0) return 0
+    const sorted: number[] = [...values].sort((a, b) => a - b)
+    const mid: number = Math.floor(sorted.length / 2)
+    return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid]
+}
+
+function percentile(values: readonly number[], p: number): number {
+    if (values.length === 0) return 0
+    const sorted: number[] = [...values].sort((a, b) => a - b)
+    const bounded: number = Math.max(0, Math.min(100, p))
+    const index: number = Math.ceil((bounded / 100) * sorted.length) - 1
+    return sorted[Math.max(0, index)]
+}
+
+type FunctionHealthMetrics = {
+    readonly medianPureLoc: number
+    readonly medianImpureLoc: number
+    readonly complexityLocationRatio: number
+    readonly p75Loc: number
+    readonly p90Loc: number
+    readonly longestFunctions: readonly FnEntry[]
+    readonly longestImpureFunctions: readonly FnEntry[]
+}
+
+function functionHealthMetrics(fns: readonly FnEntry[]): FunctionHealthMetrics {
+    const pureLocs: number[] = fns.filter(f => f.sideEffects.length === 0).map(f => f.loc)
+    const impureLocs: number[] = fns.filter(f => f.sideEffects.length > 0).map(f => f.loc)
+    const allLocs: number[] = fns.map(f => f.loc)
+    const medianPureLoc: number = median(pureLocs)
+    const medianImpureLoc: number = median(impureLocs)
+    return {
+        medianPureLoc,
+        medianImpureLoc,
+        complexityLocationRatio: medianImpureLoc === 0 ? Infinity : medianPureLoc / medianImpureLoc,
+        p75Loc: percentile(allLocs, 75),
+        p90Loc: percentile(allLocs, 90),
+        longestFunctions: [...fns].sort((a, b) => b.loc - a.loc).slice(0, 10),
+        longestImpureFunctions: fns.filter(f => f.sideEffects.length > 0).sort((a, b) => b.loc - a.loc).slice(0, 10),
+    }
+}
+
+function formatFunctionEntry(fn: FnEntry): string {
+    const purity: string = fn.sideEffects.length === 0 ? 'pure' : `impure:${fn.sideEffects.join(',')}`
+    return `  ${fn.file}:${fn.line} ${fn.name} ${fn.loc} LOC ${purity}`
+}
+
+function report(byLayer: Record<ArchLayer, Stats>, totals: Stats, fns: readonly FnEntry[]): string {
+    const health: FunctionHealthMetrics = functionHealthMetrics(fns)
     const layers: ArchLayer[] = ['pure', 'libraries', 'systems', 'shell/edge', 'UI', 'other']
     const lines = [
         '', '┌─────────────┬────────┬────────┬────────┬────────────┬───────┐',
@@ -388,17 +438,33 @@ function report(byLayer: Record<ArchLayer, Stats>, totals: Stats): string {
     for (const [cat, loc] of Object.entries(totals.breakdown).sort(([, a], [, b]) => b - a)) {
         lines.push(`  ${cat.padEnd(20)} ${loc} LOC`)
     }
+    lines.push('')
+    lines.push('Function health metrics:')
+    lines.push(`  Median pure LOC:         ${health.medianPureLoc}`)
+    lines.push(`  Median impure LOC:       ${health.medianImpureLoc}`)
+    lines.push(`  Complexity location:     ${health.complexityLocationRatio.toFixed(2)}x`)
+    lines.push(`  P75 function LOC:        ${health.p75Loc}`)
+    lines.push(`  P90 function LOC:        ${health.p90Loc}`)
+    lines.push('')
+    lines.push('Top 10 longest functions:')
+    lines.push(...health.longestFunctions.map(formatFunctionEntry))
+    lines.push('')
+    lines.push('Top 10 longest impure functions:')
+    lines.push(...health.longestImpureFunctions.map(formatFunctionEntry))
     return lines.join('\n')
 }
 
 // ── tests ──────────────────────────────────────────────────────────
 
 const MINIMUM_PURITY_RATIO: number = 0.60
+const MINIMUM_COMPLEXITY_LOCATION_RATIO: number = 0.50
+const MAX_MEDIAN_IMPURE_FUNCTION_LOC: number = 20
+const MAX_P90_FUNCTION_LOC: number = 40
 
 describe('function purity ratio — AST-based (LOC)', () => {
     it('pure LOC ratio must be at least 60%', async () => {
-        const { byLayer, totals } = await analyze()
-        console.info(report(byLayer, totals))
+        const { fns, byLayer, totals } = await analyze()
+        console.info(report(byLayer, totals, fns))
         const ratio = totals.pureLoc / totals.totalLoc
         console.info(`Overall: ${pct(totals.pureLoc, totals.totalLoc)} (${totals.pureLoc} / ${totals.totalLoc} LOC)`)
         expect(ratio, `${pct(totals.pureLoc, totals.totalLoc)} < ${pct(MINIMUM_PURITY_RATIO, 1)}`).toBeGreaterThanOrEqual(MINIMUM_PURITY_RATIO)
@@ -415,5 +481,32 @@ describe('function purity ratio — AST-based (LOC)', () => {
         }
         console.info(`pure/: ${tLoc} LOC, ${vLoc} LOC impure (${pct(vLoc, tLoc)})`)
         expect(vLoc).toBeLessThanOrEqual(tLoc * 0.14)
+    })
+
+    it('complexity location: median pure function LOC >= median impure function LOC', async () => {
+        const { fns } = await analyze()
+        const health: FunctionHealthMetrics = functionHealthMetrics(fns)
+        expect(
+            health.complexityLocationRatio,
+            `complexity location ${health.complexityLocationRatio.toFixed(2)}x < ${MINIMUM_COMPLEXITY_LOCATION_RATIO.toFixed(2)}x (median pure ${health.medianPureLoc}, median impure ${health.medianImpureLoc})`,
+        ).toBeGreaterThanOrEqual(MINIMUM_COMPLEXITY_LOCATION_RATIO)
+    })
+
+    it('shell thinness: median impure function LOC <= threshold', async () => {
+        const { fns } = await analyze()
+        const health: FunctionHealthMetrics = functionHealthMetrics(fns)
+        expect(
+            health.medianImpureLoc,
+            `median impure function LOC ${health.medianImpureLoc} > ${MAX_MEDIAN_IMPURE_FUNCTION_LOC}`,
+        ).toBeLessThanOrEqual(MAX_MEDIAN_IMPURE_FUNCTION_LOC)
+    })
+
+    it('no god functions: P90 function LOC <= threshold', async () => {
+        const { fns } = await analyze()
+        const health: FunctionHealthMetrics = functionHealthMetrics(fns)
+        expect(
+            health.p90Loc,
+            `P90 function LOC ${health.p90Loc} > ${MAX_P90_FUNCTION_LOC}`,
+        ).toBeLessThanOrEqual(MAX_P90_FUNCTION_LOC)
     })
 })
