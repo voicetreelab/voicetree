@@ -13,8 +13,7 @@
     "./tools/*": "./src/tools/*",
     "./util/*": "./src/util/*",
     "./mcp-config": "./src/mcp-config.ts",
-    "./mcp-client-config": "./src/mcp-client-config.ts",
-    "./graphDbClientProvider": "./src/graphDbClientProvider.ts"
+    "./mcp-client-config": "./src/mcp-client-config.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

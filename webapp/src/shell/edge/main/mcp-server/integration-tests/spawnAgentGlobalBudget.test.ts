@@ -43,23 +43,6 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
     }
 })
 
-vi.mock('@vt/voicetree-mcp/graphDbClientProvider', async () => {
-    const graphStore: typeof import('@vt/graph-db-server/state/graph-store') = await import('@vt/graph-db-server/state/graph-store')
-    const vaultAllowlist: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await import('@vt/graph-db-server/watch-folder/vault-allowlist')
-    return {
-        configureGraphDbClient: vi.fn(),
-        getConfiguredGraphDbClient: vi.fn(() => ({
-            getGraph: vi.fn(async () => ({ nodes: graphStore.getGraph().nodes })),
-            getVault: vi.fn(async () => {
-                const wp = await vaultAllowlist.getWritePath()
-                return { writePath: wp._tag === 'Some' ? wp.value : undefined, readPaths: [] }
-            }),
-            postDelta: vi.fn(async () => undefined),
-        })),
-        getConfiguredGraph: vi.fn(async () => graphStore.getGraph()),
-    }
-})
-
 import {spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
