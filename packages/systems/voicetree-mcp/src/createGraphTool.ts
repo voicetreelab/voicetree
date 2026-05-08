@@ -19,7 +19,7 @@ import {
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
+import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from './agent-runtime-facade'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
     type MermaidBlock,

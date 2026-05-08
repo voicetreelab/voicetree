@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { AddressInfo, Socket } from 'node:net'
 import type { Server } from 'node:http'
+import { trace, SpanStatusCode } from '@opentelemetry/api'
 import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
@@ -18,7 +19,7 @@ import {
   openFolderVisibilityDb,
 } from './views/folderVisibilitySqlite.ts'
 import { ensureDefaultView } from './views/viewsRepository.ts'
-import { CONTRACT_VERSION } from './contract.ts'
+import { CONTRACT_VERSION, type HealthResponse } from './contract.ts'
 import { createDaemonApp } from './daemonApp.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
@@ -37,6 +38,8 @@ export type StartDaemonOptions = {
   logLevel?: 'info' | 'debug'
   appSupportPath?: string
   idleTimeoutMs?: number
+  clock?: () => number
+  logger?: DaemonLogger
   // Called after /shutdown finishes its teardown (server close, lock release,
   // port-file delete). The bin sets this to process.exit(0); tests leave it
   // unset so vitest workers survive.
@@ -48,6 +51,30 @@ export type StartDaemonOptions = {
 }
 
 const LOOPBACK_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
+
+const tracer = trace.getTracer('vt-graphd')
+
+type DaemonLogger = {
+  error(message?: unknown, ...optionalParams: unknown[]): void
+  writeStderr(message: string): void
+}
+
+function defaultClock(): number {
+  return Date.now()
+}
+
+function defaultDaemonError(message?: unknown, ...optionalParams: unknown[]): void {
+  console.error(message, ...optionalParams)
+}
+
+function defaultDaemonWriteStderr(message: string): void {
+  process.stderr.write(message)
+}
+
+const defaultDaemonLogger: DaemonLogger = {
+  error: defaultDaemonError,
+  writeStderr: defaultDaemonWriteStderr,
+}
 
 function defaultAppSupportPath(): string {
   if (process.platform === 'darwin') {
@@ -65,52 +92,122 @@ function defaultAppSupportPath(): string {
   )
 }
 
+function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
+  return (
+    opts.appSupportPath ??
+    process.env.VOICETREE_APP_SUPPORT ??
+    defaultAppSupportPath()
+  )
+}
+
+function resolveConfiguredWritePath(vault: string, configuredWritePath: string | undefined): string {
+  return configuredWritePath
+    ? resolveWritePath(vault, configuredWritePath)
+    : vault
+}
+
+function formatAlreadyRunningMessage(vault: string, pid: number): string {
+  return `vt-graphd: already running for ${vault} (pid ${pid})\n`
+}
+
+function shouldRejectRemoteAddress(remoteAddress: string | undefined): boolean {
+  return !remoteAddress || !LOOPBACK_ADDRS.has(remoteAddress)
+}
+
+function formatRejectedConnectionMessage(remoteAddress: string | undefined): string {
+  return `vt-graphd: rejected non-loopback connection from ${remoteAddress ?? 'unknown'}\n`
+}
+
+function buildHealthResponse(
+  version: string,
+  vault: string,
+  startMs: number,
+  nowMs: number,
+  sessionCount: number,
+): HealthResponse {
+  return {
+    version,
+    vault,
+    uptimeSeconds: Math.floor((nowMs - startMs) / 1000),
+    sessionCount,
+  }
+}
+
 export async function startDaemon(
   opts: StartDaemonOptions,
 ): Promise<DaemonHandle> {
+  return tracer.startActiveSpan('daemon.start', async (startSpan) => {
+  const clock = opts.clock ?? defaultClock
+  const logger = opts.logger ?? defaultDaemonLogger
   const vault = resolve(opts.vault)
+  startSpan.setAttribute('vault', vault)
   const dotDir = join(vault, '.voicetree')
   await mkdir(dotDir, { recursive: true })
 
+  // --- acquire lock ---
+  const lockSpan = tracer.startSpan('daemon.acquire-lock')
   const lockResult = await acquireLock(vault)
   if ('kind' in lockResult) {
+    lockSpan.setAttribute('alreadyRunning', true)
+    lockSpan.end()
+    startSpan.end()
     const existingPort = (await readPortFile(vault)) ?? 0
-    process.stderr.write(
-      `vt-graphd: already running for ${vault} (pid ${lockResult.pid})\n`,
-    )
+    logger.writeStderr(formatAlreadyRunningMessage(vault, lockResult.pid))
     return {
       port: existingPort,
       alreadyRunning: { pid: lockResult.pid },
       stop: async () => {},
     }
   }
+  lockSpan.end()
 
   const lockHandle = lockResult
   clearWatchFolderState()
   setGraph(createEmptyGraph())
-  const startMs = Date.now()
-  initGraphModel({
-    appSupportPath:
-      opts.appSupportPath ??
-      process.env.VOICETREE_APP_SUPPORT ??
-      defaultAppSupportPath(),
-  })
-  configureRootIO({
-    getDirectoryTree,
-    loadGraphFromDisk,
-  })
+  const startMs = clock()
+
+  // --- init graph model + set write path ---
+  const initSpan = tracer.startSpan('daemon.init-graph-model')
+  try {
+    initGraphModel({
+      appSupportPath: resolveDaemonAppSupportPath(opts),
+    })
+    configureRootIO({
+      getDirectoryTree,
+      loadGraphFromDisk,
+    })
+    initSpan.end()
+  } catch (err) {
+    initSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    initSpan.end()
+    await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
+    throw err
+  }
+
+  // --- set write path ---
+  const writePathSpan = tracer.startSpan('daemon.set-write-path')
   setVaultPath(vault)
   const savedConfig = await getVaultConfigForDirectory(vault)
-  const writePath = savedConfig?.writePath
-    ? resolveWritePath(vault, savedConfig.writePath)
-    : vault
+  const writePath = resolveConfiguredWritePath(vault, savedConfig?.writePath)
   const loadWritePathResult = await setWritePath(writePath, {
     createStarterIfEmpty: opts.createStarterIfEmpty,
   })
   if (!loadWritePathResult.success) {
+    const msg = loadWritePathResult.error ?? `Failed to load vault ${vault}`
+    writePathSpan.setStatus({ code: SpanStatusCode.ERROR, message: msg })
+    writePathSpan.end()
     await lockHandle.release()
-    throw new Error(loadWritePathResult.error ?? `Failed to load vault ${vault}`)
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: msg })
+    startSpan.end()
+    throw new Error(msg)
   }
+  writePathSpan.setAttribute('writePath', writePath)
+  writePathSpan.end()
+
+  // --- folder visibility db ---
+  const fvSpan = tracer.startSpan('daemon.folder-visibility-db')
   try {
     const folderVisibilityDb = openFolderVisibilityDb(vault)
     try {
@@ -118,13 +215,21 @@ export async function startDaemon(
     } finally {
       closeFolderVisibilityDb(folderVisibilityDb)
     }
+    fvSpan.end()
   } catch (err) {
+    fvSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    fvSpan.end()
     await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
     throw err
   }
 
   const registry = new SessionRegistry()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
+
+  // --- mount watcher ---
+  const watchSpan = tracer.startSpan('daemon.mount-watcher')
   let watcher: Watcher
   try {
     watcher = mountWatcher(await getVaultPaths(), vault)
@@ -134,8 +239,13 @@ export async function startDaemon(
       await watcher.unmount().catch(() => {})
       throw err
     }
+    watchSpan.end()
   } catch (err) {
+    watchSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    watchSpan.end()
     await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
     throw err
   }
   let watcherStopped = false
@@ -165,7 +275,7 @@ export async function startDaemon(
         }
       })
       .catch((error: unknown) => {
-        console.error('graphd watcher remount failed:', error)
+        logger.error('graphd watcher remount failed:', error)
       })
   }
 
@@ -201,12 +311,7 @@ export async function startDaemon(
 
   const app = createDaemonApp({
     registry,
-    readHealth: () => ({
-      version: CONTRACT_VERSION,
-      vault,
-      uptimeSeconds: Math.floor((Date.now() - startMs) / 1000),
-      sessionCount: registry.size(),
-    }),
+    readHealth: () => buildHealthResponse(CONTRACT_VERSION, vault, startMs, clock(), registry.size()),
     onShutdown: () => {
       if (shuttingDown) {
         return
@@ -229,6 +334,8 @@ export async function startDaemon(
     },
   })
 
+  // --- http serve ---
+  const serveSpan = tracer.startSpan('daemon.http-serve')
   let listenResolve: (port: number) => void
   let listenReject: (err: Error) => void
   const listenPromise = new Promise<number>((res, rej) => {
@@ -254,9 +361,13 @@ export async function startDaemon(
         ;(server as unknown as { closeIdleConnections?: () => void }).closeIdleConnections?.()
       })
   } catch (err) {
+    serveSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    serveSpan.end()
     clearIdleSessionTimer()
     await stopWatcher().catch(() => {})
     await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
     throw err
   }
 
@@ -266,10 +377,8 @@ export async function startDaemon(
 
   server.on('connection', (socket: Socket) => {
     const remote = socket.remoteAddress
-    if (!remote || !LOOPBACK_ADDRS.has(remote)) {
-      process.stderr.write(
-        `vt-graphd: rejected non-loopback connection from ${remote ?? 'unknown'}\n`,
-      )
+    if (shouldRejectRemoteAddress(remote)) {
+      logger.writeStderr(formatRejectedConnectionMessage(remote))
       socket.destroy()
     }
   })
@@ -278,13 +387,26 @@ export async function startDaemon(
   try {
     assignedPort = await listenPromise
   } catch (err) {
+    serveSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    serveSpan.end()
     clearIdleSessionTimer()
     await stopWatcher().catch(() => {})
     await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
     throw err
   }
+  serveSpan.setAttribute('port', assignedPort)
+  serveSpan.end()
 
+  // --- write port file ---
+  const portFileSpan = tracer.startSpan('daemon.write-port-file')
   await writePortFile(vault, assignedPort)
+  portFileSpan.setAttribute('port', assignedPort)
+  portFileSpan.end()
+
+  startSpan.setAttribute('port', assignedPort)
+  startSpan.end()
 
   let stopped = false
   const stop = async (): Promise<void> => {
@@ -304,4 +426,5 @@ export async function startDaemon(
   }
 
   return { port: assignedPort, stop }
+  }) // end startActiveSpan
 }

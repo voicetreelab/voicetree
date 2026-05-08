@@ -5,7 +5,7 @@
 import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph';
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings';
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
@@ -15,7 +15,7 @@ import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
-import {getProjectRootWatchedDirectory} from "@/shell/edge/main/state/watch-folder-store";
+import {getActiveDaemonConnection} from "@/shell/edge/main/electron/graph-daemon";
 import {
   createContextNodeFromQuestionThroughDaemon,
   getGraphThroughDaemon,
@@ -23,7 +23,7 @@ import {
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   const graph: Graph = await getGraphThroughDaemon();
-  const watchedDir: string | null = getProjectRootWatchedDirectory();
+  const watchedDir: string | null = getActiveDaemonConnection()?.vault ?? null;
 
   // Use writePath for normalizing search results - this matches what the backend loads from
   // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writePath)
@@ -61,7 +61,10 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   }
 
   // 5. Prepare terminal data
-  const resolvedEnvVars: Record<string, string> = resolveEnvVars(settings.INJECT_ENV_VARS);
+  const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
+    settings.INJECT_ENV_VARS,
+    (values: readonly string[]) => Math.floor(Math.random() * values.length)
+  );
   const strippedTitle: string = contextNodeResult.title.replace(/^ASK:\s*/i, '');
   // Generate unique agent name with collision handling
   const baseAgentName: string = getNextAgentName();

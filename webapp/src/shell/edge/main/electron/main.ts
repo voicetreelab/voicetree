@@ -35,20 +35,20 @@ import {
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/electron/daemon-ipc-proxy';
-import {getVaultPaths, getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {
+    getVaultPaths,
+    getWritePath,
+    setOnFolderSwitchCleanup,
+} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
-import {
-    getProjectRootWatchedDirectory,
-    setOnFolderSwitchCleanup,
-} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons, type OrphanCleanupResult} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import type {Graph} from '@vt/graph-model/graph';
 import {getGraph as getGraphFromStore, setGraph as setGraphInStore} from '@vt/graph-db-server/state/graph-store';
 import {refreshGraphChangeSideEffects as refreshGraphChangeSideEffectsFromDb} from '@vt/graph-db-server/graph/applyGraphDelta';
@@ -56,6 +56,10 @@ import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/
 import {createContextNodeFromSelectedNodes as createContextNodeFromSelectedNodesFromDb} from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
 import {getUnseenNodesAroundContextNode as getUnseenNodesAroundContextNodeFromDb} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
 import {updateContextNodeContainedIds as updateContextNodeContainedIdsFromDb} from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds';
+import {
+    getActiveDaemonConnection,
+    shutdownActiveDaemonConnection,
+} from '@/shell/edge/main/electron/graph-daemon';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -77,7 +81,7 @@ configureMcpServer({
     graph: {
         getGraph: async () => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return graph;
         },
         getVaultPaths,
@@ -86,10 +90,10 @@ configureMcpServer({
             return O.isSome(writePath) ? writePath.value : null;
         },
         applyGraphDelta: postDeltaThroughDaemonWithEditors,
-        getProjectRootWatchedDirectory,
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
         },
     },
@@ -108,7 +112,7 @@ configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory,
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
         getVaultPaths,
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
@@ -120,31 +124,31 @@ configureAgentRuntime({
         setGraph: (g) => setGraphInStore(g),
         getVaultPaths: () => getVaultPaths(),
         getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory: () => getProjectRootWatchedDirectory(),
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
         getWatchStatus: () => ({
-            isWatching: getProjectRootWatchedDirectory() !== null,
-            directory: getProjectRootWatchedDirectory() ?? undefined,
+            isWatching: (getActiveDaemonConnection()?.vault ?? null) !== null,
+            directory: getActiveDaemonConnection()?.vault ?? undefined,
         }),
         applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
         refreshGraphChangeSideEffects: () => refreshGraphChangeSideEffectsFromDb(),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return createContextNodeFromDb(parentNodeId, semanticNodeIds ?? []);
         },
         createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return createContextNodeFromSelectedNodesFromDb(taskNodeId, selectedNodeIds);
         },
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
         },
         updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
             const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getProjectRootWatchedDirectory());
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
             await updateContextNodeContainedIdsFromDb(contextNodeId, newNodeIds);
         },
     },
@@ -215,7 +219,7 @@ void app.whenReady().then(async () => {
     // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
-    const orphanCleanup: OrphanCleanupResult = killOrphanVtGraphdDaemons();
+    const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
@@ -303,6 +307,9 @@ app.on('before-quit', () => {
 
     // Clean up server process
     textToTreeServerManager.stop();
+
+    // Clean up graph daemon process
+    void shutdownActiveDaemonConnection();
 
     // Clean up all terminals
     terminalManager.cleanup();

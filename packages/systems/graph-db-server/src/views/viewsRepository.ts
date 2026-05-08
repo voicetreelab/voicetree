@@ -12,6 +12,8 @@ export type CreatedView = {
     readonly name: string
 }
 
+export type CreateViewId = () => string
+
 type ViewRow = {
     readonly view_id: string
     readonly name: string
@@ -50,6 +52,10 @@ function assertNonEmptyString(value: string, name: string): void {
     }
 }
 
+function createRandomViewId(): string {
+    return randomUUID()
+}
+
 function getViewRow(db: FolderVisibilityDatabase, viewId: string): ViewRow | undefined {
     return db
         .prepare('SELECT view_id, name, is_active FROM views WHERE view_id = ?')
@@ -77,9 +83,13 @@ export function listViews(db: FolderVisibilityDatabase): readonly ViewRecord[] {
         .all() as ViewRow[]).map(toViewRecord)
 }
 
-export function createView(db: FolderVisibilityDatabase, name: string): CreatedView {
+export function createView(
+    db: FolderVisibilityDatabase,
+    name: string,
+    createViewId: CreateViewId = createRandomViewId,
+): CreatedView {
     assertNonEmptyString(name, 'name')
-    const viewId = randomUUID()
+    const viewId = createViewId()
     db.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 0)').run(viewId, name)
     return { viewId, name }
 }
@@ -104,12 +114,13 @@ export function cloneView(
     db: FolderVisibilityDatabase,
     srcViewId: string,
     dstName: string,
+    createViewId: CreateViewId = createRandomViewId,
 ): CreatedView {
     assertNonEmptyString(srcViewId, 'srcViewId')
     assertNonEmptyString(dstName, 'dstName')
     assertViewExists(db, srcViewId)
 
-    const dstViewId = randomUUID()
+    const dstViewId = createViewId()
     const transaction = db.transaction(() => {
         db.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 0)').run(dstViewId, dstName)
         db.prepare(`
@@ -145,10 +156,13 @@ export function getActiveViewId(db: FolderVisibilityDatabase): string {
     return rows[0].view_id
 }
 
-export function ensureDefaultView(db: FolderVisibilityDatabase): void {
+export function ensureDefaultView(
+    db: FolderVisibilityDatabase,
+    createViewId: CreateViewId = createRandomViewId,
+): void {
     const count = (db.prepare('SELECT COUNT(*) AS count FROM views').get() as CountRow).count
     if (count > 0) {
         return
     }
-    db.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 1)').run(randomUUID(), 'main')
+    db.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 1)').run(createViewId(), 'main')
 }

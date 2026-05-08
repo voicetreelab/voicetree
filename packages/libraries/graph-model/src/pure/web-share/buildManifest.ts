@@ -7,11 +7,11 @@ import type { RelativePath, ShareManifest } from './types'
 export function buildManifest(
   paths: readonly RelativePath[],
   folderName: string,
-  createdAt?: string
+  createdAt: string = ''
 ): ShareManifest {
   return {
     files: paths.filter(p => p.endsWith('.md')),
     folderName,
-    createdAt: createdAt ?? new Date().toISOString()
+    createdAt
   }
 }

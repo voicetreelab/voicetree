@@ -4,11 +4,13 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings'
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime-config'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../graph-bridge'
 import path from 'path'
+
+type SelectEnvVarValueIndex = (values: readonly string[]) => number
 
 export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
@@ -18,8 +20,11 @@ export async function buildTerminalEnvVars(params: {
     readonly settings: VTSettings
     readonly promptTemplate?: string
     readonly envOverrides?: Record<string, string>
-}): Promise<Record<string, string>> {
-    const resolvedEnvVars: Record<string, string> = resolveEnvVars(params.settings.INJECT_ENV_VARS)
+}, selectEnvVarValueIndex: SelectEnvVarValueIndex = (values: readonly string[]) => Math.floor(Math.random() * values.length)): Promise<Record<string, string>> {
+    const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
+        params.settings.INJECT_ENV_VARS,
+        selectEnvVarValueIndex
+    )
 
     if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {
         resolvedEnvVars['AGENT_PROMPT'] = resolvedEnvVars[params.promptTemplate]

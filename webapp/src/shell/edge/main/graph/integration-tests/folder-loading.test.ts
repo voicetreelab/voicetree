@@ -21,10 +21,10 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { loadFolder, stopFileWatching, isWatching, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
+import * as O from 'fp-ts/lib/Option.js'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
@@ -60,6 +60,14 @@ async function loadFixtureFolder(folderPath: string): Promise<void> {
     () => Object.keys(getGraph().nodes).some(nodePath => nodePath.startsWith(`${folderPath}${path.sep}`)),
     { maxWaitMs: 10000, errorMessage: `Graph did not populate for loaded fixture folder: ${folderPath}` }
   )
+}
+
+function expectWatchedDirectory(expected: string): void {
+  const vaultPath: O.Option<string> = getVaultPath()
+  expect(O.isSome(vaultPath)).toBe(true)
+  if (O.isSome(vaultPath)) {
+    expect(vaultPath.value).toBe(expected)
+  }
 }
 
 // State for mocks
@@ -696,27 +704,27 @@ describe.skip('Folder Loading - Integration Tests', () => {
     it('should update projectRootWatchedDirectory immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFixtureFolder(exampleSmallPath)
-      expect(getProjectRootWatchedDirectory()).toBe(exampleSmallPath)
+      expectWatchedDirectory(exampleSmallPath)
 
       // WHEN: Load a different folder
       await loadFixtureFolder(exampleLargePath)
 
       // THEN: projectRootWatchedDirectory should be updated to the new folder
-      expect(getProjectRootWatchedDirectory()).toBe(exampleLargePath)
+      expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should maintain projectRootWatchedDirectory even after switching folders multiple times', async () => {
       // Load folder A
       await loadFixtureFolder(exampleSmallPath)
-      expect(getProjectRootWatchedDirectory()).toBe(exampleSmallPath)
+      expectWatchedDirectory(exampleSmallPath)
 
       // Load folder B
       await loadFixtureFolder(exampleLargePath)
-      expect(getProjectRootWatchedDirectory()).toBe(exampleLargePath)
+      expectWatchedDirectory(exampleLargePath)
 
       // Load folder A again
       await loadFixtureFolder(exampleSmallPath)
-      expect(getProjectRootWatchedDirectory()).toBe(exampleSmallPath)
+      expectWatchedDirectory(exampleSmallPath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 })

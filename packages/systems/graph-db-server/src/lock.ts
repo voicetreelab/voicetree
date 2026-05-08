@@ -14,21 +14,42 @@ export type AlreadyRunning = {
 
 export type AcquireResult = LockHandle | AlreadyRunning
 
+type ProcessStatus =
+  | { readonly kind: 'alive' }
+  | { readonly kind: 'dead' }
+  | { readonly kind: 'unknown-access-denied' }
+
 function lockPathFor(vaultDir: string): string {
   return join(vaultDir, '.voicetree', LOCK_FILENAME)
 }
 
-function isProcessAlive(pid: number): boolean {
-  if (!Number.isInteger(pid) || pid <= 0) return false
+function parseRecordedPid(raw: string): number | null {
+  const n = Number(raw.trim())
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
+function processStatusFromKillError(error: NodeJS.ErrnoException): ProcessStatus {
+  if (error.code === 'ESRCH') return { kind: 'dead' }
+  if (error.code === 'EPERM') return { kind: 'unknown-access-denied' }
+  return { kind: 'dead' }
+}
+
+function isAliveStatus(status: ProcessStatus): boolean {
+  return status.kind === 'alive' || status.kind === 'unknown-access-denied'
+}
+
+function readProcessStatus(pid: number): ProcessStatus {
   try {
     process.kill(pid, 0)
-    return true
+    return { kind: 'alive' }
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ESRCH') return false
-    if (code === 'EPERM') return true
-    return false
+    return processStatusFromKillError(err as NodeJS.ErrnoException)
   }
+}
+
+function isProcessAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  return isAliveStatus(readProcessStatus(pid))
 }
 
 async function tryCreateLock(path: string): Promise<boolean> {
@@ -44,8 +65,7 @@ async function tryCreateLock(path: string): Promise<boolean> {
 async function readRecordedPid(path: string): Promise<number | null> {
   try {
     const raw = await readFile(path, 'utf8')
-    const n = Number(raw.trim())
-    return Number.isInteger(n) && n > 0 ? n : null
+    return parseRecordedPid(raw)
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err

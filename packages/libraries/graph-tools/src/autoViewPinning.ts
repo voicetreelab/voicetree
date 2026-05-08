@@ -29,6 +29,7 @@ interface PinnedResolutionIndex {
 export function buildPinnedClusters(
     graph: RenderGraph,
     pinnedFolderIds: readonly string[],
+    warn: (message: string) => void = () => undefined,
 ): readonly CollapseCluster[] {
     if (pinnedFolderIds.length === 0) {
         return []
@@ -40,7 +41,7 @@ export function buildPinnedClusters(
     const clusters: CollapseCluster[] = []
 
     for (const rawPinnedId of pinnedFolderIds) {
-        const folderPath: string | undefined = resolvePinnedFolderPath(graph, resolutionIndex, rawPinnedId)
+        const folderPath: string | undefined = resolvePinnedFolderPath(graph, resolutionIndex, rawPinnedId, warn)
         if (!folderPath || seenFolderPaths.has(folderPath)) {
             continue
         }
@@ -49,9 +50,7 @@ export function buildPinnedClusters(
             .filter(node => isNodeInsidePinnedFolder(node, folderPath))
             .map(node => node.id)
         if (nodeIds.length === 0) {
-            console.error(
-                `[folder-aware-view] ignoring pinned folder "${rawPinnedId}": folder "${folderPath}/" has no descendants`,
-            )
+            warn(`[folder-aware-view] ignoring pinned folder "${rawPinnedId}": folder "${folderPath}/" has no descendants`)
             continue
         }
 
@@ -154,6 +153,7 @@ function resolvePinnedFolderPath(
     graph: RenderGraph,
     index: PinnedResolutionIndex,
     rawPinnedId: string,
+    warn: (message: string) => void,
 ): string | undefined {
     const trimmed: string = rawPinnedId.trim()
     if (trimmed.length === 0) {
@@ -162,7 +162,7 @@ function resolvePinnedFolderPath(
 
     const directNodeMatch: RenderNode | undefined = graph.nodeById.get(trimmed)
     if (directNodeMatch) {
-        return resolveFolderPathFromNode(rawPinnedId, directNodeMatch)
+        return resolveFolderPathFromNode(rawPinnedId, directNodeMatch, warn)
     }
 
     const normalizedFolderSeed: string = normalizeFolderSeedPath(trimmed)
@@ -177,7 +177,7 @@ function resolvePinnedFolderPath(
 
     const relPathNodeMatch: RenderNode | undefined = index.nodeByNormalizedRelPath.get(normalizedNodeSeed)
     if (relPathNodeMatch) {
-        return resolveFolderPathFromNode(rawPinnedId, relPathNodeMatch)
+        return resolveFolderPathFromNode(rawPinnedId, relPathNodeMatch, warn)
     }
 
     const basename: string = path.posix.basename(normalizedFolderSeed)
@@ -188,23 +188,22 @@ function resolvePinnedFolderPath(
 
     const nodeBasenameMatches: readonly RenderNode[] = index.nodesByBasename.get(path.posix.basename(normalizedNodeSeed)) ?? []
     if (nodeBasenameMatches.length === 1) {
-        return resolveFolderPathFromNode(rawPinnedId, nodeBasenameMatches[0]!)
+        return resolveFolderPathFromNode(rawPinnedId, nodeBasenameMatches[0]!, warn)
     }
 
-    console.error(`[folder-aware-view] ignoring pinned folder "${rawPinnedId}": no matching folder found`)
+    warn(`[folder-aware-view] ignoring pinned folder "${rawPinnedId}": no matching folder found`)
     return undefined
 }
 
 function resolveFolderPathFromNode(
     rawPinnedId: string,
     node: RenderNode,
+    warn: (message: string) => void,
 ): string | undefined {
     if (node.kind === 'folder') {
         return normalizeFolderSeedPath(node.relPath)
     }
-    console.error(
-        `[folder-aware-view] ignoring pinned folder "${rawPinnedId}": resolved node "${node.relPath}" is not a folder`,
-    )
+    warn(`[folder-aware-view] ignoring pinned folder "${rawPinnedId}": resolved node "${node.relPath}" is not a folder`)
     return undefined
 }
 

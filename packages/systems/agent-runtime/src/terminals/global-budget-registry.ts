@@ -18,6 +18,11 @@ type ParentState = {
     childrenIds: string[]
 }
 
+type BudgetLogger = {
+    warn(message: string): void
+    info(message: string): void
+}
+
 // Map of terminal ID -> remaining budget (what this terminal has available)
 const terminalBudgets: Map<string, number> = new Map()
 
@@ -37,15 +42,27 @@ export function getTerminalBudget(terminalId: string): number | undefined {
  * Called when initializing a root terminal from GLOBAL_SPAWN_BUDGET env var,
  * or when a child terminal receives its allocated budget.
  */
-export function setTerminalBudget(terminalId: string, budget: number): void {
+export function setTerminalBudget(
+    terminalId: string,
+    budget: number,
+    logger: BudgetLogger = { warn: console.warn, info: console.log },
+): void {
+    return setTerminalBudgetWithLogger(terminalId, budget, logger)
+}
+
+function setTerminalBudgetWithLogger(
+    terminalId: string,
+    budget: number,
+    logger: BudgetLogger,
+): void {
     if (budget < 0) {
-        console.warn(`[global-budget-registry] Attempted to set negative budget: ${budget}`)
+        logger.warn(`[global-budget-registry] Attempted to set negative budget: ${budget}`)
         return
     }
     const floored: number = Math.floor(budget)
     terminalBudgets.set(terminalId, floored)
     parentStates.set(terminalId, { originalBudget: floored, spawnCount: 0, childrenIds: [] })
-    console.log(`[global-budget-registry] Set budget for ${terminalId}: ${floored}`)
+    logger.info(`[global-budget-registry] Set budget for ${terminalId}: ${floored}`)
 }
 
 /**
@@ -58,7 +75,17 @@ export function setTerminalBudget(terminalId: string, budget: number): void {
  *
  * @returns { allowed, childBudget } — childBudget is undefined when no budget is set (unlimited).
  */
-export function tryConsumeAndSplitBudget(callerTerminalId: string): { allowed: boolean; childBudget: number | undefined } {
+export function tryConsumeAndSplitBudget(
+    callerTerminalId: string,
+    logger: BudgetLogger = { warn: console.warn, info: console.log },
+): { allowed: boolean; childBudget: number | undefined } {
+    return tryConsumeAndSplitBudgetWithLogger(callerTerminalId, logger)
+}
+
+function tryConsumeAndSplitBudgetWithLogger(
+    callerTerminalId: string,
+    logger: BudgetLogger,
+): { allowed: boolean; childBudget: number | undefined } {
     const state: ParentState | undefined = parentStates.get(callerTerminalId)
 
     // No parent state = no budget set = unlimited spawning (backward compatible)
@@ -70,7 +97,7 @@ export function tryConsumeAndSplitBudget(callerTerminalId: string): { allowed: b
 
     // Spawn guard: N <= originalBudget (each spawn costs 1, children get remainder)
     if (newN > state.originalBudget) {
-        console.log(`[global-budget-registry] Budget exhausted for ${callerTerminalId}: spawnCount=${state.spawnCount}, originalBudget=${state.originalBudget}`)
+        logger.info(`[global-budget-registry] Budget exhausted for ${callerTerminalId}: spawnCount=${state.spawnCount}, originalBudget=${state.originalBudget}`)
         return { allowed: false, childBudget: undefined }
     }
 
@@ -91,7 +118,7 @@ export function tryConsumeAndSplitBudget(callerTerminalId: string): { allowed: b
     }
 
     state.spawnCount = newN
-    console.log(`[global-budget-registry] Fair rebalance for ${callerTerminalId}: N=${newN}, fairShare=${fairShare}, originalBudget=${state.originalBudget}`)
+    logger.info(`[global-budget-registry] Fair rebalance for ${callerTerminalId}: N=${newN}, fairShare=${fairShare}, originalBudget=${state.originalBudget}`)
 
     return { allowed: true, childBudget: fairShare }
 }

@@ -1,9 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import {
-    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
-    type UnseenNode,
-} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getGraph as getDefaultGraph } from '@vt/graph-db-server/state/graph-store'
 import { setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
@@ -15,7 +11,13 @@ import {
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
 } from '@vt/graph-db-server/graph/applyGraphDelta'
+import {
+    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
+    type UnseenNode,
+} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getGraphBridge, type GraphBridge } from './mcp-config'
+
+export type {UnseenNode}
 
 export function syncMcpGraphDbServerState(
     graph: Graph,
@@ -30,6 +32,10 @@ export function syncMcpGraphDbServerState(
 export async function getMcpGraph(): Promise<Graph> {
     const bridge: GraphBridge | undefined = getGraphBridge()
     return bridge ? await bridge.getGraph() : getDefaultGraph()
+}
+
+export function getMcpGraphSnapshot(): Graph {
+    return getDefaultGraph()
 }
 
 export async function getMcpWritePath(): Promise<O.Option<string>> {

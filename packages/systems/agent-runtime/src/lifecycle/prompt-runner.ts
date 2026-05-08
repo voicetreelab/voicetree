@@ -34,6 +34,26 @@ export type PromptRunnerOptions = {
     readonly pollIntervalMs?: number;
     /** Override the pattern catalog. Default: built-in. */
     readonly patterns?: readonly PromptPattern[];
+    /** Runtime effects. Defaults wire to the system clock, timers, and emulator. */
+    readonly dependencies?: PromptRunnerDependencies;
+};
+
+type PollTimer = ReturnType<typeof setInterval>;
+
+export type PromptRunnerDependencies = {
+    readonly now: () => number;
+    readonly createEmulator: () => Emulator;
+    readonly startPolling: (callback: () => void, intervalMs: number) => PollTimer;
+    readonly stopPolling: (timer: PollTimer) => void;
+};
+
+type PromptAwaitingState = {
+    readonly awaitingActive: boolean;
+    readonly lastAwaitingPatternId: string | null;
+};
+
+type PromptAwaitingTransition = PromptAwaitingState & {
+    readonly change: PromptStateChange | null;
 };
 
 const DEFAULT_QUIESCENCE_MS: number = 800;
@@ -45,7 +65,8 @@ type RunnerState = {
     readonly callbacks: PromptRunnerCallbacks;
     readonly quiescenceMs: number;
     readonly patterns: readonly PromptPattern[];
-    readonly pollTimer: ReturnType<typeof setInterval>;
+    readonly dependencies: PromptRunnerDependencies;
+    readonly pollTimer: PollTimer;
     /** Timestamp of the most recent byte arrival. */
     lastWriteAt: number;
     /** Was the previous tick's classification 'awaiting'? */
@@ -58,8 +79,27 @@ type RunnerState = {
 
 const runners: Map<string, RunnerState> = new Map();
 
-// Single source of truth for `Date.now`. Exposed for tests via `__setNowForTests`.
-let nowFn: () => number = Date.now;
+function readSystemNow(): number {
+    return Date.now();
+}
+
+function startSystemPolling(callback: () => void, intervalMs: number): PollTimer {
+    return setInterval(callback, intervalMs);
+}
+
+function stopSystemPolling(timer: PollTimer): void {
+    clearInterval(timer);
+}
+
+const DEFAULT_PROMPT_RUNNER_DEPENDENCIES: PromptRunnerDependencies = {
+    now: readSystemNow,
+    createEmulator,
+    startPolling: startSystemPolling,
+    stopPolling: stopSystemPolling,
+};
+
+// Single source of truth for runtime effects. Exposed for tests via `__setNowForTests`.
+let promptRunnerDependencies: PromptRunnerDependencies = DEFAULT_PROMPT_RUNNER_DEPENDENCIES;
 
 export function startPromptDetection(
     terminalId: string,
@@ -71,7 +111,8 @@ export function startPromptDetection(
         return () => stopPromptDetection(terminalId);
     }
 
-    const emulator: Emulator = createEmulator();
+    const dependencies: PromptRunnerDependencies = options.dependencies ?? promptRunnerDependencies;
+    const emulator: Emulator = dependencies.createEmulator();
     const quiescenceMs: number = options.quiescenceMs ?? DEFAULT_QUIESCENCE_MS;
     const pollIntervalMs: number = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     const patterns: readonly PromptPattern[] = options.patterns ?? DEFAULT_PROMPT_PATTERNS;
@@ -82,8 +123,9 @@ export function startPromptDetection(
         callbacks,
         quiescenceMs,
         patterns,
-        pollTimer: setInterval(() => { void poll(terminalId); }, pollIntervalMs),
-        lastWriteAt: nowFn(),
+        dependencies,
+        pollTimer: dependencies.startPolling(() => { void poll(terminalId); }, pollIntervalMs),
+        lastWriteAt: dependencies.now(),
         awaitingActive: false,
         lastAwaitingPatternId: null,
         bytesEverWritten: false,
@@ -100,7 +142,7 @@ export function startPromptDetection(
 export async function feedPromptDetector(terminalId: string, bytes: string | Uint8Array): Promise<void> {
     const state: RunnerState | undefined = runners.get(terminalId);
     if (!state) return;
-    state.lastWriteAt = nowFn();
+    state.lastWriteAt = state.dependencies.now();
     state.bytesEverWritten = true;
     await state.emulator.write(bytes);
 
@@ -116,7 +158,7 @@ export async function feedPromptDetector(terminalId: string, bytes: string | Uin
 export function stopPromptDetection(terminalId: string): void {
     const state: RunnerState | undefined = runners.get(terminalId);
     if (!state) return;
-    clearInterval(state.pollTimer);
+    state.dependencies.stopPolling(state.pollTimer);
     state.emulator.dispose();
     runners.delete(terminalId);
 }
@@ -132,7 +174,10 @@ export function __resetAllRunnersForTests(): void {
 
 /** Test-only clock injection. */
 export function __setNowForTests(fn: () => number): void {
-    nowFn = fn;
+    promptRunnerDependencies = {
+        ...promptRunnerDependencies,
+        now: fn,
+    };
 }
 
 /** Test-only synchronous tick. */
@@ -149,7 +194,7 @@ async function poll(terminalId: string): Promise<void> {
     if (!state) return;
     if (!state.bytesEverWritten) return; // Don't fire detection before first byte.
 
-    const elapsed: number = nowFn() - state.lastWriteAt;
+    const elapsed: number = state.dependencies.now() - state.lastWriteAt;
     if (elapsed < state.quiescenceMs) return; // Still in flux — wait.
 
     const result: PromptDetectionResult = detectPromptShape(state.emulator.getSnapshot(), state.patterns);
@@ -160,27 +205,63 @@ async function poll(terminalId: string): Promise<void> {
     // them as not-awaiting for state-propagation purposes — only high-confidence
     // patterns (Y/N, password, numbered choice, alt-screen TUI) are reliable
     // enough to drive the UI's awaiting_input lifecycle.
-    const isAwaiting: boolean = result.type === 'awaiting' && result.confidence === 'high';
+    const transition: PromptAwaitingTransition = derivePromptAwaitingTransition(
+        {
+            awaitingActive: state.awaitingActive,
+            lastAwaitingPatternId: state.lastAwaitingPatternId,
+        },
+        result,
+    );
+    state.awaitingActive = transition.awaitingActive;
+    state.lastAwaitingPatternId = transition.lastAwaitingPatternId;
 
-    // State transition logic — only emit on changes.
-    if (isAwaiting && !state.awaitingActive) {
-        // Detected → fire 'detected'.
-        state.awaitingActive = true;
-        state.lastAwaitingPatternId = result.type === 'awaiting' ? result.patternId : null;
-        state.callbacks.onStateChange(terminalId, {
-            kind: 'detected',
-            patternId: result.type === 'awaiting' ? result.patternId : 'unknown',
-            confidence: result.type === 'awaiting' ? result.confidence : 'medium',
-        });
-    } else if (!isAwaiting && state.awaitingActive) {
-        // Cleared (e.g. quiescent but the prompt has scrolled off or cursor moved).
-        state.awaitingActive = false;
-        state.lastAwaitingPatternId = null;
-        state.callbacks.onStateChange(terminalId, { kind: 'cleared' });
-    } else if (isAwaiting && state.awaitingActive && result.type === 'awaiting'
-               && result.patternId !== state.lastAwaitingPatternId) {
-        // Same awaiting state, different pattern matched (e.g. shifted from generic-? to Y/N).
-        // Update the recorded pattern but don't re-fire.
-        state.lastAwaitingPatternId = result.patternId;
+    if (transition.change) {
+        state.callbacks.onStateChange(terminalId, transition.change);
     }
+}
+
+function isHighConfidenceAwaiting(result: PromptDetectionResult): boolean {
+    return result.type === 'awaiting' && result.confidence === 'high';
+}
+
+function derivePromptAwaitingTransition(
+    previous: PromptAwaitingState,
+    result: PromptDetectionResult,
+): PromptAwaitingTransition {
+    const isAwaiting: boolean = isHighConfidenceAwaiting(result);
+
+    if (isAwaiting && !previous.awaitingActive && result.type === 'awaiting') {
+        return {
+            awaitingActive: true,
+            lastAwaitingPatternId: result.patternId,
+            change: {
+                kind: 'detected',
+                patternId: result.patternId,
+                confidence: result.confidence,
+            },
+        };
+    }
+
+    if (!isAwaiting && previous.awaitingActive) {
+        return {
+            awaitingActive: false,
+            lastAwaitingPatternId: null,
+            change: { kind: 'cleared' },
+        };
+    }
+
+    if (isAwaiting && previous.awaitingActive && result.type === 'awaiting'
+        && result.patternId !== previous.lastAwaitingPatternId) {
+        return {
+            awaitingActive: true,
+            lastAwaitingPatternId: result.patternId,
+            change: null,
+        };
+    }
+
+    return {
+        awaitingActive: previous.awaitingActive,
+        lastAwaitingPatternId: previous.lastAwaitingPatternId,
+        change: null,
+    };
 }

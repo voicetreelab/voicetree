@@ -2,10 +2,9 @@ import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks } from '@vt/graph-model'
 import type { FilePath, Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import type { GraphDbClient } from '@vt/graph-db-client'
-import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
-import { ensureDaemonClientForVault, type CachedDaemonConnection } from './graph-daemon'
+import { ensureDaemonClientForVault, getActiveDaemonConnection, type CachedDaemonConnection } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import { loadSettings } from '../settings/settings_IO'
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 import type { VTSettings } from '@vt/graph-model/settings'
 import path from 'path'
 
@@ -13,7 +12,7 @@ const TIMEOUT_MS: number = 10_000
 type PositionMap = Record<string, Position>
 
 async function getClient(): Promise<GraphDbClient> {
-    const vault: FilePath | null = getProjectRootWatchedDirectory()
+    const vault: FilePath | null = getActiveDaemonConnection()?.vault ?? null
     if (!vault) throw new Error('No vault is currently open')
     const connection: CachedDaemonConnection = await ensureDaemonClientForVault(vault, { timeoutMs: TIMEOUT_MS })
     return connection.client
@@ -40,7 +39,7 @@ async function getSemanticRelevantNodes(
 ): Promise<readonly NodeIdAndFilePath[]> {
     if (topK <= 0 || !query.trim()) return []
 
-    const callbacks = getCallbacks()
+    const callbacks: ReturnType<typeof getCallbacks> = getCallbacks()
     if (!callbacks.semanticSearch) return []
 
     const controller: AbortController = new AbortController()
@@ -149,7 +148,7 @@ export async function writeCurrentPositionsThroughDaemon(): Promise<{ written: n
 function collectPositionsFromGraph(graph: Graph): PositionMap {
     return Object.entries(graph.nodes).reduce(
         (acc: PositionMap, [nodeId, node]: [string, GraphNode]) => {
-            const position = node.nodeUIMetadata.position
+            const position: O.Option<Position> = node.nodeUIMetadata.position
             return O.isSome(position)
                 ? { ...acc, [nodeId]: position.value }
                 : acc

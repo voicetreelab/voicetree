@@ -59,6 +59,24 @@ type UnseenNodesNotificationState = {
 }
 const notificationStateByTerminal: Map<string, UnseenNodesNotificationState> = new Map()
 
+type TerminalRegistryLogger = {
+    info(message?: unknown, ...optionalParams: unknown[]): void
+    error(message?: unknown, ...optionalParams: unknown[]): void
+}
+
+type TerminalRegistryClock = {
+    now(): number
+}
+
+type TerminalRegistryTimers = {
+    setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>
+    clearTimeout(timeout: ReturnType<typeof setTimeout>): void
+}
+
+type TerminalRegistryRuntime = TerminalRegistryClock & TerminalRegistryTimers & {
+    logger: TerminalRegistryLogger
+}
+
 const NOTIFICATION_COOLDOWN_MS: number = 5 * 60 * 1000 // 5 minutes
 const STOP_HOOK_DELAY_MS: number = 30 * 1000 // 30 seconds — only notify after sustained idle
 
@@ -111,7 +129,11 @@ function hasActiveChildren(terminalId: string): boolean {
  * If violations found and retries not exhausted, inject deficiency message into terminal.
  * The agent will resume work → go idle again → audit fires again (up to 2 retries).
  */
-async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord): Promise<void> {
+async function runIdleStopGateAudit(
+    terminalId: string,
+    record: TerminalRecord,
+    logger: TerminalRegistryLogger = { info: console.log, error: console.error },
+): Promise<void> {
     if (record.auditRetryCount >= 2) return
     if (record.terminalData.isHeadless) return // headless agents use exit handler instead
 
@@ -125,7 +147,7 @@ async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord):
 
     if (!hookResult.passed) {
         incrementAuditRetryCount(terminalId)
-        console.log(`[terminal-registry] Stop gate audit failed for idle agent ${terminalId} (retry ${record.auditRetryCount + 1}/2)`)
+        logger.info(`[terminal-registry] Stop gate audit failed for idle agent ${terminalId} (retry ${record.auditRetryCount + 1}/2)`)
         void sendTextToTerminal(terminalId, hookResult.message ?? 'Stop gate hooks failed')
     }
 }
@@ -136,7 +158,14 @@ async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord):
  * Implements 5-minute cooldown and tracks already-alerted nodes.
  * Sends formatted list directly to terminal.
  */
-async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalRecord): Promise<void> {
+async function notifyAgentOfUnseenNodes(
+    terminalId: string,
+    record: TerminalRecord,
+    deps: TerminalRegistryClock & { logger: TerminalRegistryLogger } = {
+        now: Date.now,
+        logger: { info: console.log, error: console.error },
+    },
+): Promise<void> {
     try {
         const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
         const agentName: string = record.terminalData.agentName
@@ -147,14 +176,14 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
             // Should not happen since we initialize on spawn, but handle gracefully
             notificationState = {
                 lastNotificationTime: 0,
-                spawnTime: Date.now(),
+                spawnTime: deps.now(),
                 alertedNodeIds: new Set()
             }
             notificationStateByTerminal.set(terminalId, notificationState)
         }
 
         // Check 5-minute cooldown from last notification AND from spawn time
-        const now: number = Date.now()
+        const now: number = deps.now()
         const timeSinceLastNotification: number = now - notificationState.lastNotificationTime
         const timeSinceSpawn: number = now - notificationState.spawnTime
 
@@ -205,11 +234,15 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
         }
     } catch (error) {
         // Silent failure - don't disrupt normal terminal operation
-        console.error(`[terminal-registry] Failed to notify agent of unseen nodes:`, error)
+        deps.logger.error(`[terminal-registry] Failed to notify agent of unseen nodes:`, error)
     }
 }
 
-export function recordTerminalSpawn(terminalId: string, terminalData: TerminalData): void {
+export function recordTerminalSpawn(
+    terminalId: string,
+    terminalData: TerminalData,
+    clock: TerminalRegistryClock = { now: Date.now },
+): void {
     // Capture-and-clear any pending state so the drain below is the last
     // observer of the queue (no race with concurrent enqueues that arrive
     // between the spawn-record and the drain).
@@ -224,13 +257,13 @@ export function recordTerminalSpawn(terminalId: string, terminalData: TerminalDa
         exitSignal: null,
         killReason: null,
         auditRetryCount: 0,
-        spawnedAt: Date.now()
+        spawnedAt: clock.now()
     })
 
     // Initialize notification tracking state for this terminal
     notificationStateByTerminal.set(terminalId, {
         lastNotificationTime: 0,
-        spawnTime: Date.now(),
+        spawnTime: clock.now(),
         alertedNodeIds: new Set()
     })
 
@@ -307,13 +340,14 @@ export function resetAuditRetryCount(terminalId: string): void {
 function wait_for_agent_to_still_be_done_after_n_seconds(
     terminalId: string,
     delayMs: number,
-    callback: (terminalId: string, record: TerminalRecord) => void
+    callback: (terminalId: string, record: TerminalRecord) => void,
+    timers: TerminalRegistryTimers = { setTimeout, clearTimeout },
 ): void {
     // Clear any existing pending timeout for this terminal
     const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
-    if (existing) clearTimeout(existing)
+    if (existing) timers.clearTimeout(existing)
 
-    const timeout: ReturnType<typeof setTimeout> = setTimeout(() => {
+    const timeout: ReturnType<typeof setTimeout> = timers.setTimeout(() => {
         pendingNotificationTimeouts.delete(terminalId)
         const currentRecord: TerminalRecord | undefined = terminalRecords.get(terminalId)
         if (currentRecord?.terminalData.isDone) {
@@ -323,15 +357,27 @@ function wait_for_agent_to_still_be_done_after_n_seconds(
     pendingNotificationTimeouts.set(terminalId, timeout)
 }
 
-function cancelPendingNotification(terminalId: string): void {
+function cancelPendingNotification(
+    terminalId: string,
+    timers: Pick<TerminalRegistryTimers, 'clearTimeout'> = { clearTimeout },
+): void {
     const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
     if (existing) {
-        clearTimeout(existing)
+        timers.clearTimeout(existing)
         pendingNotificationTimeouts.delete(terminalId)
     }
 }
 
-export function updateTerminalIsDone(terminalId: string, isDone: boolean): void {
+export function updateTerminalIsDone(
+    terminalId: string,
+    isDone: boolean,
+    runtime: TerminalRegistryRuntime = {
+        now: Date.now,
+        setTimeout,
+        clearTimeout,
+        logger: { info: console.log, error: console.error },
+    },
+): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) {
         return
@@ -375,23 +421,29 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
 
     if (wasNotDone && isDone) {
         // Record when idle started — shared source of truth for wait_for_agents and notification hook
-        idleSinceByTerminal.set(terminalId, Date.now())
+        idleSinceByTerminal.set(terminalId, runtime.now())
         // Agent just became idle — wait 30s to confirm it's sustained before firing hooks
         wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
             // Stop gate audit: check if idle agent addressed all outgoing workflow obligations
-            void runIdleStopGateAudit(tid, rec)
+            void runIdleStopGateAudit(tid, rec, runtime.logger)
 
             // Unseen nodes notification (optional, settings-gated)
             void loadSettings().then((settings: import('@vt/graph-model/settings').VTSettings) => {
                 if (settings.autoNotifyUnseenNodes) {
-                    void notifyAgentOfUnseenNodes(tid, rec)
+                    void notifyAgentOfUnseenNodes(tid, rec, {
+                        now: runtime.now,
+                        logger: runtime.logger,
+                    })
                 }
             })
+        }, {
+            setTimeout: runtime.setTimeout,
+            clearTimeout: runtime.clearTimeout,
         })
     } else if (!isDone) {
         // Agent became active again — clear idle timestamp and cancel any pending notification
         idleSinceByTerminal.delete(terminalId)
-        cancelPendingNotification(terminalId)
+        cancelPendingNotification(terminalId, { clearTimeout: runtime.clearTimeout })
     }
 }
 
@@ -568,10 +620,12 @@ export function getExistingAgentNames(): Set<string> {
     return names;
 }
 
-export function clearTerminalRecords(): void {
+export function clearTerminalRecords(
+    timers: Pick<TerminalRegistryTimers, 'clearTimeout'> = { clearTimeout },
+): void {
     // Cancel all pending notification timeouts
     for (const timeout of pendingNotificationTimeouts.values()) {
-        clearTimeout(timeout)
+        timers.clearTimeout(timeout)
     }
     pendingNotificationTimeouts.clear()
     terminalRecords.clear()

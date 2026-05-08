@@ -21,9 +21,52 @@ import { markPendingDelete, markPendingWrite } from '../watch-folder/pending-wri
 const toError: (reason: unknown) => Error = (reason: unknown): Error =>
   reason instanceof Error ? reason : new Error(String(reason))
 
+type FileWritePlan = {
+    readonly fullPath: string;
+    readonly parentDirectory: string;
+    readonly markdown: string;
+};
+
+type FileDeletePlan = {
+    readonly fullPath: string;
+};
+
 function isWithinRoot(candidatePath: string, rootPath: string): boolean {
     const relativePath: string = path.relative(rootPath, candidatePath)
     return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+}
+
+function getNodeFilePath(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): string {
+    const filename: string = nodeIdToFilePathWithExtension(nodeId)
+    return path.isAbsolute(filename)
+        ? filename
+        : path.join(projectRootWatchedDirectory, filename)
+}
+
+function createFileWritePlan(node: GraphNode, projectRootWatchedDirectory: string): FileWritePlan {
+    const fullPath: string = getNodeFilePath(node.absoluteFilePathIsID, projectRootWatchedDirectory)
+    return {
+        fullPath,
+        parentDirectory: path.dirname(fullPath),
+        markdown: fromNodeToMarkdownContent(node)
+    }
+}
+
+function createFileDeletePlan(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): FileDeletePlan {
+    return {
+        fullPath: getNodeFilePath(nodeId, projectRootWatchedDirectory)
+    }
+}
+
+function getErrorCode(error: unknown): string | undefined {
+    return typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { readonly code?: string }).code)
+        : undefined
+}
+
+function isIgnorablePruneError(error: unknown): boolean {
+    const errorCode: string | undefined = getErrorCode(error)
+    return errorCode === 'ENOTEMPTY' || errorCode === 'ENOENT'
 }
 
 async function pruneEmptyParentDirectories(filePath: string, rootPath: string): Promise<void> {
@@ -34,11 +77,7 @@ async function pruneEmptyParentDirectories(filePath: string, rootPath: string): 
         try {
             await fs.rmdir(currentDirectory)
         } catch (error: unknown) {
-            const errorCode: string | undefined = typeof error === 'object' && error !== null && 'code' in error
-                ? String((error as { readonly code?: string }).code)
-                : undefined
-
-            if (errorCode === 'ENOTEMPTY' || errorCode === 'ENOENT') {
+            if (isIgnorablePruneError(error)) {
                 return
             }
 
@@ -95,19 +134,12 @@ export function apply_graph_deltas_to_db(
 function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const markdown: string = fromNodeToMarkdownContent(node)
-            const filename: string = nodeIdToFilePathWithExtension(node.absoluteFilePathIsID)
-            // Handle both absolute and relative paths correctly
-            // If filename is already absolute, use it directly; otherwise join with projectRootWatchedDirectory
-            const fullPath: string = path.isAbsolute(filename)
-                ? filename
-                : path.join(env.projectRootWatchedDirectory, filename)
+            const plan: FileWritePlan = createFileWritePlan(node, env.projectRootWatchedDirectory)
 
-            // Ensure parent directory exists
-            await fs.mkdir(path.dirname(fullPath), { recursive: true })
+            await fs.mkdir(plan.parentDirectory, { recursive: true })
 
-            markPendingWrite(fullPath)
-            await fs.writeFile(fullPath, markdown, 'utf-8')
+            markPendingWrite(plan.fullPath)
+            await fs.writeFile(plan.fullPath, plan.markdown, 'utf-8')
         },
         toError
     )
@@ -119,16 +151,11 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const filename: string = nodeIdToFilePathWithExtension(nodeId)
-            // Handle both absolute and relative paths correctly
-            // If filename is already absolute, use it directly; otherwise join with projectRootWatchedDirectory
-            const fullPath: string = path.isAbsolute(filename)
-                ? filename
-                : path.join(env.projectRootWatchedDirectory, filename)
+            const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRootWatchedDirectory)
 
-            markPendingDelete(fullPath)
-            await fs.unlink(fullPath)
-            await pruneEmptyParentDirectories(fullPath, env.projectRootWatchedDirectory)
+            markPendingDelete(plan.fullPath)
+            await fs.unlink(plan.fullPath)
+            await pruneEmptyParentDirectories(plan.fullPath, env.projectRootWatchedDirectory)
         },
         toError
     )

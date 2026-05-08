@@ -14,10 +14,9 @@ import type {
 } from '@vt/graph-state'
 import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
 import { createEmptyGraph, type Graph } from '@vt/graph-model'
-import { getProjectRootWatchedDirectory } from './watch-folder-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
-import { getActiveDaemonClient } from '@/shell/edge/main/electron/graph-daemon'
+import { getActiveDaemonClient, getActiveDaemonConnection } from '@/shell/edge/main/electron/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/electron/daemon-graph-normalization'
 
 import {
@@ -60,7 +59,7 @@ function commitMainOwnedState(state: State): void {
 }
 
 async function readGraphFromDaemonSessionState(): Promise<Graph> {
-    const client = getActiveDaemonClient()
+    const client: ReturnType<typeof getActiveDaemonClient> = getActiveDaemonClient()
     return client ? await getNormalizedDaemonGraph(client) : createEmptyGraph()
 }
 
@@ -69,7 +68,7 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    if (!getProjectRootWatchedDirectory()) {
+    if (!getActiveDaemonConnection()) {
         return
     }
 

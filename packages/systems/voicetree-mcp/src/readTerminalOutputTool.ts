@@ -3,9 +3,13 @@
  * Reads the last N characters of output from an agent terminal.
  */
 
-import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
-import {getOutput} from '@vt/agent-runtime'
-import {getHeadlessAgentOutput} from '@vt/agent-runtime'
+import {
+    getHeadlessAgentOutput,
+    getOutput,
+    getPendingTerminal,
+    getTerminalRecords,
+    type TerminalRecord,
+} from './agent-runtime-facade'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 export interface ReadTerminalOutputParams {

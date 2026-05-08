@@ -41,6 +41,16 @@ import {
 } from '../graph-bridge';
 import {getRuntimeUI} from '../runtime-config';
 
+type SpawnTerminalLogger = {
+    error(message?: unknown, ...optionalParams: unknown[]): void
+    warn(message?: unknown, ...optionalParams: unknown[]): void
+}
+
+type SpawnTerminalDeps = {
+    readTextFile(filePath: string): Promise<string>
+    logger: SpawnTerminalLogger
+}
+
 /**
  * Spawn a terminal with a context node, orchestrated from main process
  *
@@ -68,7 +78,11 @@ export async function spawnTerminalWithContextNode(
     promptTemplate?: string,
     headless?: boolean,
     inheritTerminalId?: string,
-    envOverrides?: Record<string, string>
+    envOverrides?: Record<string, string>,
+    deps: SpawnTerminalDeps = {
+        readTextFile: (filePath: string): Promise<string> => fs.readFile(filePath, 'utf-8'),
+        logger: { error: console.error, warn: console.warn },
+    },
 ): Promise<{terminalId: string; contextNodeId: NodeIdAndFilePath}> {
     // Normalize: strip trailing slashes from node IDs (directories are not valid nodes)
     const normalizedNodeId: NodeIdAndFilePath = taskNodeId.endsWith('/') ? taskNodeId.slice(0, -1) as NodeIdAndFilePath : taskNodeId;
@@ -89,7 +103,6 @@ export async function spawnTerminalWithContextNode(
         const validCommands: Set<string> = new Set(agents.map(a => a.command));
         const isValidCommand: boolean = validCommands.has(agentCommand);
         if (!isValidCommand) {
-            console.error(`[SECURITY] Rejected unauthorized agent command: ${agentCommand.slice(0, 50)}...`);
             throw new Error('Invalid agent command - must be defined in settings.agents');
         }
     }
@@ -103,7 +116,10 @@ export async function spawnTerminalWithContextNode(
     let graph: Graph = getRuntimeGraph();
     let taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
     if (!taskNode) {
-        taskNode = await tryReloadNodeFromDisk(taskNodeId);
+        taskNode = await tryReloadNodeFromDisk(taskNodeId, {
+            readTextFile: deps.readTextFile,
+            logger: deps.logger,
+        });
         if (!taskNode) {
             throw new Error(`Node ${taskNodeId} not found in graph or on disk`);
         }
@@ -213,7 +229,7 @@ export async function spawnTerminalWithContextNode(
             // Drop the pending entry so follow-up tool calls correctly report
             // "Terminal not found" rather than queueing forever.
             clearPendingTerminal(terminalId)
-            console.error(`[spawnTerminalWithContextNode] async spawn failed for ${terminalId}:`, err)
+            deps.logger.error(`[spawnTerminalWithContextNode] async spawn failed for ${terminalId}:`, err)
         }
     })()
 
@@ -395,10 +411,16 @@ function extractWorktreeNameFromPath(spawnDirectory: string | undefined): string
  *
  * Returns the loaded GraphNode, or undefined if the file doesn't exist.
  */
-async function tryReloadNodeFromDisk(nodeId: NodeIdAndFilePath): Promise<GraphNode | undefined> {
+async function tryReloadNodeFromDisk(
+    nodeId: NodeIdAndFilePath,
+    deps: Pick<SpawnTerminalDeps, 'readTextFile' | 'logger'> = {
+        readTextFile: (filePath: string): Promise<string> => fs.readFile(filePath, 'utf-8'),
+        logger: { error: console.error, warn: console.warn },
+    },
+): Promise<GraphNode | undefined> {
     const filePath: string = nodeId.endsWith('.md') ? nodeId : `${nodeId}.md`
     try {
-        const content: string = await fs.readFile(filePath, 'utf-8')
+        const content: string = await deps.readTextFile(filePath)
         const fsEvent: FSUpdate = { absolutePath: filePath, content, eventType: 'Added' }
         const graph: Graph = getRuntimeGraph()
         const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph)
@@ -406,7 +428,7 @@ async function tryReloadNodeFromDisk(nodeId: NodeIdAndFilePath): Promise<GraphNo
         const newGraph: Graph = applyGraphDeltaToGraph(graph, delta)
         setRuntimeGraph(newGraph)
         runtimeRefreshGraphSideEffects()
-        console.warn(`[spawnTerminal] Self-healed missing node from disk: ${nodeId}`)
+        deps.logger.warn(`[spawnTerminal] Self-healed missing node from disk: ${nodeId}`)
         return newGraph.nodes[nodeId]
     } catch {
         return undefined

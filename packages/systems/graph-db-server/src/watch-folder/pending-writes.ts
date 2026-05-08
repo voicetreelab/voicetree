@@ -7,6 +7,21 @@ type PendingKind = 'write' | 'delete'
 interface PendingEntry {
     count: number
     readonly timers: Set<ReturnType<typeof setTimeout>>
+    readonly clearTimer: (timer: ReturnType<typeof setTimeout>) => void
+}
+
+interface PendingTimerDependencies {
+    readonly setTimer: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
+    readonly clearTimer: (timer: ReturnType<typeof setTimeout>) => void
+}
+
+const defaultPendingTimerDependencies: PendingTimerDependencies = {
+    setTimer(callback: () => void, delayMs: number): ReturnType<typeof setTimeout> {
+        return setTimeout(callback, delayMs)
+    },
+    clearTimer(timer: ReturnType<typeof setTimeout>): void {
+        clearTimeout(timer)
+    },
 }
 
 const pendingWrites: Map<string, PendingEntry> = new Map()
@@ -20,15 +35,20 @@ function getPendingMap(kind: PendingKind): Map<string, PendingEntry> {
     return kind === 'write' ? pendingWrites : pendingDeletes
 }
 
-function incrementPending(kind: PendingKind, absolutePath: string): void {
+function incrementPending(
+    kind: PendingKind,
+    absolutePath: string,
+    dependencies: PendingTimerDependencies = defaultPendingTimerDependencies,
+): void {
     const pendingMap: Map<string, PendingEntry> = getPendingMap(kind)
     const normalizedPath: string = normalizePath(absolutePath)
     const entry: PendingEntry = pendingMap.get(normalizedPath) ?? {
         count: 0,
         timers: new Set(),
+        clearTimer: dependencies.clearTimer,
     }
 
-    const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
+    const timer: ReturnType<typeof setTimeout> = dependencies.setTimer(() => {
         entry.timers.delete(timer)
         decrementPending(kind, normalizedPath)
     }, PENDING_WRITE_TTL_MS)
@@ -54,7 +74,7 @@ function decrementPending(kind: PendingKind, absolutePath: string): void {
     entry.count -= 1
     if (entry.count <= 0) {
         for (const timer of entry.timers) {
-            clearTimeout(timer)
+            entry.clearTimer(timer)
         }
         pendingMap.delete(normalizedPath)
     }

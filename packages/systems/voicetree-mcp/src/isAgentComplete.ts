@@ -5,8 +5,7 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import type {TerminalRecord} from '@vt/agent-runtime'
-import {getIdleSince} from '@vt/agent-runtime'
+import {getIdleSince, type TerminalRecord} from './agent-runtime-facade'
 import {getAgentNodes} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
 

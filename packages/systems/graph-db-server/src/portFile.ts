@@ -4,25 +4,41 @@ import { randomBytes } from 'node:crypto'
 
 export const PORT_FILENAME = 'graphd.port'
 
+type WritePortFileOptions = {
+  readonly tempSuffix?: string
+}
+
 function portPathFor(vaultDir: string): string {
   return join(vaultDir, '.voicetree', PORT_FILENAME)
 }
 
-function tmpPathFor(vaultDir: string): string {
-  const suffix = `${process.pid}.${randomBytes(4).toString('hex')}`
+function createDefaultTempSuffix(): string {
+  return `${process.pid}.${randomBytes(4).toString('hex')}`
+}
+
+function tmpPathFor(vaultDir: string, suffix: string): string {
   return join(vaultDir, '.voicetree', `${PORT_FILENAME}.tmp.${suffix}`)
+}
+
+function isValidPort(port: number): boolean {
+  return Number.isInteger(port) && port >= 0 && port <= 65535
+}
+
+function serializePort(port: number): string {
+  return `${port}\n`
 }
 
 export async function writePortFile(
   vaultDir: string,
   port: number,
+  options: WritePortFileOptions = {},
 ): Promise<void> {
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+  if (!isValidPort(port)) {
     throw new Error(`invalid port: ${port}`)
   }
   const final = portPathFor(vaultDir)
-  const tmp = tmpPathFor(vaultDir)
-  await writeFile(tmp, `${port}\n`, 'utf8')
+  const tmp = tmpPathFor(vaultDir, options.tempSuffix ?? createDefaultTempSuffix())
+  await writeFile(tmp, serializePort(port), 'utf8')
   try {
     await rename(tmp, final)
   } catch (err) {

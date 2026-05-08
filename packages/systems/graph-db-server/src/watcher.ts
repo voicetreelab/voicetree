@@ -9,10 +9,27 @@ import {
 } from '@vt/graph-model'
 import { handleFSEventWithStateAndUISides } from './graph/handleFSEvent.ts'
 import { readFileWithRetry } from './watch-folder/file-watcher-setup.ts'
+import type { FileWatcherLogger } from './watch-folder/file-watcher-setup.ts'
 
 export type Watcher = {
   readonly ready: Promise<void>
   unmount(): Promise<void>
+}
+
+export interface MountWatcherDependencies {
+  readonly readFileWithRetry: typeof readFileWithRetry
+  readonly handleFSEvent: typeof handleFSEventWithStateAndUISides
+  readonly logger: FileWatcherLogger
+}
+
+const defaultMountWatcherDependencies: MountWatcherDependencies = {
+  readFileWithRetry,
+  handleFSEvent: handleFSEventWithStateAndUISides,
+  logger: {
+    error(message?: unknown, ...optionalParams: unknown[]): void {
+      console.error(message, ...optionalParams)
+    },
+  },
 }
 
 function waitForReady(watcher: FSWatcher): Promise<void> {
@@ -69,6 +86,7 @@ function buildWatcherOptions() {
 export function mountWatcher(
   readPaths: readonly string[],
   watchedDir: string,
+  dependencies: MountWatcherDependencies = defaultMountWatcherDependencies,
 ): Watcher {
   const watcher: FSWatcher = chokidar.watch([...readPaths], buildWatcherOptions())
   const ready = waitForReady(watcher)
@@ -76,7 +94,7 @@ export function mountWatcher(
   watcher.on('add', (filePath: string) => {
     const contentPromise = isImageNode(filePath)
       ? Promise.resolve('')
-      : readFileWithRetry(filePath)
+      : dependencies.readFileWithRetry(filePath)
 
     void contentPromise
       .then((content: string) => {
@@ -85,10 +103,10 @@ export function mountWatcher(
           content,
           eventType: 'Added',
         }
-        handleFSEventWithStateAndUISides(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir)
       })
       .catch((error: unknown) => {
-        console.error(`graphd watcher add failed for ${filePath}:`, error)
+        dependencies.logger.error(`graphd watcher add failed for ${filePath}:`, error)
       })
   })
 
@@ -97,17 +115,17 @@ export function mountWatcher(
       return
     }
 
-    void readFileWithRetry(filePath)
+    void dependencies.readFileWithRetry(filePath)
       .then((content: string) => {
         const fsUpdate: FSUpdate = {
           absolutePath: filePath,
           content,
           eventType: 'Changed',
         }
-        handleFSEventWithStateAndUISides(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir)
       })
       .catch((error: unknown) => {
-        console.error(`graphd watcher change failed for ${filePath}:`, error)
+        dependencies.logger.error(`graphd watcher change failed for ${filePath}:`, error)
       })
   })
 
@@ -116,11 +134,11 @@ export function mountWatcher(
       type: 'Delete',
       absolutePath: filePath,
     }
-    handleFSEventWithStateAndUISides(fsDelete, watchedDir)
+    dependencies.handleFSEvent(fsDelete, watchedDir)
   })
 
   watcher.on('error', (error: unknown) => {
-    console.error('graphd watcher error:', error)
+    dependencies.logger.error('graphd watcher error:', error)
   })
 
   return {

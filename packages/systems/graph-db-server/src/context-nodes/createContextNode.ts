@@ -13,6 +13,18 @@ import {
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWritePath } from './contextWritePath'
 
+type ContextNodeClock = {
+    readonly now: () => number
+}
+
+export type CreateContextNodeDependencies = {
+    readonly clock: ContextNodeClock
+}
+
+const defaultCreateContextNodeDependencies: CreateContextNodeDependencies = {
+    clock: { now: () => Date.now() },
+}
+
 function resolveParentNodeId(
     currentGraph: Graph,
     requestedParentNodeId: NodeIdAndFilePath,
@@ -60,7 +72,8 @@ function resolveParentNodeId(
  */
 export async function createContextNode(
     parentNodeId: NodeIdAndFilePath,
-    semanticNodeIds: readonly NodeIdAndFilePath[] = []
+    semanticNodeIds: readonly NodeIdAndFilePath[] = [],
+    dependencies: CreateContextNodeDependencies = defaultCreateContextNodeDependencies
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
@@ -97,7 +110,7 @@ export async function createContextNode(
     const asciiTree: string = graphToAscii(bidirectionalSubgraph, resolvedParentNodeId)
 
     // 4. EDGE: Generate unique context node ID
-    const timestamp: number = Date.now()
+    const timestamp: number = dependencies.clock.now()
     const parentIdWithoutExtension: string = resolvedParentNodeId.replace(/\.md$/, '')
     // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
     // Note: nodeIds are now relative to projectRootWatchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
