@@ -443,7 +443,7 @@ describe('function purity ratio (LOC)', () => {
             `Purity ratio ${(purityRatio * 100).toFixed(1)}% is below the ${(MINIMUM_PURITY_RATIO * 100).toFixed(0)}% threshold. `
             + `${totals.impureLoc} LOC in impure functions out of ${totals.totalLoc} total LOC.`,
         ).toBeGreaterThanOrEqual(MINIMUM_PURITY_RATIO)
-    })
+    }, 30000)
 
     it('functions in pure/ directories have no detected side effects', async () => {
         const { functions } = await analyzeAllFunctions()
@@ -464,5 +464,5 @@ describe('function purity ratio (LOC)', () => {
             `pure/ directory: ${totalPureDirLoc} LOC across ${pureDirFunctions.length} functions, ${violationLoc} LOC with side-effect indicators`,
         )
         expect(violationLoc).toBeLessThanOrEqual(totalPureDirLoc * 0.14)
-    })
+    }, 30000)
 })

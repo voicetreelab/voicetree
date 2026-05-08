@@ -1,12 +1,12 @@
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
+import * as createContextNodeModule from '@vt/graph-db-server/context-nodes/createContextNode'
+import * as createContextNodeFromSelectedNodesModule from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
 import {
     getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
     type UnseenNode,
 } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import { createContextNode as createDefaultContextNode } from '@vt/graph-db-server/context-nodes/createContextNode'
-import { createContextNodeFromSelectedNodes as createDefaultContextNodeFromSelectedNodes } from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
-import { updateContextNodeContainedIds as updateDefaultContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
+import * as updateContextNodeContainedIdsModule from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
     refreshGraphChangeSideEffects as refreshDefaultGraphChangeSideEffects,
@@ -85,7 +85,7 @@ export async function runtimeCreateContextNode(
     const bridge: GraphStateBridge | undefined = getGraphBridge()
     return bridge
         ? await bridge.createContextNode(parentNodeId, semanticNodeIds)
-        : await createDefaultContextNode(parentNodeId, semanticNodeIds)
+        : await createContextNodeModule.createContextNode(parentNodeId, semanticNodeIds)
 }
 
 export async function runtimeCreateContextNodeFromSelectedNodes(
@@ -95,7 +95,7 @@ export async function runtimeCreateContextNodeFromSelectedNodes(
     const bridge: GraphStateBridge | undefined = getGraphBridge()
     return bridge
         ? await bridge.createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
-        : await createDefaultContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
+        : await createContextNodeFromSelectedNodesModule.createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
 }
 
 export async function getRuntimeUnseenNodesAroundContextNode(
@@ -118,5 +118,5 @@ export async function runtimeUpdateContextNodeContainedIds(
         return
     }
 
-    await updateDefaultContextNodeContainedIds(contextNodeId, newNodeIds)
+    await updateContextNodeContainedIdsModule.updateContextNodeContainedIds(contextNodeId, newNodeIds)
 }
