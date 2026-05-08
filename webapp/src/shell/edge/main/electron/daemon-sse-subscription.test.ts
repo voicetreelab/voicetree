@@ -24,6 +24,7 @@ function makeProjectedGraph(label: string): ProjectedGraph {
         revision: 0,
         forests: [],
         arboricity: 0,
+        recentNodeIds: [],
     }
 }
 

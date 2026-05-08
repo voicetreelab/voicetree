@@ -7,7 +7,7 @@ const empty: State = {
     meta: { schemaVersion: 1, revision: 0 },
 }
 const api: Pick<GraphStateAPI, 'project' | 'applyCommandWithDelta'> = {
-    project: (s): ProjectedGraph => ({ nodes: [], edges: [], rootPath: '', revision: s.meta.revision, forests: [], arboricity: 0 }),
+    project: (s): ProjectedGraph => ({ nodes: [], edges: [], rootPath: '', revision: s.meta.revision, forests: [], arboricity: 0, recentNodeIds: [] }),
     applyCommandWithDelta: (s, cmd) => ({
         state: { ...s, meta: { ...s.meta, revision: s.meta.revision + 1 } },
         delta: { revision: s.meta.revision + 1, cause: cmd },

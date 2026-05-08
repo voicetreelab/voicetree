@@ -52,6 +52,7 @@ export function specWithNodes(...nodes: ProjectedNode[]): ProjectedGraph {
         revision: 1,
         forests: [],
         arboricity: 0,
+        recentNodeIds: [],
     }
 }
 

@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import {
+  applyGraphDeltaToGraph,
+  createEmptyGraph,
+  type GraphDelta,
+  type GraphNode,
+} from '@vt/graph-model/graph'
 import { type DaemonHandle, startDaemon } from '../server.ts'
 import { SessionCreateResponseSchema } from '../contract.ts'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
+import { getGraph, setGraph } from '../state/graph-store.ts'
+import { publish } from '../events/deltaEventBus.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))
@@ -21,10 +30,11 @@ async function createAppSupport(vault: string): Promise<string> {
   return appSupport
 }
 
-function parseSSEGraphEvents(text: string): ProjectedGraph[] {
+function parseSSEGraphEvents(text: string): readonly ProjectedGraph[] {
   const graphs: ProjectedGraph[] = []
   const blocks = text.split('\n\n').filter(Boolean)
   for (const block of blocks) {
+    if (!block.includes('event: projectedGraph')) continue
     const dataLine = block.split('\n').find(l => l.startsWith('data:'))
     if (dataLine) {
       const json = dataLine.slice('data:'.length).trim()
@@ -36,7 +46,45 @@ function parseSSEGraphEvents(text: string): ProjectedGraph[] {
   return graphs
 }
 
-describe.skip('SSE session events', () => {
+function makeNode(id: string, content: string): GraphNode {
+  return {
+    kind: 'leaf',
+    outgoingEdges: [],
+    absoluteFilePathIsID: id,
+    contentWithoutYamlOrLinks: content,
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none,
+      additionalYAMLProps: new Map(),
+    },
+  }
+}
+
+async function readProjectedGraph(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs = 5000,
+): Promise<ProjectedGraph> {
+  const decoder = new TextDecoder()
+  let buffered = ''
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now()
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Timed out waiting for projectedGraph SSE event')), remainingMs)
+    })
+    const result = await Promise.race([reader.read(), timeout])
+
+    if (result.done) break
+    buffered += decoder.decode(result.value, { stream: true })
+    const graphs = parseSSEGraphEvents(buffered)
+    if (graphs.length > 0) return graphs[graphs.length - 1]
+  }
+
+  throw new Error('Timed out waiting for projectedGraph SSE event')
+}
+
+describe('SSE session events', () => {
   let vault: string
   let appSupport: string
   let handles: DaemonHandle[]
@@ -59,8 +107,12 @@ describe.skip('SSE session events', () => {
     await rm(appSupport, { recursive: true, force: true })
   }, 15000)
 
-  test('receives projected graph via SSE for HTTP writes and FS writes', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+  test('emits a ProjectedGraph containing a newly mutated node', async () => {
+    const handle = await startDaemon({
+      vault,
+      appSupportPath: appSupport,
+      createStarterIfEmpty: false,
+    })
     handles.push(handle)
     const base = `http://127.0.0.1:${handle.port}`
 
@@ -76,82 +128,53 @@ describe.skip('SSE session events', () => {
     expect(sseRes.headers.get('content-type')).toContain('text/event-stream')
 
     const reader = sseRes.body!.getReader()
-    const decoder = new TextDecoder()
-    const receivedGraphs: ProjectedGraph[] = []
-
     await reader.read()
 
-    const collectEvents = async (timeoutMs = 3000): Promise<void> => {
-      const deadline = Date.now() + timeoutMs
-      while (Date.now() < deadline && !sseController!.signal.aborted) {
-        const timeoutPromise = new Promise<{ done: true; value: undefined }>((resolve) => {
-          const t = setTimeout(() => resolve({ done: true, value: undefined }), Math.max(50, deadline - Date.now()))
-          sseController!.signal.addEventListener('abort', () => { clearTimeout(t); resolve({ done: true, value: undefined }) })
-        })
-        const result = await Promise.race([reader.read(), timeoutPromise])
-        if (result.done) break
-        if (result.value) {
-          const chunk = decoder.decode(result.value, { stream: true })
-          receivedGraphs.push(...parseSSEGraphEvents(chunk))
-          if (receivedGraphs.length > 0) break
-        }
-      }
-    }
-
-    const testNodePath = join(vault, 'test-node-http.md')
-    const delta = [
+    const initialNodePath = join(vault, 'initial-node.md')
+    const mutatedNodePath = join(vault, 'sse-projected-node.md')
+    const initialDelta: GraphDelta = [
       {
         type: 'UpsertNode',
-        nodeToUpsert: {
-          kind: 'leaf',
-          outgoingEdges: [],
-          absoluteFilePathIsID: testNodePath,
-          contentWithoutYamlOrLinks: '# Test HTTP Node\nHello from HTTP',
-          nodeUIMetadata: {
-            color: { _tag: 'None' },
-            position: { _tag: 'None' },
-            additionalYAMLProps: {},
-          },
-        },
-        previousNode: { _tag: 'None' },
+        nodeToUpsert: makeNode(initialNodePath, '# Initial Node\nSeed content'),
+        previousNode: O.none,
       },
     ]
+    setGraph(applyGraphDeltaToGraph(createEmptyGraph(), initialDelta))
 
-    const deltaRes = await fetch(`${base}/graph/delta`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-Id': sessionId,
+    const delta: GraphDelta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: makeNode(
+          mutatedNodePath,
+          '# SSE Projected Graph Node\nSearchable body text',
+        ),
+        previousNode: O.none,
       },
-      body: JSON.stringify(delta),
-    })
-    expect(deltaRes.status).toBe(200)
+    ]
+    setGraph(applyGraphDeltaToGraph(getGraph(), delta))
 
-    await collectEvents()
-    expect(receivedGraphs.length).toBeGreaterThan(0)
-    const httpGraph = receivedGraphs[receivedGraphs.length - 1]
-    expect(httpGraph.nodes).toBeDefined()
-    expect(httpGraph.edges).toBeDefined()
-    const upsertedNode = httpGraph.nodes.find(n => n.id === testNodePath)
+    publish({ delta, source: 'test:sessionEvents' })
+
+    const graph = await readProjectedGraph(reader)
+    expect(graph.edges).toBeDefined()
+    expect(graph.recentNodeIds).toEqual([mutatedNodePath])
+    const upsertedNode = graph.nodes.find(n => n.id === mutatedNodePath)
     expect(upsertedNode).toBeDefined()
-
-    receivedGraphs.length = 0
-    const externalFilePath = join(vault, 'external-write.md')
-    await writeFile(externalFilePath, `---
-agent_name: Ari
----
-# External Node
-Written directly to FS`)
-
-    await collectEvents(5000)
-    expect(receivedGraphs.length).toBeGreaterThan(0)
-    const fsGraph = receivedGraphs[receivedGraphs.length - 1]
-    const externalNode = fsGraph.nodes.find(n => n.id === externalFilePath)
-    expect(externalNode).toBeDefined()
+    expect(upsertedNode).toMatchObject({
+      id: mutatedNodePath,
+      kind: 'file',
+      label: 'sse-projected-node',
+      basename: 'sse-projected-node',
+      content: '# SSE Projected Graph Node\nSearchable body text',
+    })
   }, 20000)
 
   test('returns 404 for non-existent session', async () => {
-    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    const handle = await startDaemon({
+      vault,
+      appSupportPath: appSupport,
+      createStarterIfEmpty: false,
+    })
     handles.push(handle)
 
     const res = await fetch(

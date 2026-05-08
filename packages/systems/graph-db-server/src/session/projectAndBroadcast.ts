@@ -5,7 +5,7 @@ import { publishProjectedGraph } from '../events/projectedGraphEventBus.ts'
 
 export async function projectAndBroadcast(session: Session): Promise<ReturnType<typeof project>> {
   const state = await buildDaemonState(session)
-  const graph = project(state)
+  const graph: ReturnType<typeof project> = { ...project(state), recentNodeIds: [] }
   publishProjectedGraph({ sessionId: session.id, graph })
   return graph
 }

@@ -204,7 +204,8 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           rootPath: '',
           revision: 0,
           forests: [],
-          arboricity: 0
+          arboricity: 0,
+          recentNodeIds: []
         } as ProjectedGraph,
         applyGraphDelta: async () => ({ success: true }),
          
