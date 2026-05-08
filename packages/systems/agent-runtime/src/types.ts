@@ -67,7 +67,10 @@ export function getTerminalId(terminal: TerminalData): TerminalId {
     return terminal.terminalId;
 }
 
-export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
+export function createTerminalData(
+    params: CreateTerminalDataParams,
+    now: () => number = Date.now
+): TerminalData {
     return {
         type: 'Terminal',
         terminalId: params.terminalId,
@@ -84,7 +87,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         isPinned: params.isPinned ?? true,
         isDone: false,
         lifecycle: 'spawning',
-        lastOutputTime: Date.now(),
+        lastOutputTime: now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,
         agentName: params.agentName,

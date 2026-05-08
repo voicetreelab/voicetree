@@ -11,6 +11,8 @@ import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-fo
 import {getRuntimeEnv} from '../runtime-config'
 import path from 'path'
 
+type SelectEnvVarValueIndex = (values: readonly string[]) => number
+
 export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
     readonly taskNodePath: string
@@ -19,10 +21,10 @@ export async function buildTerminalEnvVars(params: {
     readonly settings: VTSettings
     readonly promptTemplate?: string
     readonly envOverrides?: Record<string, string>
-}): Promise<Record<string, string>> {
+}, selectEnvVarValueIndex: SelectEnvVarValueIndex = (values: readonly string[]) => Math.floor(Math.random() * values.length)): Promise<Record<string, string>> {
     const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
         params.settings.INJECT_ENV_VARS,
-        (values: readonly string[]) => Math.floor(Math.random() * values.length)
+        selectEnvVarValueIndex
     )
 
     if (params.promptTemplate && resolvedEnvVars[params.promptTemplate]) {

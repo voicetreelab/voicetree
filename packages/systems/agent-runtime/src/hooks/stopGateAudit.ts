@@ -38,6 +38,25 @@ export type Violation = {
     reason: string
 }
 
+export type StopGateAuditDeps = {
+    readonly homeDir: string
+    readonly canAccess: (path: string) => boolean
+    readonly readTextFile: (path: string) => string
+}
+
+const defaultStopGateAuditDeps: StopGateAuditDeps = {
+    homeDir: process.env.HOME ?? '',
+    canAccess: (path: string): boolean => {
+        try {
+            fs.accessSync(path)
+            return true
+        } catch {
+            return false
+        }
+    },
+    readTextFile: (path: string): string => fs.readFileSync(path, 'utf-8')
+}
+
 // ─── Internal pipeline ─────────────────────────────────────────────────────
 
 /**
@@ -123,8 +142,8 @@ export function parseObligations(skillContent: string): Obligation[] {
     return obligations
 }
 
-function resolveToAbsolute(skillPath: string): string {
-    return skillPath.replace(/^~\/brain\//, (process.env.HOME ?? '') + '/brain/')
+function resolveToAbsolute(skillPath: string, homeDir: string = process.env.HOME ?? ''): string {
+    return skillPath.replace(/^~\/brain\//, homeDir + '/brain/')
 }
 
 function extractWorkflowName(skillPath: string): string {
@@ -219,14 +238,19 @@ function checkCompliance(obligations: readonly Obligation[], evidence: WorkEvide
  * Derives everything at audit time from graph + registry — no stored skill binding.
  * Returns null if the agent has no associated SKILL.md (nothing to audit).
  */
-export function auditAgent(terminalId: string, graph: Graph, records: readonly TerminalRecord[]): ComplianceResult | null {
+export function auditAgent(
+    terminalId: string,
+    graph: Graph,
+    records: readonly TerminalRecord[],
+    deps: StopGateAuditDeps = defaultStopGateAuditDeps
+): ComplianceResult | null {
     const skillPaths: string[] = deriveSkillPaths(terminalId, graph, records)
 
     // No explicit SKILL.md — single soft obligation to read ~/brain/SKILL.md
     if (skillPaths.length === 0) {
         const brainSkillPath: string = '~/brain/SKILL.md'
-        const resolved: string = (process.env.HOME ?? '') + '/brain/SKILL.md'
-        try { fs.accessSync(resolved) } catch { return null }
+        const resolved: string = deps.homeDir + '/brain/SKILL.md'
+        if (!deps.canAccess(resolved)) return null
 
         const rootObligations: Obligation[] = [
             { type: 'soft', workflowPath: brainSkillPath, workflowName: 'SKILL.md' }
@@ -240,8 +264,8 @@ export function auditAgent(terminalId: string, graph: Graph, records: readonly T
     for (const skillPath of skillPaths) {
         let skillContent: string
         try {
-            const resolvedPath: string = skillPath.replace(/^~\/brain\//, (process.env.HOME ?? '') + '/brain/')
-            skillContent = fs.readFileSync(resolvedPath, 'utf-8')
+            const resolvedPath: string = resolveToAbsolute(skillPath, deps.homeDir)
+            skillContent = deps.readTextFile(resolvedPath)
         } catch {
             continue // unreadable SKILL.md — skip this one
         }

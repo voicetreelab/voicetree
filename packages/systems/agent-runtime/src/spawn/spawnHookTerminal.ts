@@ -31,6 +31,16 @@ const SHELL_INIT_DELAY_MS: number = 300
 let hookNodeId: string | null = null
 let spawnInProgress: Promise<void> | null = null
 
+type HookTerminalWaitDeps = {
+    now(): number
+    sleep(ms: number): Promise<void>
+    isAlive(): boolean
+}
+
+type HookTerminalLogger = {
+    error(message?: unknown, ...optionalParams: unknown[]): void
+}
+
 function isHookTerminalAlive(): boolean {
     const records: TerminalRecord[] = getTerminalRecords()
     const existing: TerminalRecord | undefined = records.find(
@@ -44,15 +54,21 @@ function isHookTerminalAlive(): boolean {
  * The PTY is spawned asynchronously via IPC roundtrip to the renderer,
  * so we poll until it registers in the main-process terminal registry.
  */
-async function waitForTerminalReady(): Promise<boolean> {
-    const startTime: number = Date.now()
-    while (Date.now() - startTime < TERMINAL_READY_TIMEOUT_MS) {
-        if (isHookTerminalAlive()) {
+async function waitForTerminalReady(
+    deps: HookTerminalWaitDeps = {
+        now: Date.now,
+        sleep: (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
+        isAlive: isHookTerminalAlive,
+    },
+): Promise<boolean> {
+    const startTime: number = deps.now()
+    while (deps.now() - startTime < TERMINAL_READY_TIMEOUT_MS) {
+        if (deps.isAlive()) {
             // Brief delay for shell prompt initialization
-            await new Promise(resolve => setTimeout(resolve, SHELL_INIT_DELAY_MS))
+            await deps.sleep(SHELL_INIT_DELAY_MS)
             return true
         }
-        await new Promise(resolve => setTimeout(resolve, TERMINAL_READY_POLL_MS))
+        await deps.sleep(TERMINAL_READY_POLL_MS)
     }
     return false
 }
@@ -81,7 +97,9 @@ async function createHookNode(): Promise<string> {
     return hookNode.absoluteFilePathIsID
 }
 
-async function spawnHookTerminal(): Promise<void> {
+async function spawnHookTerminal(
+    logger: HookTerminalLogger = { error: console.error },
+): Promise<void> {
     const settings: VTSettings = await loadSettings()
 
     if (!hookNodeId || !getGraph().nodes[hookNodeId]) {
@@ -119,7 +137,7 @@ async function spawnHookTerminal(): Promise<void> {
 
     const ready: boolean = await waitForTerminalReady()
     if (!ready) {
-        console.error('[spawnHookTerminal] Timed out waiting for hook terminal PTY')
+        logger.error('[spawnHookTerminal] Timed out waiting for hook terminal PTY')
     }
 }
 

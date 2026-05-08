@@ -28,6 +28,18 @@ export interface TriggerOvernightResult {
     error?: string
 }
 
+export interface TriggerOvernightDeps {
+    readonly getIsoDate: () => string
+}
+
+function getCurrentIsoDate(): string {
+    return new Date().toISOString().slice(0, 10)
+}
+
+const defaultTriggerOvernightDeps: TriggerOvernightDeps = {
+    getIsoDate: getCurrentIsoDate,
+}
+
 /**
  * Spawns a meta-observer agent for an overnight batch run.
  * Creates a task node, resolves the Opus agent, and launches with
@@ -35,6 +47,7 @@ export interface TriggerOvernightResult {
  */
 export async function triggerOvernight(
     params: TriggerOvernightParams,
+    deps: TriggerOvernightDeps = defaultTriggerOvernightDeps,
 ): Promise<TriggerOvernightResult> {
     const vaultPathOpt: O.Option<string> = await getWritePath()
     if (O.isNone(vaultPathOpt)) {
@@ -56,7 +69,7 @@ export async function triggerOvernight(
         calculateNodePosition(graph, spatialIndex, parentNodeId)
     )
 
-    const isoDate: string = new Date().toISOString().slice(0, 10)
+    const isoDate: string = deps.getIsoDate()
     const taskDescription: string = `Overnight Run — ${isoDate}`
 
     const taskNodeDelta: GraphDelta = createTaskNode({

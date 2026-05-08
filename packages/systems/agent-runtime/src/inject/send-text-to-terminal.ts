@@ -16,6 +16,30 @@ const BATCH_DELAY_MS: number = 40
 
 const terminalWriteQueues: Map<string, Promise<void>> = new Map()
 
+export type SendTextToTerminalDeps = {
+    readonly getTerminalManager: () => ReturnType<typeof getTerminalManager>
+    readonly sleep: (delayMs: number) => Promise<void>
+}
+
+const sleepWithTimer = (delayMs: number): Promise<void> =>
+    new Promise(resolve => setTimeout(resolve, delayMs))
+
+const defaultSendTextToTerminalDeps: SendTextToTerminalDeps = {
+    getTerminalManager,
+    sleep: sleepWithTimer
+}
+
+export function sanitizeTerminalInput(text: string): string {
+    return text
+        .replace(/\r\n/g, ' ')
+        .replace(/\r/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\x1b\[[A-D]/g, '')
+        .replace(/ {2,}/g, ' ')
+        .trim()
+}
+
 function enqueueTerminalWrite<T>(
     terminalId: string,
     operation: () => Promise<T>
@@ -36,41 +60,34 @@ function enqueueTerminalWrite<T>(
     })
 }
 
-export async function sendTextToTerminal(terminalId: string, text: string): Promise<TerminalOperationResult> {
+export async function sendTextToTerminal(
+    terminalId: string,
+    text: string,
+    deps: SendTextToTerminalDeps = defaultSendTextToTerminalDeps
+): Promise<TerminalOperationResult> {
     return enqueueTerminalWrite(terminalId, async () => {
-    const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager()
+    const terminalManager: ReturnType<typeof getTerminalManager> = deps.getTerminalManager()
 
     // Universal preamble that works for both vi-mode (Claude) and emacs-mode (Codex, Gemini):
     // Dummy no-op character before ESC to mitigate first-byte timing misses on some PTY paths.
     terminalManager.write(terminalId, PREAMBLE_DUMMY)
-    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
+    await deps.sleep(ESC_DELAY_MS)
 
     //   ESC      → vi: enters normal mode; emacs: harmless meta-key noise.
     //   i        → vi: enters insert mode.  emacs: types stray 'i'.
     //   Ctrl-U   → both: kill-line clears input buffer (removes stray 'i' in emacs, no-op in vi).
     // Must happen BEFORE the message — sending ESC after \r cancels generation.
     terminalManager.write(terminalId, '\x1b')
-    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
+    await deps.sleep(ESC_DELAY_MS)
     terminalManager.write(terminalId, 'i')
-    await new Promise(resolve => setTimeout(resolve, INSERT_MODE_DELAY_MS))
+    await deps.sleep(INSERT_MODE_DELAY_MS)
     terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
-    await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
-
-    // Sanitize: normalize line endings, strip newlines (multi-line paste triggers
-    // "[N lines pasted]" collapse in Claude Code), and strip characters that disrupt PTY input.
-    // \t = Tab (triggers completion), ANSI arrow sequences = cursor movement.
-    const sanitized: string = text
-        .replace(/\r\n/g, ' ')
-        .replace(/\r/g, ' ')
-        .replace(/\n/g, ' ')
-        .replace(/\t/g, ' ')
-        .replace(/\x1b\[[A-D]/g, '')
-        .replace(/ {2,}/g, ' ')
-        .trim()
+    await deps.sleep(CHAR_DELAY_MS)
 
     // Write message body in bracketed paste mode to prevent readline from
     // interpreting \n as Enter (autocomplete trigger). Content is written
     // in batches to avoid Claude Code's "[N lines pasted]" collapse.
+    const sanitized: string = sanitizeTerminalInput(text)
     terminalManager.write(terminalId, '\x1b[200~')
     for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
         const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
@@ -80,7 +97,7 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
             return writeResult
         }
         if (i + BATCH_CHAR_LIMIT < sanitized.length) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
+            await deps.sleep(BATCH_DELAY_MS)
         }
     }
     terminalManager.write(terminalId, '\x1b[201~')
@@ -89,9 +106,9 @@ export async function sendTextToTerminal(terminalId: string, text: string): Prom
     //   1. ESC+CR as single write → Option/Alt+Enter for Codex/OpenCode
     //   2. Plain CR after delay   → Enter for Claude Code (vi-mode readline)
     // Both must be single writes — splitting ESC+CR after bulk body is unreliable for Gemini.
-    await new Promise(resolve => setTimeout(resolve, CHAR_DELAY_MS))
+    await deps.sleep(CHAR_DELAY_MS)
     terminalManager.write(terminalId, '\x1b\r')
-    await new Promise(resolve => setTimeout(resolve, ESC_DELAY_MS))
+    await deps.sleep(ESC_DELAY_MS)
     terminalManager.write(terminalId, '\r')
 
     return {success: true}

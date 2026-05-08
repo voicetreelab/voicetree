@@ -23,11 +23,6 @@ type BudgetLogger = {
     info(message: string): void
 }
 
-const consoleBudgetLogger: BudgetLogger = {
-    warn: console.warn,
-    info: console.log,
-}
-
 // Map of terminal ID -> remaining budget (what this terminal has available)
 const terminalBudgets: Map<string, number> = new Map()
 
@@ -47,8 +42,12 @@ export function getTerminalBudget(terminalId: string): number | undefined {
  * Called when initializing a root terminal from GLOBAL_SPAWN_BUDGET env var,
  * or when a child terminal receives its allocated budget.
  */
-export function setTerminalBudget(terminalId: string, budget: number): void {
-    return setTerminalBudgetWithLogger(terminalId, budget, consoleBudgetLogger)
+export function setTerminalBudget(
+    terminalId: string,
+    budget: number,
+    logger: BudgetLogger = { warn: console.warn, info: console.log },
+): void {
+    return setTerminalBudgetWithLogger(terminalId, budget, logger)
 }
 
 function setTerminalBudgetWithLogger(
@@ -76,8 +75,11 @@ function setTerminalBudgetWithLogger(
  *
  * @returns { allowed, childBudget } — childBudget is undefined when no budget is set (unlimited).
  */
-export function tryConsumeAndSplitBudget(callerTerminalId: string): { allowed: boolean; childBudget: number | undefined } {
-    return tryConsumeAndSplitBudgetWithLogger(callerTerminalId, consoleBudgetLogger)
+export function tryConsumeAndSplitBudget(
+    callerTerminalId: string,
+    logger: BudgetLogger = { warn: console.warn, info: console.log },
+): { allowed: boolean; childBudget: number | undefined } {
+    return tryConsumeAndSplitBudgetWithLogger(callerTerminalId, logger)
 }
 
 function tryConsumeAndSplitBudgetWithLogger(

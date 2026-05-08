@@ -25,6 +25,35 @@ type MonitorEntry = {
 const monitors: Map<string, MonitorEntry> = new Map()
 let nextMonitorId: number = 1
 
+function startMonitorInterval(
+    callback: () => void,
+    pollIntervalMs: number
+): ReturnType<typeof setInterval> {
+    return setInterval(callback, pollIntervalMs)
+}
+
+function stopMonitorInterval(intervalId: ReturnType<typeof setInterval>): void {
+    clearInterval(intervalId)
+}
+
+function getCurrentTimeMs(): number {
+    return Date.now()
+}
+
+export interface AgentCompletionMonitorDeps {
+    readonly setInterval: (callback: () => void, pollIntervalMs: number) => ReturnType<typeof setInterval>
+    readonly clearInterval: (intervalId: ReturnType<typeof setInterval>) => void
+    readonly now: () => number
+    readonly getNewNodesForAgent: typeof getNewNodesForAgent
+}
+
+const defaultAgentCompletionMonitorDeps: AgentCompletionMonitorDeps = {
+    setInterval: startMonitorInterval,
+    clearInterval: stopMonitorInterval,
+    now: getCurrentTimeMs,
+    getNewNodesForAgent,
+}
+
 function getTerminalRecordsSnapshot(): TerminalRecord[] {
     const records: unknown = getTerminalRecords()
     return Array.isArray(records) ? records : []
@@ -33,13 +62,14 @@ function getTerminalRecordsSnapshot(): TerminalRecord[] {
 export function startMonitor(
     callerTerminalId: string,
     terminalIds: string[],
-    pollIntervalMs: number = 5000
+    pollIntervalMs: number = 5000,
+    deps: AgentCompletionMonitorDeps = defaultAgentCompletionMonitorDeps
 ): string {
     const monitorId: string = `monitor-${nextMonitorId++}`
     const effectiveIds: string[] = [...terminalIds, ...findExistingDescendants(terminalIds)]
 
-    const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
-        const now: number = Date.now()
+    const intervalId: ReturnType<typeof setInterval> = deps.setInterval(() => {
+        const now: number = deps.now()
         const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
@@ -71,7 +101,7 @@ export function startMonitor(
                 const agentStatus: string = getAgentStatus(r)
                 if (agentStatus === 'idle') {
                     const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                    const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                     if (indexNodes.length === 0 && graphNodes.length === 0) {
                         void sendTextToTerminal(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
@@ -83,7 +113,7 @@ export function startMonitor(
 
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
                 const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                 const seenIds: Set<string> = new Set(indexNodes.map((n: AgentNodeEntry) => n.nodeId))
                 const mergedNodes: Array<{nodeId: string; title: string}> = [
                     ...indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title})),
@@ -114,11 +144,11 @@ export function startMonitor(
                 })
             }
 
-            const stillWaitingOn: string[] = getPendingAgentNamesForCaller(callerTerminalId, monitorId)
+            const stillWaitingOn: string[] = getPendingAgentNamesForCaller(callerTerminalId, monitorId, deps)
             const message: string = buildCompletionMessage(results, stillWaitingOn)
             void sendTextToTerminal(callerTerminalId, message)
 
-            clearInterval(intervalId)
+            deps.clearInterval(intervalId)
             monitors.delete(monitorId)
         }
     }, pollIntervalMs)
@@ -171,10 +201,14 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Returns agent names still being monitored for this caller, excluding the monitor that just fired.
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
-export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): string[] {
+export function getPendingAgentNamesForCaller(
+    callerTerminalId: string,
+    excludeMonitorId: string,
+    deps: AgentCompletionMonitorDeps = defaultAgentCompletionMonitorDeps
+): string[] {
     const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
     const graph: Graph = getGraph()
-    const now: number = Date.now()
+    const now: number = deps.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {
         if (monitorId === excludeMonitorId) continue
@@ -207,7 +241,7 @@ export function isTerminalIdAlreadyMonitoredForCaller(
 export function cancelMonitor(monitorId: string): void {
     const entry: MonitorEntry | undefined = monitors.get(monitorId)
     if (entry) {
-        clearInterval(entry.intervalId)
+        defaultAgentCompletionMonitorDeps.clearInterval(entry.intervalId)
         monitors.delete(monitorId)
     }
 }
