@@ -287,7 +287,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                     appSupport,
                 )
                 expect(collapse.code, `view collapse stderr: ${collapse.stderr}`).toBe(0)
-                expect(parseJsonStdout<{nodes: unknown[]}>(collapse).nodes).toBeInstanceOf(Array)
+                expect(parseJsonStdout<{collapseSet: string[]}>(collapse).collapseSet).toBeInstanceOf(Array)
 
                 const showSid2: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid2, '--json'],

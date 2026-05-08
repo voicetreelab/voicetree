@@ -56,10 +56,9 @@ describe('collapse routes', () => {
     )
 
     expect(response.status).toBe(200)
-    const body = await response.json() as { nodes: unknown[]; edges: unknown[]; forests: unknown[] }
-    expect(body).toHaveProperty('nodes')
-    expect(body).toHaveProperty('edges')
-    expect(body).toHaveProperty('forests')
+    const body = await response.json() as { collapseSet: string[] }
+    expect(body).toHaveProperty('collapseSet')
+    expect(body.collapseSet).toContain('docs')
   })
 
   test('DELETE /sessions/:sessionId/collapse/:folderId removes folderId from the session collapseSet', async () => {
@@ -77,8 +76,9 @@ describe('collapse routes', () => {
     )
 
     expect(response.status).toBe(200)
-    const body = await response.json() as { nodes: unknown[] }
-    expect(body).toHaveProperty('nodes')
+    const body = await response.json() as { collapseSet: string[] }
+    expect(body).toHaveProperty('collapseSet')
+    expect(body.collapseSet).not.toContain('docs')
   })
 
   test('collapsing an already-collapsed folder is idempotent', async () => {
@@ -90,8 +90,9 @@ describe('collapse routes', () => {
     const response = await fetch(url, { method: 'POST' })
 
     expect(response.status).toBe(200)
-    const body = await response.json() as { nodes: unknown[] }
-    expect(body).toHaveProperty('nodes')
+    const body = await response.json() as { collapseSet: string[] }
+    expect(body).toHaveProperty('collapseSet')
+    expect(body.collapseSet).toContain('docs')
   })
 
   test('sessions remain isolated from each other', async () => {
@@ -117,10 +118,12 @@ describe('collapse routes', () => {
       { method: 'POST' },
     )
 
-    const bodyA = await responseA.json() as { nodes: unknown[] }
-    const bodyB = await responseB.json() as { nodes: unknown[] }
-    expect(bodyA).toHaveProperty('nodes')
-    expect(bodyB).toHaveProperty('nodes')
+    const bodyA = await responseA.json() as { collapseSet: string[] }
+    const bodyB = await responseB.json() as { collapseSet: string[] }
+    expect(bodyA).toHaveProperty('collapseSet')
+    expect(bodyA.collapseSet).toContain('docs')
+    expect(bodyB).toHaveProperty('collapseSet')
+    expect(bodyB.collapseSet).toContain('assets')
   })
 
   test('mutating a nonexistent session returns 404', async () => {

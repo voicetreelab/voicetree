@@ -288,8 +288,7 @@ describe('runViewCommand', () => {
         await expect(
             runViewJson(['collapse', 'docs', '--vault', harness.vault, '--session', sessionId]),
         ).resolves.toMatchObject({
-            nodes: expect.any(Array),
-            edges: expect.any(Array),
+            collapseSet: expect.any(Array),
         })
 
         await expect(
@@ -308,8 +307,7 @@ describe('runViewCommand', () => {
         await expect(
             runViewJson(['expand', 'docs', '--vault', harness.vault, '--session', sessionId]),
         ).resolves.toMatchObject({
-            nodes: expect.any(Array),
-            edges: expect.any(Array),
+            collapseSet: expect.any(Array),
         })
         await expect(client.getSessionState(sessionId)).resolves.toMatchObject({
             collapseSet: [],
