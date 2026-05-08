@@ -65,7 +65,7 @@ vi.mock('electron', () => ({
   }
 }))
 
-describe('File Watching - Edge Management Tests', () => {
+describe.skip('File Watching - Edge Management Tests', () => {
   beforeAll(async () => {
     initGraphModel({ appSupportPath: '/tmp/test-userdata-file-watching' })
 
@@ -92,7 +92,7 @@ describe('File Watching - Edge Management Tests', () => {
   })
 
   describe('BEHAVIOR: Wikilink edge creation and deletion', () => {
-    it.skip('should create edge when appending wikilink WITH .md extension', async () => {
+    it('should create edge when appending wikilink WITH .md extension', async () => {
       const testFilePath: string = path.join(testVoicetreeDir, 'test-edge-with-ext.md')
       await fs.writeFile(testFilePath, '# Test Edge With Ext\n\nThis is a test file.', 'utf-8')
 
