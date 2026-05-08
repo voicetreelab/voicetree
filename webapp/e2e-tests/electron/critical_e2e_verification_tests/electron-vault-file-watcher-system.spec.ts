@@ -8,7 +8,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
 import { getNodeTitle, type GraphNode } from '@vt/graph-model';
-import { robustElectronTeardown, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -128,14 +128,8 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
     await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
     await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
-    await window.waitForFunction(
-      () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
-      { timeout: 30_000 },
-    );
-    await window.waitForFunction(
-      () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
-      { timeout: 20_000 },
-    );
+    await pollForCytoscape(window, 30_000);
+    await pollForCytoscapeNodes(window, 1, 20_000);
     await use(window);
   },
 });
@@ -163,13 +157,12 @@ test('keeps Electron UI, graph state, and vault files converged after a disk cha
     'utf8',
   );
 
-  await appWindow.waitForFunction(
-    () => {
+  await expect.poll(async () => {
+    return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       return cy?.nodes().some(node => node.data('label') === 'Created From Disk') ?? false;
-    },
-    { timeout: 10_000 },
-  );
+    });
+  }, { message: 'Waiting for Created From Disk node', timeout: 10_000, intervals: [250, 500, 1000, 2000] }).toBe(true);
 
   const convergedGraphAndUi = await appWindow.evaluate(async () => {
     const api = (window as unknown as ExtendedWindow).electronAPI;

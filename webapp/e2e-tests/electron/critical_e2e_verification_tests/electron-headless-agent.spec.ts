@@ -26,7 +26,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -135,26 +135,16 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
 
-        // Try to wait for Cytoscape (auto-load path)
         try {
-            await window.waitForFunction(
-                () => (window as unknown as ExtendedWindow).cytoscapeInstance,
-                { timeout: 5000 }
-            );
+            await pollForCytoscape(window, 5000);
             console.log('✓ Cytoscape initialized via auto-load');
         } catch {
-            // Auto-load didn't work — click project from selection screen
             console.log('Auto-load timed out, clicking project from selection screen...');
             const projectButton = window.locator('button').filter({ hasText: 'example_small' });
             await expect(projectButton.first()).toBeVisible({ timeout: 10000 });
             await projectButton.first().click();
             console.log('✓ Clicked example_small project');
-
-            // Now wait for Cytoscape to initialize after project load
-            await window.waitForFunction(
-                () => (window as unknown as ExtendedWindow).cytoscapeInstance,
-                { timeout: 30000 }
-            );
+            await pollForCytoscape(window, 30000);
             console.log('✓ Cytoscape initialized after project selection');
         }
 

@@ -14,7 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -120,7 +120,7 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 45000 });
+    await pollForCytoscape(page, 45000);
     // Wait for auto-load to complete (vault is loaded during app initialization)
     await page.waitForTimeout(500);
 

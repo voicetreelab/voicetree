@@ -4,7 +4,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, pollForCondition } from './electron-smoke-helpers';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 const ELECTRON_CLI_PATH: string = path.join(PROJECT_ROOT, 'node_modules', 'electron', 'cli.js');
@@ -56,11 +56,15 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page }>(
         page.on('pageerror', (error) => console.error('PAGE ERROR:', error.message));
 
         await page.waitForLoadState('domcontentloaded');
-        await page.waitForFunction(() => '__vtDebug__' in window, { timeout: 10000 });
-        await page.waitForFunction(() => {
+        await pollForCondition(page, async () => {
+          return await page.evaluate(() => '__vtDebug__' in window);
+        }, 'Waiting for __vtDebug__', 10000);
+        await pollForCondition(page, async () => {
+          return await page.evaluate(() => {
             const root = document.querySelector<HTMLElement>('#root');
             return Boolean(root && root.clientHeight > 0);
-        }, { timeout: 10000 });
+          });
+        }, 'Waiting for #root to render', 10000);
 
         await use(page);
     }, { timeout: 30000 }],

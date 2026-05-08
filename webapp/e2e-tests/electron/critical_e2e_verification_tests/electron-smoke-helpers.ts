@@ -136,8 +136,32 @@ export async function mcpCallTool(mcpUrl: string, toolName: string, args: Record
 
 export function getCiElectronFlags(): string[] {
   return process.env.CI
-    ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+    ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
     : [];
+}
+
+const POLL_INTERVALS: number[] = [250, 500, 1000, 2000];
+
+export async function pollForCytoscape(page: import('@playwright/test').Page, timeout = 30000): Promise<void> {
+  await expect.poll(async () => {
+    return await page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return !!cy && !cy.destroyed();
+    });
+  }, { message: 'Waiting for Cytoscape to initialize', timeout, intervals: POLL_INTERVALS }).toBe(true);
+}
+
+export async function pollForCytoscapeNodes(page: import('@playwright/test').Page, minNodes = 1, timeout = 20000): Promise<void> {
+  await expect.poll(async () => {
+    return await page.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? 0;
+    });
+  }, { message: `Waiting for at least ${minNodes} Cytoscape node(s)`, timeout, intervals: POLL_INTERVALS }).toBeGreaterThanOrEqual(minNodes);
+}
+
+export async function pollForCondition(page: import('@playwright/test').Page, fn: () => Promise<boolean> | boolean, message: string, timeout = 15000): Promise<void> {
+  await expect.poll(async () => fn(), { message, timeout, intervals: POLL_INTERVALS }).toBe(true);
 }
 
 export async function robustElectronTeardown(electronApp: import('@playwright/test').ElectronApplication): Promise<void> {

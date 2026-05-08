@@ -18,7 +18,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const CI_FLAGS = process.env.CI
@@ -199,20 +199,11 @@ test.describe('Project Selection Screen E2E', () => {
         console.log('✓ Clicked project to select');
 
         // Wait for graph view to load (cytoscape instance should become available)
-        await appWindow.waitForFunction(
-            () => !!(window as ExtendedWindow).cytoscapeInstance,
-            { timeout: 15000 }
-        );
+        await pollForCytoscape(appWindow, 15000);
         console.log('✓ Graph view loaded');
 
         // Wait for nodes to actually load into the graph
-        await appWindow.waitForFunction(
-            () => {
-                const cy = (window as ExtendedWindow).cytoscapeInstance;
-                return cy && cy.nodes().length > 0;
-            },
-            { timeout: 15000 }
-        );
+        await pollForCytoscapeNodes(appWindow, 1, 15000);
 
         // Verify cytoscape has nodes
         const nodeCount = await appWindow.evaluate(() => {
@@ -261,10 +252,7 @@ test.describe('Project Selection Screen E2E', () => {
         await appWindow.locator(`button:has-text("${projectName}")`).first().click();
 
         // Wait for graph view
-        await appWindow.waitForFunction(
-            () => !!(window as ExtendedWindow).cytoscapeInstance,
-            { timeout: 15000 }
-        );
+        await pollForCytoscape(appWindow, 15000);
         console.log('✓ In graph view');
 
         // Click back button
@@ -468,13 +456,7 @@ test.describe('Watched Folder Panel Regression', () => {
             console.log('✓ Clicked fresh project');
 
             // Wait for graph
-            await appWindow.waitForFunction(
-                () => {
-                    const cy = (window as ExtendedWindow).cytoscapeInstance;
-                    return cy && cy.nodes().length > 0;
-                },
-                { timeout: 15000 }
-            );
+            await pollForCytoscapeNodes(appWindow, 1, 15000);
             console.log('✓ Graph loaded');
 
             // Wait for panel to appear
@@ -611,20 +593,11 @@ test.describe('Watched Folder Panel Regression', () => {
             console.log('✓ Clicked project to open');
 
             // 7. Wait for graph view to load
-            await appWindow.waitForFunction(
-                () => !!(window as ExtendedWindow).cytoscapeInstance,
-                { timeout: 15000 }
-            );
+            await pollForCytoscape(appWindow, 15000);
             console.log('✓ Graph view loaded');
 
             // 8. Wait for nodes to load (proves the graph actually loaded)
-            await appWindow.waitForFunction(
-                () => {
-                    const cy = (window as ExtendedWindow).cytoscapeInstance;
-                    return cy && cy.nodes().length > 0;
-                },
-                { timeout: 15000 }
-            );
+            await pollForCytoscapeNodes(appWindow, 1, 15000);
             const nodeCount = await appWindow.evaluate(() => {
                 const cy = (window as ExtendedWindow).cytoscapeInstance;
                 return cy ? cy.nodes().length : 0;
@@ -772,13 +745,7 @@ test.describe('Watched Folder Panel Regression', () => {
                 await projectButton.click();
                 console.log(`[${projectName}] Clicked, waiting for graph...`);
 
-                await appWindow.waitForFunction(
-                    () => {
-                        const cy = (window as ExtendedWindow).cytoscapeInstance;
-                        return cy && cy.nodes().length > 0;
-                    },
-                    { timeout: 15000 }
-                );
+                await pollForCytoscapeNodes(appWindow, 1, 15000);
                 console.log(`[${projectName}] Graph loaded with nodes`);
 
                 // CRITICAL: Wait for the "Project root" button to appear

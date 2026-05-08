@@ -13,7 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const SOURCE_FILE_NAME = 'source.md';
@@ -146,7 +146,7 @@ const test = base.extend<{
     const projectButton = page.locator('button', { hasText: tempProjectName }).first();
     await projectButton.waitFor({ timeout: 10000 });
     await projectButton.click();
-    await page.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 15000 });
+    await pollForCytoscape(page, 15000);
     await expect.poll(async () => {
       return page.evaluate(({ sourceFilePath, targetFilePath, vaultPath }) => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;

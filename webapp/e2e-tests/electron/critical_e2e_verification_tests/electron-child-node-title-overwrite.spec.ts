@@ -19,7 +19,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -145,11 +145,7 @@ const test = base.extend<{
       }, vaultPath);
     }
 
-    await window.waitForFunction(
-      () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
-      undefined,
-      { timeout: 15_000 },
-    );
+    await pollForCytoscape(window, 15_000);
 
     await expect.poll(async () => {
       return window.evaluate(() => {
