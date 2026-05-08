@@ -22,3 +22,15 @@ export class DaemonLaunchTimeout extends Error {
     this.name = 'DaemonLaunchTimeout'
   }
 }
+
+export class DaemonLockHeldError extends Error {
+  constructor(
+    public readonly vault: string,
+    public readonly pid: number,
+  ) {
+    super(
+      `vt-graphd lock for vault ${vault} held by unresponsive process pid ${pid}`,
+    )
+    this.name = 'DaemonLockHeldError'
+  }
+}

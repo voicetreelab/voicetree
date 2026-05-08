@@ -352,7 +352,27 @@ async function buildSerializedRoots(
   }
 }
 
+const inflightVaultMutations: Map<string, Promise<VaultState>> = new Map()
+
 async function runVaultMutation(
+  key: string,
+  mutate: (client: DaemonClient) => Promise<VaultState>,
+): Promise<VaultState> {
+  const existing: Promise<VaultState> | undefined = inflightVaultMutations.get(key)
+  if (existing) return existing
+
+  const pending: Promise<VaultState> = doRunVaultMutation(mutate)
+  inflightVaultMutations.set(key, pending)
+  try {
+    return await pending
+  } finally {
+    if (inflightVaultMutations.get(key) === pending) {
+      inflightVaultMutations.delete(key)
+    }
+  }
+}
+
+async function doRunVaultMutation(
   mutate: (client: DaemonClient) => Promise<VaultState>,
 ): Promise<VaultState> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
@@ -451,15 +471,15 @@ export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
 }
 
 export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.addReadPath(path))
+  return await runVaultMutation(`addReadPath:${path}`, (client) => client.addReadPath(path))
 }
 
 export async function removeReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.removeReadPath(path))
+  return await runVaultMutation(`removeReadPath:${path}`, (client) => client.removeReadPath(path))
 }
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.setWritePath(path))
+  return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
 }
 
 export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {

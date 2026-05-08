@@ -172,6 +172,12 @@ export const arch = () => 'browser';
 export const spawn = () => ({ stdout: { on: noop }, stderr: { on: noop }, on: () => {} });
 export const execFileSync = () => '';
 export const fork = noop;
+// node:module — Rollup needs a named export for createRequire to resolve.
+// The renderer never calls these code paths (the agent-runtime emulator
+// that uses this is now reachable only via subpath imports the renderer
+// doesn't take), but transitive imports may still surface; the Proxy keeps
+// module-init silent if it ever fires.
+export const createRequire = () => () => new Proxy({}, { get: () => function stub(){} });
 // crypto
 export const randomUUID = () => '00000000-0000-0000-0000-000000000000';
 // events / stream / util / buffer

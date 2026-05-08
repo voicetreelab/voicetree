@@ -16,9 +16,12 @@ import { createGraph } from '../createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 import { findFirstParentNode } from '../graph-operations/findFirstParentNode'
 import { calculateInitialPositionForChild } from './calculateInitialPosition'
+import { componentsOverlap, packComponents, type ComponentSubgraph } from './packComponents'
 
 const GHOST_ROOT_ID: NodeIdAndFilePath = '__GHOST_ROOT__'
 const GHOST_ROOT_POSITION: Position = { x: 0, y: 0 }
+const DEFAULT_NODE_WIDTH: number = 250
+const DEFAULT_NODE_HEIGHT: number = 100
 
 /**
  * Apply positions to all nodes in the graph that don't have a position.
@@ -68,7 +71,119 @@ export function applyPositions(graph: Graph): Graph {
 
     const { [GHOST_ROOT_ID]: _, ...finalNodes } = graphWithAllPositions.nodes
 
-    return createGraph(finalNodes)
+    // Angular seeding spawns every disconnected root around (0,0), so multiple
+    // freshly-seeded components end up overlapping in screen space. Push them
+    // apart so the renderer can show the graph without a manual Tidy pass.
+    // Components containing any anchored (pre-positioned) node are pinned —
+    // saved user positions never drift just because a fresh component landed
+    // on top of them.
+    return createGraph(separateFreshlySeededComponents(graph.nodes, finalNodes))
+}
+
+/**
+ * Find connected components treating outgoing edges as undirected.
+ * Returns each component as a list of node IDs.
+ */
+function findConnectedComponents(
+    nodes: Readonly<Record<NodeIdAndFilePath, GraphNode>>,
+): readonly (readonly NodeIdAndFilePath[])[] {
+    const adjacency: Map<NodeIdAndFilePath, Set<NodeIdAndFilePath>> = new Map()
+    const ensure: (id: NodeIdAndFilePath) => Set<NodeIdAndFilePath> = (id) => {
+        const existing: Set<NodeIdAndFilePath> | undefined = adjacency.get(id)
+        if (existing) return existing
+        const fresh: Set<NodeIdAndFilePath> = new Set()
+        adjacency.set(id, fresh)
+        return fresh
+    }
+
+    for (const [id, node] of Object.entries(nodes) as readonly [NodeIdAndFilePath, GraphNode][]) {
+        ensure(id)
+        for (const edge of node.outgoingEdges) {
+            if (!nodes[edge.targetId]) continue
+            ensure(id).add(edge.targetId)
+            ensure(edge.targetId).add(id)
+        }
+    }
+
+    const visited: Set<NodeIdAndFilePath> = new Set()
+    const components: NodeIdAndFilePath[][] = []
+    for (const id of adjacency.keys()) {
+        if (visited.has(id)) continue
+        const stack: NodeIdAndFilePath[] = [id]
+        const component: NodeIdAndFilePath[] = []
+        while (stack.length > 0) {
+            const current: NodeIdAndFilePath = stack.pop() as NodeIdAndFilePath
+            if (visited.has(current)) continue
+            visited.add(current)
+            component.push(current)
+            for (const neighbor of adjacency.get(current) ?? []) {
+                if (!visited.has(neighbor)) stack.push(neighbor)
+            }
+        }
+        components.push(component)
+    }
+    return components
+}
+
+function separateFreshlySeededComponents(
+    inputNodes: Readonly<Record<NodeIdAndFilePath, GraphNode>>,
+    seededNodes: Readonly<Record<NodeIdAndFilePath, GraphNode>>,
+): Record<NodeIdAndFilePath, GraphNode> {
+    const components: readonly (readonly NodeIdAndFilePath[])[] = findConnectedComponents(seededNodes)
+    if (components.length < 2) {
+        return { ...seededNodes }
+    }
+
+    // Only re-pack when every component is freshly seeded. If any component
+    // contains an anchored node (positions.json, YAML frontmatter, prior
+    // session), leave layout alone — the user's saved positions are the
+    // source of truth and the renderer will reconcile via its own layout
+    // pass for any newly-added clusters.
+    const hasAnchoredComponent: boolean = components.some((component) =>
+        component.some((id: NodeIdAndFilePath) => {
+            const inputNode: GraphNode | undefined = inputNodes[id]
+            return inputNode !== undefined && O.isSome(inputNode.nodeUIMetadata.position)
+        }),
+    )
+    if (hasAnchoredComponent) {
+        return { ...seededNodes }
+    }
+
+    const subgraphs: readonly ComponentSubgraph[] = components.map((component) => ({
+        nodes: component
+            .map((id: NodeIdAndFilePath) => O.toUndefined(seededNodes[id]?.nodeUIMetadata.position))
+            .filter((p): p is Position => p !== undefined)
+            .map((p) => ({ x: p.x, y: p.y, width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT })),
+        edges: [],
+    }))
+
+    // Skip packing when angular seeding already produced disjoint components
+    // (e.g., one tiny graph) — packing would shift their positions for no
+    // visible benefit.
+    if (!componentsOverlap(subgraphs)) {
+        return { ...seededNodes }
+    }
+
+    const { shifts } = packComponents(subgraphs)
+
+    const result: Record<NodeIdAndFilePath, GraphNode> = { ...seededNodes }
+    components.forEach((component, i) => {
+        const shift: { readonly dx: number; readonly dy: number } | undefined = shifts[i]
+        if (!shift || (shift.dx === 0 && shift.dy === 0)) return
+        for (const id of component) {
+            const node: GraphNode | undefined = result[id]
+            if (!node || O.isNone(node.nodeUIMetadata.position)) continue
+            const pos: Position = node.nodeUIMetadata.position.value
+            result[id] = {
+                ...node,
+                nodeUIMetadata: {
+                    ...node.nodeUIMetadata,
+                    position: O.some({ x: pos.x + shift.dx, y: pos.y + shift.dy }),
+                },
+            }
+        }
+    })
+    return result
 }
 
 /**

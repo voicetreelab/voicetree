@@ -44,6 +44,9 @@ function openEditorForNode(
         setValue: (nextValue: string) => {
             value = nextValue
         },
+        appendAtEnd: (suffix: string) => {
+            value = value + suffix
+        },
         isFocused: () => focused,
     }
     vanillaFloatingWindowInstances.set(`${nodeId}-editor`, editorInstance as unknown as { dispose: () => void })
@@ -112,6 +115,44 @@ describe('updateFloatingEditors', () => {
         }])
 
         expect(editor.getValue()).toBe('r')
+    })
+
+    it('does not duplicate when an append-only echo arrives after the user has typed past the saved suffix', () => {
+        // Repro for the recurring "duplicating / glitchy text" bug.
+        //
+        // User typed 'r' → autosave fired → editor kept being typed and is now
+        // 'ra'.  The daemon SSE echo (or file-watcher) for the earlier save
+        // arrives now: prev='' → new='r', i.e. an append-only delta whose
+        // suffix is 'r'.  The editor already contains everything in `new`
+        // (it's 'ra'), so this delta MUST be a no-op.  Pre-fix, the suffix
+        // gets re-appended → 'rar'.
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'ra')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '')),
+            nodeToUpsert: makeNode(nodeId, 'r'),
+        }])
+
+        expect(editor.getValue()).toBe('ra')
+    })
+
+    it('does not duplicate when an append-only echo arrives mid-word and the editor has typed further', () => {
+        // Same shape, longer realistic content: user typed "Hello world" past
+        // an autosave that captured "Hello wor".  Delta echo prev='Hello '
+        // → new='Hello wor' must be a no-op because the editor already has
+        // it (and more).
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'Hello world')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, 'Hello ')),
+            nodeToUpsert: makeNode(nodeId, 'Hello wor'),
+        }])
+
+        expect(editor.getValue()).toBe('Hello world')
     })
 
     it('keeps focused embedded-mode editors immune to non-append replacements', () => {

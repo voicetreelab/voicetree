@@ -146,7 +146,7 @@ function useResizeHandle(sidebarRef: React.RefObject<HTMLDivElement | null>): Re
         const onMouseMove: (e: MouseEvent) => void = (e: MouseEvent): void => {
             if (!isResizing) return;
             const deltaX: number = e.clientX - startX;
-            const newWidth: number = Math.min(300, Math.max(60, startWidth + deltaX));
+            const newWidth: number = Math.min(360, Math.max(60, startWidth + deltaX));
             sidebar.style.width = `${newWidth}px`;
         };
 
@@ -182,25 +182,9 @@ function useResizeHandle(sidebarRef: React.RefObject<HTMLDivElement | null>): Re
  */
 function renderSummaryChip(s: ChildStatusSummary): JSX.Element | null {
     if (s.total === 0) return null;
-    const pips: JSX.Element[] = [];
-    if (s.awaiting > 0) pips.push(<Pip key="a" kind="awaiting" n={s.awaiting} />);
-    if (s.errored > 0) pips.push(<Pip key="e" kind="errored" n={s.errored} />);
-    if (s.active > 0) pips.push(<Pip key="r" kind="active" n={s.active} />);
-    if (s.completed > 0) pips.push(<Pip key="c" kind="completed" n={s.completed} />);
-    if (s.spawning > 0) pips.push(<Pip key="s" kind="spawning" n={s.spawning} />);
     return (
         <span className="terminal-tree-summary" title={summaryTitle(s)}>
             <span className="terminal-tree-summary-count">{s.total}</span>
-            {pips}
-        </span>
-    );
-}
-
-function Pip({ kind, n }: { readonly kind: string; readonly n: number }): JSX.Element {
-    return (
-        <span className="terminal-tree-summary-pipgroup">
-            <span className={`terminal-tree-summary-pip ${kind}`} />
-            <span className="terminal-tree-summary-pipn">{n}</span>
         </span>
     );
 }
@@ -234,9 +218,14 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const { terminal, depth, hasChildren, directChildCount, descendantSummary } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
 
+    // Clicking a parent row both navigates to the orchestrator's terminal AND
+    // toggles its sub-agent group — replaces the old separate chevron control.
     const handleClick: () => void = useCallback((): void => {
+        if (hasChildren) {
+            onToggleCollapse(terminalId, directChildCount);
+        }
         onSelect(terminal);
-    }, [onSelect, terminal]);
+    }, [onSelect, terminal, hasChildren, onToggleCollapse, terminalId, directChildCount]);
 
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
@@ -254,11 +243,6 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
         e.stopPropagation();
     }, []);
 
-    const handleChevronClick: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
-        e.stopPropagation();
-        onToggleCollapse(terminalId, directChildCount);
-    }, [onToggleCollapse, terminalId, directChildCount]);
-
     const activityDots: JSX.Element[] = useMemo(() => {
         const dots: JSX.Element[] = [];
         for (let i: number = 0; i < terminal.activityCount; i++) {
@@ -275,20 +259,6 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
         ? 'minimized'
         : `lifecycle-${terminal.lifecycle}`;
 
-    // Chevron only renders when the node has children. Spacer keeps the rest
-    // of the row aligned with parents.
-    const chevron: JSX.Element = hasChildren ? (
-        <span
-            className={`terminal-tree-chev${isCollapsed ? '' : ' open'}`}
-            onClick={handleChevronClick}
-            onMouseDown={handleMouseDown}
-            title={isCollapsed ? 'Expand' : 'Collapse'}
-            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-        >\u25b6</span>
-    ) : (
-        <span className="terminal-tree-chev-spacer" aria-hidden="true" />
-    );
-
     // Collapsed-parent summary chip \u2014 shows count + colored pips for descendants
     // that the user can't see at a glance because they're hidden below the fold.
     const summary: JSX.Element | null = (hasChildren && isCollapsed)
@@ -297,14 +267,13 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
 
     return (
         <div
-            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}`}
+            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}${hasChildren ? ' has-children' : ''}`}
             data-depth={depth}
             data-terminal-id={terminalId}
             onClick={handleClick}
             onMouseDown={handleMouseDown}
+            aria-expanded={hasChildren ? !isCollapsed : undefined}
         >
-            {chevron}
-
             {/* Lifecycle indicator. Glyph (if any) supplied via CSS ::after. */}
             <span className={`terminal-tree-status ${statusClass}`} />
 

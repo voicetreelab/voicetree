@@ -1,9 +1,17 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { statSync } from 'node:fs'
+import { unlink } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
-import { DaemonLaunchTimeout, DaemonUnreachableError } from './errors.ts'
+import { dirname, join, resolve } from 'node:path'
+import {
+  DaemonLaunchTimeout,
+  DaemonLockHeldError,
+  DaemonUnreachableError,
+} from './errors.ts'
 import { discoverPort, readPortFile } from './portDiscovery.ts'
+
+const ALREADY_RUNNING_RE = /vt-graphd:\s+already running for [^\n(]+\(pid (\d+)\)/
+const REUSE_PROBE_AFTER_LOCK_HELD_MS = 2000
 
 const requireFromHere = createRequire(import.meta.url)
 const TSX_IMPORT_PATH = requireFromHere.resolve('tsx')
@@ -59,6 +67,95 @@ export interface OrphanCleanupResult {
  * kills processes whose vault path is missing on disk. POSIX-only (macOS,
  * Linux); no-op on other platforms.
  */
+function isProcessAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ESRCH') return false
+    if (code === 'EPERM') return true
+    return false
+  }
+}
+
+function readPidCommandLine(pid: number): string | null {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') return null
+  const result = spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
+    encoding: 'utf8',
+    timeout: 2000,
+  })
+  if (result.status !== 0 || !result.stdout) return null
+  return result.stdout.trim()
+}
+
+/**
+ * True when pid's command-line is a `vt-graphd.ts` invocation whose `--vault`
+ * argument resolves to `vault`. Used as a safety check before SIGTERM-ing a
+ * pid recovered from a lockfile we don't trust.
+ */
+export function isVtGraphdProcessForVault(pid: number, vault: string): boolean {
+  const cmd = readPidCommandLine(pid)
+  if (!cmd) return false
+  const match = /\bvt-graphd\.ts\b.*--vault\s+(\S+)/.exec(cmd)
+  if (!match) return false
+  return resolve(match[1]) === resolve(vault)
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms))
+}
+
+/**
+ * Terminate a vt-graphd process holding the lock for a vault and clean up its
+ * stale lock + port files. Refuses to kill a pid whose command-line doesn't
+ * match `vt-graphd.ts ... --vault <vault>` — the lockfile contents are
+ * untrusted, so we verify before killing.
+ *
+ * Returns true when the process was terminated (or already dead) and lock /
+ * port files were removed; false if the safety check rejected the pid.
+ */
+export async function terminateUnresponsiveDaemon(
+  vault: string,
+  pid: number,
+  opts?: { gracePeriodMs?: number },
+): Promise<boolean> {
+  const resolvedVault = resolve(vault)
+  const gracePeriodMs = opts?.gracePeriodMs ?? 2000
+
+  if (isProcessAlive(pid) && !isVtGraphdProcessForVault(pid, resolvedVault)) {
+    return false
+  }
+
+  if (isProcessAlive(pid)) {
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch {
+      // already gone
+    }
+
+    const deadline = Date.now() + gracePeriodMs
+    while (Date.now() < deadline && isProcessAlive(pid)) {
+      await delay(50)
+    }
+
+    if (isProcessAlive(pid)) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {
+        // already gone
+      }
+      await delay(100)
+    }
+  }
+
+  const dotDir = join(resolvedVault, '.voicetree')
+  await unlink(join(dotDir, 'graphd.lock')).catch(() => undefined)
+  await unlink(join(dotDir, 'graphd.port')).catch(() => undefined)
+  return true
+}
+
 export function killOrphanVtGraphdDaemons(): OrphanCleanupResult {
   const killed: { pid: number; vault: string }[] = []
   const skipped: { pid: number; vault: string; reason: string }[] = []
@@ -264,6 +361,7 @@ export async function ensureDaemon(
 
   let spawnError: NodeJS.ErrnoException | null = null
   let stderr = ''
+  let alreadyRunningPid: number | null = null
   child.on('error', (err) => {
     spawnError = err as NodeJS.ErrnoException
   })
@@ -271,6 +369,10 @@ export async function ensureDaemon(
     stderr = `${stderr}${chunk.toString()}`
     if (stderr.length > 4000) {
       stderr = stderr.slice(-4000)
+    }
+    if (alreadyRunningPid === null) {
+      const match = ALREADY_RUNNING_RE.exec(stderr)
+      if (match) alreadyRunningPid = Number(match[1])
     }
   })
 
@@ -283,6 +385,23 @@ export async function ensureDaemon(
     const port = await readPortFile(resolvedVault)
     if (port !== null && (await probeHealth(resolvedVault, port))) {
       return { port, pid: spawnedPid, launched: true }
+    }
+
+    // The spawned child detected the lock was already held and exited via
+    // process.exit(0). Continuing to wait timeoutMs for a port file from a
+    // dead child is pointless. Give the lock-holder one more reuse probe
+    // (in case it's slow rather than dead), then surface a typed error so
+    // the caller can recover by killing the orphan.
+    if (alreadyRunningPid !== null) {
+      const reuseDeadline = Date.now() + REUSE_PROBE_AFTER_LOCK_HELD_MS
+      while (Date.now() < reuseDeadline) {
+        const p = await readPortFile(resolvedVault)
+        if (p !== null && (await probeHealth(resolvedVault, p))) {
+          return { port: p, pid: alreadyRunningPid, launched: false }
+        }
+        await sleep(100)
+      }
+      throw new DaemonLockHeldError(resolvedVault, alreadyRunningPid)
     }
 
     const remaining = deadline - Date.now()

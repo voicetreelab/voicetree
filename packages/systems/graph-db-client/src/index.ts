@@ -1,13 +1,16 @@
 export { GraphDbClient } from './GraphDbClient.ts'
 export {
   DaemonLaunchTimeout,
+  DaemonLockHeldError,
   DaemonUnreachableError,
   GraphDbClientError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
+  isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,
+  terminateUnresponsiveDaemon,
   type EnsureDaemonResult,
   type OrphanCleanupResult,
 } from './autoLaunch.ts'

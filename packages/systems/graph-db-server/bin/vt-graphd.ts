@@ -2,6 +2,19 @@
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/server.ts'
 
+// The daemon is spawned detached by ensureDaemon with stderr piped to its
+// parent. When the parent exits, writes to that pipe error with EPIPE. Without
+// this listener, an EPIPE during shutdown's stderr write would surface as an
+// uncaughtException and Node would exit before handle.stop() finished — leaving
+// the port + lock files behind for the next launcher to find.
+const swallowEpipe = (stream: NodeJS.WriteStream): void => {
+  stream.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code !== 'EPIPE') throw err
+  })
+}
+swallowEpipe(process.stdout)
+swallowEpipe(process.stderr)
+
 type Args = {
   vault: string
   logLevel: 'info' | 'debug'

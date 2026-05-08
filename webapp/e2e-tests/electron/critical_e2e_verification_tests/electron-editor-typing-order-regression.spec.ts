@@ -353,7 +353,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
   await expect.poll(async () => {
     const text = await appWindow.evaluate((winId) => {
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.innerText ?? '';
+      return editorElement?.cmView?.view.state.doc.toString() ?? '';
     }, editorWindowId);
     return text.includes(userText) && text.includes(agentText);
   }, {

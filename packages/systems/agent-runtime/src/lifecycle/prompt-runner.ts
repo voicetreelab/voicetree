@@ -154,7 +154,13 @@ async function poll(terminalId: string): Promise<void> {
 
     const result: PromptDetectionResult = detectPromptShape(state.emulator.getSnapshot(), state.patterns);
 
-    const isAwaiting: boolean = result.type === 'awaiting';
+    // Medium-confidence Tier-3 matches (the generic question-mark fallback) are
+    // inherently ambiguous between a real prompt and narrative output that
+    // happens to end in "?" (Claude Code / Codex do this constantly). Treat
+    // them as not-awaiting for state-propagation purposes — only high-confidence
+    // patterns (Y/N, password, numbered choice, alt-screen TUI) are reliable
+    // enough to drive the UI's awaiting_input lifecycle.
+    const isAwaiting: boolean = result.type === 'awaiting' && result.confidence === 'high';
 
     // State transition logic — only emit on changes.
     if (isAwaiting && !state.awaitingActive) {

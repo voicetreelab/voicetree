@@ -160,11 +160,28 @@ async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<vo
     syncLoadedRoot(loadedDirectory)
 }
 
+let inflightInitialLoad: Promise<void> | null = null
+
 export async function initialLoad(): Promise<void> {
     if (getProjectRootWatchedDirectory() !== null) {
         return
     }
+    if (inflightInitialLoad) {
+        return inflightInitialLoad
+    }
 
+    const pending: Promise<void> = doInitialLoad()
+    inflightInitialLoad = pending
+    try {
+        await pending
+    } finally {
+        if (inflightInitialLoad === pending) {
+            inflightInitialLoad = null
+        }
+    }
+}
+
+async function doInitialLoad(): Promise<void> {
     const startupFolder: string | null = getStartupFolderOverride()
     if (startupFolder !== null) {
         await loadFolder(startupFolder)
@@ -180,6 +197,8 @@ export async function initialLoad(): Promise<void> {
     }
 }
 
+const inflightLoadByPath: Map<string, Promise<{ readonly success: boolean }>> = new Map()
+
 export async function loadFolder(
     watchedFolderPath: FilePath,
 ): Promise<{ readonly success: boolean }> {
@@ -187,6 +206,44 @@ export async function loadFolder(
         return { success: false }
     }
 
+    // Idempotency: opening a project that is already the active project is a
+    // no-op. Three independent code paths (renderer bootstrap, UI click,
+    // startFileWatching IPC) can each request the same load. Without this
+    // short-circuit, the second/third arrival re-spawns vt-graphd and clears
+    // the graph view that the first load just populated.
+    if (
+        getProjectRootWatchedDirectory() === watchedFolderPath
+        && isDaemonGraphSyncActive()
+    ) {
+        process.stdout.write(
+            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:already-loaded dir=${watchedFolderPath}\n`,
+        )
+        return { success: true }
+    }
+
+    const existing: Promise<{ readonly success: boolean }> | undefined =
+        inflightLoadByPath.get(watchedFolderPath)
+    if (existing) {
+        process.stdout.write(
+            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:dedupe-hit dir=${watchedFolderPath}\n`,
+        )
+        return existing
+    }
+
+    const pending: Promise<{ readonly success: boolean }> = doLoadFolder(watchedFolderPath)
+    inflightLoadByPath.set(watchedFolderPath, pending)
+    try {
+        return await pending
+    } finally {
+        if (inflightLoadByPath.get(watchedFolderPath) === pending) {
+            inflightLoadByPath.delete(watchedFolderPath)
+        }
+    }
+}
+
+async function doLoadFolder(
+    watchedFolderPath: FilePath,
+): Promise<{ readonly success: boolean }> {
     startLoadTiming(watchedFolderPath)
 
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()

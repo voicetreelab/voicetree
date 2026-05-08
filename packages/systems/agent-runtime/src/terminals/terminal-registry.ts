@@ -90,6 +90,22 @@ function notifyRegistrySubscribers(): void {
 }
 
 /**
+ * True iff the given terminal has at least one direct child terminal that is
+ * still running. An orchestrator that has spawned sub-agents is, by definition,
+ * waiting on those sub-agents to complete — not on the user — for as long as
+ * any child is alive. Used to route the parent's lifecycle into 'idle'
+ * (orange standby) instead of 'awaiting_input' (BLUE) during that window.
+ */
+function hasActiveChildren(terminalId: string): boolean {
+    for (const r of terminalRecords.values()) {
+        if (r.terminalData.parentTerminalId === terminalId && r.status !== 'exited') {
+            return true
+        }
+    }
+    return false
+}
+
+/**
  * Run stop gate audit when an interactive agent goes idle.
  * If violations found and retries not exhausted, inject deficiency message into terminal.
  * The agent will resume work → go idle again → audit fires again (up to 2 retries).
@@ -98,15 +114,11 @@ async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord):
     if (record.auditRetryCount >= 2) return
     if (record.terminalData.isHeadless) return // headless agents use exit handler instead
 
-    const records: readonly TerminalRecord[] = getTerminalRecords()
-
     // Skip audit if agent has active (non-exited) child agents — it's waiting, not stopping.
     // wait_for_agents will resume this agent when children finish.
-    const hasActiveChildren: boolean = records.some(
-        (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'
-    )
-    if (hasActiveChildren) return
+    if (hasActiveChildren(terminalId)) return
 
+    const records: readonly TerminalRecord[] = getTerminalRecords()
     const graph: Graph = getGraph()
     const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
 
@@ -327,14 +339,32 @@ export function updateTerminalIsDone(terminalId: string, isDone: boolean): void 
     // Detect transition to idle (isDone: false -> true)
     const wasNotDone: boolean = !record.terminalData.isDone
 
-    // Dual-write: mirror isDone into the new `lifecycle` field so consumers
-    // migrating off isDone see consistent state. Don't overwrite terminal
-    // states (completed/errored) — exit always wins.
+    // The UI lifecycle is *not* derived from heuristic silence: a 5s pause in
+    // PTY output is not a reliable "agent finished" signal for Claude Code or
+    // Codex (they have natural multi-second pauses while thinking or running
+    // tools), and showing the green ✓ during such a pause is the false-positive
+    // the user sees. So:
+    //   - isDone=true  → keep current lifecycle (don't surface 'idle').
+    //   - isDone=false → mirror to 'active' (output resumed).
+    // Sticky terminal states (completed/errored) and awaiting_input are
+    // preserved; exit/awaiting wins over heuristic activity flips.
+    //
+    // Orchestrator standby exception: if the terminal has active children, an
+    // isDone=true poller signal means the parent has gone quiet because it's
+    // waiting on its sub-agents (e.g. inside wait_for_agents). Surface that as
+    // 'idle' (orange standby) so the parent stops spinning amber and the user
+    // sees that it's blocked on children — not on user input (which would be
+    // BLUE) and not still working (amber spinner).
     const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
-    const lifecycle: TerminalLifecycle =
-        currentLifecycle === 'completed' || currentLifecycle === 'errored'
-            ? currentLifecycle
-            : (isDone ? 'idle' : 'active')
+    const lifecycle: TerminalLifecycle = (() => {
+        if (currentLifecycle === 'completed' || currentLifecycle === 'errored' || currentLifecycle === 'awaiting_input') {
+            return currentLifecycle
+        }
+        if (isDone && hasActiveChildren(terminalId)) {
+            return 'idle'
+        }
+        return isDone ? currentLifecycle : 'active'
+    })()
 
     terminalRecords.set(terminalId, {
         ...record,
@@ -465,13 +495,26 @@ export function updateTerminalPromptDetected(terminalId: string, detected: boole
         return // Sticky — exit wins.
     }
 
+    // Orchestrator standby: if the terminal has active children, route prompt
+    // detection through 'idle' instead of 'awaiting_input'. The Tier-3 detector
+    // can match a stale numbered-choice frame from a prior permission box that
+    // is still in the visible buffer while the parent quietly waits inside
+    // wait_for_agents. Treating the parent as awaiting user input there is
+    // wrong — by definition it's waiting on its children. When detection
+    // clears, we also stay in 'idle' (not flip to 'active' spinner) for as
+    // long as children are running.
+    const orchestratorWithChildren: boolean = hasActiveChildren(terminalId)
+
     let nextLifecycle: TerminalLifecycle
     if (detected) {
-        nextLifecycle = 'awaiting_input'
+        nextLifecycle = orchestratorWithChildren ? 'idle' : 'awaiting_input'
+    } else if (orchestratorWithChildren) {
+        nextLifecycle = 'idle'
     } else {
-        // Clearing: fall back to active or idle based on the existing isDone flag,
-        // which is maintained by the inactivity poller.
-        nextLifecycle = record.terminalData.isDone ? 'idle' : 'active'
+        // Clearing: fall back to 'active'. We deliberately do NOT honour the
+        // heuristic `isDone` flag here — see updateTerminalIsDone for why time-
+        // based silence is not a reliable "idle" signal.
+        nextLifecycle = 'active'
     }
 
     if (nextLifecycle === currentLifecycle) {

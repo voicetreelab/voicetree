@@ -50,6 +50,14 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                     if (O.isSome(nodeDelta.previousNode)) {
                         const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
                         if (isAppendOnly(prevContent, newContent)) {
+                            // If the editor already contains all of newContent
+                            // (typically because it has typed past an autosave
+                            // whose echo we're seeing now), this delta is
+                            // redundant — re-appending the suffix would
+                            // duplicate it.
+                            if (currentEditorContent.startsWith(newContent)) {
+                                continue;
+                            }
                             const suffix: string = getAppendedSuffix(prevContent, newContent);
                             if (!currentEditorContent.endsWith(suffix)) {
                                 cmEditor.setValue(currentEditorContent + suffix);

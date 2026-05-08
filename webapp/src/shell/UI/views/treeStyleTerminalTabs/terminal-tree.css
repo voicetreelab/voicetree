@@ -10,9 +10,9 @@
 
 .terminal-tree-sidebar {
     height: 100%;
-    width: 182px;  /* Initial width */
+    width: 220px;  /* Initial width */
     min-width: 60px;
-    max-width: 300px;
+    max-width: 360px;
     min-height: 0;
     background: var(--background);
     border-right: 1px solid var(--border);
@@ -23,8 +23,8 @@
 
 /* Sidebar header */
 .terminal-tree-header {
-    padding: 6px 8px 4px;
-    font-size: 10px;
+    padding: 7px 10px 5px;
+    font-size: 11px;
     color: var(--muted-foreground);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -61,10 +61,10 @@
     position: relative;  /* For absolute positioned tooltip */
     display: flex;
     align-items: center;
-    padding: 5px 8px;
-    margin: 2px 6px;
+    padding: 6px 10px;
+    margin: 3px 6px;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: 7px;
     background: var(--card);
     border: 1px solid var(--border);
     transition: background 0.1s ease, border-color 0.1s ease;
@@ -103,12 +103,12 @@
 .terminal-tree-node.headless {
     border-style: dashed;
     opacity: 0.65;
-    padding: 3px 8px;
-    font-size: 10px;
+    padding: 4px 10px;
+    font-size: 11px;
 }
 
 .terminal-tree-node.headless .terminal-tree-title-text {
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .terminal-tree-node.headless:hover {
@@ -119,51 +119,28 @@
     opacity: 0.8;
 }
 
-/* Depth indentation - accounts for margin */
-.terminal-tree-node[data-depth="1"] { margin-left: 18px; }
-.terminal-tree-node[data-depth="2"] { margin-left: 30px; }
-.terminal-tree-node[data-depth="3"] { margin-left: 42px; }
-.terminal-tree-node[data-depth="4"] { margin-left: 54px; }
+/* Depth indentation — clearly nested sub-agents under their orchestrator.
+   Each level adds 18px so the hierarchy is obvious even on narrow sidebars.
+   Default left margin is 6px (set on .terminal-tree-node). */
+.terminal-tree-node[data-depth="1"] { margin-left: 24px; }
+.terminal-tree-node[data-depth="2"] { margin-left: 42px; }
+.terminal-tree-node[data-depth="3"] { margin-left: 60px; }
+.terminal-tree-node[data-depth="4"] { margin-left: 78px; }
+.terminal-tree-node[data-depth="5"] { margin-left: 96px; }
+.terminal-tree-node[data-depth="6"] { margin-left: 114px; }
+.terminal-tree-node[data-depth="7"] { margin-left: 132px; }
+.terminal-tree-node[data-depth="8"] { margin-left: 150px; }
 
 /* ============================================================================
- * Collapse/expand chevron — shown on parents that have children.
- * Click toggles between auto-collapsed and explicit-expanded.
- * ============================================================================ */
-.terminal-tree-chev {
-    width: 12px;
-    height: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 4px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-    transition: transform 0.12s ease, color 0.12s ease;
-    font-size: 8px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-.terminal-tree-chev:hover { color: var(--foreground); }
-.terminal-tree-chev.open { transform: rotate(90deg); }
-
-/* Spacer for non-parent rows so the icon column stays aligned with parent rows. */
-.terminal-tree-chev-spacer {
-    width: 16px;
-    flex-shrink: 0;
-}
-
-/* ============================================================================
- * Collapsed-parent summary chip — count + colored pips.
+ * Collapsed-parent summary chip — descendant count only.
  * Only shown when the parent is collapsed AND has at least one descendant.
  * ============================================================================ */
 .terminal-tree-summary {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
     margin-left: 6px;
     flex-shrink: 0;
-    font-size: 9px;
+    font-size: 10px;
 }
 .terminal-tree-summary-count {
     background: var(--border);
@@ -171,29 +148,8 @@
     border-radius: 3px;
     padding: 1px 5px;
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.2;
-}
-.terminal-tree-summary-pipgroup {
-    display: inline-flex;
-    align-items: center;
-    gap: 1.5px;
-}
-.terminal-tree-summary-pip {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-.terminal-tree-summary-pip.awaiting  { background: #3b82f6; } /* blue */
-.terminal-tree-summary-pip.errored   { background: #b91c1c; } /* deep red */
-.terminal-tree-summary-pip.active    { background: #f59e0b; } /* amber */
-.terminal-tree-summary-pip.completed { background: #22c55e; } /* green */
-.terminal-tree-summary-pip.spawning  { background: #6b7280; } /* gray */
-.terminal-tree-summary-pipn {
-    color: var(--muted-foreground);
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 9px;
 }
 
 /* ============================================================================
@@ -207,7 +163,8 @@
  * States (matching .lifecycle-{name} from TerminalTreeSidebar.tsx):
  *   spawning        → muted gray dot         (just-created, no output yet)
  *   active          → amber rotating ring    (output flowing)
- *   idle            → green ✓                (alive, quiet, no completion signal)
+ *   idle            → amber solid (no spin)  (orchestrator standby — quietly
+ *                                             waiting on sub-agents, NOT done)
  *   awaiting_input  → amber static dashed    (paired with .node.attn blue row)
  *   completed       → green ✓                (exit 0 / agent self-reported done)
  *   errored         → red ✕                  (crash / non-zero exit)
@@ -215,16 +172,16 @@
  * Plus minimized — viewport hint, not lifecycle. Solid purple, dimmed.
  * ============================================================================ */
 .terminal-tree-status {
-    width: 12px;
-    height: 12px;
-    margin-right: 7px;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     color: white;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
     line-height: 1;
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -249,14 +206,16 @@
     border-top-color: transparent;
 }
 
-/* idle — alive, quiet. Green check. */
+/* idle — orchestrator standby. The agent is alive but quietly waiting on
+   sub-agents (or on a similar non-user signal). Distinct from 'completed'
+   (green ✓) so green stays reserved for genuine task completion, and distinct
+   from 'awaiting_input' (dashed + blue row) so the user can tell at a glance
+   that no input is requested. Solid amber, no spin. */
 .terminal-tree-status.lifecycle-idle {
-    background: #22c55e;
+    background: #f59e0b;
 }
-.terminal-tree-status.lifecycle-idle::after {
-    content: "\2713"; /* ✓ */
-    font-size: 9px;
-    font-weight: 800;
+:root:not(.dark) .terminal-tree-status.lifecycle-idle {
+    background: #d97706;
 }
 
 /* awaiting_input — agent blocked on user. Amber static dashed (paused, not
@@ -272,7 +231,7 @@
 }
 .terminal-tree-status.lifecycle-completed::after {
     content: "\2713"; /* ✓ */
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
 }
 
@@ -282,7 +241,7 @@
 }
 .terminal-tree-status.lifecycle-errored::after {
     content: "\00d7"; /* × */
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
 }
 
@@ -297,7 +256,7 @@
 .terminal-tree-title {
     flex: 1;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 13px;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -311,7 +270,7 @@
 
 /* Worktree indicator - shown below title when terminal runs in a git worktree */
 .terminal-tree-worktree {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--muted-foreground);
     white-space: nowrap;
     overflow: hidden;
@@ -322,7 +281,7 @@
 
 /* Agent ID indicator - shown below title (and worktree if present) */
 .terminal-tree-agent-id {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--muted-foreground);
     white-space: nowrap;
     overflow: hidden;
@@ -335,8 +294,8 @@
 /* Close button */
 .terminal-tree-close {
     opacity: 0;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -347,7 +306,7 @@
     padding: 0;
     line-height: 1;
     flex-shrink: 0;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .terminal-tree-node:hover .terminal-tree-close {
@@ -364,8 +323,8 @@
 
 /* Activity dots (blue node creation indicators) */
 .terminal-tree-activity-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #3b82f6;
     margin-left: 4px;
@@ -381,7 +340,7 @@
 /* Shortcut hint tooltip - appears inline at end of tab on hover */
 .terminal-tab-shortcut-hint {
     display: none;
-    font-size: 9px;
+    font-size: 10px;
     color: var(--muted-foreground);
     white-space: nowrap;
     pointer-events: none;

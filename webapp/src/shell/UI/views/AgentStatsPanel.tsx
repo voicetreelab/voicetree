@@ -5,6 +5,7 @@ import { useAgentMetrics, type SessionMetric } from './hooks/useAgentMetrics';
 import { SessionDurationChart } from './components/SessionDurationChart';
 import { AvgTokensChart } from './components/AvgTokensChart';
 import { TotalTokensChart } from './components/TotalTokensChart';
+import { UsageSection } from './components/UsageSection';
 
 type TimeFilter = 'today' | 'week' | 'all';
 
@@ -224,7 +225,7 @@ export function AgentStatsPanel(): JSX.Element {
         ) : filteredSessions.length === 0 ? (
           <div className="text-gray-500 p-4 text-center">No sessions found</div>
         ) : (
-          <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+          <div data-testid="session-list" className="flex flex-col gap-1 max-h-64 overflow-y-auto">
             {filteredSessions.map(session => {
               const isExpanded: boolean = expandedSessions.has(session.sessionId);
               const isRunning: boolean = !session.endTime;
@@ -325,6 +326,9 @@ export function AgentStatsPanel(): JSX.Element {
           </div>
         )}
       </div>
+
+      {/* Usage Section (Claude Code + Codex) */}
+      <UsageSection />
     </div>
   );
 }

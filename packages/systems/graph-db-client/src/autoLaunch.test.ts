@@ -1,9 +1,11 @@
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { resolveDaemonRuntimeCommand } from './autoLaunch.ts'
+import { ensureDaemon, resolveDaemonRuntimeCommand } from './autoLaunch.ts'
+import { DaemonLockHeldError } from './errors.ts'
 
 describe('resolveDaemonRuntimeCommand', () => {
   test('uses the current Node executable outside Electron', () => {
@@ -84,6 +86,64 @@ describe('resolveDaemonRuntimeCommand', () => {
       )
     })
   })
+})
+
+describe('ensureDaemon — orphan lock recovery', () => {
+  let vault: string
+  let fakeHolder: ChildProcess | null = null
+
+  beforeEach(async () => {
+    vault = await mkdtemp(join(tmpdir(), 'vt-graphd-orphan-test-'))
+    await mkdir(join(vault, '.voicetree'), { recursive: true })
+    fakeHolder = null
+  })
+
+  afterEach(async () => {
+    if (fakeHolder?.pid) {
+      try {
+        process.kill(fakeHolder.pid, 'SIGKILL')
+      } catch {
+        // already gone
+      }
+    }
+    await rm(vault, { recursive: true, force: true })
+  })
+
+  test('throws DaemonLockHeldError fast when an alive process holds the lock without serving /health', async () => {
+    // An alive process whose HTTP server is dead — exactly the production
+    // failure mode where the spawned vt-graphd child sees the held lock and
+    // exits within milliseconds via process.exit(0).
+    fakeHolder = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e9)'], {
+      detached: true,
+      stdio: 'ignore',
+    })
+    fakeHolder.unref()
+    expect(fakeHolder.pid).toBeGreaterThan(0)
+    const holderPid = fakeHolder.pid!
+
+    await writeFile(
+      join(vault, '.voicetree', 'graphd.lock'),
+      String(holderPid),
+      { flag: 'wx' },
+    )
+
+    const start = Date.now()
+    let caught: unknown
+    try {
+      await ensureDaemon(vault, { timeoutMs: 8000 })
+    } catch (err) {
+      caught = err
+    }
+    const elapsed = Date.now() - start
+
+    // Bug: today this throws DaemonLaunchTimeout after ~8s.
+    // Fix: should throw DaemonLockHeldError carrying the holder pid, well
+    // under the configured timeout.
+    expect(caught).toBeInstanceOf(DaemonLockHeldError)
+    expect((caught as DaemonLockHeldError).pid).toBe(holderPid)
+    expect((caught as DaemonLockHeldError).vault).toBe(vault)
+    expect(elapsed).toBeLessThan(5000)
+  }, 15_000)
 })
 
 async function withFakeRuntimeBin(

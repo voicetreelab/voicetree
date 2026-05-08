@@ -22,6 +22,8 @@ import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
+import {getUsageData, refreshClaudeUsageHeadless} from './usage/getUsageData';
+import {openClaudeUsage, openCodexStatus} from './usage/openUsageInTerminal';
 import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
@@ -173,6 +175,12 @@ export const mainAPI = {
 
   // Metrics
   getMetrics,
+
+  // Claude Code + Codex usage data
+  getUsageData,
+  refreshClaudeUsageHeadless,
+  openClaudeUsage,
+  openCodexStatus,
 
   // MCP client configuration
   isMcpIntegrationEnabled, //todo unused?
