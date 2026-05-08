@@ -6,11 +6,11 @@ import {getTerminalId} from '../types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords, updateTerminalPromptDetected} from './terminal-registry';
 import {startPromptDetection, feedPromptDetector, stopPromptDetection} from '../lifecycle/prompt-runner';
 import type {TerminalData} from '../types';
-import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {loadSettings} from '@vt/app-config/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
+import {getRuntimeProjectRoot} from '../graph-bridge';
 import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
 
 /**
@@ -359,7 +359,7 @@ export class TerminalManager {
       const runtimeEnv = getRuntimeEnv();
       const vaultPath: string | null = runtimeEnv.getProjectRootWatchedDirectory
         ? runtimeEnv.getProjectRootWatchedDirectory()
-        : getProjectRootWatchedDirectory();
+        : getRuntimeProjectRoot();
       //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;

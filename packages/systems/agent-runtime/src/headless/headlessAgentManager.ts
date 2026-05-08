@@ -12,7 +12,7 @@ import type {TerminalId} from '../types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
 import type {TerminalData} from '../types'
 import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getRuntimeGraph} from '../graph-bridge'
 import {detectCliType} from '../spawn/spawnTerminalWithContextNode'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
@@ -95,7 +95,7 @@ async function handleAgentExit(terminalId: TerminalId, code: number | null): Pro
     // Skip audit if agent has active (non-exited) child agents — they're still doing work.
     // The parent's obligations may depend on children completing first.
     if (code === 0 || code === null) {
-        const graph: import('@vt/graph-model/graph').Graph = getGraph()
+        const graph: import('@vt/graph-model/graph').Graph = getRuntimeGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
         const hasActiveChildren: boolean = records.some(
             (r: TerminalRecord) => r.terminalData.parentTerminalId === terminalId && r.status !== 'exited'

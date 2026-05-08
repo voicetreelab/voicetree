@@ -15,12 +15,9 @@ import {createTerminalData, type TerminalId} from '../types'
 import type {TerminalData} from '../types'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
 import {getTerminalManager} from '../terminals/terminal-manager-instance'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getWatchStatus} from '@vt/graph-db-server/watch-folder/watchFolder'
 import {loadSettings} from '@vt/app-config/settings'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../graph-bridge'
 import {getRuntimeUI} from '../runtime-config'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
@@ -58,13 +55,13 @@ async function waitForTerminalReady(): Promise<boolean> {
 }
 
 async function createHookNode(): Promise<string> {
-    const writePathOption: O.Option<string> = await getWritePath()
+    const writePathOption: O.Option<string> = await getRuntimeWritePath()
     const writePath: string = O.getOrElse(() => '')(writePathOption)
     if (!writePath) {
         throw new Error('No write path available for hook terminal node')
     }
 
-    const graph: Graph = getGraph()
+    const graph: Graph = getRuntimeGraph()
     const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
     const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
@@ -77,20 +74,20 @@ async function createHookNode(): Promise<string> {
         previousNode: O.none
     }]
 
-    await applyGraphDeltaToDBThroughMemAndUIAndEditors(hookDelta)
+    await applyRuntimeGraphDelta(hookDelta)
     return hookNode.absoluteFilePathIsID
 }
 
 async function spawnHookTerminal(): Promise<void> {
     const settings: VTSettings = await loadSettings()
 
-    if (!hookNodeId || !getGraph().nodes[hookNodeId]) {
+    if (!hookNodeId || !getRuntimeGraph().nodes[hookNodeId]) {
         hookNodeId = await createHookNode()
     }
 
     // Spawn in project root (watched directory), not the terminal-relative path —
     // hook scripts use absolute node paths and expect project root as CWD
-    const watchStatus: {readonly isWatching: boolean; readonly directory: string | undefined} = getWatchStatus()
+    const watchStatus: {readonly isWatching: boolean; readonly directory: string | undefined} = getRuntimeWatchStatus()
     const initialSpawnDirectory: string | undefined = watchStatus.directory
 
     const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({

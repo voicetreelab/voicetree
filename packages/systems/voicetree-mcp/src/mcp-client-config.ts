@@ -12,7 +12,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getMcpPort } from './mcp-server';
-import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
+import {getMcpProjectRootWatchedDirectory} from './mcp-graph-bridge';
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const;
 
@@ -31,7 +31,7 @@ interface McpJsonConfig {
  * Get the path to .mcp.json in the watched directory
  */
 function getMcpJsonPath(): string | null {
-    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    const watchedDir: string | null = getMcpProjectRootWatchedDirectory();
     if (!watchedDir) {
         return null;
     }
@@ -122,7 +122,7 @@ export async function disableMcpJsonIntegration(): Promise<void> {
 const CODEX_VOICETREE_SECTION_RE: RegExp = /\[mcp_servers\.voicetree\]\s*\n(?:(?!\[)[^\n]*\n?)*/;
 
 function getCodexConfigPath(): string | null {
-    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    const watchedDir: string | null = getMcpProjectRootWatchedDirectory();
     if (!watchedDir) return null;
     return path.join(watchedDir, '.codex', 'config.toml');
 }
@@ -201,7 +201,7 @@ interface OpencodeConfig {
 }
 
 function getOpencodeConfigPath(): string | null {
-    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    const watchedDir: string | null = getMcpProjectRootWatchedDirectory();
     if (!watchedDir) return null;
     return path.join(watchedDir, 'opencode.jsonc');
 }

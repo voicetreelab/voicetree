@@ -6,9 +6,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVars, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store'
 import {getRuntimeEnv} from '../runtime-config'
+import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../graph-bridge'
 import path from 'path'
 
 export async function buildTerminalEnvVars(params: {
@@ -29,15 +28,15 @@ export async function buildTerminalEnvVars(params: {
     const appSupportPath: string = env.getAppSupportPath()
     const allVaultPaths: readonly string[] = env.getVaultPaths
         ? await env.getVaultPaths()
-        : await getVaultPaths()
+        : await getRuntimeVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
     const vaultPath: string = env.getWritePath
         ? (await env.getWritePath()) ?? ''
-        : O.getOrElse(() => '')(await getWritePath())
+        : O.getOrElse(() => '')(await getRuntimeWritePath())
 
     const projectRoot: string | null = env.getProjectRootWatchedDirectory
         ? env.getProjectRootWatchedDirectory()
-        : getProjectRootWatchedDirectory()
+        : getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
 
     const unexpandedEnvVars: Record<string, string> = {

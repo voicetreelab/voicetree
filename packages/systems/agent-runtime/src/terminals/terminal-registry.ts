@@ -1,9 +1,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getUnseenNodesAroundContextNode, type UnseenNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
+import {getRuntimeGraph, getRuntimeUnseenNodesAroundContextNode} from '../graph-bridge'
 
 import type {TerminalData} from '../types';
 import {loadSettings} from '@vt/app-config/settings';
@@ -11,6 +10,8 @@ import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
 import {classifyExit} from '../lifecycle/exit'
 import type {TerminalLifecycle, TerminalKillReason} from '../lifecycle/types'
+
+type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
 
 export type TerminalStatus = 'running' | 'exited'
 
@@ -119,7 +120,7 @@ async function runIdleStopGateAudit(terminalId: string, record: TerminalRecord):
     if (hasActiveChildren(terminalId)) return
 
     const records: readonly TerminalRecord[] = getTerminalRecords()
-    const graph: Graph = getGraph()
+    const graph: Graph = getRuntimeGraph()
     const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
 
     if (!hookResult.passed) {
@@ -162,10 +163,10 @@ async function notifyAgentOfUnseenNodes(terminalId: string, record: TerminalReco
         }
 
         // Get unseen nodes around this agent's context
-        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
+        const unseenNodes: readonly UnseenNode[] = await getRuntimeUnseenNodesAroundContextNode(contextNodeId)
 
         // Filter out nodes created by this agent
-        const graph: Graph = getGraph()
+        const graph: Graph = getRuntimeGraph()
         const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             if (!graphNode) return true

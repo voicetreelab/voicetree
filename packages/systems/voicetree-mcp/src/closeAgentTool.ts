@@ -7,7 +7,6 @@
  * at least one progress node, so work isn't silently discarded.
  */
 
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords, type TerminalRecord, type TerminalId} from '@vt/agent-runtime'
 import {closeHeadlessAgent, getRuntimeUI} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
@@ -15,6 +14,7 @@ import {getNewNodesForAgent} from './getNewNodesForAgent'
 import {getAgentNodes} from './agentNodeIndex'
 import {getAgentStatus} from './isAgentComplete'
 import {runStopHooks, type StopHookResult} from '@vt/agent-runtime'
+import {getMcpGraph} from './mcp-graph-bridge'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -27,7 +27,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
 
     // Stop gate: audit before allowing self-close (BF-042: derives skill path at audit time)
     if (isSelfClose) {
-        const graph: import('@vt/graph-model/graph').Graph = getGraph()
+        const graph: import('@vt/graph-model/graph').Graph = await getMcpGraph()
         const records: readonly TerminalRecord[] = getTerminalRecords()
         const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
         if (!hookResult.passed) {
@@ -61,7 +61,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
 
         const agentName: string | undefined = targetRecord.terminalData.agentName
         const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(terminalId)
-        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(getGraph(), agentName, targetRecord.spawnedAt)
+        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(await getMcpGraph(), agentName, targetRecord.spawnedAt)
         const allNodesById: Map<string, {nodeId: string; title: string}> = new Map(
             [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
         )
