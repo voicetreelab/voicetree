@@ -9,7 +9,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import {applyGraphDeltaToGraph} from '@vt/graph-model/graph'
 import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
-import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {ensureUniqueNodeId} from '@vt/graph-model/graph'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {
@@ -22,6 +21,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {getVaultPaths, getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {resolveNodeFromGraphOrDisk} from '@vt/graph-db-server/graph/resolveNodeFromGraphOrDisk'
 import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {
@@ -230,16 +230,18 @@ export async function createGraphTool({
         }
     }
 
-    const graph: Graph = getGraph()
-
-    // Resolve graph parent (attachment point for root nodes)
+    // Resolve graph parent (attachment point for root nodes). Falls back to
+    // a disk read when the in-memory graph is briefly out of sync — the
+    // observed bug where a parent node was just written by an upstream
+    // create_graph or spawn_agent but a follow-up MCP call sees a graph
+    // that doesn't yet know about it.
     const defaultParentId: string = O.isSome(callerRecord.terminalData.anchoredToNodeId)
         ? callerRecord.terminalData.anchoredToNodeId.value
         : callerRecord.terminalData.attachedToContextNodeId
     const rawParentId: string = graphParentId ?? defaultParentId
-    const resolvedGraphParentId: NodeIdAndFilePath | undefined = graph.nodes[rawParentId]
-        ? rawParentId
-        : findBestMatchingNode(rawParentId, graph.nodes, graph.nodeByBaseName)
+    const resolvedGraphParentId: NodeIdAndFilePath | undefined =
+        await resolveNodeFromGraphOrDisk(rawParentId)
+    const graph: Graph = getGraph()
 
     if (!resolvedGraphParentId || !graph.nodes[resolvedGraphParentId]) {
         return buildJsonResponse({

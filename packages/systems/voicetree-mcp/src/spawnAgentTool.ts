@@ -5,7 +5,6 @@
 
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
-import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
@@ -13,6 +12,7 @@ import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {resolveNodeFromGraphOrDisk} from '@vt/graph-db-server/graph/resolveNodeFromGraphOrDisk'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
@@ -128,8 +128,6 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
     }
     const writePath: string = vaultPathOpt.value
 
-    const graph: Graph = getGraph()
-
     // Branch: If task is provided, create a new task node first
     if (task) {
         // Validate parentNodeId is required when task is provided
@@ -140,10 +138,12 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
             }, true)
         }
 
-        // Resolve parent node
-        const resolvedParentId: NodeIdAndFilePath | undefined = graph.nodes[parentNodeId]
-            ? parentNodeId
-            : findBestMatchingNode(parentNodeId, graph.nodes, graph.nodeByBaseName)
+        // Resolve parent: try in-memory, then disk fallback. The fallback
+        // covers a real bug where a node was just written by an earlier MCP
+        // call but the in-memory graph briefly didn't have it.
+        const resolvedParentId: NodeIdAndFilePath | undefined =
+            await resolveNodeFromGraphOrDisk(parentNodeId)
+        const graph: Graph = getGraph()
 
         if (!resolvedParentId || !graph.nodes[resolvedParentId]) {
             return buildJsonResponse({
@@ -246,11 +246,10 @@ export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNode
         }, true)
     }
 
-    // Resolve nodeId: support both full absolute paths and short names (e.g., "fix-test.md")
-    // First try direct lookup, then fall back to findBestMatchingNode for short names
-    const resolvedNodeId: NodeIdAndFilePath | undefined = graph.nodes[nodeId]
-        ? nodeId
-        : findBestMatchingNode(nodeId, graph.nodes, graph.nodeByBaseName)
+    // Resolve nodeId: in-memory direct match → basename match → disk fallback.
+    const resolvedNodeId: NodeIdAndFilePath | undefined =
+        await resolveNodeFromGraphOrDisk(nodeId)
+    const graph: Graph = getGraph()
 
     if (!resolvedNodeId || !graph.nodes[resolvedNodeId]) {
         return buildJsonResponse({
