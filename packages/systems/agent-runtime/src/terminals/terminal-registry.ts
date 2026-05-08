@@ -428,14 +428,18 @@ export function updateTerminalIsDone(
             void runIdleStopGateAudit(tid, rec, runtime.logger)
 
             // Unseen nodes notification (optional, settings-gated)
-            void loadSettings().then((settings: import('@vt/graph-model/settings').VTSettings) => {
-                if (settings.autoNotifyUnseenNodes) {
-                    void notifyAgentOfUnseenNodes(tid, rec, {
-                        now: runtime.now,
-                        logger: runtime.logger,
-                    })
-                }
-            })
+            void loadSettings()
+                .then((settings: import('@vt/graph-model/settings').VTSettings) => {
+                    if (settings.autoNotifyUnseenNodes) {
+                        void notifyAgentOfUnseenNodes(tid, rec, {
+                            now: runtime.now,
+                            logger: runtime.logger,
+                        })
+                    }
+                })
+                .catch((error: unknown) => {
+                    runtime.logger.error('[terminal-registry] Failed to load settings for unseen-node notification:', error)
+                })
         }, {
             setTimeout: runtime.setTimeout,
             clearTimeout: runtime.clearTimeout,

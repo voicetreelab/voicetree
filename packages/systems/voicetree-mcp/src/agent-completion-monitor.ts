@@ -7,13 +7,17 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
-import {sendTextToTerminal} from '@vt/agent-runtime'
+import {
+    getHeadlessAgentOutput,
+    getPendingTerminal,
+    getTerminalRecords,
+    sendTextToTerminal,
+    type TerminalRecord,
+} from '@vt/agent-runtime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getHeadlessAgentOutput} from '@vt/agent-runtime'
 import {getMcpGraph} from './mcp-graph-bridge'
 
 type MonitorEntry = {

@@ -9,7 +9,7 @@ import {
     getPendingTerminal,
     getTerminalRecords,
     type TerminalRecord,
-} from './agent-runtime-facade'
+} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from './types'
 
 export interface ReadTerminalOutputParams {

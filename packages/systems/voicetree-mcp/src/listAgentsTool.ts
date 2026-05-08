@@ -5,7 +5,7 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getTerminalRecords, type TerminalRecord} from './agent-runtime-facade'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'

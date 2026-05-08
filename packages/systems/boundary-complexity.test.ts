@@ -8,6 +8,7 @@ const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
 const MAX_BOUNDARY_WIDTH_RATIO_BUDGET = 13 / 30
 const CROSS_BOUNDARY_TREE_WIDTH_BUDGET = 3
+const MIN_BOUNDARY_FILE_LOGIC_RATIO = 0.2
 
 type PackageInfo = {
     readonly name: string
@@ -60,6 +61,15 @@ type TreeWidthEstimate = {
     readonly treeWidth: number
 }
 
+type BoundaryFileLogic = {
+    readonly file: string
+    readonly packageName: string
+    readonly totalStatements: number
+    readonly importExportStatements: number
+    readonly logicStatements: number
+    readonly logicRatio: number
+}
+
 type BoundaryComplexityReport = {
     readonly widths: readonly BoundaryWidth[]
     readonly maxBoundaryWidthRatio: number
@@ -67,6 +77,8 @@ type BoundaryComplexityReport = {
     readonly crossBoundaryTreeWidth: TreeWidthEstimate
     readonly crossBoundaryEdgeCount: number
     readonly boundaryFileCount: number
+    readonly boundaryFileLogic: readonly BoundaryFileLogic[]
+    readonly passthroughBarrels: readonly BoundaryFileLogic[]
 }
 
 async function discoverPackages(): Promise<PackageInfo[]> {
@@ -276,6 +288,42 @@ function computePairBoundaryEntropies(edges: readonly FileImportEdge[]): readonl
         })
 }
 
+function isImportOrExport(statement: ts.Statement): boolean {
+    return ts.isImportDeclaration(statement)
+        || ts.isExportDeclaration(statement)
+        || ts.isExportAssignment(statement)
+}
+
+async function computeBoundaryFileLogic(
+    graph: FileImportGraph,
+    boundaryFileSet: ReadonlySet<string>,
+    crossEdges: readonly FileImportEdge[],
+): Promise<readonly BoundaryFileLogic[]> {
+    const crossBoundarySourceFiles = new Set(crossEdges.map(e => e.fromFile))
+    const boundarySourceNodes = graph.nodes.filter(n =>
+        boundaryFileSet.has(n.relativePath) && crossBoundarySourceFiles.has(n.relativePath)
+    )
+
+    const results: BoundaryFileLogic[] = []
+    for (const node of boundarySourceNodes) {
+        const text = await readFile(node.absolutePath, 'utf8')
+        const sourceFile = ts.createSourceFile(node.absolutePath, text, ts.ScriptTarget.Latest, true)
+        const totalStatements = sourceFile.statements.length
+        const importExportStatements = sourceFile.statements.filter(isImportOrExport).length
+        const logicStatements = totalStatements - importExportStatements
+        results.push({
+            file: node.relativePath,
+            packageName: node.packageName,
+            totalStatements,
+            importExportStatements,
+            logicStatements,
+            logicRatio: totalStatements === 0 ? 0 : logicStatements / totalStatements,
+        })
+    }
+
+    return results.sort((a, b) => a.logicRatio - b.logicRatio)
+}
+
 function buildBoundaryAdjacency(boundaryFileSet: ReadonlySet<string>, edges: readonly FileImportEdge[]): ReadonlyMap<string, ReadonlySet<string>> {
     const adjacency = new Map([...boundaryFileSet].sort().map(file => [file, new Set<string>()]))
 
@@ -323,12 +371,14 @@ function computeMcsTreeWidthLowerBound(adjacency: ReadonlyMap<string, ReadonlySe
     }
 }
 
-function computeBoundaryComplexity(graph: FileImportGraph, packageNames: readonly string[]): BoundaryComplexityReport {
+async function computeBoundaryComplexity(graph: FileImportGraph, packageNames: readonly string[]): Promise<BoundaryComplexityReport> {
     const crossEdges = crossBoundaryEdges(graph)
     const boundaryFileSet = boundaryFiles(crossEdges)
     const widths = computeBoundaryWidths(graph, packageNames, boundaryFileSet)
     const adjacency = buildBoundaryAdjacency(boundaryFileSet, crossEdges)
     const crossBoundaryTreeWidth = computeMcsTreeWidthLowerBound(adjacency)
+    const boundaryFileLogic = await computeBoundaryFileLogic(graph, boundaryFileSet, crossEdges)
+    const passthroughBarrels = boundaryFileLogic.filter(f => f.logicRatio < MIN_BOUNDARY_FILE_LOGIC_RATIO)
 
     return {
         widths,
@@ -337,6 +387,8 @@ function computeBoundaryComplexity(graph: FileImportGraph, packageNames: readonl
         crossBoundaryTreeWidth,
         crossBoundaryEdgeCount: crossEdges.length,
         boundaryFileCount: boundaryFileSet.size,
+        boundaryFileLogic,
+        passthroughBarrels,
     }
 }
 
@@ -384,6 +436,22 @@ function formatReport(report: BoundaryComplexityReport): string {
         lines.push(`  ${index + 1}. ${step.file}: bag size ${step.bagSize}; numbered neighbors: ${neighbors}`)
     }
 
+    lines.push('')
+    lines.push(`Facade Density (logic ratio per cross-boundary source file, min ${MIN_BOUNDARY_FILE_LOGIC_RATIO}):`)
+
+    for (const f of report.boundaryFileLogic) {
+        const flag = f.logicRatio < MIN_BOUNDARY_FILE_LOGIC_RATIO ? ' ← PASSTHROUGH BARREL' : ''
+        lines.push(`  ${f.file}: ${f.logicStatements}/${f.totalStatements} = ${formatRatio(f.logicRatio)}${flag}`)
+    }
+
+    if (report.passthroughBarrels.length > 0) {
+        lines.push('')
+        lines.push(`${report.passthroughBarrels.length} passthrough barrel(s) detected (logic ratio < ${MIN_BOUNDARY_FILE_LOGIC_RATIO}):`)
+        for (const b of report.passthroughBarrels) {
+            lines.push(`  ${b.file} (${b.logicStatements}/${b.totalStatements})`)
+        }
+    }
+
     return lines.join('\n')
 }
 
@@ -391,12 +459,13 @@ describe('cross-boundary complexity metric', () => {
     it('systems package boundary surface stays within measured complexity budgets', async () => {
         const packages = await discoverPackages()
         const graph = await buildFileImportGraph(packages)
-        const report = computeBoundaryComplexity(graph, packages.map(pkg => pkg.dirName))
+        const report = await computeBoundaryComplexity(graph, packages.map(pkg => pkg.dirName))
         const formatted = formatReport(report)
 
         console.info(formatted)
 
         expect(report.maxBoundaryWidthRatio, formatted).toBeLessThanOrEqual(MAX_BOUNDARY_WIDTH_RATIO_BUDGET)
         expect(report.crossBoundaryTreeWidth.treeWidth, formatted).toBeLessThanOrEqual(CROSS_BOUNDARY_TREE_WIDTH_BUDGET)
+        expect(report.passthroughBarrels, `Passthrough barrels:\n${report.passthroughBarrels.map(b => `  ${b.file} (${b.logicStatements}/${b.totalStatements})`).join('\n')}`).toEqual([])
     })
 })
