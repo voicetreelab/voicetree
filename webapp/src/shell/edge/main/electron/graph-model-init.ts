@@ -6,11 +6,11 @@
  */
 
 import { app, dialog } from 'electron'
+import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
-import type { GraphDelta } from '@vt/graph-model/graph'
+import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
-import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
@@ -23,14 +23,30 @@ import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
-import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
+import { ensureDaemonClientForVault, getActiveDaemonClient } from '@/shell/edge/main/electron/graph-daemon'
+import { getNormalizedDaemonGraph } from '@/shell/edge/main/electron/daemon-graph-normalization'
 
 const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
+
+async function loadGraphThroughDaemon(vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
+    const activeClient = getActiveDaemonClient()
+    const client = activeClient ?? (
+        vaultPaths[0]
+            ? (await ensureDaemonClientForVault(vaultPaths[0], {
+                timeoutMs: GRAPH_MODEL_DAEMON_TIMEOUT_MS,
+            })).client
+            : null
+    )
+
+    return client
+        ? E.right(await getNormalizedDaemonGraph(client))
+        : E.left(new Error('No daemon client available for graph load'))
+}
 
 export function initializeGraphModel(): void {
     configureRootIO({
         getDirectoryTree,
-        loadGraphFromDisk,
+        loadGraphFromDisk: loadGraphThroughDaemon,
     })
 
     const callbacks: GraphModelCallbacks = {

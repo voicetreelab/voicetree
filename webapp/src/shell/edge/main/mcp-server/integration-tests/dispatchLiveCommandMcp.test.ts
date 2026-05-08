@@ -35,12 +35,6 @@ vi.mock('@vt/graph-model', async () => {
     }
 })
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn(),
-    setGraph: vi.fn(),
-    getNode: vi.fn(),
-}))
-
 let rendererCollapseSet: Set<string> = new Set()
 let rendererSelection: Set<string> = new Set()
 
