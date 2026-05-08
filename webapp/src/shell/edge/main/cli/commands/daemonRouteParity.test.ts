@@ -87,6 +87,24 @@ describe('daemon CLI route parity', () => {
                 reason:
                     '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
             },
+            {
+                method: 'POST',
+                path: '/graph/context-node',
+                reason:
+                    '`/graph/context-node` creates transient agent context files for Electron/headless agent workflows; it is not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/context-node-from-question',
+                reason:
+                    '`/graph/context-node-from-question` creates ask-mode context files for Electron/headless agent workflows; it is not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/write-positions',
+                reason:
+                    '`/graph/write-positions` persists renderer layout coordinates from Electron; it is not a user-facing CLI command.',
+            },
         ])
     })
 
