@@ -7,9 +7,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import type { GraphNode } from '@vt/graph-model/pure/graph';
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { getNodeTitle, type GraphNode } from '@vt/graph-model';
+import { robustElectronTeardown, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
