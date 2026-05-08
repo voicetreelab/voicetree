@@ -93,6 +93,7 @@
         }
       ]
     ],
-    "arboricity": 1
+    "arboricity": 1,
+    "recentNodeIds": []
   }
 }
