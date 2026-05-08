@@ -426,7 +426,7 @@ async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
 
-    emitResult(await client.getSessionState(sessionId), formatViewState, parsed.forceJson)
+    emitResult(await client.getSessionState(sessionId, {content: 'omit'}), formatViewState, parsed.forceJson)
 }
 
 export async function runViewCommand(argv: string[]): Promise<void> {
