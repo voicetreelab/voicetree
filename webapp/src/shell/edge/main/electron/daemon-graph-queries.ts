@@ -1,7 +1,8 @@
-import type { FilePath } from '@vt/graph-model/graph'
+import type { FilePath, Graph, GraphNode } from '@vt/graph-model/graph'
 import type { GraphDbClient } from '@vt/graph-db-client'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { ensureDaemonClientForVault, type CachedDaemonConnection } from './graph-daemon'
+import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 
 const TIMEOUT_MS: number = 10_000
 
@@ -22,6 +23,14 @@ export async function getPreviewContainedNodeIdsThroughDaemon(
 ): Promise<readonly string[]> {
     const client: GraphDbClient = await getClient()
     return await client.getPreviewContainedNodeIds(nodeId)
+}
+
+export async function getNodeThroughDaemon(
+    nodeId: string,
+): Promise<GraphNode | undefined> {
+    const client: GraphDbClient = await getClient()
+    const graph: Graph = await getNormalizedDaemonGraph(client)
+    return graph.nodes[nodeId]
 }
 
 export async function performUndoThroughDaemon(): Promise<boolean> {

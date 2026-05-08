@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { getNode } from '@/shell/edge/main/state/graph-store'
+import { getNodeThroughDaemon } from '@/shell/edge/main/electron/daemon-graph-queries'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
 import { getVaultPaths, getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -58,7 +58,7 @@ export async function copyNodeToFolder(
     nodeId: string,
     targetFolderPath: string,
 ): Promise<{ success: boolean; targetPath: string; error?: string }> {
-    const node: GraphNode | undefined = getNode(nodeId)
+    const node: GraphNode | undefined = await getNodeThroughDaemon(nodeId)
     if (!node) {
         return { success: false, targetPath: '', error: `Node not found: ${nodeId}` }
     }
