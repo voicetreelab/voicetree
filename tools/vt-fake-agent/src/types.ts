@@ -23,16 +23,23 @@ export function extractScript(prompt: string): FakeAgentScript {
   const startIdx = prompt.indexOf(SCRIPT_START_MARKER)
   const endIdx = prompt.indexOf(SCRIPT_END_MARKER)
 
-  let json: string
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    json = prompt.slice(startIdx + SCRIPT_START_MARKER.length, endIdx).trim()
-  } else {
-    json = prompt.trim()
+    const json = prompt.slice(startIdx + SCRIPT_START_MARKER.length, endIdx).trim()
+    const parsed = JSON.parse(json) as FakeAgentScript
+    if (!parsed.actions || !Array.isArray(parsed.actions)) {
+      throw new Error('Invalid FakeAgentScript: missing actions array')
+    }
+    return parsed
   }
 
-  const parsed = JSON.parse(json) as FakeAgentScript
-  if (!parsed.actions || !Array.isArray(parsed.actions)) {
-    throw new Error('Invalid FakeAgentScript: missing actions array')
+  try {
+    const parsed = JSON.parse(prompt.trim()) as FakeAgentScript
+    if (parsed.actions && Array.isArray(parsed.actions)) {
+      return parsed
+    }
+  } catch {
+    // Prompt is not JSON — fall through to default empty script
   }
-  return parsed
+
+  return { actions: [] }
 }

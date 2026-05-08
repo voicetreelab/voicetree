@@ -15,8 +15,6 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'onnxruntime-node',
   'onnxruntime-common',
   'onnxruntime-web',
-  'better-sqlite3',
-  'sqlite-vec',
   'chokidar',
   'fsevents',
 ]
@@ -35,7 +33,10 @@ const isMainExternal = (id: string): boolean => {
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
 // need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
-const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'better-sqlite3', 'sqlite-vec', 'chokidar'])
+// `@xterm/headless` ships a `module` field pointing to a file that doesn't exist
+// in the published tarball; Vite/Rollup choke on it. The package is pure JS, so
+// we externalize it and let Node's require fall back to `main` at runtime.
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar', '@xterm/headless'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,
@@ -50,7 +51,7 @@ const graphStateFixtureFilenameShimPlugin = {
   name: 'graph-state-fixture-filename-shim',
   enforce: 'pre' as const,
   transform(code: string, id: string) {
-    if (!id.includes('/packages/graph-state/src/fixtures.ts')) {
+    if (!id.includes('/packages/libraries/graph-state/src/fixtures.ts')) {
       return null
     }
 
@@ -75,7 +76,7 @@ const NODE_BUILTINS = new Set([
   'string_decoder', 'sys', 'timers', 'tls', 'tty', 'url', 'util', 'v8', 'vm', 'wasi',
   'worker_threads', 'zlib',
 ])
-const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents', 'better-sqlite3', 'sqlite-vec'])
+const NODE_SHIM_PACKAGES = new Set(['@vscode/ripgrep', 'chokidar', 'fsevents'])
 const rendererNodeShimPlugin = {
   name: 'renderer-node-shim',
   enforce: 'pre' as const,
@@ -171,6 +172,12 @@ export const arch = () => 'browser';
 export const spawn = () => ({ stdout: { on: noop }, stderr: { on: noop }, on: () => {} });
 export const execFileSync = () => '';
 export const fork = noop;
+// node:module — Rollup needs a named export for createRequire to resolve.
+// The renderer never calls these code paths (the agent-runtime emulator
+// that uses this is now reachable only via subpath imports the renderer
+// doesn't take), but transitive imports may still surface; the Proxy keeps
+// module-init silent if it ever fires.
+export const createRequire = () => () => new Proxy({}, { get: () => function stub(){} });
 // crypto
 export const randomUUID = () => '00000000-0000-0000-0000-000000000000';
 // events / stream / util / buffer
@@ -199,13 +206,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -225,13 +237,18 @@ export default defineConfig({
     plugins: [
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model'] }),
+      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
+        { find: /^@vt\/app-config$/, replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/index.ts') },
+        { find: '@vt/app-config/settings', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/settings/settings_IO.ts') },
+        { find: '@vt/app-config/vault-config', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/vault-config/voicetree-config-io.ts') },
+        { find: '@vt/app-config/project', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/project/index.ts') },
+        { find: '@vt/app-config/positions', replacement: path.resolve(__dirname, '../packages/libraries/app-config/src/positions/positions-store.ts') },
         { find: '@', replacement: path.resolve(__dirname, './src') }
       ]
     },
@@ -281,10 +298,10 @@ export default defineConfig({
     base: './',
     resolve: {
       alias: [
-        { find: /^@vt\/graph-state$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/index.ts') },
-        { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-state/src/$1') },
-        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/index.ts') },
-        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/graph-model/src/$1') },
+        { find: /^@vt\/graph-state$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-state/src/index.ts') },
+        { find: /^@vt\/graph-state\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-state/src/$1') },
+        { find: /^@vt\/graph-model$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/index.ts') },
+        { find: /^@vt\/graph-model\/(.+)$/, replacement: path.resolve(__dirname, '../packages/libraries/graph-model/src/$1') },
         { find: '@', replacement: path.resolve(__dirname, './src') },
         { find: '@wasm', replacement: path.resolve(__dirname, './tidy/wasm_dist') },
         // Alias CSS imports from @material to prevent import errors
@@ -296,7 +313,7 @@ export default defineConfig({
       // Exclude chokidar/fsevents: chokidar v3 leaks in via @vt/graph-state -> @vt/graph-model
       // barrel re-exports. rendererNodeShimPlugin shims them at resolve time during dev and prod;
       // excluding them here prevents esbuild from pre-bundling them before the plugin can intercept.
-      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep', 'better-sqlite3', 'sqlite-vec']
+      exclude: ['ninja-keys', 'fsevents', 'chokidar', '@vscode/ripgrep']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),

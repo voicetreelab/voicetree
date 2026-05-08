@@ -1,0 +1,54 @@
+{
+  "suite": "perf-v1",
+  "status": "skipped",
+  "dryRun": true,
+  "runDir": "/Users/lochlan/voicetree/webapp/e2e-tests/perf-runs/dry-run-workstream-b",
+  "startedAt": "2026-05-07T04:20:03.919Z",
+  "finishedAt": "2026-05-07T04:20:03.925Z",
+  "durationMs": 6,
+  "envContract": {
+    "PERF_NODE_COUNT": "500",
+    "PERF_TOPOLOGY": "<scenario default>",
+    "PERF_OUTPUT_DIR": "<scenario output directory>",
+    "PERF_INSPECT_PORT": "<base inspect port + scenario index>"
+  },
+  "build": {
+    "status": "skipped",
+    "commandLine": "npm run electron:build",
+    "durationMs": 0,
+    "code": 0,
+    "signal": null
+  },
+  "scenarios": [
+    {
+      "name": "cdp-synthetic",
+      "spec": "e2e-tests/electron/for_feature_development_not_LT_verification/graph/electron-500-node-cdp-perf.spec.ts",
+      "relativeDir": "e2e-tests/perf-runs/dry-run-workstream-b/1-cdp-synthetic",
+      "inspectPort": 9230,
+      "topology": "clustered",
+      "nodeCount": "500",
+      "commandLine": "npx playwright test --config=playwright-electron-dev.config.ts e2e-tests/electron/for_feature_development_not_LT_verification/graph/electron-500-node-cdp-perf.spec.ts --reporter=list",
+      "status": "skipped",
+      "durationMs": 0,
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "realistic-vault",
+      "spec": "e2e-tests/electron/for_feature_development_not_LT_verification/graph/electron-500-node-realistic-perf.spec.ts",
+      "relativeDir": "e2e-tests/perf-runs/dry-run-workstream-b/2-realistic-vault",
+      "inspectPort": 9231,
+      "topology": "realistic",
+      "nodeCount": "500",
+      "commandLine": "npx playwright test --config=playwright-electron-dev.config.ts e2e-tests/electron/for_feature_development_not_LT_verification/graph/electron-500-node-realistic-perf.spec.ts --reporter=list",
+      "status": "skipped",
+      "durationMs": 0,
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

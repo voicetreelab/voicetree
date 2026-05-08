@@ -15,12 +15,12 @@ import {
     removeNode,
     insertEdge,
     removeEdge,
-} from '@vt/graph-model/pure/graph/spatial';
+} from '@vt/graph-model/spatial';
 import type {
     SpatialIndex,
     SpatialNodeEntry,
     SpatialEdgeEntry,
-} from '@vt/graph-model/pure/graph/spatial';
+} from '@vt/graph-model/spatial';
 import { isLayoutParticipantEdge, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
 // ============================================================================

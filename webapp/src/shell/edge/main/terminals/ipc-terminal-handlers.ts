@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import type TerminalManager from '@/shell/edge/main/terminals/terminal-manager'
-import type { TerminalSpawnResult } from '@/shell/edge/main/terminals/terminal-manager'
+import type TerminalManager from '@vt/agent-runtime'
+import type { TerminalSpawnResult } from '@vt/agent-runtime'
 import {
     trackTerminalForWindow,
     untrackTerminal,

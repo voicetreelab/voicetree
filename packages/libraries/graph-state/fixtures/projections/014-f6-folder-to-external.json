@@ -1,0 +1,69 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "014-f6-folder-to-external",
+  "sourceSnapshot": "014-f6-folder-to-external",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
+        "label": "overview",
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Overview\n\nExternal node outside the folder.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
+        "label": "tasks",
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "kind": "file",
+        "label": "BF-117",
+        "relPath": "tasks/BF-117.md",
+        "basename": "BF-117",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# BF-117\n\nEscalates into [Overview]*.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
+        "kind": "file",
+        "label": "BF-118",
+        "relPath": "tasks/BF-118.md",
+        "basename": "BF-118",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# BF-118\n\nReady for execution.\n"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md->/tmp/graph-state-fixtures/root-a/overview.md",
+        "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+        "target": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "real",
+        "label": "Escalates into"
+      }
+    ],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
+          "target": "/tmp/graph-state-fixtures/root-a/overview.md"
+        }
+      ]
+    ],
+    "arboricity": 1
+  }
+}

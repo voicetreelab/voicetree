@@ -291,6 +291,18 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Append text at the end of the document without moving the cursor.
+   * Used for external append-only updates (e.g. agent SSE delta) so that
+   * an in-flight typist isn't pushed past the appended block.
+   */
+  appendAtEnd(suffix: string): void {
+    const docLength: number = this.view.state.doc.length;
+    this.view.dispatch({
+      changes: { from: docLength, insert: suffix },
+    });
+  }
+
+  /**
    * Focus the editor
    */
   focus(): void {

@@ -1,0 +1,40 @@
+{
+  "name": "@vt/graph-model",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./graph": "./src/graph.ts",
+    "./markdown": "./src/markdown.ts",
+    "./spatial": "./src/spatial.ts",
+    "./floating-windows": "./src/floating-windows.ts",
+    "./settings": "./src/settings.ts",
+    "./folders": "./src/folders.ts",
+    "./agent-tabs": "./src/agent-tabs.ts",
+    "./web-share": "./src/web-share.ts",
+    "./project": "./src/project.ts",
+    "./metrics": "./src/metrics.ts",
+    "./utils": "./src/utils.ts",
+    "./workflows": "./src/workflows.ts",
+    "./paths": "./src/paths.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "fp-ts": "^2.16.9",
+    "gray-matter": "^4.0.3",
+    "normalize-path": "^3.0.0",
+    "rbush": "^4.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "typescript": "~5.8.3",
+    "@types/node": "^22.0.0",
+    "@types/normalize-path": "^3.0.2",
+    "@types/rbush": "^4.0.0",
+    "@types/cytoscape": "^3.21.9"
+  }
+}

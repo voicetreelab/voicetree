@@ -14,6 +14,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -55,8 +56,12 @@ const test = base.extend<{
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
     console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}` // Isolate test userData
       ],
@@ -65,7 +70,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1', // Minimize window to avoid dialog popups
-        VOICETREE_PERSIST_STATE: '1' // Use test's userData path instead of creating new temp directory
+        VOICETREE_PERSIST_STATE: '1', // Use test's userData path instead of creating new temp directory
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       }
     });
 
@@ -73,22 +79,8 @@ const test = base.extend<{
 
     // Graceful shutdown: Stop file watching before closing app
     // This prevents EPIPE errors from file watcher trying to log after stdout closes
-    try {
-      const page = await electronApp.firstWindow();
-      await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      // Wait for pending file system events to drain
-      await page.waitForTimeout(300);
-    } catch {
-      // Window might already be closed, that's okay
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
-    }
-
-    await electronApp.close();
+    await safeStopFileWatching(electronApp);
+    await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
@@ -128,12 +120,12 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 45000 });
     // Wait for auto-load to complete (vault is loaded during app initialization)
     await page.waitForTimeout(500);
 
     await use(page);
-  }, { timeout: 30000 }]
+  }, { timeout: 60000 }]
 });
 
 test.describe('Markdown Editor CRUD Tests', () => {

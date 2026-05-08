@@ -1,23 +1,27 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphNode} from '@vt/graph-model/graph'
 
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import type {TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
+import type {TerminalRecord} from '@vt/agent-runtime'
 
 // Mock leaf dependencies
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
+vi.mock('@vt/agent-runtime', () => ({
     getIdleSince: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/agentNodeIndex', () => ({
-    getAgentNodes: vi.fn()
-}))
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+    return {
+        ...actual,
+        getAgentNodes: vi.fn()
+    }
+})
 
-import {isAgentComplete} from '@/shell/edge/main/mcp-server/isAgentComplete'
-import {getIdleSince} from '@/shell/edge/main/terminals/terminal-registry'
-import {getAgentNodes} from '@/shell/edge/main/mcp-server/agentNodeIndex'
+import {isAgentComplete} from '@vt/voicetree-mcp'
+import {getIdleSince} from '@vt/agent-runtime'
+import {getAgentNodes} from '@vt/voicetree-mcp'
 
 // --- Helpers ---
 
@@ -243,7 +247,9 @@ describe('isAgentComplete progress-node gate', () => {
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
-        const graph: Graph = buildGraph()
+        const graph: Graph = buildGraph([
+            buildGraphNode('node.md', 'My Progress', 'alpha')
+        ])
 
         const result: boolean = isAgentComplete(record, graph, NOW, [record])
         expect(result).toBe(true)

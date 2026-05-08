@@ -7,14 +7,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import type { FolderTreeNode } from '@vt/graph-model/pure/folders/types'
+import type { FolderTreeNode } from '@vt/graph-model/folders'
 import type { SerializedState } from '@vt/graph-state/fixtures/serialization'
 import {
     folderTreeReducer,
     subscribeFolderTree,
-    addCollapsedFolder,
+    addCollapsedFolderLocally,
     getGraphCollapseSet,
-    removeCollapsedFolder,
     removeCollapsedFolderLocally,
     isGraphFolderCollapsed,
     getFolderTreeState,
@@ -153,16 +152,16 @@ describe('folderTreeReducer — core store actions', () => {
 
 // ── Dispatchers + query ──
 
-describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', () => {
-    it('should add folder via dispatcher and query it', async () => {
-        await addCollapsedFolder('bf117-test-add/')
+describe('addCollapsedFolderLocally / removeCollapsedFolderLocally / isGraphFolderCollapsed', () => {
+    it('should add folder via dispatcher and query it', () => {
+        addCollapsedFolderLocally('bf117-test-add/')
         expect(isGraphFolderCollapsed('bf117-test-add/')).toBe(true)
     })
 
-    it('should remove folder via dispatcher', async () => {
-        await addCollapsedFolder('bf117-test-rm/')
+    it('should remove folder via dispatcher', () => {
+        addCollapsedFolderLocally('bf117-test-rm/')
         expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(true)
-        await removeCollapsedFolder('bf117-test-rm/')
+        removeCollapsedFolderLocally('bf117-test-rm/')
         expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(false)
     })
 
@@ -170,13 +169,13 @@ describe('addCollapsedFolder / removeCollapsedFolder / isGraphFolderCollapsed', 
         expect(isGraphFolderCollapsed('bf117-never-added/')).toBe(false)
     })
 
-    it('should notify subscribers on ADD_COLLAPSED_FOLDER', async () => {
+    it('should notify subscribers on ADD_COLLAPSED_FOLDER', () => {
         let notifiedState: FolderTreeState | null = null
         const unsub: () => void = subscribeFolderTree((state: FolderTreeState) => {
             notifiedState = state
         })
 
-        await addCollapsedFolder('bf117-notify/')
+        addCollapsedFolderLocally('bf117-notify/')
         expect(notifiedState).not.toBeNull()
         expect(notifiedState!.graphCollapsedFolders.has('bf117-notify/')).toBe(true)
 

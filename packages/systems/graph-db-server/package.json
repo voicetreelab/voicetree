@@ -1,0 +1,51 @@
+{
+  "name": "@vt/graph-db-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless daemon (vt-graphd) that owns canonical vault state for one vault: sqlite, watch-folder, disk I/O, state stores, CRUD routes.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts",
+    "./daemonRouteParity": "./src/daemonRouteParity.ts",
+    "./lock": "./src/lock.ts",
+    "./portFile": "./src/portFile.ts",
+    "./views/*": "./src/views/*.ts",
+    "./graph/*": "./src/graph/*.ts",
+    "./state/*": "./src/state/*.ts",
+    "./watch-folder/*": "./src/watch-folder/*.ts",
+    "./context-nodes/*": "./src/context-nodes/*.ts",
+    "./search/*": "./src/search/*.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "tsx bin/vt-graphd.ts"
+  },
+  "bin": {
+    "vt-graphd": "bin/vt-graphd.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.13",
+    "@vt/app-config": "*",
+    "@vt/graph-model": "*",
+    "@vt/graph-state": "*",
+    "@vt/graph-tools": "*",
+    "chokidar": "^3.6.0",
+    "fp-ts": "^2.16.9",
+    "gray-matter": "^4.0.3",
+    "hono": "^4.12.12",
+    "normalize-path": "^3.0.0",
+    "@vscode/ripgrep": "^1.15.9",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.0.0",
+    "@types/normalize-path": "^3.0.2"
+  }
+}

@@ -1,22 +1,32 @@
 // Type definitions for floating window components - V2
 // Functional design: flat types with intersection composition, IDs derived not stored
+//
+// Terminal types are owned by @vt/agent-runtime; this file re-exports them and
+// layers an optional `ui` field via intersection so webapp can attach renderer
+// handles (HTMLElement) without leaking the DOM into runtime.
 
 import type {Option} from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {
+    TerminalId as PureTerminalId,
+    TerminalData as PureTerminalData,
     CreateTerminalDataParams,
-    TerminalData
-} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+} from '@vt/agent-runtime/types';
+import {
+    createTerminalData as createPureTerminalData,
+    getTerminalId,
+    computeTerminalId,
+} from '@vt/agent-runtime/types';
 import type {CreateEditorDataParams, EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {CreateImageViewerDataParams, ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
 // =============================================================================
-// Branded ID Types (for type safety)
+// Branded ID Types
 // =============================================================================
 
 export type EditorId = string & { readonly __brand: 'EditorId' };
-export type TerminalId = string & { readonly __brand: 'TerminalId' };
+export type TerminalId = PureTerminalId;
 export type ImageViewerId = string & { readonly __brand: 'ImageViewerId' };
 export type ShadowNodeId = string & { readonly __brand: 'ShadowNodeId' };
 
@@ -48,6 +58,13 @@ export type FloatingWindowFields = {
 };
 
 // =============================================================================
+// Webapp's TerminalData = pure runtime shape + optional UI handle.
+// =============================================================================
+
+export type TerminalData = PureTerminalData & { readonly ui?: FloatingWindowUIData };
+export type {CreateTerminalDataParams};
+
+// =============================================================================
 // Union Type for FloatingWindow Content
 // =============================================================================
 
@@ -61,17 +78,7 @@ export function getEditorId(editor: EditorData): EditorId {
     return `${editor.contentLinkedToNodeId}-editor` as EditorId;
 }
 
-/**
- * Pure function to compute terminal ID from its components.
- * Single source of truth for terminal ID format.
- */
-export function computeTerminalId(attachedToNodeId: string, terminalCount: number): TerminalId {
-    return `${attachedToNodeId}-terminal-${terminalCount}` as TerminalId;
-}
-
-export function getTerminalId(terminal: TerminalData): TerminalId {
-    return terminal.terminalId;
-}
+export {getTerminalId, computeTerminalId};
 
 export function getImageViewerId(imageViewer: ImageViewerData): ImageViewerId {
     return `${imageViewer.imageNodeId}-image-viewer` as ImageViewerId;
@@ -109,42 +116,9 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
     };
 }
 
-export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
-    // terminalId is now passed directly (equals agentName with collision handling)
-    return {
-        type: 'Terminal',
-        terminalId: params.terminalId,
-        attachedToContextNodeId: params.attachedToNodeId,
-        terminalCount: params.terminalCount,
-        title: params.title,
-        anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
-        initialEnvVars: params.initialEnvVars,
-        initialSpawnDirectory: params.initialSpawnDirectory,
-        initialCommand: params.initialCommand,
-        executeCommand: params.executeCommand,
-        resizable: params.resizable ?? true,
-        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 395, height: 380 }, // matches getDefaultDimensions('Terminal')
-        // Tab UI state defaults
-        isPinned: params.isPinned ?? true,  // New terminals start pinned by default
-        isDone: false,          // Running initially
-        lastOutputTime: Date.now(),
-        activityCount: 0,
-        // Parent-child relationship for tree-style tabs (null = root terminal)
-        parentTerminalId: params.parentTerminalId ?? null,
-        // Agent name for terminal-to-node edge matching (same as terminalId)
-        agentName: params.agentName,
-        // Worktree name (undefined = not in worktree)
-        worktreeName: params.worktreeName,
-        // Headless mode (default false — backwards compatible)
-        isHeadless: params.isHeadless ?? false,
-        // Minimized mode (default false — floating window hidden, badge shown)
-        isMinimized: params.isMinimized ?? false,
-        // Context node content for dropdown panel (default empty)
-        contextContent: params.contextContent ?? '',
-        // Human-readable agent type name from settings (default empty)
-        agentTypeName: params.agentTypeName ?? '',
-    };
-}
+// createTerminalData uses the runtime factory; webapp's optional `ui` is undefined
+// at construction (renderer attaches it later via setTerminalUI's spread).
+export const createTerminalData: (p: CreateTerminalDataParams) => TerminalData = createPureTerminalData;
 
 export function createImageViewerData(params: CreateImageViewerDataParams): ImageViewerData {
     return {
@@ -182,5 +156,4 @@ export function isAnchored(fw: FloatingWindowFields): boolean {
 // =============================================================================
 
 export type {EditorData, CreateEditorDataParams} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
-export type {TerminalData, CreateTerminalDataParams} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 export type {ImageViewerData, CreateImageViewerDataParams} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";

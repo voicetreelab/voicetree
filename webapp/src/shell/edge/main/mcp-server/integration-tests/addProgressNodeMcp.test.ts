@@ -1,34 +1,30 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 
 // Mock shell/edge dependencies
-vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
     getWritePath: vi.fn(),
     getVaultPaths: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
+vi.mock('@vt/agent-runtime', () => ({
     getTerminalRecords: vi.fn(),
     resetAuditRetryCount: vi.fn()
 }))
 
-vi.mock('@vt/graph-model', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
-    return {
-        ...actual,
-        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn(),
-    }
-})
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+}))
 
 // Mock settings
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({nodeLineLimit: 70})
 }))
 
@@ -37,12 +33,12 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-import {createGraphTool} from '@/shell/edge/main/mcp-server/mcp-server'
-import {getVaultPaths} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
+import {createGraphTool} from '@vt/voicetree-mcp'
+import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {getTerminalRecords} from '@vt/agent-runtime'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {parse as mermaidParse} from '@mermaid-js/parser'
 
 type McpToolResponse = {

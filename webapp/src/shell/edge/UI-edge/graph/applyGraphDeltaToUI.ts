@@ -1,6 +1,6 @@
 import type {Core, NodeSingular, CollectionReturnValue} from "cytoscape";
 import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
-import type {EdgeElement, ElementSpec, NodeElement} from '@vt/graph-state/contract'
+import type {ProjectedEdge, ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract'
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
 import type {} from '@/utils/types/cytoscape-layout-utilities';
@@ -14,30 +14,18 @@ import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-window
 import {hasActualContentChanged} from "@vt/graph-model/pure/graph/contentChangeDetection";
 import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
 
-/**
- * Validates if a color value is a valid CSS color using the browser's CSS.supports API
- */
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
+    if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return true;
     return CSS.supports('color', color);
 }
 
-/**
- * Extract the vault path prefix from a node ID.
- * Node IDs are relative file paths like "openspec/foo.md" or "wed/bar.md".
- * Returns the first path segment (vault folder name).
- */
 function getVaultPrefixFromNodeId(nodeId: string): string {
     const firstSlash: number = nodeId.indexOf('/');
     if (firstSlash === -1) return '';
     return nodeId.slice(0, firstSlash);
 }
 
-/**
- * Generate a subtle, muted color based on a vault path prefix.
- * Uses a hash of the prefix to create consistent hue, with low saturation
- * for a professional appearance that doesn't overpower explicit colors.
- */
 function generateVaultColor(vaultPrefix: string): string | undefined {
     if (!vaultPrefix) return undefined;
 
@@ -65,35 +53,26 @@ export interface ApplyGraphDeltaResult {
     newNodeIds: string[];
 }
 
-function asString(value: unknown): string | undefined {
-    return typeof value === 'string' ? value : undefined
-}
-
-function getAgentNameFromNodeElement(node: NodeElement): string | undefined {
-    const props: unknown = node.data['additionalYAMLProps']
-    if (!Array.isArray(props)) return undefined
+function getAgentNameFromNode(node: ProjectedNode): string | undefined {
+    const props: ProjectedNode['additionalYAMLProps'] = node.additionalYAMLProps
+    if (!props) return undefined
     for (const entry of props) {
-        if (Array.isArray(entry) && entry.length === 2 && entry[0] === 'agent_name') {
-            return asString(entry[1])
-        }
+        if (entry[0] === 'agent_name') return entry[1]
     }
     return undefined
 }
 
-function nodeDisplayLabel(node: NodeElement): string {
-    // Derive from markdown content when available — matches legacy getNodeTitle(node)
-    // semantics (H1 / first-line fallback to filename).
-    const content: string | undefined = asString(node.data['content'])
-    if (typeof content === 'string') {
+function nodeDisplayLabel(node: ProjectedNode): string {
+    const content: string = node.content ?? ''
+    if (content.length > 0) {
         const synthetic: { absoluteFilePathIsID: string; contentWithoutYamlOrLinks: string } = {
             absoluteFilePathIsID: node.id,
             contentWithoutYamlOrLinks: content,
         }
-        // getNodeTitle reads absoluteFilePathIsID + contentWithoutYamlOrLinks only.
         const title: string = getNodeTitle(synthetic as never)
         if (title.length > 0) return title
     }
-    if (typeof node.label === 'string' && node.label.length > 0) return node.label
+    if ((node.label ?? '').length > 0) return node.label
     const lastSlash: number = node.id.lastIndexOf('/')
     const tail: string = lastSlash >= 0 ? node.id.slice(lastSlash + 1) : node.id
     const dot: number = tail.lastIndexOf('.')
@@ -109,22 +88,17 @@ function truncatedEdgeLabel(label: string | undefined): string | undefined {
         + (clean.length > MAX_EDGE_LABEL_LENGTH ? '…' : '')
 }
 
-function colorForNode(node: NodeElement): string | undefined {
-    const frontmatter: string | undefined = asString(node.data['color'])
-    if (frontmatter && isValidCSSColor(frontmatter)) return frontmatter
+function colorForNode(node: ProjectedNode): string | undefined {
+    if (node.color && isValidCSSColor(node.color)) return node.color
     return generateVaultColor(getVaultPrefixFromNodeId(node.id))
 }
 
-function isFolderSpecNode(node: NodeElement): boolean {
+function isFolderNode(node: ProjectedNode): boolean {
     return node.kind === 'folder' || node.kind === 'folder-collapsed'
 }
 
-function isContextSpecNode(node: NodeElement): boolean {
-    return node.data['isContextNode'] === true
-}
-
-function getSpecNodeContent(node: NodeElement): string | undefined {
-    return asString(node.data['content'])
+function isContextNode(node: ProjectedNode): boolean {
+    return node.isContextNode === true
 }
 
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
@@ -150,20 +124,12 @@ function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string
     }
 }
 
-/**
- * Apply an ElementSpec to the Cytoscape UI-edge.
- *
- * BF-L5-202b: `applyGraphDeltaToUI` is now a true projection-reconciler.
- * The spec comes from `project(state)` — the cytoscape representation is
- * reconciled to exactly match the spec (`projectionVsRendered.equal = true`),
- * with VoiceTree-specific post-reconcile side-effects preserved.
- */
-export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDeltaResult {
-    const specNodes: readonly NodeElement[] = spec.nodes
-    const specEdges: readonly EdgeElement[] = spec.edges
+export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
+    const specNodes: readonly ProjectedNode[] = graph.nodes
+    const specEdges: readonly ProjectedEdge[] = graph.edges
 
-    const specNodeIds: Set<string> = new Set(specNodes.map((node: NodeElement) => node.id))
-    const specEdgeIds: Set<string> = new Set(specEdges.map((edge: EdgeElement) => edge.id))
+    const specNodeIds: Set<string> = new Set(specNodes.map((node: ProjectedNode) => node.id))
+    const specEdgeIds: Set<string> = new Set(specEdges.map((edge: ProjectedEdge) => edge.id))
 
     const newNodeIds: string[] = []
     const nodesWithoutPositions: string[] = []
@@ -195,10 +161,10 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
 
         // PASS 3 — add/update nodes from spec
         for (const specNode of specNodes) {
-            if (isContextSpecNode(specNode)) continue
+            if (isContextNode(specNode)) continue
 
             const existing: CollectionReturnValue = cy.getElementById(specNode.id)
-            const isFolder: boolean = isFolderSpecNode(specNode)
+            const isFolder: boolean = isFolderNode(specNode)
 
             if (existing.length === 0) {
                 const baseData: Record<string, unknown> = {
@@ -212,13 +178,13 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                         group: 'nodes' as const,
                         data: {
                             ...baseData,
-                            content: getSpecNodeContent(specNode) ?? '',
+                            content: specNode.content ?? '',
                             isFolderNode: true,
-                            folderLabel: asString(specNode.data['folderLabel']) ?? nodeDisplayLabel(specNode),
+                            folderLabel: specNode.label ?? nodeDisplayLabel(specNode),
                             ...(collapsed
                                 ? {
                                       collapsed: true,
-                                      childCount: specNode.data['childCount'] ?? 0,
+                                      childCount: specNode.childCount ?? 0,
                                   }
                                 : {}),
                         },
@@ -228,10 +194,9 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
 
                 // file-node
                 newNodeIds.push(specNode.id)
-                const agentName: string | undefined = getAgentNameFromNodeElement(specNode)
+                const agentName: string | undefined = getAgentNameFromNode(specNode)
                 if (agentName) agentNameByNewNodeId.set(specNode.id, agentName)
 
-                const content: string | undefined = getSpecNodeContent(specNode)
                 const color: string | undefined = colorForNode(specNode)
                 const position: { x: number; y: number } = specNode.position
                     ? { x: specNode.position.x, y: specNode.position.y }
@@ -243,7 +208,7 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                     data: {
                         ...baseData,
                         label: nodeDisplayLabel(specNode),
-                        content: content ?? '',
+                        content: specNode.content ?? '',
                         summary: '',
                         color,
                         isContextNode: false,
@@ -259,14 +224,11 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
             if (isFolder) {
                 const collapsed: boolean = specNode.kind === 'folder-collapsed'
                 existing.data('isFolderNode', true)
-                existing.data(
-                    'folderLabel',
-                    asString(specNode.data['folderLabel']) ?? nodeDisplayLabel(specNode),
-                )
-                existing.data('content', getSpecNodeContent(specNode) ?? '')
+                existing.data('folderLabel', specNode.label ?? nodeDisplayLabel(specNode))
+                existing.data('content', specNode.content ?? '')
                 if (collapsed) {
                     existing.data('collapsed', true)
-                    existing.data('childCount', specNode.data['childCount'] ?? 0)
+                    existing.data('childCount', specNode.childCount ?? 0)
                 } else {
                     if (existing.data('collapsed')) existing.removeData('collapsed')
                     if (existing.data('childCount') !== undefined) existing.removeData('childCount')
@@ -277,7 +239,7 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
             // file-node update path — preserve the previous content-changed
             // animation trigger by comparing existing cy data vs spec content.
             const previousContent: string = (existing.data('content') as string | undefined) ?? ''
-            const nextContent: string = getSpecNodeContent(specNode) ?? ''
+            const nextContent: string = specNode.content ?? ''
             existing.data('label', nodeDisplayLabel(specNode))
             existing.data('content', nextContent)
             existing.data('summary', '')
@@ -288,18 +250,6 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                 existing.data('color', nextColor)
             }
             existing.data('isContextNode', false)
-            if (specNode.position !== undefined) {
-                const currentPosition: { x: number; y: number } = existing.position()
-                if (
-                    currentPosition.x !== specNode.position.x
-                    || currentPosition.y !== specNode.position.y
-                ) {
-                    existing.position({
-                        x: specNode.position.x,
-                        y: specNode.position.y,
-                    })
-                }
-            }
             if (hasActualContentChanged(previousContent, nextContent)) {
                 existing.emit('content-changed')
             }
@@ -321,7 +271,8 @@ export function applyGraphDeltaToUI(cy: Core, spec: ElementSpec): ApplyGraphDelt
                 source: specEdge.source,
                 target: specEdge.target,
                 label: truncatedEdgeLabel(specEdge.label),
-                ...specEdge.data,
+                kind: specEdge.kind,
+                ...(specEdge.edgeCount !== undefined ? { edgeCount: specEdge.edgeCount } : {}),
             }
             cy.add({
                 group: 'edges' as const,

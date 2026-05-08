@@ -1,4 +1,4 @@
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {FloatingWindowFields} from "@/shell/edge/UI-edge/floating-windows/types";
 
 export type EditorData = FloatingWindowFields & {

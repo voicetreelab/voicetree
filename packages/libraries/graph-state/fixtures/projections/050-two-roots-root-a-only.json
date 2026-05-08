@@ -1,0 +1,44 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "050-two-roots-root-a-only",
+  "sourceSnapshot": "050-two-roots-root-a-only",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
+        "label": "overview",
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# overview\n\nTop-level summary.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder",
+        "label": "tasks",
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
+        "kind": "file",
+        "label": "seed",
+        "relPath": "tasks/seed.md",
+        "basename": "seed",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "parent": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "content": "# seed\n\nCore task file.\n"
+      }
+    ],
+    "edges": [],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [],
+    "arboricity": 0
+  }
+}

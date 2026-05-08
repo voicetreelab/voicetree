@@ -4,10 +4,11 @@ import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk, loadVaultPathAdditively, type FileLimitExceededError } from '@vt/graph-model'
-import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/pure/graph'
-import { createGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import { loadGraphFromDisk, loadVaultPathAdditively } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
+import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
+import { getNodeTitle } from '@vt/graph-model/markdown'
 
 describe('loadGraphFromDisk', () => {
   const testVaultPaths: { testVault: string; emptyVault: string; } = {

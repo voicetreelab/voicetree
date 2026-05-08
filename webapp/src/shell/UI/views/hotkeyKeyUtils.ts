@@ -29,7 +29,7 @@ export function getHotkeyKeyFromEvent(e: KeyboardEvent): string {
   if (e.altKey) modifiers.push('Alt');
   if (e.shiftKey) modifiers.push('Shift');
 
-  let key: string = normalizeKeyboardEventKey(e);
+  const key: string = normalizeKeyboardEventKey(e);
 
   return getHotkeyKey(key, modifiers);
 }

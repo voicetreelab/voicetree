@@ -6,7 +6,7 @@ import '@/shell/UI/sse-status-panel/status-panel.css'
 import App from '@/shell/UI/App'
 import posthog from 'posthog-js'
 import { setupUIRpcHandler } from '@/shell/edge/UI-edge/ui-rpc-handler'
-import type { VTSettings } from '@vt/graph-model/pure/settings'
+import type { VTSettings } from '@vt/graph-model/settings'
 import { ringBuffer } from '@/shell/edge/renderer/debug/consoleBuffer'
 import { snapshot as buttonSnapshot, _register, _unregister } from '@/shell/edge/renderer/debug/buttonRegistry'
 import {
@@ -56,7 +56,13 @@ if (platform.includes('win')) {
 const posthogKey: string = import.meta.env.VITE_POSTHOG_API_KEY ?? 'phc_9HwDyrBRxdnreXdiWAKfETGaMSHLDk6mlsuOfOpcsGM'
 const posthogHost: string = import.meta.env.VITE_POSTHOG_HOST ?? 'https://us.i.posthog.com'
 const isTestMode: boolean = import.meta.env.MODE === 'test' || import.meta.env.VITE_E2E_TEST === 'true'
-const analyticsDisabled: boolean = import.meta.env.VITE_DISABLE_ANALYTICS === 'true' || isTestMode
+// Runtime perf-mode signal from preload (set by perf specs / NODE_ENV=test).
+// import.meta.env values are baked at build time, so production builds run by
+// the perf harness need this runtime gate to actually skip the session recorder.
+const perfModeFromPreload: boolean =
+  (window as unknown as { voicetreeEnv?: { perfMode?: boolean } }).voicetreeEnv?.perfMode === true
+const analyticsDisabled: boolean =
+  import.meta.env.VITE_DISABLE_ANALYTICS === 'true' || isTestMode || perfModeFromPreload
 
 if (!analyticsDisabled) {
   posthog.init(posthogKey, {

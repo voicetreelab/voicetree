@@ -21,7 +21,7 @@ import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-stat
 import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type { VTSettings } from '@vt/graph-model/pure/settings/types';
+import type { VTSettings } from '@vt/graph-model/settings';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 import { isSelected } from '@vt/graph-state/state/selectionStore';
@@ -182,6 +182,15 @@ export class NavigationGestureService {
     private zoomAtCursor(e: WheelEvent): void {
         let delta: number = e.deltaY;
         if (delta === 0) return;
+
+        // Sync currentZoom from layout store in case external navigation
+        // (fitToTerminal, search nav, etc.) changed the viewport since our last write.
+        if (!this.zoomAnimating) {
+            const storeZoom: number | undefined = getLayout().zoom;
+            if (storeZoom !== undefined) {
+                this.currentZoom = storeZoom;
+            }
+        }
 
         let clamp: boolean = false;
         const wheelDeltaN: number = 4;

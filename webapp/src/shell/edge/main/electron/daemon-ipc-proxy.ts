@@ -1,15 +1,15 @@
 import * as O from 'fp-ts/lib/Option.js'
 
-import { buildFolderTree, getExternalReadPaths, toAbsolutePath, type AbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
+import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
-import { getVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
+import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
-import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
-import { getStarredFolders } from '@/shell/edge/main/graph/watch_folder/starredFolders'
 import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
@@ -20,6 +20,14 @@ import {
   type CachedDaemonConnection,
 } from './graph-daemon'
 import { buildGraphDiff, getNormalizedDaemonGraph } from './daemon-graph-normalization'
+import { isLoadTimingActive, markLoadTiming } from '@/shell/edge/main/diagnostics/loadTiming'
+import {
+  isDaemonSSEActive,
+  subscribeToDaemonSSE,
+  unsubscribeFromDaemonSSE,
+} from './daemon-sse-subscription'
+import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
+import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
 
 type DaemonClient = Awaited<
   ReturnType<typeof ensureDaemonClientForVault>
@@ -29,7 +37,6 @@ type CurrentDaemonConnection = {
   vault: string
 }
 type DesiredVaultState = Awaited<ReturnType<typeof getDesiredVaultStateForBootstrap>>
-type FolderTreeSyncPayload = Awaited<ReturnType<typeof buildFolderTreeSyncPayload>>
 type NodePosition = GraphNode['nodeUIMetadata']['position']
 
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
@@ -45,7 +52,7 @@ async function getConfiguredWritePathForCurrentVault(): Promise<string | null> {
   if (!vault) {
     return null
   }
-  const config = await getVaultConfigForDirectory(vault)
+  const config: VaultConfig | undefined = await getVaultConfigForDirectory(vault)
   return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
 }
 
@@ -133,19 +140,11 @@ function graphWithLocalPositionOverlays(
 
 async function getCurrentVaultOrThrow(): Promise<string> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
-  if (activeConnection) {
-    return activeConnection.vault
-  }
-
+  if (activeConnection) return activeConnection.vault
   const writePath: string | null = await getConfiguredWritePathForCurrentVault()
-  if (writePath) {
-    return writePath
-  }
-
+  if (writePath) return writePath
   const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) {
-    throw new Error('Watched directory not initialized')
-  }
+  if (!vault) throw new Error('Watched directory not initialized')
   return vault
 }
 
@@ -169,6 +168,16 @@ function resetCachesForVault(vault: string): void {
   cachedVault = vault
   rendererSessionId = null
   sessionSyncCache = null
+  unsubscribeFromDaemonSSE()
+}
+
+function subscribeRendererSessionToDaemon(client: DaemonClient, sessionId: string): void {
+  if (isDaemonSSEActive()) return
+
+  const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
 
 async function getDaemonClientForCurrentVault(): Promise<{
@@ -184,65 +193,6 @@ async function getDaemonClientForCurrentVault(): Promise<{
   return { client: connection.client, vault }
 }
 
-async function buildFolderTreeSyncPayload(
-  vaultState: VaultState,
-  graph: Graph,
-): Promise<{
-  externalTrees: Record<string, FolderTreeNode>
-  rootTree: FolderTreeNode | null
-  starredFolders: readonly string[]
-  starredTrees: Record<string, FolderTreeNode>
-}> {
-  const loadedPaths: Set<string> = new Set<string>([
-    ...vaultState.readPaths,
-    vaultState.writePath,
-  ])
-  const writePath: AbsolutePath = toAbsolutePath(vaultState.writePath)
-  const graphFilePaths: Set<string> = new Set<string>(Object.keys(graph.nodes))
-
-  let rootTree: FolderTreeNode | null = null
-  try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.vaultPath)
-    rootTree = buildFolderTree(rootEntry, loadedPaths, writePath, graphFilePaths)
-  } catch {
-    rootTree = null
-  }
-
-  const starredFolders: readonly string[] = await getStarredFolders()
-
-  const starredTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of starredFolders) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      starredTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writePath,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable starred folders; this matches the existing push path.
-    }
-  }
-
-  const externalTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of getExternalReadPaths(vaultState.readPaths, vaultState.vaultPath)) {
-    try {
-      const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
-      externalTrees[folder] = buildFolderTree(
-        entry,
-        loadedPaths,
-        writePath,
-        graphFilePaths,
-      )
-    } catch {
-      // Ignore unreadable external trees; this matches the existing push path.
-    }
-  }
-
-  return { externalTrees, rootTree, starredFolders, starredTrees }
-}
-
 async function syncRendererFromDaemon(
   previousGraph: Graph,
   nextGraph: Graph,
@@ -251,6 +201,10 @@ async function syncRendererFromDaemon(
   const delta: GraphDelta = buildGraphDiff(previousGraph, nextGraph)
   if (delta.length > 0) {
     broadcastGraphDeltaToUI(delta)
+    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('graph:stateChanged', delta)
+    }
   }
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
@@ -270,22 +224,37 @@ async function syncRendererFromDaemon(
 
 async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
   const previousGraph: Graph = getLocalGraph()
+  const timingActive: boolean = isLoadTimingActive() && Object.keys(previousGraph.nodes).length === 0
+  if (timingActive) markLoadTiming('main:daemon-get-graph-start')
   const daemonGraph: Graph = await getNormalizedDaemonGraph(client)
+  if (timingActive) {
+    markLoadTiming('main:daemon-get-graph-end', {
+      nodeCount: Object.keys(daemonGraph.nodes).length,
+    })
+  }
   const nextGraph: Graph = graphWithLocalPositionOverlays(daemonGraph, previousGraph)
   const vaultState: VaultState = await client.getVault()
 
   setLocalGraph(nextGraph)
+  if (timingActive) {
+    markLoadTiming('main:graph-populated', {
+      nodeCount: Object.keys(nextGraph.nodes).length,
+    })
+  }
   await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
+  if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
 
 async function ensureRendererSession(client: DaemonClient): Promise<string> {
   if (rendererSessionId) {
     try {
       await client.getSession(rendererSessionId)
+      subscribeRendererSessionToDaemon(client, rendererSessionId)
       return rendererSessionId
     } catch {
       rendererSessionId = null
       sessionSyncCache = null
+      unsubscribeFromDaemonSSE()
     }
   }
 
@@ -298,6 +267,7 @@ async function ensureRendererSession(client: DaemonClient): Promise<string> {
     pan: undefined,
     zoom: undefined,
   }
+  subscribeRendererSessionToDaemon(client, created.sessionId)
   return created.sessionId
 }
 
@@ -315,18 +285,6 @@ async function syncRendererSessionState(
         pan: undefined,
         zoom: undefined,
       }
-
-  for (const folderId of localState.collapseSet) {
-    if (!previous.collapseSet.has(folderId)) {
-      await client.collapse(sessionId, folderId)
-    }
-  }
-
-  for (const folderId of previous.collapseSet) {
-    if (!localState.collapseSet.has(folderId)) {
-      await client.expand(sessionId, folderId)
-    }
-  }
 
   if (!sameStringSet(previous.selection, localState.selection)) {
     await client.setSelection(sessionId, {
@@ -394,7 +352,27 @@ async function buildSerializedRoots(
   }
 }
 
+const inflightVaultMutations: Map<string, Promise<VaultState>> = new Map()
+
 async function runVaultMutation(
+  key: string,
+  mutate: (client: DaemonClient) => Promise<VaultState>,
+): Promise<VaultState> {
+  const existing: Promise<VaultState> | undefined = inflightVaultMutations.get(key)
+  if (existing) return existing
+
+  const pending: Promise<VaultState> = doRunVaultMutation(mutate)
+  inflightVaultMutations.set(key, pending)
+  try {
+    return await pending
+  } finally {
+    if (inflightVaultMutations.get(key) === pending) {
+      inflightVaultMutations.delete(key)
+    }
+  }
+}
+
+async function doRunVaultMutation(
   mutate: (client: DaemonClient) => Promise<VaultState>,
 ): Promise<VaultState> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
@@ -412,6 +390,23 @@ export async function getGraphFromDaemon(): Promise<Graph> {
   return graphWithLocalPositionOverlays(await getNormalizedDaemonGraph(client), getLocalGraph())
 }
 
+export async function getProjectedGraphFromDaemon(): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.getProjectedGraph(sessionId)
+}
+
+export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  await client.postDelta(delta as unknown[], sessionId)
+}
+
+export async function postDeltaThroughDaemonWithEditors(delta: GraphDelta): Promise<void> {
+  await postDeltaThroughDaemon(delta)
+  getCallbacks().onFloatingEditorUpdate?.(delta)
+}
+
 export async function getNodeFromDaemon(
   nodeId: string,
 ): Promise<GraphNode | undefined> {
@@ -419,7 +414,8 @@ export async function getNodeFromDaemon(
   return graph.nodes[nodeId]
 }
 
-export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState> {
+export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
+  if (!getProjectRootWatchedDirectory() && !getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   const sessionId: string = await syncRendererSessionState(client, localState)
@@ -449,6 +445,18 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   return await syncRendererSessionState(client, localState)
 }
 
+export async function collapseFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.collapse(sessionId, folderId)
+}
+
+export async function expandFolderThroughDaemon(folderId: string): Promise<unknown> {
+  const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
+  const sessionId: string = await ensureRendererSession(client)
+  return await client.expand(sessionId, folderId)
+}
+
 export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
   if (!activeConnection) {
@@ -463,15 +471,15 @@ export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
 }
 
 export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.addReadPath(path))
+  return await runVaultMutation(`addReadPath:${path}`, (client) => client.addReadPath(path))
 }
 
 export async function removeReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.removeReadPath(path))
+  return await runVaultMutation(`removeReadPath:${path}`, (client) => client.removeReadPath(path))
 }
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation((client) => client.setWritePath(path))
+  return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
 }
 
 export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
@@ -500,4 +508,5 @@ export function __resetDaemonIpcProxyStateForTests(): void {
   cachedVault = null
   rendererSessionId = null
   sessionSyncCache = null
+  unsubscribeFromDaemonSSE()
 }

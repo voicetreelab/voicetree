@@ -22,6 +22,11 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {command: 'vt session create', routeId: 'session.create'},
     {command: 'vt session delete', routeId: 'session.delete'},
     {command: 'vt session show', routeId: 'session.show'},
+    {
+        command: 'vt session events',
+        routeId: 'session.events',
+        notes: 'SSE stream consumed by the Electron renderer for real-time graph delta notifications; not a user-facing CLI subcommand.',
+    },
     {command: 'vt view show', routeId: 'view.show'},
     {command: 'vt view collapse', routeId: 'view.collapse'},
     {command: 'vt view expand', routeId: 'view.expand'},
@@ -31,9 +36,11 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     {command: 'vt view layout set-pan', routeId: 'view.layout'},
     {command: 'vt view layout set-zoom', routeId: 'view.layout'},
     {command: 'vt view layout set-positions', routeId: 'view.layout'},
-    {command: 'vt graph structure', routeId: 'graph.read'},
-    {command: 'vt graph view', routeId: 'graph.read'},
+    {command: 'vt graph structure', routeId: 'graph.view'},
+    {command: 'vt graph view', routeId: 'graph.view'},
     {command: 'vt graph lint', routeId: 'graph.read'},
+    {command: 'vt graph create', routeId: 'graph.delta'},
+    {command: 'vt graph delete-node', routeId: 'graph.delete-node'},
     {
         command: 'vt graph index',
         routeId: null,
@@ -51,6 +58,11 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
     },
     {
         command: 'vt graph mv',
+        routeId: null,
+        notes: 'Runs through @vt/graph-tools filesystem helpers and does not call vt-graphd.',
+    },
+    {
+        command: 'vt graph group',
         routeId: null,
         notes: 'Runs through @vt/graph-tools filesystem helpers and does not call vt-graphd.',
     },

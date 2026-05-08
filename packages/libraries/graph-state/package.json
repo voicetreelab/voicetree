@@ -1,0 +1,39 @@
+{
+  "name": "@vt/graph-state",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Unified data-layer contract for VoiceTree: State + Command + project/applyCommand signatures. Contract-only (BF-138). Implementation lands in BF-142+.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.d.ts",
+    "./applyCommand": "./src/applyCommand.ts",
+    "./emptyState": "./src/emptyState.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./fixtures/serialization": "./src/fixtures/serialization.ts",
+    "./project": "./src/project.ts",
+    "./state/collapseSetStore": "./src/state/collapseSetStore.ts",
+    "./state/selectionStore": "./src/state/selectionStore.ts",
+    "./state/loadedRootsStore": "./src/state/loadedRootsStore.ts",
+    "./state/layoutStore": "./src/state/layoutStore.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/trivial-consumer-smoke.ts",
+    "test": "node ../../../node_modules/vitest/vitest.mjs run",
+    "bench": "node --import tsx scripts/project-bench.ts"
+  },
+  "dependencies": {
+    "@vt/graph-model": "*",
+    "fp-ts": "^2.16.9"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.4",
+    "cytoscape": "^3.33.1",
+    "@types/cytoscape": "^3.21.9",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -2,7 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
-import { getMcpPort } from '@/shell/edge/main/mcp-server/mcp-server';
+import { getMcpPort } from '@vt/voicetree-mcp';
 import { getProjectRootWatchedDirectory, getStartupFolderOverride } from '@/shell/edge/main/state/watch-folder-store';
 import { getConfiguredCdpPort } from './environment-config';
 
@@ -18,18 +18,18 @@ function getInstanceFilePath(): string {
 
 // Poll DevToolsActivePort until the CDP server writes it (typically <100 ms after app.ready).
 async function resolveCdpPort(): Promise<number> {
-    const configured = getConfiguredCdpPort();
+    const configured: string | null = getConfiguredCdpPort();
     if (configured === null) return 0;
 
-    const port = parseInt(configured, 10);
+    const port: number = parseInt(configured, 10);
     if (port !== 0) return port;
 
     // Ephemeral (port 0): read the file Chromium writes after binding.
-    const devToolsFile = path.join(app.getPath('userData'), 'DevToolsActivePort');
-    for (let i = 0; i < 40; i++) {
+    const devToolsFile: string = path.join(app.getPath('userData'), 'DevToolsActivePort');
+    for (let i: number = 0; i < 40; i++) {
         try {
-            const content = fs.readFileSync(devToolsFile, 'utf-8');
-            const resolved = parseInt(content.split('\n')[0].trim(), 10);
+            const content: string = fs.readFileSync(devToolsFile, 'utf-8');
+            const resolved: number = parseInt(content.split('\n')[0].trim(), 10);
             if (!isNaN(resolved) && resolved > 0) return resolved;
         } catch { /* not written yet */ }
         await new Promise<void>(resolve => setTimeout(resolve, 50));
@@ -37,22 +37,30 @@ async function resolveCdpPort(): Promise<number> {
     return 0;
 }
 
+interface InstanceRecord {
+    readonly pid: number;
+    readonly vaultPath: string;
+    readonly mcpPort: number;
+    readonly cdpPort: number;
+    readonly startedAt: string;
+}
+
 export async function registerInstance(): Promise<void> {
-    const cdpPort = await resolveCdpPort();
-    const vaultPath =
+    const cdpPort: number = await resolveCdpPort();
+    const vaultPath: string =
         process.env.VOICETREE_VAULT_PATH ??
         getStartupFolderOverride() ??
         getProjectRootWatchedDirectory() ??
         '';
-    const mcpPort = getMcpPort();
-    const instance = {
+    const mcpPort: number = getMcpPort();
+    const instance: InstanceRecord = {
         pid: process.pid,
         vaultPath,
         mcpPort,
         cdpPort,
         startedAt: new Date().toISOString(),
     };
-    const dir = getInstancesDir();
+    const dir: string = getInstancesDir();
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(getInstanceFilePath(), JSON.stringify(instance, null, 2), 'utf-8');
 }

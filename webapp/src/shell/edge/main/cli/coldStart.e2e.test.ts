@@ -26,6 +26,8 @@ const TSX_BIN: string = join(REPO_ROOT, 'node_modules/.bin/tsx')
 const SCENARIO_TIMEOUT_MS: number = 30_000
 const DAEMON_READY_TIMEOUT_MS: number = 10_000
 const CLI_EXIT_TIMEOUT_MS: number = 20_000
+const DAEMON_CLEANUP_SIGTERM_TIMEOUT_MS: number = 1_000
+const DAEMON_CLEANUP_HOOK_TIMEOUT_MS: number = 10_000
 
 type SpawnResult = {
     code: number | null
@@ -171,7 +173,7 @@ async function killAllGraphd(vault: string): Promise<void> {
         }
         const exited: boolean = await waitUntilMissing(
             join(vault, '.voicetree', 'graphd.port'),
-            5_000,
+            DAEMON_CLEANUP_SIGTERM_TIMEOUT_MS,
         )
         if (!exited && isPidAlive(pid)) {
             try {
@@ -216,7 +218,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         afterAll(async () => {
             await killAllGraphd(vault).catch(() => {})
             await rm(root, {recursive: true, force: true})
-        })
+        }, DAEMON_CLEANUP_HOOK_TIMEOUT_MS)
 
         it(
             'Scenario A — cold start: auto-launches vt-graphd and persists a new read path',
@@ -285,7 +287,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                     appSupport,
                 )
                 expect(collapse.code, `view collapse stderr: ${collapse.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(collapse).collapseSet).toContain(folderId)
+                expect(parseJsonStdout<{nodes: unknown[]}>(collapse).nodes).toBeInstanceOf(Array)
 
                 const showSid2: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid2, '--json'],

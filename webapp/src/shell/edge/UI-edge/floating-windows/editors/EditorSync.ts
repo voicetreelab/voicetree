@@ -1,12 +1,12 @@
 import type {Core} from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {GraphDelta} from '@vt/graph-model/pure/graph';
+import type {GraphDelta} from '@vt/graph-model/graph';
 import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/types';
 import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
-import {fromNodeToContentWithWikilinks} from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown';
-import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/pure/graph/contentChangeDetection";
+import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
+import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/graph";
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {closeEditor} from './FloatingEditorCRUD';
 
@@ -19,7 +19,7 @@ import {closeEditor} from './FloatingEditorCRUD';
  * For each node upsert, check if there's an open editor and update its content
  * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
  */
-export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
+export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuard: boolean = false): void {
     for (const nodeDelta of delta) {
         if (nodeDelta.type === 'UpsertNode') {
             const nodeId: string = nodeDelta.nodeToUpsert.absoluteFilePathIsID;
@@ -38,42 +38,51 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta): void {
 
                 if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
+                    const currentEditorContent: string = cmEditor.getValue();
 
-                    // Skip programmatic updates while the user is actively typing.
-                    // The autosave round-trip echoes the user's own save back to
-                    // the editor; if the user has typed past that snapshot in the
-                    // ~300ms debounce window, replacing the doc would clobber the
-                    // newer characters. The user's edits remain the source of
-                    // truth — externally-applied changes (e.g., wikilinks added
-                    // by another tool) will sync the next time the editor is
-                    // unfocused.
-                    if (cmEditor.isFocused()) {
+                    if (currentEditorContent === newContent) {
                         continue;
                     }
 
-                    const currentEditorContent: string = cmEditor.getValue();
-
-                    // Only update if content has changed to avoid cursor jumps
-                    // Note: setValue() won't trigger onChange - CM6 isUserEvent check filters out programmatic changes
-                    if (currentEditorContent !== newContent) {
-                        // Check if this is an append-only change (e.g., link addition)
-                        // If so, append to current editor content to preserve unsaved user edits
-                        if (O.isSome(nodeDelta.previousNode)) {
-                            const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
-                            if (currentEditorContent !== prevContent) {
+                    // Append-only changes (e.g., wikilink edge from child creation)
+                    // are safe to apply regardless of focus or unsaved edits —
+                    // they only add to the end, so they won't clobber typing.
+                    if (O.isSome(nodeDelta.previousNode)) {
+                        const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                        if (isAppendOnly(prevContent, newContent)) {
+                            // If the editor already contains all of newContent
+                            // (typically because it has typed past an autosave
+                            // whose echo we're seeing now), this delta is
+                            // redundant — re-appending the suffix would
+                            // duplicate it.
+                            if (currentEditorContent.startsWith(newContent)) {
                                 continue;
                             }
-                            if (isAppendOnly(prevContent, newContent)) {
-                                const suffix: string = getAppendedSuffix(prevContent, newContent);
-                                //console.log('[FloatingEditorManager-v2] Appending to editor for node:', nodeId, 'suffix:', suffix);
+                            const suffix: string = getAppendedSuffix(prevContent, newContent);
+                            if (!currentEditorContent.endsWith(suffix)) {
                                 cmEditor.setValue(currentEditorContent + suffix);
-                                continue;
                             }
+                            continue;
                         }
-                        // Full replacement for non-append changes
-                        //console.log('[FloatingEditorManager-v2] Updating editor content for node:', nodeId);
-                        cmEditor.setValue(newContent);
                     }
+
+                    // Skip non-append programmatic updates while the user is
+                    // actively typing — the autosave round-trip would clobber
+                    // newer characters.  In daemon mode, echo filtering happens
+                    // at the SSE layer so all deltas reaching here are external;
+                    // skipFocusGuard bypasses this guard for those.
+                    if (!skipFocusGuard && cmEditor.isFocused()) {
+                        continue;
+                    }
+
+                    if (O.isSome(nodeDelta.previousNode)) {
+                        const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
+                        if (currentEditorContent !== prevContent) {
+                            continue;
+                        }
+                    }
+
+                    cmEditor.setValue(newContent);
                 }
             }
         } else if (nodeDelta.type === 'DeleteNode') {

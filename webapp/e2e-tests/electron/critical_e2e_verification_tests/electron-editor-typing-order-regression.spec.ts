@@ -8,6 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -48,6 +49,7 @@ async function seedProject(projectPath: string): Promise<string> {
 }
 
 function resolveGraphdNodeBin(): string | undefined {
+  const requiredModules = process.versions.modules;
   const candidates: readonly string[] = [
     process.env.VT_GRAPHD_NODE_BIN,
     process.env.npm_node_execpath,
@@ -58,7 +60,7 @@ function resolveGraphdNodeBin(): string | undefined {
   return candidates.find((candidate) => {
     if (!existsSync(candidate)) return false;
     try {
-      return execFileSync(candidate, ['-p', 'process.versions.modules'], { encoding: 'utf8' }).trim() === '127';
+      return execFileSync(candidate, ['-p', 'process.versions.modules'], { encoding: 'utf8' }).trim() === requiredModules;
     } catch {
       return false;
     }
@@ -108,8 +110,12 @@ const test = base.extend<{
       'utf8',
     );
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${userDataPath}`,
       ],
@@ -126,15 +132,8 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        await (window as unknown as ExtendedWindow).electronAPI?.main.stopFileWatching();
-      });
-    } catch {
-      // The app may already be closed after a failed launch.
-    }
-    await electronApp.close();
+    await safeStopFileWatching(electronApp);
+    await robustElectronTeardown(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 
@@ -146,13 +145,13 @@ const test = base.extend<{
     await window.waitForFunction(
       () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
       undefined,
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     );
     try {
       await window.waitForFunction(
         () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
         undefined,
-        { timeout: 10_000 },
+        { timeout: 20_000 },
       );
     } catch (error) {
       const diagnostics = await window.evaluate(async () => {
@@ -175,6 +174,22 @@ const test = base.extend<{
         cause: error,
       });
     }
+    await window.waitForFunction(
+      async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        const watchStatus = await api?.main.getWatchStatus();
+        const bodyText = document.body.textContent ?? '';
+        return Boolean(
+          watchStatus?.isWatching
+            && (cy?.nodes().length ?? 0) >= 1
+            && !bodyText.includes('Loading Voicetree'),
+        );
+      },
+      undefined,
+      { timeout: 10_000 },
+    );
+    await window.waitForTimeout(1_000);
     await use(window);
   },
 });
@@ -182,6 +197,15 @@ const test = base.extend<{
 test.describe.configure({ timeout: 75_000 });
 
 test('preserves character-by-character editor typing after autosave and file watcher settle', async ({ appWindow, writePath }) => {
+  await appWindow.waitForFunction(
+    () => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return Boolean(cy?.nodes().some((node) => node.data('label') === 'Typing Target'));
+    },
+    undefined,
+    { timeout: 10_000 },
+  );
+
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     if (!cy) throw new Error('Cytoscape not initialized');
@@ -194,10 +218,11 @@ test('preserves character-by-character editor typing after autosave and file wat
   const editorWindowId = `window-${nodeId}-editor`;
   const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
   await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
-  await editorContent.click();
 
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
+      const windowElement = document.getElementById(winId);
+      windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
       const editorFocused = document.activeElement === editorElement
         || Boolean(document.activeElement?.closest('.cm-editor'));
@@ -219,7 +244,14 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   for (let i = 0; i < expectedContent.length; i++) {
     const character = expectedContent[i];
-    await appWindow.keyboard.type(character);
+    await appWindow.evaluate((winId) => {
+      document.getElementById(winId)?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    }, editorWindowId);
+    if (character === '\n') {
+      await appWindow.keyboard.press('Enter');
+    } else {
+      await appWindow.keyboard.insertText(character);
+    }
     await appWindow.waitForTimeout(seededDelay(i + 1));
 
     if (character === ' ') {
@@ -230,7 +262,8 @@ test('preserves character-by-character editor typing after autosave and file wat
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-        return editorElement?.textContent ?? null;
+        const text = editorElement?.innerText;
+        return text === undefined ? null : text.replace(/\n$/, '');
       }, editorWindowId);
     }, {
       message: `Waiting for editor to preserve typed prefix through autosave cycle ${i + 1}`,
@@ -241,7 +274,8 @@ test('preserves character-by-character editor typing after autosave and file wat
   await expect.poll(async () => {
     return appWindow.evaluate((winId) => {
       const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-      return editorElement?.textContent ?? null;
+      const text = editorElement?.innerText;
+      return text === undefined ? null : text.replace(/\n$/, '');
     }, editorWindowId);
   }, {
     message: 'Waiting for CodeMirror to contain the exact typed document',
@@ -252,11 +286,86 @@ test('preserves character-by-character editor typing after autosave and file wat
 
   const settled = await appWindow.evaluate((winId) => {
     const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
-    return editorElement?.textContent ?? null;
+    const text = editorElement?.innerText;
+    return text === undefined ? null : text.replace(/\n$/, '');
   }, editorWindowId);
   expect(settled).toBe(expectedContent);
 
   const savedContent = await fs.readFile(path.join(writePath, 'Typing Target.md'), 'utf8');
   expect(savedContent).toContain(expectedContent);
   expect(savedContent).toMatch(/^---\n/);
+});
+
+test('merges external daemon SSE append while the editor is focused and typing', async ({ appWindow, writePath }) => {
+  await appWindow.evaluate(async () => {
+    const api = (window as unknown as ExtendedWindow).electronAPI;
+    await api?.main.syncRendererSessionStateWithDaemon();
+  });
+
+  await appWindow.waitForFunction(
+    () => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return Boolean(cy?.nodes().some((node) => node.data('label') === 'Typing Target'));
+    },
+    undefined,
+    { timeout: 10_000 },
+  );
+
+  const nodeId = await appWindow.evaluate(() => {
+    const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+    if (!cy) throw new Error('Cytoscape not initialized');
+    const target = cy.nodes().find((node) => node.data('label') === 'Typing Target');
+    if (!target) throw new Error('Typing Target node not found');
+    target.trigger('tap');
+    return target.id();
+  });
+
+  const editorWindowId = `window-${nodeId}-editor`;
+  const editorContent = appWindow.locator(`${idSelector(editorWindowId)} .cm-content`);
+  await editorContent.waitFor({ state: 'visible', timeout: 5_000 });
+
+  await expect.poll(async () => {
+    return appWindow.evaluate((winId) => {
+      const windowElement = document.getElementById(winId);
+      windowElement?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      const editorFocused = document.activeElement === editorElement
+        || Boolean(document.activeElement?.closest('.cm-editor'));
+      return editorFocused;
+    }, editorWindowId);
+  }, {
+    message: 'Waiting for CodeMirror editor focus',
+    timeout: 5_000,
+  }).toBe(true);
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await appWindow.keyboard.press(`${modifier}+A`);
+
+  const userText = 'user is typing this while the daemon is active';
+  const agentText = '## Agent Section\nagent wrote this';
+  const typing = appWindow.keyboard.type(userText, { delay: 80 });
+
+  await appWindow.waitForTimeout(500);
+  await fs.appendFile(path.join(writePath, 'Typing Target.md'), `\n\n${agentText}\n`, 'utf8');
+  await typing;
+  await appWindow.waitForTimeout(1_000);
+
+  await expect.poll(async () => {
+    const text = await appWindow.evaluate((winId) => {
+      const editorElement = document.querySelector(`#${CSS.escape(winId)} .cm-content`) as CodeMirrorElement | null;
+      return editorElement?.cmView?.view.state.doc.toString() ?? '';
+    }, editorWindowId);
+    return text.includes(userText) && text.includes(agentText);
+  }, {
+    message: 'Waiting for focused editor to contain both user typing and external agent append',
+    timeout: 10_000,
+  }).toBe(true);
+
+  await expect.poll(async () => {
+    const content = await fs.readFile(path.join(writePath, 'Typing Target.md'), 'utf8');
+    return content.includes(userText) && content.includes(agentText);
+  }, {
+    message: 'Waiting for file to contain both user typing and external agent append',
+    timeout: 10_000,
+  }).toBe(true);
 });

@@ -9,7 +9,6 @@
 import { createElement, useState } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-// @ts-expect-error CSS import - types declared in vite-env.d.ts
 import './styles/speed-dial-side-graph-floating-menu.css';
 
 // =============================================================================

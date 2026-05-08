@@ -6,11 +6,11 @@
  */
 
 import type cytoscape from 'cytoscape';
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
-import type { ObstacleBBox } from '@vt/graph-model/pure/graph/positioning/findBestPosition';
-import { boxObstacle, segmentObstacle } from '@vt/graph-model/pure/graph/positioning/findBestPosition';
-import type { Obstacle } from '@vt/graph-model/pure/graph/positioning/findBestPosition';
-import type { EdgeSegment } from '@vt/graph-model/pure/graph/geometry';
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
+import type { ObstacleBBox } from '@vt/graph-model/spatial';
+import { boxObstacle, segmentObstacle } from '@vt/graph-model/spatial';
+import type { Obstacle } from '@vt/graph-model/spatial';
+import type { EdgeSegment } from '@vt/graph-model/spatial';
 
 /**
  * Extract obstacle bounding boxes from the cytoscape neighborhood of a node.

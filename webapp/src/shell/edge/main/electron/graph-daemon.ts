@@ -1,6 +1,11 @@
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { ensureDaemon, GraphDbClient } from '@vt/graph-db-client'
+import {
+  DaemonLockHeldError,
+  ensureDaemon,
+  GraphDbClient,
+  terminateUnresponsiveDaemon,
+} from '@vt/graph-db-client'
 
 export interface CachedDaemonConnection {
   client: GraphDbClient
@@ -47,16 +52,38 @@ async function isHealthyForVault(
   }
 }
 
+async function ensureDaemonWithOrphanRecovery(
+  vault: string,
+  opts?: { timeoutMs?: number },
+): Promise<Awaited<ReturnType<typeof ensureDaemon>>> {
+  try {
+    return await ensureDaemon(vault, opts)
+  } catch (err) {
+    if (!(err instanceof DaemonLockHeldError)) throw err
+    const terminated = await terminateUnresponsiveDaemon(vault, err.pid)
+    if (!terminated) throw err
+    return await ensureDaemon(vault, opts)
+  }
+}
+
 async function buildConnection(
   vault: string,
   opts?: { timeoutMs?: number },
 ): Promise<CachedDaemonConnection> {
-  const bootstrap = await ensureDaemon(vault, opts)
-  const client = new GraphDbClient({
+  let bootstrap = await ensureDaemonWithOrphanRecovery(vault, opts)
+  let client = new GraphDbClient({
     baseUrl: `http://127.0.0.1:${bootstrap.port}`,
   })
-  const health = await client.health()
 
+  if (!bootstrap.launched) {
+    await client.shutdown().catch(() => {})
+    bootstrap = await ensureDaemonWithOrphanRecovery(vault, opts)
+    client = new GraphDbClient({
+      baseUrl: `http://127.0.0.1:${bootstrap.port}`,
+    })
+  }
+
+  const health = await client.health()
   if (health.vault !== vault) {
     throw new Error(
       `vt-graphd health reported vault ${health.vault}, expected ${vault}`,
@@ -65,7 +92,7 @@ async function buildConnection(
 
   return {
     client,
-    launched: bootstrap.launched,
+    launched: true,
     pid: bootstrap.pid,
     port: bootstrap.port,
     vault,

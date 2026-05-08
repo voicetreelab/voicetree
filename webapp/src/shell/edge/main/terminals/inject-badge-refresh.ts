@@ -5,8 +5,8 @@
  * Debounced to 500ms to avoid UI thrashing during bulk operations.
  */
 
-import {getTerminalRecords, type TerminalRecord} from '@/shell/edge/main/terminals/terminal-registry'
-import {getUnseenNodesForTerminal, type UnseenNodeInfo} from '@/shell/edge/main/terminals/get-unseen-nodes-for-terminal'
+import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
+import {getUnseenNodesForTerminal, type UnseenNodeInfo} from '@vt/agent-runtime'
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy'
 
 const DEBOUNCE_MS: number = 500

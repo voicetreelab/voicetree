@@ -8,18 +8,19 @@
 import { app, dialog } from 'electron'
 import * as O from 'fp-ts/lib/Option.js'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { loadSettings } from '@vt/graph-db-server/settings/settings_IO'
+import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
-import { dispatchOnNewNodeHooks } from '@/shell/edge/main/hooks/onNewNodeHook'
+import { dispatchOnNewNodeHooks, getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@vt/agent-runtime'
+import { registerAgentNodes } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
-import { enableMcpJsonIntegration } from '@/shell/edge/main/mcp-server/mcp-client-config'
+import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/electron/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/electron/onboarding-setup'
 import { ensureDaemonClientForVault } from '@/shell/edge/main/electron/graph-daemon'
@@ -34,11 +35,8 @@ export function initializeGraphModel(): void {
 
     const callbacks: GraphModelCallbacks = {
         // Core graph broadcasting
-        onGraphDelta(delta: GraphDelta): void {
-            const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('graph:stateChanged', delta)
-            }
+        onGraphDelta(_delta: GraphDelta): void {
+            // No-op: daemon-ipc-proxy.syncRendererFromDaemon sends directly via IPC
         },
         onFloatingEditorUpdate(delta: GraphDelta): void {
             uiAPI.updateFloatingEditorsFromExternal(delta)
@@ -111,9 +109,17 @@ export function initializeGraphModel(): void {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     // Create a single-node delta for dispatch
-                    dispatchOnNewNodeHooks(graphData, hookPath)
+                    dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
                 }
             })
+        },
+        onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
+            const record: TerminalRecord | undefined = getTerminalRecords().find(
+                (r: TerminalRecord) => r.terminalData.agentName === agentName
+            )
+            if (!record) return
+            registerAgentNodes(record.terminalId, [{ nodeId, title }])
+            resetAuditRetryCount(record.terminalId)
         },
         refreshBadge(): void {
             refreshAllInjectBadges()

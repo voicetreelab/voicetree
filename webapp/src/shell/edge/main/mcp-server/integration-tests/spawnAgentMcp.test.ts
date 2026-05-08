@@ -1,48 +1,49 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
-import type {VTSettings} from '@vt/graph-model/pure/settings'
+import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
-vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
+vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
     getWritePath: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
+vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
-    spawnTerminalWithContextNode: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/terminals/terminal-registry', () => ({
-    getTerminalRecords: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
-    loadSettings: vi.fn()
-}))
-
-vi.mock('@vt/graph-model', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-model') = await importOriginal<typeof import('@vt/graph-model')>()
+vi.mock('@vt/agent-runtime', async (importOriginal) => {
+    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
     return {
         ...actual,
-        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+        spawnTerminalWithContextNode: vi.fn(),
+        getTerminalRecords: vi.fn(),
     }
 })
 
-vi.mock('@/shell/edge/main/mcp-server/agent-completion-monitor', () => ({
-    startMonitor: vi.fn().mockReturnValue('monitor-1')
+vi.mock('@vt/app-config/settings', () => ({
+    loadSettings: vi.fn()
 }))
 
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-model'
-import {spawnAgentTool} from '@/shell/edge/main/mcp-server/mcp-server'
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getGraph} from '@/shell/edge/main/state/graph-store'
-import {spawnTerminalWithContextNode} from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {getTerminalRecords} from '@/shell/edge/main/terminals/terminal-registry'
-import {loadSettings} from '@/shell/edge/main/settings/settings_IO'
+vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
+    applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
+    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+    return {
+        ...actual,
+        startMonitor: vi.fn().mockReturnValue('monitor-1')
+    }
+})
+
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {spawnAgentTool} from '@vt/voicetree-mcp'
+import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
+import {getTerminalRecords} from '@vt/agent-runtime'
+import {loadSettings} from '@vt/app-config/settings'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 
 type McpToolResponse = {

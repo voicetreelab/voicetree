@@ -13,15 +13,15 @@ import {
     updateTerminalIsDone,
     clearTerminalRecords,
     type TerminalRecord
-} from '@/shell/edge/main/terminals/terminal-registry'
-import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from '@/shell/edge/main/mcp-server/agentNodeIndex'
+} from '@vt/agent-runtime'
+import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from '@vt/voicetree-mcp'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import {getTerminalManager} from '@/shell/edge/main/terminals/terminal-manager-instance'
+import {getTerminalManager} from '@vt/agent-runtime'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
-import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/pure/agentTabs'
-import {registerChildIfMonitored} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
-import {startMonitor} from '@/shell/edge/main/mcp-server/agent-completion-monitor'
+import {INACTIVITY_THRESHOLD_MS} from '@vt/graph-model/agent-tabs'
+import {registerChildIfMonitored} from '@vt/voicetree-mcp'
+import {startMonitor} from '@vt/voicetree-mcp'
 
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'

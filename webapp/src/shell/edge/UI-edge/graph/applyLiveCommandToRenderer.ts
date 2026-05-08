@@ -18,7 +18,7 @@ import {
     dispatchSetZoom,
     flushLayout,
 } from '@vt/graph-state/state/layoutStore'
-import type { Position } from '@vt/graph-model/pure/graph'
+import type { Position } from '@vt/graph-model/graph'
 
 interface SerializedCommandShape {
     readonly type: string

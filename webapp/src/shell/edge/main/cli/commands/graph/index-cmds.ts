@@ -1,7 +1,7 @@
 import path from 'node:path'
 import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
 import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
-import {error, output} from '@/shell/edge/main/cli/commands/output.ts'
+import {error, output} from '../../output.ts'
 import {getErrorMessage, parseGraphIndexArgs, parseGraphSearchArgs} from './args.ts'
 import type {GraphIndexSuccess, GraphSearchSuccess} from './types.ts'
 

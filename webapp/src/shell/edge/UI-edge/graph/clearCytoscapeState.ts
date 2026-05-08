@@ -1,7 +1,8 @@
 import type {Core} from "cytoscape";
 import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance";
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
-import {projectRendererState, resetRendererStateMirror} from '@/shell/edge/UI-edge/state/rendererStateMirror';
+import { emptyState } from '@vt/graph-state/emptyState';
+import { project } from '@vt/graph-state/project';
 import {
     getLoadedRoots,
     dispatchUnloadRoot,
@@ -19,8 +20,7 @@ export function clearCytoscapeState(cy: Core): void {
         dispatchUnloadRoot(root);
     }
 
-    resetRendererStateMirror();
-    applyGraphDeltaToUI(cy, projectRendererState());
+    applyGraphDeltaToUI(cy, project(emptyState()));
 
     syncLargeGraphPerformanceMode(cy);
 }

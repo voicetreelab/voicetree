@@ -34,6 +34,13 @@ function buildChildEnv(
 ): Record<string, string> {
     const merged: Record<string, string | undefined> = {
         ...process.env,
+        // Suppress Node ≥22 ExperimentalWarning when @vt/graph-db-server loads
+        // node:sqlite (still flagged experimental). The warning is benign and
+        // unrelated to CLI module resolution; without this, the strict
+        // `expect(stderr).toBe('')` check below fails on every CLI invocation.
+        NODE_OPTIONS: ['--disable-warning=ExperimentalWarning', process.env.NODE_OPTIONS]
+            .filter((segment: string | undefined): segment is string => typeof segment === 'string' && segment.length > 0)
+            .join(' '),
         ...overrides,
     }
 
@@ -113,20 +120,20 @@ describe('graph CLI module resolution', () => {
                 },
             ],
         })
-    })
+    }, 30000)
 
     it('routes graph structure into argument validation instead of @/shell resolution failure', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-structure-'))
         tempDirs.push(tempDir)
 
-        const result: SpawnResult = await spawnCli(['graph', 'structure'], tempDir)
+        const result: SpawnResult = await spawnCli(['graph', 'structure', '--bogus'], tempDir)
 
         expect(result.code, result.stderr).toBe(1)
         expect(result.signal).toBeNull()
         expect(result.stdout).toBe('')
-        expect(result.stderr).toContain('Usage: vt graph structure <folder-path> [--with-summaries|--no-summaries]')
+        expect(result.stderr).toContain('Unknown argument: --bogus')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
-    })
+    }, 30000)
 
     it('routes graph view into handler-level validation instead of @/shell resolution failure', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-view-'))
@@ -139,5 +146,5 @@ describe('graph CLI module resolution', () => {
         expect(result.stdout).toBe('')
         expect(result.stderr).toContain('Unknown argument: --bogus')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
-    })
+    }, 30000)
 })

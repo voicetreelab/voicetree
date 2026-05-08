@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { buildIncomingEdgesIndex } from '@vt/graph-model/pure/graph/graph-operations/incomingEdgesIndex'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { buildIncomingEdgesIndex } from '@vt/graph-model/graph'
 
 vi.mock('@/shell/edge/main/state/graph-store', () => ({
   getGraph: vi.fn()
@@ -11,19 +11,19 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
   getWritePath: vi.fn()
 }))
 
-vi.mock('@/shell/edge/main/terminals/spawnTerminalWithContextNode', () => ({
+vi.mock('@vt/agent-runtime', () => ({
   spawnTerminalWithContextNode: vi.fn()
 }))
 
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
-  applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined)
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+  postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
-import { runAgentOnSelectedNodes } from './runAgentOnSelectedNodes'
+import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
+import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
+import { postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
   return {
@@ -71,14 +71,16 @@ describe('runAgentOnSelectedNodes', () => {
       contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath
     })
 
-    const result = await runAgentOnSelectedNodes({
+    const result: RunAgentOnSelectedResult = await runAgentOnSelectedNodes({
       selectedNodeIds,
       taskDescription: 'Check these nodes',
       position: { x: 10, y: 20 }
     })
 
     expect(result.terminalId).toBe('agent-1')
-    expect(applyGraphDeltaToDBThroughMemAndUIAndEditors).toHaveBeenCalledTimes(1)
+    expect(result.contextNodeId).toBe('/vault/ctx-nodes/task_context.md')
+    expect(result.taskNodeId).toMatch(/\.md$/)
+    expect(postDeltaThroughDaemonWithEditors).toHaveBeenCalledTimes(1)
 
     const taskNodeId: NodeIdAndFilePath = result.taskNodeId
     expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(

@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e-tests/highest-value-system',
-  testMatch: 'electron-smoke-test.spec.ts',
+  testMatch: 'electron-{smoke-test,launch-ci}.spec.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -23,11 +23,11 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
   },
-  timeout: 30000,
+  timeout: process.env.CI ? 60000 : 30000,
   projects: [
     {
       name: 'electron-system-smoke',
-      testMatch: 'electron-smoke-test.spec.ts',
+      testMatch: 'electron-{smoke-test,launch-ci}.spec.ts',
     }
   ],
 });

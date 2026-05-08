@@ -1,9 +1,9 @@
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'
-import type { ShareId, ShareManifest, ViewError } from '@vt/graph-model/pure/web-share/types'
-import type { Graph, GraphDelta, Position, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { buildGraphFromFiles } from '@vt/graph-model/pure/web-share/buildGraphFromFiles'
-import { mergePositionsIntoGraph, mapNewGraphToDelta } from '@vt/graph-model/pure/graph'
+import type { ShareId, ShareManifest, ViewError } from '@vt/graph-model/web-share'
+import type { Graph, GraphDelta, Position, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { buildGraphFromFiles } from '@vt/graph-model/web-share'
+import { mergePositionsIntoGraph, mapNewGraphToDelta } from '@vt/graph-model/graph'
 import { fetchManifest, fetchFiles, fetchPositions } from './r2Client'
 
 /**

@@ -2,9 +2,9 @@ import { promises as fs } from 'fs'
 import type { Dirent, Stats } from 'fs'
 import path from 'path'
 import normalizePath from 'normalize-path'
-import type { AbsolutePath } from '@vt/graph-model/pure/folders/types'
-import { toAbsolutePath } from '@vt/graph-model/pure/folders/types'
-import type { DirectoryEntry } from '@vt/graph-model/pure/folders/transforms'
+import type { AbsolutePath } from '@vt/graph-model/folders'
+import { toAbsolutePath } from '@vt/graph-model/folders'
+import type { DirectoryEntry } from '@vt/graph-model/folders'
 
 const IGNORED_DIRS: ReadonlySet<string> = new Set([
     'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',

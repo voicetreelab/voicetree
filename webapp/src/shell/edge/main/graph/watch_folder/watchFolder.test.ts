@@ -20,12 +20,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import {
-  addReadPath,
-  initGraphModel,
-  removeReadPath,
-  setWritePath,
-} from '@vt/graph-model'
+import { initGraphModel } from '@vt/graph-model'
+import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
@@ -34,11 +30,11 @@ import {
   stopFileWatching,
   getVaultPath,
   clearVaultPath,
-} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { setGraph, getGraph } from '@/shell/edge/main/state/graph-store'
-import type { GraphDelta, Graph } from '@vt/graph-model/pure/graph'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph'
-import { saveVaultConfigForDirectory } from '@vt/graph-db-server/watch-folder/voicetree-config-io'
+} from '@vt/graph-db-server/watch-folder/watchFolder'
+import { setGraph, getGraph } from '@vt/graph-db-server/state/graph-store'
+import type { GraphDelta, Graph } from '@vt/graph-model/graph'
+import { createEmptyGraph } from '@vt/graph-model/graph'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
 /**
  * Pre-seed vault config so resolveOrCreateConfig uses it directly
@@ -238,7 +234,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
 
       // ASSERT: Duplicate not added (readPaths length unchanged)
       expect(secondAdd.success).toBe(false)
-      expect(secondAdd.error).toContain('already in readPaths')
+      expect(secondAdd.error).toContain('already')
       expect((await getVaultPaths()).length).toBe(lengthAfterFirstAdd)
     })
   })

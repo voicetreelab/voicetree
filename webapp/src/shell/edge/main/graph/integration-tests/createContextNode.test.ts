@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createContextNode } from '@vt/graph-model'
+import { createContextNode } from '@vt/graph-db-server/context-nodes/createContextNode'
 
 // Mock electron app to provide getPath for settings
 vi.mock('electron', () => ({
@@ -27,7 +27,7 @@ vi.mock('electron', () => ({
     getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
   }
 }))
-import { loadGraphFromDisk } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 
 import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
@@ -36,23 +36,29 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@vt/graph-model'
+import type { NodeIdAndFilePath, Edge, GraphNode, Graph } from '@vt/graph-model/graph'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/graph-model'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+
+const EXAMPLE_SMALL_WRITE_PATH: string = path.join(EXAMPLE_SMALL_PATH, 'voicetree')
+const EXAMPLE_LARGE_WRITE_PATH: string = path.join(EXAMPLE_LARGE_PATH, 'voicetree-24-2')
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
   let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
 
   beforeEach(async () => {
-    initGraphModel({ appSupportPath: '/tmp/test-userdata-context-node' })
+    initGraphModel(
+      { appSupportPath: '/tmp/test-userdata-context-node' },
+      { getWritePath: async () => EXAMPLE_SMALL_WRITE_PATH }
+    )
 
     // Initialize vault path with example_small fixture
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_PATH])
+    const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_WRITE_PATH])
     if (E.isLeft(loadResult)) throw new Error('Expected Right')
     const graph: Graph = loadResult.right
     setGraph(graph)
@@ -100,7 +106,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Create context node for existing parent node', () => {
     it('should create context node file with ASCII tree and node details', async () => {
       // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
-      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_WRITE_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node for this parent
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -145,7 +151,7 @@ describe('createContextNode - Integration Tests', () => {
 
     it('should resolve a basename-only parent node id when it uniquely matches the graph', async () => {
       const absoluteParentNodeId: NodeIdAndFilePath = path.join(
-        EXAMPLE_SMALL_PATH,
+        EXAMPLE_SMALL_WRITE_PATH,
         '5_Immediate_Test_Observation_No_Output.md'
       )
 
@@ -172,7 +178,7 @@ describe('createContextNode - Integration Tests', () => {
 
     it('should include parent node and related nodes in context', async () => {
       // GIVEN: Parent node with known connections in example_small - node IDs are absolute paths
-      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_WRITE_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -195,7 +201,7 @@ describe('createContextNode - Integration Tests', () => {
 
     it('should create context node that can be loaded back into graph', async () => {
       // GIVEN: A parent node - node IDs are absolute paths
-      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '2_VoiceTree_Node_ID_Duplication_Bug.md')
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_WRITE_PATH, '2_VoiceTree_Node_ID_Duplication_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -231,7 +237,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Subgraph extraction with distance limit', () => {
     it('should extract subgraph within distance 7 from parent node', async () => {
       // GIVEN: A parent node in the middle of the graph - node IDs are absolute paths
-      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_WRITE_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -259,7 +265,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Node details section should contain all nodes from subgraph', () => {
     it('should include parent node and connected nodes in details section', async () => {
       // GIVEN: A parent node that exists in example_small graph - node IDs are absolute paths
-      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
+      const parentNodeId: NodeIdAndFilePath = path.join(EXAMPLE_SMALL_WRITE_PATH, '1_VoiceTree_Website_Development_and_Node_Display_Bug.md')
 
       // WHEN: Create context node for this parent
       const contextNodeId: string = await createContextNodeWithBackup(parentNodeId)
@@ -299,14 +305,18 @@ describe('createContextNode - Integration Tests', () => {
           })
         }
       }
-    })
+    }, 15000)
   })
 
-  describe('BEHAVIOR: Context node should have exactly ONE edge (BUG REGRESSION TEST)', () => {
-    it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
+  describe('BEHAVIOR: Context node should be orphaned (zero edges) — terminal shadow draws the cytoscape edge at runtime', () => {
+    it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH])
+      initGraphModel(
+        { appSupportPath: '/tmp/test-userdata-context-node' },
+        { getWritePath: async () => EXAMPLE_LARGE_WRITE_PATH }
+      )
+      const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
       const largeGraph: Graph = largeLoadResult.right
       setGraph(largeGraph)
@@ -373,7 +383,7 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const largeReloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_PATH])
+      const largeReloadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeReloadResult)) throw new Error('Expected Right')
       const reloadedGraph: Graph = largeReloadResult.right
 

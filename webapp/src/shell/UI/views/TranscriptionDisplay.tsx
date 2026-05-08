@@ -54,8 +54,8 @@ export function TranscriptionDisplay({ scrollContainerRef }: TranscriptionDispla
             continue;
         }
 
-        const isNewSpeaker = Boolean(token.speaker && token.speaker !== lastSpeaker);
-        const isNewLanguage = Boolean(token.language && token.language !== lastLanguage);
+        const isNewSpeaker = token.speaker !== undefined && token.speaker !== lastSpeaker;
+        const isNewLanguage = token.language !== undefined && token.language !== lastLanguage;
 
         lastSpeaker = token.speaker;
         lastLanguage = token.language;

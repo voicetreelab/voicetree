@@ -1,15 +1,16 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk } from '@vt/graph-model'
-import { mapNewGraphToDelta } from '@vt/graph-model/pure/graph/graphDelta/mapNewGraphtoDelta'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
-import { projectDelta, resetRendererStateMirror } from '@/shell/edge/UI-edge/state/rendererStateMirror'
-import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/pure/graph'
-import type { FileLimitExceededError } from '@vt/graph-model'
+import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
+import type { Graph, GraphNode, GraphDelta, NodeDelta } from '@vt/graph-model/graph'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 
 /**
  * Integration test for edge labels through the full pipeline:
@@ -27,7 +28,7 @@ describe('Edge Labels - Full Pipeline Integration Test', () => {
   let cy: Core
 
   beforeEach(async () => {
-      resetRendererStateMirror()
+      resetTestProjectionState()
     // Create temp vault directory
     tempDir = path.join(process.cwd(), 'test-fixtures', `temp-vault-${Date.now()}`)
     await fs.mkdir(tempDir, { recursive: true })

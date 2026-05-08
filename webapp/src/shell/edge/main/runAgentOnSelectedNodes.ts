@@ -6,12 +6,12 @@
  * 2. Spawns agent terminal (which creates context node internally)
  */
 
-import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/pure/graph'
+import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { createTaskNode } from '@vt/graph-model/pure/graph/graph-operations/createTaskNode'
-import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import { createTaskNode } from '@vt/graph-model/graph'
+import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
+import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import * as O from 'fp-ts/lib/Option.js'
 
 export interface RunAgentOnSelectedParams {
@@ -65,7 +65,7 @@ export async function runAgentOnSelectedNodes(
   }
 
   // Apply task node to graph
-  await applyGraphDeltaToDBThroughMemAndUIAndEditors(taskNodeDelta)
+  await postDeltaThroughDaemonWithEditors(taskNodeDelta)
 
   // 2. Spawn terminal with task node and selected nodes
   // spawnTerminalWithContextNode creates the context node internally

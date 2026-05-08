@@ -1,24 +1,24 @@
-import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
+import {mkdir, mkdtemp, realpath, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, beforeAll, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient, type GraphState} from '@vt/graph-db-client'
+import {setGraph} from '@vt/graph-db-server/state/graph-store'
+import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {
     formatLintReportHuman,
     lintGraph,
-    renderAutoView,
     renderGraphView,
     type ViewGraphResult,
 } from '@vt/graph-tools/node'
 import {
-    clearWatchFolderState,
     createEmptyGraph,
     initGraphModel,
-    saveVaultConfigForDirectory,
-    setGraph,
 } from '@vt/graph-model'
+import {saveVaultConfigForDirectory} from '@vt/app-config/vault-config'
+import {loadAndMergeVaultPath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 // eslint-disable-next-line no-restricted-imports
-import {type DaemonHandle, startDaemon} from '../../../../../../../packages/graph-db-server/src/server.ts'
+import {type DaemonHandle, startDaemon} from '../../../../../../../packages/systems/graph-db-server/src/server.ts'
 import {main} from '@/shell/edge/main/cli/voicetree-cli.ts'
 
 class ExitCalled extends Error {
@@ -41,7 +41,7 @@ type CommandResult = {
 }
 
 async function createHarness(): Promise<Harness> {
-    const root: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-'))
+    const root: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-cli-graph-')))
     const appSupportPath: string = join(root, 'app-support')
     const vault: string = join(root, 'vault')
     const docsPath: string = join(vault, 'docs')
@@ -151,17 +151,20 @@ describe('graph daemon migration', () => {
             readPaths: [],
         })
 
-        daemonHandle = await startDaemon({vault: harness.vault})
         await writeFile(join(harness.docsPath, 'root.md'), '# Root\n\n[[nested/leaf]]\n', 'utf8')
         await writeFile(join(harness.docsPath, 'nested', 'leaf.md'), '# Leaf\n\n[[root]]\n', 'utf8')
         await writeFile(join(harness.docsPath, 'nested', 'other.md'), '# Other\n', 'utf8')
+
+        daemonHandle = await startDaemon({vault: harness.vault})
+        const loadResult = await loadAndMergeVaultPath(harness.docsPath, {isWritePath: true})
+        expect(loadResult).toEqual({success: true})
         process.chdir(harness.vault)
 
         await waitFor(async () => {
             const graph: GraphState = await createClient().getGraph()
             return Object.keys(graph.nodes).length === 3 ? graph : null
         })
-    }, 10000)
+    }, 30000)
 
     afterAll(async () => {
         process.chdir(originalCwd)
@@ -186,8 +189,8 @@ describe('graph daemon migration', () => {
         vi.restoreAllMocks()
     })
 
-    it('routes graph structure through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot()).output
+    it('routes graph structure through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli')).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'structure', 'docs']),
@@ -196,7 +199,7 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
     it('routes explicit graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
         const expected: ViewGraphResult = renderGraphView(docsRoot(), {
@@ -213,10 +216,10 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
-    it('routes auto graph view rendering through daemon graph snapshots with parity to the disk helper', async () => {
-        const expectedStdout: string = renderAutoView(docsRoot(), {budget: 2}).output
+    it('routes auto graph view rendering through daemon-rendered graph snapshots', async () => {
+        const expectedStdout: string = (await createClient().getView('cli', {budget: 2})).output
 
         const result: CommandResult = await captureCommand(() =>
             main(['graph', 'view', 'docs', '--auto', '--budget', '2']),
@@ -225,7 +228,7 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 
     it('routes graph lint through daemon graph snapshots with parity to the disk helper', async () => {
         const expectedStdout: string = formatLintReportHuman(lintGraph(docsRoot()))
@@ -237,5 +240,5 @@ describe('graph daemon migration', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(result.stdout).toBe(expectedStdout)
-    })
+    }, 15000)
 })

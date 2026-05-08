@@ -1,0 +1,53 @@
+{
+  "$schema": "graph-state/projection@1",
+  "id": "013-f6-external-into-folder-collapsed",
+  "sourceSnapshot": "013-f6-external-into-folder-collapsed",
+  "elementSpec": {
+    "nodes": [
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "kind": "file",
+        "label": "overview",
+        "relPath": "overview.md",
+        "basename": "overview",
+        "folderPath": "/tmp/graph-state-fixtures/root-a/",
+        "content": "# Overview\n\nTracks [BF-117]*.\n"
+      },
+      {
+        "id": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "folder-collapsed",
+        "label": "tasks",
+        "relPath": "tasks/",
+        "basename": "tasks",
+        "folderPath": "",
+        "content": "",
+        "loadState": "not-loaded",
+        "isWriteTarget": false,
+        "childCount": 2
+      }
+    ],
+    "edges": [
+      {
+        "id": "synthetic:/tmp/graph-state-fixtures/root-a/tasks/:in:/tmp/graph-state-fixtures/root-a/overview.md",
+        "source": "/tmp/graph-state-fixtures/root-a/overview.md",
+        "target": "/tmp/graph-state-fixtures/root-a/tasks/",
+        "kind": "synthetic",
+        "label": "Tracks",
+        "classes": [
+          "synthetic-folder-edge"
+        ]
+      }
+    ],
+    "rootPath": "/tmp/graph-state-fixtures/root-a",
+    "revision": 0,
+    "forests": [
+      [
+        {
+          "source": "/tmp/graph-state-fixtures/root-a/overview.md",
+          "target": "/tmp/graph-state-fixtures/root-a/tasks/"
+        }
+      ]
+    ],
+    "arboricity": 1
+  }
+}

@@ -1,10 +1,10 @@
 import { getGraph } from '@/shell/edge/main/state/graph-store';
-import { spawnTerminalWithContextNode } from '@/shell/edge/main/terminals/spawnTerminalWithContextNode';
+import { spawnTerminalWithContextNode } from '@vt/agent-runtime';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
-import type { SavedProject } from '@vt/graph-model/pure/project/types';
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
+import type { SavedProject } from '@vt/graph-model/project';
 import * as path from 'path';
 import { app } from 'electron';
 import fsSync from 'fs';

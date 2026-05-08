@@ -1,11 +1,4 @@
-/**
- * Tests for vault-allowlist.ts
- *
- * TDD: Write tests first, verify they fail, then implement fix.
- */
-
 /* vt-allow-direct-daemon-mutation-import: low-level vault-allowlist behaviour test */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -21,22 +14,15 @@ vi.mock('electron', () => ({
 }))
 
 // Import after mocks are set up
-import {
-  getVaultPaths,
-  loadAndMergeVaultPath,
-  type LoadVaultPathResult,
-  saveVaultConfigForDirectory,
-} from '@vt/graph-model'
-import {
-  setProjectRootWatchedDirectory,
-  clearWatchFolderState,
-  setWatcher,
-} from '@/shell/edge/main/state/watch-folder-store'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
-import { createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
-import type { GraphDelta } from '@vt/graph-model/pure/graph'
-import type { VaultConfig } from '@vt/graph-model/pure/settings/types'
-import { addReadPath, initGraphModel, setWritePath } from '@vt/graph-model'
+import { getVaultPaths, loadAndMergeVaultPath, type LoadVaultPathResult, addReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
+import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
+import { createEmptyGraph } from '@vt/graph-model/graph'
+import type { GraphDelta } from '@vt/graph-model/graph'
+import type { VaultConfig } from '@vt/graph-model/settings'
+import { initGraphModel } from '@vt/graph-model'
 
 vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
   uiAPI: {
@@ -79,11 +65,8 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
     // Ensure mock userData path exists
     await fs.mkdir(mockUserDataPath, { recursive: true })
     resetGraphModel()
-    // Initialize graph state
     setGraph(createEmptyGraph())
-    // Clear watch folder state
     clearWatchFolderState()
-    // Mock watcher to avoid null issues
     setWatcher({
       add: vi.fn(),
       unwatch: vi.fn(),
@@ -174,8 +157,8 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
 
       await saveVaultConfigForDirectory(watchedDir, {
         writePath: writePathA,
-        readPaths: [readPathB]
       })
+      await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
 
       // WHEN: setWritePath is called with a new path C
       await setWritePath(newWritePathC)
@@ -280,11 +263,8 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
     // Ensure mock userData path exists
     await fs.mkdir(mockUserDataPath, { recursive: true })
     resetGraphModel()
-    // Initialize graph state
     setGraph(createEmptyGraph())
-    // Clear watch folder state
     clearWatchFolderState()
-    // Mock watcher to avoid null issues
     setWatcher({
       add: vi.fn(),
       unwatch: vi.fn(),

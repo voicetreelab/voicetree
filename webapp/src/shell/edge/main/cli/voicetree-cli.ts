@@ -8,6 +8,7 @@ import {
     agentWait,
 } from './commands/agent.ts'
 import {runDebugCommand} from './commands/debug.ts'
+import {runServeCommand} from './commands/serve.ts'
 import {runSessionCommand} from './commands/session.ts'
 import {runVaultCommand} from './commands/vault.ts'
 import {runViewCommand} from './commands/view.ts'
@@ -21,33 +22,49 @@ type GlobalOptions = {
 
 type CommandHandler = (port: number, terminalId: string | undefined, args: string[]) => Promise<void>
 
-const HELP_TEXT: string = `Usage:
-  voicetree [--port PORT] [--terminal ID] [--json] <command> <subcommand> [args]
+const HELP_TEXT: string = `Usage: vt [--port PORT] [--terminal ID] [--json] <command> [args]
+
+Commands:
+  agent     Manage coding agents
+  graph     Graph operations (view, create, group, mv, rename, lint, ...)
+  serve     Start headless daemon (graph-db + MCP server) for a vault
+  search    Search nodes by query
+  vault     Manage vault read/write paths
+  session   Manage sessions
+  view      Folder visibility views
+  debug     Run debug subcommands
+  help      Show this help
 
 Global flags:
   --port, -p      MCP server port (default: $VOICETREE_MCP_PORT or 3002)
   --terminal, -t  Caller terminal ID (default: $VOICETREE_TERMINAL_ID)
   --json          Force JSON output
 
-Commands:
-  agent spawn     Spawn an agent from an existing node or a new task
-  agent list      List running agents
-  agent wait      Start background monitoring for one or more agents
-  agent close     Close an agent terminal
-  agent send      Send a message to an agent terminal
-  agent output    Read buffered agent output
-  debug <cmd>     Run vt-debug subcommands (ls, eval, run, screenshot, ...)
-  graph view      Render a folder as tree-cover with progressive-disclosure collapse (default)
-  graph create    Create progress nodes in the graph
-  graph index     Build a local semantic search index for a vault
-  graph search    Search a local semantic search index for a vault
-  graph unseen    Get unseen nodes near your context
-  graph structure Get graph structure as plain ASCII tree (legacy)
-  graph lint      Lint graph for complexity violations and warnings
-  graph rename    Rename a file and update all references
-  graph mv        Move a file or folder and update all references
-  search          Search nodes by query
-  help            Show this help`
+Run "vt <command> --help" for subcommand details.`
+
+const AGENT_HELP: string = `Usage: vt agent <subcommand> [args]
+
+Subcommands:
+  spawn     Spawn an agent from an existing node or a new task
+  list      List running agents
+  wait      Start background monitoring for one or more agents
+  close     Close an agent terminal
+  send      Send a message to an agent terminal
+  output    Read buffered agent output`
+
+const GRAPH_HELP: string = `Usage: vt graph <subcommand> [args]
+
+Subcommands:
+  structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
+  create      Create progress nodes in the graph
+  group       Group files into a new folder and update all references
+  view        (deprecated — use structure) Alias for structure
+  lint        Lint graph for complexity violations and warnings
+  rename      Rename a file and update all references
+  mv          Move a file or folder and update all references
+  index       Build a local semantic search index for a vault
+  search      Search a local semantic search index for a vault
+  unseen      Get unseen nodes near your context`
 
 function getErrorMessage(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause)
@@ -66,6 +83,7 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
     const commandArgs: string[] = []
     let port: number = parsePort(process.env.VOICETREE_MCP_PORT ?? '3002')
     let terminalId: string | undefined = process.env.VOICETREE_TERMINAL_ID
+    let commandStarted: boolean = false
 
     for (let index: number = 0; index < argv.length; index += 1) {
         const current: string = argv[index]
@@ -74,7 +92,7 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current === '--port' || current === '-p') {
+        if (!commandStarted && (current === '--port' || current === '-p')) {
             const rawPort: string | undefined = argv[index + 1]
             if (!rawPort) {
                 error(`${current} requires a value`)
@@ -85,12 +103,12 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current.startsWith('--port=')) {
+        if (!commandStarted && current.startsWith('--port=')) {
             port = parsePort(current.slice('--port='.length))
             continue
         }
 
-        if (current === '--terminal' || current === '-t') {
+        if (!commandStarted && (current === '--terminal' || current === '-t')) {
             const rawTerminalId: string | undefined = argv[index + 1]
             if (!rawTerminalId) {
                 error(`${current} requires a value`)
@@ -101,11 +119,12 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
             continue
         }
 
-        if (current.startsWith('--terminal=')) {
+        if (!commandStarted && current.startsWith('--terminal=')) {
             terminalId = current.slice('--terminal='.length)
             continue
         }
 
+        commandStarted = true
         commandArgs.push(current)
     }
 
@@ -164,9 +183,10 @@ async function dispatchAgentCommand(
         case 'output':
             await agentOutput(port, terminalId, args)
             return
+        case '--help':
         case 'help':
         case undefined:
-            printHelp()
+            console.log(AGENT_HELP)
             return
         default:
             error(`Unknown agent subcommand: ${subcommand}`)
@@ -261,9 +281,19 @@ async function dispatchGraphCommand(
             await graphMove(port, terminalId, args)
             return
         }
+        case 'group': {
+            const graphGroup: CommandHandler = await loadDeferredHandler(
+                './commands/group.ts',
+                'graphGroup',
+                'Group command is not available in this build yet'
+            )
+            await graphGroup(port, terminalId, args)
+            return
+        }
+        case '--help':
         case 'help':
         case undefined:
-            printHelp()
+            console.log(GRAPH_HELP)
             return
         default:
             error(`Unknown graph subcommand: ${subcommand}`)
@@ -291,7 +321,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         return
     }
 
-    if (commandArgs.includes('--help') || commandArgs.includes('-h')) {
+    if (commandArgs[0] === '--help' || commandArgs[0] === '-h') {
         printHelp()
         return
     }
@@ -322,6 +352,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'debug':
             await runDebugCommand(commandArgs.slice(1))
+            return
+        case 'serve':
+            await runServeCommand(commandArgs.slice(1))
             return
         default:
             error(`Unknown command: ${command}`)

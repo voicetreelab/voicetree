@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { graphToAscii } from '@vt/graph-model/pure/graph/markdown-writing/graphToAscii'
-import type { Graph, GraphNode } from '@vt/graph-model/pure/graph'
-import { createGraph, createEmptyGraph } from '@vt/graph-model/pure/graph/createGraph'
-import { getNodeTitle } from '@vt/graph-model/pure/graph/markdown-parsing'
+import { graphToAscii } from '@vt/graph-model/markdown'
+import type { Graph, GraphNode } from '@vt/graph-model/graph'
+import { createGraph, createEmptyGraph } from '@vt/graph-model/graph'
+import { getNodeTitle } from '@vt/graph-model/markdown'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { loadGraphFromDisk, type FileLimitExceededError } from '@vt/graph-model'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import type { FileLimitExceededError } from '@vt/graph-db-server/graph/fileLimitEnforce'
 
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 

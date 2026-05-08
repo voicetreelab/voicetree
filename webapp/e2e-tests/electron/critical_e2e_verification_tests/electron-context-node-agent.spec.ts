@@ -31,6 +31,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/shell/electron';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -62,8 +63,12 @@ const test = base.extend<{
     }, null, 2), 'utf8');
     console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
       ],
@@ -72,7 +77,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
+        VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
       timeout: 10000 // 10 second timeout for app launch
     });
@@ -80,20 +86,8 @@ const test = base.extend<{
     await use(electronApp);
 
     // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup');
-    }
-
-    await electronApp.close();
+    await safeStopFileWatching(electronApp);
+    await robustElectronTeardown(electronApp);
 
     // Cleanup temp directory
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
@@ -116,7 +110,7 @@ const test = base.extend<{
 
     // Wait for cytoscape instance with retry logic
     try {
-      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+      await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
     } catch (error) {
       console.error('Failed to initialize cytoscape instance:', error);
       throw error;

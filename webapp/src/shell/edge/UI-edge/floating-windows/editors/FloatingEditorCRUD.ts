@@ -2,7 +2,7 @@ import type {Core} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {NodeIdAndFilePath} from '@vt/graph-model/pure/graph';
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
 
 import {
     createEditorData,
@@ -22,8 +22,8 @@ import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {getNodeFromMainToUIOrNull} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
-import {fromNodeToContentWithWikilinks} from '@vt/graph-model/pure/graph/markdown-writing/node_to_markdown';
-import {getNodeTitle} from '@vt/graph-model/pure/graph/markdown-parsing';
+import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
+import {getNodeTitle} from '@vt/graph-model/markdown';
 import {
     addEditor,
     getEditorByNodeId,
@@ -134,11 +134,15 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI
     // Note: onChange only fires for user input (typing, paste, etc.) - NOT for programmatic setValue() calls
     // This is handled by CodeMirrorEditorView using CM6's isUserEvent("input") check
+    let saveQueue: Promise<void> = Promise.resolve();
     editor.onChange((newContent: string): void => {
-        void (async (): Promise<void> => {
-            //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-            await modifyNodeContentFromUI(nodeId, newContent, cy);
-        })();
+        saveQueue = saveQueue
+            .catch(() => undefined)
+            .then(async (): Promise<void> => {
+                //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
+                await modifyNodeContentFromUI(nodeId, newContent, cy);
+            });
+        void saveQueue;
     });
 
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)

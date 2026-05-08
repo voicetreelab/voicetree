@@ -22,11 +22,12 @@
 
 import type {Core, EdgeSingular, NodeSingular, NodeDefinition, CollectionReturnValue, EventObject} from 'cytoscape';
 import ColaLayout from './cola';
-import { packComponents } from '@vt/graph-model/pure/graph/positioning/packComponents';
-import type { ComponentSubgraph } from '@vt/graph-model/pure/graph/positioning/packComponents';
+import { packComponents } from '@vt/graph-model/spatial';
+import type { ComponentSubgraph } from '@vt/graph-model/spatial';
 import { runLocalCola } from './autoLayoutLocalCola';
 import { refreshSpatialIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import { isLayoutParticipantElement, isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
+import { isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
+import { createLayoutParticipantSet, type LayoutParticipantSet } from '@/shell/UI/cytoscape-graph-ui/services/layoutParticipantSet';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 import { computePendingPanAction, clearPendingPan, hasPendingPan, setPendingEditorFocusPan } from '@/shell/edge/UI-edge/state/PendingPanStore';
@@ -74,6 +75,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
       debouncedRunLayout();
     });
   });
+
+  const participantSet: LayoutParticipantSet = createLayoutParticipantSet(cy);
 
   let layoutRunning: boolean = false;
   let layoutQueued: boolean = false;
@@ -144,9 +147,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     clearPendingPan();
   };
 
-  const getLayoutParticipantElements: () => CollectionReturnValue = () => {
-    return cy.elements().filter(ele => isLayoutParticipantElement(ele));
-  };
+  const getLayoutParticipantElements: () => CollectionReturnValue = () => participantSet.getCollection();
 
   const runColaLayout: (onComplete?: () => void) => void = (onComplete) => {
     const colaOpts: AutoLayoutOptions = currentConfig.cola;
@@ -184,8 +185,12 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   /** Full ultimate layout chain: R-tree pack → Cola → animated cy.fit() */
   const runFullUltimateLayout: (onComplete?: () => void) => void = (onComplete) => {
+    // Element membership cannot change between component packing and the post-Cola
+    // fit (Cola only mutates positions; no cy.add/cy.remove in between), so compute
+    // the participant collection once and reuse it.
+    const participants: CollectionReturnValue = getLayoutParticipantElements();
     // R-tree packing: pack disconnected components before Cola
-    const components: CollectionReturnValue[] = getLayoutParticipantElements().components();
+    const components: CollectionReturnValue[] = participants.components();
     if (components.length > 1) {
       const subgraphs: ComponentSubgraph[] = components.map((comp: CollectionReturnValue): ComponentSubgraph => ({
         nodes: comp.nodes().map((n: NodeSingular) => ({
@@ -216,7 +221,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
     runColaLayout(() => {
       const padding: number = getResponsivePadding(cy, 15);
-      cyFitIntoVisibleViewport(cy, getLayoutParticipantElements(), padding, {
+      cyFitIntoVisibleViewport(cy, participants, padding, {
         duration: 300,
         easing: 'ease-in-out-cubic',
         complete: () => { (onComplete ?? onLayoutComplete)(); },
@@ -303,18 +308,23 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     }, 300); // 300ms debounce - prevents flickering during markdown typing
   };
 
-  // Track new node IDs on add, then trigger debounced layout
+  // Track new node IDs on add, then trigger debounced layout.
+  // Folder nodes (collapsed proxies) are excluded: they arrive from async
+  // re-projection at (0,0) and would cause Cola to pull everything to origin.
   const onNodeAdd: (evt: EventObject) => void = (evt) => {
     const target: NodeSingular = evt.target as NodeSingular;
+    if (target.data('isFolderNode')) return;
     if (isLayoutParticipantNode(target)) {
       pendingNewNodeIds.add(target.id());
     }
     debouncedRunLayout();
   };
 
-  // Track removed node count so runLayout can decide whether full layout is needed
+  // Track removed node count so runLayout can decide whether full layout is needed.
+  // Folder nodes excluded for symmetry — folder add/remove is structural, not layout-relevant.
   const onNodeRemove: (evt: EventObject) => void = (evt) => {
     const target: NodeSingular = evt.target as NodeSingular;
+    if (target.data('isFolderNode')) return;
     if (isLayoutParticipantNode(target)) {
       pendingRemovedNodeCount++;
     }
@@ -366,6 +376,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
 
   // Return cleanup function
   return () => {
+    participantSet.dispose();
     cy.off('add', 'node', onNodeAdd);
     cy.off('remove', 'node', onNodeRemove);
     cy.off('add', 'edge', debouncedRunLayout);

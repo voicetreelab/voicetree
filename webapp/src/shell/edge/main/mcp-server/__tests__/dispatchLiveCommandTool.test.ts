@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Graph } from '@vt/graph-model/pure/graph'
+import type { Graph } from '@vt/graph-model/graph'
 
 vi.mock('@vt/graph-model', async () => {
     const actual: Record<string, unknown> = await vi.importActual('@vt/graph-model')
@@ -78,10 +78,12 @@ vi.mock('@/shell/edge/main/state/renderer-live-state-proxy', () => ({
 
 import { getGraph } from '@vt/graph-model'
 import {
+    configureMcpServer,
     dispatchLiveCommand,
     dispatchLiveCommandTool,
-} from '@/shell/edge/main/mcp-server/dispatchLiveCommandTool'
+} from '@vt/voicetree-mcp'
 import {
+    applyLiveCommand,
     getCurrentLiveState,
     __resetLiveStoreForTests,
 } from '@/shell/edge/main/state/live-state-store'
@@ -99,6 +101,12 @@ beforeEach(() => {
     __resetLiveStoreForTests()
     resetRendererState()
     vi.mocked(getGraph).mockReturnValue(emptyGraph())
+    configureMcpServer({
+        liveState: {
+            applyLiveCommand,
+            getLiveStateSnapshot: async () => null,
+        },
+    })
 })
 
 describe('vt_dispatch_live_command', () => {

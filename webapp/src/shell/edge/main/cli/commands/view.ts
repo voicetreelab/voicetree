@@ -3,16 +3,12 @@ import {resolve as resolvePath} from 'node:path'
 import {
     ensureDaemon,
     GraphDbClient,
-    type CollapseStateResponse,
-    type LayoutResponse,
-    type LiveStateSnapshot,
     type SelectionMode,
-    type SelectionResponse,
 } from '@vt/graph-db-client'
-import {isJsonMode} from '../output.ts'
 import {resolveVault} from '../util/detectVault.ts'
 import {ArgValidationError, handleCliError} from '../util/exitCodes.ts'
 import {parseSessionFlag, resolveSessionId} from '../util/sessionFlag.ts'
+import {emitResult, formatLayout, formatCollapseResult, formatSelection, formatViewState} from './viewFormatters.ts'
 
 type Position = {
     x: number
@@ -132,9 +128,9 @@ function parseSelectionMode(value: string | undefined): SelectionMode {
         case 'remove':
             return 'remove'
         case undefined:
-            validationError('Missing required selection subcommand.')
+            return validationError('Missing required selection subcommand.')
         default:
-            validationError(`Unknown selection subcommand: ${value}`)
+            return validationError(`Unknown selection subcommand: ${value}`)
     }
 }
 
@@ -286,9 +282,9 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
                 forceJson,
             }
         case undefined:
-            validationError('Missing required layout subcommand.')
+            return validationError('Missing required layout subcommand.')
         default:
-            validationError(`Unknown layout subcommand: ${rawSubcommand}`)
+            return validationError(`Unknown layout subcommand: ${rawSubcommand}`)
     }
 }
 
@@ -370,84 +366,6 @@ async function buildLayoutMutation(
     }
 }
 
-function emitResult<T>(result: T, formatHuman: (data: T) => string, forceJson: boolean): void {
-    if (forceJson || isJsonMode()) {
-        console.log(JSON.stringify(result, null, 2))
-        return
-    }
-
-    console.log(formatHuman(result))
-}
-
-function formatLayout(data: LayoutResponse): string {
-    const positionEntries: string[] = Object.entries(data.layout.positions)
-        .sort(([left], [right]): number => left.localeCompare(right))
-        .map(([nodeId, position]): string => `  - ${nodeId}: (${position.x}, ${position.y})`)
-
-    return [
-        `Pan: (${data.layout.pan.x}, ${data.layout.pan.y})`,
-        `Zoom: ${data.layout.zoom}`,
-        positionEntries.length === 0 ? 'Positions:\n  (none)' : ['Positions:', ...positionEntries].join('\n'),
-    ].join('\n')
-}
-
-function formatCollapseState(data: CollapseStateResponse): string {
-    if (data.collapseSet.length === 0) {
-        return 'Collapse Set:\n  (none)'
-    }
-
-    const entries: string[] = [...data.collapseSet]
-        .sort((left: string, right: string): number => left.localeCompare(right))
-        .map((folderId: string): string => `  - ${folderId}`)
-
-    return ['Collapse Set:', ...entries].join('\n')
-}
-
-function formatSelection(data: SelectionResponse): string {
-    if (data.selection.length === 0) {
-        return 'Selection:\n  (none)'
-    }
-
-    return ['Selection:', ...data.selection.map((nodeId: string): string => `  - ${nodeId}`)].join('\n')
-}
-
-function formatViewState(data: LiveStateSnapshot): string {
-    const collapseEntries: string[] =
-        data.collapseSet.length === 0
-            ? ['Collapse Set:', '  (none)']
-            : ['Collapse Set:', ...[...data.collapseSet].sort().map((folderId: string): string => `  - ${folderId}`)]
-    const selectionEntries: string[] =
-        data.selection.length === 0
-            ? ['Selection:', '  (none)']
-            : ['Selection:', ...data.selection.map((nodeId: string): string => `  - ${nodeId}`)]
-    const positionEntries: string[] =
-        data.layout.positions.length === 0
-            ? ['Positions:', '  (none)']
-            : [
-                  'Positions:',
-                  ...[...data.layout.positions]
-                      .sort(([left], [right]): number => left.localeCompare(right))
-                      .map(
-                          ([nodeId, position]): string =>
-                              `  - ${nodeId}: (${position.x}, ${position.y})`,
-                      ),
-              ]
-
-    return [
-        `Graph Nodes: ${Object.keys(data.graph.nodes).length}`,
-        `Loaded Roots: ${data.roots.loaded.length}`,
-        `Folder Roots: ${data.roots.folderTree.length}`,
-        ...collapseEntries,
-        ...selectionEntries,
-        `Pan: ${
-            data.layout.pan ? `(${data.layout.pan.x}, ${data.layout.pan.y})` : '(unset)'
-        }`,
-        `Zoom: ${data.layout.zoom ?? '(unset)'}`,
-        ...positionEntries,
-        `Revision: ${data.meta.revision}`,
-    ].join('\n')
-}
-
 async function createSessionClient(vaultFlag: string | undefined): Promise<GraphDbClient> {
     const vault: string = resolveVault({flag: vaultFlag})
     const {port}: {port: number} = await ensureDaemon(vault)
@@ -480,14 +398,14 @@ async function runCollapseCommand(parsed: ParsedCollapseCommand): Promise<void> 
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
 
-    emitResult(await client.collapse(sessionId, parsed.folderId), formatCollapseState, parsed.forceJson)
+    emitResult(await client.collapse(sessionId, parsed.folderId), formatCollapseResult, parsed.forceJson)
 }
 
 async function runExpandCommand(parsed: ParsedExpandCommand): Promise<void> {
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
 
-    emitResult(await client.expand(sessionId, parsed.folderId), formatCollapseState, parsed.forceJson)
+    emitResult(await client.expand(sessionId, parsed.folderId), formatCollapseResult, parsed.forceJson)
 }
 
 async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void> {

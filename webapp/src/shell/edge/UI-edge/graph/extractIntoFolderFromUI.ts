@@ -1,9 +1,8 @@
-import type { Graph, NodeIdAndFilePath } from '@vt/graph-model/pure/graph'
-import { computeExtractIntoFolderGraphDelta } from '@vt/graph-model/pure/graph/graph-operations/extract-into-folder/computeExtractIntoFolderGraphDelta'
+import type { Graph, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { computeExtractIntoFolderGraphDelta } from '@vt/graph-model/graph'
 import type { Core } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import type {} from '@/shell/electron'
-import { addCollapsedFolder } from '@/shell/edge/UI-edge/state/FolderTreeStore'
 
 export async function extractIntoFolderFromUI(
     selectedNodeIds: readonly NodeIdAndFilePath[],
@@ -30,7 +29,7 @@ export async function extractIntoFolderFromUI(
 
     try {
         await window.electronAPI?.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(graphDelta)
-        await addCollapsedFolder(newFolderId)
+        await window.electronAPI?.main.collapseFolderThroughDaemon(newFolderId)
     } catch (error: unknown) {
         console.error('[extractIntoFolderFromUI] Failed to apply graph delta:', error)
     }

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Test to verify edge colors actually change when toggling dark mode
  * This test verifies the exact issue: edge colors not updating on dark mode toggle

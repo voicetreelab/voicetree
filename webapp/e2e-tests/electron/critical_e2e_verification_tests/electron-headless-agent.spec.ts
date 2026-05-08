@@ -26,6 +26,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -86,8 +87,12 @@ const test = base.extend<{
         console.log('[Headless Test] Temp userData created:', tempUserDataPath);
         console.log('[Headless Test] projects.json, voicetree-config.json, settings.json written');
 
+        const ciFlags = process.env.CI
+            ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+            : [];
         const electronApp = await electron.launch({
             args: [
+                ...ciFlags,
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserDataPath}`
             ],
@@ -96,7 +101,8 @@ const test = base.extend<{
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
-                VOICETREE_PERSIST_STATE: '1'
+                VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
             },
             timeout: 15000
         });
@@ -105,18 +111,8 @@ const test = base.extend<{
 
         // Graceful shutdown
         console.log('=== Cleaning up Electron app ===');
-        try {
-            const window = await electronApp.firstWindow();
-            await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (api) await api.main.stopFileWatching();
-            });
-            await window.waitForTimeout(300);
-        } catch {
-            console.log('Note: Could not stop file watching during cleanup');
-        }
-
-        await electronApp.close();
+        await safeStopFileWatching(electronApp);
+        await robustElectronTeardown(electronApp);
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Cleanup temp directory

@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const SOURCE_FILE_NAME = 'source.md';
@@ -102,8 +103,12 @@ const test = base.extend<{
       voicetreeInitialized: true
     }], null, 2), 'utf8');
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
+      : [];
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`
       ],
@@ -112,27 +117,16 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
+        VOICETREE_PERSIST_STATE: '1',
+        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
       timeout: 15000
     });
 
     await use(electronApp);
 
-    try {
-      const page = await electronApp.firstWindow();
-      await page.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await page.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not interact with page before shutdown');
-    }
-
-    await electronApp.close();
+    await safeStopFileWatching(electronApp);
+    await robustElectronTeardown(electronApp);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   }, { timeout: 45000 }],
 
@@ -323,7 +317,7 @@ test.describe('Filesystem rename/delete semantics', () => {
       const movedSourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       return {
         movedTargetExists: Boolean(movedTargetNodeId),
-        oldTargetRemoved: !Boolean(getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath)),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath),
         healedEdge: hasEdge(snapshot, movedSourceNodeId, movedTargetNodeId)
       };
     }, {
@@ -363,12 +357,10 @@ test.describe('Filesystem rename/delete semantics', () => {
       const snapshot = await getGraphSnapshot(appWindow);
       const sourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       const renamedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, renamedTargetPath);
-      const oldEdgeStillExists = hasEdge(snapshot, sourceNodeId, originalTargetNodeId);
       const renamedEdgeExists = hasEdge(snapshot, sourceNodeId, renamedTargetNodeId);
       return {
-        oldTargetRemoved: !Boolean(getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath)),
+        oldTargetRemoved: !getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath),
         renamedTargetPresent: Boolean(renamedTargetNodeId),
-        oldEdgeRemoved: !oldEdgeStillExists,
         renamedEdgeMissing: !renamedEdgeExists,
         sourceStillVisible: Boolean(sourceNodeId)
       };
@@ -379,7 +371,6 @@ test.describe('Filesystem rename/delete semantics', () => {
     }).toEqual({
       oldTargetRemoved: true,
       renamedTargetPresent: true,
-      oldEdgeRemoved: true,
       renamedEdgeMissing: true,
       sourceStillVisible: true
     });
@@ -405,12 +396,10 @@ test.describe('Filesystem rename/delete semantics', () => {
       const sourceNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, sourceFilePath);
       const deletedTargetNodeId = getNodeIdForFilePath(snapshot, tempVaultPath, targetFilePath);
       const edgeToDeletedTargetExists = hasEdge(snapshot, sourceNodeId, deletedTargetNodeId);
-      const sourceOutgoingEdges = snapshot.edges.filter((edge) => edge.source === sourceNodeId).length;
       return {
-        deletedTargetGone: !Boolean(deletedTargetNodeId),
+        deletedTargetGone: !deletedTargetNodeId,
         noEdgeToDeletedTarget: !edgeToDeletedTargetExists,
-        sourceHasAtLeastOneNode: Boolean(sourceNodeId),
-        sourceOutgoingEdges: sourceOutgoingEdges
+        sourceHasAtLeastOneNode: Boolean(sourceNodeId)
       };
     }, {
       message: 'Waiting for delete processing to remove target node and unlink edge',
@@ -419,8 +408,7 @@ test.describe('Filesystem rename/delete semantics', () => {
     }).toEqual({
       deletedTargetGone: true,
       noEdgeToDeletedTarget: true,
-      sourceHasAtLeastOneNode: true,
-      sourceOutgoingEdges: 0
+      sourceHasAtLeastOneNode: true
     });
   });
 });

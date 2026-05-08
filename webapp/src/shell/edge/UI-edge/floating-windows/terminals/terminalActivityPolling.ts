@@ -13,7 +13,8 @@ import {
     CHECK_INTERVAL_MS,
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
-} from '@vt/graph-model/pure/agentTabs';
+} from '@vt/graph-model/agent-tabs';
+import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
@@ -83,9 +84,12 @@ export function startTerminalActivityPolling(): () => void {
         // Update local lastOutputTime for inactivity calculation (no IPC, no re-render)
         updateTerminalRunningState(terminalId as TerminalId, { lastOutputTime: now });
 
-        // State transition: inactive -> active (send ONE update)
-        // pushStateToRenderer in main triggers syncFromMain → React re-renders
-        if (terminal.isDone) {
+        // Lifecycle-aware flip-to-active. The gate must consult `lifecycle` —
+        // not the legacy `isDone` boolean — so freshly-spawned terminals
+        // (lifecycle='spawning', isDone=false) transition out of the muted-grey
+        // 'spawning' style on their first output, and so completed/errored
+        // terminals don't get redundant IPC for stray PTY bytes.
+        if (shouldFlipToActiveOnOutput(terminal.lifecycle)) {
             void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
         }
     }) ?? null;

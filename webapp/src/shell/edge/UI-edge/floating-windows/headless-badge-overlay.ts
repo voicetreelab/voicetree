@@ -14,11 +14,11 @@
 import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type {TerminalStatus} from '@/shell/edge/main/terminals/terminal-registry';
+import type {TerminalStatus} from '@vt/agent-runtime';
 import {getTerminals, getTerminalStatus} from '@/shell/edge/UI-edge/state/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@vt/graph-model/pure/graph/floating-windows/floatingWindowScaling';
+import {graphToScreenPosition, getWindowTransform, getTransformOrigin, offsetFromNodeEdge} from '@vt/graph-model/floating-windows';
 import {restoreTerminal} from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import * as O from 'fp-ts/lib/Option.js';
 

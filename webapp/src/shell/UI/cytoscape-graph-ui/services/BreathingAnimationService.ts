@@ -63,8 +63,8 @@ export class BreathingAnimationService {
     this.cy.on('add', 'node', (evt) => {
       const node: NodeSingular = evt.target;
 
-      // Skip if this is a floating window (has floatingWindow data)
-      if (node.data('floatingWindow')) {
+      // Skip floating windows and folder compound nodes
+      if (node.data('floatingWindow') || node.data('isFolderNode')) {
         return;
       }
 

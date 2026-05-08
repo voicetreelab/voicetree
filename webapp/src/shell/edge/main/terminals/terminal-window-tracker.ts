@@ -5,7 +5,7 @@
  * PTYs when that window closes.
  */
 
-import type TerminalManager from '@/shell/edge/main/terminals/terminal-manager';
+import type TerminalManager from '@vt/agent-runtime';
 
 const terminalToWindow: Map<string, number> = new Map();
 

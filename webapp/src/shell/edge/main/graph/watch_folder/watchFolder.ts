@@ -12,21 +12,25 @@ import {
     getOnFolderSwitchCleanup,
     setProjectRootWatchedDirectory,
 } from '@/shell/edge/main/state/watch-folder-store'
-import { initializeProject } from '@vt/graph-db-server/project/project-initializer'
-import { createDatedSubfolder } from '@vt/graph-db-server/project/project-utils'
+import { initializeProject } from '@vt/app-config/project'
+import { createDatedSubfolder } from '@vt/app-config/project'
 import {
     getLastDirectory,
     getVaultConfigForDirectory,
     saveLastDirectory,
     saveVaultConfigForDirectory,
-} from '@vt/graph-db-server/watch-folder/voicetree-config-io'
-import { savePositionsSync } from '@vt/graph-db-server/graph/positions-store'
+} from '@vt/app-config/vault-config'
+import { savePositionsSync } from '@vt/app-config/positions'
 
 import {
     isDaemonGraphSyncActive,
     startDaemonGraphSync,
     stopDaemonGraphSync,
 } from '@/shell/edge/main/electron/daemon-watch-sync'
+import {
+    markLoadTiming,
+    startLoadTiming,
+} from '@/shell/edge/main/diagnostics/loadTiming'
 import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import {
     ensureDaemonClientForVault,
@@ -39,7 +43,13 @@ import {
     isValidSubdirectory,
 } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 
-const DAEMON_LOAD_TIMEOUT_MS: number = 15_000
+const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
+    process.env.VOICETREE_DAEMON_LOAD_TIMEOUT_MS ?? '',
+    10,
+)
+const DAEMON_LOAD_TIMEOUT_MS: number = Number.isFinite(configuredDaemonLoadTimeoutMs)
+    ? configuredDaemonLoadTimeoutMs
+    : process.env.CI ? 45_000 : 15_000
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
@@ -150,11 +160,28 @@ async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<vo
     syncLoadedRoot(loadedDirectory)
 }
 
+let inflightInitialLoad: Promise<void> | null = null
+
 export async function initialLoad(): Promise<void> {
     if (getProjectRootWatchedDirectory() !== null) {
         return
     }
+    if (inflightInitialLoad) {
+        return inflightInitialLoad
+    }
 
+    const pending: Promise<void> = doInitialLoad()
+    inflightInitialLoad = pending
+    try {
+        await pending
+    } finally {
+        if (inflightInitialLoad === pending) {
+            inflightInitialLoad = null
+        }
+    }
+}
+
+async function doInitialLoad(): Promise<void> {
     const startupFolder: string | null = getStartupFolderOverride()
     if (startupFolder !== null) {
         await loadFolder(startupFolder)
@@ -170,12 +197,54 @@ export async function initialLoad(): Promise<void> {
     }
 }
 
+const inflightLoadByPath: Map<string, Promise<{ readonly success: boolean }>> = new Map()
+
 export async function loadFolder(
     watchedFolderPath: FilePath,
 ): Promise<{ readonly success: boolean }> {
     if (!(await pathIsDirectory(watchedFolderPath))) {
         return { success: false }
     }
+
+    // Idempotency: opening a project that is already the active project is a
+    // no-op. Three independent code paths (renderer bootstrap, UI click,
+    // startFileWatching IPC) can each request the same load. Without this
+    // short-circuit, the second/third arrival re-spawns vt-graphd and clears
+    // the graph view that the first load just populated.
+    if (
+        getProjectRootWatchedDirectory() === watchedFolderPath
+        && isDaemonGraphSyncActive()
+    ) {
+        process.stdout.write(
+            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:already-loaded dir=${watchedFolderPath}\n`,
+        )
+        return { success: true }
+    }
+
+    const existing: Promise<{ readonly success: boolean }> | undefined =
+        inflightLoadByPath.get(watchedFolderPath)
+    if (existing) {
+        process.stdout.write(
+            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:dedupe-hit dir=${watchedFolderPath}\n`,
+        )
+        return existing
+    }
+
+    const pending: Promise<{ readonly success: boolean }> = doLoadFolder(watchedFolderPath)
+    inflightLoadByPath.set(watchedFolderPath, pending)
+    try {
+        return await pending
+    } finally {
+        if (inflightLoadByPath.get(watchedFolderPath) === pending) {
+            inflightLoadByPath.delete(watchedFolderPath)
+        }
+    }
+}
+
+async function doLoadFolder(
+    watchedFolderPath: FilePath,
+): Promise<{ readonly success: boolean }> {
+    startLoadTiming(watchedFolderPath)
 
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (previousRoot) {
@@ -194,11 +263,18 @@ export async function loadFolder(
         console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error)
     })
 
+    markLoadTiming('main:daemon-ensure-start')
     const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
         timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
     })
+    markLoadTiming('main:daemon-ensure-end', {
+        port: connection.port,
+        launched: connection.launched,
+    })
     await connection.client.setWritePath(writePath)
+    markLoadTiming('main:daemon-set-write-path-end')
     await startDaemonSyncForLoadedDirectory(watchedFolderPath)
+    markLoadTiming('main:daemon-graph-sync-started')
     await saveLastDirectory(watchedFolderPath)
 
     getCallbacks().onWatchingStarted?.({

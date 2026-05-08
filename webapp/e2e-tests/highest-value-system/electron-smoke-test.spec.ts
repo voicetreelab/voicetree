@@ -1,14 +1,9 @@
 /**
  * SMOKE TEST for main.ts
  *
- * Purpose: Verify that the Electron app compiles, starts, and can navigate to graph view.
- * This test:
- * 1. Launches with a pre-saved project in projects.json
- * 2. Verifies project selection screen shows with the saved project
- * 3. Selects the project to navigate to graph view
- * 4. Verifies graph loads correctly with nodes
- *
- * This is a minimal smoke test - we verify core startup and navigation behavior.
+ * Pattern: launch Electron with --open-folder → wait for graph → assert.
+ * --open-folder sets startupFolderOverride, which makes initialLoad() call
+ * loadFolder() directly, bypassing project selection entirely.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -16,81 +11,19 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { execFileSync } from 'child_process';
-import { existsSync } from 'fs';
-import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
-
-// Use absolute paths
-const WEBAPP_ROOT = path.resolve(process.cwd());
-const REPO_ROOT = path.resolve(WEBAPP_ROOT, '..');
-const FAKE_AGENT_ENTRYPOINT = path.join(REPO_ROOT, 'tools', 'vt-fake-agent', 'dist', 'index.js');
-
-type ElectronDiagnostics = {
-  mainOutput: string[];
-  rendererErrors: string[];
-};
-
-type McpToolResult = {
-  success: boolean;
-  parsed?: Record<string, unknown>;
-  isError?: boolean;
-};
-
-type SmokeElectronAPI = Omit<ElectronAPI, 'terminal'> & {
-  terminal: {
-    spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
-  };
-};
-
-// Type definitions
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: SmokeElectronAPI;
-}
-
-function canLoadNativeGraphDbModules(nodeBin: string): boolean {
-  try {
-    execFileSync(nodeBin, ['-e', "const Database = require('better-sqlite3'); new Database(':memory:').close()"], {
-      cwd: REPO_ROOT,
-      stdio: 'ignore'
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveGraphDaemonNodeBin(): string {
-  const nvmNodeBin = path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.20.0', 'bin', 'node');
-  const candidates = [
-    process.env.VT_GRAPHD_NODE_BIN,
-    process.env.npm_node_execpath,
-    process.execPath,
-    existsSync(nvmNodeBin) ? nvmNodeBin : undefined,
-    'node'
-  ].filter((candidate): candidate is string => !!candidate);
-
-  return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
-}
-
-function escapeProcessPattern(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function stopSmokeGraphDaemonForVault(vaultPath: string): void {
-  try {
-    execFileSync('pkill', ['-f', `vt-graphd\\.ts --vault ${escapeProcessPattern(vaultPath)}`], {
-      stdio: 'ignore'
-    });
-  } catch {
-    // No matching smoke daemon is fine.
-  }
-}
+import type { NodeSingular } from 'cytoscape';
+import {
+  WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
+  type ElectronDiagnostics, type ExtendedWindow,
+  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault,
+  waitForMcpServer, mcpRequest, mcpCallTool,
+  expectNoCriticalElectronErrors
+} from './electron-smoke-helpers';
 
 // Extend test with Electron app
 const test = base.extend<{
   fixtureVaultPath: string;
+  tempUserDataPath: string;
   electronDiagnostics: ElectronDiagnostics;
   electronApp: ElectronApplication;
   appWindow: Page;
@@ -123,37 +56,22 @@ const test = base.extend<{
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
+  tempUserDataPath: async ({}, use) => {
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-'));
+    await use(tempUserDataPath);
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
+  },
+
   electronDiagnostics: async ({}, use) => {
     await use({ mainOutput: [], rendererErrors: [] });
   },
 
-  electronApp: async ({ fixtureVaultPath, electronDiagnostics }, use) => {
-    // Create a temporary userData directory for this test
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-'));
-
-    // Create projects.json with a pre-saved project
-    // This simulates a user who has previously used the app
-    const projectsPath = path.join(tempUserDataPath, 'projects.json');
-    const savedProject = {
-      id: 'smoke-test-project-id',
-      path: fixtureVaultPath,
-      name: 'example_small',
-      type: 'folder',
-      lastOpened: Date.now(),
-      voicetreeInitialized: true
-    };
-    await fs.writeFile(projectsPath, JSON.stringify([savedProject], null, 2), 'utf8');
-    console.log('[Smoke Test] Created projects.json with saved project:', fixtureVaultPath);
-
-    // Also keep the legacy config file for backwards compatibility
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: fixtureVaultPath,
+  electronApp: async ({ fixtureVaultPath, tempUserDataPath, electronDiagnostics }, use) => {
+    // Pin writePath to vault root so the daemon indexes the fixture .md files
+    // (without this, initializeProject creates a voicetree-{date} subfolder)
+    await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       vaultConfig: {
-        [fixtureVaultPath]: {
-          writePath: fixtureVaultPath,
-          readPaths: []
-        }
+        [fixtureVaultPath]: { writePath: fixtureVaultPath, readPaths: [] }
       }
     }, null, 2), 'utf8');
 
@@ -166,11 +84,24 @@ const test = base.extend<{
           content: 'Fake-agent Electron smoke coverage marker.',
           color: 'green'
         },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Two',
+          summary: 'Second node verifying SSE delta rendering.',
+          content: 'Second smoke node content.',
+          color: 'blue'
+        },
+        {
+          type: 'create_node',
+          title: 'Smoke Node Three',
+          summary: 'Third node verifying SSE delta rendering.',
+          content: 'Third smoke node content.',
+          color: 'blue'
+        },
         { type: 'exit', code: 0 }
       ]
     };
-    const settingsPath = path.join(tempUserDataPath, 'settings.json');
-    await fs.writeFile(settingsPath, JSON.stringify({
+    await fs.writeFile(path.join(tempUserDataPath, 'settings.json'), JSON.stringify({
       agents: [
         { name: 'Fake Agent', command: `node ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)} "$AGENT_PROMPT"` }
       ],
@@ -180,23 +111,29 @@ const test = base.extend<{
         AGENT_PROMPT: `### FAKE_AGENT_SCRIPT ### ${JSON.stringify(fakeAgentScript)} ### END_FAKE_AGENT_SCRIPT ###`
       }
     }, null, 2), 'utf8');
+
     const graphDaemonNodeBin = resolveGraphDaemonNodeBin();
     console.log('[Smoke Test] vt-graphd Node:', graphDaemonNodeBin);
 
+    const ciFlags = process.env.CI
+      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+      : [];
+
     const electronApp = await electron.launch({
       args: [
+        ...ciFlags,
         path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+        `--user-data-dir=${tempUserDataPath}`,
+        '--open-folder', fixtureVaultPath
       ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: graphDaemonNodeBin
       },
-      timeout: 30000
+      timeout: 60000
     });
 
     const electronProcess = electronApp.process();
@@ -213,36 +150,28 @@ const test = base.extend<{
 
     await use(electronApp);
 
-    // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
-    }
-
-    await electronApp.close();
-    try {
-      if (electronProcess?.pid) {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      }
-    } catch {
-      // Electron already exited.
-    }
     stopSmokeGraphDaemonForVault(fixtureVaultPath);
-    console.log('[Smoke Test] Electron app closed');
 
-    // Cleanup temp directory
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
+    if (electronProcess?.pid) {
+      try {
+        process.kill(electronProcess.pid, 'SIGKILL');
+      } catch {
+        // Electron already exited.
+      }
+    }
+
+    try {
+      await Promise.race([
+        electronApp.close(),
+        new Promise(resolve => setTimeout(resolve, 5000))
+      ]);
+    } catch {
+      // Close may fail if already killed.
+    }
+    console.log('[Smoke Test] Electron app closed');
   },
 
-  appWindow: async ({ electronApp, electronDiagnostics, fixtureVaultPath }, use) => {
+  appWindow: async ({ electronApp, electronDiagnostics }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15000 });
 
     window.on('console', msg => {
@@ -256,123 +185,31 @@ const test = base.extend<{
 
     await window.waitForLoadState('domcontentloaded');
 
-    const projectButton = window.locator('button:has-text("example_small")').first();
-    try {
-      await window.waitForSelector('text=Recent Projects', { timeout: 5000 });
-      console.log('[Smoke Test] Recent Projects section visible');
-      await projectButton.click();
-      console.log('[Smoke Test] Clicked project to navigate to graph view');
-    } catch {
-      console.log('[Smoke Test] Project selection skipped; loading fixture vault directly');
-      await window.evaluate(async (vaultPath: string) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
-        await api.main.startFileWatching(vaultPath);
-      }, fixtureVaultPath);
-    }
-
-    // Wait for graph view to load (cytoscape instance should become available)
-    await window.waitForFunction(
-      () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-      { timeout: 15000 }
-    );
-    console.log('[Smoke Test] Graph view loaded');
-
-    // Wait a bit longer to ensure graph is ready
-    await window.waitForTimeout(1000);
+    // --open-folder triggers auto-load: initialLoad() → loadFolder() → graph view.
+    // Use timer-based polling (not rAF) — headless Electron on CI throttles
+    // requestAnimationFrame, causing waitForFunction's default raf polling to
+    // never observe cytoscapeInstance despite it being set.
+    await expect.poll(async () => {
+      return await window.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return !!cy && !cy.destroyed();
+      });
+    }, {
+      message: 'Waiting for Cytoscape to initialize via --open-folder auto-load',
+      timeout: 30000,
+      intervals: [250, 500, 1000, 2000]
+    }).toBe(true);
+    console.log('[Smoke Test] Graph view loaded via --open-folder auto-load');
 
     await use(window);
   }
 });
 
-async function waitForMcpServer(mcpUrl: string, maxRetries = 20, delayMs = 1000): Promise<boolean> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 0,
-          method: 'initialize',
-          params: {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'smoke-healthcheck', version: '1.0.0' }
-          }
-        })
-      });
-      if (response.ok) return true;
-    } catch {
-      // Retry until the MCP server finishes startup.
-    }
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-  }
-  return false;
-}
-
-async function mcpRequest(mcpUrl: string, method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-  const response = await fetch(mcpUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream'
-    },
-    body: JSON.stringify({ jsonrpc: '2.0', id, method, params })
-  });
-  return JSON.parse(await response.text());
-}
-
-async function mcpCallTool(mcpUrl: string, toolName: string, args: Record<string, unknown>): Promise<McpToolResult> {
-  const response = await mcpRequest(mcpUrl, 'tools/call', {
-    name: toolName,
-    arguments: args
-  }) as {
-    result?: { content?: Array<{ type: string; text: string }>; isError?: boolean };
-    error?: { message: string };
-  };
-
-  if (response.error) {
-    throw new Error(`MCP error: ${response.error.message}`);
-  }
-
-  const text = response.result?.content?.[0]?.text;
-  const parsed = text ? JSON.parse(text) as Record<string, unknown> : undefined;
-  return {
-    success: parsed?.success === true,
-    parsed,
-    isError: response.result?.isError
-  };
-}
-
-function expectNoCriticalElectronErrors(diagnostics: ElectronDiagnostics): void {
-  const criticalErrorPatterns = [
-    /NODE_MODULE_VERSION/i,
-    /was compiled against a different Node\.js version/i,
-    /better-sqlite3/i,
-    /DaemonLaunchTimeout/i,
-    /ERR_DLOPEN_FAILED/i,
-    /Error invoking remote method/i,
-    /An object could not be cloned/i,
-    /\[spawnTerminalWithContextNode\] async spawn failed/i,
-    /\[fake-agent\] Fatal:/i,
-    /ERR_MODULE_NOT_FOUND/i
-  ];
-  const criticalErrors = [...diagnostics.mainOutput, ...diagnostics.rendererErrors]
-    .filter(line => criticalErrorPatterns.some(pattern => pattern.test(line)));
-
-  expect(criticalErrors).toEqual([]);
-}
-
 test.describe('Smoke Test', () => {
   test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
-    test.setTimeout(30000);
+    test.setTimeout(process.env.CI ? 120000 : 30000);
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
-    // Verify app is in graph view with cytoscape and electronAPI ready
     const appReady = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
              !!(window as ExtendedWindow).electronAPI;
@@ -380,7 +217,6 @@ test.describe('Smoke Test', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully with graph view');
 
-    // Wait for graph nodes to load and stay observable at assertion time.
     await expect.poll(async () => {
       return await appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -388,12 +224,11 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for Cytoscape nodes to render',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(2);
     console.log('✓ Cytoscape nodes loaded');
 
-    // Verify graph was automatically loaded into main process state
     const graph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -406,7 +241,6 @@ test.describe('Smoke Test', () => {
     console.log(`✓ Graph loaded into state with ${nodeCount} nodes`);
     expect(nodeCount).toBeGreaterThan(1);
 
-    // Verify graph was rendered in Cytoscape UI-edge
     const cytoscapeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -419,10 +253,8 @@ test.describe('Smoke Test', () => {
     console.log(`✓ Graph rendered in UI with ${cytoscapeState.nodeCount} nodes`);
     console.log('  Sample labels:', cytoscapeState.nodeLabels.join(', '));
 
-    // Smoke test: Just verify nodes are rendered (may include virtual nodes)
     expect(cytoscapeState.nodeCount).toBeGreaterThan(2);
 
-    // Verify back button is visible (confirms we're in graph view with navigation)
     const backButton = appWindow.locator('button[title="Back to project selection"]');
     await expect(backButton).toBeVisible({ timeout: 5000 });
     console.log('✓ Back button visible (confirms graph view with project selection integration)');
@@ -432,7 +264,7 @@ test.describe('Smoke Test', () => {
   });
 
   test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    test.setTimeout(60000);
+    test.setTimeout(process.env.CI ? 120000 : 60000);
     console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
 
     const mcpPort = await appWindow.evaluate(async () => {
@@ -458,8 +290,8 @@ test.describe('Smoke Test', () => {
       });
     }, {
       message: 'Waiting for graph nodes before spawning fake agent',
-      timeout: 15000,
-      intervals: [500, 1000, 1000]
+      timeout: 45000,
+      intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThan(0);
 
     const nodeIds = await appWindow.evaluate(async () => {
@@ -469,6 +301,12 @@ test.describe('Smoke Test', () => {
       return Object.keys(graph.nodes);
     });
     const parentNodeId = nodeIds[0];
+
+    const cyNodeCountBeforeAgent: number = await appWindow.evaluate(() => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? 0;
+    });
+    console.log(`[Smoke Test] Cytoscape nodes before fake agent: ${cyNodeCountBeforeAgent}`);
 
     const callerTerminalId = 'e2e-smoke-caller';
     const spawnCallerResult = await appWindow.evaluate(async ({ callerId, parentId }) => {
@@ -517,8 +355,12 @@ test.describe('Smoke Test', () => {
       depthBudget: 0,
       headless: true
     });
-    expect(fakeAgentSpawn.parsed).toMatchObject({ success: true });
-    const fakeAgentTerminalId = (fakeAgentSpawn.parsed as { terminalId: string }).terminalId;
+    const spawnPayload = fakeAgentSpawn.parsed as { success: boolean; error?: string; terminalId?: string };
+    if (!spawnPayload.success) {
+      console.error('[smoke] spawn_agent failed:', JSON.stringify(spawnPayload, null, 2));
+    }
+    expect(spawnPayload, `spawn_agent error: ${spawnPayload.error ?? 'unknown'}`).toMatchObject({ success: true });
+    const fakeAgentTerminalId = spawnPayload.terminalId!;
     expect(fakeAgentTerminalId).toBeTruthy();
 
     await expect.poll(async () => {
@@ -553,6 +395,19 @@ test.describe('Smoke Test', () => {
     const progressNodeContent = await fs.readFile(path.join(fixtureVaultPath, progressNodeFile!), 'utf8');
     expect(progressNodeContent).toContain('# Smoke Fake Agent Progress Node');
     expect(progressNodeContent).toContain('Fake-agent Electron smoke coverage marker.');
+
+    // Verify SSE delta rendering: all 3 agent-created nodes must appear in Cytoscape
+    await expect.poll(async () => {
+      return await appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        return cy?.nodes().length ?? 0;
+      });
+    }, {
+      message: `Waiting for 3 new nodes to render in Cytoscape (started with ${cyNodeCountBeforeAgent})`,
+      timeout: 15000,
+      intervals: [500, 1000, 2000, 3000]
+    }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
+    console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');

@@ -5,31 +5,26 @@
  * Each function should be defined in its own module.
  */
 
-import {applyGraphDeltaToDBThroughMemAndUI} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
-import type {VTSettings} from '@vt/graph-model/pure/settings/types'
+import type {VTSettings} from '@vt/graph-model/settings'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
-<<<<<<< HEAD
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
-=======
-import {getDirectoryTree} from './graph/watch_folder/folderScanning'
->>>>>>> main
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
 import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
 import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndo, performRedo} from '@vt/graph-db-server/graph/undoOperations'
-import {spawnTerminalWithContextNode} from './terminals/spawnTerminalWithContextNode'
-import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from './terminals/terminal-registry'
-import {getUnseenNodesForTerminal} from './terminals/get-unseen-nodes-for-terminal'
-import {injectNodesIntoTerminal} from './terminals/inject-nodes-into-terminal'
-import {spawnPlainTerminal, spawnPlainTerminalWithNode} from './terminals/spawnPlainTerminal'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
+import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
+import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
+import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
+import {injectNodesIntoTerminal} from '@vt/agent-runtime'
+import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
-import {isMcpIntegrationEnabled, setMcpIntegration} from './mcp-server/mcp-client-config';
-import {getMcpPort} from './mcp-server/mcp-server';
+import {getUsageData, refreshClaudeUsageHeadless} from './usage/getUsageData';
+import {openClaudeUsage, openCodexStatus} from './usage/openUsageInTerminal';
+import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
 import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';
@@ -41,23 +36,24 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
-import {getHeadlessAgentOutput} from './terminals/headlessAgentManager';
+import {getHeadlessAgentOutput} from '@vt/agent-runtime';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
-<<<<<<< HEAD
 import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from './graph/watch_folder/starredFolders';
-=======
-import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from './graph/watch_folder/starredFolders';
->>>>>>> main
 import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
   getGraphFromDaemon as getGraph,
+  getProjectedGraphFromDaemon as getProjectedGraph,
   getLiveStateSnapshotFromDaemon as getLiveStateSnapshot,
   getNodeFromDaemon as getNode,
+  postDeltaThroughDaemon,
+  postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
@@ -89,14 +85,20 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
 
 // eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
-  // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBThroughMemUIAndEditorExposed: applyGraphDeltaToDBThroughMemAndUIAndEditors,
+  // Graph operations - daemon-only write path
+  applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: applyGraphDeltaToDBThroughMemAndUI,
+    applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
 
   getGraph,
 
+  getProjectedGraph,
+
   getNode,
+
+  // Collapse/expand through daemon RPC
+  collapseFolderThroughDaemon,
+  expandFolderThroughDaemon,
 
   // Position saving - lightweight in-memory update
   saveNodePositions,
@@ -173,6 +175,12 @@ export const mainAPI = {
 
   // Metrics
   getMetrics,
+
+  // Claude Code + Codex usage data
+  getUsageData,
+  refreshClaudeUsageHeadless,
+  openClaudeUsage,
+  openCodexStatus,
 
   // MCP client configuration
   isMcpIntegrationEnabled, //todo unused?

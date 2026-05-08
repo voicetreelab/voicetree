@@ -17,7 +17,7 @@ import path from 'path'
 import {Client} from '@modelcontextprotocol/sdk/client/index.js'
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/pure/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {serializeState} from '@vt/graph-state'
 
 vi.mock('@vt/graph-model', async () => {
@@ -45,12 +45,13 @@ vi.mock('@/shell/edge/main/state/live-state-store', () => ({
     applyLiveCommand: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/settings/settings_IO', () => ({
+vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({nodeLineLimit: 70, agents: []}),
     saveSettings: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/mcp-server/mcp-client-config', () => ({
+vi.mock('@vt/voicetree-mcp/mcp-client-config', () => ({
+    enableMcpClientIntegrations: vi.fn().mockResolvedValue(undefined),
     enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
     isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
     setMcpIntegration: vi.fn(),
@@ -70,7 +71,7 @@ import {
 } from '@vt/graph-model'
 import {getCurrentLiveState} from '@/shell/edge/main/state/live-state-store'
 import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy'
-import {createMcpServer} from '@/shell/edge/main/mcp-server/mcp-server'
+import {configureMcpServer, createMcpServer} from '@vt/voicetree-mcp'
 import {findAvailablePort} from '@/shell/edge/main/port-utils'
 
 function buildFixtureGraph(): Graph {
@@ -140,6 +141,27 @@ describe('vt_get_live_state real MCP roundtrip', () => {
         server = await startTestMcpServer()
 
         const graph: Graph = buildFixtureGraph()
+        const serializedState = serializeState({
+            graph,
+            roots: {loaded: new Set(['/tmp/vault']), folderTree: [{
+                absolutePath: '/tmp/vault',
+                name: 'vault',
+                isDirectory: true,
+                children: [],
+            }]},
+            collapseSet: new Set(['/tmp/vault/tasks/']),
+            selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
+            layout: {positions: new Map([['/tmp/vault/sample.md' as NodeIdAndFilePath, {x: 1, y: 2}]])},
+            meta: {schemaVersion: 1, revision: 7, mutatedAt: new Date(0).toISOString()},
+        })
+        configureMcpServer({
+            liveState: {
+                getLiveStateSnapshot: async () => serializedState,
+                applyLiveCommand: async () => {
+                    throw new Error('applyLiveCommand is not used by vt_get_live_state')
+                },
+            },
+        })
         vi.mocked(getCurrentLiveState).mockResolvedValue({
             graph,
             roots: {loaded: new Set(), folderTree: []},
@@ -159,19 +181,7 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             isDirectory: true,
             children: [],
         })
-        vi.mocked(getLiveStateSnapshotFromDaemon).mockResolvedValue(serializeState({
-            graph,
-            roots: {loaded: new Set(['/tmp/vault']), folderTree: [{
-                absolutePath: '/tmp/vault',
-                name: 'vault',
-                isDirectory: true,
-                children: [],
-            }]},
-            collapseSet: new Set(['/tmp/vault/tasks/']),
-            selection: new Set(['/tmp/vault/sample.md' as NodeIdAndFilePath]),
-            layout: {positions: new Map([['/tmp/vault/sample.md' as NodeIdAndFilePath, {x: 1, y: 2}]])},
-            meta: {schemaVersion: 1, revision: 7, mutatedAt: new Date(0).toISOString()},
-        }))
+        vi.mocked(getLiveStateSnapshotFromDaemon).mockResolvedValue(serializedState)
     })
 
     afterEach(async () => {

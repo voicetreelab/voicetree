@@ -232,7 +232,7 @@ test.describe('Cold-start: agent edit before any in-app interaction', () => {
     })
 
     // NOTE: The H3 (context-node bypass) regression is covered end-to-end by the
-    // vitest integration test at packages/graph-model/tests/graph/context-node-external-edit.test.ts
+    // vitest integration test at packages/libraries/graph-model/tests/graph/context-node-external-edit.test.ts
     // which exercises the same chokidar→handleFSEvent→graph-store pipeline used in
     // production, just without the Playwright/IPC layer. We tried adding it here too
     // but priming `markRecentDelta` from the playwright main-process context requires

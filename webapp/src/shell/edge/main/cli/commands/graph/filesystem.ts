@@ -153,7 +153,7 @@ export function applyFilesystemPlan(
         fixes: readonly FilesystemAuthoringFix[]
     }> = writePlan.map((entry) => {
         const shouldAttachExternalParent: boolean =
-            Boolean(externalParentRef) &&
+            externalParentRef !== undefined &&
             entry.parentFilenames.length === 0 &&
             normalizeRef(entry.filename) !== externalParentRef
 
