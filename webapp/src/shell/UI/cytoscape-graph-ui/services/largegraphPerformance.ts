@@ -69,7 +69,7 @@ function getRenderer(cy: Core): CytoscapeRenderer | undefined {
  *
  * Call from NavigationGestureService on every pan/zoom event.
  */
-export function signalViewportManipulation(cy: Core): void {
+function signalViewportManipulation(cy: Core): void {
     const renderer: CytoscapeRenderer | undefined = getRenderer(cy);
     if (!renderer) return;
     applyViewportManipulationSignal(renderer);

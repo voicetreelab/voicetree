@@ -24,7 +24,7 @@ let isTracing: boolean = false
 /**
  * Start a tracing session. Call stopTracing() to end and get the trace file.
  */
-export async function startTracing(): Promise<void> {
+async function startTracing(): Promise<void> {
     if (isTracing) {
         //console.log('[trace] Already tracing')
         return
@@ -46,7 +46,7 @@ export async function startTracing(): Promise<void> {
  * Stop tracing and return the path to the trace file.
  * Open chrome://tracing in Chrome and load this file to analyze.
  */
-export async function stopTracing(): Promise<string> {
+async function stopTracing(): Promise<string> {
     if (!isTracing) {
         //console.log('[trace] Not currently tracing')
         return ''
@@ -62,7 +62,7 @@ export async function stopTracing(): Promise<string> {
 /**
  * Check if tracing is currently active
  */
-export function isTracingActive(): boolean {
+function isTracingActive(): boolean {
     return isTracing
 }
 
@@ -101,7 +101,7 @@ export async function trace<T>(label: string, fn: () => Promise<T>): Promise<T> 
 /**
  * Trace a sync operation
  */
-export function traceSync<T>(label: string, fn: () => T): T {
+function traceSync<T>(label: string, fn: () => T): T {
     const startMark: string = `${label}-start`
     const endMark: string = `${label}-end`
 

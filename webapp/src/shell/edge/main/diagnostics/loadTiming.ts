@@ -14,7 +14,7 @@ export function markLoadTiming(event: string, extra?: Record<string, unknown>): 
   emit(event, extra)
 }
 
-export function endLoadTiming(
+function endLoadTiming(
   event: string = 'loadFolder:end',
   extra?: Record<string, unknown>,
 ): void {

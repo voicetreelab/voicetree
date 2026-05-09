@@ -396,7 +396,7 @@ export function setVaultPath(vaultPath: FilePath): void {
     pendingLoadedDirectory = vaultPath || null
 }
 
-export function clearVaultPath(): void {
+function clearVaultPath(): void {
     pendingLoadedDirectory = null
     clearDaemonClientCache()
 }

@@ -43,7 +43,7 @@ import { layoutTriggers, colaLayoutTriggers, dirtyNodeMarkers, fullLayoutTrigger
 
 // Re-export public API from sibling modules
 export type { AutoLayoutOptions } from './autoLayoutTypes';
-export { triggerLayout, triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayoutTriggers';
+export { triggerColaLayout, markNodeDirty, triggerFullLayout } from './autoLayoutTriggers';
 
 /**
  * Enable automatic layout on graph changes

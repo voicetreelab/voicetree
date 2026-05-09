@@ -32,5 +32,3 @@ export function VaultPathSelector(): JSX.Element | null {
         </button>
     );
 }
-
-export default VaultPathSelector;

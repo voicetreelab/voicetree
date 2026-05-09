@@ -3,7 +3,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type {} from '@/shell/electron'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
-export function isFolderCollapsed(folderId: string): boolean {
+function isFolderCollapsed(folderId: string): boolean {
     return typeof document !== 'undefined'
         && document.querySelector != null
         && (globalThis as unknown as { cy?: Core }).cy?.getElementById(folderId).data('collapsed') === true

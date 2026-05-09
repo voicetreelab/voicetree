@@ -222,7 +222,7 @@ export async function spawnTerminalInNewWorktree(
  * Opens a regular shell terminal anchored to the specified node, useful for
  * manual terminal work without agent automation.
  */
-export async function spawnPlainTerminal(
+async function spawnPlainTerminal(
     nodeId: NodeIdAndFilePath,
     _cy: Core,
 ): Promise<void> {

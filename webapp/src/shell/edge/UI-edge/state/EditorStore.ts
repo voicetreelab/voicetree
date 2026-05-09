@@ -51,7 +51,7 @@ export function addToAutoPinQueue(nodeId: NodeIdAndFilePath): NodeIdAndFilePath 
 /**
  * Remove an editor from the auto-pin queue (e.g., when manually pinned).
  */
-export function removeFromAutoPinQueue(nodeId: NodeIdAndFilePath): void {
+function removeFromAutoPinQueue(nodeId: NodeIdAndFilePath): void {
     const index: number = autoPinnedEditorQueue.indexOf(nodeId);
     if (index !== -1) {
         autoPinnedEditorQueue.splice(index, 1);

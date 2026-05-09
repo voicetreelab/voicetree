@@ -429,7 +429,7 @@ export async function setWritePathThroughDaemon(path: string): Promise<VaultStat
   return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
 }
 
-export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
+async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
   const connection: CurrentDaemonConnection = vault
     ? await ensureDaemonClientForVault(vault, { timeoutMs: MAIN_DAEMON_TIMEOUT_MS })
     : await getDaemonClientForCurrentVault()
@@ -451,7 +451,7 @@ export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> 
   await syncMainGraphFromDaemonClient(connection.client)
 }
 
-export function __resetDaemonIpcProxyStateForTests(): void {
+function __resetDaemonIpcProxyStateForTests(): void {
   cachedVault = null
   rendererSessionId = null
   sessionSyncCache = null
