@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { ProjectedGraph, ProjectedNode, ProjectedEdge } from '@vt/graph-state/contract'
 import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/types'
 import { addEditor, getEditors } from '@/shell/edge/UI-edge/state/EditorStore'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
-import { updateFloatingEditors } from './EditorSync'
+import { updateFloatingEditors, updateFloatingEditorsFromProjectedGraph } from './EditorSync'
 
 vi.mock('./FloatingEditorCRUD', () => ({
     closeEditor: vi.fn(),
@@ -179,5 +180,95 @@ describe('updateFloatingEditors', () => {
         }], true)
 
         expect(editor.getValue()).toBe('external update')
+    })
+})
+
+function makeProjectedFileNode(id: string, content: string): ProjectedNode {
+    return {
+        id,
+        kind: 'file',
+        label: id,
+        relPath: id,
+        basename: id,
+        folderPath: '',
+        content,
+    }
+}
+
+function makeProjectedGraph(
+    nodes: readonly ProjectedNode[],
+    edges: readonly ProjectedEdge[] = [],
+): ProjectedGraph {
+    return {
+        nodes,
+        edges,
+        rootPath: '/test',
+        revision: 0,
+        forests: [],
+        arboricity: 0,
+        recentNodeIds: [],
+    }
+}
+
+describe('updateFloatingEditorsFromProjectedGraph', () => {
+    beforeEach(() => {
+        getEditors().clear()
+        vanillaFloatingWindowInstances.clear()
+    })
+
+    afterEach(() => {
+        getEditors().clear()
+        vanillaFloatingWindowInstances.clear()
+    })
+
+    it('merges an external append into a focused editor that has typed past the previous projected content', () => {
+        // Mirrors the Playwright `merges external daemon SSE append while the editor is focused and typing` regression.
+        // User has typed past the autosave; daemon then re-projects after an external `fs.appendFile`,
+        // delivering a ProjectedGraph whose node content extends the previous projection in append-only fashion.
+        // Editor must reflect both the user's text and the externally appended suffix.
+        const nodeId: NodeIdAndFilePath = 'Typing Target.md' as NodeIdAndFilePath
+        const userText: string = 'user is typing this while the daemon is active'
+        const editor = openEditorForNode(nodeId, userText, /* focused */ true)
+
+        const previousProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode(nodeId, '# Typing Target\n\nInitial content that will be replaced.\n'),
+        ])
+        const newProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode(
+                nodeId,
+                '# Typing Target\n\nInitial content that will be replaced.\n\n\n## Agent Section\nagent wrote this\n',
+            ),
+        ])
+
+        updateFloatingEditorsFromProjectedGraph({} as Core, newProjected, previousProjected)
+
+        const result: string = editor.getValue()
+        expect(result).toContain(userText)
+        expect(result).toContain('## Agent Section\nagent wrote this')
+    })
+
+    it('does nothing when no editor is open for the changed node', () => {
+        const previousProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode('other.md', 'a'),
+        ])
+        const newProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode('other.md', 'a + b'),
+        ])
+
+        // No editor registered — should be a no-op without throwing.
+        expect(() => updateFloatingEditorsFromProjectedGraph({} as Core, newProjected, previousProjected)).not.toThrow()
+    })
+
+    it('skips when projected content is unchanged from the previous projection', () => {
+        const nodeId: NodeIdAndFilePath = 'unchanged.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'live edits in flight')
+
+        const projected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode(nodeId, 'persisted body'),
+        ])
+
+        updateFloatingEditorsFromProjectedGraph({} as Core, projected, projected)
+
+        expect(editor.getValue()).toBe('live edits in flight')
     })
 })

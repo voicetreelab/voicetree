@@ -75,6 +75,7 @@ export function makeNodeWithWikilinks(
 export interface MockEditor {
     getValue: () => string
     setValue: (v: string) => void
+    appendAtEnd: (suffix: string) => void
     isFocused: () => boolean
     dispose: () => void
     setValueCalls: string[]
@@ -97,6 +98,10 @@ export function createMockEditor(nodeId: NodeIdAndFilePath, initialContent: stri
         setValue: (nextValue: string) => {
             value = nextValue
             setValueCalls.push(nextValue)
+        },
+        appendAtEnd: (suffix: string) => {
+            value = value + suffix
+            setValueCalls.push(value)
         },
         isFocused: () => focused,
         dispose: vi.fn(),
