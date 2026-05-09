@@ -3,7 +3,7 @@ import {
   SelectionRequestSchema,
   SelectionResponseSchema,
   type SelectionRequest,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import { SessionRegistry } from '../session/registry.ts'
 import { applySelection } from '../session/selection.ts'
 

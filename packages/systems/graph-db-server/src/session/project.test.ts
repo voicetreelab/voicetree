@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { toAbsolutePath } from '@vt/graph-model'
 import type { FolderTreeNode, Graph, GraphNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
-import type { VaultState } from '../contract.ts'
+import type { VaultState } from '../daemon/contract.ts'
 import type { Session } from './types.ts'
 import { projectSessionState } from './project.ts'
 

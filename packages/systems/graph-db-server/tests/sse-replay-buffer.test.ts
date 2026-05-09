@@ -10,9 +10,9 @@ import {
   type GraphNode,
 } from '@vt/graph-model/graph'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
-import { SessionCreateResponseSchema } from '../src/contract.ts'
-import { publish } from '../src/events/deltaEventBus.ts'
-import { type DaemonHandle, startDaemon } from '../src/server.ts'
+import { SessionCreateResponseSchema } from '../src/daemon/contract.ts'
+import { publish } from '../src/state/events/deltaEventBus.ts'
+import { type DaemonHandle, startDaemon } from '../src/daemon/server.ts'
 import { getGraph, setGraph } from '../src/state/graph-store.ts'
 
 type SequencedProjectedGraph = ProjectedGraph & {

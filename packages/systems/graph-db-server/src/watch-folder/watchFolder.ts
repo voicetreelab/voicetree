@@ -41,14 +41,14 @@ import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
     type LoadVaultPathResult,
-} from "./vault-allowlist";
+} from "./paths/vault-allowlist";
 import { setActiveViewFolderState } from "./folder-visibility-active-view";
-import { setupWatcher } from "./file-watcher-setup";
-import { setupStateChangeSubscriptions } from "./watcher-rebuild";
-import type { WatcherOptions } from "./file-watcher-setup";
-import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
+import { setupWatcher } from "./watching/file-watcher-setup";
+import { setupStateChangeSubscriptions } from "./watching/watcher-rebuild";
+import type { WatcherOptions } from "./watching/file-watcher-setup";
+import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watching/watcher-options.shared";
 import { createEmptyGraph } from '@vt/graph-model/graph';
-import { broadcastVaultState } from "./broadcast-vault-state";
+import { broadcastVaultState } from "./broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 
 // Re-export vault-allowlist functions for api.ts and tests
@@ -64,7 +64,7 @@ export {
     clearVaultPath,
     createDatedVoiceTreeFolder,
     createSubfolder,
-} from "./vault-allowlist";
+} from "./paths/vault-allowlist";
 
 // Re-export folder-scanner functions for api.ts
 export { getAvailableFoldersForSelector } from "./folder-scanner";

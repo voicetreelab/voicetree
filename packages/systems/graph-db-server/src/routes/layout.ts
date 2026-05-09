@@ -3,7 +3,7 @@ import {
   LayoutPartialSchema,
   LayoutResponseSchema,
   type LayoutPartial,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import { SessionRegistry } from '../session/registry.ts'
 
 function jsonError(

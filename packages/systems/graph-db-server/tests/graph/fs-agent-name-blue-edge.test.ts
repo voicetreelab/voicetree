@@ -16,7 +16,7 @@ import { project } from '@vt/graph-state'
 import type { Graph, GraphDelta, FSUpdate } from '@vt/graph-model/graph'
 import type { ProjectedGraph, ProjectedNode, State } from '@vt/graph-state/contract'
 
-vi.mock('../../src/watch-folder/vault-allowlist', () => ({
+vi.mock('../../src/watch-folder/paths/vault-allowlist', () => ({
     getVaultPaths: vi.fn(async () => []),
 }))
 

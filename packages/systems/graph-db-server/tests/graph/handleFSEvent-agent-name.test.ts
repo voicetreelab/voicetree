@@ -7,7 +7,7 @@ import { clearRecentDeltas } from '../../src/state/recent-deltas-store'
 import { handleFSEventWithStateAndUISides } from '../../src/graph/handleFSEvent'
 import type { FSUpdate } from '@vt/graph-model'
 
-vi.mock('../../src/watch-folder/vault-allowlist', () => ({
+vi.mock('../../src/watch-folder/paths/vault-allowlist', () => ({
     getVaultPaths: vi.fn(async () => []),
 }))
 

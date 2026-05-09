@@ -2,7 +2,7 @@ import type { Hono } from 'hono'
 import {
   SessionCreateResponseSchema,
   SessionInfoSchema,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import { SessionRegistry } from '../session/registry.ts'
 
 export function mountSessionRoutes(

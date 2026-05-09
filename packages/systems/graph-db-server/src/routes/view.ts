@@ -2,7 +2,7 @@ import type { Hono } from 'hono'
 import {
   ViewResponseSchema,
   ExpandOverridesResponseSchema,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import { SessionRegistry } from '../session/registry.ts'
 import { project } from '@vt/graph-state'
 import { renderTreeCover } from '@vt/graph-tools/autoView'

@@ -9,7 +9,7 @@ import path from 'path';
 import { loadSettings, saveSettings } from '@vt/app-config/settings';
 import { getNode } from '../state/graph-store';
 import { nodeIdToFilePathWithExtension, getNodeTitle } from '@vt/graph-model/markdown';
-import { broadcastVaultState } from './broadcast-vault-state';
+import { broadcastVaultState } from './broadcast/broadcast-vault-state';
 import type { VTSettings } from '@vt/graph-model/settings';
 import type { GraphNode } from '@vt/graph-model/graph';
 

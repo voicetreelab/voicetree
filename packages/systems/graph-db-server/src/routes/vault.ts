@@ -7,7 +7,7 @@ import {
   getWritePath,
   removeReadPath,
   setWritePath,
-} from '../watch-folder/vault-allowlist.ts'
+} from '../watch-folder/paths/vault-allowlist.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -18,7 +18,7 @@ import {
   type SetWritePathRequest,
   VaultStateSchema,
   type VaultState,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import { validateAbsolutePath } from '../util/validatePath.ts'
 
 const ErrorResponseSchema = z.object({

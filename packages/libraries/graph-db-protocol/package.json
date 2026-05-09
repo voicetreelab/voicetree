@@ -1,0 +1,20 @@
+{
+  "name": "@vt/graph-db-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Zod schemas and TypeScript types for the graph-db HTTP protocol.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  }
+}
