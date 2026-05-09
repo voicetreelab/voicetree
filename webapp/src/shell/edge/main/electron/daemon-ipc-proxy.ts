@@ -5,7 +5,6 @@ import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import { broadcastGraphDeltaToUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
@@ -200,11 +199,11 @@ async function syncRendererFromDaemon(
 ): Promise<void> {
   const delta: GraphDelta = buildGraphDiff(previousGraph, nextGraph)
   if (delta.length > 0) {
-    broadcastGraphDeltaToUI(delta)
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('graph:stateChanged', delta)
     }
+    getCallbacks().refreshBadge?.()
   }
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
