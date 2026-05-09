@@ -77,12 +77,20 @@ describe('ensureDaemonClientForVault — orphan lock recovery', () => {
 
         // Bug: today this hangs for the full timeout, then throws.
         // Fix: detects the held lock, kills the orphan, retries, succeeds.
+        const recoveryStart: number = Date.now()
         const connection = await ensureDaemonClientForVault(vault, {
             timeoutMs: 10_000,
         })
+        const recoveryElapsedMs: number = Date.now() - recoveryStart
+        expect(recoveryElapsedMs).toBeLessThan(10_000)
 
         const health = await connection.client.health()
         expect(health.vault).toBe(vault)
+
+        // Public surface: getGraph must return successfully after recovery,
+        // proving the new daemon services real read traffic — not just /health.
+        const graph = await connection.client.getGraph()
+        expect(graph).toBeDefined()
 
         // Orphan must be dead.
         await new Promise((res) => setTimeout(res, 100))

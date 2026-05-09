@@ -111,8 +111,7 @@ vi.mock('electron', () => ({
   }
 }))
 
-// TODO: flaky under parallel test load — daemon TCP contention causes ECONNREFUSED / timeouts
-describe.skip('Folder Loading - Integration Tests', () => {
+describe('Folder Loading - Integration Tests', () => {
   beforeAll(async () => {
     tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'folder-loading-fixtures-'))
     exampleSmallPath = await copyFixtureToTemp(EXAMPLE_SMALL_PATH, 'example_small')
@@ -253,16 +252,15 @@ describe.skip('Folder Loading - Integration Tests', () => {
         expect(node.absoluteFilePathIsID).toBeDefined()
       })
 
-      // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
-      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
-      )
-      expect(graphBroadcasts.length).toBe(3)
-      expect(graphBroadcasts[0].channel).toBe('graph:clear')
-      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
-      expect(graphBroadcasts[1].delta).toBeDefined()
-      expect(graphBroadcasts[2].channel).toBe('watching-started')
+      // AND: The renderer-bound broadcast contract is exactly one of each:
+      // graph:clear → graph:stateChanged → watching-started, with no duplicates.
+      // (ignoring ui:call from settings/vault state)
+      const graphChannels: readonly string[] = broadcastCalls
+        .map(c => c.channel)
+        .filter(channel => ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(channel))
+      expect(graphChannels).toEqual(['graph:clear', 'graph:stateChanged', 'watching-started'])
+      const stateChangedDelta: GraphDelta | undefined = broadcastCalls.find(c => c.channel === 'graph:stateChanged')?.delta
+      expect(stateChangedDelta).toBeDefined()
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should load example_real_large and populate graph with correct node count', async () => {
@@ -283,15 +281,13 @@ describe.skip('Folder Loading - Integration Tests', () => {
         expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
       })
 
-      // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
-      // Filter for graph-specific channels (ignoring ui:call from settings/vault state)
-      const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
-        ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
-      )
-      expect(graphBroadcasts.length).toBe(3)
-      expect(graphBroadcasts[0].channel).toBe('graph:clear')
-      expect(graphBroadcasts[1].channel).toBe('graph:stateChanged')
-      expect(graphBroadcasts[2].channel).toBe('watching-started')
+      // AND: The renderer-bound broadcast contract is exactly one of each:
+      // graph:clear → graph:stateChanged → watching-started, with no duplicates.
+      // (ignoring ui:call from settings/vault state)
+      const graphChannels: readonly string[] = broadcastCalls
+        .map(c => c.channel)
+        .filter(channel => ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(channel))
+      expect(graphChannels).toEqual(['graph:clear', 'graph:stateChanged', 'watching-started'])
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
@@ -574,25 +570,19 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // WHEN: Load directory
       await loadFixtureFolder(exampleSmallPath)
 
-      // THEN: Should have broadcast graph-specific channels (clear + stateChanged + watching-started)
-      // Additional ui:call broadcasts may come from settings/vault state updates
+      // THEN: The renderer-bound broadcast contract is exactly one of each:
+      // graph:clear → graph:stateChanged → watching-started, with no duplicates.
+      // Additional ui:call broadcasts may come from settings/vault state updates.
       const graphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
       )
-      expect(graphBroadcasts.length).toBe(3)
+      expect(graphBroadcasts.map(c => c.channel)).toEqual([
+        'graph:clear',
+        'graph:stateChanged',
+        'watching-started',
+      ])
 
-      const clearBroadcast: BroadcastCall = graphBroadcasts[0]
       const stateChangedBroadcast: BroadcastCall = graphBroadcasts[1]
-      const watchingStartedBroadcast: BroadcastCall = graphBroadcasts[2]
-
-      // AND: First broadcast should be graph:clear
-      expect(clearBroadcast.channel).toBe('graph:clear')
-
-      // AND: Second broadcast should use graph:stateChanged channel
-      expect(stateChangedBroadcast.channel).toBe('graph:stateChanged')
-
-      // AND: Third broadcast should be watching-started
-      expect(watchingStartedBroadcast.channel).toBe('watching-started')
 
       // AND: Delta should be an array of NodeDeltas
       expect(Array.isArray(stateChangedBroadcast.delta)).toBe(true)
@@ -611,29 +601,34 @@ describe.skip('Folder Loading - Integration Tests', () => {
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should broadcast delta when switching directories', async () => {
-      // GIVEN: Load first directory
+      // GIVEN: Load first directory — emits exactly one clear → stateChanged → watching-started
       await loadFixtureFolder(exampleSmallPath)
       const firstGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
       )
-      expect(firstGraphBroadcasts.length).toBe(3) // clear + stateChanged + watching-started
+      expect(firstGraphBroadcasts.map(c => c.channel)).toEqual([
+        'graph:clear',
+        'graph:stateChanged',
+        'watching-started',
+      ])
 
       // WHEN: Load second directory
       await loadFixtureFolder(exampleLargePath)
 
-      // THEN: Should have 6 graph-specific broadcasts total (3 for each load)
+      // THEN: Six broadcasts total (one of each, twice — no duplicate stateChanged per load)
       const allGraphBroadcasts: BroadcastCall[] = broadcastCalls.filter(c =>
         ['graph:clear', 'graph:stateChanged', 'watching-started'].includes(c.channel)
       )
-      expect(allGraphBroadcasts.length).toBe(6)
+      expect(allGraphBroadcasts.map(c => c.channel)).toEqual([
+        'graph:clear',
+        'graph:stateChanged',
+        'watching-started',
+        'graph:clear',
+        'graph:stateChanged',
+        'watching-started',
+      ])
 
-      // Verify second load broadcasts
-      const secondClearBroadcast: BroadcastCall = allGraphBroadcasts[3]
       const secondStateChangedBroadcast: BroadcastCall = allGraphBroadcasts[4]
-      const secondWatchingStartedBroadcast: BroadcastCall = allGraphBroadcasts[5]
-      expect(secondClearBroadcast.channel).toBe('graph:clear')
-      expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
-      expect(secondWatchingStartedBroadcast.channel).toBe('watching-started')
       expect(Array.isArray(secondStateChangedBroadcast.delta)).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })

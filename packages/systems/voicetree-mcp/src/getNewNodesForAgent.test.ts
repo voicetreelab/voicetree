@@ -34,44 +34,31 @@ function buildGraph(nodes: GraphNode[]): Graph {
 }
 
 describe('getNewNodesForAgent — spawnedAt birthtime filter', () => {
-    // TODO: flaky — filesystem birthtime granularity causes intermittent failures under parallel load
-    it.skip('excludes nodes created before spawnedAt', () => {
+    it('excludes nodes created before spawnedAt and includes nodes created after', async () => {
         const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
         const oldFile: string = path.join(tmpDir, 'old-node.md')
         const newFile: string = path.join(tmpDir, 'new-node.md')
 
-        // Create both files — they'll have ~same birthtime (now)
+        // Pad with sleeps so old < spawnedAt < new regardless of fs birthtime granularity.
         fs.writeFileSync(oldFile, '# Old')
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
+        const spawnedAt: number = Date.now()
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
         fs.writeFileSync(newFile, '# New')
-
-        const oldBirthtime: number = fs.statSync(oldFile).birthtimeMs
-        // spawnedAt is AFTER old file's birthtime but BEFORE new file's
-        // Since both files are created nearly simultaneously, we set spawnedAt
-        // to oldBirthtime + 1 to simulate "old was created before spawn"
-        const spawnedAt: number = oldBirthtime + 1
-
-        // Manually set old file's birthtime to the past via utimes
-        // Note: utimes sets atime+mtime, not birthtime on macOS.
-        // Instead, we rely on spawnedAt being after oldBirthtime.
-        // Since files are created ~same ms, we need to wait briefly.
 
         const graph: Graph = buildGraph([
             buildNode(oldFile, 'Ama'),
             buildNode(newFile, 'Ama')
         ])
 
-        // With spawnedAt = oldBirthtime + 1:
-        //   old file birthtime < spawnedAt → excluded
-        //   new file birthtime ≈ old file birthtime → also excluded (same ms)
-        // This proves the filter works — both created before spawnedAt are excluded.
         const result = getNewNodesForAgent(graph, 'Ama', spawnedAt)
-        expect(result).toHaveLength(0)
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(newFile)
 
         // With spawnedAt = 0 (epoch), both files are included
         const resultAll = getNewNodesForAgent(graph, 'Ama', 0)
         expect(resultAll).toHaveLength(2)
 
-        // Cleanup
         fs.rmSync(tmpDir, {recursive: true})
     })
 
