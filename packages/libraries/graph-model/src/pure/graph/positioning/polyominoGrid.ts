@@ -59,7 +59,7 @@ export function createGrid(widthCells: number, heightCells: number): PolyominoGr
  * Safety: if generation reaches Uint16Array max (65535), zeros the backing
  * array and resets to 1 — prevents integer wraparound false-positives.
  */
-export function resetGrid(grid: PolyominoGrid): void {
+function resetGrid(grid: PolyominoGrid): void {
     if (grid.generation >= 65535) {
         grid.cells.fill(0) // method call — not flagged by no-param-reassign
         // eslint-disable-next-line no-param-reassign -- intentional O(1) reset via generation counter
@@ -163,7 +163,7 @@ export function stampCells(grid: PolyominoGrid, cells: CellSet): void {
  * Unmark cells by writing 0 (generation is always ≥ 1, so 0 means "empty").
  * Out-of-bounds cells are silently skipped.
  */
-export function clearCells(grid: PolyominoGrid, cells: CellSet): void {
+function clearCells(grid: PolyominoGrid, cells: CellSet): void {
     cells.forEach(({ col, row }: { readonly col: number; readonly row: number }): void => {
         if (col >= 0 && col < grid.width && row >= 0 && row < grid.height) {
             const idx: number = row * grid.width + col
