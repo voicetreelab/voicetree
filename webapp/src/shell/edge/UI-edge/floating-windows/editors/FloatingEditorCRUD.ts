@@ -40,7 +40,7 @@ import {FLOATING_EDITOR_WIDTH, ANCHORED_EDITOR_WIDTH} from "@/shell/edge/UI-edge
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';
 export {createAnchoredFloatingEditor} from './AnchoredEditor';
-export {updateFloatingEditors} from './EditorSync';
+export {updateFloatingEditors, updateFloatingEditorsFromProjectedGraph} from './EditorSync';
 
 // =============================================================================
 // Core Editor Creation

@@ -213,8 +213,21 @@ function isSupportedFile(filename: string): boolean {
   return filename.endsWith('.md') || isImageNode(filename)
 }
 
+// Directories that must never be loaded into the graph even when nested inside
+// a vault. Hidden directories (names starting with '.') are also skipped — most
+// notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
+// markdown files in as graph nodes when a vault root is scanned.
+const IGNORED_DIRS: ReadonlySet<string> = new Set([
+  'node_modules', '.next', 'dist', '.cache', '__pycache__',
+  '.tox', '.venv', 'venv', '.worktrees',
+])
+
 /**
  * Scans vault directory recursively for markdown and image files.
+ *
+ * Skips hidden directories (names starting with '.') and common noise
+ * directories (node_modules, dist, etc.), matching the behavior of the
+ * folder-selector scanner.
  *
  * @param vaultPath - Absolute absolutePath to vault directory
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md", "image.png"])
@@ -235,6 +248,8 @@ async function scanMarkdownFilesInDirectory(dirPath: string, relativePath = ''):
         const relPath: string = relativePath ? path.join(relativePath, entry.name) : entry.name
 
         if (entry.isDirectory()) {
+          if (entry.name.startsWith('.')) return []
+          if (IGNORED_DIRS.has(entry.name)) return []
           return scanMarkdownFilesInDirectory(fullPath, relPath)
         } else if (entry.isFile() && isSupportedFile(entry.name)) {
           return [relPath]
