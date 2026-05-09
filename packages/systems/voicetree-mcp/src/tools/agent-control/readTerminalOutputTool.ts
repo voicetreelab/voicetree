@@ -10,7 +10,7 @@ import {
     getTerminalRecords,
     type TerminalRecord,
 } from '@vt/agent-runtime'
-import {type McpToolResponse, buildJsonResponse} from './types'
+import {type McpToolResponse, buildJsonResponse} from '../../core/types'
 
 export interface ReadTerminalOutputParams {
     terminalId: string

@@ -8,11 +8,11 @@ import type {Graph} from '@vt/graph-model/graph'
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {type McpToolResponse, buildJsonResponse} from './types'
-import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getAgentNodes} from './agentNodeIndex'
+import {type McpToolResponse, buildJsonResponse} from '../../core/types'
+import {getNewNodesForAgent} from '../../agents/getNewNodesForAgent'
+import {getAgentNodes} from '../../agents/agentNodeIndex'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph} from './mcp-graph-bridge'
+import {getMcpGraph} from '../../config/mcp-graph-bridge'
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
     const graph: Graph = await getMcpGraph()

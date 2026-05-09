@@ -4,7 +4,7 @@
  */
 
 import type {Graph, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
-import type {CreateGraphNodeInput} from './createGraphTool'
+import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {ValidationContext} from './createGraphValidation'
 
 /** Build a minimal mock graph with given nodes and edge index. */

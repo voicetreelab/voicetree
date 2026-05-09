@@ -18,10 +18,10 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
-import { getLiveStateBridge } from './mcp-config'
+import { getLiveStateBridge } from '../../config/mcp-config'
 
-import { buildJsonResponse } from './types'
-import type { McpToolResponse } from './types'
+import { buildJsonResponse } from '../../core/types'
+import type { McpToolResponse } from '../../core/types'
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand

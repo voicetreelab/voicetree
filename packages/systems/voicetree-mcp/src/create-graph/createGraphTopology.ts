@@ -6,10 +6,7 @@
  * effects — these functions only read the array of node inputs.
  */
 
-import type {CreateGraphNodeInput} from './createGraphTool'
-
-/** A parent reference: object with filename + edge label (edge label required, use "" for no label). */
-export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
+import type {CreateGraphNodeInput, ParentRef} from './createGraphTypes'
 
 /** Extract the filename from a ParentRef. */
 export function parentRefFilename(ref: ParentRef): string {

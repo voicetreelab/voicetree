@@ -10,7 +10,7 @@ import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from './mcp-graph-bridge'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
 
 export interface TriggerOvernightParams {
     maxTasks?: number

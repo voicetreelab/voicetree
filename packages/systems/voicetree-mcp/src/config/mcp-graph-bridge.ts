@@ -34,10 +34,6 @@ export async function getMcpGraph(): Promise<Graph> {
     return bridge ? await bridge.getGraph() : getDefaultGraph()
 }
 
-export function getMcpGraphSnapshot(): Graph {
-    return getDefaultGraph()
-}
-
 export async function getMcpWritePath(): Promise<O.Option<string>> {
     const bridge: GraphBridge | undefined = getGraphBridge()
     if (!bridge) {

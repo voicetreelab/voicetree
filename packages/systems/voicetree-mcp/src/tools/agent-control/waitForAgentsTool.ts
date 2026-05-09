@@ -5,11 +5,11 @@
  */
 
 import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {type McpToolResponse, buildJsonResponse} from './types'
+import {type McpToolResponse, buildJsonResponse} from '../../core/types'
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
-} from './agent-completion-monitor'
+} from '../../agents/agent-completion-monitor'
 
 export interface WaitForAgentsParams {
     terminalIds: string[]

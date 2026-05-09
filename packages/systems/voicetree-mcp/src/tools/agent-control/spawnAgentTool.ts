@@ -19,9 +19,9 @@ import {
 } from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {type McpToolResponse, buildJsonResponse} from './types'
-import {startMonitor} from './agent-completion-monitor'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from './mcp-graph-bridge'
+import {type McpToolResponse, buildJsonResponse} from '../../core/types'
+import {startMonitor} from '../../agents/agent-completion-monitor'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
 
 export interface SpawnAgentParams {
     nodeId?: string

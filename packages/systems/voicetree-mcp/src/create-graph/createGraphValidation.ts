@@ -7,9 +7,9 @@
  * (missing fields, cycles, etc.) remain in createGraphTool.ts and are never overridable.
  */
 
-import type {CreateGraphNodeInput} from './createGraphTool'
+import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {countBodyLines} from './addProgressNodeTool'
+import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 
 // ============================================================================
 // Types

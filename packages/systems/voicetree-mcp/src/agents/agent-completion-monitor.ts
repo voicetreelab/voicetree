@@ -18,7 +18,7 @@ import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getMcpGraph} from './mcp-graph-bridge'
+import {getMcpGraph} from '../config/mcp-graph-bridge'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>

@@ -14,10 +14,10 @@
  * implementation used by BF-163's CLI live-view adapter.
  */
 import type { SerializedState } from '@vt/graph-state'
-import { getLiveStateBridge } from './mcp-config'
+import { getLiveStateBridge } from '../../config/mcp-config'
 
-import { buildJsonResponse } from './types'
-import type { McpToolResponse } from './types'
+import { buildJsonResponse } from '../../core/types'
+import type { McpToolResponse } from '../../core/types'
 
 export async function getLiveState(): Promise<SerializedState | null> {
     return await getLiveStateBridge().getLiveStateSnapshot()

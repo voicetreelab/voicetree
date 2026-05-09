@@ -61,7 +61,7 @@ vi.mock('@vt/agent-runtime', async (importOriginal) => {
     }
 })
 
-import {spawnAgentTool} from '../src/spawnAgentTool'
+import {spawnAgentTool} from '../src/tools/agent-control/spawnAgentTool'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
