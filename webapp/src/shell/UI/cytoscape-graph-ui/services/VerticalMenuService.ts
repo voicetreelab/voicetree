@@ -30,7 +30,7 @@ export interface MenuItem {
 }
 
 /** Helper to show menu with optional direction config */
-export function showCtxMenu(
+function showCtxMenu(
     items: MenuItem[],
     event: MouseEvent,
     direction: 'vertical' | 'horizontal' = 'vertical'

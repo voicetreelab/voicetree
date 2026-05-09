@@ -1,9 +1,22 @@
 import { randomUUID } from 'node:crypto'
 import type { Session } from './types.ts'
 
-function createSession(id?: string): Session {
+export type SessionRegistryDependencies = {
+  readonly createId: () => string
+  readonly now: () => number
+}
+
+const defaultSessionRegistryDependencies: SessionRegistryDependencies = {
+  createId: randomUUID,
+  now: () => Date.now(),
+}
+
+function createSession(
+  dependencies: SessionRegistryDependencies,
+  id?: string,
+): Session {
   return {
-    id: id ?? randomUUID(),
+    id: id ?? dependencies.createId(),
     collapseSet: new Set<string>(),
     selection: new Set<string>(),
     expandOverrides: new Set<string>(),
@@ -12,15 +25,20 @@ function createSession(id?: string): Session {
       pan: { x: 0, y: 0 },
       zoom: 1,
     },
-    lastAccessedAt: Date.now(),
+    lastAccessedAt: dependencies.now(),
   }
 }
 
 export class SessionRegistry {
   readonly #sessions = new Map<string, Session>()
+  readonly #dependencies: SessionRegistryDependencies
+
+  constructor(dependencies: SessionRegistryDependencies = defaultSessionRegistryDependencies) {
+    this.#dependencies = dependencies
+  }
 
   create(): Session {
-    const session = createSession()
+    const session = createSession(this.#dependencies)
     this.#sessions.set(session.id, session)
     return session
   }
@@ -28,7 +46,7 @@ export class SessionRegistry {
   get(id: string): Session | null {
     const session = this.#sessions.get(id) ?? null
     if (session) {
-      session.lastAccessedAt = Date.now()
+      session.lastAccessedAt = this.#dependencies.now()
     }
     return session
   }
@@ -36,10 +54,10 @@ export class SessionRegistry {
   getOrCreate(id: string): Session {
     const existing = this.#sessions.get(id)
     if (existing) {
-      existing.lastAccessedAt = Date.now()
+      existing.lastAccessedAt = this.#dependencies.now()
       return existing
     }
-    const session = createSession(id)
+    const session = createSession(this.#dependencies, id)
     this.#sessions.set(id, session)
     return session
   }
@@ -51,12 +69,12 @@ export class SessionRegistry {
   touch(id: string): void {
     const session = this.#sessions.get(id)
     if (session) {
-      session.lastAccessedAt = Date.now()
+      session.lastAccessedAt = this.#dependencies.now()
     }
   }
 
   purgeIdle(maxAgeMs: number): number {
-    const cutoff = Date.now() - maxAgeMs
+    const cutoff = this.#dependencies.now() - maxAgeMs
     let removed = 0
     for (const [id, session] of this.#sessions) {
       if (session.lastAccessedAt <= cutoff) {

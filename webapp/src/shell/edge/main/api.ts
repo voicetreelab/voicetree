@@ -10,15 +10,11 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
-import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
-import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
+import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon-graph-queries'
+import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
-import {performUndo, performRedo} from '@vt/graph-db-server/graph/undoOperations'
-import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
-import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
-import {injectNodesIntoTerminal} from '@vt/agent-runtime'
-import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
+import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon-graph-queries'
+import {agentRuntime} from '@vt/agent-runtime'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
@@ -27,7 +23,7 @@ import {openClaudeUsage, openCodexStatus} from './usage/openUsageInTerminal';
 import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
-import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';
+import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
@@ -36,7 +32,6 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
-import {getHeadlessAgentOutput} from '@vt/agent-runtime';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -58,6 +53,8 @@ import {
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
+import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon-sse-subscription';
+import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/graph-daemon';
 import path from 'path';
 
 /**
@@ -100,7 +97,7 @@ export const mainAPI = {
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
 
-  // Position saving - lightweight in-memory update
+  // Position saving through daemon persistence
   saveNodePositions,
 
   // Settings operations
@@ -112,6 +109,8 @@ export const mainAPI = {
   startFileWatching,
 
   stopFileWatching,
+
+  shutdownGraphDaemon,
 
   getWatchStatus,
 
@@ -149,24 +148,24 @@ export const mainAPI = {
   performRedo,
 
   // Terminal spawning
-  spawnTerminalWithContextNode,
+  spawnTerminalWithContextNode: agentRuntime.spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)
-  spawnPlainTerminal,
+  spawnPlainTerminal: agentRuntime.spawnPlainTerminal,
 
   // Plain terminal with attached node (for draggability)
-  spawnPlainTerminalWithNode,
+  spawnPlainTerminalWithNode: agentRuntime.spawnPlainTerminalWithNode,
 
   // Terminal state mutations (renderer -> main for MCP)
-  updateTerminalIsDone,
-  updateTerminalPinned,
-  updateTerminalMinimized,
-  updateTerminalActivityState,
-  removeTerminalFromRegistry,
+  updateTerminalIsDone: agentRuntime.updateTerminalIsDone,
+  updateTerminalPinned: agentRuntime.updateTerminalPinned,
+  updateTerminalMinimized: agentRuntime.updateTerminalMinimized,
+  updateTerminalActivityState: agentRuntime.updateTerminalActivityState,
+  removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
 
   // Manual node injection (InjectBar UI)
-  getUnseenNodesForTerminal,
-  injectNodesIntoTerminal,
+  getUnseenNodesForTerminal: agentRuntime.getUnseenNodesForTerminal,
+  injectNodesIntoTerminal: agentRuntime.injectNodesIntoTerminal,
 
   // Ask mode operations
   askQuery,
@@ -210,12 +209,14 @@ export const mainAPI = {
   createNewProject,
 
   // Headless agent output (ring buffer) for hover tooltip
-  getHeadlessAgentOutput,
+  getHeadlessAgentOutput: agentRuntime.getHeadlessAgentOutput,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,
   getLiveStateSnapshot,
   syncRendererSessionStateWithDaemon,
+  __debugLockSSE,
+  __debugUnlockSSE,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,

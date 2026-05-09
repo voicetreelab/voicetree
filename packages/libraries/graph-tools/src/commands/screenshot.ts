@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { registerCommand } from './index'
 import { type DebugInstance } from '../debug/discover'
-import { resolveDebugInstance } from '../debug/portResolution'
+import { formatCdpHttpEndpoint, resolveDebugInstance } from '../debug/portResolution'
 import { ok, err } from '../debug/Response'
 import type { Response } from '../debug/Response'
 
@@ -22,6 +22,7 @@ interface ContextLike {
 interface BrowserLike {
   contexts(): ContextLike[]
   close(): Promise<void>
+  disconnect?: () => Promise<void>
 }
 
 interface ChromiumLike {
@@ -47,6 +48,9 @@ export type ScreenshotOptions = {
   vault?: string
   forceNew?: boolean
 }
+
+const PAGE_WAIT_TIMEOUT_MS = 10_000
+const PAGE_WAIT_POLL_MS = 100
 
 function extractChromium(pw: unknown): ChromiumLike {
   const direct = (pw as Record<string, unknown>).chromium
@@ -132,17 +136,16 @@ async function captureScreenshot(
   chromium: ChromiumLike,
   options: ScreenshotOptions,
 ): Promise<Response<ScreenshotResult>> {
-  const endpoint = `http://localhost:${instance.cdpPort}`
+  const endpoint = formatCdpHttpEndpoint(instance.cdpPort)
   let browser: BrowserLike | null = null
 
   try {
     browser = await chromium.connectOverCDP(endpoint)
-    const pages = browser.contexts().flatMap(ctx => ctx.pages())
-    if (pages.length === 0) {
+    const page = await waitForFirstPage(browser)
+    if (!page) {
       return err('screenshot', 'CDP connected but no pages found', 'verify app is fully started')
     }
 
-    const page = pages[0]
     const target = options.selector
       ? await page.$(options.selector)
       : page
@@ -190,9 +193,24 @@ async function captureScreenshot(
     )
   } finally {
     if (browser) {
-      await browser.close().catch(() => undefined)
+      const detach = browser.disconnect ?? browser.close.bind(browser)
+      await detach().catch(() => undefined)
     }
   }
+}
+
+async function waitForFirstPage(browser: BrowserLike): Promise<PageLike | null> {
+  const deadline = Date.now() + PAGE_WAIT_TIMEOUT_MS
+
+  while (Date.now() <= deadline) {
+    const [page] = browser.contexts().flatMap(ctx => ctx.pages())
+    if (page) {
+      return page
+    }
+    await new Promise(resolve => setTimeout(resolve, PAGE_WAIT_POLL_MS))
+  }
+
+  return null
 }
 
 async function screenshotHandler(argv: string[]): Promise<Response<unknown>> {

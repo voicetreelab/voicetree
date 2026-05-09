@@ -1,5 +1,5 @@
 import type { NodeIdAndFilePath } from "@vt/graph-model/graph";
-import type { Core, CollectionReturnValue } from "cytoscape";
+import type { Core, CollectionReturnValue, EventObject } from "cytoscape";
 import { getOrCreateOverlay, registerFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
 import { TerminalVanilla } from "@/shell/UI/floating-windows/terminals/TerminalVanilla";
 import posthog from "posthog-js";
@@ -48,6 +48,33 @@ async function waitForNode(
     return null;
 }
 
+function markParentNodeHasRunningTerminal(cy: Core, parentNodeId: string): void {
+    // [L2-seam-residual] cy-only: the running-terminal marker lives on the projected Cytoscape node.
+    const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
+    if (parentNode.length > 0) {
+        parentNode.data('hasRunningTerminal', true);
+    }
+}
+
+function anchorTerminalToNode(cy: Core, terminalWithUI: TerminalData): void {
+    if (!terminalWithUI.ui || !O.isSome(terminalWithUI.anchoredToNodeId)) return;
+    anchorToNode(cy, terminalWithUI, getCurrentIndex(cy));
+    markParentNodeHasRunningTerminal(cy, terminalWithUI.anchoredToNodeId.value);
+}
+
+function registerDeferredAnchor(cy: Core, terminalWithUI: TerminalData): void {
+    if (!terminalWithUI.ui || !O.isSome(terminalWithUI.anchoredToNodeId)) return;
+
+    const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
+    const handleAddedNode = (event: EventObject): void => {
+        if (event.target.id() !== parentNodeId) return;
+        cy.off('add', 'node', handleAddedNode);
+        anchorTerminalToNode(cy, terminalWithUI);
+    };
+
+    cy.on('add', 'node', handleAddedNode);
+}
+
 /**
  * Create a floating terminal window
  * Returns TerminalData with ui populated, or undefined if terminal already exists
@@ -72,34 +99,22 @@ export async function createFloatingTerminal(
     const waitNodeId: string = O.isSome(terminalData.anchoredToNodeId)
         ? terminalData.anchoredToNodeId.value
         : nodeId;
-    await waitForNode(cy, waitNodeId, 1000);
+    const targetNode: CollectionReturnValue | null = await waitForNode(cy, waitNodeId, 1000);
 
     try {
         // Create floating terminal window (returns TerminalData with ui populated)
         const terminalWithUI: TerminalData = createFloatingTerminalWindow(cy, terminalData);
 
-        // Anchor to parent node if it exists (creates shadow node in cytoscape graph)
-        //console.log('[FloatingWindowManager-v2] anchoredToNodeId:', JSON.stringify(terminalWithUI.anchoredToNodeId));
-        //console.log('[FloatingWindowManager-v2] O.isSome check:', O.isSome(terminalWithUI.anchoredToNodeId));
-        if (terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
-            anchorToNode(cy, terminalWithUI, getCurrentIndex(cy));
-            // Mark the parent node as having a running terminal (changes shape to square)
-            const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
-            //console.log('[FloatingWindowManager-v2] Looking for parent node:', parentNodeId);
-            // [L2-seam-residual] cy-only: the running-terminal marker lives on the projected Cytoscape node.
-            const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
-            //console.log('[FloatingWindowManager-v2] Parent node found:', parentNode.length > 0);
-            if (parentNode.length > 0) {
-                parentNode.data('hasRunningTerminal', true);
-                //console.log('[FloatingWindowManager-v2] Marked parent node as task node:', parentNodeId);
-            } else {
-                //console.log('[FloatingWindowManager-v2] Parent node NOT found in Cytoscape!');
-            }
+        // Anchor immediately if the node appeared during the short wait. Otherwise keep the
+        // terminal visible at a fallback position and anchor it when SSE later adds the node.
+        if (targetNode && terminalWithUI.ui && O.isSome(terminalWithUI.anchoredToNodeId)) {
+            anchorTerminalToNode(cy, terminalWithUI);
         } else if (terminalWithUI.ui) {
             // Fallback: position at a default location if no parent node
             // (rare case - terminals usually have a parent context node)
             terminalWithUI.ui.windowElement.style.left = '100px';
             terminalWithUI.ui.windowElement.style.top = '100px';
+            registerDeferredAnchor(cy, terminalWithUI);
         }
 
         return terminalWithUI;

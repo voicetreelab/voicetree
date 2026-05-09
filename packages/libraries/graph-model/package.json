@@ -17,7 +17,10 @@
     "./metrics": "./src/metrics.ts",
     "./utils": "./src/utils.ts",
     "./workflows": "./src/workflows.ts",
-    "./paths": "./src/paths.ts"
+    "./paths": "./src/paths.ts",
+    "./pure/graph": "./src/pure/graph/index.ts",
+    "./pure/graph/markdown-parsing": "./src/pure/graph/markdown-parsing/index.ts",
+    "./pure/graph/contentChangeDetection": "./src/pure/graph/contentChangeDetection.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -36,6 +36,6 @@ export const vanillaFloatingWindowInstances: Map<string, { dispose: () => void; 
  * @internal - Only for test usage
  * @deprecated Use getEditor/getTerminal and access ui.cleanup instead
  */
-export function getVanillaInstance(windowId: string): { dispose: () => void; focus?: () => void; focusAtEnd?: () => void } | undefined {
+function getVanillaInstance(windowId: string): { dispose: () => void; focus?: () => void; focusAtEnd?: () => void } | undefined {
     return vanillaFloatingWindowInstances.get(windowId);
 }

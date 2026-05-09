@@ -16,10 +16,7 @@ type ValidatePathFailure = {
   code: string
 }
 
-export async function validateAbsolutePath(
-  input: string,
-  opts: ValidatePathOptions = {},
-): Promise<ValidatePathSuccess | ValidatePathFailure> {
+function validatePathSyntax(input: string): ValidatePathSuccess | ValidatePathFailure {
   const trimmed = input.trim()
   if (!trimmed) {
     return { ok: false, error: 'Path is required', code: 'PATH_EMPTY' }
@@ -41,7 +38,34 @@ export async function validateAbsolutePath(
     }
   }
 
-  const normalizedPath = resolve(trimmed)
+  return { ok: true, path: resolve(trimmed) }
+}
+
+function pathAccessFailure(error: unknown): ValidatePathFailure {
+  if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    return {
+      ok: false,
+      error: 'Path does not exist',
+      code: 'PATH_NOT_FOUND',
+    }
+  }
+  return {
+    ok: false,
+    error: 'Path is not accessible',
+    code: 'PATH_NOT_ACCESSIBLE',
+  }
+}
+
+export async function validateAbsolutePath(
+  input: string,
+  opts: ValidatePathOptions = {},
+): Promise<ValidatePathSuccess | ValidatePathFailure> {
+  const syntaxResult = validatePathSyntax(input)
+  if (!syntaxResult.ok) {
+    return syntaxResult
+  }
+
+  const normalizedPath = syntaxResult.path
   if (!opts.requireExists) {
     return { ok: true, path: normalizedPath }
   }
@@ -50,17 +74,6 @@ export async function validateAbsolutePath(
     await stat(normalizedPath)
     return { ok: true, path: normalizedPath }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return {
-        ok: false,
-        error: 'Path does not exist',
-        code: 'PATH_NOT_FOUND',
-      }
-    }
-    return {
-      ok: false,
-      error: 'Path is not accessible',
-      code: 'PATH_NOT_ACCESSIBLE',
-    }
+    return pathAccessFailure(error)
   }
 }

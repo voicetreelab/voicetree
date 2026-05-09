@@ -15,8 +15,20 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
 }))
 
 vi.mock('@vt/agent-runtime', () => ({
+    closeHeadlessAgent: vi.fn(),
+    enqueuePendingMessage: vi.fn(),
+    getHeadlessAgentOutput: vi.fn(),
+    getIdleSince: vi.fn(),
+    getOutput: vi.fn(),
+    getPendingTerminal: vi.fn(),
+    getRuntimeUI: vi.fn(),
     getTerminalRecords: vi.fn(),
-    resetAuditRetryCount: vi.fn()
+    registerChild: vi.fn(),
+    resetAuditRetryCount: vi.fn(),
+    runStopHooks: vi.fn(),
+    sendTextToTerminal: vi.fn(),
+    spawnTerminalWithContextNode: vi.fn(),
+    tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
 }))
 
 vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({

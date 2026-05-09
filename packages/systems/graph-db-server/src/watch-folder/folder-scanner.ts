@@ -15,7 +15,7 @@ import type { DirectoryEntry } from '@vt/graph-model/folders';
 import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/folders';
 import type { ParsedQuery } from '@vt/graph-model/folders';
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store';
-import { getVaultPaths } from './vault-allowlist';
+import { getVaultPaths } from './paths/vault-allowlist';
 
 /**
  * Security validation: ensure target path is within project root.

@@ -1,7 +1,7 @@
 /**
  * Debounced inject badge refresh - pushes unseen node counts to renderer after graph changes.
  *
- * Called from broadcastGraphDeltaToUI to keep InjectBar badges fresh.
+ * Called after graph changes to keep InjectBar badges fresh.
  * Debounced to 500ms to avoid UI thrashing during bulk operations.
  */
 

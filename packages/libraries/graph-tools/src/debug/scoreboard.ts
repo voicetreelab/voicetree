@@ -187,7 +187,7 @@ export function createScoreboard(
   }
 }
 
-export function createPendingBaseline(note: string): FlowScoreboard {
+function createPendingBaseline(note: string): FlowScoreboard {
   return {
     generatedAt: null,
     pre_registered_baseline: PRE_REGISTERED_BASELINE,

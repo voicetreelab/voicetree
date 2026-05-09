@@ -24,6 +24,22 @@ export function splitLines(content: string): readonly string[] {
     return content.split(/\r?\n/)
 }
 
+function readTextFileIfPresent(absolutePath: string): string | null {
+    try {
+        return readFileSync(absolutePath, 'utf-8')
+    } catch (error: unknown) {
+        if (
+            typeof error === 'object'
+            && error !== null
+            && 'code' in error
+            && error.code === 'ENOENT'
+        ) {
+            return null
+        }
+        throw error
+    }
+}
+
 export function collectTextMatches(
     repoRoot: string,
     relativePath: string,
@@ -33,7 +49,11 @@ export function collectTextMatches(
     } = {},
 ): readonly AuditLocation[] {
     const absolutePath: string = path.join(repoRoot, relativePath)
-    const lines: readonly string[] = splitLines(readFileSync(absolutePath, 'utf-8'))
+    const content: string | null = readTextFileIfPresent(absolutePath)
+    if (content === null) {
+        return []
+    }
+    const lines: readonly string[] = splitLines(content)
     const matches: AuditLocation[] = []
     let inBlockComment: boolean = false
     for (let index: number = 0; index < lines.length; index += 1) {

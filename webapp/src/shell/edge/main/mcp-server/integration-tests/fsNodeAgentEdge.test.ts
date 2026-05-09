@@ -1,18 +1,8 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
-import type {Graph} from '@vt/graph-model/graph'
 
 vi.mock('@/shell/edge/main/terminals/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
-}))
-
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn().mockReturnValue({
-        nodes: {},
-        incomingEdgesIndex: new Map(),
-        nodeByBaseName: new Map(),
-        unresolvedLinksIndex: new Map()
-    } satisfies Graph)
 }))
 
 vi.mock('@/shell/edge/main/settings/settings_IO', () => ({

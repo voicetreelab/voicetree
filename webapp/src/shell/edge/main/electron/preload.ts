@@ -12,11 +12,10 @@
 //   See: src/shell/edge/main/ui-api-proxy.ts, src/shell/edge/UI-edge/ui-rpc-handler.ts
 //
 // Only add custom handlers here for complex patterns that don't fit the above
-// (e.g., graph.onGraphUpdate which returns an unsubscribe function).
+// (e.g., graph.onProjectedGraphUpdate which returns an unsubscribe function).
 // =============================================================================
 
 import {contextBridge, ipcRenderer} from 'electron';
-import type {GraphDelta} from "@vt/graph-model/graph";
 import type {ProjectedGraph} from "@vt/graph-state/contract";
 import type {ElectronAPI, Promisify} from '@/shell/electron';
 import type {mainAPI} from '@/shell/edge/main/api';
@@ -50,7 +49,7 @@ async function exposeElectronAPI(): Promise<void> {
         // Directory selection
         // openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
 
-        // File watching event listeners (returns cleanup function like onGraphUpdate)
+        // File watching event listeners (returns cleanup function like onProjectedGraphUpdate)
         onWatchingStarted: (callback) => {
             type WatchingStartedData = { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> };
             const handler: (_event: Electron.IpcRendererEvent, data: WatchingStartedData) => void = (_event, data) => callback(data);
@@ -87,15 +86,8 @@ async function exposeElectronAPI(): Promise<void> {
             ipcRenderer.on('backend-log', (_event, log) => callback(log));
         },
 
-        // Functional graph API (Phase 3)
+        // Functional graph API
         graph: {
-            // Subscribe to graph delta updates (returns unsubscribe function)
-            onGraphUpdate: (callback: (delta: GraphDelta) => void) => {
-                const handler: (_event: unknown, delta: GraphDelta) => void = (_event: unknown, delta: GraphDelta) => callback(delta);
-                ipcRenderer.on('graph:stateChanged', handler);
-                return () => ipcRenderer.off('graph:stateChanged', handler);
-            },
-
             // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
             onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
                 const handler: (_event: unknown, graph: ProjectedGraph) => void = (_event: unknown, graph: ProjectedGraph) => callback(graph);
@@ -135,7 +127,6 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:data',
                 'terminal:exit',
                 'backend-log',
-                'graph:stateChanged',
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
@@ -153,7 +144,6 @@ async function exposeElectronAPI(): Promise<void> {
                 'terminal:data',
                 'terminal:exit',
                 'backend-log',
-                'graph:stateChanged',
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',

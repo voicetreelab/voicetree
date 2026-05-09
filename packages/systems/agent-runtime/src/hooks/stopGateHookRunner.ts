@@ -39,6 +39,24 @@ type HookEntry =
 
 type HookConfig = { Stop: HookEntry[] }
 
+export type StopGateHookRunnerDeps = {
+    readonly homeDir: string
+    readonly readHookConfigFile: (path: string) => string
+    readonly runShellCommand: (command: string, input: string, timeoutMs: number) => SpawnSyncReturns<Buffer>
+    readonly warn: (message: string) => void
+}
+
+const defaultStopGateHookRunnerDeps: StopGateHookRunnerDeps = {
+    homeDir: process.env.HOME ?? '',
+    readHookConfigFile: (path: string): string => fs.readFileSync(path, 'utf-8'),
+    runShellCommand: (command: string, input: string, timeoutMs: number): SpawnSyncReturns<Buffer> => spawnSync(command, {
+        shell: true,
+        input,
+        timeout: timeoutMs
+    }),
+    warn: (message: string): void => console.warn(message)
+}
+
 // ─── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_HOOKS: HookConfig = {
@@ -49,11 +67,10 @@ const DEFAULT_HOOKS: HookConfig = {
 
 // ─── Config loading ───────────────────────────────────────────────────────────
 
-function loadHookConfig(): HookConfig {
-    const home: string = process.env.HOME ?? ''
-    const configPath: string = `${home}/brain/automation/hooks.json`
+function loadHookConfig(deps: StopGateHookRunnerDeps): HookConfig {
+    const configPath: string = `${deps.homeDir}/brain/automation/hooks.json`
     try {
-        const content: string = fs.readFileSync(configPath, 'utf-8')
+        const content: string = deps.readHookConfigFile(configPath)
         return JSON.parse(content) as HookConfig
     } catch {
         return DEFAULT_HOOKS
@@ -63,9 +80,10 @@ function loadHookConfig(): HookConfig {
 // ─── Hook runners ─────────────────────────────────────────────────────────────
 
 function runBuiltinHook(
-    entry: { type: 'builtin'; name: string }
+    entry: { type: 'builtin'; name: string },
+    deps: StopGateHookRunnerDeps
 ): StopHookResult {
-    console.warn(
+    deps.warn(
         `[stopGateHookRunner] builtin hook "${entry.name}" is no longer supported; skipping.`
     )
     return { passed: true }
@@ -73,15 +91,11 @@ function runBuiltinHook(
 
 function runShellHook(
     entry: { type: 'command'; command: string },
-    context: StopHookContext
+    context: StopHookContext,
+    deps: StopGateHookRunnerDeps
 ): StopHookResult {
-    const home: string = process.env.HOME ?? ''
-    const command: string = entry.command.replace('~', home)
-    const result: SpawnSyncReturns<Buffer> = spawnSync(command, {
-        shell: true,
-        input: JSON.stringify(context),
-        timeout: 30_000
-    })
+    const command: string = entry.command.replace('~', deps.homeDir)
+    const result: SpawnSyncReturns<Buffer> = deps.runShellCommand(command, JSON.stringify(context), 30_000)
     if (result.status === 2) {
         const message: string = result.stderr?.toString().trim() || 'Shell hook blocked stop'
         return { passed: false, message }
@@ -148,7 +162,8 @@ function hasProgressNodes(agentName: string, graph: Graph): boolean {
 export async function runStopHooks(
     terminalId: string,
     graph: Graph,
-    records: readonly TerminalRecord[]
+    records: readonly TerminalRecord[],
+    deps: StopGateHookRunnerDeps = defaultStopGateHookRunnerDeps
 ): Promise<StopHookResult> {
     const context: StopHookContext | null = buildContext(terminalId, records)
     if (!context) return { passed: true }
@@ -158,14 +173,14 @@ export async function runStopHooks(
         return { passed: true }
     }
 
-    const config: HookConfig = loadHookConfig()
+    const config: HookConfig = loadHookConfig(deps)
     const messages: string[] = []
     let anyFailed: boolean = false
 
     for (const entry of config.Stop) {
         const result: StopHookResult = entry.type === 'builtin'
-            ? runBuiltinHook(entry)
-            : runShellHook(entry, context)
+            ? runBuiltinHook(entry, deps)
+            : runShellHook(entry, context, deps)
 
         if (!result.passed) {
             anyFailed = true

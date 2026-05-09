@@ -147,7 +147,6 @@ function tryCandidateDirections(
     obstacles: readonly Obstacle[],
     desiredRad: number,
     directionalDistance?: DirectionalDistanceConfig,
-    label?: string,
 ): readonly { readonly pos: Position; readonly angleDiff: number }[] {
     const normalizeAngleDiff: (raw: number) => number = (raw: number) =>
         raw > Math.PI ? 2 * Math.PI - raw : raw;
@@ -164,20 +163,6 @@ function tryCandidateDirections(
             const collisions: readonly Obstacle[] = [...new Set([...bboxCollisions, ...edgeCollisions])];
             return { pos, bbox, blocked: collisions.length > 0, collisions };
         });
-
-    const free: number = allCandidates.filter(c => !c.blocked).length;
-    const blocked: number = allCandidates.filter(c => c.blocked).length;
-    console.log(`[findBestPosition] ${label ?? 'candidates'} (dist=${distance.toFixed(0)}): ${free} free, ${blocked} blocked out of ${allCandidates.length}`);
-    allCandidates.forEach(c => {
-        const boxCount: number = c.collisions.filter(o => o.kind === 'box').length;
-        const segCount: number = c.collisions.filter(o => o.kind === 'segment').length;
-        const reasons: readonly string[] = [
-            ...(boxCount > 0 ? [`${boxCount} node(s)`] : []),
-            ...(segCount > 0 ? [`${segCount} edge(s)`] : []),
-        ];
-        const status: string = c.blocked ? `BLOCKED by ${reasons.join(' + ')}` : 'FREE';
-        console.log(`  candidate (${c.pos.x.toFixed(0)}, ${c.pos.y.toFixed(0)}) bbox [${c.bbox.x1.toFixed(0)},${c.bbox.y1.toFixed(0)} → ${c.bbox.x2.toFixed(0)},${c.bbox.y2.toFixed(0)}]: ${status}`);
-    });
 
     return allCandidates
         .filter(c => !c.blocked)
@@ -215,8 +200,6 @@ export function findBestPosition(
     obstacles: readonly Obstacle[],
     directionalDistance?: DirectionalDistanceConfig,
 ): Position {
-    console.log(`[findBestPosition] parentPos=(${parentPos.x.toFixed(0)}, ${parentPos.y.toFixed(0)}), angle=${desiredAngleDeg.toFixed(1)}°, dist=${distance}, target=${targetDimensions.width}×${targetDimensions.height}, obstacles=${obstacles.length}`);
-
     // 1. Try desired angle first
     const offset: { readonly x: number; readonly y: number } = polarToCartesian(desiredAngleDeg, distance);
     const desiredPos: Position = {
@@ -230,13 +213,6 @@ export function findBestPosition(
     const desiredEdgeCollisions: readonly Obstacle[] = obstacles.filter(obs => edgeCrossesObstacle(desiredEdge, parentPos, obs));
     const desiredCollisions: readonly Obstacle[] = [...new Set([...bboxCollisions, ...desiredEdgeCollisions])];
     const desiredBlocked: boolean = desiredCollisions.length > 0;
-    const boxCount: number = desiredCollisions.filter(o => o.kind === 'box').length;
-    const segCount: number = desiredCollisions.filter(o => o.kind === 'segment').length;
-    const desiredBlockReason: string = desiredBlocked
-        ? `BLOCKED (${[...(boxCount > 0 ? [`${boxCount} node(s)`] : []), ...(segCount > 0 ? [`${segCount} edge(s)`] : [])].join(' + ')})`
-        : 'FREE → using it';
-    console.log(`[findBestPosition] step 1 — desired angle (${desiredPos.x.toFixed(0)}, ${desiredPos.y.toFixed(0)}) bbox [${desiredBBox.x1.toFixed(0)},${desiredBBox.y1.toFixed(0)} → ${desiredBBox.x2.toFixed(0)},${desiredBBox.y2.toFixed(0)}]: ${desiredBlockReason}`);
-
     if (!desiredBlocked) {
         return desiredPos;
     }
@@ -252,32 +228,27 @@ export function findBestPosition(
     // }
 
     // 3. All blocked at base — retry at 1.5× distance
-    console.log(`[findBestPosition] step 3 — trying 1.5× distance hex directions`);
     const nearDistance: number = distance * 1.5;
     const nearCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance, '1.5× hex');
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, nearDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
     if (nearCandidates.length > 0) {
         const best: { readonly pos: Position; readonly angleDiff: number } = [...nearCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0];
-        console.log(`[findBestPosition] → picked (${best.pos.x.toFixed(0)}, ${best.pos.y.toFixed(0)}) from 1.5× candidates`);
         return best.pos;
     }
 
     // 4. All blocked at 1.5× — retry at 2.5× distance.
     // Large floating windows (editors ~380×400) centered at ~285px from parent can have
     // bboxes extending to ~475px, requiring a larger jump to clear.
-    console.log(`[findBestPosition] step 4 — trying 2.5× distance hex directions`);
     const farDistance: number = distance * 2.5;
     const farCandidates: readonly { readonly pos: Position; readonly angleDiff: number }[] =
-        tryCandidateDirections(parentPos, HEX_DIRECTIONS, farDistance, targetDimensions, obstacles, desiredRad, directionalDistance, '2.5× hex');
+        tryCandidateDirections(parentPos, HEX_DIRECTIONS, farDistance, targetDimensions, obstacles, desiredRad, directionalDistance);
 
     if (farCandidates.length > 0) {
         const best: { readonly pos: Position; readonly angleDiff: number } = [...farCandidates].sort((a, b) => a.angleDiff - b.angleDiff)[0];
-        console.log(`[findBestPosition] → picked (${best.pos.x.toFixed(0)}, ${best.pos.y.toFixed(0)}) from 2.5× candidates`);
         return best.pos;
     }
 
     // 5. Fallback: desired angle position (all directions blocked)
-    console.log(`[findBestPosition] ⚠ FALLBACK — all directions blocked at all distances, returning desired pos (${desiredPos.x.toFixed(0)}, ${desiredPos.y.toFixed(0)}) WITH collisions`);
     return desiredPos;
 }

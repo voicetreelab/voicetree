@@ -8,6 +8,11 @@ import { listLiveInstances, pickInstance, type DebugInstance, type PickOpts, typ
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..')
 const AUTO_LAUNCH_TIMEOUT_MS = 30_000
 const AUTO_LAUNCH_POLL_MS = 250
+export const CDP_LOOPBACK_HOST = '127.0.0.1'
+
+export function formatCdpHttpEndpoint(port: number): string {
+  return `http://${CDP_LOOPBACK_HOST}:${port}`
+}
 
 export type LaunchedChild = {
   exited: boolean
@@ -34,7 +39,7 @@ export async function probeCdpPort(port: number): Promise<boolean> {
   const timeout = setTimeout(() => controller.abort(), 1_500)
 
   try {
-    const response = await fetch(`http://localhost:${port}/json/version`, {
+    const response = await fetch(`${formatCdpHttpEndpoint(port)}/json/version`, {
       signal: controller.signal,
     })
 
@@ -95,7 +100,7 @@ async function launchDevSession(port: number): Promise<LaunchedChild> {
         env: {
           ...process.env,
           ENABLE_PLAYWRIGHT_DEBUG: '1',
-          PLAYWRIGHT_MCP_CDP_ENDPOINT: `http://localhost:${port}`,
+          PLAYWRIGHT_MCP_CDP_ENDPOINT: formatCdpHttpEndpoint(port),
           VT_DEBUG_AUTOLAUNCHED: '1',
         },
       },
@@ -238,7 +243,9 @@ export async function resolveDebugInstance(
       return {
         ok: false,
         message: `selected dev instance is not ready for CDP attach (cdp=${pick.instance.cdpPort})`,
-        hint: 'wait for startup to finish or pick a different dev session with vt-debug ls',
+        hint: pick.instance.cdpPort === 0
+          ? 'CDP was not enabled for this session — restart the app (it auto-enables CDP for unpackaged builds)'
+          : 'wait for startup to finish or pick a different dev session with vt-debug ls',
       }
     }
 
@@ -246,10 +253,13 @@ export async function resolveDebugInstance(
   }
 
   if (!opts.forceNew && instances.length >= 1) {
+    const allCdpZero = instances.every(i => i.cdpPort === 0)
     return {
       ok: false,
       message: `existing dev session${instances.length > 1 ? 's' : ''} found (${formatPortList(instances)})`,
-      hint: `re-run with --port ${instances[0].cdpPort} to reuse, or --new to launch a fresh session (preferred if testing new code)`,
+      hint: allCdpZero
+        ? 'all sessions have cdpPort=0 (CDP was not enabled). Re-run with --new to launch a fresh session with CDP'
+        : `re-run with --port ${instances[0].cdpPort} to reuse, or --new to launch a fresh session (preferred if testing new code)`,
       instances,
     }
   }

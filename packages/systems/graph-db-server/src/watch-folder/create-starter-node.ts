@@ -10,45 +10,66 @@ import { createGraph } from '@vt/graph-model/graph'
 import { loadSettings } from '@vt/app-config/settings'
 import type { VTSettings } from '@vt/graph-model/settings'
 
-/**
- * Creates a starter node when opening an empty folder.
- * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
- *
- * @param vaultPath - The vault path where the node file will be created
- * @returns Graph containing the new starter node
- */
-export async function createStarterNode(vaultPath: string): Promise<Graph> {
-    const settings: VTSettings = await loadSettings()
-    const template: string = settings.emptyFolderTemplate ?? '# '
+export interface CreateStarterNodeDependencies {
+    readonly loadSettings: () => Promise<VTSettings>
+    readonly now: () => Date
+    readonly nowMs: () => number
+    readonly random: () => number
+    readonly mkdir: (dirPath: string, options: { readonly recursive: true }) => Promise<void>
+    readonly writeFile: (filePath: string, content: string, encoding: BufferEncoding) => Promise<void>
+}
 
-    // Format date: "Tuesday, 23 December"
-    const now: Date = new Date()
+const defaultCreateStarterNodeDependencies: CreateStarterNodeDependencies = {
+    loadSettings,
+    now(): Date {
+        return new Date()
+    },
+    nowMs(): number {
+        return Date.now()
+    },
+    random(): number {
+        return Math.random()
+    },
+    async mkdir(dirPath: string, options: { readonly recursive: true }): Promise<void> {
+        await fs.mkdir(dirPath, options)
+    },
+    writeFile(filePath: string, content: string, encoding: BufferEncoding): Promise<void> {
+        return fs.writeFile(filePath, content, encoding)
+    },
+}
+
+export interface StarterNodePlan {
+    readonly graph: Graph
+    readonly absolutePath: string
+    readonly content: string
+}
+
+function randomLetters(random: () => number, length: number): string {
+    const alphabet: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    return Array.from({ length }, () =>
+        alphabet.charAt(Math.floor(random() * alphabet.length))
+    ).join('')
+}
+
+export function buildStarterNodePlan(
+    vaultPath: string,
+    template: string,
+    now: Date,
+    timestamp: string,
+    randomChars: string,
+): StarterNodePlan {
     const dateStr: string = now.toLocaleDateString('en-US', {
         weekday: 'long',
         day: 'numeric',
         month: 'long'
     })
-
-    // Replace {{DATE}} placeholder with formatted date
     const content: string = template.replace(/\{\{DATE\}\}/g, dateStr)
-
-    // Generate node ID with day-based folder: {dayAbbrev}/{timestamp}{randomChars}.md
     const dayAbbrev: string = now.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()
-    const timestamp: string = Date.now().toString()
-    const randomChars: string = Array.from({length: 3}, () =>
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.charAt(
-            Math.floor(Math.random() * 52)
-        )
-    ).join('')
-
     const fileName: string = `${timestamp}${randomChars}.md`
     const relativePath: string = `${dayAbbrev}/${fileName}`
-
-    // Node ID is the absolute path (consistent with loadGraphFromDisk)
     const absolutePath: string = path.join(vaultPath, relativePath)
     const nodeId: string = absolutePath
 
-    // Create the node
     const newNode: GraphNode = {
         kind: 'leaf',
         absoluteFilePathIsID: nodeId,
@@ -62,12 +83,39 @@ export async function createStarterNode(vaultPath: string): Promise<Graph> {
         },
     }
 
-    const graph: Graph = createGraph({ [nodeId]: newNode })
+    return {
+        graph: createGraph({ [nodeId]: newNode }),
+        absolutePath,
+        content,
+    }
+}
+
+/**
+ * Creates a starter node when opening an empty folder.
+ * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
+ *
+ * @param vaultPath - The vault path where the node file will be created
+ * @returns Graph containing the new starter node
+ */
+export async function createStarterNode(
+    vaultPath: string,
+    dependencies: CreateStarterNodeDependencies = defaultCreateStarterNodeDependencies,
+): Promise<Graph> {
+    const settings: VTSettings = await dependencies.loadSettings()
+    const template: string = settings.emptyFolderTemplate ?? '# '
+
+    const plan: StarterNodePlan = buildStarterNodePlan(
+        vaultPath,
+        template,
+        dependencies.now(),
+        dependencies.nowMs().toString(),
+        randomLetters(dependencies.random, 3),
+    )
 
     // Write the file to disk
-    const dirPath: string = path.dirname(absolutePath)
-    await fs.mkdir(dirPath, { recursive: true })
-    await fs.writeFile(absolutePath, content, 'utf-8')
+    const dirPath: string = path.dirname(plan.absolutePath)
+    await dependencies.mkdir(dirPath, { recursive: true })
+    await dependencies.writeFile(plan.absolutePath, plan.content, 'utf-8')
 
-    return graph
+    return plan.graph
 }

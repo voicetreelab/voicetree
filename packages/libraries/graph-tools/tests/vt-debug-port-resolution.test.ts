@@ -1,11 +1,18 @@
 import { execFileSync } from 'node:child_process'
+import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import type { DebugInstance } from '../src/debug/discover'
-import { resolveDebugInstance, type LaunchedChild, type ResolveDebugInstanceDeps } from '../src/debug/portResolution'
+import {
+  CDP_LOOPBACK_HOST,
+  probeCdpPort,
+  resolveDebugInstance,
+  type LaunchedChild,
+  type ResolveDebugInstanceDeps,
+} from '../src/debug/portResolution'
 import { parseArgs as parseScreenshotArgs } from '../src/commands/screenshot'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
@@ -36,6 +43,48 @@ function buildDeps(overrides: Partial<ResolveDebugInstanceDeps> = {}) {
     ...overrides,
   }
 }
+
+async function withProbeServer(
+  handler: Parameters<typeof createServer>[0],
+  run: (port: number) => Promise<void>,
+): Promise<void> {
+  const server = createServer(handler)
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, CDP_LOOPBACK_HOST, resolve)
+  })
+
+  try {
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      throw new Error('server did not bind to a TCP port')
+    }
+    await run(address.port)
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close(error => error ? reject(error) : resolve())
+    })
+  }
+}
+
+describe('probeCdpPort', () => {
+  it('accepts a CDP /json/version endpoint on the IPv4 loopback host', async () => {
+    await withProbeServer((request, response) => {
+      if (request.url !== '/json/version') {
+        response.writeHead(404).end()
+        return
+      }
+
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({
+        Browser: 'Chrome/140.0.7339.133',
+        webSocketDebuggerUrl: 'ws://127.0.0.1/devtools/browser/test',
+      }))
+    }, async (port) => {
+      expect(await probeCdpPort(port)).toBe(true)
+    })
+  })
+})
 
 describe('resolveDebugInstance', () => {
   it('warns when a session exists and no selector given', async () => {

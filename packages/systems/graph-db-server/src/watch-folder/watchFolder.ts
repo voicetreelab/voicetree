@@ -41,14 +41,14 @@ import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
     type LoadVaultPathResult,
-} from "./vault-allowlist";
+} from "./paths/vault-allowlist";
 import { setActiveViewFolderState } from "./folder-visibility-active-view";
-import { setupWatcher } from "./file-watcher-setup";
-import { setupStateChangeSubscriptions } from "./watcher-rebuild";
-import type { WatcherOptions } from "./file-watcher-setup";
-import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watcher-options.shared";
+import { setupWatcher } from "./watching/file-watcher-setup";
+import { setupStateChangeSubscriptions } from "./watching/watcher-rebuild";
+import type { WatcherOptions } from "./watching/file-watcher-setup";
+import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "./watching/watcher-options.shared";
 import { createEmptyGraph } from '@vt/graph-model/graph';
-import { broadcastVaultState } from "./broadcast-vault-state";
+import { broadcastVaultState } from "./broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 
 // Re-export vault-allowlist functions for api.ts and tests
@@ -64,7 +64,7 @@ export {
     clearVaultPath,
     createDatedVoiceTreeFolder,
     createSubfolder,
-} from "./vault-allowlist";
+} from "./paths/vault-allowlist";
 
 // Re-export folder-scanner functions for api.ts
 export { getAvailableFoldersForSelector } from "./folder-scanner";
@@ -74,6 +74,51 @@ export interface WatchFolderLoadOptions {
     mountWatcher?: boolean;
     includeActiveViewExpandedPaths?: boolean;
     persistDefaultExpandedPaths?: boolean;
+    effects?: WatchFolderEffects;
+}
+
+export interface WatchFolderEffects {
+    readonly warn: (message?: unknown, ...optionalParams: unknown[]) => void;
+    readonly nowIso: () => string;
+}
+
+const defaultWatchFolderEffects: WatchFolderEffects = {
+    warn(message?: unknown, ...optionalParams: unknown[]): void {
+        console.warn(message, ...optionalParams);
+    },
+    nowIso(): string {
+        return new Date().toISOString();
+    },
+};
+
+function getWatchFolderEffects(options: WatchFolderLoadOptions): WatchFolderEffects {
+    return options.effects ?? defaultWatchFolderEffects;
+}
+
+function extractFileLimitCount(error: string | undefined): number | null {
+    if (!error?.includes('File limit exceeded')) return null;
+    const match: RegExpMatchArray | null = error.match(/(\d+) files/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+function buildWatchingStartedPayload(
+    directory: string,
+    writePath: string,
+    timestamp: string,
+): { readonly directory: string; readonly writePath: string; readonly timestamp: string } {
+    return { directory, writePath, timestamp };
+}
+
+function validateDirectoryForWatching(selectedDirectory: string): string | null {
+    if (!fsSync.existsSync(selectedDirectory)) {
+        return `Directory does not exist: ${selectedDirectory}`;
+    }
+
+    if (!fsSync.statSync(selectedDirectory).isDirectory()) {
+        return `Path is not a directory: ${selectedDirectory}`;
+    }
+
+    return null;
 }
 
 async function resolveWatcherOptions(): Promise<WatcherOptions> {
@@ -194,6 +239,8 @@ export async function loadFolder(
     watchedFolderPath: FilePath,
     options: WatchFolderLoadOptions = {},
 ): Promise<{ success: boolean }> {
+    const effects: WatchFolderEffects = getWatchFolderEffects(options);
+
     // Save current graph positions before switching folders
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
     if (previousRoot) {
@@ -230,7 +277,7 @@ export async function loadFolder(
 
     // Ensure .voicetree/ has default prompts and hook scripts (copy-on-first-open)
     await getCallbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
-        console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error);
+        effects.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error);
     });
 
     await getCallbacks().ensureDaemonForVault?.(watchedFolderPath)
@@ -246,9 +293,8 @@ export async function loadFolder(
     const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
     if (!writeResult.success) {
         // Check for file limit exceeded error
-        if (writeResult.error?.includes('File limit exceeded')) {
-            const match: RegExpMatchArray | null = writeResult.error.match(/(\d+) files/);
-            const fileCount: number = match ? parseInt(match[1], 10) : 0;
+        const fileCount: number | null = extractFileLimitCount(writeResult.error);
+        if (fileCount !== null) {
             return createNewWorkspaceOnFileLimitExceeded(
                 watchedFolderPath,
                 fileCount,
@@ -264,9 +310,8 @@ export async function loadFolder(
         const expandedResult: LoadVaultPathResult = await loadAndMergeVaultPath(expandedPath, { isWritePath: false }, positions);
         if (!expandedResult.success) {
             // Check for file limit exceeded error
-            if (expandedResult.error?.includes('File limit exceeded')) {
-                const match: RegExpMatchArray | null = expandedResult.error.match(/(\d+) files/);
-                const fileCount: number = match ? parseInt(match[1], 10) : 0;
+            const fileCount: number | null = extractFileLimitCount(expandedResult.error);
+            if (fileCount !== null) {
                 return createNewWorkspaceOnFileLimitExceeded(
                     watchedFolderPath,
                     fileCount,
@@ -275,7 +320,7 @@ export async function loadFolder(
                 );
             }
             // Log but continue with remaining paths for non-fatal errors
-            console.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
+            effects.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
             continue;
         }
     }
@@ -295,11 +340,11 @@ export async function loadFolder(
     await saveLastDirectory(watchedFolderPath);
 
     // Notify UI that watching has started
-    getCallbacks().onWatchingStarted?.({
-        directory: getProjectRootWatchedDirectory() ?? watchedFolderPath,
-        writePath: config.writePath,
-        timestamp: new Date().toISOString()
-    });
+    getCallbacks().onWatchingStarted?.(buildWatchingStartedPayload(
+        getProjectRootWatchedDirectory() ?? watchedFolderPath,
+        config.writePath,
+        effects.nowIso(),
+    ));
 
     if (options.broadcastVaultState !== false) {
         // Push initial vault state to renderer before resolving so callers/tests
@@ -320,6 +365,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
     existingExpandedPaths: readonly string[],
     options: WatchFolderLoadOptions = {},
 ): Promise<{ success: boolean }> {
+    const effects: WatchFolderEffects = getWatchFolderEffects(options);
     const newSubfolderPath: string = await createDatedSubfolder(watchedFolderPath);
 
     // Show info dialog (non-blocking)
@@ -355,11 +401,11 @@ async function createNewWorkspaceOnFileLimitExceeded(
     await saveLastDirectory(watchedFolderPath);
 
     // Notify UI that watching has started
-    getCallbacks().onWatchingStarted?.({
-        directory: getProjectRootWatchedDirectory() ?? watchedFolderPath,
-        writePath: newSubfolderPath,
-        timestamp: new Date().toISOString()
-    });
+    getCallbacks().onWatchingStarted?.(buildWatchingStartedPayload(
+        getProjectRootWatchedDirectory() ?? watchedFolderPath,
+        newSubfolderPath,
+        effects.nowIso(),
+    ));
 
     if (options.broadcastVaultState !== false) {
         // Push updated vault state to renderer so VaultPathSelector re-renders.
@@ -395,16 +441,8 @@ export async function startFileWatching(
         return { success: false, error: 'No new directory selected' };
     }
 
-    // FAIL FAST: Validate directory exists before proceeding
-    if (!fsSync.existsSync(selectedDirectory)) {
-        const error: string = `Directory does not exist: ${selectedDirectory}`;
-        console.error('[watchFolder] startFileWatching failed:', error);
-        return { success: false, error };
-    }
-
-    if (!fsSync.statSync(selectedDirectory).isDirectory()) {
-        const error: string = `Path is not a directory: ${selectedDirectory}`;
-        console.error('[watchFolder] startFileWatching failed:', error);
+    const error: string | null = validateDirectoryForWatching(selectedDirectory);
+    if (error !== null) {
         return { success: false, error };
     }
 

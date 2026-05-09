@@ -46,8 +46,6 @@ function reverseUpsertNode(action: UpsertNodeDelta): GraphDelta {
 
 function reverseDeleteNode(action: DeleteNode): GraphDelta {
     if (O.isNone(action.deletedNode)) {
-        // Cannot reverse without knowing what was deleted
-        console.warn('Cannot undo delete: missing deletedNode for', action.nodeId)
         return []
     }
     // Was a DELETE → reverse is CREATE

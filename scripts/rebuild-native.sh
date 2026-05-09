@@ -24,6 +24,9 @@ echo "→ rebuild-native: webapp (Electron ABI)"
 
 # 2. agent-runtime's direct native deps (node-pty).
 echo "→ rebuild-native: packages/systems/agent-runtime (Electron ABI)"
+# electron-rebuild lstat's node_gyp_bins while force-rebuilding the hoisted
+# node-pty package; npm may install node-pty without that optional directory.
+mkdir -p "$ROOT/node_modules/node-pty/build/node_gyp_bins"
 ( cd "$ROOT/packages/systems/agent-runtime" && "$REBUILD" -f -w node-pty )
 
 echo "✔ rebuild-native: all native modules built for correct ABIs"

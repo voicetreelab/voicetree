@@ -63,6 +63,48 @@ describe('daemon CLI route parity', () => {
                 reason:
                     '`/sessions/:sessionId/projected-graph` returns the full ProjectedGraph for renderer hydration; internal to the Electron IPC bridge, not a CLI command.',
             },
+            {
+                method: 'GET',
+                path: '/graph/find-file',
+                reason:
+                    '`/graph/find-file` is a daemon-internal query used by the webapp IPC bridge for wikilink resolution; not a user-facing CLI command.',
+            },
+            {
+                method: 'GET',
+                path: '/graph/preview-contained-nodes/:nodeId',
+                reason:
+                    '`/graph/preview-contained-nodes/:nodeId` computes context node preview highlights for the renderer; not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/undo',
+                reason:
+                    '`/graph/undo` reverses the last graph mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/redo',
+                reason:
+                    '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/context-node',
+                reason:
+                    '`/graph/context-node` creates transient agent context files for Electron/headless agent workflows; it is not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/context-node-from-question',
+                reason:
+                    '`/graph/context-node-from-question` creates ask-mode context files for Electron/headless agent workflows; it is not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/write-positions',
+                reason:
+                    '`/graph/write-positions` persists renderer layout coordinates from Electron; it is not a user-facing CLI command.',
+            },
         ])
     })
 

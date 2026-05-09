@@ -198,9 +198,9 @@ test.describe('Dark Mode Toggle Screenshot', () => {
           _graphState: { nodes: {}, edges: [] },
           applyGraphDelta: async () => ({ success: true }),
           getState: async () => ({ nodes: {}, edges: [] }),
-          onGraphUpdate: () => () => {},
+          onProjectedGraphUpdate: () => () => {},
           onGraphClear: () => () => {},
-          _updateCallback: undefined
+          _projectedGraphCallback: undefined
         },
         invoke: async () => {},
         _ipcListeners: {},

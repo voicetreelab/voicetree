@@ -14,13 +14,21 @@ function normalizeEnvValue(s: string): string {
  * All values are normalized (newlines collapsed) for cross-platform compatibility.
  */
 export function resolveEnvVars(envVarDefs: Record<string, EnvVarValue>): Record<string, string> {
+    return resolveEnvVarsWithSelection(envVarDefs, () => 0);
+}
+
+export function resolveEnvVarsWithSelection(
+    envVarDefs: Record<string, EnvVarValue>,
+    selectIndex: (values: readonly string[]) => number
+): Record<string, string> {
     return Object.fromEntries(
         Object.entries(envVarDefs).map(([key, value]: readonly [string, EnvVarValue]): readonly [string, string] => {
             if (typeof value === 'string') {
                 return [key, normalizeEnvValue(value)];
             }
-            const randomIndex: number = Math.floor(Math.random() * value.length);
-            return [key, normalizeEnvValue(value[randomIndex])];
+            const selectedIndex: number = selectIndex(value);
+            const boundedIndex: number = ((selectedIndex % value.length) + value.length) % value.length;
+            return [key, normalizeEnvValue(value[boundedIndex])];
         })
     );
 }

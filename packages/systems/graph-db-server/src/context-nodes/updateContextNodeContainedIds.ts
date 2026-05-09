@@ -6,9 +6,19 @@
  * The file watcher detects the change and propagates a graph delta.
  */
 
-import { promises as fs } from 'fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
+
+type ContextNodeContainedIdsFileStore = {
+    readonly readFile: (filePath: string, encoding: BufferEncoding) => Promise<string>
+    readonly writeFile: (filePath: string, content: string, encoding: BufferEncoding) => Promise<void>
+}
+
+const defaultContextNodeContainedIdsFileStore: ContextNodeContainedIdsFileStore = {
+    readFile: readFile as ContextNodeContainedIdsFileStore['readFile'],
+    writeFile: writeFile as ContextNodeContainedIdsFileStore['writeFile'],
+}
 
 /**
  * Append nodeIds to a context node's containedNodeIds YAML frontmatter.
@@ -22,11 +32,12 @@ import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
  */
 export async function updateContextNodeContainedIds(
     contextNodeId: NodeIdAndFilePath,
-    newNodeIds: readonly string[]
+    newNodeIds: readonly string[],
+    fileStore: ContextNodeContainedIdsFileStore = defaultContextNodeContainedIdsFileStore
 ): Promise<void> {
     const filePath: string = nodeIdToFilePathWithExtension(contextNodeId)
 
-    const fileContent: string = await fs.readFile(filePath, 'utf-8')
+    const fileContent: string = await fileStore.readFile(filePath, 'utf-8')
 
     // Split into frontmatter and body
     const frontmatterMatch: RegExpMatchArray | null = fileContent.match(/^---\n([\s\S]*?)\n---/)
@@ -74,5 +85,5 @@ export async function updateContextNodeContainedIds(
 
     const updatedContent: string = `---\n${updatedFrontmatter}\n---${afterFrontmatter}`
 
-    await fs.writeFile(filePath, updatedContent, 'utf-8')
+    await fileStore.writeFile(filePath, updatedContent, 'utf-8')
 }

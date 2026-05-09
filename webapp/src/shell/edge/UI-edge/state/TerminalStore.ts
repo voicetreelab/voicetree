@@ -177,7 +177,7 @@ export function removeTerminalByData(terminal: TerminalData): void {
  * NOTE: Only use for structural changes (isPinned) that require full re-render.
  * For running state (isDone, lastOutputTime, activityCount), use updateTerminalRunningState.
  */
-export function updateTerminal(
+function updateTerminal(
     terminalId: TerminalId,
     updates: Partial<Pick<TerminalData, 'isPinned' | 'isMinimized'>>
 ): TerminalData | undefined {
@@ -218,15 +218,15 @@ export function updateTerminalRunningState(
 /**
  * @deprecated Use addTerminal instead
  */
-export const addTerminalToMapState: (terminal: TerminalData) => void = addTerminal;
+const addTerminalToMapState: (terminal: TerminalData) => void = addTerminal;
 /**
  * @deprecated Use removeTerminalByData instead
  */
-export const removeTerminalFromMapState: (terminal: TerminalData) => void = removeTerminalByData;
+const removeTerminalFromMapState: (terminal: TerminalData) => void = removeTerminalByData;
 /**
  * @deprecated Use removeTerminal instead
  */
-export const removeTerminalFromMapStateById: (terminalId: TerminalId) => void = removeTerminal;
+const removeTerminalFromMapStateById: (terminalId: TerminalId) => void = removeTerminal;
 
 export function getNextTerminalCount(
     terminalsMap: Map<TerminalId, TerminalData>,

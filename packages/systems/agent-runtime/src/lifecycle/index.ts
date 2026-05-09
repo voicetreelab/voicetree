@@ -45,5 +45,6 @@ export {
     isPromptDetectionActive,
     type PromptStateChange,
     type PromptRunnerCallbacks,
+    type PromptRunnerDependencies,
     type PromptRunnerOptions,
 } from './prompt-runner';

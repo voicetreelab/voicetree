@@ -32,6 +32,18 @@ export function resolveFolderVisibilityDbPath(vaultPath: string): string {
     return path.join(vaultPath, FOLDER_VISIBILITY_DB_RELATIVE_PATH)
 }
 
+function assertValidVaultPath(vaultPath: string): void {
+    if (typeof vaultPath !== 'string' || vaultPath.length === 0) {
+        throw new Error('openFolderVisibilityDb: vaultPath must be a non-empty string')
+    }
+}
+
+function prepareFolderVisibilityDb(db: FolderVisibilityDatabase): FolderVisibilityDatabase {
+    db.exec('PRAGMA journal_mode = WAL')
+    runSchemaMigrations(db)
+    return db
+}
+
 /**
  * Open (or create) the folder-visibility sqlite db for a vault.
  *
@@ -46,16 +58,12 @@ export function resolveFolderVisibilityDbPath(vaultPath: string): string {
  * created.
  */
 export function openFolderVisibilityDb(vaultPath: string): FolderVisibilityDatabase {
-    if (typeof vaultPath !== 'string' || vaultPath.length === 0) {
-        throw new Error('openFolderVisibilityDb: vaultPath must be a non-empty string')
-    }
+    assertValidVaultPath(vaultPath)
     const dbPath = resolveFolderVisibilityDbPath(vaultPath)
     fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
     const db = addTransactionMethod(new DatabaseSync(dbPath))
-    db.exec('PRAGMA journal_mode = WAL')
-    runSchemaMigrations(db)
-    return db
+    return prepareFolderVisibilityDb(db)
 }
 
 function addTransactionMethod(db: DatabaseSync): FolderVisibilityDatabase {

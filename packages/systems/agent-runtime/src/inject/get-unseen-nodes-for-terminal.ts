@@ -6,10 +6,11 @@
  */
 
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
-import { getUnseenNodesAroundContextNode, type UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
+import { getRuntimeGraph, getRuntimeUnseenNodesAroundContextNode } from '../runtime/graph-bridge'
+
+type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
 
 export interface UnseenNodeInfo {
     readonly nodeId: NodeIdAndFilePath
@@ -19,6 +20,36 @@ export interface UnseenNodeInfo {
 
 const CONTENT_PREVIEW_MAX_LENGTH: number = 200
 
+export type GetUnseenNodesDeps = {
+    readonly getTerminalRecords: () => TerminalRecord[]
+    readonly getGraph: () => Graph
+    readonly getUnseenNodesAroundContextNode: (contextNodeId: NodeIdAndFilePath) => Promise<readonly UnseenNode[]>
+    readonly getNodeTitle: (node: GraphNode) => string
+    readonly logError: (message: string, error: unknown) => void
+}
+
+const defaultGetUnseenNodesDeps: GetUnseenNodesDeps = {
+    getTerminalRecords,
+    getGraph: getRuntimeGraph,
+    getUnseenNodesAroundContextNode: getRuntimeUnseenNodesAroundContextNode,
+    getNodeTitle,
+    logError: (message: string, error: unknown): void => console.error(message, error)
+}
+
+export function buildUnseenNodeInfo(
+    node: UnseenNode,
+    graph: Graph,
+    titleForNode: (node: GraphNode) => string
+): UnseenNodeInfo {
+    const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
+    const title: string = graphNode ? titleForNode(graphNode) : node.nodeId
+    const contentPreview: string = node.content.length > CONTENT_PREVIEW_MAX_LENGTH
+        ? node.content.slice(0, CONTENT_PREVIEW_MAX_LENGTH) + '...'
+        : node.content
+
+    return { nodeId: node.nodeId, title, contentPreview }
+}
+
 /**
  * Get unseen nodes near a terminal's context node.
  *
@@ -27,8 +58,11 @@ const CONTENT_PREVIEW_MAX_LENGTH: number = 200
  * 3. Call existing getUnseenNodesAroundContextNode(contextNodeId)
  * 4. Return { nodeId, title, contentPreview }[]
  */
-export async function getUnseenNodesForTerminal(terminalId: string): Promise<readonly UnseenNodeInfo[]> {
-    const records: TerminalRecord[] = getTerminalRecords()
+export async function getUnseenNodesForTerminal(
+    terminalId: string,
+    deps: GetUnseenNodesDeps = defaultGetUnseenNodesDeps
+): Promise<readonly UnseenNodeInfo[]> {
+    const records: TerminalRecord[] = deps.getTerminalRecords()
     const record: TerminalRecord | undefined = records.find(
         (r: TerminalRecord) => r.terminalId === terminalId
     )
@@ -42,27 +76,21 @@ export async function getUnseenNodesForTerminal(terminalId: string): Promise<rea
     // Only compute unseen nodes for terminals attached to actual context nodes
     // (those with isContextNode metadata and containedNodeIds).
     // Non-context-node terminals (e.g. the hook terminal) don't have this metadata.
-    const graph: Graph = getGraph()
+    const graph: Graph = deps.getGraph()
     const attachedNode: GraphNode | undefined = graph.nodes[contextNodeId]
     if (!attachedNode || !attachedNode.nodeUIMetadata.isContextNode) {
         return []
     }
 
     try {
-        const unseenNodes: readonly UnseenNode[] = await getUnseenNodesAroundContextNode(contextNodeId)
-        const updatedGraph: Graph = getGraph()
+        const unseenNodes: readonly UnseenNode[] = await deps.getUnseenNodesAroundContextNode(contextNodeId)
+        const updatedGraph: Graph = deps.getGraph()
 
-        return unseenNodes.map((node: UnseenNode): UnseenNodeInfo => {
-            const graphNode: GraphNode | undefined = updatedGraph.nodes[node.nodeId]
-            const title: string = graphNode ? getNodeTitle(graphNode) : node.nodeId
-            const contentPreview: string = node.content.length > CONTENT_PREVIEW_MAX_LENGTH
-                ? node.content.slice(0, CONTENT_PREVIEW_MAX_LENGTH) + '...'
-                : node.content
-
-            return { nodeId: node.nodeId, title, contentPreview }
-        })
+        return unseenNodes.map((node: UnseenNode): UnseenNodeInfo =>
+            buildUnseenNodeInfo(node, updatedGraph, deps.getNodeTitle)
+        )
     } catch (error: unknown) {
-        console.error(`[get-unseen-nodes-for-terminal] Failed for terminal ${terminalId}:`, error)
+        deps.logError(`[get-unseen-nodes-for-terminal] Failed for terminal ${terminalId}:`, error)
         return []
     }
 }

@@ -73,7 +73,7 @@ describe('@vt/graph-db-client system contract', () => {
     const clientA = await GraphDbClient.connect({ vault, sessionId })
     const clientB = await GraphDbClient.connect({ vault, sessionId })
 
-    await expect(clientA.collapse(sessionId, `${docs}/`)).resolves.toHaveProperty('nodes')
+    await expect(clientA.collapse(sessionId, `${docs}/`)).resolves.toHaveProperty('collapseSet')
     await expect(clientB.setSelection(sessionId, {
       nodeIds: [notePath],
       mode: 'replace',

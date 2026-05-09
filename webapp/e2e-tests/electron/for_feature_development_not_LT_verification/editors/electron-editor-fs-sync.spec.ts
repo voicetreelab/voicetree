@@ -9,7 +9,7 @@
  *
  * ARCHITECTURE:
  * FS change → chokidar → handleFSEventWithStateAndUISides → applyAndBroadcast
- *   → broadcastGraphDeltaToUI (updates Cy node data)
+ *   → projected graph update (updates Cy node data)
  *   → uiAPI.updateFloatingEditorsFromExternal (updates CM6 via EditorSync)
  *
  * EditorSync.updateFloatingEditors only updates editors registered in EditorStore.

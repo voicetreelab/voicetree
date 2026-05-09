@@ -56,7 +56,7 @@ export function getDisplayTokenCount(): number {
 /**
  * Get count of final tokens only.
  */
-export function getFinalTokenCount(): number {
+function getFinalTokenCount(): number {
     return finalTokens.length;
 }
 

@@ -24,6 +24,7 @@ function makeProjectedGraph(label: string): ProjectedGraph {
         revision: 0,
         forests: [],
         arboricity: 0,
+        recentNodeIds: [],
     }
 }
 
@@ -61,6 +62,7 @@ function installFetchStream(chunks: Uint8Array[]): void {
 describe('daemon SSE subscription', () => {
     afterEach(() => {
         unsubscribeFromDaemonSSE()
+        vi.useRealTimers()
         vi.unstubAllGlobals()
     })
 
@@ -89,5 +91,64 @@ describe('daemon SSE subscription', () => {
             expect(sent[0]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph1 })
             expect(sent[1]).toEqual({ channel: 'graph:projectedGraphUpdate', data: graph2 })
         })
+    })
+
+    it('reconnects with the last seen sequence number', async () => {
+        vi.useFakeTimers()
+        const sent: SentMessage[] = []
+        const graph: ProjectedGraph = { ...makeProjectedGraph('sequenced'), seq: 7 }
+        const fetchSpy: ReturnType<typeof vi.fn> = vi.fn(async () => new Response(
+            new ReadableStream<Uint8Array>({
+                start(controller): void {
+                    if (fetchSpy.mock.calls.length === 1) {
+                        controller.enqueue(encodeSSE(graph))
+                    }
+                    controller.close()
+                },
+            }),
+            { status: 200 },
+        ))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        subscribeToDaemonSSE('seq-session', 'http://127.0.0.1:3210', makeMainWindow(sent))
+        await vi.advanceTimersByTimeAsync(0)
+
+        await vi.waitFor(() => {
+            expect(sent).toEqual([{ channel: 'graph:projectedGraphUpdate', data: graph }])
+        })
+
+        await vi.advanceTimersByTimeAsync(3_000)
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+        expect(fetchSpy.mock.calls[0][0]).toBe('http://127.0.0.1:3210/sessions/seq-session/events?since=0')
+        expect(fetchSpy.mock.calls[1][0]).toBe('http://127.0.0.1:3210/sessions/seq-session/events?since=7')
+    })
+
+    it('recovers when SSE stream goes silent', async () => {
+        vi.useFakeTimers()
+        const sent: SentMessage[] = []
+        const graph: ProjectedGraph = makeProjectedGraph('initial')
+
+        let streamController!: ReadableStreamDefaultController<Uint8Array>
+        const fetchSpy: ReturnType<typeof vi.fn> = vi.fn(async () => new Response(
+            new ReadableStream<Uint8Array>({
+                start(ctrl) { streamController = ctrl },
+            }),
+            { status: 200 },
+        ))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        subscribeToDaemonSSE('s', 'http://127.0.0.1:3210', makeMainWindow(sent))
+        await vi.advanceTimersByTimeAsync(0)
+
+        streamController.enqueue(encodeSSE(graph))
+        await vi.advanceTimersByTimeAsync(0)
+        expect(sent).toHaveLength(1)
+
+        // Stream goes silent — simulates TCP death. Advance past silence timeout + reconnect delay.
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        // System should have detected silence and reconnected (fetch called again).
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
     })
 })

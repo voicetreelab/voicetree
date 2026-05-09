@@ -64,7 +64,7 @@ export function toggleVoiceRecording(): void {
 /**
  * Check if voice recording is currently active (including transitional states).
  */
-export function isVoiceRecording(): boolean {
+function isVoiceRecording(): boolean {
     if (!getRecorderState) return false;
     const state: RecorderState = getRecorderState();
     return state === 'Running' || state === 'RequestingMedia' || state === 'OpeningWebSocket' || state === 'FinishingProcessing';

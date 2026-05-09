@@ -33,12 +33,6 @@ vi.mock('@vt/graph-model', async () => {
     }
 })
 
-vi.mock('@/shell/edge/main/state/graph-store', () => ({
-    getGraph: vi.fn(),
-    setGraph: vi.fn(),
-    getNode: vi.fn(),
-}))
-
 vi.mock('@/shell/edge/main/state/live-state-store', () => ({
     getCurrentLiveState: vi.fn(),
     rootsWereExplicitlySet: vi.fn().mockReturnValue(false),

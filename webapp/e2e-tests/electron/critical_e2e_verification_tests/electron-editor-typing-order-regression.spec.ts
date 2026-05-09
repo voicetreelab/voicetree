@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes, pollForCondition } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -142,40 +142,10 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
     await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
     await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
-    await window.waitForFunction(
-      () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
-      undefined,
-      { timeout: 30_000 },
-    );
-    try {
-      await window.waitForFunction(
-        () => ((window as unknown as ExtendedWindow).cytoscapeInstance?.nodes().length ?? 0) >= 1,
-        undefined,
-        { timeout: 20_000 },
-      );
-    } catch (error) {
-      const diagnostics = await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        const graph = await api?.main.getGraph().catch((graphError: unknown) => ({
-          error: graphError instanceof Error ? graphError.message : String(graphError),
-        }));
-        const watchStatus = await api?.main.getWatchStatus().catch((watchError: unknown) => ({
-          error: watchError instanceof Error ? watchError.message : String(watchError),
-        }));
-        return {
-          bodyText: document.body.textContent?.slice(0, 500) ?? '',
-          graph,
-          nodeCount: cy?.nodes().length ?? null,
-          watchStatus,
-        };
-      });
-      throw new Error(`Timed out waiting for graph nodes after opening project: ${JSON.stringify(diagnostics)}`, {
-        cause: error,
-      });
-    }
-    await window.waitForFunction(
-      async () => {
+    await pollForCytoscape(window, 30_000);
+    await pollForCytoscapeNodes(window, 1, 20_000);
+    await pollForCondition(window, async () => {
+      return await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
         const watchStatus = await api?.main.getWatchStatus();
@@ -185,10 +155,8 @@ const test = base.extend<{
             && (cy?.nodes().length ?? 0) >= 1
             && !bodyText.includes('Loading Voicetree'),
         );
-      },
-      undefined,
-      { timeout: 10_000 },
-    );
+      });
+    }, 'Waiting for file watching to start', 10_000);
     await window.waitForTimeout(1_000);
     await use(window);
   },
@@ -197,14 +165,12 @@ const test = base.extend<{
 test.describe.configure({ timeout: 75_000 });
 
 test('preserves character-by-character editor typing after autosave and file watcher settle', async ({ appWindow, writePath }) => {
-  await appWindow.waitForFunction(
-    () => {
+  await expect.poll(async () => {
+    return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       return Boolean(cy?.nodes().some((node) => node.data('label') === 'Typing Target'));
-    },
-    undefined,
-    { timeout: 10_000 },
-  );
+    });
+  }, { message: 'Waiting for Typing Target node', timeout: 10_000, intervals: [250, 500, 1000, 2000] }).toBe(true);
 
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -302,14 +268,12 @@ test('merges external daemon SSE append while the editor is focused and typing',
     await api?.main.syncRendererSessionStateWithDaemon();
   });
 
-  await appWindow.waitForFunction(
-    () => {
+  await expect.poll(async () => {
+    return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       return Boolean(cy?.nodes().some((node) => node.data('label') === 'Typing Target'));
-    },
-    undefined,
-    { timeout: 10_000 },
-  );
+    });
+  }, { message: 'Waiting for Typing Target node', timeout: 10_000, intervals: [250, 500, 1000, 2000] }).toBe(true);
 
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;

@@ -1,13 +1,21 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
-import { GraphStateSchema } from '../contract.ts'
+import type { Graph, GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
+import { findFirstParentNode } from '@vt/graph-model/graph'
+import { getNodeTitle } from '@vt/graph-model/markdown'
+import { GraphStateSchema } from '../daemon/contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../graph/applyGraphDelta.ts'
-import { getGraph, getNode } from '../state/graph-store.ts'
-import { publish } from '../events/deltaEventBus.ts'
+import { getGraph, getNode, setGraph } from '../state/graph-store.ts'
+import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import { publish } from '../state/events/deltaEventBus.ts'
+import { findFileByName } from '../graph/findFileByName.ts'
+import { getPreviewContainedNodeIds } from '../context-nodes/getPreviewContainedNodeIds.ts'
+import { performUndo, performRedo } from '../graph/undoOperations.ts'
 import type { SessionRegistry } from '../session/registry.ts'
-import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
+import { createContextNode } from '../context-nodes/createContextNode.ts'
+import { createContextNodeFromQuestion } from '../context-nodes/createContextNodeFromQuestion.ts'
+import { writeAllPositionsSync } from '../graph/writeAllPositionsOnExit.ts'
 
 const GraphDeltaRequestSchema = z.array(
   z.discriminatedUnion('type', [
@@ -27,6 +35,26 @@ const GraphDeltaRequestSchema = z.array(
 const ErrorResponseSchema = z.object({
   error: z.string(),
   code: z.string(),
+})
+
+const ContextNodeRequestSchema = z.object({
+  parentNodeId: z.string(),
+  semanticNodeIds: z.array(z.string()),
+})
+
+const ContextNodeFromQuestionRequestSchema = z.object({
+  nodeIds: z.array(z.string()),
+  question: z.string(),
+  semanticNodeIds: z.array(z.string()),
+})
+
+const PositionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+})
+
+const WritePositionsRequestSchema = z.object({
+  positions: z.record(z.string(), PositionSchema),
 })
 
 function normalizeAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
@@ -67,6 +95,42 @@ function normalizeGraphNode(node: unknown): GraphNode {
   }
 }
 
+function graphWithUpdatedPositions(
+  graph: Graph,
+  positions: z.infer<typeof WritePositionsRequestSchema>['positions'],
+): { graph: Graph; written: number } {
+  let written = 0
+  const nodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce(
+    (acc: Record<string, GraphNode>, [nodeId, node]: [string, GraphNode]) => {
+      const position = positions[nodeId]
+      if (!position) {
+        return { ...acc, [nodeId]: node }
+      }
+
+      written += 1
+      return {
+        ...acc,
+        [nodeId]: {
+          ...node,
+          nodeUIMetadata: {
+            ...node.nodeUIMetadata,
+            position: O.some(position),
+          },
+        },
+      }
+    },
+    {},
+  )
+
+  return {
+    graph: {
+      ...graph,
+      nodes,
+    },
+    written,
+  }
+}
+
 function normalizeDelta(delta: readonly z.infer<typeof GraphDeltaRequestSchema>[number][]): GraphDelta {
   return delta.map((nodeDelta): NodeDelta => {
     if (nodeDelta.type === 'DeleteNode') {
@@ -95,7 +159,7 @@ function jsonError(
   return c.json(ErrorResponseSchema.parse({ error, code }), status)
 }
 
-export function createGraphRoutes(registry: SessionRegistry): Hono {
+export function createGraphRoutes(_registry: SessionRegistry): Hono {
   const app = new Hono()
 
   app.get('/', (c) => {
@@ -115,10 +179,6 @@ export function createGraphRoutes(registry: SessionRegistry): Hono {
       await applyGraphDeltaToDBThroughMemAndUI(delta)
       const sessionId = c.req.header('X-Session-Id') ?? 'anonymous'
       publish({ delta, source: `session:${sessionId}` })
-      const session = registry.get(sessionId)
-      if (session) {
-        await projectAndBroadcast(session)
-      }
       return c.json({ delta, graph: GraphStateSchema.parse(getGraph()) })
     } catch (error) {
       return jsonError(
@@ -156,6 +216,124 @@ export function createGraphRoutes(registry: SessionRegistry): Hono {
         500,
       )
     }
+  })
+
+  app.get('/find-file', async (c) => {
+    const name = c.req.query('name')
+    if (!name) {
+      return jsonError(c, 'Missing required query parameter: name', 'MISSING_NAME')
+    }
+
+    const searchPath = getProjectRootWatchedDirectory()
+    if (!searchPath) {
+      return jsonError(c, 'No vault is currently open', 'NO_VAULT', 503)
+    }
+
+    const matches = await findFileByName(name, searchPath)
+    return c.json({ matches })
+  })
+
+  app.get('/preview-contained-nodes/:nodeId', async (c) => {
+    const nodeId = decodeURIComponent(c.req.param('nodeId'))
+    const nodeIds = await getPreviewContainedNodeIds(nodeId)
+    return c.json({ nodeIds })
+  })
+
+  app.post('/context-node', async (c) => {
+    let body: z.infer<typeof ContextNodeRequestSchema>
+    try {
+      body = ContextNodeRequestSchema.parse(await c.req.json())
+    } catch {
+      return jsonError(c, 'Invalid request body', 'INVALID_REQUEST_BODY')
+    }
+
+    try {
+      const nodeId = await createContextNode(
+        body.parentNodeId,
+        body.semanticNodeIds,
+      )
+      return c.json({ nodeId })
+    } catch (error) {
+      return jsonError(
+        c,
+        (error as Error).message,
+        'CONTEXT_NODE_CREATE_FAILED',
+        500,
+      )
+    }
+  })
+
+  app.post('/context-node-from-question', async (c) => {
+    let body: z.infer<typeof ContextNodeFromQuestionRequestSchema>
+    try {
+      body = ContextNodeFromQuestionRequestSchema.parse(await c.req.json())
+    } catch {
+      return jsonError(c, 'Invalid request body', 'INVALID_REQUEST_BODY')
+    }
+
+    try {
+      const nodeId = await createContextNodeFromQuestion(
+        body.nodeIds,
+        body.question,
+        body.semanticNodeIds,
+      )
+      const graph = getGraph()
+      const contextNode = graph.nodes[nodeId]
+      const parentNode = contextNode
+        ? findFirstParentNode(contextNode, graph)
+        : undefined
+
+      return c.json({
+        nodeId,
+        title: contextNode ? getNodeTitle(contextNode) : '',
+        parentNodePath: parentNode?.absoluteFilePathIsID ?? '',
+      })
+    } catch (error) {
+      return jsonError(
+        c,
+        (error as Error).message,
+        'QUESTION_CONTEXT_NODE_CREATE_FAILED',
+        500,
+      )
+    }
+  })
+
+  app.post('/write-positions', async (c) => {
+    let body: z.infer<typeof WritePositionsRequestSchema>
+    try {
+      body = WritePositionsRequestSchema.parse(await c.req.json())
+    } catch {
+      return jsonError(c, 'Invalid request body', 'INVALID_REQUEST_BODY')
+    }
+
+    const projectRoot = getProjectRootWatchedDirectory()
+    if (!projectRoot) {
+      return jsonError(c, 'No vault is currently open', 'NO_VAULT', 503)
+    }
+
+    try {
+      const result = graphWithUpdatedPositions(getGraph(), body.positions)
+      setGraph(result.graph)
+      writeAllPositionsSync(result.graph, projectRoot)
+      return c.json({ written: result.written })
+    } catch (error) {
+      return jsonError(
+        c,
+        (error as Error).message,
+        'WRITE_POSITIONS_FAILED',
+        500,
+      )
+    }
+  })
+
+  app.post('/undo', async (c) => {
+    const applied = await performUndo()
+    return c.json({ applied })
+  })
+
+  app.post('/redo', async (c) => {
+    const applied = await performRedo()
+    return c.json({ applied })
   })
 
   return app

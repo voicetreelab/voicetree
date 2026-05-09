@@ -1,6 +1,5 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { GraphDelta } from '@vt/graph-model/graph';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/api';
 
@@ -46,9 +45,6 @@ export interface ElectronAPI {
 
   // Functional graph API - event listeners only
   graph: {
-    // Subscribe to graph delta updates (returns unsubscribe function)
-    onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;
-
     // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
     onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => () => void;
 

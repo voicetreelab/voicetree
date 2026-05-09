@@ -14,6 +14,79 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { linkMatchScore } from '@vt/graph-model/markdown'
 import { findFileByName } from './findFileByName'
 
+type VaultFileRecord = {
+    readonly vaultPath: string;
+    readonly relativePath: string;
+};
+
+type FileContentRecord = {
+    readonly fullPath: string;
+    readonly content: string;
+};
+
+function createVaultFileRecords(vaultPath: string, files: readonly string[]): readonly VaultFileRecord[] {
+    return files.map(relativePath => ({ vaultPath, relativePath }));
+}
+
+function createAddedFileEvent(absolutePath: string, content: string): FSUpdate {
+    return {
+        absolutePath,
+        content,
+        eventType: 'Added'
+    };
+}
+
+function applyFileContentsToGraph(
+    fileContents: readonly FileContentRecord[],
+    initialGraph: Graph
+): Graph {
+    return fileContents.reduce(
+        (currentGraph, { fullPath, content }) => {
+            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(
+                createAddedFileEvent(fullPath, content),
+                currentGraph
+            );
+            return applyGraphDeltaToGraph(currentGraph, delta);
+        },
+        initialGraph
+    );
+}
+
+function nodeIdForVaultRelativePath(vaultPath: string, relativePath: string): string {
+    return normalizePath(path.join(vaultPath, relativePath));
+}
+
+function selectNewVaultFiles(
+    files: readonly string[],
+    vaultPath: string,
+    existingGraph: Graph
+): readonly string[] {
+    return files.filter((relativePath: string) => !(nodeIdForVaultRelativePath(vaultPath, relativePath) in existingGraph.nodes));
+}
+
+function createUpsertDeltaForNodeIds(graph: Graph, nodeIds: readonly string[]): GraphDelta {
+    return nodeIds.map(nodeId => ({
+        type: 'UpsertNode' as const,
+        nodeToUpsert: graph.nodes[nodeId],
+        previousNode: O.none
+    }));
+}
+
+function chooseBestLinkMatch(linkTarget: string, matchingFiles: readonly string[]): string {
+    return matchingFiles.reduce((bestMatch, candidate) => {
+        const bestScore: number = linkMatchScore(linkTarget, bestMatch);
+        const candidateScore: number = linkMatchScore(linkTarget, candidate);
+        return candidateScore > bestScore ? candidate : bestMatch;
+    }, matchingFiles[0]);
+}
+
+async function readGraphFileContent(fullPath: string): Promise<FileContentRecord> {
+    return {
+        fullPath,
+        content: isImageNode(fullPath) ? '' : await fs.readFile(fullPath, 'utf-8')
+    };
+}
+
 /**
  * Loads a graph from the filesystem using progressive edge validation.
  *
@@ -36,7 +109,6 @@ import { findFileByName } from './findFileByName'
  * @example
  * ```typescript
  * const graph = await loadGraphFromDisk(['/path/to/vault', '/path/to/openspec'])
- * //console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
 export async function loadGraphFromDisk(
@@ -52,7 +124,7 @@ export async function loadGraphFromDisk(
         await Promise.all(
             vaultPaths.map(async (vaultPath) => {
                 const files: readonly string[] = await scanMarkdownFiles(vaultPath);
-                return files.map(relativePath => ({ vaultPath, relativePath }));
+                return createVaultFileRecords(vaultPath, files);
             })
         )
     ).flat();
@@ -64,31 +136,13 @@ export async function loadGraphFromDisk(
     }
 
     // Step 2a: Read all files in parallel
-    const fileContents: readonly { fullPath: string; content: string }[] = await Promise.all(
-        allFiles.map(async ({ vaultPath, relativePath }) => {
-            const fullPath: string = path.join(vaultPath, relativePath)
-            // Image files have empty content (don't read binary as UTF-8)
-            const content: string = isImageNode(fullPath) ? '' : await fs.readFile(fullPath, 'utf-8')
-            return { fullPath, content }
-        })
+    const fileContents: readonly FileContentRecord[] = await Promise.all(
+        allFiles.map(({ vaultPath, relativePath }) => readGraphFileContent(path.join(vaultPath, relativePath)))
     )
 
     // Step 2b: Progressively build graph by adding nodes one at a time
     // Each addition validates edges and heals incoming edges (order-independent per JSDoc above)
-    const graph: Graph = fileContents.reduce(
-        (currentGraph, { fullPath, content }) => {
-            const fsEvent: FSUpdate = {
-                absolutePath: fullPath,
-                content,
-                eventType: 'Added'
-            }
-
-            // Use unified function (same as incremental!)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph)
-            return applyGraphDeltaToGraph(currentGraph, delta)
-        },
-        createEmptyGraph()
-    )
+    const graph: Graph = applyFileContentsToGraph(fileContents, createEmptyGraph())
 
     // Step 3: Apply positions to all nodes that don't have a position
     return E.right(applyPositions(graph));
@@ -120,11 +174,7 @@ export async function loadVaultPathAdditively(
     const files: readonly string[] = await scanMarkdownFiles(vaultPath);
 
     // Step 2: Filter out files already in the graph (avoid double-counting)
-    const newFiles: readonly string[] = files.filter((relativePath: string) => {
-        const fullPath: string = path.join(vaultPath, relativePath);
-        const nodeId: string = normalizePath(fullPath);
-        return !(nodeId in existingGraph.nodes);
-    });
+    const newFiles: readonly string[] = selectNewVaultFiles(files, vaultPath, existingGraph);
 
     // Step 3: Check file limit (existing + genuinely new files)
     const existingCount: number = Object.keys(existingGraph.nodes).length;
@@ -134,36 +184,12 @@ export async function loadVaultPathAdditively(
         return E.left(limitCheck.left);
     }
 
-    // Step 3: Build graph additively, tracking new node IDs for delta
-    const newNodeIds: string[] = [];
-
-    const mergedGraph: Graph = await files.reduce(
-        async (graphPromise, relativePath) => {
-            const currentGraph: Graph = await graphPromise;
-            const fullPath: string = path.join(vaultPath, relativePath);
-            // Image files have empty content (don't read binary as UTF-8)
-            const content: string = isImageNode(fullPath) ? '' : await fs.readFile(fullPath, 'utf-8');
-
-            const fsEvent: FSUpdate = {
-                absolutePath: fullPath,
-                content,
-                eventType: 'Added'
-            };
-
-            // Use unified function (same as loadGraphFromDisk)
-            const delta: GraphDelta = addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, currentGraph);
-
-            // Track new node IDs from this delta
-            delta.forEach(d => {
-                if (d.type === 'UpsertNode') {
-                    newNodeIds.push(d.nodeToUpsert.absoluteFilePathIsID);
-                }
-            });
-
-            return applyGraphDeltaToGraph(currentGraph, delta);
-        },
-        Promise.resolve(existingGraph)
+    // Step 3: Read new files in parallel, then build the graph sequentially from memory
+    const fileContents: readonly FileContentRecord[] = await Promise.all(
+        newFiles.map(relativePath => readGraphFileContent(path.join(vaultPath, relativePath)))
     );
+    const newNodeIds: readonly string[] = newFiles.map(relativePath => nodeIdForVaultRelativePath(vaultPath, relativePath));
+    const mergedGraph: Graph = applyFileContentsToGraph(fileContents, existingGraph);
 
     // Step 4: Apply positions only to new nodes (existing nodes keep their positions)
     const graphWithPositions: Graph = applyPositions(mergedGraph);
@@ -174,11 +200,7 @@ export async function loadVaultPathAdditively(
     const graphRebased: Graph = rebaseNewClusterPositions(graphWithPositions, existingNodeIds, newNodeIds);
 
     // Step 5: Build delta containing only the new nodes (for UI broadcast)
-    const resultDelta: GraphDelta = newNodeIds.map(nodeId => ({
-        type: 'UpsertNode' as const,
-        nodeToUpsert: graphRebased.nodes[nodeId],
-        previousNode: O.none  // All new nodes
-    }));
+    const resultDelta: GraphDelta = createUpsertDeltaForNodeIds(graphRebased, newNodeIds);
 
     return E.right({ graph: graphRebased, delta: resultDelta });
 }
@@ -198,7 +220,10 @@ function isSupportedFile(filename: string): boolean {
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md", "image.png"])
  */
 export async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
-  async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
+  return scanMarkdownFilesInDirectory(vaultPath)
+}
+
+async function scanMarkdownFilesInDirectory(dirPath: string, relativePath = ''): Promise<readonly string[]> {
     const entries: Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
 
     // Sort entries by name for deterministic ordering
@@ -210,7 +235,7 @@ export async function scanMarkdownFiles(vaultPath: string): Promise<readonly str
         const relPath: string = relativePath ? path.join(relativePath, entry.name) : entry.name
 
         if (entry.isDirectory()) {
-          return scan(fullPath, relPath)
+          return scanMarkdownFilesInDirectory(fullPath, relPath)
         } else if (entry.isFile() && isSupportedFile(entry.name)) {
           return [relPath]
         }
@@ -219,9 +244,6 @@ export async function scanMarkdownFiles(vaultPath: string): Promise<readonly str
     )
 
     return results.flat()
-  }
-
-  return scan(vaultPath)
 }
 
 /**
@@ -287,21 +309,7 @@ export async function resolveLinkTarget(
 
     if (matchingFiles.length === 0) return undefined;
 
-    if (matchingFiles.length === 1) return matchingFiles[0];
-
-    // Multiple matches - use linkMatchScore to pick the best one
-    let bestMatch: string = matchingFiles[0];
-    let bestScore: number = linkMatchScore(linkTarget, matchingFiles[0]);
-
-    for (let i: number = 1; i < matchingFiles.length; i++) {
-        const score: number = linkMatchScore(linkTarget, matchingFiles[i]);
-        if (score > bestScore) {
-            bestScore = score;
-            bestMatch = matchingFiles[i];
-        }
-    }
-
-    return bestMatch;
+    return chooseBestLinkMatch(linkTarget, matchingFiles);
 }
 
 /**
@@ -355,16 +363,8 @@ async function loadFileAsNode(
     graph: Graph
 ): Promise<GraphDelta> {
     try {
-        // Image files have empty content (don't read binary as UTF-8)
-        const content: string = isImageNode(filePath) ? '' : await fs.readFile(filePath, 'utf-8');
-
-        const fsEvent: FSUpdate = {
-            absolutePath: filePath,
-            content,
-            eventType: 'Added'
-        };
-
-        return addNodeToGraphWithEdgeHealingFromFSEvent(fsEvent, graph);
+        const { fullPath, content } = await readGraphFileContent(filePath);
+        return addNodeToGraphWithEdgeHealingFromFSEvent(createAddedFileEvent(fullPath, content), graph);
     } catch {
         // File might not exist or be inaccessible - skip
         return [];

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { type EnvVarValue } from './types';
-import {expandEnvVarsInValues, resolveEnvVars} from './resolve-environment-variable';
+import {expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection} from './resolve-environment-variable';
 
 describe('resolveEnvVars', () => {
   it('should pass through simple string values', () => {
@@ -23,24 +23,13 @@ Third line`,
     expect(result.PROMPT).toBe('First line Second line Third line');
   });
 
-  it('should randomly select from array values', () => {
+  it('should select from array values using injected selection', () => {
     const input: Record<string, EnvVarValue> = {
       AGENT_NAME: ['TIMI', 'XAN', 'JAS'] as const,
     };
 
-    // Run multiple times to verify it picks from the array
-    const results: ReadonlySet<string> = Array.from({ length: 100 }).reduce(
-      (acc: ReadonlySet<string>) => {
-        const result: Record<string, string> = resolveEnvVars(input);
-        acc.add(result.AGENT_NAME);
-        expect(['TIMI', 'XAN', 'JAS']).toContain(result.AGENT_NAME);
-        return acc;
-      },
-      new Set<string>()
-    );
-
-    // With 100 iterations, we should see more than 1 unique value (probabilistically)
-    expect(results.size).toBeGreaterThan(1);
+    const result: Record<string, string> = resolveEnvVarsWithSelection(input, () => 1);
+    expect(result.AGENT_NAME).toBe('XAN');
   });
 
   it('should handle mixed string and array values', () => {
@@ -51,7 +40,7 @@ Third line`,
 
     const result: Record<string, string> = resolveEnvVars(input);
     expect(result.STATIC).toBe('always-this');
-    expect(['A', 'B']).toContain(result.RANDOM);
+    expect(result.RANDOM).toBe('A');
   });
 
   it('should handle empty object', () => {

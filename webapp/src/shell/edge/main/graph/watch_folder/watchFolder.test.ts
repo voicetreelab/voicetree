@@ -90,9 +90,6 @@ beforeEach(() => {
   initGraphModel(
     { appSupportPath: mockUserDataPath },
     {
-      onGraphDelta: (delta: GraphDelta): void => {
-        broadcastCalls.push({ channel: 'graph:stateChanged', delta })
-      },
       onGraphCleared: (): void => {
         broadcastCalls.push({ channel: 'graph:clear', delta: [] })
       },
@@ -781,29 +778,13 @@ describe('Auto-load files when adding new vault path', () => {
     // GIVEN: Load a folder (initializes with primary vault path)
     await loadFolder(testVaultPath1)
 
-    // Record broadcast calls before adding new vault
-    const callsBeforeAdd: number = broadcastCalls.length
-
     // WHEN: Add a new vault path that contains files
     const result: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
 
     // THEN: Addition should succeed
     expect(result.success).toBe(true)
 
-    // THEN: New files should have been broadcast to UI via single bulk broadcast
-    // Uses bulk load path: single stateChanged event containing all new nodes
-    const newCalls: BroadcastCall[] = broadcastCalls.slice(callsBeforeAdd)
-    const stateChangedCalls: BroadcastCall[] = newCalls.filter(c => c.channel === 'graph:stateChanged')
-
-    // Should have exactly 1 bulk broadcast (not N per-file broadcasts)
-    expect(stateChangedCalls.length).toBe(1)
-
-    // The single broadcast should contain both new files
-    const bulkDelta: GraphDelta = stateChangedCalls[0].delta
-    expect(bulkDelta.length).toBe(2)
-
-    const nodeIds: readonly string[] = bulkDelta.map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
-    // Node IDs are absolute paths - check they end with the expected relative path
+    const nodeIds: readonly string[] = Object.keys(getGraph().nodes)
     expect(nodeIds.some(id => id.endsWith('new-vault/newfile1.md'))).toBe(true)
     expect(nodeIds.some(id => id.endsWith('new-vault/newfile2.md'))).toBe(true)
   })

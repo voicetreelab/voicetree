@@ -39,6 +39,7 @@
     "rootPath": "/tmp/graph-state-fixtures/root-a",
     "revision": 0,
     "forests": [],
-    "arboricity": 0
+    "arboricity": 0,
+    "recentNodeIds": []
   }
 }

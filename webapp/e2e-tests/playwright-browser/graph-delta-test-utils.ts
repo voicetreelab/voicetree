@@ -10,7 +10,6 @@ export interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
     graph?: {
-      _updateCallback?: (delta: GraphDelta) => void;
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,7 +57,6 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
       setTimeout(() => {
         mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
-        mockElectronAPI.graph._updateCallback?.(delta);
       }, 10);
 
       return { success: true };
@@ -204,20 +202,12 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           rootPath: '',
           revision: 0,
           forests: [],
-          arboricity: 0
+          arboricity: 0,
+          recentNodeIds: []
         } as ProjectedGraph,
         applyGraphDelta: async () => ({ success: true }),
          
         getState: async () => mockElectronAPI.graph._graphState,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onGraphUpdate: (callback: (delta: any) => void) => {
-          console.log('[Mock] onGraphUpdate callback registered');
-          // Store the callback so e2e-tests can trigger it
-          mockElectronAPI.graph._updateCallback = callback;
-          return () => {
-            console.log('[Mock] onGraphUpdate cleanup called');
-          };
-        },
         onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
           console.log('[Mock] onProjectedGraphUpdate callback registered');
           mockElectronAPI.graph._projectedGraphCallback = callback;
@@ -227,7 +217,6 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         },
         onGraphClear: () => () => {},
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _updateCallback: undefined as ((delta: any) => void) | undefined,
         _projectedGraphCallback: undefined as ((graph: ProjectedGraph) => void) | undefined,
       },
 
@@ -447,7 +436,7 @@ export function createTestGraphDelta(): GraphDelta {
 }
 
 /**
- * Triggers a graph update by calling the electronAPI.graph._updateCallback
+ * Triggers a graph update by calling the electronAPI.graph._projectedGraphCallback
  * that was registered by VoiceTreeGraphView when it subscribed to graph updates.
  *
  * This simulates how the real app receives graph updates from the backend.
@@ -502,7 +491,6 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
 
     // Access the internal callbacks registered by VoiceTreeGraphView.
     const mockGraphAPI = electronAPI.graph as {
-      _updateCallback?: (delta: GraphDelta) => void;
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       _graphState: { nodes: Record<string, any>; edges: any[] };
@@ -523,13 +511,6 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
       console.log('[Test] Triggered projected graph update via electronAPI callback');
     } else {
       console.error('[Test] No projected graph update callback registered!');
-    }
-
-    if (mockGraphAPI._updateCallback) {
-      mockGraphAPI._updateCallback(reconstructedDelta);
-      console.log('[Test] Triggered graph update via electronAPI callback');
-    } else {
-      console.error('[Test] No graph update callback registered!');
     }
 
     // Also trigger ui:call for updateFloatingEditorsFromExternal

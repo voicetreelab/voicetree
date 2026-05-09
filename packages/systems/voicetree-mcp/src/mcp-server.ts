@@ -17,48 +17,48 @@ import {z} from 'zod'
 import express, {type Express} from 'express'
 import type {Server} from 'node:http'
 import {findAvailablePort} from './util/findAvailablePort'
-import {enableMcpClientIntegrations} from './mcp-client-config'
+import {enableMcpClientIntegrations} from './config/mcp-client-config'
 
 // Import tool implementations
-import {spawnAgentTool} from './spawnAgentTool'
-import {listAgentsTool} from './listAgentsTool'
-import {waitForAgentsTool} from './waitForAgentsTool'
-import {getUnseenNodesNearbyTool} from './getUnseenNodesNearbyTool'
-import {sendMessageTool} from './sendMessageTool'
-import {closeAgentTool} from './closeAgentTool'
-import {readTerminalOutputTool} from './readTerminalOutputTool'
-import {createGraphTool} from './createGraphTool'
-import {graphStructureTool} from './graphStructureTool'
-import {registerLiveTools} from './registerLiveTools'
+import {spawnAgentTool} from './tools/agent-control/spawnAgentTool'
+import {listAgentsTool} from './tools/agent-control/listAgentsTool'
+import {waitForAgentsTool} from './tools/agent-control/waitForAgentsTool'
+import {getUnseenNodesNearbyTool} from './tools/agent-control/getUnseenNodesNearbyTool'
+import {sendMessageTool} from './tools/agent-control/sendMessageTool'
+import {closeAgentTool} from './tools/agent-control/closeAgentTool'
+import {readTerminalOutputTool} from './tools/agent-control/readTerminalOutputTool'
+import {createGraphTool} from './create-graph/createGraphTool'
+import {graphStructureTool} from './tools/graph/graphStructureTool'
+import {registerLiveTools} from './tools/live/registerLiveTools'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from './triggerOvernight'
+import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from './tools/system/triggerOvernight'
 
 // Re-export types and tool functions for external use
-export type {McpToolResponse} from './types'
-export {buildJsonResponse} from './types'
-export type {SpawnAgentParams} from './spawnAgentTool'
-export {spawnAgentTool} from './spawnAgentTool'
-export {listAgentsTool} from './listAgentsTool'
-export type {WaitForAgentsParams} from './waitForAgentsTool'
-export {waitForAgentsTool} from './waitForAgentsTool'
-export type {GetUnseenNodesNearbyParams} from './getUnseenNodesNearbyTool'
-export {getUnseenNodesNearbyTool} from './getUnseenNodesNearbyTool'
-export type {SendMessageParams} from './sendMessageTool'
-export {sendMessageTool} from './sendMessageTool'
-export type {CloseAgentParams} from './closeAgentTool'
-export {closeAgentTool} from './closeAgentTool'
-export type {ReadTerminalOutputParams} from './readTerminalOutputTool'
-export {readTerminalOutputTool} from './readTerminalOutputTool'
-export type {SearchNodesParams} from './searchNodesTool'
-export {searchNodesTool} from './searchNodesTool'
-export type {CreateGraphParams, CreateGraphNodeInput} from './createGraphTool'
-export {createGraphTool} from './createGraphTool'
-export type {GraphStructureParams} from './graphStructureTool'
-export {graphStructureTool} from './graphStructureTool'
-export type {DispatchLiveCommandParams, DispatchLiveCommandResult} from './dispatchLiveCommandTool'
-export {dispatchLiveCommandTool} from './dispatchLiveCommandTool'
-export {getLiveStateTool, getLiveState} from './getLiveStateTool'
+export type {McpToolResponse} from './core/types'
+export {buildJsonResponse} from './core/types'
+export type {SpawnAgentParams} from './tools/agent-control/spawnAgentTool'
+export {spawnAgentTool} from './tools/agent-control/spawnAgentTool'
+export {listAgentsTool} from './tools/agent-control/listAgentsTool'
+export type {WaitForAgentsParams} from './tools/agent-control/waitForAgentsTool'
+export {waitForAgentsTool} from './tools/agent-control/waitForAgentsTool'
+export type {GetUnseenNodesNearbyParams} from './tools/agent-control/getUnseenNodesNearbyTool'
+export {getUnseenNodesNearbyTool} from './tools/agent-control/getUnseenNodesNearbyTool'
+export type {SendMessageParams} from './tools/agent-control/sendMessageTool'
+export {sendMessageTool} from './tools/agent-control/sendMessageTool'
+export type {CloseAgentParams} from './tools/agent-control/closeAgentTool'
+export {closeAgentTool} from './tools/agent-control/closeAgentTool'
+export type {ReadTerminalOutputParams} from './tools/agent-control/readTerminalOutputTool'
+export {readTerminalOutputTool} from './tools/agent-control/readTerminalOutputTool'
+export type {SearchNodesParams} from './tools/graph/searchNodesTool'
+export {searchNodesTool} from './tools/graph/searchNodesTool'
+export type {CreateGraphParams, CreateGraphNodeInput} from './create-graph/createGraphTool'
+export {createGraphTool} from './create-graph/createGraphTool'
+export type {GraphStructureParams} from './tools/graph/graphStructureTool'
+export {graphStructureTool} from './tools/graph/graphStructureTool'
+export type {DispatchLiveCommandParams, DispatchLiveCommandResult} from './tools/live/dispatchLiveCommandTool'
+export {dispatchLiveCommandTool} from './tools/live/dispatchLiveCommandTool'
+export {getLiveStateTool, getLiveState} from './tools/live/getLiveStateTool'
 
 // ─── MCP Server ──────────────────────────────────────────────────────────────
 
@@ -288,6 +288,25 @@ export interface StartMcpServerOptions {
      * vt-mcpd passes --port through here to avoid colliding with a running Electron MCP.
      */
     readonly startPort?: number
+    readonly logger?: {
+        readonly log: (message: string) => void
+        readonly error: (message: string, error: unknown) => void
+    }
+    readonly now?: () => number
+    readonly triggerOvernight?: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult>
+    readonly enableClientIntegrations?: () => Promise<void>
+}
+
+function logMcpMessage(message: string): void {
+    console.log(message)
+}
+
+function logMcpError(message: string, error: unknown): void {
+    console.error(message, error)
+}
+
+function getCurrentTimeMs(): number {
+    return Date.now()
 }
 
 export interface McpServerHandle {
@@ -302,12 +321,19 @@ export interface McpServerHandle {
 export async function startMcpServer(options?: StartMcpServerOptions): Promise<McpServerHandle> {
     const app: Express = express()
     app.use(express.json())
+    const log: (message: string) => void = options?.logger?.log ?? logMcpMessage
+    const logError: (message: string, error: unknown) => void = options?.logger?.error ?? logMcpError
+    const getNow: () => number = options?.now ?? getCurrentTimeMs
+    const runTriggerOvernight: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult> =
+        options?.triggerOvernight ?? triggerOvernight
+    const runEnableClientIntegrations: () => Promise<void> =
+        options?.enableClientIntegrations ?? enableMcpClientIntegrations
 
     // Overnight trigger endpoint — bypasses MCP protocol for direct HTTP invocation
     app.post('/trigger-overnight', async (req, res) => {
         try {
             const params: TriggerOvernightParams = (req.body as TriggerOvernightParams | undefined) ?? {}
-            const result: TriggerOvernightResult = await triggerOvernight(params)
+            const result: TriggerOvernightResult = await runTriggerOvernight(params)
             res.json(result)
         } catch (error) {
             const message: string = error instanceof Error ? error.message : String(error)
@@ -316,7 +342,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     })
 
     app.post('/mcp', async (req, res) => {
-        console.log(`[MCP] arrived ${Date.now()} method=${req.body?.params?.name ?? req.body?.method}`)
+        log(`[MCP] arrived ${getNow()} method=${req.body?.params?.name ?? req.body?.method}`)
         // ⚠️  SUSPICIOUS PATTERN — reviewed 2026-03-21, user flagged for closer review.
         // We create a fresh McpServer per request because sharing one instance causes
         // Protocol._onclose() on completed transports to corrupt shared state (_transport,
@@ -343,7 +369,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
             await server.connect(transport)
             await transport.handleRequest(req, res, req.body)
         } catch (error) {
-            console.error('[MCP] Error handling request:', error)
+            logError('[MCP] Error handling request:', error)
             if (!res.headersSent) {
                 res.status(500).json({error: String(error)})
             }
@@ -354,13 +380,13 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     mcpPort = await findAvailablePort(startPort)
 
     const httpServer: Server = app.listen(mcpPort, '127.0.0.1', () => {
-        console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
+        log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
     // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).
     try {
-        await enableMcpClientIntegrations()
+        await runEnableClientIntegrations()
     } catch (_e) {
         // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
     }

@@ -7,11 +7,10 @@
  */
 
 import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
-import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/graph'
 import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
-import {postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/electron/daemon-ipc-proxy'
+import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/electron/daemon-ipc-proxy'
 import * as O from 'fp-ts/lib/Option.js'
 
 export interface RunAgentOnSelectedParams {
@@ -42,7 +41,7 @@ export async function runAgentOnSelectedNodes(
   }
 
   // Get current graph and write path
-  const graph: Graph = getGraph()
+  const graph: Graph = await getGraphFromDaemon()
   const writePathOption: O.Option<string> = await getWritePath()
   const writePath: string = O.getOrElse(() => '')(writePathOption)
 

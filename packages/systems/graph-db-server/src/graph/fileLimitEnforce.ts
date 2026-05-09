@@ -30,7 +30,6 @@ function createFileLimitExceededError(fileCount: number, maxFiles: number): File
  */
 export function enforceFileLimit(fileCount: number): E.Either<FileLimitExceededError, void> {
     if (fileCount > MAX_FILES) {
-        console.error(`[FileLimitEnforce] File limit exceeded: ${fileCount} files (max: ${MAX_FILES})`);
         return E.left(createFileLimitExceededError(fileCount, MAX_FILES));
     }
 

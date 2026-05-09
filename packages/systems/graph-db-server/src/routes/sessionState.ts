@@ -7,13 +7,14 @@ import {
 } from '@vt/graph-model'
 import { getGraph } from '../state/graph-store.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
-import { getReadPaths, getVaultPaths, getWritePath } from '../watch-folder/vault-allowlist.ts'
+import { getReadPaths, getVaultPaths, getWritePath } from '../watch-folder/paths/vault-allowlist.ts'
 import { getDirectoryTree } from '../watch-folder/folder-scanner.ts'
 import { serializeState } from '@vt/graph-state'
 import {
   LiveStateSnapshotSchema,
+  type LiveStateSnapshot,
   type VaultState,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectSessionState } from '../session/project.ts'
 
@@ -23,6 +24,34 @@ function resolveWritePath(
   // Duck-type fp-ts Option to avoid pulling fp-ts into graph-db-server deps.
   const maybeValue = (writePathOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? toAbsolutePath(maybeValue) : null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function omitNodeContent(node: unknown): unknown {
+  if (!isRecord(node)) {
+    return node
+  }
+
+  const { contentWithoutYamlOrLinks: _contentWithoutYamlOrLinks, ...rest } = node
+  return rest
+}
+
+function omitGraphNodeContent(snapshot: LiveStateSnapshot): LiveStateSnapshot {
+  return {
+    ...snapshot,
+    graph: {
+      ...snapshot.graph,
+      nodes: Object.fromEntries(
+        Object.entries(snapshot.graph.nodes).map(([nodeId, node]) => [
+          nodeId,
+          omitNodeContent(node),
+        ]),
+      ),
+    },
+  }
 }
 
 export function mountSessionStateRoutes(
@@ -65,6 +94,6 @@ export function mountSessionStateRoutes(
 
     const snapshot = projectSessionState({ graph, vault, folderTree, session })
     const body = LiveStateSnapshotSchema.parse(serializeState(snapshot))
-    return c.json(body)
+    return c.json(c.req.query('content') === 'omit' ? omitGraphNodeContent(body) : body)
   })
 }

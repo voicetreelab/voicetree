@@ -7,6 +7,7 @@ import * as O from "fp-ts/lib/Option.js";
 // TODO: parseMarkdownToGraphNode uses gray-matter which requires Node.js Buffer - move parsing to main process
 import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-node';
 import {ensureUniqueNodeId} from '../ensureUniqueNodeId';
+import {stableIdSuffix} from '../stableIdSuffix';
 
 /**
  * Pure action creator functions.
@@ -77,8 +78,6 @@ export function fromCreateChildToUpsertNode(
     // Create updated parent node with edge to new child
     const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.absoluteFilePathIsID)
 
-    //console.log("new node / parent node", newNode.absoluteFilePathIsID, parentNode.absoluteFilePathIsID)
-
     // Return deltas for both the new child and the updated parent
     return [
         {
@@ -131,13 +130,6 @@ export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{readonly n
 //todo switch between the three (?)
 
 
-function randomChars(number: number): string {
-    const chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    return Array.from({length: number}, () =>
-        chars.charAt(Math.floor(Math.random() * chars.length))
-    ).join('');
-}
-
 /**
  * Creates a new node without a parent at the specified position.
  * Node IDs are absolute paths to simplify path handling throughout the codebase.
@@ -147,10 +139,16 @@ function randomChars(number: number): string {
  * @param graph - Current graph state (for uniqueness check)
  */
 export function createNewNodeNoParent(pos: Position, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
-    const randomId: string = Date.now().toString() + randomChars(3) + ".md"
+    const suffix: string = stableIdSuffix([
+        writePath,
+        String(pos.x),
+        String(pos.y),
+        ...Object.keys(graph.nodes).sort(),
+    ])
+    const candidateFileName: string = `node_${suffix}.md`
     // Node ID is the absolute path to the file
-    const candidateId: string = writePath ? `${writePath}/${randomId}` : randomId
-    // Ensure unique even with timestamp+random (defensive check)
+    const candidateId: string = writePath ? `${writePath}/${candidateFileName}` : candidateFileName
+    // Ensure unique if the same stable candidate already exists.
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {

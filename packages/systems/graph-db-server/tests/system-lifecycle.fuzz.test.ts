@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { startDaemon, type DaemonHandle } from '../src'
+import { startDaemon, type DaemonHandle } from '../src/daemon/index.ts'
 
 // ---- Mulberry32 seeded PRNG (deterministic replay) ----
 

@@ -36,11 +36,6 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
           });
-          if (mockElectronAPI.graph._updateCallback) {
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
           return { success: true };
         },
         getGraph: async () => mockElectronAPI.graph._graphState,
@@ -70,11 +65,6 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
               delete mockElectronAPI.graph._graphState.nodes[nodeDelta.nodeId];
             }
           });
-          if (mockElectronAPI.graph._updateCallback) {
-            setTimeout(() => {
-              mockElectronAPI.graph._updateCallback?.(delta);
-            }, 10);
-          }
           return { success: true };
         },
       },
@@ -106,13 +96,13 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onGraphUpdate: (callback: (delta: any) => void) => {
-          mockElectronAPI.graph._updateCallback = callback;
+        onProjectedGraphUpdate: (callback: (graph: any) => void) => {
+          mockElectronAPI.graph._projectedGraphCallback = callback;
           return () => {};
         },
         onGraphClear: () => () => {},
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        _updateCallback: undefined as ((delta: any) => void) | undefined
+        _projectedGraphCallback: undefined as ((graph: any) => void) | undefined
       },
       invoke: async () => {},
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

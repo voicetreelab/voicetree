@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphDelta, GraphNode } from '@vt/graph-model'
 
-import { startDaemon, type DaemonHandle } from '../src'
+import { startDaemon, type DaemonHandle } from '../src/daemon/index.ts'
 
 type GraphBody = {
   nodes: Record<string, GraphNode>

@@ -12,11 +12,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/sdk-trace-base": "^2.7.1",
+    "@opentelemetry/sdk-trace-node": "^2.7.1",
     "@vt/graph-db-server": "*"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "~5.8.3",
-    "vitest": "^3.2.4",
-    "@types/node": "^22.0.0"
+    "vitest": "^3.2.4"
   }
 }

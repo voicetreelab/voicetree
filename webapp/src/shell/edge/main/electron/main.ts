@@ -1,12 +1,13 @@
 /// <reference types="node" />
 import {app, BrowserWindow, nativeImage} from 'electron';
 import path from 'path';
+import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import {getTerminalManager, configureAgentRuntime} from '@vt/agent-runtime';
+import {agentRuntime} from '@vt/agent-runtime';
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
@@ -16,6 +17,7 @@ import {
     getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
+    syncMcpGraphDbServerState,
 } from '@vt/voicetree-mcp';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
@@ -24,14 +26,22 @@ import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, 
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
-import {subscribeToRegistry, type TerminalRecord} from '@vt/agent-runtime';
+import {type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/state/live-state-store';
-import {getLiveStateSnapshotFromDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {
+    getGraphFromDaemon,
+    getLiveStateSnapshotFromDaemon,
+    postDeltaThroughDaemonWithEditors,
+} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {
+    getVaultPaths,
+    getWritePath,
+    setOnFolderSwitchCleanup,
+} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/saveNodePositions';
-import {setOnFolderSwitchCleanup} from "@/shell/edge/main/state/watch-folder-store";
 import {validateStartupCwd} from './startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
@@ -39,6 +49,17 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import type {Graph} from '@vt/graph-model/graph';
+import {getGraph as getGraphFromStore, setGraph as setGraphInStore} from '@vt/graph-db-server/state/graph-store';
+import {refreshGraphChangeSideEffects as refreshGraphChangeSideEffectsFromDb} from '@vt/graph-db-server/graph/applyGraphDelta';
+import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/context-nodes/createContextNode';
+import {createContextNodeFromSelectedNodes as createContextNodeFromSelectedNodesFromDb} from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
+import {getUnseenNodesAroundContextNode as getUnseenNodesAroundContextNodeFromDb} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
+import {updateContextNodeContainedIds as updateContextNodeContainedIdsFromDb} from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds';
+import {
+    getActiveDaemonConnection,
+    shutdownActiveDaemonConnection,
+} from '@/shell/edge/main/electron/graph-daemon';
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -57,6 +78,25 @@ initializeGraphModel();
 // Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
+    graph: {
+        getGraph: async () => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            return graph;
+        },
+        getVaultPaths,
+        getWritePath: async () => {
+            const writePath: O.Option<string> = await getWritePath();
+            return O.isSome(writePath) ? writePath.value : null;
+        },
+        applyGraphDelta: postDeltaThroughDaemonWithEditors,
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+        },
+    },
     liveState: {
         applyLiveCommand,
         getLiveStateSnapshot: getLiveStateSnapshotFromDaemon,
@@ -67,11 +107,50 @@ configureMcpServer({
 });
 
 // Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
-configureAgentRuntime({
+agentRuntime.configureAgentRuntime({
     env: {
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getVaultPaths,
+        getWritePath: async () => {
+            const writePath: O.Option<string> = await getWritePath();
+            return O.isSome(writePath) ? writePath.value : null;
+        },
+    },
+    graph: {
+        getGraph: () => getGraphFromStore(),
+        setGraph: (g) => setGraphInStore(g),
+        getVaultPaths: () => getVaultPaths(),
+        getWritePath: () => getWritePath(),
+        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getWatchStatus: () => ({
+            isWatching: (getActiveDaemonConnection()?.vault ?? null) !== null,
+            directory: getActiveDaemonConnection()?.vault ?? undefined,
+        }),
+        applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
+        refreshGraphChangeSideEffects: () => refreshGraphChangeSideEffectsFromDb(),
+        createContextNode: async (parentNodeId, semanticNodeIds) => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            return createContextNodeFromDb(parentNodeId, semanticNodeIds ?? []);
+        },
+        createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            return createContextNodeFromSelectedNodesFromDb(taskNodeId, selectedNodeIds);
+        },
+        getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+        },
+        updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
+            const graph: Graph = await getGraphFromDaemon();
+            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
+            await updateContextNodeContainedIdsFromDb(contextNodeId, newNodeIds);
+        },
     },
     trace,
     ui: {
@@ -102,7 +181,7 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager();
+const terminalManager: ReturnType<typeof agentRuntime.getTerminalManager> = agentRuntime.getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -114,7 +193,7 @@ registerTerminalIpcHandlers(
 );
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
-subscribeToRegistry((records: TerminalRecord[]) => {
+agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
 });
 
@@ -140,7 +219,7 @@ void app.whenReady().then(async () => {
     // Reap leftover vt-graphd daemons whose vault paths no longer exist (crashed
     // app, aborted test run). Skipping this lets stale daemons hold ports and
     // contend with the daemon a project-load is about to spawn.
-    const orphanCleanup = killOrphanVtGraphdDaemons();
+    const orphanCleanup: ReturnType<typeof killOrphanVtGraphdDaemons> = killOrphanVtGraphdDaemons();
     if (orphanCleanup.killed.length > 0) {
         log.info('[Startup] Reaped orphan vt-graphd daemons', orphanCleanup.killed);
     }
@@ -228,6 +307,9 @@ app.on('before-quit', () => {
 
     // Clean up server process
     textToTreeServerManager.stop();
+
+    // Clean up graph daemon process
+    void shutdownActiveDaemonConnection();
 
     // Clean up all terminals
     terminalManager.cleanup();

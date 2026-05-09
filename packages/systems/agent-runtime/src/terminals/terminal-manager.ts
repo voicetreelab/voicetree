@@ -6,12 +6,12 @@ import {getTerminalId} from '../types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords, updateTerminalPromptDetected} from './terminal-registry';
 import {startPromptDetection, feedPromptDetector, stopPromptDetection} from '../lifecycle/prompt-runner';
 import type {TerminalData} from '../types';
-import {getProjectRootWatchedDirectory} from '@vt/graph-db-server/state/watch-folder-store';
 import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {loadSettings} from '@vt/app-config/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
-import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
+import {getRuntimeProjectRoot} from '../runtime/graph-bridge';
+import {getRuntimeEnv, getRuntimeTrace} from '../runtime/runtime-config';
 
 /**
  * Convert a numeric signal (as reported by node-pty on Unix) into the
@@ -31,15 +31,36 @@ function signalNumberToName(signalNumber: number): string | null {
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
-function getWindowsShell(): string {
+function getWindowsShell(
+    probePwsh: () => void = (): void => {
+        execFileSync('pwsh.exe', ['-Version'], { stdio: 'ignore', timeout: 3000 });
+    },
+): string {
     if (cachedWindowsShell) return cachedWindowsShell;
     try {
-        execFileSync('pwsh.exe', ['-Version'], { stdio: 'ignore', timeout: 3000 });
+        probePwsh();
         cachedWindowsShell = 'pwsh.exe';
     } catch {
         cachedWindowsShell = 'powershell.exe';
     }
     return cachedWindowsShell;
+}
+
+type TerminalManagerLogger = {
+  error(message?: unknown, ...optionalParams: unknown[]): void;
+  warn(message?: unknown, ...optionalParams: unknown[]): void;
+  trace(message?: unknown, ...optionalParams: unknown[]): void;
+}
+
+type TerminalManagerDeps = {
+  access(path: string): Promise<void>;
+  now(): number;
+  setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
+  env: NodeJS.ProcessEnv;
+  cwd(): string;
+  platform: NodeJS.Platform;
+  getWindowsShell(): string;
+  logger: TerminalManagerLogger;
 }
 
 export interface TerminalSpawnResult {
@@ -80,8 +101,20 @@ export interface TerminalSpawnOpts {
 export class TerminalManager {
   private terminals = new Map<string, IPty>();
 
+  constructor(private readonly deps: TerminalManagerDeps = {
+    access: (p: string): Promise<void> => fs.access(p),
+    now: Date.now,
+    setTimeout,
+    env: process.env,
+    cwd: (): string => process.cwd(),
+    platform: process.platform,
+    getWindowsShell,
+    logger: { error: console.error, warn: console.warn, trace: console.trace },
+  }) {}
+
   async spawn(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const { terminalData, getToolsDirectory, onData, onExit } = opts;
+    const deps: TerminalManagerDeps = this.deps;
     return getRuntimeTrace()('terminal:spawn', async () => {
     try {
       const terminalId: string = getTerminalId(terminalData);
@@ -89,7 +122,7 @@ export class TerminalManager {
       // Determine shell: user setting > platform default
       const settings: VTSettings = await loadSettings();
       const shell: string = settings.shell
-        ?? (process.platform === 'win32' ? getWindowsShell() : process.env.SHELL ?? '/bin/bash');
+        ?? (deps.platform === 'win32' ? deps.getWindowsShell() : deps.env.SHELL ?? '/bin/bash');
 
       // Don't use login shell flag because:
       // 1. fix-absolutePath already fixed the PATH in main.ts
@@ -99,17 +132,13 @@ export class TerminalManager {
       // Use initialSpawnDirectory from terminalData if provided, otherwise fall back to tools directory
       let cwd: string = terminalData.initialSpawnDirectory ?? getToolsDirectory();
       try {
-        await fs.access(cwd);
+        await deps.access(cwd);
       } catch {
-        //console.log('[Terminal] Spawn directory not found, falling back to home directory');
-        cwd = process.env.HOME ?? process.cwd();
+        cwd = deps.env.HOME ?? deps.cwd();
       }
 
       // Build custom environment with terminal data
       const customEnv: NodeJS.ProcessEnv = this.buildEnvironment(terminalData);
-
-      //console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
-      //console.log(`Terminal data:`, terminalData);
 
       // Create PTY instance
       // PATH is already fixed by fix-absolutePath in main.ts
@@ -138,17 +167,16 @@ export class TerminalManager {
           },
         });
       } catch (err: unknown) {
-        console.error(`[TerminalManager] Failed to start prompt detection for ${terminalId}:`, err);
+        deps.logger.error(`[TerminalManager] Failed to start prompt detection for ${terminalId}:`, err);
       }
 
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
-        //console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
         const command: string = terminalData.executeCommand
           ? terminalData.initialCommand + '\r'
           : terminalData.initialCommand;
         // Wait a bit for shell prompt to appear before writing
-        setTimeout(() => {
+        deps.setTimeout(() => {
           ptyProcess.write(command);
         }, 200);
       }
@@ -160,7 +188,7 @@ export class TerminalManager {
         // Feed prompt detector — fire-and-forget; the runner handles the
         // rest asynchronously. Errors are logged but don't propagate.
         feedPromptDetector(terminalId, data).catch((err: unknown) => {
-          console.error(`[TerminalManager] Prompt-detector feed failed for ${terminalId}:`, err);
+          deps.logger.error(`[TerminalManager] Prompt-detector feed failed for ${terminalId}:`, err);
         });
       });
 
@@ -178,7 +206,7 @@ export class TerminalManager {
 
       return { success: true, terminalId };
     } catch (error: unknown) {
-      console.error('Failed to spawn terminal. shell=', terminalData.initialSpawnDirectory, 'cwd=', terminalData.initialSpawnDirectory, 'error=', error);
+      deps.logger.error('Failed to spawn terminal. shell=', terminalData.initialSpawnDirectory, 'cwd=', terminalData.initialSpawnDirectory, 'error=', error);
 
       const detail: string = error instanceof Error ? error.message : String(error);
       // posix_spawnp failures from node-pty are usually one of:
@@ -194,9 +222,9 @@ export class TerminalManager {
         `Otherwise, check your shell setting (settings.shell) and that the spawn directory exists.\r\n`;
 
       // Create a fake terminal ID for error display
-      const terminalId: string = `error-${Date.now()}`;
+      const terminalId: string = `error-${deps.now()}`;
       // Delay so the renderer has time to mount the terminal before receiving data
-      setTimeout(() => onData(terminalId, errorMessage), 100);
+      deps.setTimeout(() => onData(terminalId, errorMessage), 100);
 
       return { success: true, terminalId }; // Return success with error terminal
     }
@@ -221,7 +249,7 @@ export class TerminalManager {
       ptyProcess.write(data);
       return { success: true };
     } catch (error: unknown) {
-      console.error(`Failed to write to terminal ${terminalId}:`, error);
+      this.deps.logger.error(`Failed to write to terminal ${terminalId}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
@@ -233,8 +261,8 @@ export class TerminalManager {
     try {
       // Debug: warn when terminal dimensions are unreasonably large
       if (cols > 500 || rows > 200) {
-        console.warn(`[Terminal] OVERSIZED resize for ${terminalId}: ${cols}×${rows} (cols×rows). This likely indicates a sizing bug.`);
-        console.trace('[Terminal] OVERSIZED resize stack trace');
+        this.deps.logger.warn(`[Terminal] OVERSIZED resize for ${terminalId}: ${cols}×${rows} (cols×rows). This likely indicates a sizing bug.`);
+        this.deps.logger.trace('[Terminal] OVERSIZED resize stack trace');
       }
 
       const ptyProcess: pty.IPty | undefined = this.terminals.get(terminalId);
@@ -248,10 +276,9 @@ export class TerminalManager {
 
       // Resize PTY
       ptyProcess.resize(cols, rows);
-      // //console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
       return { success: true };
     } catch (error: unknown) {
-      console.error(`Failed to resize terminal ${terminalId}:`, error);
+      this.deps.logger.error(`Failed to resize terminal ${terminalId}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
@@ -285,7 +312,7 @@ export class TerminalManager {
       clearBuffer(terminalId);
       return { success: true };
     } catch (error: unknown) {
-      console.error(`Failed to kill terminal ${terminalId}:`, error);
+      this.deps.logger.error(`Failed to kill terminal ${terminalId}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
@@ -302,7 +329,7 @@ export class TerminalManager {
         try {
           ptyProcess.kill();
         } catch (error) {
-          console.error(`Error killing terminal ${terminalId}:`, error);
+          this.deps.logger.error(`Error killing terminal ${terminalId}:`, error);
         }
       }
       this.terminals.delete(terminalId);
@@ -323,13 +350,12 @@ export class TerminalManager {
     cleanupHeadlessAgents();
 
     for (const [id, ptyProcess] of this.terminals) {
-      //console.log(`Cleaning up terminal ${id}`);
       try {
         if (!id.startsWith('error-') && ptyProcess.kill) {
           ptyProcess.kill();
         }
       } catch (e) {
-        console.error(`Error killing terminal ${id}:`, e);
+        this.deps.logger.error(`Error killing terminal ${id}:`, e);
       }
     }
     this.terminals.clear();
@@ -343,28 +369,25 @@ export class TerminalManager {
   private buildEnvironment(
     terminalData: TerminalData
   ): NodeJS.ProcessEnv {
-      //console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
-      const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...process.env};
+      const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...this.deps.env};
 
       // Extra env vars (e.g., agent info)
       if (terminalData.initialEnvVars) {
-          //console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
-          if (terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH) {
-              //console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
-          }
           Object.assign(customEnv, terminalData.initialEnvVars);
       }
 
       // Always set vault path from watched directory (which IS the vault path, no suffix)
-      const vaultPath: string | null = getProjectRootWatchedDirectory();
-      //console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
+      const runtimeEnv = getRuntimeEnv();
+      const vaultPath: string | null = runtimeEnv.getProjectRootWatchedDirectory
+        ? runtimeEnv.getProjectRootWatchedDirectory()
+        : getRuntimeProjectRoot();
       customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? '';
       customEnv.WATCHED_FOLDER = vaultPath ?? undefined;
 
       // Set node-based environment variables from attachedToContextNodeId
 
       // OTEL telemetry env vars - enables Claude Code to send metrics to our OTLP receiver
-      const otlpPort: number | null = getRuntimeEnv().getOTLPReceiverPort?.() ?? null;
+      const otlpPort: number | null = runtimeEnv.getOTLPReceiverPort?.() ?? null;
       if (otlpPort) {
         customEnv.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
         customEnv.OTEL_METRICS_EXPORTER = 'otlp';

@@ -8,7 +8,7 @@ import { DEFAULT_EDGE_LENGTH } from './cytoscape-graph-constants';
  * Expand a set of root nodes to their N-hop neighborhood.
  * Each iteration includes the closed neighborhood (node + all its direct neighbors).
  */
-export function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): CollectionReturnValue {
+function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): CollectionReturnValue {
   let collection: CollectionReturnValue = roots;
   for (let i: number = 0; i < hops; i++) {
     collection = collection.closedNeighborhood();
@@ -117,7 +117,7 @@ export function getLocalNeighborhood(
  * Extract plain geometry data from cytoscape collections for pure layout-correction check.
  * Shell boundary: reads cytoscape positions, produces immutable LocalGeometry.
  */
-export function extractLocalGeometry(
+function extractLocalGeometry(
     newNodes: CollectionReturnValue,
     subgraphEdges: CollectionReturnValue,
     runNodes: CollectionReturnValue

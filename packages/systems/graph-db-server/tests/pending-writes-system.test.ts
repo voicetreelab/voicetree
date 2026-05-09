@@ -9,7 +9,7 @@ import { createEmptyGraph } from '@vt/graph-model'
 import {
   startDaemon,
   type DaemonHandle,
-} from '../src'
+} from '../src/daemon/index.ts'
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 

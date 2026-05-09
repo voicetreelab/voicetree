@@ -56,7 +56,7 @@ export function areNodesVisibleInViewport(cy: Core): boolean {
  * Uses R-tree spatial index for O(log n + k) performance.
  * Returns empty array if spatial index is not available.
  */
-export function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[] {
+function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[] {
   const extent: BoundingBox = getVisibleViewportExtent(cy);
   const rect: Rect = {
     minX: extent.x1,

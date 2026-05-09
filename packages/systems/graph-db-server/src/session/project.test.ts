@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { toAbsolutePath } from '@vt/graph-model'
 import type { FolderTreeNode, Graph, GraphNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
-import type { VaultState } from '../contract.ts'
+import type { VaultState } from '../daemon/contract.ts'
 import type { Session } from './types.ts'
 import { projectSessionState } from './project.ts'
 
@@ -48,6 +48,23 @@ function makeFolderTree(): FolderTreeNode {
         loadState: 'loaded',
         isWriteTarget: false,
       },
+      {
+        name: 'node_modules',
+        absolutePath: toAbsolutePath('/vault/node_modules'),
+        children: [
+          {
+            name: 'dep',
+            absolutePath: toAbsolutePath('/vault/node_modules/dep'),
+            children: [
+              { name: 'index.js', absolutePath: toAbsolutePath('/vault/node_modules/dep/index.js'), isInGraph: false },
+            ],
+            loadState: 'not-loaded',
+            isWriteTarget: false,
+          },
+        ],
+        loadState: 'not-loaded',
+        isWriteTarget: false,
+      },
     ],
     loadState: 'loaded',
     isWriteTarget: true,
@@ -81,6 +98,17 @@ describe('projectSessionState', () => {
     // webapp/src/shell/edge/main/state/buildLiveStateSnapshot.ts.
     const graph = makeGraph()
     const folderTree = makeFolderTree()
+    const expectedFolderTree: FolderTreeNode = {
+      ...folderTree,
+      children: folderTree.children.map((child) =>
+        'children' in child
+          ? {
+              ...child,
+              children: [],
+            }
+          : child,
+      ),
+    }
     const vault = makeVault()
     const session = makeSession({
       collapseSet: new Set(['/vault/docs/']),
@@ -93,7 +121,7 @@ describe('projectSessionState', () => {
       graph,
       roots: {
         loaded: new Set(['/vault/docs']),
-        folderTree: [folderTree],
+        folderTree: [expectedFolderTree],
       },
       collapseSet: new Set(['/vault/docs/']),
       selection: new Set(['/vault/docs/a.md']),
@@ -127,9 +155,9 @@ describe('projectSessionState', () => {
     expect([...snapA.collapseSet]).toEqual(['/vault/docs/'])
     expect([...snapB.collapseSet]).toEqual([])
     expect(snapA.collapseSet).not.toEqual(snapB.collapseSet)
-    // Everything else (including session-independent graph+folderTree) should be equal.
+    // Session collapse overlays the default-expanded read/write paths.
     expect(snapA.graph).toEqual(snapB.graph)
-    expect(snapA.roots).toEqual(snapB.roots)
+    expect(snapA.roots).not.toEqual(snapB.roots)
   })
 
   test('null folderTree produces an empty roots.folderTree', () => {
@@ -140,6 +168,36 @@ describe('projectSessionState', () => {
       session: makeSession(),
     })
     expect(snapshot.roots.folderTree).toEqual([])
+  })
+
+  test('default-collapsed folder tree only serializes children under read/write paths', () => {
+    const snapshot = projectSessionState({
+      graph: makeGraph(),
+      vault: makeVault(),
+      folderTree: makeFolderTree(),
+      session: makeSession(),
+    })
+
+    const root = snapshot.roots.folderTree[0]
+    const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
+    const nodeModules = root.children.find((child) => child.name === 'node_modules') as FolderTreeNode
+
+    expect(docs.children.map((child) => child.name)).toEqual(['a.md', 'b.md'])
+    expect(nodeModules.children).toEqual([])
+  })
+
+  test('manual collapse prunes a read/write path from the serialized folder tree', () => {
+    const snapshot = projectSessionState({
+      graph: makeGraph(),
+      vault: makeVault(),
+      folderTree: makeFolderTree(),
+      session: makeSession({ collapseSet: new Set(['/vault/docs/']) }),
+    })
+
+    const root = snapshot.roots.folderTree[0]
+    const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
+
+    expect(docs.children).toEqual([])
   })
 
   test('layout.positions is sourced from graph, not from session.layout.positions', () => {

@@ -4,31 +4,38 @@
   "private": true,
   "type": "module",
   "description": "Headless daemon (vt-graphd) that owns canonical vault state for one vault: sqlite, watch-folder, disk I/O, state stores, CRUD routes.",
-  "main": "src/index.ts",
+  "main": "src/daemon/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./contract": "./src/contract.ts",
-    "./daemonRouteParity": "./src/daemonRouteParity.ts",
-    "./lock": "./src/lock.ts",
-    "./portFile": "./src/portFile.ts",
+    ".": "./src/daemon/index.ts",
+    "./contract": "./src/daemon/contract.ts",
+    "./daemonRouteParity": "./src/daemon/daemonRouteParity.ts",
+    "./lock": "./src/daemon/lock.ts",
+    "./portFile": "./src/daemon/portFile.ts",
     "./views/*": "./src/views/*.ts",
     "./graph/*": "./src/graph/*.ts",
     "./state/*": "./src/state/*.ts",
+    "./watch-folder/vault-allowlist": "./src/watch-folder/paths/vault-allowlist.ts",
+    "./watch-folder/resolve-vault-config": "./src/watch-folder/paths/resolve-vault-config.ts",
     "./watch-folder/*": "./src/watch-folder/*.ts",
     "./context-nodes/*": "./src/context-nodes/*.ts",
     "./search/*": "./src/search/*.ts",
-    "./server": "./src/server.ts"
+    "./server": "./src/daemon/server.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "tsx bin/vt-graphd.ts"
+    "start": "tsx bin/vt-graphd.ts",
+    "build": "node build.mjs"
   },
   "bin": {
     "vt-graphd": "bin/vt-graphd.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.13",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/sdk-trace-base": "^2.7.1",
+    "@opentelemetry/sdk-trace-node": "^2.7.1",
+    "@vscode/ripgrep": "^1.15.9",
     "@vt/app-config": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
@@ -38,14 +45,14 @@
     "gray-matter": "^4.0.3",
     "hono": "^4.12.12",
     "normalize-path": "^3.0.0",
-    "@vscode/ripgrep": "^1.15.9",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "typescript": "~5.8.3",
-    "tsx": "^4.19.2",
-    "vitest": "^3.2.4",
     "@types/node": "^22.0.0",
-    "@types/normalize-path": "^3.0.2"
+    "@types/normalize-path": "^3.0.2",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
   }
 }

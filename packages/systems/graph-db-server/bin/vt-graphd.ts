@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --import tsx
 import { resolve } from 'node:path'
-import { startDaemon } from '../src/server.ts'
+import { startDaemon } from '../src/daemon/server.ts'
+import { initTracing } from '../src/daemon/tracing.ts'
 
 // The daemon is spawned detached by ensureDaemon with stderr piped to its
 // parent. When the parent exits, writes to that pipe error with EPIPE. Without
@@ -66,6 +67,7 @@ function die(msg: string): never {
 }
 
 async function main() {
+  initTracing('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 
   let handle
