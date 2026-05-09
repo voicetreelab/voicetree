@@ -57,7 +57,7 @@ export function setPendingPanToNode(targetNodeId: string): void {
  * Used when a new /voice/ node is created during dictation —
  * pans to the latest voice node so the view follows the user's speech.
  */
-export function setPendingVoiceFollowPan(targetNodeId: string): void {
+function setPendingVoiceFollowPan(targetNodeId: string): void {
   pendingPan = { type: 'voice-follow', nodeIds: [], totalNodes: 0, targetNodeId };
 }
 

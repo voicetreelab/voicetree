@@ -17,8 +17,8 @@ import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-reg
 import {getTerminalManager} from '../terminals/terminal-manager-instance'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../graph-bridge'
-import {getRuntimeUI} from '../runtime-config'
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../runtime/graph-bridge'
+import {getRuntimeUI} from '../runtime/runtime-config'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
 const TERMINAL_READY_POLL_MS: number = 100

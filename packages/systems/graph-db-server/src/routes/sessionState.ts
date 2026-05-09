@@ -7,14 +7,14 @@ import {
 } from '@vt/graph-model'
 import { getGraph } from '../state/graph-store.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
-import { getReadPaths, getVaultPaths, getWritePath } from '../watch-folder/vault-allowlist.ts'
+import { getReadPaths, getVaultPaths, getWritePath } from '../watch-folder/paths/vault-allowlist.ts'
 import { getDirectoryTree } from '../watch-folder/folder-scanner.ts'
 import { serializeState } from '@vt/graph-state'
 import {
   LiveStateSnapshotSchema,
   type LiveStateSnapshot,
   type VaultState,
-} from '../contract.ts'
+} from '../daemon/contract.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectSessionState } from '../session/project.ts'
 

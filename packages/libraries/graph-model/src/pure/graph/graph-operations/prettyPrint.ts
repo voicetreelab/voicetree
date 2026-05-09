@@ -4,7 +4,7 @@ import * as O from 'fp-ts/lib/Option.js';
 /**
  * Pretty print a graph for debugging
  */
-export function prettyPrintGraph(graph: Graph): string {
+function prettyPrintGraph(graph: Graph): string {
   const header: readonly string[] = [
     '='.repeat(60),
     `GRAPH STATE (${Object.keys(graph.nodes).length} nodes)`,
@@ -32,7 +32,7 @@ export function prettyPrintGraph(graph: Graph): string {
 /**
  * Pretty print a single node for debugging
  */
-export function prettyPrintNode(node: GraphNode): string {
+function prettyPrintNode(node: GraphNode): string {
   const posStr: string = O.isSome(node.nodeUIMetadata.position)
     ? `(${node.nodeUIMetadata.position.value.x}, ${node.nodeUIMetadata.position.value.y})`
     : 'none';

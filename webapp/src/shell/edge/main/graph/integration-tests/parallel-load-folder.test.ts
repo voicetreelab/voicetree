@@ -28,14 +28,14 @@ import {
     setVaultPath,
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
 import { createGraph } from '@vt/graph-model/graph'
 import type { GraphDelta } from '@vt/graph-model/graph'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
+import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
 import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 

@@ -12,7 +12,7 @@ import type {TerminalId} from '../types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
 import type {TerminalData} from '../types'
 import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
-import {getRuntimeGraph} from '../graph-bridge'
+import {getRuntimeGraph} from '../runtime/graph-bridge'
 import {detectCliType} from '../spawn/spawnTerminalWithContextNode'
 
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────

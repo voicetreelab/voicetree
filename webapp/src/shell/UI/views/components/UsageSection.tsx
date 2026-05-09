@@ -286,5 +286,3 @@ function RefreshButton({ testId, onClick, disabled }: RefreshButtonProps): JSX.E
     </button>
   );
 }
-
-export default UsageSection;

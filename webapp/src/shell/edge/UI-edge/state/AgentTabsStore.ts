@@ -25,7 +25,7 @@ const ZOOM_SUPPRESSION_MS: number = 800;
 // Display Order
 // =============================================================================
 
-export function getDisplayOrder(): TerminalId[] {
+function getDisplayOrder(): TerminalId[] {
     return displayOrder;
 }
 
@@ -64,7 +64,7 @@ export function syncDisplayOrder(terminals: TerminalData[]): TerminalId[] {
 /**
  * Reorder a terminal within the pinned section
  */
-export function reorderInDisplayOrder(
+function reorderInDisplayOrder(
     terminals: TerminalData[],
     fromIndex: number,
     toIndex: number

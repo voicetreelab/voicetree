@@ -364,5 +364,3 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
         </div>
     );
 }
-
-export default ProjectSelectionScreen;

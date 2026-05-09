@@ -9,7 +9,7 @@ import {
     refreshGraphChangeSideEffects
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
-import {publish} from "../events/deltaEventBus";
+import {publish} from "../state/events/deltaEventBus";
 
 /**
  * Handle filesystem events by:

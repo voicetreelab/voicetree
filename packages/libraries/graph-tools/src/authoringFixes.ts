@@ -164,7 +164,7 @@ export function normalizeRef(ref: string): string {
     return normalizeFilename(ref.trim()).replace(/\.md$/i, '')
 }
 
-export function normalizeMarkdown(markdown: string): string {
+function normalizeMarkdown(markdown: string): string {
     return markdown.replace(/\r\n/g, '\n')
 }
 

@@ -6,7 +6,7 @@
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
 import type { FolderTreeNode, Graph } from '@vt/graph-model'
-import type { VaultState } from '../contract.ts'
+import type { VaultState } from '../daemon/contract.ts'
 import type { Session } from './types.ts'
 
 export interface ProjectSessionStateArgs {

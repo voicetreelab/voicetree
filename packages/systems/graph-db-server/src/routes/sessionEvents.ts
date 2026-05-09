@@ -9,8 +9,8 @@ import {
   isReplayAvailableSince,
   subscribe as subscribeDelta,
   type SequencedDeltaEvent,
-} from '../events/deltaEventBus.ts'
-import { subscribeToProjectedGraph, type ProjectedGraphEvent } from '../events/projectedGraphEventBus.ts'
+} from '../state/events/deltaEventBus.ts'
+import { subscribeToProjectedGraph, type ProjectedGraphEvent } from '../state/events/projectedGraphEventBus.ts'
 import { project } from '@vt/graph-state'
 import { extractRecentNodesFromDelta } from '@vt/graph-model/graph'
 import { buildDaemonState } from '../session/buildDaemonState.ts'

@@ -124,5 +124,3 @@ export function useAgentMetrics(): UseAgentMetricsReturn {
     refresh: fetchMetrics,
   };
 }
-
-export default useAgentMetrics;

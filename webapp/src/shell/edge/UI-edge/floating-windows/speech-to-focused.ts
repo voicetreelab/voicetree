@@ -120,7 +120,7 @@ function insertTextAtCursor(view: EditorView, text: string): void {
  *
  * This is the main entry point - a "deep function" that hides complexity.
  */
-export function routeSpeechToFocused(text: string): boolean {
+function routeSpeechToFocused(text: string): boolean {
   const focused: FocusedWindow | null = getFocusedFloatingWindow();
   if (!focused) return false;
 

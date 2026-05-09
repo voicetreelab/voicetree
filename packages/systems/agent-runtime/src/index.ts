@@ -3,7 +3,8 @@
 // (or via the stable deep paths declared in package.json#exports).
 
 export * from './types'
-export * from './runtime-config'
+export * from './runtime/runtime-config'
+export * from './runtime/agent-runtime-api'
 export * from './lifecycle'
 
 export { TerminalManager } from './terminals/terminal-manager'

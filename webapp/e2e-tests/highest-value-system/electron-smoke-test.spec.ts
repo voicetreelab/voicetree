@@ -131,7 +131,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
-        VT_GRAPHD_NODE_BIN: graphDaemonNodeBin
+        VT_GRAPHD_NODE_BIN: graphDaemonNodeBin,
+        ENABLE_PLAYWRIGHT_DEBUG: '0'
       },
       timeout: 60000
     });
@@ -206,8 +207,9 @@ const test = base.extend<{
 });
 
 test.describe('Smoke Test', () => {
+  test.describe.configure({ timeout: process.env.CI ? 120000 : 60000 });
+
   test('should start app and load graph after project selection', async ({ appWindow, electronDiagnostics }) => {
-    test.setTimeout(process.env.CI ? 120000 : 30000);
     console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and loads graph ===');
 
     const appReady = await appWindow.evaluate(() => {
@@ -264,7 +266,6 @@ test.describe('Smoke Test', () => {
   });
 
   test('should spawn fake agent and record a progress node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    test.setTimeout(process.env.CI ? 120000 : 60000);
     console.log('=== SMOKE TEST: Verify fake agent can create a progress node ===');
 
     const mcpPort = await appWindow.evaluate(async () => {

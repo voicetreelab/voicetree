@@ -175,7 +175,7 @@ function getPackageNameForPath(relativePath: string): string {
     return 'unknown'
 }
 
-export function parseBaselineCountFromCatalogue(markdown: string): number {
+function parseBaselineCountFromCatalogue(markdown: string): number {
     const match: RegExpMatchArray | null = markdown.match(/Outside projection seam `cy\.\*` count: (\d+)/)
     if (!match?.[1]) {
         throw new Error('Could not parse baseline count from coupling catalogue')

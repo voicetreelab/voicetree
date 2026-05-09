@@ -15,8 +15,8 @@ import * as O from 'fp-ts/lib/Option.js';
 import {loadSettings} from '@vt/app-config/settings';
 import type {TerminalData} from '../types';
 import {buildTerminalEnvVars} from './buildTerminalEnvVars';
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../graph-bridge';
-import {getRuntimeUI} from '../runtime-config';
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../runtime/graph-bridge';
+import {getRuntimeUI} from '../runtime/runtime-config';
 
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();

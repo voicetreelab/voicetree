@@ -147,5 +147,3 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     isElectron,
   };
 }
-
-export default useFolderWatcher;

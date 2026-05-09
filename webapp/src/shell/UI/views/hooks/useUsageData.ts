@@ -77,5 +77,3 @@ export function useUsageData(): UseUsageDataReturn {
 
   return { data, isLoading, isClaudeRefreshing, error, refresh: fetchData, refreshClaude };
 }
-
-export default useUsageData;

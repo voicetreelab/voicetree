@@ -41,11 +41,11 @@ export function getRecentNodeHistory(): RecentNodeHistory {
     return recentNodeHistory;
 }
 
-export function setRecentNodeHistory(history: RecentNodeHistory): void {
+function setRecentNodeHistory(history: RecentNodeHistory): void {
     recentNodeHistory = history;
 }
 
-export function updateRecentNodeHistoryFromDelta(delta: GraphDelta): RecentNodeHistory {
+function updateRecentNodeHistoryFromDelta(delta: GraphDelta): RecentNodeHistory {
     recentNodeHistory = updateHistoryFromDelta(recentNodeHistory, delta);
     notifySubscribers();
     return recentNodeHistory;

@@ -80,7 +80,7 @@ export async function tellSTTServerToLoadDirectory(directoryPath: string): Promi
  * Check if the backend server is reachable
  * @returns true if the server is reachable, false otherwise
  */
-export async function checkBackendHealth(): Promise<boolean> {
+async function checkBackendHealth(): Promise<boolean> {
   try {
     const baseUrl: string = await getBackendBaseUrl();
     const response: Response = await fetch(`${baseUrl}/health`, {

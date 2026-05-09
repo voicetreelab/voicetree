@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, rmdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,12 +16,13 @@ async function lintText(
   relativeFilePath: string,
 ): Promise<readonly string[]> {
   const absoluteFilePath: string = path.join(repoRootDir, relativeFilePath)
+  const containingDir: string = path.dirname(absoluteFilePath)
   const eslint: ESLint = new ESLint({
     cwd: repoRootDir,
     overrideConfigFile: configPath,
   })
 
-  await mkdir(path.dirname(absoluteFilePath), { recursive: true })
+  await mkdir(containingDir, { recursive: true })
   await writeFile(absoluteFilePath, code)
 
   try {
@@ -29,6 +30,9 @@ async function lintText(
     return result.messages.map(message => message.message)
   } finally {
     await rm(absoluteFilePath, { force: true })
+    if (path.basename(containingDir) === '__generated__') {
+      await rmdir(containingDir).catch(() => {})
+    }
   }
 }
 

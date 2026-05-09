@@ -35,6 +35,6 @@ export function getRecentlyVisited(): string[] {
  * Clear the recently visited list (for testing or reset)
  * @internal
  */
-export function clearRecentlyVisited(): void {
+function clearRecentlyVisited(): void {
     recentlyVisited = [];
 }

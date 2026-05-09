@@ -6,8 +6,8 @@
 import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeEnv} from '../runtime-config'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../graph-bridge'
+import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../runtime/graph-bridge'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
