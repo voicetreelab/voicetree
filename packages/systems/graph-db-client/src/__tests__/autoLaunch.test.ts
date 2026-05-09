@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { ensureDaemon, resolveDaemonRuntimeCommand } from '../autoLaunch.ts'
 import { DaemonLockHeldError } from '../errors.ts'
+import { resolveDefaultDaemonArgs } from '../autoLaunch/runtime.ts'
 
 describe('resolveDaemonRuntimeCommand', () => {
   test('uses the current Node executable outside Electron', () => {
@@ -115,6 +116,36 @@ describe('resolveDaemonRuntimeCommand', () => {
         /Could not find a Node runtime for vt-graphd that supports node:sqlite/,
       )
     })
+  })
+})
+
+describe('resolveDefaultDaemonArgs', () => {
+  test('uses the bundled daemon when the built entrypoint exists', () => {
+    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+      exists: (path) => path.endsWith('/dist/vt-graphd.mjs'),
+      resolveTsx: () => '/tmp/tsx',
+    })
+
+    expect(args).toEqual([
+      expect.stringMatching(/dist\/vt-graphd\.mjs$/),
+      '--vault',
+      '/tmp/vault',
+    ])
+  })
+
+  test('uses the source daemon through tsx in a clean source checkout', () => {
+    const args = resolveDefaultDaemonArgs('/tmp/vault', {
+      exists: (path) => path.endsWith('/bin/vt-graphd.ts'),
+      resolveTsx: () => '/tmp/tsx',
+    })
+
+    expect(args).toEqual([
+      '--import',
+      '/tmp/tsx',
+      expect.stringMatching(/bin\/vt-graphd\.ts$/),
+      '--vault',
+      '/tmp/vault',
+    ])
   })
 })
 

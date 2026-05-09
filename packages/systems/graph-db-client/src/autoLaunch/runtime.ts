@@ -1,9 +1,14 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 
 export type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
+type DaemonEntrypointDeps = {
+  exists: (path: string) => boolean
+  resolveTsx: () => string
+}
 type RuntimeVersions = NodeJS.ProcessVersions & { electron?: string }
 type RuntimeCommandInput = {
   env?: NodeJS.ProcessEnv
@@ -22,6 +27,10 @@ const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server'
 const FALLBACK_BIN_PATH = resolve(
   dirname(GRAPH_DB_SERVER_ENTRYPOINT),
   '../../dist/vt-graphd.mjs',
+)
+const SOURCE_BIN_PATH = resolve(
+  dirname(GRAPH_DB_SERVER_ENTRYPOINT),
+  '../../bin/vt-graphd.ts',
 )
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()
@@ -87,9 +96,33 @@ export function resolveCommand(
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
-    args: [FALLBACK_BIN_PATH, '--vault', vault],
+    args: resolveDefaultDaemonArgs(vault),
     env: { ...process.env },
   }
+}
+
+export function resolveDefaultDaemonArgs(
+  vault: string,
+  deps: DaemonEntrypointDeps = {
+    exists: existsSync,
+    resolveTsx: () => requireFromHere.resolve('tsx'),
+  },
+): string[] {
+  if (deps.exists(FALLBACK_BIN_PATH)) {
+    return [FALLBACK_BIN_PATH, '--vault', vault]
+  }
+
+  if (deps.exists(SOURCE_BIN_PATH)) {
+    return [
+      '--import',
+      deps.resolveTsx(),
+      SOURCE_BIN_PATH,
+      '--vault',
+      vault,
+    ]
+  }
+
+  return [FALLBACK_BIN_PATH, '--vault', vault]
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
