@@ -10,8 +10,8 @@ import {captureOutput, clearBuffer, clearAllBuffers} from './terminal-output-buf
 import {loadSettings} from '@vt/app-config/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
-import {getRuntimeProjectRoot} from '../graph-bridge';
-import {getRuntimeEnv, getRuntimeTrace} from '../runtime-config';
+import {getRuntimeProjectRoot} from '../runtime/graph-bridge';
+import {getRuntimeEnv, getRuntimeTrace} from '../runtime/runtime-config';
 
 /**
  * Convert a numeric signal (as reported by node-pty on Unix) into the

@@ -11,9 +11,9 @@
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {TerminalId} from '../types'
-import {createTerminalData} from '../types'
-import type {TerminalData, CreateTerminalDataParams} from '../types'
+import type {TerminalId} from '../../types'
+import {createTerminalData} from '../../types'
+import type {TerminalData, CreateTerminalDataParams} from '../../types'
 
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 
@@ -34,7 +34,7 @@ vi.mock('@vt/graph-model/pure/graph/markdown-parsing', () => ({
     getNodeTitle: vi.fn(() => 'Mock Title')
 }))
 
-vi.mock('../inject/send-text-to-terminal', () => ({
+vi.mock('../../inject/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn()
 }))
 
@@ -52,7 +52,7 @@ import {
     getTerminalRecords,
     subscribeToRegistry,
     type TerminalRecord
-} from '../terminals/terminal-registry'
+} from '../terminal-registry'
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 

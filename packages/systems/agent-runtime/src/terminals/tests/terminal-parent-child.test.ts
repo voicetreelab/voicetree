@@ -11,14 +11,14 @@
  */
 
 import {describe, it, expect, beforeEach} from 'vitest'
-import {createTerminalData, type TerminalId} from '../types'
-import type {TerminalData} from '../types'
-import type {TerminalRecord} from './terminal-registry'
+import {createTerminalData, type TerminalId} from '../../types'
+import type {TerminalData} from '../../types'
+import type {TerminalRecord} from '../terminal-registry'
 import {
     recordTerminalSpawn,
     getTerminalRecords,
     clearTerminalRecords
-} from './terminal-registry'
+} from '../terminal-registry'
 
 describe('Terminal Parent-Child Relationship Tracking', () => {
     beforeEach(() => {

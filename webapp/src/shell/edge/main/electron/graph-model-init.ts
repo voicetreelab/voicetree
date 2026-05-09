@@ -17,7 +17,7 @@ import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/terminals/inject-badge-refresh'
-import { dispatchOnNewNodeHooks, getTerminalRecords, resetAuditRetryCount, type TerminalRecord } from '@vt/agent-runtime'
+import { agentRuntime, type TerminalRecord } from '@vt/agent-runtime'
 import { registerAgentNodes } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/backend-api'
 import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
@@ -121,17 +121,17 @@ export function initializeGraphModel(): void {
                 const hookPath: string | undefined = settings.hooks?.onNewNode
                 if (hookPath && !hookPath.startsWith('#')) {
                     // Create a single-node delta for dispatch
-                    dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
+                    agentRuntime.dispatchOnNewNodeHooks(graphData, hookPath, uiAPI.logHookResult)
                 }
             })
         },
         onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
-            const record: TerminalRecord | undefined = getTerminalRecords().find(
+            const record: TerminalRecord | undefined = agentRuntime.getTerminalRecords().find(
                 (r: TerminalRecord) => r.terminalData.agentName === agentName
             )
             if (!record) return
             registerAgentNodes(record.terminalId, [{ nodeId, title }])
-            resetAuditRetryCount(record.terminalId)
+            agentRuntime.resetAuditRetryCount(record.terminalId)
         },
         refreshBadge(): void {
             refreshAllInjectBadges()

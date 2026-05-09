@@ -7,7 +7,7 @@ import {
     clearAllBudgets,
     clearBudget,
     getAllBudgets,
-} from './global-budget-registry';
+} from '../global-budget-registry';
 
 describe('global-budget-registry (retroactive fair rebalancing)', () => {
     beforeEach(() => {

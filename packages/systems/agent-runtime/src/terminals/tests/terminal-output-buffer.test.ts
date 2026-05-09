@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeEach} from 'vitest'
-import {captureOutput, getOutput, clearBuffer, clearAllBuffers} from './terminal-output-buffer'
+import {captureOutput, getOutput, clearBuffer, clearAllBuffers} from '../terminal-output-buffer'
 
 describe('terminal-output-buffer', () => {
     beforeEach(() => {

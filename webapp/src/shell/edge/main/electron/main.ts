@@ -7,7 +7,7 @@ import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/electron/application-menu';
 import {StubTextToTreeServerManager} from './server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from './server/RealTextToTreeServerManager';
-import {getTerminalManager, configureAgentRuntime} from '@vt/agent-runtime';
+import {agentRuntime} from '@vt/agent-runtime';
 import {trace} from '@/shell/edge/main/tracing/trace';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/state/app-electron-state';
@@ -26,7 +26,7 @@ import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, 
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/terminals/ipc-terminal-handlers';
-import {subscribeToRegistry, type TerminalRecord} from '@vt/agent-runtime';
+import {type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/state/live-state-store';
@@ -107,7 +107,7 @@ configureMcpServer({
 });
 
 // Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
-configureAgentRuntime({
+agentRuntime.configureAgentRuntime({
     env: {
         getAppSupportPath,
         getMcpPort,
@@ -181,7 +181,7 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager: ReturnType<typeof getTerminalManager> = getTerminalManager();
+const terminalManager: ReturnType<typeof agentRuntime.getTerminalManager> = agentRuntime.getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -193,7 +193,7 @@ registerTerminalIpcHandlers(
 );
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
-subscribeToRegistry((records: TerminalRecord[]) => {
+agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
 });
 

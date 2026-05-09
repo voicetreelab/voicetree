@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { shouldFlipToActiveOnOutput } from './output-transition';
-import type { TerminalLifecycle } from './types';
+import { shouldFlipToActiveOnOutput } from '../output-transition';
+import type { TerminalLifecycle } from '../types';
 
 describe('shouldFlipToActiveOnOutput', () => {
     it('returns true for spawning (the reported bug — fresh terminals must transition to active on first output)', () => {

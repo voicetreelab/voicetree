@@ -9,8 +9,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createEmulator } from './emulator';
-import { detectPromptShape } from './prompts';
+import { createEmulator } from '../emulator';
+import { detectPromptShape } from '../prompts';
 
 describe('createEmulator — basic byte processing', () => {
     it('accumulates plain text into currentLine', async () => {

@@ -14,11 +14,7 @@ import {createContextNodeThroughDaemon as createContextNode} from './electron/da
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon-graph-queries'
-import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
-import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
-import {injectNodesIntoTerminal} from '@vt/agent-runtime'
-import {spawnPlainTerminal, spawnPlainTerminalWithNode} from '@vt/agent-runtime'
+import {agentRuntime} from '@vt/agent-runtime'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from './ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from './metrics/agent-metrics-store';
@@ -36,7 +32,6 @@ import {initializeProject as initializeProjectCore} from './project-initializer'
 import {showFolderPicker, createNewProject} from './show-folder-picker';
 import {getOnboardingDirectory} from './electron/onboarding-setup';
 import {prettySetupAppForElectronDebugging} from './debug/prettySetupAppForElectronDebugging';
-import {getHeadlessAgentOutput} from '@vt/agent-runtime';
 import {
   checkMicrophonePermission,
   requestMicrophonePermission,
@@ -153,24 +148,24 @@ export const mainAPI = {
   performRedo,
 
   // Terminal spawning
-  spawnTerminalWithContextNode,
+  spawnTerminalWithContextNode: agentRuntime.spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)
-  spawnPlainTerminal,
+  spawnPlainTerminal: agentRuntime.spawnPlainTerminal,
 
   // Plain terminal with attached node (for draggability)
-  spawnPlainTerminalWithNode,
+  spawnPlainTerminalWithNode: agentRuntime.spawnPlainTerminalWithNode,
 
   // Terminal state mutations (renderer -> main for MCP)
-  updateTerminalIsDone,
-  updateTerminalPinned,
-  updateTerminalMinimized,
-  updateTerminalActivityState,
-  removeTerminalFromRegistry,
+  updateTerminalIsDone: agentRuntime.updateTerminalIsDone,
+  updateTerminalPinned: agentRuntime.updateTerminalPinned,
+  updateTerminalMinimized: agentRuntime.updateTerminalMinimized,
+  updateTerminalActivityState: agentRuntime.updateTerminalActivityState,
+  removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
 
   // Manual node injection (InjectBar UI)
-  getUnseenNodesForTerminal,
-  injectNodesIntoTerminal,
+  getUnseenNodesForTerminal: agentRuntime.getUnseenNodesForTerminal,
+  injectNodesIntoTerminal: agentRuntime.injectNodesIntoTerminal,
 
   // Ask mode operations
   askQuery,
@@ -214,7 +209,7 @@ export const mainAPI = {
   createNewProject,
 
   // Headless agent output (ring buffer) for hover tooltip
-  getHeadlessAgentOutput,
+  getHeadlessAgentOutput: agentRuntime.getHeadlessAgentOutput,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,

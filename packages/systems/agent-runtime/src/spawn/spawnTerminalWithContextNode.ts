@@ -38,8 +38,8 @@ import {
     runtimeCreateContextNodeFromSelectedNodes,
     runtimeRefreshGraphSideEffects,
     setRuntimeGraph,
-} from '../graph-bridge';
-import {getRuntimeUI} from '../runtime-config';
+} from '../runtime/graph-bridge';
+import {getRuntimeUI} from '../runtime/runtime-config';
 
 type SpawnTerminalLogger = {
     error(message?: unknown, ...optionalParams: unknown[]): void

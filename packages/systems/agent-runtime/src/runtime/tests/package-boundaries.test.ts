@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-const PACKAGE_ROOT: string = resolve(TEST_FILE_DIR, '..')
+const PACKAGE_ROOT: string = resolve(TEST_FILE_DIR, '../../..')
 const REPO_ROOT: string = resolve(PACKAGE_ROOT, '../..')
 
 type Violation = {

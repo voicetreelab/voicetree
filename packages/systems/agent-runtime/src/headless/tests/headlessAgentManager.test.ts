@@ -10,8 +10,8 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {EventEmitter} from 'events'
-import type {TerminalId} from '../types'
-import type {TerminalData} from '../types'
+import type {TerminalId} from '../../types'
+import type {TerminalData} from '../../types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 
@@ -22,7 +22,7 @@ const {mockMarkTerminalExited, mockRecordTerminalSpawn, mockSpawn, mockGetTermin
     mockGetTerminalRecords: vi.fn().mockReturnValue([])
 }))
 
-vi.mock('../terminals/terminal-registry', () => ({
+vi.mock('../../terminals/terminal-registry', () => ({
     markTerminalExited: mockMarkTerminalExited,
     recordTerminalSpawn: mockRecordTerminalSpawn,
     getTerminalRecords: mockGetTerminalRecords,
@@ -40,12 +40,12 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     setGraph: vi.fn()
 }))
 
-vi.mock('../hooks/stopGateAudit', () => ({
+vi.mock('../../hooks/stopGateAudit', () => ({
     auditAgent: vi.fn().mockReturnValue(null),
     buildDeficiencyPrompt: vi.fn().mockReturnValue(''),
 }))
 
-vi.mock('../spawn/spawnTerminalWithContextNode', () => ({
+vi.mock('../../spawn/spawnTerminalWithContextNode', () => ({
     detectCliType: vi.fn().mockReturnValue(null),
 }))
 
@@ -56,7 +56,7 @@ import {
     killHeadlessAgent,
     isHeadlessAgent,
     cleanupHeadlessAgents
-} from '../headless/headlessAgentManager'
+} from '../headlessAgentManager'
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 

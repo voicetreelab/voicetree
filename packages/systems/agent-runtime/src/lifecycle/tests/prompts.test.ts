@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectPromptShape, type LineSnapshot, type PromptDetectionResult } from './prompts';
+import { detectPromptShape, type LineSnapshot, type PromptDetectionResult } from '../prompts';
 
 function snapshot(opts: {
     line?: string;

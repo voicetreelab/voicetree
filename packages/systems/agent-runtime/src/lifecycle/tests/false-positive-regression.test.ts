@@ -16,15 +16,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createTerminalData } from '../types';
-import type { TerminalData, TerminalId } from '../types';
+import { createTerminalData } from '../../types';
+import type { TerminalData, TerminalId } from '../../types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import {
     recordTerminalSpawn,
     getTerminalRecords,
     clearTerminalRecords,
     updateTerminalIsDone,
-} from '../terminals/terminal-registry';
+} from '../../terminals/terminal-registry';
 import {
     startPromptDetection,
     feedPromptDetector,
@@ -32,7 +32,7 @@ import {
     __setNowForTests,
     __tickForTests,
     type PromptStateChange,
-} from './prompt-runner';
+} from '../prompt-runner';
 
 const TERMINAL_ID: string = 't-fp';
 

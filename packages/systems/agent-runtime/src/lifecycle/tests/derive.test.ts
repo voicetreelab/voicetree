@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { derive, deriveAll, withKillReason } from './derive';
-import { DEFAULT_DERIVE_CONFIG, initialSignalState } from './types';
-import type { TerminalEvent, TerminalLifecycle, TerminalSignalState } from './types';
+import { derive, deriveAll, withKillReason } from '../derive';
+import { DEFAULT_DERIVE_CONFIG, initialSignalState } from '../types';
+import type { TerminalEvent, TerminalLifecycle, TerminalSignalState } from '../types';
 
 const T0: number = 1_000_000;
 const cfg = DEFAULT_DERIVE_CONFIG;

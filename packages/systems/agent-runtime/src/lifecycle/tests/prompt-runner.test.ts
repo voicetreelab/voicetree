@@ -14,7 +14,7 @@ import {
     __setNowForTests,
     __tickForTests,
     type PromptStateChange,
-} from './prompt-runner';
+} from '../prompt-runner';
 
 const TERMINAL_ID: string = 't1';
 

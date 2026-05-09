@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyExit } from './exit';
+import { classifyExit } from '../exit';
 
 describe('classifyExit', () => {
     describe('user-initiated kills', () => {

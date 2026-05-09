@@ -10,8 +10,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { createTerminalData } from '../types';
-import type { TerminalData, TerminalId } from '../types';
+import { createTerminalData } from '../../types';
+import type { TerminalData, TerminalId } from '../../types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
 import {
     recordTerminalSpawn,
@@ -21,10 +21,10 @@ import {
     markTerminalExited,
     markTerminalKillReason,
     updateTerminalPromptDetected,
-} from './terminal-registry';
+} from '../terminal-registry';
 
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true });
-vi.mock('../inject/send-text-to-terminal', () => ({
+vi.mock('../../inject/send-text-to-terminal', () => ({
     sendTextToTerminal: (terminalId: string, text: string): Promise<{ success: boolean }> =>
         mockSendTextToTerminal(terminalId, text),
 }));

@@ -1,101 +1,32 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {getNodeTitle} from '@vt/graph-model/markdown'
+import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
-import {getRuntimeGraph, getRuntimeUnseenNodesAroundContextNode} from '../graph-bridge'
+import {getRuntimeGraph} from '../runtime/graph-bridge'
 
 import type {TerminalData} from '../types';
 import {loadSettings} from '@vt/app-config/settings';
-import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
 import {clearBudget} from './global-budget-registry'
 import {classifyExit} from '../lifecycle/exit'
 import type {TerminalLifecycle, TerminalKillReason} from '../lifecycle/types'
-
-type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
-
-export type TerminalStatus = 'running' | 'exited'
-
-export type TerminalRecord = {
-    terminalId: string
-    terminalData: TerminalData
-    status: TerminalStatus
-    exitCode: number | null
-    exitSignal: string | null
-    // Set by VoiceTree before issuing a kill signal so the subsequent exit event
-    // classifies as `completed` rather than `errored`.
-    killReason: TerminalKillReason | null
-    // Stop gate (BF-024): genuinely stateful — tracks resume attempts across agent restarts
-    auditRetryCount: number
-    spawnedAt: number
-}
-
-const terminalRecords: Map<string, TerminalRecord> = new Map()
-
-/**
- * Pending terminals: spawn_agent has reserved a terminalId but the actual
- * PTY/process hasn't been registered yet (recordTerminalSpawn hasn't run).
- *
- * Lets spawn_agent return its MCP response before the heavy terminal-prep
- * work completes, while keeping send_message/read_terminal_output safe:
- *   - send_message queues messages here; recordTerminalSpawn drains them.
- *   - read_terminal_output returns empty + pending=true.
- *   - send_message on a pending HEADLESS still errors immediately (same
- *     contract as a running headless), since headless has no stdin ever.
- */
-type PendingTerminal = {
-    isHeadless: boolean
-    queuedMessages: string[]
-}
-const pendingTerminals: Map<string, PendingTerminal> = new Map()
-
-/**
- * Tracking state for unseen nodes notifications.
- * Used to implement 5-minute cooldown and avoid re-alerting about same nodes.
- */
-type UnseenNodesNotificationState = {
-    lastNotificationTime: number
-    spawnTime: number
-    alertedNodeIds: Set<NodeIdAndFilePath>
-}
-const notificationStateByTerminal: Map<string, UnseenNodesNotificationState> = new Map()
-
-type TerminalRegistryLogger = {
-    info(message?: unknown, ...optionalParams: unknown[]): void
-    error(message?: unknown, ...optionalParams: unknown[]): void
-}
-
-type TerminalRegistryClock = {
-    now(): number
-}
-
-type TerminalRegistryTimers = {
-    setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>
-    clearTimeout(timeout: ReturnType<typeof setTimeout>): void
-}
-
-type TerminalRegistryRuntime = TerminalRegistryClock & TerminalRegistryTimers & {
-    logger: TerminalRegistryLogger
-}
-
-const NOTIFICATION_COOLDOWN_MS: number = 5 * 60 * 1000 // 5 minutes
-const STOP_HOOK_DELAY_MS: number = 30 * 1000 // 30 seconds — only notify after sustained idle
-
-const pendingNotificationTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map()
-
-/**
- * Shared timestamp tracking when each terminal first became idle (isDone: false→true).
- * Cleared when terminal becomes active again (isDone: true→false).
- * Used by wait_for_agents (15s threshold) and notification hook (30s setTimeout).
- */
-const idleSinceByTerminal: Map<string, number> = new Map()
-
-/**
- * Subscribers receive a snapshot of all terminal records after every
- * structural mutation. Webapp wires its renderer sync as a subscriber
- * in electron/main.ts; headless contexts simply skip wiring.
- */
-type RegistryListener = (records: TerminalRecord[]) => void
-const listeners: Set<RegistryListener> = new Set()
+import {runIdleStopGateAudit} from './terminal-registry-audit'
+import {notifyAgentOfUnseenNodes} from './terminal-registry-notifications'
+import {
+    STOP_HOOK_DELAY_MS,
+    hasActiveChildren,
+    idleSinceByTerminal,
+    listeners,
+    notificationStateByTerminal,
+    pendingNotificationTimeouts,
+    pendingTerminals,
+    terminalRecords,
+    type PendingTerminal,
+    type RegistryListener,
+    type TerminalRecord,
+    type TerminalRegistryClock,
+    type TerminalRegistryRuntime,
+    type TerminalRegistryTimers,
+} from './terminal-registry-state'
+export type {TerminalRecord, TerminalStatus} from './terminal-registry-state'
 
 export function subscribeToRegistry(listener: RegistryListener): () => void {
     listeners.add(listener)
@@ -106,136 +37,6 @@ function notifyRegistrySubscribers(): void {
     if (listeners.size === 0) return
     const snapshot: TerminalRecord[] = getTerminalRecords()
     for (const listener of listeners) listener(snapshot)
-}
-
-/**
- * True iff the given terminal has at least one direct child terminal that is
- * still running. An orchestrator that has spawned sub-agents is, by definition,
- * waiting on those sub-agents to complete — not on the user — for as long as
- * any child is alive. Used to route the parent's lifecycle into 'idle'
- * (orange standby) instead of 'awaiting_input' (BLUE) during that window.
- */
-function hasActiveChildren(terminalId: string): boolean {
-    for (const r of terminalRecords.values()) {
-        if (r.terminalData.parentTerminalId === terminalId && r.status !== 'exited') {
-            return true
-        }
-    }
-    return false
-}
-
-/**
- * Run stop gate audit when an interactive agent goes idle.
- * If violations found and retries not exhausted, inject deficiency message into terminal.
- * The agent will resume work → go idle again → audit fires again (up to 2 retries).
- */
-async function runIdleStopGateAudit(
-    terminalId: string,
-    record: TerminalRecord,
-    logger: TerminalRegistryLogger = { info: console.log, error: console.error },
-): Promise<void> {
-    if (record.auditRetryCount >= 2) return
-    if (record.terminalData.isHeadless) return // headless agents use exit handler instead
-
-    // Skip audit if agent has active (non-exited) child agents — it's waiting, not stopping.
-    // wait_for_agents will resume this agent when children finish.
-    if (hasActiveChildren(terminalId)) return
-
-    const records: readonly TerminalRecord[] = getTerminalRecords()
-    const graph: Graph = getRuntimeGraph()
-    const hookResult: StopHookResult = await runStopHooks(terminalId, graph, records)
-
-    if (!hookResult.passed) {
-        incrementAuditRetryCount(terminalId)
-        logger.info(`[terminal-registry] Stop gate audit failed for idle agent ${terminalId} (retry ${record.auditRetryCount + 1}/2)`)
-        void sendTextToTerminal(terminalId, hookResult.message ?? 'Stop gate hooks failed')
-    }
-}
-
-/**
- * Notify an agent of unseen nodes created nearby while they were working.
- * Filters out nodes the agent themselves created (via agent_name matching).
- * Implements 5-minute cooldown and tracks already-alerted nodes.
- * Sends formatted list directly to terminal.
- */
-async function notifyAgentOfUnseenNodes(
-    terminalId: string,
-    record: TerminalRecord,
-    deps: TerminalRegistryClock & { logger: TerminalRegistryLogger } = {
-        now: Date.now,
-        logger: { info: console.log, error: console.error },
-    },
-): Promise<void> {
-    try {
-        const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
-        const agentName: string = record.terminalData.agentName
-
-        // Get or initialize notification state
-        let notificationState: UnseenNodesNotificationState | undefined = notificationStateByTerminal.get(terminalId)
-        if (!notificationState) {
-            // Should not happen since we initialize on spawn, but handle gracefully
-            notificationState = {
-                lastNotificationTime: 0,
-                spawnTime: deps.now(),
-                alertedNodeIds: new Set()
-            }
-            notificationStateByTerminal.set(terminalId, notificationState)
-        }
-
-        // Check 5-minute cooldown from last notification AND from spawn time
-        const now: number = deps.now()
-        const timeSinceLastNotification: number = now - notificationState.lastNotificationTime
-        const timeSinceSpawn: number = now - notificationState.spawnTime
-
-        if (timeSinceLastNotification < NOTIFICATION_COOLDOWN_MS || timeSinceSpawn < NOTIFICATION_COOLDOWN_MS) {
-            return // Cooldown active, skip notification
-        }
-
-        // Get unseen nodes around this agent's context
-        const unseenNodes: readonly UnseenNode[] = await getRuntimeUnseenNodesAroundContextNode(contextNodeId)
-
-        // Filter out nodes created by this agent
-        const graph: Graph = getRuntimeGraph()
-        const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
-            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
-            if (!graphNode) return true
-            const nodeAgentName: string | undefined = graphNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')
-            return nodeAgentName !== agentName
-        })
-
-        // Filter out already-alerted nodes
-        const newUnseenNodes: readonly UnseenNode[] = nodesFromOthers.filter(
-            (node: UnseenNode) => !notificationState.alertedNodeIds.has(node.nodeId)
-        )
-
-        // Only notify about nodes in a /voice/ folder (not matching repo name like voicetree-public)
-        const voiceNodes: readonly UnseenNode[] = newUnseenNodes.filter(
-            (node: UnseenNode) => node.nodeId.includes('/voice/')
-        )
-
-        if (voiceNodes.length === 0) return
-
-        // Format notification message (titles and file paths only)
-        const nodeList: string = voiceNodes.map((node: UnseenNode) => {
-            const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
-            const title: string = graphNode ? getNodeTitle(graphNode) : node.nodeId
-            return `- ${title} (${node.nodeId})`
-        }).join('\n')
-
-        const message: string = `\n\n[ voicetree-stop-hook ] New nodes created nearby while you were working:\n${nodeList}\n\nIf you don't have an up to date progress node, read addProgressTree.md to create multiple nodes to document your work.\n\n`
-
-        // Send to terminal using escape-code + char-by-char approach
-        await sendTextToTerminal(terminalId, message)
-
-        // Update tracking state
-        notificationState.lastNotificationTime = now
-        for (const node of voiceNodes) {
-            notificationState.alertedNodeIds.add(node.nodeId)
-        }
-    } catch (error) {
-        // Silent failure - don't disrupt normal terminal operation
-        deps.logger.error(`[terminal-registry] Failed to notify agent of unseen nodes:`, error)
-    }
 }
 
 export function recordTerminalSpawn(
@@ -407,7 +208,7 @@ export function updateTerminalIsDone(
         if (currentLifecycle === 'completed' || currentLifecycle === 'errored' || currentLifecycle === 'awaiting_input') {
             return currentLifecycle
         }
-        if (isDone && hasActiveChildren(terminalId)) {
+        if (isDone && hasActiveChildren(terminalRecords.values(), terminalId)) {
             return 'idle'
         }
         return isDone ? currentLifecycle : 'active'
@@ -425,7 +226,12 @@ export function updateTerminalIsDone(
         // Agent just became idle — wait 30s to confirm it's sustained before firing hooks
         wait_for_agent_to_still_be_done_after_n_seconds(terminalId, STOP_HOOK_DELAY_MS, (tid, rec) => {
             // Stop gate audit: check if idle agent addressed all outgoing workflow obligations
-            void runIdleStopGateAudit(tid, rec, runtime.logger)
+            void runIdleStopGateAudit(tid, rec, {
+                records: getTerminalRecords(),
+                graph: getRuntimeGraph(),
+                incrementAuditRetryCount,
+                logger: runtime.logger,
+            })
 
             // Unseen nodes notification (optional, settings-gated)
             void loadSettings()
@@ -560,7 +366,7 @@ export function updateTerminalPromptDetected(terminalId: string, detected: boole
     // wrong — by definition it's waiting on its children. When detection
     // clears, we also stay in 'idle' (not flip to 'active' spinner) for as
     // long as children are running.
-    const orchestratorWithChildren: boolean = hasActiveChildren(terminalId)
+    const orchestratorWithChildren: boolean = hasActiveChildren(terminalRecords.values(), terminalId)
 
     let nextLifecycle: TerminalLifecycle
     if (detected) {

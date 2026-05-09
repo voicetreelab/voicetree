@@ -11,9 +11,9 @@
  */
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
-import {createTerminalData} from '../types'
-import type {TerminalData} from '../types'
-import type {TerminalRecord} from './terminal-registry'
+import {createTerminalData} from '../../types'
+import type {TerminalData} from '../../types'
+import type {TerminalRecord} from '../terminal-registry'
 import {
     recordTerminalSpawn,
     getTerminalRecords,
@@ -23,9 +23,9 @@ import {
     updateTerminalActivityState,
     markTerminalExited,
     subscribeToRegistry
-} from './terminal-registry'
+} from '../terminal-registry'
 
-vi.mock('../inject/send-text-to-terminal', () => ({
+vi.mock('../../inject/send-text-to-terminal', () => ({
     sendTextToTerminal: vi.fn().mockResolvedValue({ success: true })
 }))
 
