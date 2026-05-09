@@ -5,21 +5,23 @@
 
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors as postDeltaThroughDaemonWithEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {resolveNodeFromGraphOrDisk} from '@vt/graph-db-server/graph/resolveNodeFromGraphOrDisk'
-import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {tryConsumeAndSplitBudget, registerChild} from '@vt/agent-runtime'
+import {
+    getTerminalRecords,
+    registerChild,
+    spawnTerminalWithContextNode,
+    tryConsumeAndSplitBudget,
+    type TerminalRecord,
+} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from './types'
 import {startMonitor} from './agent-completion-monitor'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from './mcp-graph-bridge'
 
 export interface SpawnAgentParams {
     nodeId?: string
@@ -34,281 +36,355 @@ export interface SpawnAgentParams {
     depthBudget?: number
 }
 
-export async function spawnAgentTool({nodeId, callerTerminalId, task, parentNodeId, spawnDirectory, promptTemplate, agentName, headless, replaceSelf, depthBudget}: SpawnAgentParams): Promise<McpToolResponse> {
-    //console.log(`[MCP] spawn_agent called by terminal: ${callerTerminalId}`)
+export interface SpawnAgentDeps {
+    readonly listTerminalRecords: () => TerminalRecord[]
+    readonly consumeBudget: typeof tryConsumeAndSplitBudget
+    readonly loadAgentSettings: typeof loadSettings
+    readonly loadWritePath: typeof getMcpWritePath
+    readonly loadGraph: typeof getMcpGraph
+    readonly applyDelta: typeof applyMcpGraphDelta
+    readonly spawnTerminal: typeof spawnTerminalWithContextNode
+    readonly rememberChild: typeof registerChild
+    readonly monitorChildren: typeof startMonitor
+}
 
-    // Validate caller terminal exists
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
-    const callerExists: boolean = terminalRecords.some(
+const defaultSpawnAgentDeps: SpawnAgentDeps = {
+    listTerminalRecords: getTerminalRecords,
+    consumeBudget: tryConsumeAndSplitBudget,
+    loadAgentSettings: loadSettings,
+    loadWritePath: getMcpWritePath,
+    loadGraph: getMcpGraph,
+    applyDelta: applyMcpGraphDelta,
+    spawnTerminal: spawnTerminalWithContextNode,
+    rememberChild: registerChild,
+    monitorChildren: startMonitor,
+}
+
+type AgentSetting = { readonly name: string; readonly command: string }
+
+type Result<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string }
+
+type BudgetResult = { readonly allowed: boolean; readonly childBudget: number | undefined }
+
+type SpawnRuntime = {
+    readonly callerTerminalId: string
+    readonly callerRecord: TerminalRecord
+    readonly resolvedAgentCommand: string | undefined
+    readonly resolvedSpawnDirectory: string | undefined
+    readonly envOverrides: Record<string, string>
+    readonly childDepthBudget: number | undefined
+}
+
+type GraphContext = {
+    readonly graph: Graph
+    readonly writePath: string
+}
+
+type SpawnedTerminal = {
+    readonly terminalId: string
+    readonly contextNodeId: string
+}
+
+function errorResponse(error: string): McpToolResponse {
+    return buildJsonResponse({success: false, error}, true)
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
+}
+
+function findCallerRecord(callerTerminalId: string, terminalRecords: readonly TerminalRecord[]): Result<TerminalRecord> {
+    const callerRecord: TerminalRecord | undefined = terminalRecords.find(
         (record: TerminalRecord) => record.terminalId === callerTerminalId
     )
-    if (!callerExists) {
-        return buildJsonResponse({
-            success: false,
-            error: `Unknown caller terminal: ${callerTerminalId}`
-        }, true)
-    }
+    if (!callerRecord) return {ok: false, error: `Unknown caller terminal: ${callerTerminalId}`}
+    return {ok: true, value: callerRecord}
+}
 
-    // Compute child's DEPTH_BUDGET: explicit override > auto-decrement from parent
-    const callerRecord: TerminalRecord | undefined = terminalRecords.find(
-        (r: TerminalRecord) => r.terminalId === callerTerminalId
-    )
-    let childDepthBudget: number | undefined
-    if (depthBudget !== undefined) {
-        childDepthBudget = depthBudget
-    } else if (callerRecord?.terminalData.initialEnvVars?.DEPTH_BUDGET) {
-        const parentBudget: number = parseInt(callerRecord.terminalData.initialEnvVars.DEPTH_BUDGET, 10)
-        if (!isNaN(parentBudget)) {
-            childDepthBudget = Math.max(0, parentBudget - 1)
-        }
-    }
+function resolveChildDepthBudget(depthBudget: number | undefined, callerRecord: TerminalRecord): number | undefined {
+    if (depthBudget !== undefined) return depthBudget
 
-    // Check global spawn budget before proceeding (fair rebalancing: splits caller's budget among siblings)
-    const budgetResult: { allowed: boolean; childBudget: number | undefined } = tryConsumeAndSplitBudget(callerTerminalId)
-    if (!budgetResult.allowed) {
-        return buildJsonResponse({
-            success: false,
-            error: 'Global spawn budget exhausted'
-        }, true)
-    }
+    const parentDepthBudget: string | undefined = callerRecord.terminalData.initialEnvVars?.DEPTH_BUDGET
+    if (!parentDepthBudget) return undefined
 
-    // Build env overrides: DEPTH_BUDGET + GLOBAL_SPAWN_BUDGET (child's allocated share)
-    const envOverrides: Record<string, string> = {
+    const parsedParentBudget: number = parseInt(parentDepthBudget, 10)
+    if (isNaN(parsedParentBudget)) return undefined
+
+    return Math.max(0, parsedParentBudget - 1)
+}
+
+function buildEnvOverrides(childDepthBudget: number | undefined, childGlobalBudget: number | undefined): Record<string, string> {
+    return {
         ...(childDepthBudget !== undefined ? {DEPTH_BUDGET: String(childDepthBudget)} : {}),
-        ...(budgetResult.childBudget !== undefined ? {GLOBAL_SPAWN_BUDGET: String(budgetResult.childBudget)} : {}),
+        ...(childGlobalBudget !== undefined ? {GLOBAL_SPAWN_BUDGET: String(childGlobalBudget)} : {}),
     }
+}
 
-    // Validate replaceSelf constraints
-    if (replaceSelf && !callerRecord) {
-        return buildJsonResponse({
-            success: false,
-            error: 'replaceSelf requires a valid caller terminal'
-        }, true)
+function resolveNamedAgentCommand(agentName: string, agents: readonly AgentSetting[]): Result<string> {
+    const matchedAgent: AgentSetting | undefined = agents.find((agent: AgentSetting) => agent.name === agentName)
+    if (matchedAgent) return {ok: true, value: matchedAgent.command}
+
+    return {
+        ok: false,
+        error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((agent: AgentSetting) => agent.name).join(', ')}`
     }
+}
 
-    // Resolve agentName to a command from settings.agents.
-    // If no agentName is provided, inherit the caller's configured agent type.
-    let resolvedAgentCommand: string | undefined
-    const callerAgentTypeName: string | undefined = callerRecord?.terminalData.agentTypeName
-    if (agentName || callerAgentTypeName) {
-        const settings: VTSettings = await loadSettings()
-        const agents: readonly { readonly name: string; readonly command: string }[] = settings?.agents ?? []
-        if (agentName) {
-            const matchedAgent: { readonly name: string; readonly command: string } | undefined =
-                agents.find((a: { readonly name: string; readonly command: string }) => a.name === agentName)
-            if (!matchedAgent) {
-                return buildJsonResponse({
-                    success: false,
-                    error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((a: { readonly name: string; readonly command: string }) => a.name).join(', ')}`
-                }, true)
-            }
-            resolvedAgentCommand = matchedAgent.command
-        } else if (callerAgentTypeName) {
-            resolvedAgentCommand = agents.find(
-                (a: { readonly name: string; readonly command: string }) => a.name === callerAgentTypeName
-            )?.command
+async function resolveAgentCommand(
+    agentName: string | undefined,
+    callerRecord: TerminalRecord,
+    deps: SpawnAgentDeps,
+): Promise<Result<string | undefined>> {
+    const callerAgentTypeName: string | undefined = callerRecord.terminalData.agentTypeName
+    if (!agentName && !callerAgentTypeName) return {ok: true, value: undefined}
+
+    const settings: VTSettings = await deps.loadAgentSettings()
+    const agents: readonly AgentSetting[] = settings?.agents ?? []
+    if (agentName) return resolveNamedAgentCommand(agentName, agents)
+
+    const inheritedAgent: AgentSetting | undefined = agents.find(
+        (agent: AgentSetting) => agent.name === callerAgentTypeName
+    )
+    return {ok: true, value: inheritedAgent?.command}
+}
+
+function resolveSpawnDirectory(spawnDirectory: string | undefined, callerRecord: TerminalRecord): string | undefined {
+    return spawnDirectory ?? callerRecord.terminalData.initialSpawnDirectory
+}
+
+async function prepareSpawnRuntime(
+    params: SpawnAgentParams,
+    deps: SpawnAgentDeps,
+    callerRecord: TerminalRecord,
+): Promise<Result<SpawnRuntime>> {
+    const childDepthBudget: number | undefined = resolveChildDepthBudget(params.depthBudget, callerRecord)
+    const budgetResult: BudgetResult = deps.consumeBudget(params.callerTerminalId)
+    if (!budgetResult.allowed) return {ok: false, error: 'Global spawn budget exhausted'}
+
+    const agentCommandResult: Result<string | undefined> = await resolveAgentCommand(params.agentName, callerRecord, deps)
+    if (!agentCommandResult.ok) return agentCommandResult
+
+    return {
+        ok: true,
+        value: {
+            callerTerminalId: params.callerTerminalId,
+            callerRecord,
+            resolvedAgentCommand: agentCommandResult.value,
+            resolvedSpawnDirectory: resolveSpawnDirectory(params.spawnDirectory, callerRecord),
+            envOverrides: buildEnvOverrides(childDepthBudget, budgetResult.childBudget),
+            childDepthBudget,
         }
     }
+}
 
-    // Inherit spawnDirectory from caller terminal if not explicitly provided
-    // This ensures child agents spawn in the same worktree as their parent
-    const resolvedSpawnDirectory: string | undefined = spawnDirectory ?? (() => {
-        const callerRecord: TerminalRecord | undefined = terminalRecords.find(
-            (r: TerminalRecord) => r.terminalId === callerTerminalId
-        )
-        return callerRecord?.terminalData.initialSpawnDirectory
-    })()
-
-    const vaultPathOpt: O.Option<string> = await getWritePath()
+async function loadWritePath(deps: SpawnAgentDeps): Promise<Result<string>> {
+    const vaultPathOpt: O.Option<string> = await deps.loadWritePath()
     if (O.isNone(vaultPathOpt)) {
-        return buildJsonResponse({
-            success: false,
-            error: 'No vault loaded. Please load a folder in the UI first.'
-        }, true)
+        return {ok: false, error: 'No vault loaded. Please load a folder in the UI first.'}
     }
-    const writePath: string = vaultPathOpt.value
+    return {ok: true, value: vaultPathOpt.value}
+}
 
-    // Branch: If task is provided, create a new task node first
-    if (task) {
-        // Validate parentNodeId is required when task is provided
-        if (!parentNodeId) {
-            return buildJsonResponse({
-                success: false,
-                error: 'parentNodeId is required when task is provided'
-            }, true)
-        }
+function resolveNodeId(graph: Graph, nodeId: string): NodeIdAndFilePath | undefined {
+    return graph.nodes[nodeId]
+        ? nodeId
+        : findBestMatchingNode(nodeId, graph.nodes, graph.nodeByBaseName)
+}
 
-        // Resolve parent: try in-memory, then disk fallback. The fallback
-        // covers a real bug where a node was just written by an earlier MCP
-        // call but the in-memory graph briefly didn't have it.
-        const resolvedParentId: NodeIdAndFilePath | undefined =
-            await resolveNodeFromGraphOrDisk(parentNodeId)
-        const graph: Graph = getGraph()
+function calculateTaskNodePosition(graph: Graph, parentNodeId: NodeIdAndFilePath): Position {
+    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
+    return O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex, parentNodeId))
+}
 
-        if (!resolvedParentId || !graph.nodes[resolvedParentId]) {
-            return buildJsonResponse({
-                success: false,
-                error: `Parent node ${parentNodeId} not found.`
-            }, true)
-        }
+function taskNodeIdFromDelta(taskNodeDelta: GraphDelta): NodeIdAndFilePath | undefined {
+    const firstDelta = taskNodeDelta[0]
+    return firstDelta.type === 'UpsertNode'
+        ? firstDelta.nodeToUpsert.absoluteFilePathIsID
+        : '' as NodeIdAndFilePath
+}
 
-        // Compute position near parent node using unified collision-aware placement
-        const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
-        const taskNodePosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex, resolvedParentId))
+function buildCallerContextUpdateDelta(
+    graph: Graph,
+    callerRecord: TerminalRecord,
+    taskNodeId: NodeIdAndFilePath,
+): GraphDelta {
+    const callerContextNodeId: string | undefined = callerRecord.terminalData.attachedToContextNodeId
+    if (!callerContextNodeId) return []
 
-        const taskDescription: string = task
+    const callerContextNode: GraphNode | undefined = graph.nodes[callerContextNodeId]
+    if (!callerContextNode?.nodeUIMetadata.containedNodeIds) return []
 
-        try {
-            // Create task node already marked claimed — saves a redundant second write.
-            const taskNodeDelta: GraphDelta = createTaskNode({
-                taskDescription,
-                selectedNodeIds: [resolvedParentId],
-                graph,
-                writePath,
-                position: taskNodePosition,
-                initialStatus: 'claimed'
-            })
-
-            // Extract task node ID from delta
-            const taskNodeId: NodeIdAndFilePath = taskNodeDelta[0].type === 'UpsertNode'
-                ? taskNodeDelta[0].nodeToUpsert.absoluteFilePathIsID
-                : '' as NodeIdAndFilePath
-
-            if (!taskNodeId) {
-                return buildJsonResponse({
-                    success: false,
-                    error: 'Failed to create task node'
-                }, true)
+    return [{
+        type: 'UpsertNode',
+        nodeToUpsert: {
+            ...callerContextNode,
+            nodeUIMetadata: {
+                ...callerContextNode.nodeUIMetadata,
+                containedNodeIds: [...callerContextNode.nodeUIMetadata.containedNodeIds, taskNodeId]
             }
+        },
+        previousNode: O.some(callerContextNode)
+    }]
+}
 
-            // Build caller-context update sub-delta (if caller has a context node with contained-IDs).
-            // The caller's context node is unaffected by the task-node creation, so we read it
-            // from the pre-spawn graph snapshot and batch both writes into one apply call.
-            const callerContextNodeId: string | undefined = callerRecord?.terminalData.attachedToContextNodeId
-            const callerContextNode: GraphNode | undefined = callerContextNodeId
-                ? graph.nodes[callerContextNodeId]
-                : undefined
-            const callerContextUpdateDelta: GraphDelta = callerContextNode?.nodeUIMetadata.containedNodeIds
-                ? [{
-                    type: 'UpsertNode',
-                    nodeToUpsert: {
-                        ...callerContextNode,
-                        nodeUIMetadata: {
-                            ...callerContextNode.nodeUIMetadata,
-                            containedNodeIds: [...callerContextNode.nodeUIMetadata.containedNodeIds, taskNodeId]
-                        }
-                    },
-                    previousNode: O.some(callerContextNode)
-                }]
-                : []
-
-            // Apply task-node creation + caller-context update as one batched delta.
-            await postDeltaThroughDaemonWithEditors([...taskNodeDelta, ...callerContextUpdateDelta])
-
-            // Spawn terminal on the new task node (with parent terminal for tree-style tabs)
-            // When replaceSelf, the successor inherits the caller's terminal ID and its parent
-            // (not the caller itself as parent — that would create a self-referential cycle)
-            const replaceSelfParentId: string | undefined = replaceSelf
-                ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
-                : callerTerminalId
-            const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-                await spawnTerminalWithContextNode(taskNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
-
-            if (!replaceSelf) {
-                registerChild(callerTerminalId, terminalId)
-                startMonitor(callerTerminalId, [terminalId], 5000)
+function claimNodeDelta(targetNode: GraphNode): GraphDelta {
+    const claimedYAML: Map<string, string> = new Map([
+        ...targetNode.nodeUIMetadata.additionalYAMLProps,
+        ['status', 'claimed']
+    ])
+    return [{
+        type: 'UpsertNode',
+        nodeToUpsert: {
+            ...targetNode,
+            nodeUIMetadata: {
+                ...targetNode.nodeUIMetadata,
+                additionalYAMLProps: claimedYAML
             }
+        },
+        previousNode: O.some(targetNode)
+    }]
+}
 
-            return buildJsonResponse({
-                success: true,
-                terminalId,
-                taskNodeId,
-                contextNodeId,
-                depthBudget: childDepthBudget,
-                message: replaceSelf
-                    ? `Replaced self — successor agent running as "${terminalId}"`
-                    : `Created task node and spawned agent for "${task}". You will be notified when the agent completes.`
-            })
-        } catch (error) {
-            const errorMessage: string = error instanceof Error ? error.message : String(error)
-            return buildJsonResponse({
-                success: false,
-                error: errorMessage
-            }, true)
-        }
+function parentTerminalIdForSpawn(runtime: SpawnRuntime, replaceSelf: boolean | undefined): string | undefined {
+    return replaceSelf
+        ? (runtime.callerRecord.terminalData.parentTerminalId ?? undefined)
+        : runtime.callerTerminalId
+}
+
+async function spawnTerminalForNode(
+    nodeId: NodeIdAndFilePath,
+    params: SpawnAgentParams,
+    runtime: SpawnRuntime,
+    deps: SpawnAgentDeps,
+): Promise<SpawnedTerminal> {
+    return deps.spawnTerminal(
+        nodeId,
+        runtime.resolvedAgentCommand,
+        undefined,
+        true,
+        false,
+        undefined,
+        runtime.resolvedSpawnDirectory,
+        parentTerminalIdForSpawn(runtime, params.replaceSelf),
+        params.promptTemplate,
+        params.headless,
+        params.replaceSelf ? runtime.callerTerminalId : undefined,
+        runtime.envOverrides,
+    )
+}
+
+function rememberAndMonitorChild(terminalId: string, params: SpawnAgentParams, runtime: SpawnRuntime, deps: SpawnAgentDeps): void {
+    if (params.replaceSelf) return
+
+    deps.rememberChild(runtime.callerTerminalId, terminalId)
+    deps.monitorChildren(runtime.callerTerminalId, [terminalId], 5000)
+}
+
+async function spawnAgentForTask(
+    params: SpawnAgentParams,
+    taskDescription: string,
+    deps: SpawnAgentDeps,
+    runtime: SpawnRuntime,
+    graphContext: GraphContext,
+): Promise<McpToolResponse> {
+    if (!params.parentNodeId) return errorResponse('parentNodeId is required when task is provided')
+
+    const resolvedParentId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.parentNodeId)
+    if (!resolvedParentId || !graphContext.graph.nodes[resolvedParentId]) {
+        return errorResponse(`Parent node ${params.parentNodeId} not found.`)
     }
 
-    // Original behavior: spawn on existing node
-    if (!nodeId) {
-        return buildJsonResponse({
-            success: false,
-            error: 'Either nodeId or task (with parentNodeId) must be provided'
-        }, true)
-    }
-
-    // Resolve nodeId: in-memory direct match → basename match → disk fallback.
-    const resolvedNodeId: NodeIdAndFilePath | undefined =
-        await resolveNodeFromGraphOrDisk(nodeId)
-    const graph: Graph = getGraph()
-
-    if (!resolvedNodeId || !graph.nodes[resolvedNodeId]) {
-        return buildJsonResponse({
-            success: false,
-            error: `Node ${nodeId} not found.`
-        }, true)
-    }
+    const taskNodePosition: Position = calculateTaskNodePosition(graphContext.graph, resolvedParentId)
 
     try {
-        // Mark existing node as claimed
-        const targetNode: GraphNode | undefined = graph.nodes[resolvedNodeId]
-        if (targetNode) {
-            const claimedYAML: Map<string, string> = new Map([
-                ...targetNode.nodeUIMetadata.additionalYAMLProps,
-                ['status', 'claimed']
-            ])
-            const claimDelta: GraphDelta = [{
-                type: 'UpsertNode',
-                nodeToUpsert: {
-                    ...targetNode,
-                    nodeUIMetadata: {
-                        ...targetNode.nodeUIMetadata,
-                        additionalYAMLProps: claimedYAML
-                    }
-                },
-                previousNode: O.some(targetNode)
-            }]
-            await postDeltaThroughDaemonWithEditors(claimDelta)
-        }
+        const taskNodeDelta: GraphDelta = createTaskNode({
+            taskDescription,
+            selectedNodeIds: [resolvedParentId],
+            graph: graphContext.graph,
+            writePath: graphContext.writePath,
+            position: taskNodePosition,
+            initialStatus: 'claimed'
+        })
+        const taskNodeId: NodeIdAndFilePath | undefined = taskNodeIdFromDelta(taskNodeDelta)
+        if (!taskNodeId) return errorResponse('Failed to create task node')
 
-        // Pass skipFitAnimation: true for MCP spawns to avoid interrupting user's viewport
-        // Pass callerTerminalId as parentTerminalId for tree-style tabs
-        // When replaceSelf, successor inherits caller's parent (not itself as parent — avoids cycle)
-        const replaceSelfParentId2: string | undefined = replaceSelf
-            ? (callerRecord?.terminalData.parentTerminalId ?? undefined)
-            : callerTerminalId
-        const {terminalId, contextNodeId}: {terminalId: string; contextNodeId: string} =
-            await spawnTerminalWithContextNode(resolvedNodeId, resolvedAgentCommand, undefined, true, false, undefined, resolvedSpawnDirectory, replaceSelfParentId2, promptTemplate, headless, replaceSelf ? callerTerminalId : undefined, envOverrides)
+        const callerContextUpdateDelta: GraphDelta = buildCallerContextUpdateDelta(
+            graphContext.graph,
+            runtime.callerRecord,
+            taskNodeId,
+        )
+        await deps.applyDelta([...taskNodeDelta, ...callerContextUpdateDelta])
 
-        if (!replaceSelf) {
-            registerChild(callerTerminalId, terminalId)
-            startMonitor(callerTerminalId, [terminalId], 5000)
-        }
+        const {terminalId, contextNodeId}: SpawnedTerminal = await spawnTerminalForNode(taskNodeId, params, runtime, deps)
+        rememberAndMonitorChild(terminalId, params, runtime, deps)
+
+        return buildJsonResponse({
+            success: true,
+            terminalId,
+            taskNodeId,
+            contextNodeId,
+            depthBudget: runtime.childDepthBudget,
+            message: params.replaceSelf
+                ? `Replaced self — successor agent running as "${terminalId}"`
+                : `Created task node and spawned agent for "${taskDescription}". You will be notified when the agent completes.`
+        })
+    } catch (error) {
+        return errorResponse(errorMessage(error))
+    }
+}
+
+async function spawnAgentForExistingNode(
+    params: SpawnAgentParams,
+    deps: SpawnAgentDeps,
+    runtime: SpawnRuntime,
+    graphContext: GraphContext,
+): Promise<McpToolResponse> {
+    if (!params.nodeId) return errorResponse('Either nodeId or task (with parentNodeId) must be provided')
+
+    const resolvedNodeId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.nodeId)
+    const targetNode: GraphNode | undefined = resolvedNodeId ? graphContext.graph.nodes[resolvedNodeId] : undefined
+    if (!resolvedNodeId || !targetNode) return errorResponse(`Node ${params.nodeId} not found.`)
+
+    try {
+        await deps.applyDelta(claimNodeDelta(targetNode))
+
+        const {terminalId, contextNodeId}: SpawnedTerminal = await spawnTerminalForNode(resolvedNodeId, params, runtime, deps)
+        rememberAndMonitorChild(terminalId, params, runtime, deps)
 
         return buildJsonResponse({
             success: true,
             terminalId,
             nodeId: resolvedNodeId,
             contextNodeId,
-            depthBudget: childDepthBudget,
-            message: replaceSelf
+            depthBudget: runtime.childDepthBudget,
+            message: params.replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
                 : `Spawned agent for node ${resolvedNodeId}. You will be notified when the agent completes.`
         })
     } catch (error) {
-        const errorMessage: string = error instanceof Error ? error.message : String(error)
-        return buildJsonResponse({
-            success: false,
-            error: errorMessage
-        }, true)
+        return errorResponse(errorMessage(error))
     }
+}
+
+export async function spawnAgentTool(
+    params: SpawnAgentParams,
+    deps: SpawnAgentDeps = defaultSpawnAgentDeps,
+): Promise<McpToolResponse> {
+    const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
+    const callerRecordResult: Result<TerminalRecord> = findCallerRecord(params.callerTerminalId, terminalRecords)
+    if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
+
+    const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(params, deps, callerRecordResult.value)
+    if (!runtimeResult.ok) return errorResponse(runtimeResult.error)
+
+    const writePathResult: Result<string> = await loadWritePath(deps)
+    if (!writePathResult.ok) return errorResponse(writePathResult.error)
+
+    const graphContext: GraphContext = {
+        graph: await deps.loadGraph(),
+        writePath: writePathResult.value,
+    }
+
+    if (params.task) return spawnAgentForTask(params, params.task, deps, runtimeResult.value, graphContext)
+    return spawnAgentForExistingNode(params, deps, runtimeResult.value, graphContext)
 }

@@ -29,7 +29,6 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setGraph } from '@/shell/edge/main/state/graph-store'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
@@ -120,27 +119,6 @@ vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async () => 
     return {
         ...actual,
         markTerminalActivityForContextNode: vi.fn()
-    }
-})
-
-// Mock graph store
-vi.mock('@/shell/edge/main/state/graph-store', () => {
-    return {
-        getGraph: () => {
-            if (!currentGraph) {
-                throw new Error('Graph not initialized')
-            }
-            return currentGraph
-        },
-        setGraph: (graph: Graph) => {
-            currentGraph = graph
-        },
-        getNode: (nodeId: string) => {
-            if (!currentGraph) {
-                throw new Error('Graph not initialized')
-            }
-            return currentGraph.nodes[nodeId]
-        }
     }
 })
 
@@ -269,7 +247,6 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             'C.md': createTestNode('C.md', '# Node C', [], { x: 200, y: 0 })
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         // Setup cytoscape
         cy = cytoscape({
@@ -321,7 +298,6 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             'D.md': createTestNode('D.md', '# Node D', [], { x: 200, y: 200 })
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -383,7 +359,6 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             'C.md': createTestNode('C.md', '# Node C', [], { x: 0, y: 300 })
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -449,7 +424,6 @@ describe('Merge Operation - Filesystem Integration', () => {
             'Internal2.md': createTestNode('Internal2.md', '# Internal 2', [], { x: 100, y: 200 })
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -503,7 +477,6 @@ describe('Merge Operation - Filesystem Integration', () => {
             'Leaf2.md': createTestNode('Leaf2.md', '# Leaf 2', [], { x: 150, y: 100 })
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -574,7 +547,6 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 50, y: 100 }, true) // isContextNode
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,
@@ -617,7 +589,6 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
             'Context1.md': createTestNode('Context1.md', '# Context 1', [], { x: 100, y: 0 }, true)
         })
         currentGraph = mockGraph
-        setGraph(mockGraph)
 
         cy = cytoscape({
             headless: true,

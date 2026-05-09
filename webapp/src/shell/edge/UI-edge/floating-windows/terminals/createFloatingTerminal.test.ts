@@ -69,7 +69,42 @@ function makeCy(nodeExists: boolean): import('cytoscape').Core {
     const emptyCollection = { length: 0, data: vi.fn() }
     return {
         getElementById: vi.fn(() => (nodeExists ? fakeNode : emptyCollection) as unknown),
+        on: vi.fn(),
+        off: vi.fn(),
     } as unknown as import('cytoscape').Core
+}
+
+function makeCyWithLateNode(targetNodeId: string): import('cytoscape').Core & { addNode: (id: string) => void } {
+    let existingNodeId: string | null = null
+    const addHandlers: Array<(event: { target: { id: () => string } }) => void> = []
+    const emptyCollection = { length: 0, data: vi.fn() }
+
+    const cy = {
+        getElementById: vi.fn((id: string) => {
+            if (id !== existingNodeId) return emptyCollection as unknown
+            return {
+                id: () => id,
+                length: 1,
+                data: vi.fn(),
+            } as unknown
+        }),
+        on: vi.fn((eventName: string, selector: string, handler: (event: { target: { id: () => string } }) => void) => {
+            if (eventName === 'add' && selector === 'node') addHandlers.push(handler)
+        }),
+        off: vi.fn((eventName: string, selector: string, handler: (event: { target: { id: () => string } }) => void) => {
+            if (eventName !== 'add' || selector !== 'node') return
+            const index = addHandlers.indexOf(handler)
+            if (index >= 0) addHandlers.splice(index, 1)
+        }),
+        addNode: (id: string) => {
+            existingNodeId = id
+            for (const handler of [...addHandlers]) {
+                handler({ target: { id: () => id } })
+            }
+        },
+    }
+
+    return cy as unknown as import('cytoscape').Core & { addNode: (id: string) => void }
 }
 
 function makeTerminalData(anchoredTo?: string): TerminalData {
@@ -117,5 +152,19 @@ describe('createFloatingTerminal', () => {
 
         expect(result).toBeDefined()
         expect(anchorToNode).toHaveBeenCalledTimes(1)
+    }, 10_000)
+
+    it('anchors after a timed-out target node is later added to Cytoscape', async () => {
+        const cy = makeCyWithLateNode('/vault/task.md')
+        const data = makeTerminalData('/vault/task.md')
+
+        const result = await createFloatingTerminal(cy, '/vault/task.md', data)
+        expect(result).toBeDefined()
+        expect(anchorToNode).not.toHaveBeenCalled()
+
+        cy.addNode('/vault/task.md')
+
+        expect(anchorToNode).toHaveBeenCalledTimes(1)
+        expect(cy.off).toHaveBeenCalledTimes(1)
     }, 10_000)
 })

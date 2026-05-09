@@ -34,7 +34,7 @@ import {
 } from "../state/watch-folder-store";
 import {
     applyGraphDeltaToMemState,
-    broadcastGraphDeltaToUI
+    refreshGraphChangeSideEffects
 } from "../graph/applyGraphDelta";
 import { loadPositions } from "@vt/app-config/positions";
 import { notifyTextToTreeServerOfDirectory } from "../graph/notifyTextToTreeServer";
@@ -135,7 +135,7 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
  * - Loads files and resolves wikilinks
  * - Creates starter node for empty write paths
  * - Commits to graph store (setGraph)
- * - Broadcasts to UI (broadcastGraphDeltaToUI)
+ * - Broadcasts to UI (projected graph update)
  * - Notifies backend for write paths (notifyTextToTreeServerOfDirectory)
  *
  * @param vaultPath - The path to load
@@ -206,7 +206,7 @@ export async function loadAndMergeVaultPath(
     // Commit side effects (impure - this is the edge)
     setGraph(currentGraph);
     if (accumulatedDelta.length > 0) {
-        broadcastGraphDeltaToUI(accumulatedDelta);
+        refreshGraphChangeSideEffects();
     }
     if (options.isWritePath) {
         notifyTextToTreeServerOfDirectory(vaultPath);
@@ -395,8 +395,8 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         }));
 
         // Apply to memory state and broadcast to UI (but NOT to DB - files still exist)
-        const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(deleteDelta);
-        broadcastGraphDeltaToUI(mergedDelta);
+        await applyGraphDeltaToMemState(deleteDelta);
+        refreshGraphChangeSideEffects();
 
         // Fit viewport to remaining nodes after vault removal
         getCallbacks().fitViewport?.();

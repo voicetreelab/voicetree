@@ -20,6 +20,11 @@ interface RecentDeltaEntry {
     readonly timestamp: number
 }
 
+type RecentDeltaOptions = {
+    readonly now?: number
+    readonly ttlMs?: number
+}
+
 // Module-level state - array per nodeId to handle multiple rapid writes
 const recentDeltas: Map<NodeIdAndFilePath, RecentDeltaEntry[]> = new Map()
 
@@ -52,17 +57,55 @@ function getNodeIdFromDelta(delta: NodeDelta): NodeIdAndFilePath {
         : delta.nodeId
 }
 
+function getTimestamp(options: RecentDeltaOptions | undefined): number {
+    return options?.now ?? Date.now()
+}
+
+function getTtlMs(options: RecentDeltaOptions | undefined): number {
+    return options?.ttlMs ?? DEFAULT_TTL_MS
+}
+
+function isEntryWithinTtl(entry: RecentDeltaEntry, now: number, ttlMs: number): boolean {
+    return now - entry.timestamp <= ttlMs
+}
+
+function filterValidEntries(
+    entries: readonly RecentDeltaEntry[],
+    now: number,
+    ttlMs: number,
+): RecentDeltaEntry[] {
+    return entries.filter((entry) => isEntryWithinTtl(entry, now, ttlMs))
+}
+
+function hasMatchingDelete(entries: readonly RecentDeltaEntry[]): boolean {
+    return entries.some((entry) => entry.delta.type === 'DeleteNode')
+}
+
+function hasMatchingUpsert(
+    entries: readonly RecentDeltaEntry[],
+    incomingContent: string,
+): boolean {
+    const incomingNormalized: string = normalizeContent(incomingContent)
+
+    return entries.some((entry) => {
+        if (entry.delta.type !== 'UpsertNode') return false
+        const storedNormalized: string = normalizeContent(entry.delta.nodeToUpsert.contentWithoutYamlOrLinks)
+        return isNormalizedContentMatch(storedNormalized, incomingNormalized)
+    })
+}
+
 /**
  * Mark a delta as recently written.
  * Call this BEFORE writing to filesystem to prevent race conditions.
  */
-export function markRecentDelta(delta: NodeDelta): void {
+export function markRecentDelta(delta: NodeDelta, options?: RecentDeltaOptions): void {
     const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(delta)
-    const now: number = Date.now()
+    const now: number = getTimestamp(options)
+    const ttlMs: number = getTtlMs(options)
 
     // Clean up all expired entries across all nodeIds
     for (const [key, entries] of recentDeltas) {
-        const valid: RecentDeltaEntry[] = entries.filter(e => now - e.timestamp <= DEFAULT_TTL_MS)
+        const valid: RecentDeltaEntry[] = filterValidEntries(entries, now, ttlMs)
         if (valid.length === 0) {
             recentDeltas.delete(key)
         } else if (valid.length !== entries.length) {
@@ -87,8 +130,9 @@ export function markRecentDelta(delta: NodeDelta): void {
  *
  * Pure query - does not mutate state. Cleanup happens on write path.
  */
-export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
-    const now: number = Date.now()
+export function isOurRecentDelta(incomingDelta: GraphDelta, options?: RecentDeltaOptions): boolean {
+    const now: number = getTimestamp(options)
+    const ttlMs: number = getTtlMs(options)
 
     // Check each NodeDelta in the incoming GraphDelta
     for (const nodeDelta of incomingDelta) {
@@ -101,25 +145,17 @@ export function isOurRecentDelta(incomingDelta: GraphDelta): boolean {
         }
 
         // Filter to only valid (non-expired) entries
-        const validEntries: RecentDeltaEntry[] = entries.filter(e => now - e.timestamp <= DEFAULT_TTL_MS)
+        const validEntries: RecentDeltaEntry[] = filterValidEntries(entries, now, ttlMs)
         if (validEntries.length === 0) return false
 
         if (nodeDelta.type === 'DeleteNode') {
             // For delete, check if ANY valid entry is a DeleteNode for this nodeId
-            const hasMatchingDelete: boolean = validEntries.some(e => e.delta.type === 'DeleteNode')
-            if (!hasMatchingDelete) return false
+            if (!hasMatchingDelete(validEntries)) return false
         } else {
             // For ALL upserts (context nodes and regular): compare normalized content.
             // This ensures external writes with different content are never suppressed,
             // even for context nodes (fixes agent-edit-dropped bug).
-            const incomingNormalized: string = normalizeContent(nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks)
-
-            const hasMatchingUpsert: boolean = validEntries.some(e => {
-                if (e.delta.type !== 'UpsertNode') return false
-                const storedNormalized: string = normalizeContent(e.delta.nodeToUpsert.contentWithoutYamlOrLinks)
-                return isNormalizedContentMatch(storedNormalized, incomingNormalized)
-            })
-            if (!hasMatchingUpsert) return false
+            if (!hasMatchingUpsert(validEntries, nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks)) return false
         }
     }
 

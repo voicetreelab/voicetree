@@ -12,7 +12,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -109,10 +109,7 @@ const test = base.extend<{
         await window.waitForLoadState('domcontentloaded');
 
         // Wait for Cytoscape to be initialized
-        await window.waitForFunction(
-            () => (window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 30000 }
-        );
+        await pollForCytoscape(window, 30000);
 
         await window.waitForTimeout(1000);
         await use(window);

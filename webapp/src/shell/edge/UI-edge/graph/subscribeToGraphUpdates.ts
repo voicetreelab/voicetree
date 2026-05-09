@@ -3,12 +3,10 @@
  * Extracted from VoiceTreeGraphView to separate concerns
  */
 import type {Core} from 'cytoscape';
-import type {GraphDelta, UpsertNodeDelta} from '@vt/graph-model/graph';
 import type {ProjectedGraph} from '@vt/graph-state/contract';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
-import {extractRecentNodesFromDelta} from '@vt/graph-model/graph';
 import {closeAllEditors, updateFloatingEditorsFromProjectedGraph} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
@@ -18,7 +16,7 @@ import {
 } from '@/shell/edge/UI-edge/state/GraphViewUIStore';
 import {markRendererLoadTiming} from '@/shell/edge/UI-edge/diagnostics/loadTiming';
 import {
-    updateRecentNodeHistoryFromDelta,
+    updateRecentNodeHistoryFromProjectedGraph,
     clearRecentNodeHistory
 } from '@/shell/edge/UI-edge/state/RecentNodeHistoryStore';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
@@ -36,8 +34,8 @@ export function subscribeToGraphUpdates(
 ): (() => void) | null {
     const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
-    if (!electronAPI?.graph?.onGraphUpdate) {
-        console.error('[subscribeToGraphUpdates] electronAPI not available, skipping graph subscription');
+    if (!electronAPI?.graph?.onProjectedGraphUpdate) {
+        console.error('[subscribeToGraphUpdates] projected graph API not available, skipping graph subscription');
         return null;
     }
 
@@ -52,6 +50,7 @@ export function subscribeToGraphUpdates(
         markRendererLoadTiming('renderer:loading-cleared');
 
         applyGraphDeltaToUI(cy, graph);
+        searchService.updateSearchData();
 
         // Floating editors don't ride applyGraphDeltaToUI — that path only
         // syncs Cytoscape. Without this call, an external file change (FS
@@ -60,22 +59,15 @@ export function subscribeToGraphUpdates(
         updateFloatingEditorsFromProjectedGraph(cy, graph, lastProjectedGraph);
         lastProjectedGraph = graph;
 
-        updateNavigatorVisibility();
-    };
-
-    const handleGraphDelta: (delta: GraphDelta) => void = (delta: GraphDelta): void => {
-        markRendererLoadTiming('renderer:graph-delta-received', {deltaLength: delta.length});
-
-        const lastUpsertedNode: UpsertNodeDelta | undefined = extractRecentNodesFromDelta(delta)[0];
-        if (lastUpsertedNode) {
-            navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.absoluteFilePathIsID);
+        const recentNodeIds: readonly string[] = graph.recentNodeIds;
+        if (recentNodeIds.length > 0) {
+            navigationService.setLastCreatedNodeId(recentNodeIds[0]);
+            scheduleIdleWork(() => {
+                updateRecentNodeHistoryFromProjectedGraph(graph);
+            }, 500);
         }
 
-        searchService.updateSearchDataIncremental(delta);
-
-        scheduleIdleWork(() => {
-            updateRecentNodeHistoryFromDelta(delta);
-        }, 500);
+        updateNavigatorVisibility();
     };
 
     const handleGraphClear: () => void = (): void => {
@@ -90,7 +82,6 @@ export function subscribeToGraphUpdates(
         setEmptyStateVisible(true);
     };
 
-    const cleanupUpdate: () => void = electronAPI.graph.onGraphUpdate(handleGraphDelta);
     const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
@@ -104,7 +95,6 @@ export function subscribeToGraphUpdates(
 
     return (): void => {
         disposed = true;
-        cleanupUpdate();
         cleanupProjected();
         cleanupClear();
     };

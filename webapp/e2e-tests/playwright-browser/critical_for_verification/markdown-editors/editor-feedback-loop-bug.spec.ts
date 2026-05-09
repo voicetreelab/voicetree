@@ -88,7 +88,7 @@ interface ExtendedWindowWithGraph extends ExtendedWindow {
       _graphState: { nodes: Record<string, GraphNode> };
     };
     graph?: {
-      _updateCallback?: (delta: GraphDelta) => void;
+      _projectedGraphCallback?: (graph: unknown) => void;
     };
   };
 }
@@ -169,7 +169,7 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
 
         // SIMULATE FILESYSTEM FEEDBACK with a delay
         // In the real app, this would come from chokidar watching the file
-        const updateCallback = api.graph?._updateCallback;
+        const updateCallback = api.graph?._projectedGraphCallback;
         if (savedContent !== null && nodeId !== null && updateCallback) {
           console.log('[Mock] Scheduling filesystem feedback for node:', nodeId);
 
@@ -177,7 +177,7 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
           // 1. File to be written to disk
           // 2. Chokidar to detect the change
           // 3. Event to propagate back to renderer
-          setTimeout(() => {
+          setTimeout(async () => {
             const feedbackDelta: GraphDelta = [
               {
                 type: 'UpsertNode',
@@ -186,7 +186,8 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
               }
             ];
             console.log('[Mock] Triggering filesystem feedback for node:', nodeId);
-            updateCallback(feedbackDelta);
+            const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
+            updateCallback(projectDelta(feedbackDelta));
           }, 100); // Small delay to simulate filesystem I/O and event propagation
         }
 

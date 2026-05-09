@@ -20,8 +20,8 @@ export function mountCollapseRoutes(
     )
     registry.touch(sessionId)
 
-    const graph = await projectAndBroadcast(session)
-    return c.json(graph)
+    await projectAndBroadcast(session)
+    return c.json({ collapseSet: [...session.collapseSet] })
   })
 
   app.delete('/sessions/:sessionId/collapse/:folderId', async (c) => {
@@ -37,7 +37,7 @@ export function mountCollapseRoutes(
     )
     registry.touch(sessionId)
 
-    const graph = await projectAndBroadcast(session)
-    return c.json(graph)
+    await projectAndBroadcast(session)
+    return c.json({ collapseSet: [...session.collapseSet] })
   })
 }

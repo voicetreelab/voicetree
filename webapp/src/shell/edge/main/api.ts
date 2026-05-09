@@ -10,10 +10,10 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/state/app-electron-state";
-import {createContextNode} from '@vt/graph-db-server/context-nodes/createContextNode'
-import {getPreviewContainedNodeIds} from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
+import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon-graph-queries'
+import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/saveNodePositions";
-import {performUndo, performRedo} from '@vt/graph-db-server/graph/undoOperations'
+import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon-graph-queries'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {updateTerminalIsDone, updateTerminalPinned, updateTerminalMinimized, updateTerminalActivityState, removeTerminalFromRegistry} from '@vt/agent-runtime'
 import {getUnseenNodesForTerminal} from '@vt/agent-runtime'
@@ -27,7 +27,7 @@ import {openClaudeUsage, openCodexStatus} from './usage/openUsageInTerminal';
 import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from './clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from './clipboard/readImageAsDataUrl';
-import {findFileByName} from '@vt/graph-db-server/graph/findFileByName';
+import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from './runAgentOnSelectedNodes';
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from './worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from './project-scanner';
@@ -58,6 +58,8 @@ import {
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon-ipc-proxy';
+import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon-sse-subscription';
+import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/graph-daemon';
 import path from 'path';
 
 /**
@@ -100,7 +102,7 @@ export const mainAPI = {
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
 
-  // Position saving - lightweight in-memory update
+  // Position saving through daemon persistence
   saveNodePositions,
 
   // Settings operations
@@ -112,6 +114,8 @@ export const mainAPI = {
   startFileWatching,
 
   stopFileWatching,
+
+  shutdownGraphDaemon,
 
   getWatchStatus,
 
@@ -216,6 +220,8 @@ export const mainAPI = {
   prettySetupAppForElectronDebugging,
   getLiveStateSnapshot,
   syncRendererSessionStateWithDaemon,
+  __debugLockSSE,
+  __debugUnlockSSE,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,

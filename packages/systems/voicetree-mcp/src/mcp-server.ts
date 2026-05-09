@@ -288,6 +288,25 @@ export interface StartMcpServerOptions {
      * vt-mcpd passes --port through here to avoid colliding with a running Electron MCP.
      */
     readonly startPort?: number
+    readonly logger?: {
+        readonly log: (message: string) => void
+        readonly error: (message: string, error: unknown) => void
+    }
+    readonly now?: () => number
+    readonly triggerOvernight?: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult>
+    readonly enableClientIntegrations?: () => Promise<void>
+}
+
+function logMcpMessage(message: string): void {
+    console.log(message)
+}
+
+function logMcpError(message: string, error: unknown): void {
+    console.error(message, error)
+}
+
+function getCurrentTimeMs(): number {
+    return Date.now()
 }
 
 export interface McpServerHandle {
@@ -302,12 +321,19 @@ export interface McpServerHandle {
 export async function startMcpServer(options?: StartMcpServerOptions): Promise<McpServerHandle> {
     const app: Express = express()
     app.use(express.json())
+    const log: (message: string) => void = options?.logger?.log ?? logMcpMessage
+    const logError: (message: string, error: unknown) => void = options?.logger?.error ?? logMcpError
+    const getNow: () => number = options?.now ?? getCurrentTimeMs
+    const runTriggerOvernight: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult> =
+        options?.triggerOvernight ?? triggerOvernight
+    const runEnableClientIntegrations: () => Promise<void> =
+        options?.enableClientIntegrations ?? enableMcpClientIntegrations
 
     // Overnight trigger endpoint — bypasses MCP protocol for direct HTTP invocation
     app.post('/trigger-overnight', async (req, res) => {
         try {
             const params: TriggerOvernightParams = (req.body as TriggerOvernightParams | undefined) ?? {}
-            const result: TriggerOvernightResult = await triggerOvernight(params)
+            const result: TriggerOvernightResult = await runTriggerOvernight(params)
             res.json(result)
         } catch (error) {
             const message: string = error instanceof Error ? error.message : String(error)
@@ -316,7 +342,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     })
 
     app.post('/mcp', async (req, res) => {
-        console.log(`[MCP] arrived ${Date.now()} method=${req.body?.params?.name ?? req.body?.method}`)
+        log(`[MCP] arrived ${getNow()} method=${req.body?.params?.name ?? req.body?.method}`)
         // ⚠️  SUSPICIOUS PATTERN — reviewed 2026-03-21, user flagged for closer review.
         // We create a fresh McpServer per request because sharing one instance causes
         // Protocol._onclose() on completed transports to corrupt shared state (_transport,
@@ -343,7 +369,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
             await server.connect(transport)
             await transport.handleRequest(req, res, req.body)
         } catch (error) {
-            console.error('[MCP] Error handling request:', error)
+            logError('[MCP] Error handling request:', error)
             if (!res.headersSent) {
                 res.status(500).json({error: String(error)})
             }
@@ -354,13 +380,13 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     mcpPort = await findAvailablePort(startPort)
 
     const httpServer: Server = app.listen(mcpPort, '127.0.0.1', () => {
-        console.log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
+        log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
 
     // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).
     try {
-        await enableMcpClientIntegrations()
+        await runEnableClientIntegrations()
     } catch (_e) {
         // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
     }

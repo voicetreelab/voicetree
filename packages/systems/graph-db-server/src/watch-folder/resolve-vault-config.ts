@@ -43,9 +43,22 @@ export interface ResolveAllowlistOptions {
     readonly includeActiveViewExpandedPaths?: boolean;
 }
 
-export async function logIgnoredLegacyReadPathsIfPresent(watchedDir: string): Promise<void> {
+export interface LegacyReadPathLogger {
+    debug(message?: unknown, ...optionalParams: unknown[]): void
+}
+
+const defaultLegacyReadPathLogger: LegacyReadPathLogger = {
+    debug(message?: unknown, ...optionalParams: unknown[]): void {
+        console.debug(message, ...optionalParams);
+    },
+}
+
+export async function logIgnoredLegacyReadPathsIfPresent(
+    watchedDir: string,
+    logger: LegacyReadPathLogger = defaultLegacyReadPathLogger,
+): Promise<void> {
     if (await hasLegacyReadPathsForDirectory(watchedDir)) {
-        console.debug('[resolveAllowlistForProject] ignoring legacy readPaths from voicetree-config.json');
+        logger.debug('[resolveAllowlistForProject] ignoring legacy readPaths from voicetree-config.json');
     }
 }
 

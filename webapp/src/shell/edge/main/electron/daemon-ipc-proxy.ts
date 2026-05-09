@@ -1,15 +1,12 @@
-import * as O from 'fp-ts/lib/Option.js'
-
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getProjectRootWatchedDirectory } from '@/shell/edge/main/state/watch-folder-store'
+import { syncMcpGraphDbServerState } from '@vt/voicetree-mcp'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
-import { getGraph as getLocalGraph, setGraph as setLocalGraph } from '@/shell/edge/main/state/graph-store'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/ui-api-proxy'
 
@@ -18,7 +15,7 @@ import {
   getActiveDaemonConnection,
   type CachedDaemonConnection,
 } from './graph-daemon'
-import { buildGraphDiff, getNormalizedDaemonGraph } from './daemon-graph-normalization'
+import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 import { isLoadTimingActive, markLoadTiming } from '@/shell/edge/main/diagnostics/loadTiming'
 import {
   isDaemonSSEActive,
@@ -36,7 +33,6 @@ type CurrentDaemonConnection = {
   vault: string
 }
 type DesiredVaultState = Awaited<ReturnType<typeof getDesiredVaultStateForBootstrap>>
-type NodePosition = GraphNode['nodeUIMetadata']['position']
 
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
 
@@ -46,11 +42,7 @@ function resolveLocalWritePath(projectPath: string, writePath: string): string {
     : path.join(projectPath, writePath)
 }
 
-async function getConfiguredWritePathForCurrentVault(): Promise<string | null> {
-  const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) {
-    return null
-  }
+async function getConfiguredWritePathForVault(vault: string): Promise<string | null> {
   const config: VaultConfig | undefined = await getVaultConfigForDirectory(vault)
   return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
 }
@@ -99,59 +91,17 @@ function samePan(
   return left.x === right.x && left.y === right.y
 }
 
-function graphWithLocalPositionOverlays(
-  daemonGraph: Graph,
-  localGraph: Graph,
-): Graph {
-  let changed: boolean = false
-  const nodes: Record<string, GraphNode> = {}
-
-  for (const [nodeId, daemonNode] of Object.entries(daemonGraph.nodes)) {
-    const localNode: GraphNode | undefined = localGraph.nodes[nodeId]
-    const localPosition: NodePosition | undefined = localNode?.nodeUIMetadata.position
-    if (!localNode || !localPosition || O.isNone(localPosition)) {
-      nodes[nodeId] = daemonNode
-      continue
-    }
-
-    const daemonPosition: NodePosition = daemonNode.nodeUIMetadata.position
-    if (
-      O.isSome(daemonPosition)
-      && daemonPosition.value.x === localPosition.value.x
-      && daemonPosition.value.y === localPosition.value.y
-    ) {
-      nodes[nodeId] = daemonNode
-      continue
-    }
-
-    changed = true
-    nodes[nodeId] = {
-      ...daemonNode,
-      nodeUIMetadata: {
-        ...daemonNode.nodeUIMetadata,
-        position: localPosition,
-      },
-    }
-  }
-
-  return changed ? { ...daemonGraph, nodes } : daemonGraph
-}
-
 async function getCurrentVaultOrThrow(): Promise<string> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
   if (activeConnection) return activeConnection.vault
-  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
-  if (writePath) return writePath
-  const vault: string | null = getProjectRootWatchedDirectory()
-  if (!vault) throw new Error('Watched directory not initialized')
-  return vault
+  throw new Error('Watched directory not initialized')
 }
 
 async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
   readPaths: string[]
   writePath: string
 }> {
-  const writePath: string | null = await getConfiguredWritePathForCurrentVault()
+  const writePath: string | null = await getConfiguredWritePathForVault(vault)
 
   return {
     readPaths: [],
@@ -193,17 +143,17 @@ async function getDaemonClientForCurrentVault(): Promise<{
 }
 
 async function syncRendererFromDaemon(
-  previousGraph: Graph,
+  client: DaemonClient,
   nextGraph: Graph,
   vaultState: VaultState,
 ): Promise<void> {
-  const delta: GraphDelta = buildGraphDiff(previousGraph, nextGraph)
-  if (delta.length > 0) {
-    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('graph:stateChanged', delta)
-    }
-    getCallbacks().refreshBadge?.()
+  const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const sessionId: string = await ensureRendererSession(client)
+    mainWindow.webContents.send(
+      'graph:projectedGraphUpdate',
+      await client.getProjectedGraph(sessionId),
+    )
   }
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
@@ -222,25 +172,23 @@ async function syncRendererFromDaemon(
 }
 
 async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
-  const previousGraph: Graph = getLocalGraph()
-  const timingActive: boolean = isLoadTimingActive() && Object.keys(previousGraph.nodes).length === 0
+  const timingActive: boolean = isLoadTimingActive()
   if (timingActive) markLoadTiming('main:daemon-get-graph-start')
-  const daemonGraph: Graph = await getNormalizedDaemonGraph(client)
+  const nextGraph: Graph = await getNormalizedDaemonGraph(client)
   if (timingActive) {
     markLoadTiming('main:daemon-get-graph-end', {
-      nodeCount: Object.keys(daemonGraph.nodes).length,
+      nodeCount: Object.keys(nextGraph.nodes).length,
     })
   }
-  const nextGraph: Graph = graphWithLocalPositionOverlays(daemonGraph, previousGraph)
   const vaultState: VaultState = await client.getVault()
 
-  setLocalGraph(nextGraph)
   if (timingActive) {
     markLoadTiming('main:graph-populated', {
       nodeCount: Object.keys(nextGraph.nodes).length,
     })
   }
-  await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
+  syncMcpGraphDbServerState(nextGraph, getActiveDaemonConnection()?.vault ?? null)
+  await syncRendererFromDaemon(client, nextGraph, vaultState)
   if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
 
@@ -375,18 +323,18 @@ async function doRunVaultMutation(
   mutate: (client: DaemonClient) => Promise<VaultState>,
 ): Promise<VaultState> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const previousGraph: Graph = getLocalGraph()
   const vaultState: VaultState = await mutate(client)
   const nextGraph: Graph = await getNormalizedDaemonGraph(client)
 
-  setLocalGraph(nextGraph)
-  await syncRendererFromDaemon(previousGraph, nextGraph, vaultState)
+  await syncRendererFromDaemon(client, nextGraph, vaultState)
   return vaultState
 }
 
 export async function getGraphFromDaemon(): Promise<Graph> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  return graphWithLocalPositionOverlays(await getNormalizedDaemonGraph(client), getLocalGraph())
+  const graph: Graph = await getNormalizedDaemonGraph(client)
+  syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null)
+  return graph
 }
 
 export async function getProjectedGraphFromDaemon(): Promise<unknown> {
@@ -414,7 +362,7 @@ export async function getNodeFromDaemon(
 }
 
 export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
-  if (!getProjectRootWatchedDirectory() && !getActiveDaemonConnection()) return null
+  if (!getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const localState: State = await getCurrentLiveState()
   const sessionId: string = await syncRendererSessionState(client, localState)

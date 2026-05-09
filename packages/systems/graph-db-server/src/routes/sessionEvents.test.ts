@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { Hono } from 'hono'
 import * as O from 'fp-ts/lib/Option.js'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -10,10 +11,12 @@ import {
   type GraphNode,
 } from '@vt/graph-model/graph'
 import { type DaemonHandle, startDaemon } from '../server.ts'
+import { SessionRegistry } from '../session/registry.ts'
 import { SessionCreateResponseSchema } from '../contract.ts'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { getGraph, setGraph } from '../state/graph-store.ts'
 import { publish } from '../events/deltaEventBus.ts'
+import { mountSessionEventsRoute } from './sessionEvents.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))
@@ -181,5 +184,40 @@ describe('SSE session events', () => {
       `http://127.0.0.1:${handle.port}/sessions/00000000-0000-4000-8000-000000000000/events`,
     )
     expect(res.status).toBe(404)
+  })
+
+  test('emits keepalive comments while the session event stream is open', async () => {
+    vi.useFakeTimers()
+    try {
+      const app = new Hono()
+      const registry = new SessionRegistry()
+      const session = registry.create()
+      mountSessionEventsRoute(app, registry)
+
+      const res = await app.request(`/sessions/${session.id}/events`)
+      expect(res.status).toBe(200)
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+
+      const connected = await reader.read()
+      expect(decoder.decode(connected.value)).toBe(': connected\n\n')
+
+      let keepalive: ReadableStreamReadResult<Uint8Array> | undefined
+      void reader.read().then(result => {
+        keepalive = result
+      })
+
+      await vi.advanceTimersByTimeAsync(20_000)
+
+      if (!keepalive) {
+        throw new Error('Expected SSE keepalive after advancing the interval')
+      }
+      expect(decoder.decode(keepalive.value)).toBe(': keepalive\n\n')
+
+      await reader.cancel()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

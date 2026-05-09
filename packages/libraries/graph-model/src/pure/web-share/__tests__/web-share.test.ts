@@ -127,12 +127,9 @@ describe('buildManifest', () => {
     expect(manifest.createdAt).toBe(ts)
   })
 
-  it('generates createdAt if not provided', () => {
-    const before: string = new Date().toISOString()
+  it('uses empty createdAt if not provided', () => {
     const manifest: ShareManifest = buildManifest(['note.md'], 'vault')
-    const after: string = new Date().toISOString()
-    expect(manifest.createdAt >= before).toBe(true)
-    expect(manifest.createdAt <= after).toBe(true)
+    expect(manifest.createdAt).toBe('')
   })
 })
 

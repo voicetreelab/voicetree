@@ -24,7 +24,7 @@ import {
   type ShutdownResponse,
   type VaultState,
   type ViewResponse,
-} from '@vt/graph-db-server/contract'
+} from './contract.ts'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
 
@@ -38,6 +38,10 @@ type RequestOptions<T> = {
   headers?: Record<string, string>
   method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
   responseSchema?: Schema<T>
+}
+
+type GetSessionStateOptions = {
+  readonly content?: 'full' | 'omit'
 }
 
 type ErrorPayload = {
@@ -64,6 +68,46 @@ const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
       throw new Error('Invalid write-path response body')
     }
     return { writePath: input.writePath }
+  },
+}
+
+const ContextNodeResponseSchema: Schema<{ nodeId: string }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || typeof input.nodeId !== 'string') {
+      throw new Error('Invalid context-node response body')
+    }
+    return { nodeId: input.nodeId }
+  },
+}
+
+const ContextNodeFromQuestionResponseSchema: Schema<{
+  nodeId: string
+  parentNodePath: string
+  title: string
+}> = {
+  parse(input: unknown) {
+    if (
+      !isObject(input)
+      || typeof input.nodeId !== 'string'
+      || typeof input.parentNodePath !== 'string'
+      || typeof input.title !== 'string'
+    ) {
+      throw new Error('Invalid question context-node response body')
+    }
+    return {
+      nodeId: input.nodeId,
+      parentNodePath: input.parentNodePath,
+      title: input.title,
+    }
+  },
+}
+
+const WritePositionsResponseSchema: Schema<{ written: number }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || typeof input.written !== 'number') {
+      throw new Error('Invalid write-positions response body')
+    }
+    return { written: input.written }
   },
 }
 
@@ -190,6 +234,39 @@ export class GraphDbClient {
     })
   }
 
+  async createContextNode(
+    parentNodeId: string,
+    semanticNodeIds: string[],
+  ): Promise<{ nodeId: string }> {
+    return await this.request('/graph/context-node', {
+      body: { parentNodeId, semanticNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeResponseSchema,
+    })
+  }
+
+  async createContextNodeFromQuestion(
+    nodeIds: string[],
+    question: string,
+    semanticNodeIds: string[],
+  ): Promise<{ nodeId: string; parentNodePath: string; title: string }> {
+    return await this.request('/graph/context-node-from-question', {
+      body: { nodeIds, question, semanticNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeFromQuestionResponseSchema,
+    })
+  }
+
+  async writePositions(
+    positions: Record<string, { x: number; y: number }>,
+  ): Promise<{ written: number }> {
+    return await this.request('/graph/write-positions', {
+      body: { positions },
+      method: 'POST',
+      responseSchema: WritePositionsResponseSchema,
+    })
+  }
+
   async createSession(): Promise<{ sessionId: string }> {
     return await this.request('/sessions', {
       method: 'POST',
@@ -210,8 +287,12 @@ export class GraphDbClient {
     })
   }
 
-  async getSessionState(id: string): Promise<LiveStateSnapshot> {
-    return await this.request(`/sessions/${encodeURIComponent(id)}/state`, {
+  async getSessionState(
+    id: string,
+    opts: GetSessionStateOptions = {},
+  ): Promise<LiveStateSnapshot> {
+    const contentQuery = opts.content === 'omit' ? '?content=omit' : ''
+    return await this.request(`/sessions/${encodeURIComponent(id)}/state${contentQuery}`, {
       responseSchema: LiveStateSnapshotSchema,
     })
   }
@@ -254,6 +335,38 @@ export class GraphDbClient {
         responseSchema: SelectionResponseSchema,
       },
     )
+  }
+
+  async findFileByName(name: string): Promise<string[]> {
+    const result = await this.request(
+      `/graph/find-file?name=${encodeURIComponent(name)}`,
+      { responseSchema: { parse: (v: unknown) => (v as { matches: string[] }).matches } },
+    )
+    return result
+  }
+
+  async undo(): Promise<boolean> {
+    const result = await this.request('/graph/undo', {
+      method: 'POST',
+      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+    })
+    return result
+  }
+
+  async redo(): Promise<boolean> {
+    const result = await this.request('/graph/redo', {
+      method: 'POST',
+      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+    })
+    return result
+  }
+
+  async getPreviewContainedNodeIds(nodeId: string): Promise<readonly string[]> {
+    const result = await this.request(
+      `/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`,
+      { responseSchema: { parse: (v: unknown) => (v as { nodeIds: string[] }).nodeIds } },
+    )
+    return result
   }
 
   async getProjectedGraph(sessionId: string): Promise<unknown> {

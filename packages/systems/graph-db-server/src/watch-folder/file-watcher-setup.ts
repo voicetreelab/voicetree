@@ -19,6 +19,40 @@ import { getWatcher, setWatcher } from "../state/watch-folder-store";
 import { broadcastFolderTree } from "./broadcast-folder-tree";
 import { clearPendingWrite, isPendingWrite } from "./pending-writes";
 
+export interface FileWatcherLogger {
+    error(message?: unknown, ...optionalParams: unknown[]): void
+}
+
+export interface ReadFileWithRetryDependencies {
+    readonly readTextFile: (filePath: string) => Promise<string>
+    readonly wait: (delayMs: number) => Promise<void>
+}
+
+const defaultReadFileWithRetryDependencies: ReadFileWithRetryDependencies = {
+    readTextFile: (filePath: string): Promise<string> => fs.readFile(filePath, 'utf8'),
+    wait: (delayMs: number): Promise<void> => new Promise(resolve => {
+        setTimeout(resolve, delayMs);
+    }),
+}
+
+export interface WatcherListenerDependencies {
+    readonly readFileWithRetry: typeof readFileWithRetry
+    readonly handleFSEvent: typeof handleFSEventWithStateAndUISides
+    readonly broadcastFolderTree: typeof broadcastFolderTree
+    readonly logger: FileWatcherLogger
+}
+
+const defaultWatcherListenerDependencies: WatcherListenerDependencies = {
+    readFileWithRetry,
+    handleFSEvent: handleFSEventWithStateAndUISides,
+    broadcastFolderTree,
+    logger: {
+        error(message?: unknown, ...optionalParams: unknown[]): void {
+            console.error(message, ...optionalParams);
+        },
+    },
+}
+
 /**
  * Read file with retry logic for transient file system issues
  * Retries with exponential backoff if file read fails
@@ -27,23 +61,23 @@ import { clearPendingWrite, isPendingWrite } from "./pending-writes";
  * @param delay - Initial delay in ms between retries (default: 100)
  * @returns Promise that resolves to file content
  */
-export async function readFileWithRetry(filePath: string, maxRetries = 3, delay = 100): Promise<string> {
-    const attemptRead: (attempt: number) => Promise<string> = (attempt: number): Promise<string> => {
-        return fs.readFile(filePath, 'utf8')
-            .catch((error: unknown) => {
-                if (attempt === maxRetries) {
-                    return Promise.reject(error);
-                }
-                // Wait before retry with exponential backoff
-                return new Promise<string>(resolve => {
-                    setTimeout(() => {
-                        resolve(attemptRead(attempt + 1));
-                    }, delay * attempt);
-                });
-            });
-    };
-
-    return attemptRead(1);
+export async function readFileWithRetry(
+    filePath: string,
+    maxRetries = 3,
+    delay = 100,
+    dependencies: ReadFileWithRetryDependencies = defaultReadFileWithRetryDependencies,
+): Promise<string> {
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+        try {
+            return await dependencies.readTextFile(filePath);
+        } catch (error) {
+            if (attempt === maxRetries) {
+                throw error;
+            }
+            await dependencies.wait(delay * attempt);
+        }
+    }
+    return dependencies.readTextFile(filePath);
 }
 
 export interface WatcherOptions {
@@ -51,7 +85,12 @@ export interface WatcherOptions {
     readonly usePolling?: boolean
 }
 
-export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: FilePath, options?: WatcherOptions): Promise<void> {
+export async function setupWatcher(
+    vaultPaths: readonly FilePath[],
+    watchedDir: FilePath,
+    options?: WatcherOptions,
+    dependencies: WatcherListenerDependencies = defaultWatcherListenerDependencies,
+): Promise<void> {
     // Note: watcher is already closed in loadFolder before this is called
 
     // vaultPaths contains all paths in the allowlist (e.g., primary vault + openspec)
@@ -92,10 +131,13 @@ export async function setupWatcher(vaultPaths: readonly FilePath[], watchedDir: 
     setWatcher(newWatcher);
 
     // Setup event handlers for file changes
-    setupWatcherListeners(watchedDir);
+    setupWatcherListeners(watchedDir, dependencies);
 }
 
-export function setupWatcherListeners(watchedDir: FilePath): void {
+export function setupWatcherListeners(
+    watchedDir: FilePath,
+    dependencies: WatcherListenerDependencies = defaultWatcherListenerDependencies,
+): void {
     const currentWatcher: FSWatcher | null = getWatcher();
     if (!currentWatcher) return;
 
@@ -109,7 +151,7 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
         // Image files have empty content (don't read binary as UTF-8)
         const contentPromise: Promise<string> = isImageNode(filePath)
             ? Promise.resolve('')
-            : readFileWithRetry(filePath);
+            : dependencies.readFileWithRetry(filePath);
 
         void contentPromise
             .then(content => {
@@ -121,13 +163,13 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
 
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
                 // Pass watchedDir so node IDs are relative to watched directory
-                handleFSEventWithStateAndUISides(fsUpdate, watchedDir);
+                dependencies.handleFSEvent(fsUpdate, watchedDir);
 
                 // Refresh folder tree sidebar (new file added)
-                broadcastFolderTree();
+                dependencies.broadcastFolderTree();
             })
             .catch(error => {
-                console.error(`Error handling file add ${filePath}:`, error);
+                dependencies.logger.error(`Error handling file add ${filePath}:`, error);
             });
     });
 
@@ -143,7 +185,7 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
             return;
         }
 
-        void readFileWithRetry(filePath)
+        void dependencies.readFileWithRetry(filePath)
             .then(content => {
                 const fsUpdate: FSUpdate = {
                     absolutePath: filePath,
@@ -152,10 +194,10 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
                 };
 
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
-                handleFSEventWithStateAndUISides(fsUpdate, watchedDir);
+                dependencies.handleFSEvent(fsUpdate, watchedDir);
             })
             .catch(error => {
-                console.error(`Error handling file change ${filePath}:`, error);
+                dependencies.logger.error(`Error handling file change ${filePath}:`, error);
             });
     });
 
@@ -172,14 +214,14 @@ export function setupWatcherListeners(watchedDir: FilePath): void {
         };
 
         // Handle FS event: compute delta, update state, broadcast to UI-edge
-        handleFSEventWithStateAndUISides(fsDelete, watchedDir);
+        dependencies.handleFSEvent(fsDelete, watchedDir);
 
         // Refresh folder tree sidebar (file removed)
-        broadcastFolderTree();
+        dependencies.broadcastFolderTree();
     });
 
     // Watch error
     currentWatcher.on('error', (error: unknown) => {
-        console.error('File watcher error:', error);
+        dependencies.logger.error('File watcher error:', error);
     });
 }

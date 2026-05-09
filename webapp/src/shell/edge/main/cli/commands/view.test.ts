@@ -46,6 +46,25 @@ async function createHarness(): Promise<Harness> {
     return {root, appSupportPath, vault}
 }
 
+async function waitFor<T>(
+    fn: () => Promise<T | null>,
+    opts: {timeoutMs?: number; intervalMs?: number} = {},
+): Promise<T> {
+    const timeoutMs: number = opts.timeoutMs ?? 2000
+    const intervalMs: number = opts.intervalMs ?? 50
+    const deadline: number = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+        const value: T | null = await fn()
+        if (value !== null) {
+            return value
+        }
+        await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+
+    throw new Error(`condition not met within ${timeoutMs}ms`)
+}
+
 async function captureCommand(invoke: () => Promise<void>): Promise<CommandResult> {
     const stdoutLines: string[] = []
     const stderrChunks: string[] = []
@@ -288,8 +307,7 @@ describe('runViewCommand', () => {
         await expect(
             runViewJson(['collapse', 'docs', '--vault', harness.vault, '--session', sessionId]),
         ).resolves.toMatchObject({
-            nodes: expect.any(Array),
-            edges: expect.any(Array),
+            collapseSet: expect.any(Array),
         })
 
         await expect(
@@ -300,6 +318,27 @@ describe('runViewCommand', () => {
         })
     })
 
+    it('omits node markdown content from show JSON output', async () => {
+        const nodePath: string = join(harness.vault, 'one.md')
+        await writeFile(nodePath, '# one\n\nbody text that should not be printed\n', 'utf8')
+        await waitFor(async () => {
+            const graph = await createClient().getGraph()
+            return graph.nodes[nodePath] ? true : null
+        })
+
+        const body = await runViewJson(['show', '--vault', harness.vault])
+        expect(body).toMatchObject({
+            graph: {
+                nodes: {
+                    [nodePath]: expect.any(Object),
+                },
+            },
+        })
+
+        const nodes = (body as {graph: {nodes: Record<string, unknown>}}).graph.nodes
+        expect(nodes[nodePath]).not.toHaveProperty('contentWithoutYamlOrLinks')
+    })
+
     it('expands a folder by removing it from the collapse set', async () => {
         const client: GraphDbClient = createClient()
         const {sessionId}: {sessionId: string} = await client.createSession()
@@ -308,8 +347,7 @@ describe('runViewCommand', () => {
         await expect(
             runViewJson(['expand', 'docs', '--vault', harness.vault, '--session', sessionId]),
         ).resolves.toMatchObject({
-            nodes: expect.any(Array),
-            edges: expect.any(Array),
+            collapseSet: expect.any(Array),
         })
         await expect(client.getSessionState(sessionId)).resolves.toMatchObject({
             collapseSet: [],

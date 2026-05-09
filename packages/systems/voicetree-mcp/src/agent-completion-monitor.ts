@@ -7,14 +7,18 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getGraph} from '@vt/graph-db-server/state/graph-store'
-import {getTerminalRecords, getPendingTerminal, type TerminalRecord} from '@vt/agent-runtime'
-import {sendTextToTerminal} from '@vt/agent-runtime'
+import {
+    getHeadlessAgentOutput,
+    getPendingTerminal,
+    getTerminalRecords,
+    sendTextToTerminal,
+    type TerminalRecord,
+} from '@vt/agent-runtime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
-import {getHeadlessAgentOutput} from '@vt/agent-runtime'
+import {getMcpGraph} from './mcp-graph-bridge'
 
 type MonitorEntry = {
     intervalId: ReturnType<typeof setInterval>
@@ -25,6 +29,35 @@ type MonitorEntry = {
 const monitors: Map<string, MonitorEntry> = new Map()
 let nextMonitorId: number = 1
 
+function startMonitorInterval(
+    callback: () => void,
+    pollIntervalMs: number
+): ReturnType<typeof setInterval> {
+    return setInterval(callback, pollIntervalMs)
+}
+
+function stopMonitorInterval(intervalId: ReturnType<typeof setInterval>): void {
+    clearInterval(intervalId)
+}
+
+function getCurrentTimeMs(): number {
+    return Date.now()
+}
+
+export interface AgentCompletionMonitorDeps {
+    readonly setInterval: (callback: () => void, pollIntervalMs: number) => ReturnType<typeof setInterval>
+    readonly clearInterval: (intervalId: ReturnType<typeof setInterval>) => void
+    readonly now: () => number
+    readonly getNewNodesForAgent: typeof getNewNodesForAgent
+}
+
+const defaultAgentCompletionMonitorDeps: AgentCompletionMonitorDeps = {
+    setInterval: startMonitorInterval,
+    clearInterval: stopMonitorInterval,
+    now: getCurrentTimeMs,
+    getNewNodesForAgent,
+}
+
 function getTerminalRecordsSnapshot(): TerminalRecord[] {
     const records: unknown = getTerminalRecords()
     return Array.isArray(records) ? records : []
@@ -33,18 +66,20 @@ function getTerminalRecordsSnapshot(): TerminalRecord[] {
 export function startMonitor(
     callerTerminalId: string,
     terminalIds: string[],
-    pollIntervalMs: number = 5000
+    pollIntervalMs: number = 5000,
+    deps: AgentCompletionMonitorDeps = defaultAgentCompletionMonitorDeps
 ): string {
     const monitorId: string = `monitor-${nextMonitorId++}`
     const effectiveIds: string[] = [...terminalIds, ...findExistingDescendants(terminalIds)]
 
-    const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
-        const now: number = Date.now()
+    const intervalId: ReturnType<typeof setInterval> = deps.setInterval(() => { void (async () => {
+        try {
+        const now: number = deps.now()
         const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
-        const graph: Graph = getGraph()
+        const graph: Graph = await getMcpGraph()
 
         // Detect terminals that vanished from registry (should not happen after Fix 1,
         // but defend against it). Treat missing terminals as complete.
@@ -71,7 +106,7 @@ export function startMonitor(
                 const agentStatus: string = getAgentStatus(r)
                 if (agentStatus === 'idle') {
                     const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                    const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                     if (indexNodes.length === 0 && graphNodes.length === 0) {
                         void sendTextToTerminal(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
@@ -83,7 +118,7 @@ export function startMonitor(
 
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
                 const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                const graphNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                 const seenIds: Set<string> = new Set(indexNodes.map((n: AgentNodeEntry) => n.nodeId))
                 const mergedNodes: Array<{nodeId: string; title: string}> = [
                     ...indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title})),
@@ -114,14 +149,17 @@ export function startMonitor(
                 })
             }
 
-            const stillWaitingOn: string[] = getPendingAgentNamesForCaller(callerTerminalId, monitorId)
+            const stillWaitingOn: string[] = await getPendingAgentNamesForCaller(callerTerminalId, monitorId)
             const message: string = buildCompletionMessage(results, stillWaitingOn)
             void sendTextToTerminal(callerTerminalId, message)
 
-            clearInterval(intervalId)
+            deps.clearInterval(intervalId)
             monitors.delete(monitorId)
         }
-    }, pollIntervalMs)
+        } catch (e: unknown) {
+            console.warn('[agent-completion-monitor] poll error:', e)
+        }
+    })() }, pollIntervalMs)
 
     monitors.set(monitorId, {intervalId, callerTerminalId, terminalIds: effectiveIds})
     return monitorId
@@ -171,9 +209,9 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Returns agent names still being monitored for this caller, excluding the monitor that just fired.
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
-export function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): string[] {
+export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): Promise<string[]> {
     const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
-    const graph: Graph = getGraph()
+    const graph: Graph = await getMcpGraph()
     const now: number = Date.now()
     const names: string[] = []
     for (const [monitorId, entry] of monitors) {
@@ -207,7 +245,7 @@ export function isTerminalIdAlreadyMonitoredForCaller(
 export function cancelMonitor(monitorId: string): void {
     const entry: MonitorEntry | undefined = monitors.get(monitorId)
     if (entry) {
-        clearInterval(entry.intervalId)
+        defaultAgentCompletionMonitorDeps.clearInterval(entry.intervalId)
         monitors.delete(monitorId)
     }
 }

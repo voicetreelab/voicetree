@@ -18,7 +18,8 @@ import type {TerminalData, CreateTerminalDataParams} from '../types'
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 
 vi.mock('@vt/graph-db-server/state/graph-store', () => ({
-    getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}}))
+    getGraph: vi.fn(() => ({nodes: {}, edges: {}, nodeByBaseName: {}})),
+    setGraph: vi.fn()
 }))
 
 vi.mock('@vt/graph-model', async (importOriginal) => {

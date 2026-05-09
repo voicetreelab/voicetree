@@ -40,6 +40,98 @@ import {
     type DeriveConfig,
 } from './types';
 
+function activeFromOutput(state: TerminalSignalState, at: number): TerminalSignalState {
+    return {
+        ...state,
+        lifecycle: 'active',
+        lastOutputTime: at,
+        promptDetected: false,
+    };
+}
+
+function deriveExit(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'exit' }>): TerminalSignalState {
+    const lifecycle: TerminalLifecycle = classifyExit(event.code, event.signal, state.killReason);
+    return { ...state, lifecycle };
+}
+
+function deriveInput(state: TerminalSignalState): TerminalSignalState {
+    // User typing always means engagement, never "awaiting".
+    // Don't touch lastOutputTime — input is not output.
+    if (state.lifecycle !== 'awaiting_input') return state;
+    return { ...state, lifecycle: 'active', promptDetected: false };
+}
+
+function deriveAgentEvent(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'agent_event' }>): TerminalSignalState {
+    // Tier-1 hook events. Highest confidence — drive the state directly.
+    switch (event.kind) {
+        case 'awaiting':
+            return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
+        case 'done':
+            return { ...state, lifecycle: 'completed' };
+        case 'working':
+            return activeFromOutput(state, event.at);
+    }
+}
+
+function derivePromptDetected(state: TerminalSignalState): TerminalSignalState {
+    // Tier-3 detector. Only meaningful when not already awaiting.
+    if (state.lifecycle === 'awaiting_input') {
+        return { ...state, promptDetected: true };
+    }
+    return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
+}
+
+function lifecycleAfterClearedPrompt(
+    state: TerminalSignalState,
+    event: Extract<TerminalEvent, { readonly type: 'prompt_cleared' }>,
+    config: DeriveConfig,
+): TerminalLifecycle {
+    const elapsed: number = event.at - state.lastOutputTime;
+    return elapsed >= config.inactivityThresholdMs ? 'idle' : 'active';
+}
+
+function derivePromptCleared(
+    state: TerminalSignalState,
+    event: Extract<TerminalEvent, { readonly type: 'prompt_cleared' }>,
+    config: DeriveConfig,
+): TerminalSignalState {
+    if (!state.promptDetected) return state;
+
+    // If we were awaiting, decide where to fall back to:
+    //   - if recent output → active
+    //   - else → idle
+    if (state.lifecycle !== 'awaiting_input') {
+        return { ...state, promptDetected: false };
+    }
+
+    const lifecycle: TerminalLifecycle = lifecycleAfterClearedPrompt(state, event, config);
+    return { ...state, lifecycle, promptDetected: false };
+}
+
+function hasReachedInactivityThreshold(
+    state: TerminalSignalState,
+    event: Extract<TerminalEvent, { readonly type: 'tick' }>,
+    config: DeriveConfig,
+): boolean {
+    const elapsed: number = event.at - state.lastOutputTime;
+    return elapsed >= config.inactivityThresholdMs;
+}
+
+function deriveTick(
+    state: TerminalSignalState,
+    event: Extract<TerminalEvent, { readonly type: 'tick' }>,
+    config: DeriveConfig,
+): TerminalSignalState {
+    // Inactivity check. Only flips active → idle when:
+    //   - lifecycle is currently active
+    //   - elapsed since last output exceeds threshold
+    //   - no prompt is currently shown (else awaiting_input wins)
+    if (state.lifecycle !== 'active') return state;
+    if (state.promptDetected) return state;
+    if (!hasReachedInactivityThreshold(state, event, config)) return state;
+    return { ...state, lifecycle: 'idle' };
+}
+
 export function derive(
     state: TerminalSignalState,
     event: TerminalEvent,
@@ -53,77 +145,33 @@ export function derive(
 
     switch (event.type) {
         case 'exit': {
-            const lifecycle: TerminalLifecycle = classifyExit(event.code, event.signal, state.killReason);
-            return { ...state, lifecycle };
+            return deriveExit(state, event);
         }
 
         case 'output': {
             // Output flowing → active. Output also clears any standing prompt:
             // if Claude was awaiting and starts typing, it's working again.
-            return {
-                ...state,
-                lifecycle: 'active',
-                lastOutputTime: event.at,
-                promptDetected: false,
-            };
+            return activeFromOutput(state, event.at);
         }
 
         case 'input': {
-            // User typing always means engagement, never "awaiting".
-            // Don't touch lastOutputTime — input is not output.
-            if (state.lifecycle === 'awaiting_input') {
-                return { ...state, lifecycle: 'active', promptDetected: false };
-            }
-            return state;
+            return deriveInput(state);
         }
 
         case 'agent_event': {
-            // Tier-1 hook events. Highest confidence — drive the state directly.
-            switch (event.kind) {
-                case 'awaiting':
-                    return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
-                case 'done':
-                    return { ...state, lifecycle: 'completed' };
-                case 'working':
-                    return { ...state, lifecycle: 'active', lastOutputTime: event.at, promptDetected: false };
-            }
+            return deriveAgentEvent(state, event);
         }
 
         case 'prompt_detected': {
-            // Tier-3 detector. Only meaningful when not already awaiting.
-            if (state.lifecycle === 'awaiting_input') {
-                return { ...state, promptDetected: true };
-            }
-            return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
+            return derivePromptDetected(state);
         }
 
         case 'prompt_cleared': {
-            if (!state.promptDetected) return state;
-
-            // If we were awaiting, decide where to fall back to:
-            //   - if recent output → active
-            //   - else → idle
-            if (state.lifecycle === 'awaiting_input') {
-                const elapsed: number = event.at - state.lastOutputTime;
-                const lifecycle: TerminalLifecycle =
-                    elapsed >= config.inactivityThresholdMs ? 'idle' : 'active';
-                return { ...state, lifecycle, promptDetected: false };
-            }
-            return { ...state, promptDetected: false };
+            return derivePromptCleared(state, event, config);
         }
 
         case 'tick': {
-            // Inactivity check. Only flips active → idle when:
-            //   - lifecycle is currently active
-            //   - elapsed since last output exceeds threshold
-            //   - no prompt is currently shown (else awaiting_input wins)
-            if (state.lifecycle !== 'active') return state;
-            if (state.promptDetected) return state;
-
-            const elapsed: number = event.at - state.lastOutputTime;
-            if (elapsed < config.inactivityThresholdMs) return state;
-
-            return { ...state, lifecycle: 'idle' };
+            return deriveTick(state, event, config);
         }
     }
 }

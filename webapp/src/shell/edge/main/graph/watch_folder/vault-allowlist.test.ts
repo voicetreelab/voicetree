@@ -20,7 +20,6 @@ import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } fro
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
 import { createEmptyGraph } from '@vt/graph-model/graph'
-import type { GraphDelta } from '@vt/graph-model/graph'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import { initGraphModel } from '@vt/graph-model'
 
@@ -30,18 +29,13 @@ vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
   }
 }))
 
-let graphDeltas: GraphDelta[] = []
 let notifyWriteDirectory: ReturnType<typeof vi.fn>
 
 function resetGraphModel(): void {
-  graphDeltas = []
   notifyWriteDirectory = vi.fn()
   initGraphModel(
     { appSupportPath: mockUserDataPath },
     {
-      onGraphDelta: (delta: GraphDelta): void => {
-        graphDeltas.push(delta)
-      },
       notifyWriteDirectory,
       fitViewport: vi.fn(),
       syncVaultState: vi.fn()
@@ -234,8 +228,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     // THEN: Should return success
     expect(result.success).toBe(true)
     expect(getGraph().nodes[notePath]).toBeDefined()
-    expect(graphDeltas).toHaveLength(1)
-    expect(graphDeltas[0]).toHaveLength(1)
+    expect(Object.keys(getGraph().nodes)).toHaveLength(1)
   })
 
   it('returns error when file limit is exceeded', async () => {
@@ -459,7 +452,6 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
 
       // AND: No starter node should be created for read-only paths.
       expect(Object.keys(getGraph().nodes)).toHaveLength(0)
-      expect(graphDeltas).toHaveLength(0)
     })
 
     it('does not notify backend for read paths', async () => {

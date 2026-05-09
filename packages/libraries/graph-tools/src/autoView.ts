@@ -249,6 +249,7 @@ export interface RenderTreeCoverOptions {
     readonly title?: string
     readonly focusNodeId?: string
     readonly pinnedFolderIds?: readonly string[]
+    readonly warn?: (message: string) => void
 }
 
 export function renderTreeCover(graph: ProjectedGraph, opts?: RenderTreeCoverOptions): string {
@@ -260,7 +261,7 @@ export function renderTreeCover(graph: ProjectedGraph, opts?: RenderTreeCoverOpt
 
     const budget: number = Math.max(1, Math.trunc(opts?.budget ?? DEFAULT_BUDGET))
     const requestedPinnedIds: readonly string[] = opts?.pinnedFolderIds ?? []
-    const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(rg, requestedPinnedIds)
+    const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(rg, requestedPinnedIds, opts?.warn)
     const pinnedNodeIds = new Set<string>(pinnedClusters.flatMap(cluster => cluster.nodeIds))
     const remainingNodes: readonly RenderNode[] = rg.nodes.filter(node => !pinnedNodeIds.has(node.id))
     const remainingBudget: number = budget - pinnedNodeIds.size
@@ -331,6 +332,7 @@ export function renderAutoView(
         selected: options.selectedIds ? new Set(options.selectedIds) : undefined,
         focusNodeId: options.focusNodeId,
         pinnedFolderIds: options.pinnedFolderIds,
+        warn: console.error,
     })
 
     return {output, format: 'tree-cover'}

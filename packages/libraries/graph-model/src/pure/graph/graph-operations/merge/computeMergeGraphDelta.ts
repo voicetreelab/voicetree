@@ -5,18 +5,23 @@ import { createRepresentativeNode, type MergeTitleInfo } from './createRepresent
 import { redirectEdgeTarget } from './redirectEdgeTarget'
 import { findRepresentativeNode } from './findRepresentativeNode'
 import { getNodeTitle } from '../../markdown-parsing'
+import { ensureUniqueNodeId } from '../../ensureUniqueNodeId'
+import { stableIdSuffix } from '../../stableIdSuffix'
 
 /**
- * Generates a unique ID for a merged node based on timestamp and random suffix.
+ * Generates a unique ID for a merged node based on the merge inputs.
  * Node IDs are absolute paths to simplify path handling.
  * @param writePath - Absolute path to the write directory (where merged nodes are created)
  */
-function generateMergedNodeId(writePath: string): NodeIdAndFilePath {
-    const timestamp: number = Date.now()
-    const randomSuffix: string = Math.random().toString(36).substring(2, 5)
-    const filename: string = `merged_${timestamp}_${randomSuffix}.md`
+function generateMergedNodeId(
+    writePath: string,
+    selectedNodeIds: readonly NodeIdAndFilePath[],
+    graph: Graph
+): NodeIdAndFilePath {
+    const suffix: string = stableIdSuffix([writePath, ...selectedNodeIds])
+    const filename: string = `merged_${suffix}.md`
     const separator: string = writePath.endsWith('/') ? '' : '/'
-    return `${writePath}${separator}${filename}`
+    return ensureUniqueNodeId(`${writePath}${separator}${filename}`, new Set(Object.keys(graph.nodes)))
 }
 
 /**
@@ -71,7 +76,7 @@ export function computeMergeGraphDelta(
         return contextNodeDeletions
     }
 
-    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(writePath)
+    const newNodeId: NodeIdAndFilePath = generateMergedNodeId(writePath, nonContextNodeIds, graph)
 
     // Get the nodes to merge (already filtered for non-context)
     const nodesToMerge: readonly GraphNode[] = nonContextNodeIds.map(

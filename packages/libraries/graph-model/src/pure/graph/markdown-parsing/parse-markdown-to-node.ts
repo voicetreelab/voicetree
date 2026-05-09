@@ -113,10 +113,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Parse markdown and extract YAML frontmatter (with error handling for invalid YAML)
     const parseResult: E.Either<unknown, matter.GrayMatterFile<string>> = E.tryCatch(
         () => matter(content),
-        (error) => {
-            console.debug(`[parseMarkdownToGraphNode] Invalid YAML in ${filename}, using fallback:`, error)
-            return error
-        }
+        (error) => error
     )
     const parsed: { readonly content: string; readonly data: Record<string, unknown>; } = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
     const contentWithoutFrontmatter: string = parsed.content.replace(/^\n+/, '')

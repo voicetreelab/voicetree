@@ -5,6 +5,50 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 // spawn() doesn't use Electron's asar interception, so we must manually redirect
 const actualRgPath: string = rgPath.replace('app.asar', 'app.asar.unpacked');
 
+type RipgrepFileSearchPlan = {
+  readonly executablePath: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+};
+
+function escapeGlobPattern(pattern: string): string {
+  return pattern.replace(/[[\]*?{}]/g, '\\$&');
+}
+
+function createMarkdownFilenameGlob(pattern: string): string {
+  const escapedPattern: string = escapeGlobPattern(pattern);
+  return escapedPattern === '' ? '**/*.md' : `**/${escapedPattern}.md`;
+}
+
+function createRipgrepFileSearchPlan(
+  pattern: string,
+  searchPath: string,
+  maxDepth: number
+): RipgrepFileSearchPlan {
+  return {
+    executablePath: actualRgPath,
+    args: [
+      '--files',
+      '--max-depth', String(maxDepth),
+      '-g', createMarkdownFilenameGlob(pattern),
+      searchPath
+    ],
+    cwd: searchPath
+  };
+}
+
+function isRipgrepFileSearchSuccess(code: number | null): boolean {
+  return code === 0 || code === 1;
+}
+
+function parseRipgrepFileSearchOutput(stdout: string): string[] {
+  return stdout.trim().split('\n').filter(Boolean);
+}
+
+function createRipgrepFileSearchError(code: number | null, stderr: string): Error {
+  return new Error(`ripgrep exited with code ${code}: ${stderr}`);
+}
+
 /**
  * Find markdown files matching an exact filename using ripgrep.
  * Used to resolve relative wikilinks like [note] → /path/to/note.md
@@ -19,22 +63,10 @@ export async function findFileByName(
   searchPath: string,
   maxDepth = 10
 ): Promise<string[]> {
-  // Escape glob-special characters to prevent ripgrep parsing errors
-  // Square brackets, asterisks, question marks need escaping
-  const escapedPattern: string = pattern.replace(/[[\]*?{}]/g, '\\$&');
-
-  // Empty pattern matches all .md files, otherwise exact filename match only
-  const globPattern: string = escapedPattern === '' ? '**/*.md' : `**/${escapedPattern}.md`;
+  const plan: RipgrepFileSearchPlan = createRipgrepFileSearchPlan(pattern, searchPath, maxDepth);
 
   return new Promise((resolve, reject) => {
-    const rg: ChildProcessWithoutNullStreams = spawn(actualRgPath, [
-      '--files',
-      '--max-depth', String(maxDepth),
-      '-g', globPattern,
-      searchPath
-    ], {
-      cwd: searchPath  // Explicitly set cwd to avoid ENOTDIR if process.cwd() is invalid
-    });
+    const rg: ChildProcessWithoutNullStreams = spawn(plan.executablePath, plan.args, { cwd: plan.cwd });
 
     let stdout: string = '';
     let stderr: string = '';
@@ -43,10 +75,10 @@ export async function findFileByName(
     rg.stderr.on('data', (data: Buffer) => { stderr += data; });
 
     rg.on('close', (code) => {
-      if (code === 0 || code === 1) { // 1 = no matches (not an error)
-        resolve(stdout.trim().split('\n').filter(Boolean));
+      if (isRipgrepFileSearchSuccess(code)) {
+        resolve(parseRipgrepFileSearchOutput(stdout));
       } else {
-        reject(new Error(`ripgrep exited with code ${code}: ${stderr}`));
+        reject(createRipgrepFileSearchError(code, stderr));
       }
     });
 

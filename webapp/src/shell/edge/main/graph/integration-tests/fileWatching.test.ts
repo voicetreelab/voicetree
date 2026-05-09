@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching, setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
+import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import path from 'path'

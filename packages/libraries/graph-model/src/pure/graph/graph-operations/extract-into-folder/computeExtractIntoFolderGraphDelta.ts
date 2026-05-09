@@ -5,6 +5,7 @@ import { linkMatchScore } from '../../markdown-parsing/extract-edges'
 import { getFolderDescendantNodeIds, getFolderParent } from '../../folderCollapse'
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
+import { stableIdSuffix } from '../../stableIdSuffix'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
@@ -167,16 +168,18 @@ function computeHubPosition(nodesToMove: readonly GraphNode[]): O.Option<Positio
     })
 }
 
-function createExtractionNames(): {
+function createExtractionNames(
+    writePath: string,
+    selectedItemIds: readonly NodeIdAndFilePath[]
+): {
     readonly folderName: string
     readonly hubNoteName: string
 } {
-    const timestamp: number = Date.now()
-    const randomSuffix: string = Math.random().toString(36).slice(2, 7)
+    const suffix: string = stableIdSuffix([writePath, ...selectedItemIds])
 
     return {
-        folderName: `extract_${timestamp}_${randomSuffix}`,
-        hubNoteName: `hub_${timestamp}_${randomSuffix}.md`
+        folderName: `extract_${suffix}`,
+        hubNoteName: `hub_${suffix}.md`
     }
 }
 
@@ -195,7 +198,7 @@ export function computeExtractIntoFolderGraphDelta(
         return { delta: [], newFolderId: null }
     }
 
-    const { folderName, hubNoteName } = createExtractionNames()
+    const { folderName, hubNoteName } = createExtractionNames(writePath, selectedItemIds)
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
     const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 

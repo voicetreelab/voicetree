@@ -4,6 +4,14 @@ import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTermina
 import {shellQuote} from '../util/shellQuote'
 
 export type HookResultLogger = (message: string) => void
+export type OnNewNodeHookDeps = {
+    readonly timers: Map<string, ReturnType<typeof setTimeout>>
+    readonly setTimer: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
+    readonly clearTimer: (timer: ReturnType<typeof setTimeout>) => void
+    readonly ensureHookTerminal: () => Promise<void>
+    readonly writeToHookTerminal: (text: string) => void
+    readonly quoteArg: (arg: string) => string
+}
 
 /**
  * Max new nodes per delta before hook dispatch is skipped.
@@ -24,6 +32,30 @@ const DEBOUNCE_MS: number = 300
 /** Pending debounce timers keyed by node path. */
 const pendingTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
 
+const defaultOnNewNodeHookDeps: OnNewNodeHookDeps = {
+    timers: pendingTimers,
+    setTimer: setTimeout,
+    clearTimer: clearTimeout,
+    ensureHookTerminal,
+    writeToHookTerminal,
+    quoteArg: shellQuote
+}
+
+export function getNewNodePathsForHook(delta: GraphDelta): readonly string[] {
+    return delta
+        .filter(d => d.type === 'UpsertNode' && O.isNone(d.previousNode))
+        .map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
+        .filter(p => p !== '' && !p.includes('/ctx-nodes/'))
+}
+
+export function formatHookCommand(hookCommand: string, nodePath: string, quoteArg: (arg: string) => string): string {
+    return `${hookCommand} ${quoteArg(nodePath)}`
+}
+
+export function shortenNodePath(nodePath: string): string {
+    return nodePath.split('/').slice(-2).join('/')
+}
+
 /**
  * Fire the onNewNode hook for each genuinely new node in a delta.
  * Skips updates (previousNode is Some) and context-node artifacts.
@@ -36,13 +68,10 @@ const pendingTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
 export function dispatchOnNewNodeHooks(
     delta: GraphDelta,
     hookCommand: string,
-    logHookResult: HookResultLogger
+    logHookResult: HookResultLogger,
+    deps: OnNewNodeHookDeps = defaultOnNewNodeHookDeps
 ): void {
-    // Collect genuinely new, non-context nodes
-    const newNodePaths: readonly string[] = delta
-        .filter(d => d.type === 'UpsertNode' && O.isNone(d.previousNode))
-        .map(d => d.type === 'UpsertNode' ? d.nodeToUpsert.absoluteFilePathIsID : '')
-        .filter(p => p !== '' && !p.includes('/ctx-nodes/'))
+    const newNodePaths: readonly string[] = getNewNodePathsForHook(delta)
 
     if (newNodePaths.length > MAX_NEW_NODES_PER_DELTA) {
         logHookResult(
@@ -53,25 +82,25 @@ export function dispatchOnNewNodeHooks(
 
     for (const nodePath of newNodePaths) {
         // Cancel any existing timer for this path — restart the debounce window
-        const existing: ReturnType<typeof setTimeout> | undefined = pendingTimers.get(nodePath)
+        const existing: ReturnType<typeof setTimeout> | undefined = deps.timers.get(nodePath)
         if (existing) {
-            clearTimeout(existing)
+            deps.clearTimer(existing)
         }
 
-        const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
-            pendingTimers.delete(nodePath)
+        const timer: ReturnType<typeof setTimeout> = deps.setTimer(() => {
+            deps.timers.delete(nodePath)
 
-            void ensureHookTerminal().then(() => {
-                writeToHookTerminal(`${hookCommand} ${shellQuote(nodePath)}`)
-                const shortPath: string = nodePath.split('/').slice(-2).join('/')
+            void deps.ensureHookTerminal().then(() => {
+                deps.writeToHookTerminal(formatHookCommand(hookCommand, nodePath, deps.quoteArg))
+                const shortPath: string = shortenNodePath(nodePath)
                 logHookResult(`[onNewNode] Dispatched hook for ${shortPath}`)
             }).catch((error: unknown) => {
-                const shortPath: string = nodePath.split('/').slice(-2).join('/')
+                const shortPath: string = shortenNodePath(nodePath)
                 const message: string = error instanceof Error ? error.message : String(error)
                 logHookResult(`[onNewNode] Hook FAILED for ${shortPath}: ${message}`)
             })
         }, DEBOUNCE_MS)
 
-        pendingTimers.set(nodePath, timer)
+        deps.timers.set(nodePath, timer)
     }
 }

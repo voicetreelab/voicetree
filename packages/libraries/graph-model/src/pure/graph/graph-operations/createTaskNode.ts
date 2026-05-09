@@ -3,6 +3,7 @@ import { ensureUniqueNodeId } from '../ensureUniqueNodeId'
 import { findMostConnectedNode } from './findMostConnectedNode'
 import { parseMarkdownToGraphNode } from '../markdown-parsing/parse-markdown-to-node'
 import * as O from 'fp-ts/lib/Option.js'
+import { stableIdSuffix } from '../stableIdSuffix'
 
 export interface TaskNodeCreationParams {
   readonly taskDescription: string
@@ -11,6 +12,16 @@ export interface TaskNodeCreationParams {
   readonly writePath: string
   readonly position: Position
   readonly initialStatus?: string
+}
+
+function createTaskNodeCandidateId(
+  writePath: string,
+  taskDescription: string,
+  selectedNodeIds: readonly NodeIdAndFilePath[]
+): NodeIdAndFilePath {
+  const separator: string = writePath.endsWith('/') ? '' : '/'
+  const suffix: string = stableIdSuffix([writePath, taskDescription, ...selectedNodeIds])
+  return `${writePath}${separator}task_${suffix}.md`
 }
 
 /**
@@ -23,11 +34,8 @@ export interface TaskNodeCreationParams {
 export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   const { taskDescription, selectedNodeIds, graph, writePath, position, initialStatus } = params
 
-  // Generate unique node ID
-  const timestamp: number = Date.now()
-  const randomSuffix: string = Math.random().toString(36).substring(2, 5)
-  const candidateId: string = `${writePath}/task_${timestamp}${randomSuffix}.md`
   const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
+  const candidateId: NodeIdAndFilePath = createTaskNodeCandidateId(writePath, taskDescription, selectedNodeIds)
   const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
 
   // Find most-connected node for parent relationship

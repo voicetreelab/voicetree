@@ -64,10 +64,8 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     return delta;
 }
 
-export function broadcastGraphDeltaToUI(delta: GraphDelta): void {
+export function refreshGraphChangeSideEffects(): void {
     const callbacks = getCallbacks()
-    callbacks.onGraphDelta?.(delta)
-    // Debounced push of unseen node counts to InjectBar badges
     callbacks.refreshBadge?.()
 }
 
@@ -89,11 +87,9 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
         recordUserActionAndSetDeltaHistoryState(delta)
     }
 
-    // Apply to memory and resolve any new wikilinks (returns merged delta)
-    const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
+    await applyGraphDeltaToMemState(delta)
 
-    // Broadcast merged delta (includes resolved links) to UI
-    broadcastGraphDeltaToUI(mergedDelta)
+    refreshGraphChangeSideEffects()
 
     // Construct env and execute effect (only original delta goes to DB)
     const env: Env = {projectRootWatchedDirectory: watchedDirectory}

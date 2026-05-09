@@ -1,56 +1,22 @@
 import type {NodeDefinition} from "cytoscape";
-import type {Graph, GraphNode, GraphDelta} from "@vt/graph-model/graph";
-import {getGraph, setGraph} from "@/shell/edge/main/state/graph-store";
+import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
 import {getTerminalRecords} from '@vt/agent-runtime';
-import {postDeltaThroughDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/electron/daemon-ipc-proxy';
+import {writePositionsThroughDaemon} from '@/shell/edge/main/electron/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
 
 /**
- * Save node positions from Cytoscape UI back to graph state.
- * Lightweight update - only touches in-memory state, no filesystem writes.
- * Positions will persist to disk when nodes are saved for other reasons.
+ * Save node positions from Cytoscape UI through the graph daemon.
  *
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
-export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
-    //console.log("Saving node positions to graph");
-    const graph: Graph = getGraph();
+export async function saveNodePositions(cyNodes: readonly NodeDefinition[]): Promise<void> {
+    const positions: Record<string, Position> = collectPositions(cyNodes);
+    if (Object.keys(positions).length === 0) {
+        return;
+    }
 
-    // Build lookup from cytoscape node JSON
-    const positionMap: Map<string, { x: number, y: number }> = new Map(
-        cyNodes
-            .filter(n => n.data.id && n.position)
-            .map(n => [n.data.id as string, n.position as { x: number, y: number }])
-    );
-
-    const updatedNodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce(
-        (acc: Record<string, GraphNode>, [nodeId, node]: [string, GraphNode]) => {
-            const pos: { x: number, y: number } | undefined = positionMap.get(nodeId);
-            if (pos) {
-                return {
-                    ...acc,
-                    [nodeId]: {
-                        ...node,
-                        nodeUIMetadata: {
-                            ...node.nodeUIMetadata,
-                            position: O.some(pos)
-                        }
-                    }
-                };
-            }
-            return {...acc, [nodeId]: node};
-        },
-        {}
-    );
-
-    //console.log("Saved node positions to graph");
-
-    setGraph({
-        nodes: updatedNodes,
-        incomingEdgesIndex: graph.incomingEdgesIndex,
-        nodeByBaseName: graph.nodeByBaseName,
-        unresolvedLinksIndex: graph.unresolvedLinksIndex
-    });
+    await writePositionsThroughDaemon(positions);
 }
 
 /**
@@ -61,7 +27,7 @@ export function saveNodePositions(cyNodes: readonly NodeDefinition[]): void {
  * NOT called during normal operation to avoid race conditions with terminal spawning.
  */
 export async function cleanupOrphanedContextNodes(): Promise<void> {
-    const graph: Graph = getGraph();
+    const graph: Graph = await getGraphFromDaemon();
 
     // Get all context nodes
     const contextNodeIds: string[] = Object.entries(graph.nodes)
@@ -97,4 +63,24 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
 
     // Apply deltas (deletes from filesystem and updates graph state)
     await postDeltaThroughDaemon(deleteDelta);
+}
+
+function collectPositions(cyNodes: readonly NodeDefinition[]): Record<string, Position> {
+    return cyNodes.reduce((acc: Record<string, Position>, node: NodeDefinition) => {
+        const id: unknown = node.data.id;
+        const position: Position | undefined = node.position as Position | undefined;
+        if (
+            typeof id !== 'string'
+            || position === undefined
+            || !Number.isFinite(position.x)
+            || !Number.isFinite(position.y)
+        ) {
+            return acc;
+        }
+
+        return {
+            ...acc,
+            [id]: position,
+        };
+    }, {});
 }

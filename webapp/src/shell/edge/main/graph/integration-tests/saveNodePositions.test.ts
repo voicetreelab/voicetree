@@ -1,345 +1,122 @@
-/**
- * Integration test for saveNodePositions
- *
- * BEHAVIOR TESTED:
- * - saveNodePositions updates in-memory graph with positions from Cytoscape
- * - Positions are NOT written to YAML frontmatter (stored in .voicetree/positions.json)
- * - Positions are preserved when FS event reloads node from disk (in-memory merge)
- * - Legacy YAML positions are still parsed for migration
- *
- * ARCHITECTURE CONTEXT:
- * - saveNodePositions: Updates in-memory state only (no disk write)
- * - Positions persist to .voicetree/positions.json on app exit / folder switch
- * - FS events: Parse markdown from disk, in-memory positions preserved via merge
- */
-
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { saveNodePositions } from '@/shell/edge/main/saveNodePositions'
-import { getGraph, setGraph } from '@/shell/edge/main/state/graph-store'
-import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/watchFolder'
-import { loadFolder, stopFileWatching, isWatching } from '@vt/graph-db-server/watch-folder/watchFolder'
-import type { GraphNode, Graph, GraphDelta } from '@vt/graph-model/graph'
-import { createGraph } from '@vt/graph-model/graph'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NodeDefinition } from 'cytoscape'
+import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/graph'
+import { createGraph } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import path from 'path'
-import os from 'os'
-import { promises as fs } from 'fs'
-import { waitForFSEvent, waitForWatcherReady, waitForCondition } from '@/utils/test-utils/waitForCondition'
-import { clearRecentDeltas } from '@/shell/edge/main/state/recent-deltas-store'
-import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import { initGraphModel } from '@vt/graph-model'
-import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 
-// State for mocks
-let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void; readonly isDestroyed: () => boolean }, readonly isDestroyed: () => boolean }
-let testTmpDir: string
-let testProjectPath: string
-let testVoicetreeDir: string
-let testFilePath: string
-let testNodeId: string
-
-// Mock electron app for settings path
-vi.mock('electron', () => ({
-    app: {
-        getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now())
-    }
+const mocks = vi.hoisted(() => ({
+    getGraphFromDaemon: vi.fn(),
+    getTerminalRecords: vi.fn(),
+    postDeltaThroughDaemon: vi.fn(),
+    writePositionsThroughDaemon: vi.fn(),
 }))
 
-// Mock app-electron-state
-vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
-    getMainWindow: vi.fn(() => mockMainWindow),
-    setMainWindow: vi.fn()
+vi.mock('@/shell/edge/main/electron/daemon-graph-queries', () => ({
+    writePositionsThroughDaemon: mocks.writePositionsThroughDaemon,
 }))
 
-describe('saveNodePositions - Integration Tests', () => {
-    beforeEach(async () => {
-        testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'save-node-positions-'))
-        testProjectPath = path.join(testTmpDir, 'project')
-        testVoicetreeDir = path.join(testProjectPath, 'voicetree')
-        testFilePath = path.join(testVoicetreeDir, 'test-position-node.md')
-        testNodeId = testFilePath
-        await fs.mkdir(testVoicetreeDir, { recursive: true })
+vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+    getGraphFromDaemon: mocks.getGraphFromDaemon,
+    postDeltaThroughDaemon: mocks.postDeltaThroughDaemon,
+}))
 
-        initGraphModel({ appSupportPath: path.join(testTmpDir, 'app-support') })
-        await saveVaultConfigForDirectory(testProjectPath, { writePath: testVoicetreeDir })
-        // Initialize state with empty graph and the temp project path
-        setGraph(createGraph({}))
-        setVaultPath(testProjectPath)
-        clearRecentDeltas()
+vi.mock('@vt/agent-runtime', () => ({
+    getTerminalRecords: mocks.getTerminalRecords,
+}))
 
-        // Create mock BrowserWindow
-        mockMainWindow = {
-            webContents: {
-                send: vi.fn(),
-                isDestroyed: vi.fn(() => false)
-            },
-            isDestroyed: vi.fn(() => false)
-        }
-    })
+import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/main/saveNodePositions'
 
-    afterEach(async () => {
-        // Stop file watching if active
-        if (isWatching()) {
-            await stopFileWatching()
-        }
-
-        // Clean up test file if it exists
-        await fs.rm(testTmpDir, { recursive: true, force: true })
-
-        clearVaultPath()
+describe('saveNodePositions', () => {
+    beforeEach(() => {
         vi.clearAllMocks()
+        mocks.writePositionsThroughDaemon.mockResolvedValue({ written: 0 })
+        mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
+        mocks.getTerminalRecords.mockReturnValue([])
     })
 
-    describe('BEHAVIOR: saveNodePositions updates in-memory graph state', () => {
-        it('should update node positions in memory when called with Cytoscape node data', () => {
-            // GIVEN: A graph with a node that has no position
-            const testNode: GraphNode = {
-                absoluteFilePathIsID: testNodeId,
-                contentWithoutYamlOrLinks: '# Test Position Node\n\nContent here.',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+    it('writes Cytoscape node positions through the daemon', async () => {
+        const cyNodes: readonly NodeDefinition[] = [
+            { data: { id: 'node1.md' }, position: { x: 100.25, y: 200.75 } },
+            { data: { id: 'node2.md' }, position: { x: -3, y: 4 } },
+        ]
 
-            setGraph(createGraph({ [testNodeId]: testNode }))
+        await saveNodePositions(cyNodes)
 
-            // Verify initial state - no position
-            const graphBefore: Graph = getGraph()
-            expect(O.isNone(graphBefore.nodes[testNodeId].nodeUIMetadata.position)).toBe(true)
-
-            // WHEN: Call saveNodePositions with Cytoscape node data
-            const cyNodes: readonly NodeDefinition[] = [
-                {
-                    data: { id: testNodeId },
-                    position: { x: 150, y: 250 }
-                }
-            ]
-
-            saveNodePositions(cyNodes)
-
-            // THEN: Position should be updated in memory
-            const graphAfter: Graph = getGraph()
-            const nodeAfter: GraphNode = graphAfter.nodes[testNodeId]
-
-            expect(O.isSome(nodeAfter.nodeUIMetadata.position)).toBe(true)
-            if (O.isSome(nodeAfter.nodeUIMetadata.position)) {
-                expect(nodeAfter.nodeUIMetadata.position.value.x).toBe(150)
-                expect(nodeAfter.nodeUIMetadata.position.value.y).toBe(250)
-            }
-        })
-
-        it('should update positions for multiple nodes at once', () => {
-            // GIVEN: A graph with multiple nodes without positions
-            const node1: GraphNode = {
-                absoluteFilePathIsID: 'node1.md',
-                contentWithoutYamlOrLinks: '# Node 1',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            const node2: GraphNode = {
-                absoluteFilePathIsID: 'node2.md',
-                contentWithoutYamlOrLinks: '# Node 2',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.none,
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-
-            setGraph(createGraph({ 'node1.md': node1, 'node2.md': node2 }))
-
-            // WHEN: Call saveNodePositions with multiple nodes
-            const cyNodes: readonly NodeDefinition[] = [
-                { data: { id: 'node1.md' }, position: { x: 100, y: 200 } },
-                { data: { id: 'node2.md' }, position: { x: 300, y: 400 } }
-            ]
-
-            saveNodePositions(cyNodes)
-
-            // THEN: Both positions should be updated
-            const graph: Graph = getGraph()
-
-            expect(O.isSome(graph.nodes['node1.md'].nodeUIMetadata.position)).toBe(true)
-            expect(O.isSome(graph.nodes['node2.md'].nodeUIMetadata.position)).toBe(true)
-
-            if (O.isSome(graph.nodes['node1.md'].nodeUIMetadata.position)) {
-                expect(graph.nodes['node1.md'].nodeUIMetadata.position.value).toEqual({ x: 100, y: 200 })
-            }
-
-            if (O.isSome(graph.nodes['node2.md'].nodeUIMetadata.position)) {
-                expect(graph.nodes['node2.md'].nodeUIMetadata.position.value).toEqual({ x: 300, y: 400 })
-            }
+        const writtenPositions = mocks.writePositionsThroughDaemon.mock.calls[0]?.[0]
+        expect(writtenPositions).toEqual({
+            'node1.md': { x: 100.25, y: 200.75 },
+            'node2.md': { x: -3, y: 4 },
         })
     })
 
-    describe('BEHAVIOR: Positions are NOT written to YAML (stored in .voicetree/positions.json)', () => {
-        it('should NOT write position to disk YAML when UpsertNode delta is applied', async () => {
-            // Positions are stored in .voicetree/positions.json, not in markdown YAML
-            const testNode: GraphNode = {
-                absoluteFilePathIsID: testNodeId,
-                contentWithoutYamlOrLinks: '# Test Position Node\n\nContent here.',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.none,
-                    position: O.some({ x: 500, y: 600 }),
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
+    it('ignores Cytoscape entries without finite positions', async () => {
+        const cyNodes: readonly NodeDefinition[] = [
+            { data: { id: 'valid.md' }, position: { x: 1, y: 2 } },
+            { data: { id: 'missing-position.md' } },
+            { data: { id: 'bad-x.md' }, position: { x: Number.NaN, y: 2 } },
+            { data: { id: 'bad-y.md' }, position: { x: 1, y: Number.POSITIVE_INFINITY } },
+        ]
 
-            const delta: GraphDelta = [{
-                type: 'UpsertNode',
-                nodeToUpsert: testNode,
-                previousNode: O.none
-            }]
+        await saveNodePositions(cyNodes)
 
-            // WHEN: Apply delta to write node to disk
-            await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, false)
-
-            // THEN: File should NOT contain position in YAML frontmatter
-            const fileContent: string = await fs.readFile(testFilePath, 'utf-8')
-
-            expect(fileContent).not.toContain('position:')
-            expect(fileContent).not.toContain('x: 500')
-            expect(fileContent).not.toContain('y: 600')
+        const writtenPositions = mocks.writePositionsThroughDaemon.mock.calls[0]?.[0]
+        expect(writtenPositions).toEqual({
+            'valid.md': { x: 1, y: 2 },
         })
     })
 
-    describe('BEHAVIOR: Position preservation when FS event reloads node', () => {
-        it('should PRESERVE in-memory position when file is modified externally (no position in YAML)', async () => {
-            // GIVEN: Load folder with file watcher
-            await loadFolder(testProjectPath)
-            expect(isWatching()).toBe(true)
-            await waitForWatcherReady()
+    it('does not contact the daemon when there are no valid positions', async () => {
+        const cyNodes: readonly NodeDefinition[] = [
+            { data: { id: 'missing-position.md' } },
+        ]
 
-            // Create a test file WITHOUT position in YAML
-            const testFileContent: string = `---
----
-# Test Position Node
+        await saveNodePositions(cyNodes)
 
-Content here.`
-
-            await fs.writeFile(testFilePath, testFileContent, 'utf-8')
-
-            // Wait for file to be added to graph
-            await waitForFSEvent()
-            await waitForCondition(
-                () => !!getGraph().nodes[testNodeId],
-                { maxWaitMs: 1000, errorMessage: 'test-position-node not added to graph' }
-            )
-
-            // Now the node is in memory with no position
-            const graphAfterLoad: Graph = getGraph()
-            expect(O.isNone(graphAfterLoad.nodes[testNodeId].nodeUIMetadata.position)).toBe(true)
-
-            // WHEN: Save positions from Cytoscape (simulating layout completion)
-            const cyNodes: readonly NodeDefinition[] = [
-                { data: { id: testNodeId }, position: { x: 999, y: 888 } }
-            ]
-            saveNodePositions(cyNodes)
-
-            // Verify position was saved in memory
-            const graphAfterSave: Graph = getGraph()
-            expect(O.isSome(graphAfterSave.nodes[testNodeId].nodeUIMetadata.position)).toBe(true)
-            if (O.isSome(graphAfterSave.nodes[testNodeId].nodeUIMetadata.position)) {
-                expect(graphAfterSave.nodes[testNodeId].nodeUIMetadata.position.value).toEqual({ x: 999, y: 888 })
-            }
-
-            // WHEN: File is modified externally (without position in YAML)
-            const updatedContent: string = `---
----
-# Test Position Node
-
-Content here. Updated externally.`
-
-            await fs.writeFile(testFilePath, updatedContent, 'utf-8')
-
-            // Wait for FS event to reload the node
-            await waitForFSEvent()
-            await waitForCondition(
-                () => getGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
-                { maxWaitMs: 1000, errorMessage: 'Node content not updated from FS event' }
-            )
-
-            // THEN: Position should be PRESERVED (merged from in-memory state)
-            const graphAfterFSEvent: Graph = getGraph()
-            const nodeAfterFSEvent: GraphNode = graphAfterFSEvent.nodes[testNodeId]
-
-            expect(O.isSome(nodeAfterFSEvent.nodeUIMetadata.position)).toBe(true)
-            if (O.isSome(nodeAfterFSEvent.nodeUIMetadata.position)) {
-                expect(nodeAfterFSEvent.nodeUIMetadata.position.value).toEqual({ x: 999, y: 888 })
-            }
-        }, 5000)
-
-        it('should PRESERVE position when file has position in YAML frontmatter', async () => {
-            // GIVEN: Load folder with file watcher
-            await loadFolder(testProjectPath)
-            expect(isWatching()).toBe(true)
-            await waitForWatcherReady()
-
-            // Create a test file WITH position in YAML
-            const testFileContent: string = `---
-position:
-  x: 123
-  y: 456
----
-# Test Position Node
-
-Content here.`
-
-            await fs.writeFile(testFilePath, testFileContent, 'utf-8')
-
-            // Wait for file to be added to graph
-            await waitForFSEvent()
-            await waitForCondition(
-                () => !!getGraph().nodes[testNodeId],
-                { maxWaitMs: 1000, errorMessage: 'test-position-node not added to graph' }
-            )
-
-            // Verify position was loaded from YAML
-            const graphAfterLoad: Graph = getGraph()
-            expect(O.isSome(graphAfterLoad.nodes[testNodeId].nodeUIMetadata.position)).toBe(true)
-
-            // WHEN: File is modified (keeping position in YAML)
-            const updatedContent: string = `---
-position:
-  x: 123
-  y: 456
----
-# Test Position Node
-
-Content here. Updated externally.`
-
-            await fs.writeFile(testFilePath, updatedContent, 'utf-8')
-
-            // Wait for FS event to reload the node (may need longer for chokidar to detect second change)
-            await waitForFSEvent()
-            await waitForCondition(
-                () => getGraph().nodes[testNodeId]?.contentWithoutYamlOrLinks.includes('Updated externally'),
-                { maxWaitMs: 3000, errorMessage: 'Node content not updated from FS event' }
-            )
-
-            // THEN: Position should be PRESERVED (it was in the YAML)
-            const graphAfterFSEvent: Graph = getGraph()
-            const nodeAfterFSEvent: GraphNode = graphAfterFSEvent.nodes[testNodeId]
-
-            expect(O.isSome(nodeAfterFSEvent.nodeUIMetadata.position)).toBe(true)
-            if (O.isSome(nodeAfterFSEvent.nodeUIMetadata.position)) {
-                expect(nodeAfterFSEvent.nodeUIMetadata.position.value).toEqual({ x: 123, y: 456 })
-            }
-        }, 8000)
+        expect(mocks.writePositionsThroughDaemon.mock.calls).toHaveLength(0)
     })
 })
+
+describe('cleanupOrphanedContextNodes', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
+    })
+
+    it('deletes daemon graph context nodes that are not attached to an active terminal', async () => {
+        const orphanedNode: GraphNode = createNode(true)
+        const activeNode: GraphNode = createNode(true)
+        const regularNode: GraphNode = createNode(false)
+        const graph: Graph = createGraph({
+            'orphaned.md': orphanedNode,
+            'active.md': activeNode,
+            'regular.md': regularNode,
+        })
+        mocks.getGraphFromDaemon.mockResolvedValue(graph)
+        mocks.getTerminalRecords.mockReturnValue([
+            { terminalData: { attachedToContextNodeId: 'active.md' } },
+        ])
+
+        await cleanupOrphanedContextNodes()
+
+        const delta: GraphDelta | undefined = mocks.postDeltaThroughDaemon.mock.calls[0]?.[0]
+        expect(delta).toHaveLength(1)
+        expect(delta?.[0]).toMatchObject({
+            type: 'DeleteNode',
+            nodeId: 'orphaned.md',
+        })
+    })
+})
+
+function createNode(isContextNode: boolean): GraphNode {
+    return {
+        absoluteFilePathIsID: '',
+        contentWithoutYamlOrLinks: '# Node',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+            additionalYAMLProps: new Map(),
+            color: O.none,
+            isContextNode,
+            position: O.none,
+        },
+    }
+}

@@ -6,13 +6,54 @@
  */
 
 import type { NodeIdAndFilePath, Graph, GraphNode } from '@vt/graph-model/graph'
-import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getNodeTitle } from '@vt/graph-model/markdown'
 import { sendTextToTerminal } from './send-text-to-terminal'
 import { getTerminalRecords, type TerminalRecord } from '../terminals/terminal-registry'
-import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
+import { getRuntimeGraph, runtimeUpdateContextNodeContainedIds } from '../graph-bridge'
 
 const MAX_NODES_PER_INJECTION: number = 5
+
+export type InjectNodesDeps = {
+    readonly getTerminalRecords: () => TerminalRecord[]
+    readonly getGraph: () => Graph
+    readonly getNodeTitle: (node: GraphNode) => string
+    readonly sendTextToTerminal: (terminalId: string, text: string) => Promise<{ success: boolean }>
+    readonly updateContextNodeContainedIds: (contextNodeId: NodeIdAndFilePath, nodeIds: readonly string[]) => Promise<unknown>
+    readonly logError: (message: string, error: unknown) => void
+}
+
+const defaultInjectNodesDeps: InjectNodesDeps = {
+    getTerminalRecords,
+    getGraph: getRuntimeGraph,
+    getNodeTitle,
+    sendTextToTerminal,
+    updateContextNodeContainedIds: runtimeUpdateContextNodeContainedIds,
+    logError: (message: string, error: unknown): void => console.error(message, error)
+}
+
+export function buildNodeInjectionPayload(
+    nodeIds: readonly string[],
+    graph: Graph,
+    titleForNode: (node: GraphNode) => string
+): { readonly payload: string; readonly injectedCount: number } {
+    const nodeBlocks: string[] = []
+    for (const nodeId of nodeIds) {
+        const graphNode: GraphNode | undefined = graph.nodes[nodeId]
+        if (!graphNode) continue
+
+        const title: string = titleForNode(graphNode)
+        nodeBlocks.push(`- ${title} (${nodeId})`)
+    }
+
+    if (nodeBlocks.length === 0) {
+        return { payload: '', injectedCount: 0 }
+    }
+
+    return {
+        payload: `\nPlease check these nodes that were created while you were working:\n\n${nodeBlocks.join('\n\n')}\n`,
+        injectedCount: nodeBlocks.length
+    }
+}
 
 /**
  * Inject node title + filepath into a terminal and mark the nodes as seen in the context node.
@@ -25,9 +66,10 @@ const MAX_NODES_PER_INJECTION: number = 5
  */
 export async function injectNodesIntoTerminal(
     terminalId: string,
-    nodeIds: readonly string[]
+    nodeIds: readonly string[],
+    deps: InjectNodesDeps = defaultInjectNodesDeps
 ): Promise<{ success: boolean; injectedCount: number }> {
-    const records: TerminalRecord[] = getTerminalRecords()
+    const records: TerminalRecord[] = deps.getTerminalRecords()
     const record: TerminalRecord | undefined = records.find(
         (r: TerminalRecord) => r.terminalId === terminalId
     )
@@ -37,38 +79,27 @@ export async function injectNodesIntoTerminal(
     }
 
     const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
-    const graph: Graph = getGraph()
+    const graph: Graph = deps.getGraph()
 
     // Cap at MAX_NODES_PER_INJECTION to avoid PTY buffer issues
     const nodeIdsToInject: readonly string[] = nodeIds.slice(0, MAX_NODES_PER_INJECTION)
 
-    // Build injection payload
-    const nodeBlocks: string[] = []
-    for (const nodeId of nodeIdsToInject) {
-        const graphNode: GraphNode | undefined = graph.nodes[nodeId]
-        if (!graphNode) continue
+    const { payload, injectedCount } = buildNodeInjectionPayload(nodeIdsToInject, graph, deps.getNodeTitle)
 
-        const title: string = getNodeTitle(graphNode)
-
-        nodeBlocks.push(`- ${title} (${nodeId})`)
-    }
-
-    if (nodeBlocks.length === 0) {
+    if (injectedCount === 0) {
         return { success: true, injectedCount: 0 }
     }
 
-    const payload: string = `\nPlease check these nodes that were created while you were working:\n\n${nodeBlocks.join('\n\n')}\n`
-
     try {
         // Send batched payload as single write to avoid PTY flooding
-        await sendTextToTerminal(terminalId, payload)
+        await deps.sendTextToTerminal(terminalId, payload)
 
         // Mark injected nodes as seen by updating context node's containedNodeIds
-        await updateContextNodeContainedIds(contextNodeId, nodeIdsToInject)
+        await deps.updateContextNodeContainedIds(contextNodeId, nodeIdsToInject)
 
-        return { success: true, injectedCount: nodeBlocks.length }
+        return { success: true, injectedCount }
     } catch (error: unknown) {
-        console.error(`[inject-nodes-into-terminal] Failed for terminal ${terminalId}:`, error)
+        deps.logError(`[inject-nodes-into-terminal] Failed for terminal ${terminalId}:`, error)
         return { success: false, injectedCount: 0 }
     }
 }

@@ -18,7 +18,7 @@
  *    → isOurRecentDelta guard (skips our own echoes, but can false-positive
  *       on length-match collisions within 2% length tolerance)
  *    → applyGraphDeltaToMemState (updates in-memory graph-store)
- *    → broadcastGraphDeltaToUI (Cy node data)
+ *    → projected graph update (Cy node data)
  *    → onFloatingEditorUpdate (pushes into open editors)
  *
  * A newly-opened editor pulls its content via getNodeFromMainToUI, which reads

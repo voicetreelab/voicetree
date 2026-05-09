@@ -6,7 +6,7 @@ import {getGraph} from "../state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {
     applyGraphDeltaToMemState,
-    broadcastGraphDeltaToUI
+    refreshGraphChangeSideEffects
 } from "./applyGraphDelta";
 import {isOurRecentDelta} from "../state/recent-deltas-store";
 import {publish} from "../events/deltaEventBus";
@@ -30,8 +30,6 @@ export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
     _watchedDirectory: string,
 ): void {
-    //console.log("[handleFSEvent] external write from: ", fsEvent.absolutePath)
-
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
 
@@ -40,7 +38,6 @@ export function handleFSEventWithStateAndUISides(
 
     //  Check if this is our own recent write - skip if so
     if (isOurRecentDelta(delta)) {
-        //console.log("[handleFSEvent] Skipping our own recent write: ", fsEvent.absolutePath)
         return
     }
 
@@ -57,8 +54,7 @@ async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
     // Apply to memory and resolve any new wikilinks (returns merged delta)
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
 
-    // Broadcast merged delta (includes resolved links) to UI
-    broadcastGraphDeltaToUI(mergedDelta)
+    refreshGraphChangeSideEffects()
 
     // Publish to SSE event bus for daemon clients
     publish({ delta: mergedDelta, source: 'fs:external' })

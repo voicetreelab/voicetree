@@ -1,9 +1,9 @@
-import { getGraph } from '@/shell/edge/main/state/graph-store';
+import { getGraphThroughDaemon } from '@/shell/edge/main/electron/daemon-graph-queries';
 import { spawnTerminalWithContextNode } from '@vt/agent-runtime';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
-import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
+import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { SavedProject } from '@vt/graph-model/project';
 import * as path from 'path';
 import { app } from 'electron';
@@ -82,6 +82,14 @@ async function resolvePrettySetupAgentCommand(env: NodeJS.ProcessEnv = process.e
     return null;
 }
 
+async function getDebugGraph(): Promise<Graph> {
+    try {
+        return await getGraphThroughDaemon();
+    } catch {
+        return createEmptyGraph();
+    }
+}
+
 /**
  * Sets up a debug environment for Playwright MCP agents.
  *
@@ -90,7 +98,7 @@ async function resolvePrettySetupAgentCommand(env: NodeJS.ProcessEnv = process.e
  * The child terminal has parentTerminalId set to test tree-style tabs indentation.
  */
 export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupResult> {
-    let graph = getGraph();
+    let graph = await getDebugGraph();
     let nodeIds = Object.keys(graph.nodes) as NodeIdAndFilePath[];
     let projectLoaded: string | undefined;
 
@@ -125,7 +133,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Refresh graph reference
-        graph = getGraph();
+        graph = await getDebugGraph();
         nodeIds = Object.keys(graph.nodes) as NodeIdAndFilePath[];
         console.log('[DebugSetup] Project loaded, node count:', nodeIds.length);
     }

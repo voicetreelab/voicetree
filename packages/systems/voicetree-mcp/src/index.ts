@@ -62,6 +62,7 @@ export {
     type CreateGraphParams,
     type CreateGraphNodeInput,
 } from './createGraphTool'
+export {syncMcpGraphDbServerState} from './mcp-graph-bridge'
 export {graphStructureTool, type GraphStructureParams} from './graphStructureTool'
 export {
     dispatchLiveCommand,

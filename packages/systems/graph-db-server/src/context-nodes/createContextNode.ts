@@ -11,46 +11,18 @@ import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
-import {getCallbacks} from '@vt/graph-model'
 import { resolveContextWritePath } from './contextWritePath'
 
-/**
- * Get semantically relevant nodes via vector search with timeout.
- * Returns empty array on error/timeout (graceful fallback).
- *
- * @param query - The text to search for
- * @param topK - Number of results to return
- * @returns Array of node paths from semantic search
- */
-async function getSemanticRelevantNodes(
-    query: string,
-    topK: number
-): Promise<readonly NodeIdAndFilePath[]> {
-    if (topK <= 0 || !query.trim()) return []
+type ContextNodeClock = {
+    readonly now: () => number
+}
 
-    const callbacks = getCallbacks()
-    if (!callbacks.semanticSearch) return []
+export type CreateContextNodeDependencies = {
+    readonly clock: ContextNodeClock
+}
 
-    const controller: AbortController = new AbortController()
-    const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => controller.abort(), 1000)
-
-    try {
-        // Race the semantic search against the abort signal
-        const nodePaths: readonly string[] = await Promise.race([
-            callbacks.semanticSearch(query, topK),
-            new Promise<never>((_, reject) => {
-                controller.signal.addEventListener('abort', () => {
-                    reject(new Error('Timeout'))
-                })
-            })
-        ])
-        clearTimeout(timeoutId)
-        return nodePaths
-    } catch {
-        // Timeout or error: graceful fallback to distance-only
-        clearTimeout(timeoutId)
-        return []
-    }
+const defaultCreateContextNodeDependencies: CreateContextNodeDependencies = {
+    clock: { now: () => Date.now() },
 }
 
 function resolveParentNodeId(
@@ -99,7 +71,9 @@ function resolveParentNodeId(
  * @returns The NodeId of the newly created context node
  */
 export async function createContextNode(
-    parentNodeId: NodeIdAndFilePath
+    parentNodeId: NodeIdAndFilePath,
+    semanticNodeIds: readonly NodeIdAndFilePath[] = [],
+    dependencies: CreateContextNodeDependencies = defaultCreateContextNodeDependencies
 ): Promise<NodeIdAndFilePath> {
     // 1. EDGE: Read current graph from state
     const currentGraph: Graph = getGraph()
@@ -114,23 +88,16 @@ export async function createContextNode(
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
 
-    // Reuse contextNodeMaxDistance for vector search top_k
-    const contextVectorSearchTopK: number = maxDistance
     const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]
-
-    // Get semantically relevant nodes via vector search (with 1s timeout)
-    const semanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
-        ? await getSemanticRelevantNodes(
-            parentNode.contentWithoutYamlOrLinks,
-            contextVectorSearchTopK
-        )
+    const validSemanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
+        ? semanticNodeIds.filter((nodeId: NodeIdAndFilePath): boolean => currentGraph.nodes[nodeId] !== undefined)
         : []
 
     // Get subgraph - union if we have semantic results, otherwise distance-only
-    const subgraph: Graph = semanticNodeIds.length > 0
+    const subgraph: Graph = validSemanticNodeIds.length > 0
         ? getUnionSubgraphByDistance(
             currentGraph,
-            [resolvedParentNodeId, ...semanticNodeIds],
+            [resolvedParentNodeId, ...validSemanticNodeIds],
             maxDistance
         )
         : getSubgraphByDistance(currentGraph, resolvedParentNodeId, maxDistance)
@@ -143,7 +110,7 @@ export async function createContextNode(
     const asciiTree: string = graphToAscii(bidirectionalSubgraph, resolvedParentNodeId)
 
     // 4. EDGE: Generate unique context node ID
-    const timestamp: number = Date.now()
+    const timestamp: number = dependencies.clock.now()
     const parentIdWithoutExtension: string = resolvedParentNodeId.replace(/\.md$/, '')
     // Don't prepend ctx-nodes/ if the parent path already contains it (prevents infinite nesting)
     // Note: nodeIds are now relative to projectRootWatchedDirectory (e.g., "monday/ctx-nodes/...") not vaultPath
@@ -171,7 +138,7 @@ export async function createContextNode(
         maxDistance,
         asciiTree,
         bidirectionalSubgraph,
-        semanticNodeIds,
+        validSemanticNodeIds,
         contextMaxChars
     )
 

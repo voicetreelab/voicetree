@@ -19,7 +19,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags, safeStopFileWatching } from './electron-smoke-helpers';
+import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -145,11 +145,7 @@ const test = base.extend<{
       }, vaultPath);
     }
 
-    await window.waitForFunction(
-      () => Boolean((window as unknown as ExtendedWindow).cytoscapeInstance),
-      undefined,
-      { timeout: 15_000 },
-    );
+    await pollForCytoscape(window, 15_000);
 
     await expect.poll(async () => {
       return window.evaluate(() => {
@@ -202,7 +198,6 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   }).toBe(true);
 
   // 3. Set title content via CodeMirror dispatch with userEvent (arms autosave debounce)
-  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const typedTitle = '# My Important Title';
 
   await appWindow.evaluate(({ winId, content }) => {
@@ -229,7 +224,7 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   //    We use the IPC API directly because Electron's default menu intercepts cmd-n
   //    in headless test mode. The race condition being tested is in the write path,
   //    not the keyboard shortcut.
-  const childNodeId = await appWindow.evaluate(async (parentId) => {
+  await appWindow.evaluate(async (parentId) => {
     const api = (window as unknown as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
 

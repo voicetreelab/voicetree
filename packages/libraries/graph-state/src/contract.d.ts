@@ -189,6 +189,13 @@ export interface ProjectedGraph {
     readonly forests: readonly (readonly TreeEdge[])[]
     readonly arboricity: number
     readonly recentNodeIds: readonly string[]
+    readonly seq?: number
+    readonly replayReset?: {
+        readonly reason: 'buffer_evicted'
+        readonly requestedSince: number
+        readonly oldestSeq: number
+        readonly currentSeq: number
+    }
 }
 
 export interface ProjectedNode {

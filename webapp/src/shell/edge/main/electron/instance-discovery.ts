@@ -3,8 +3,9 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import { getMcpPort } from '@vt/voicetree-mcp';
-import { getProjectRootWatchedDirectory, getStartupFolderOverride } from '@/shell/edge/main/state/watch-folder-store';
 import { getConfiguredCdpPort } from './environment-config';
+import { getActiveDaemonConnection } from './graph-daemon';
+import { getStartupFolderOverride } from './startup-folder-override';
 
 function getInstancesDir(): string {
     // Use appData (stable, NOT overridden by dev temp-userData) so instances land at a predictable path.
@@ -50,7 +51,7 @@ export async function registerInstance(): Promise<void> {
     const vaultPath: string =
         process.env.VOICETREE_VAULT_PATH ??
         getStartupFolderOverride() ??
-        getProjectRootWatchedDirectory() ??
+        getActiveDaemonConnection()?.vault ??
         '';
     const mcpPort: number = getMcpPort();
     const instance: InstanceRecord = {

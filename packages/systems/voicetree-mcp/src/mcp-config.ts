@@ -4,6 +4,8 @@
 // keeping this package free of Electron and renderer-side imports.
 
 import type { Command, Delta, SerializedState } from '@vt/graph-state'
+import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 
 export type LiveStateBridge = {
     readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
@@ -24,7 +26,20 @@ export type SearchBridge = {
     readonly askQuery: (query: string, topK?: number) => Promise<AskQueryResponse>
 }
 
+export type GraphBridge = {
+    readonly getGraph: () => Promise<Graph>
+    readonly getVaultPaths: () => Promise<readonly string[]>
+    readonly getWritePath: () => Promise<string | null>
+    readonly getProjectRootWatchedDirectory?: () => string | null
+    readonly getUnseenNodesAroundContextNode?: (
+        contextNodeId: NodeIdAndFilePath,
+        searchFromNode?: NodeIdAndFilePath,
+    ) => Promise<readonly UnseenNode[]>
+    readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
+}
+
 export type McpServerConfig = {
+    readonly graph?: GraphBridge
     readonly liveState?: LiveStateBridge
     readonly search?: SearchBridge
 }
@@ -46,4 +61,8 @@ export function getLiveStateBridge(): LiveStateBridge {
 
 export function getSearchBridge(): SearchBridge | undefined {
     return config.search
+}
+
+export function getGraphBridge(): GraphBridge | undefined {
+    return config.graph
 }
