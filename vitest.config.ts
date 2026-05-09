@@ -9,6 +9,7 @@ const sharedExclude = [
   '**/e2e-tests/**',
   '**/vt-website-quartz/**',
   '**/voicetree-evals/**',
+  '**/.node_modules-*/**',
   '**/tools/**',
   '**/brain/automation/**',
   '**/native-modules/**',
