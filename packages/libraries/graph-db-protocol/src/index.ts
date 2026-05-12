@@ -32,10 +32,15 @@ export type SessionCreateResponse = z.infer<typeof SessionCreateResponseSchema>
 export const SessionInfoSchema = z.object({
   id: SessionIdSchema,
   lastAccessedAt: z.number().int().nonnegative(),
-  folderStateSize: z.number().int().nonnegative(),
+  collapseSetSize: z.number().int().nonnegative(),
   selectionSize: z.number().int().nonnegative(),
 })
 export type SessionInfo = z.infer<typeof SessionInfoSchema>
+
+export const CollapseStateResponseSchema = z.object({
+  collapseSet: z.array(z.string()),
+})
+export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
 
 export const FolderStateSchema = z.enum(['expanded', 'collapsed', 'hidden'])
 export type FolderState = z.infer<typeof FolderStateSchema>
@@ -191,3 +196,8 @@ export const SetWritePathRequestSchema = z.object({
   path: z.string(),
 })
 export type SetWritePathRequest = z.infer<typeof SetWritePathRequestSchema>
+
+export const AddReadPathRequestSchema = z.object({
+  path: z.string(),
+})
+export type AddReadPathRequest = z.infer<typeof AddReadPathRequestSchema>

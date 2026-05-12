@@ -9,7 +9,6 @@ import {
 import * as updateContextNodeContainedIdsModule from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
-    refreshGraphChangeSideEffects as refreshDefaultGraphChangeSideEffects,
 } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { getGraph as getDefaultGraph, setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
@@ -72,10 +71,7 @@ export function runtimeRefreshGraphSideEffects(): void {
     const bridge: GraphStateBridge | undefined = getGraphBridge()
     if (bridge) {
         bridge.refreshGraphChangeSideEffects()
-        return
     }
-
-    refreshDefaultGraphChangeSideEffects()
 }
 
 export async function runtimeCreateContextNode(

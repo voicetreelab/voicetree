@@ -32,4 +32,4 @@ export {
   type ShutdownResponse,
   type VaultState,
   type ViewResponse,
-} from '@vt/graph-db-server/contract'
+} from '@vt/graph-db-protocol'
