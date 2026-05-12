@@ -10,18 +10,18 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {calculateNodePosition} from '@vt/graph-model/spatial'
 import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
-import {
-    getTerminalRecords,
-    registerChild,
-    spawnTerminalWithContextNode,
-    tryConsumeAndSplitBudget,
-    type TerminalRecord,
-} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {startMonitor} from '../../agents/agent-completion-monitor'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
+import {
+    consumeSpawnBudget,
+    listTerminalRecords,
+    rememberChildTerminal,
+    spawnContextTerminal,
+    type TerminalRecord,
+} from './agentControlRuntime'
 
 export interface SpawnAgentParams {
     nodeId?: string
@@ -38,25 +38,25 @@ export interface SpawnAgentParams {
 
 export interface SpawnAgentDeps {
     readonly listTerminalRecords: () => TerminalRecord[]
-    readonly consumeBudget: typeof tryConsumeAndSplitBudget
+    readonly consumeBudget: typeof consumeSpawnBudget
     readonly loadAgentSettings: typeof loadSettings
     readonly loadWritePath: typeof getMcpWritePath
     readonly loadGraph: typeof getMcpGraph
     readonly applyDelta: typeof applyMcpGraphDelta
-    readonly spawnTerminal: typeof spawnTerminalWithContextNode
-    readonly rememberChild: typeof registerChild
+    readonly spawnTerminal: typeof spawnContextTerminal
+    readonly rememberChild: typeof rememberChildTerminal
     readonly monitorChildren: typeof startMonitor
 }
 
 const defaultSpawnAgentDeps: SpawnAgentDeps = {
-    listTerminalRecords: getTerminalRecords,
-    consumeBudget: tryConsumeAndSplitBudget,
+    listTerminalRecords,
+    consumeBudget: consumeSpawnBudget,
     loadAgentSettings: loadSettings,
     loadWritePath: getMcpWritePath,
     loadGraph: getMcpGraph,
     applyDelta: applyMcpGraphDelta,
-    spawnTerminal: spawnTerminalWithContextNode,
-    rememberChild: registerChild,
+    spawnTerminal: spawnContextTerminal,
+    rememberChild: rememberChildTerminal,
     monitorChildren: startMonitor,
 }
 

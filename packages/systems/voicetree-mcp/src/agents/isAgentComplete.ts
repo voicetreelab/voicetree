@@ -5,9 +5,9 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getIdleSince, type TerminalRecord} from '@vt/agent-runtime'
 import {getAgentNodes} from './agentNodeIndex'
 import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getTerminalIdleSince, type TerminalRecord} from './agentCompletionRuntime'
 
 const SUSTAINED_IDLE_MS: number = 7_000 // 7 seconds — agent must be idle this long before considered done
 export const NO_PROGRESS_TIMEOUT_MS: number = 30 * 60 * 1000 // 30 minutes — max time to wait for agent without progress nodes
@@ -49,7 +49,7 @@ export function isAgentComplete(record: TerminalRecord, graph: Graph, now: numbe
     if (status === 'exited') return true
 
     // Agent is idle — only done if sustained idle for ≥ 7s
-    const idleSince: number | null = getIdleSince(record.terminalId)
+    const idleSince: number | null = getTerminalIdleSince(record.terminalId)
     const selfComplete: boolean = idleSince !== null && (now - idleSince) >= SUSTAINED_IDLE_MS
     if (!selfComplete) return false
 

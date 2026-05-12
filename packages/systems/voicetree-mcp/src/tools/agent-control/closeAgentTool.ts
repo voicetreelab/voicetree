@@ -7,13 +7,21 @@
  * at least one progress node, so work isn't silently discarded.
  */
 
-import {agentRuntime, type TerminalRecord, type TerminalId} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {getNewNodesForAgent} from '../../agents/getNewNodesForAgent'
 import {getAgentNodes} from '../../agents/agentNodeIndex'
 import {getAgentStatus} from '../../agents/isAgentComplete'
-import {type StopHookResult} from '@vt/agent-runtime'
 import {getMcpGraph} from '../../config/mcp-graph-bridge'
+import {
+    closeHeadlessTerminal,
+    closeInteractiveTerminal,
+    findTerminalRecord,
+    listTerminalRecords,
+    runTerminalStopHooks,
+    type StopHookResult,
+    type TerminalId,
+    type TerminalRecord,
+} from './agentControlRuntime'
 
 export interface CloseAgentParams {
     terminalId: string
@@ -27,8 +35,8 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
     // Stop gate: audit before allowing self-close (BF-042: derives skill path at audit time)
     if (isSelfClose) {
         const graph: import('@vt/graph-model/graph').Graph = await getMcpGraph()
-        const records: readonly TerminalRecord[] = agentRuntime.getTerminalRecords()
-        const hookResult: StopHookResult = await agentRuntime.runStopHooks(terminalId, graph, records)
+        const records: readonly TerminalRecord[] = listTerminalRecords()
+        const hookResult: StopHookResult = await runTerminalStopHooks(terminalId, graph, records)
         if (!hookResult.passed) {
             return buildJsonResponse({
                 success: false,
@@ -38,9 +46,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
     }
 
     if (!isSelfClose) {
-        const targetRecord: TerminalRecord | undefined = agentRuntime.getTerminalRecords().find(
-            (r: TerminalRecord) => r.terminalId === terminalId
-        )
+        const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId)
 
         if (!targetRecord) {
             return buildJsonResponse({
@@ -74,7 +80,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
     }
 
     // Headless agents: shared close path (handles both running + exited)
-    const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = agentRuntime.closeHeadlessAgent(terminalId as TerminalId)
+    const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessTerminal(terminalId as TerminalId)
     if (headlessResult.closed) {
         return buildJsonResponse({
             success: true,
@@ -87,7 +93,7 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
 
     // Interactive agents: close via UI bridge (removes xterm.js terminal in
     // Electron; no-op when running headless under vt-mcpd, where there is no UI).
-    agentRuntime.getRuntimeUI().closeTerminalById?.(terminalId)
+    closeInteractiveTerminal(terminalId)
     return buildJsonResponse({
         success: true,
         terminalId,

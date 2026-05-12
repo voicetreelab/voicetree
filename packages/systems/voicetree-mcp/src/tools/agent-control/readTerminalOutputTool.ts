@@ -4,12 +4,13 @@
  */
 
 import {
-    getHeadlessAgentOutput,
-    getOutput,
-    getPendingTerminal,
-    getTerminalRecords,
+    findTerminalRecord,
+    getPendingTerminalState,
+    readHeadlessTerminalOutput,
+    readInteractiveTerminalOutput,
+    terminalExists,
     type TerminalRecord,
-} from '@vt/agent-runtime'
+} from './agentControlRuntime'
 import {type McpToolResponse, buildJsonResponse} from '../../core/types'
 
 export interface ReadTerminalOutputParams {
@@ -24,8 +25,7 @@ export async function readTerminalOutputTool({
     nChars = 10000
 }: ReadTerminalOutputParams): Promise<McpToolResponse> {
     // 1. Validate caller terminal exists
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
-    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+    if (!terminalExists(callerTerminalId)) {
         return buildJsonResponse({
             success: false,
             error: `Unknown caller terminal: ${callerTerminalId}`
@@ -33,14 +33,12 @@ export async function readTerminalOutputTool({
     }
 
     // 2. Find the target terminal
-    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
-        (r: TerminalRecord) => r.terminalId === terminalId
-    )
+    const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId)
 
     if (!targetRecord) {
         // 2a. Pending terminal: spawn returned, but the PTY/process isn't registered yet.
         // No output to report — return empty with pending=true so caller can poll/retry.
-        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminal(terminalId)
+        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminalState(terminalId)
         if (pending) {
             return buildJsonResponse({
                 success: true,
@@ -59,18 +57,17 @@ export async function readTerminalOutputTool({
 
     // 2b. Headless agents: return captured stdout+stderr ring buffer instead of PTY output
     if (targetRecord.terminalData.isHeadless) {
-        const headlessOutput: string = getHeadlessAgentOutput(terminalId)
         return buildJsonResponse({
             success: true,
             terminalId,
             nChars,
-            output: headlessOutput.slice(-nChars),
+            output: readHeadlessTerminalOutput(terminalId).slice(-nChars),
             isHeadless: true
         })
     }
 
     // 3. Get output from character buffer
-    const output: string | undefined = getOutput(terminalId, nChars)
+    const output: string | undefined = readInteractiveTerminalOutput(terminalId, nChars)
 
     if (output === undefined) {
         return buildJsonResponse({

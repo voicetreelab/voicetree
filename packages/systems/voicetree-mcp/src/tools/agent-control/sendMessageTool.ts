@@ -4,12 +4,13 @@
  */
 
 import {
-    enqueuePendingMessage,
-    getPendingTerminal,
-    getTerminalRecords,
-    sendTextToTerminal,
+    enqueuePendingTerminalMessage,
+    findTerminalRecord,
+    getPendingTerminalState,
+    sendTerminalText,
+    terminalExists,
     type TerminalRecord,
-} from '@vt/agent-runtime'
+} from './agentControlRuntime'
 import {type McpToolResponse, buildJsonResponse} from '../../core/types'
 
 function buildPrefixedMessage(callerTerminalId: string, message: string): string {
@@ -28,8 +29,7 @@ export async function sendMessageTool({
     callerTerminalId
 }: SendMessageParams): Promise<McpToolResponse> {
     // 1. Validate caller terminal exists
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
-    if (!terminalRecords.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
+    if (!terminalExists(callerTerminalId)) {
         return buildJsonResponse({
             success: false,
             error: `Unknown caller terminal: ${callerTerminalId}`
@@ -37,14 +37,12 @@ export async function sendMessageTool({
     }
 
     // 2. Find the target terminal
-    const targetRecord: TerminalRecord | undefined = terminalRecords.find(
-        (r: TerminalRecord) => r.terminalId === terminalId
-    )
+    const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId)
 
     if (!targetRecord) {
         // 2a. Pending terminal: spawn returned, but the PTY/process isn't registered yet.
         // Queue interactive messages; reject headless (same contract as a running headless).
-        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminal(terminalId)
+        const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminalState(terminalId)
         if (pending) {
             if (pending.isHeadless) {
                 return buildJsonResponse({
@@ -52,7 +50,7 @@ export async function sendMessageTool({
                     error: `Cannot send message to headless agent "${terminalId}". Headless agents have no terminal input. They receive work via their task node and produce output as graph nodes. Use get_unseen_nodes_nearby to read their output.`
                 }, true)
             }
-            enqueuePendingMessage(terminalId, buildPrefixedMessage(callerTerminalId, message))
+            enqueuePendingTerminalMessage(terminalId, buildPrefixedMessage(callerTerminalId, message))
             return buildJsonResponse({
                 success: true,
                 terminalId,
@@ -77,7 +75,7 @@ export async function sendMessageTool({
     // 3. Send message to terminal with sender prefix
     try {
         const prefixedMessage: string = buildPrefixedMessage(callerTerminalId, message)
-        const result: Awaited<ReturnType<typeof sendTextToTerminal>> = await sendTextToTerminal(terminalId, prefixedMessage)
+        const result: Awaited<ReturnType<typeof sendTerminalText>> = await sendTerminalText(terminalId, prefixedMessage)
 
         if (!result.success) {
             return buildJsonResponse({

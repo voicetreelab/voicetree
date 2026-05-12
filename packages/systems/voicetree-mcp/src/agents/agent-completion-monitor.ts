@@ -8,12 +8,12 @@
 
 import type {Graph} from '@vt/graph-model/graph'
 import {
-    getHeadlessAgentOutput,
-    getPendingTerminal,
-    getTerminalRecords,
-    sendTextToTerminal,
+    getPendingTerminalState,
+    listTerminalRecordsSnapshot,
+    readHeadlessTerminalOutput,
+    sendTerminalText,
     type TerminalRecord,
-} from '@vt/agent-runtime'
+} from './agentCompletionRuntime'
 import {isAgentComplete, getAgentStatus} from './isAgentComplete'
 import {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
 import {getAgentNodes, type AgentNodeEntry} from './agentNodeIndex'
@@ -58,11 +58,6 @@ const defaultAgentCompletionMonitorDeps: AgentCompletionMonitorDeps = {
     getNewNodesForAgent,
 }
 
-function getTerminalRecordsSnapshot(): TerminalRecord[] {
-    const records: unknown = getTerminalRecords()
-    return Array.isArray(records) ? records : []
-}
-
 export function startMonitor(
     callerTerminalId: string,
     terminalIds: string[],
@@ -75,7 +70,7 @@ export function startMonitor(
     const intervalId: ReturnType<typeof setInterval> = deps.setInterval(() => { void (async () => {
         try {
         const now: number = deps.now()
-        const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
+        const currentRecords: TerminalRecord[] = listTerminalRecordsSnapshot()
         const targetRecords: TerminalRecord[] = currentRecords.filter(
             (r: TerminalRecord) => effectiveIds.includes(r.terminalId)
         )
@@ -89,8 +84,8 @@ export function startMonitor(
         // Pending terminals (spawn_agent returned but recordTerminalSpawn hasn't fired yet)
         // are still mid-startup, NOT vanished — wait for them. Truly-missing IDs (neither
         // running nor pending) keep their original "treat as complete" semantics.
-        const stillPendingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminal(id) !== undefined)
-        const missingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminal(id) === undefined)
+        const stillPendingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminalState(id) !== undefined)
+        const missingIds: string[] = unfoundIds.filter((id: string) => getPendingTerminalState(id) === undefined)
 
         if (stillPendingIds.length > 0) {
             return // Wait for pending spawns to either register or be cleared.
@@ -108,7 +103,7 @@ export function startMonitor(
                     const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
                     const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
                     if (indexNodes.length === 0 && graphNodes.length === 0) {
-                        void sendTextToTerminal(r.terminalId,
+                        void sendTerminalText(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
                             'Please create progress nodes documenting your work. Read addProgressTree.md for guidance.\n\n'
                         )
@@ -126,7 +121,7 @@ export function startMonitor(
                 ]
                 const failed: boolean = r.exitCode !== null && r.exitCode !== 0
                 const lastOutput: string | undefined = failed
-                    ? getHeadlessAgentOutput(r.terminalId).slice(-200).trim() || undefined
+                    ? readHeadlessTerminalOutput(r.terminalId).slice(-200).trim() || undefined
                     : undefined
                 return {
                     terminalId: r.terminalId,
@@ -151,7 +146,7 @@ export function startMonitor(
 
             const stillWaitingOn: string[] = await getPendingAgentNamesForCaller(callerTerminalId, monitorId)
             const message: string = buildCompletionMessage(results, stillWaitingOn)
-            void sendTextToTerminal(callerTerminalId, message)
+            void sendTerminalText(callerTerminalId, message)
 
             deps.clearInterval(intervalId)
             monitors.delete(monitorId)
@@ -187,7 +182,7 @@ export function registerChildIfMonitored(
  * Called once in startMonitor to catch children spawned before the monitor was created.
  */
 function findExistingDescendants(parentIds: string[]): string[] {
-    const records: TerminalRecord[] = getTerminalRecordsSnapshot()
+    const records: TerminalRecord[] = listTerminalRecordsSnapshot()
     const watched: Set<string> = new Set(parentIds)
     const descendants: string[] = []
     let changed: boolean = true
@@ -210,7 +205,7 @@ function findExistingDescendants(parentIds: string[]): string[] {
  * Used by auto-wait to show "Still waiting on: X, Y" hints in per-agent completion messages.
  */
 export async function getPendingAgentNamesForCaller(callerTerminalId: string, excludeMonitorId: string): Promise<string[]> {
-    const currentRecords: TerminalRecord[] = getTerminalRecordsSnapshot()
+    const currentRecords: TerminalRecord[] = listTerminalRecordsSnapshot()
     const graph: Graph = await getMcpGraph()
     const now: number = Date.now()
     const names: string[] = []

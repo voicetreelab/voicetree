@@ -4,12 +4,12 @@
  * The monitor polls agent completion and notifies the caller terminal when all agents are done.
  */
 
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {type McpToolResponse, buildJsonResponse} from '../../core/types'
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
 } from '../../agents/agent-completion-monitor'
+import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 export interface WaitForAgentsParams {
     terminalIds: string[]
@@ -23,7 +23,7 @@ export function waitForAgentsTool({
     pollIntervalMs = 5000,
 }: WaitForAgentsParams): McpToolResponse {
     // 1. Validate caller terminal exists
-    const records: TerminalRecord[] = getTerminalRecords()
+    const records: TerminalRecord[] = listTerminalRecords()
     if (!records.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {
         return buildJsonResponse({success: false, error: `Unknown caller: ${callerTerminalId}`}, true)
     }

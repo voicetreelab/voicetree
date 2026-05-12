@@ -5,7 +5,6 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../../core/types'
@@ -13,6 +12,7 @@ import {getNewNodesForAgent} from '../../agents/getNewNodesForAgent'
 import {getAgentNodes} from '../../agents/agentNodeIndex'
 import * as O from 'fp-ts/lib/Option.js'
 import {getMcpGraph} from '../../config/mcp-graph-bridge'
+import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
     const graph: Graph = await getMcpGraph()
@@ -30,7 +30,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         taskNodePath: string | null
     }> = []
 
-    const terminalRecords: TerminalRecord[] = getTerminalRecords()
+    const terminalRecords: TerminalRecord[] = listTerminalRecords()
     for (const record of terminalRecords) {
         if (record.terminalData.executeCommand !== true) {
             continue
