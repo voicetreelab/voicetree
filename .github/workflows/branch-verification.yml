@@ -7,6 +7,7 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'knip.config.ts'
       - 'scripts/**'
       - 'packages/**'
       - 'webapp/**'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'knip.config.ts'
       - 'scripts/**'
       - 'packages/**'
       - 'webapp/**'
@@ -31,7 +33,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  static-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Codebase health gate
+        run: npm run health
+
   browser-smoke:
+    needs: [static-gates]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -81,6 +106,7 @@ jobs:
         run: xvfb-run --auto-servernum npm --workspace webapp run test:e2e
 
   electron-smoke:
+    needs: [static-gates]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

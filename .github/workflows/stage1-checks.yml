@@ -5,6 +5,7 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'knip.config.ts'
       - 'packages/**'
       - 'webapp/**'
       - 'scripts/**'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'knip.config.ts'
       - 'packages/**'
       - 'webapp/**'
       - 'scripts/**'
@@ -58,23 +60,8 @@ jobs:
         continue-on-error: true
         run: npm run lint:blackbox-tests
 
-      - name: Purity ratio gate (AST)
-        run: npx vitest run packages/systems/purity-ratio-ast.test.ts
-
-      - name: Boundary complexity gate
-        run: npx vitest run packages/systems/boundary-complexity.test.ts
-
-      - name: Dead code check (unused files + exports)
-        run: npm run check:dead-code
-
-      - name: E2E taxonomy check
-        run: npm run check:e2e-taxonomy
-
-      - name: Circular dependency check
-        run: npm run check:circular-deps
-
-      - name: Cross-package coupling check
-        run: npm run check:coupling
+      - name: Codebase health gate
+        run: npm run health
 
   unit-tests:
     name: Unit & Integration Tests

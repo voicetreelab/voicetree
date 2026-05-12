@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
     paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'knip.config.ts'
       - 'webapp/package.json'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -28,14 +31,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Tests skipped
-        run: |
-          echo "Tests disabled - pass locally but fail in CI due to environment differences:"
-          echo "- vitest: AgentStatsPanel.test.tsx (15), folder-loading.test.ts (5), positioning-spacing.test.ts (1)"
-          echo "- test:smoke: OOM crash during electron-vite build"
-          echo "- test:browser: search-navigation (2), undo-redo-scope (1), editor-cmd-a-select-all (1)"
-          echo ""
-          echo "TODO: Debug CI environment issues or increase CI resources"
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Codebase health gate
+        run: npm run health
 
   check-version:
     needs: [test]
@@ -471,4 +482,3 @@ jobs:
           git add -A
           git commit -m "Update Voicetree to v$VERSION" || echo "No changes"
           git push
-

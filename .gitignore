@@ -51,6 +51,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 coverage.json
+stryker-*.json
 *.cover
 *.py,cover
 .hypothesis/

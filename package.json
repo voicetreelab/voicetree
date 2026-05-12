@@ -6,12 +6,18 @@
     "packages/systems/*"
   ],
   "scripts": {
-    "test": "npm run test:codebase-health && npm --workspace webapp run test && npm run check:dead-code && npm run check:e2e-taxonomy && npm run check:circular-deps && npm run check:coupling",
-    "test:codebase-health": "npx vitest run packages/systems/purity-ratio-ast.test.ts packages/systems/purity-ratio.test.ts packages/systems/function-health.test.ts packages/systems/codebase-shape.test.ts packages/systems/boundary-complexity.test.ts packages/systems/cognitive-complexity.test.ts packages/systems/cross-package-coupling.test.ts packages/systems/change-coupling.test.ts packages/systems/hypergraph-complexity.test.ts packages/systems/treewidth-coupling.test.ts packages/systems/dsm-compression.test.ts packages/systems/dsm-matrix.test.ts packages/systems/graph-entropy.test.ts packages/systems/martin-metrics.test.ts packages/systems/modularity-q.test.ts packages/systems/package-boundaries.test.ts packages/systems/turbulence.test.ts packages/systems/gate-integrity.test.ts",
-    "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests && npm run check:circular-deps && npm run check:coupling",
+    "test": "npm run health && npm --workspace webapp run test",
+    "test:codebase-health": "vitest run packages/systems/purity-ratio-ast.test.ts packages/systems/purity-ratio.test.ts packages/systems/function-health.test.ts packages/systems/codebase-shape.test.ts packages/systems/boundary-complexity.test.ts packages/systems/cognitive-complexity.test.ts packages/systems/cross-package-coupling.test.ts packages/systems/change-coupling.test.ts packages/systems/hypergraph-complexity.test.ts packages/systems/treewidth-coupling.test.ts packages/systems/dsm-compression.test.ts packages/systems/dsm-matrix.test.ts packages/systems/graph-entropy.test.ts packages/systems/martin-metrics.test.ts packages/systems/modularity-q.test.ts packages/systems/package-boundaries.test.ts packages/systems/turbulence.test.ts packages/systems/gate-integrity.test.ts",
+    "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests && npm run health",
     "check:circular-deps": "node scripts/check-circular-deps.mjs",
     "check:coupling": "node scripts/check-coupling.mjs",
     "check:e2e-taxonomy": "npm --workspace webapp run check:e2e-taxonomy",
+    "health": "npm run test:codebase-health && npm run check:dead-code && npm run check:e2e-taxonomy && npm run check:circular-deps && npm run check:coupling && npm run health:duplication",
+    "health:duplication": "jscpd --config .jscpd.json backend cloud_functions packages scripts tools webapp/src",
+    "health:duplication:report": "jscpd --config .jscpd.json --threshold 100 backend cloud_functions packages scripts tools webapp/src",
+    "health:complexity": "node scripts/check-complexity-health.mjs",
+    "health:complexity:report": "node scripts/check-complexity-health.mjs --report-only",
+    "health:mutation": "npm --workspace @vt/graph-state run test:mutation:smoke",
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/libraries/graph-model/**/*.{ts,tsx}\" \"packages/libraries/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
     "lint:verify-cytoscape-rules": "node scripts/verify-cytoscape-lint-rules.mjs",
     "lint:blackbox-tests": "bash scripts/lint-blackbox-tests.sh",
@@ -19,14 +25,16 @@
     "test:e2e:tier2": "npm --workspace webapp run test:e2e:tier2",
     "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
     "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron",
-    "check:dead-code": "knip --no-progress --include files,exports"
+    "check:dead-code": "knip --no-progress --no-config-hints --include files,exports"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
+    "jscpd": "^4.1.1",
     "jsdom": "^27.0.0",
-    "knip": "^6.12.1"
+    "knip": "^6.12.1",
+    "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
 }
