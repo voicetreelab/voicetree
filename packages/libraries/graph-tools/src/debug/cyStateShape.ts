@@ -34,8 +34,6 @@ export type CyDump = {
   selection: string[]
 }
 
-export type CySource = 'data' | 'projected' | 'rendered' | 'all'
-
 function splitClasses(raw: unknown): string[] {
   if (typeof raw !== 'string' || !raw.trim()) return []
   return raw.trim().split(/\s+/)

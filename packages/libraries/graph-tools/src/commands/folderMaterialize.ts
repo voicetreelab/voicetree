@@ -5,6 +5,12 @@ import { resolveDebugInstance } from '../debug/portResolution'
 import { err, ok } from '../debug/Response'
 import { openDebugSession, type PageLike as SessionPageLike } from '../debug/playwrightSession'
 import type { Response } from '../debug/Response'
+import {
+  consumeDebugTargetFlag,
+  parseIntegerFlag,
+  readFlagValue,
+  type DebugTargetArgs,
+} from './argv'
 import { registerCommand } from './index'
 
 interface PageLike extends SessionPageLike {
@@ -93,21 +99,6 @@ function usage(message?: string): Response<never> {
   )
 }
 
-function readFlagValue(flag: string, value: string | undefined): string {
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${flag} requires a value`)
-  }
-  return value
-}
-
-function parseNumber(flag: string, value: string | undefined): number {
-  const parsed = Number.parseInt(readFlagValue(flag, value), 10)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} requires an integer`)
-  }
-  return parsed
-}
-
 function withTrailingSlash(value: string): string {
   return value.endsWith(path.sep) ? value : `${value}${path.sep}`
 }
@@ -136,10 +127,8 @@ export function parseArgs(argv: string[]): FolderMaterializeOptions | Response<n
   let folder: string | undefined
   let keepFixture = false
   let marker: string | undefined
-  let pid: number | undefined
-  let port: number | undefined
   let timeoutMs = DEFAULT_TIMEOUT_MS
-  let vault: string | undefined
+  const target: DebugTargetArgs = {}
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -153,25 +142,17 @@ export function parseArgs(argv: string[]): FolderMaterializeOptions | Response<n
       } else if (arg.startsWith('--marker=')) {
         marker = readFlagValue('--marker', arg.slice('--marker='.length))
       } else if (arg === '--timeout-ms') {
-        timeoutMs = parseNumber('--timeout-ms', argv[++i])
+        timeoutMs = parseIntegerFlag('--timeout-ms', argv[++i])
       } else if (arg.startsWith('--timeout-ms=')) {
-        timeoutMs = parseNumber('--timeout-ms', arg.slice('--timeout-ms='.length))
+        timeoutMs = parseIntegerFlag('--timeout-ms', arg.slice('--timeout-ms='.length))
       } else if (arg === '--keep-fixture') {
         keepFixture = true
-      } else if (arg === '--port' || arg === '--cdpPort') {
-        port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
-        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
-      } else if (arg === '--pid') {
-        pid = parseNumber('--pid', argv[++i])
-      } else if (arg.startsWith('--pid=')) {
-        pid = parseNumber('--pid', arg.slice('--pid='.length))
-      } else if (arg === '--vault') {
-        vault = path.resolve(readFlagValue('--vault', argv[++i]))
-      } else if (arg.startsWith('--vault=')) {
-        vault = path.resolve(readFlagValue('--vault', arg.slice('--vault='.length)))
       } else {
-        return usage(`unknown argument: ${arg}`)
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target, { resolveVault: true })
+        if (!debugTargetFlag.matched) {
+          return usage(`unknown argument: ${arg}`)
+        }
+        i = debugTargetFlag.nextIndex
       }
     }
   } catch (e) {
@@ -186,10 +167,10 @@ export function parseArgs(argv: string[]): FolderMaterializeOptions | Response<n
     ...(folder ? { folder: withTrailingSlash(folder) } : {}),
     keepFixture,
     ...(marker ? { marker } : {}),
-    ...(pid !== undefined ? { pid } : {}),
-    ...(port !== undefined ? { port } : {}),
+    ...(target.pid !== undefined ? { pid: target.pid } : {}),
+    ...(target.port !== undefined ? { port: target.port } : {}),
     timeoutMs,
-    ...(vault ? { vault } : {}),
+    ...(target.vault ? { vault: target.vault } : {}),
   }
 }
 

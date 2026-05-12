@@ -7,6 +7,7 @@ import { openDebugSession } from '../debug/playwrightSession'
 import { resolveDebugInstance } from '../debug/portResolution'
 import { err, ok } from '../debug/Response'
 import type { Response } from '../debug/Response'
+import { consumeDebugTargetFlag, type DebugTargetArgs } from './argv'
 import { registerCommand } from './index'
 
 type ConsoleLevel = 'log' | 'info' | 'warn' | 'error' | 'debug'
@@ -326,21 +327,6 @@ function usage(message?: string): Response<never> {
   )
 }
 
-function readFlagValue(flag: string, value: string | undefined): string {
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${flag} requires a value`)
-  }
-  return value
-}
-
-function parseNumber(flag: string, value: string | undefined): number {
-  const parsed = Number.parseInt(readFlagValue(flag, value), 10)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} requires an integer`)
-  }
-  return parsed
-}
-
 function defaultScreenshotPath(): string {
   return path.join('/tmp', 'vt-debug', 'node-click', `${Date.now()}.png`)
 }
@@ -434,28 +420,17 @@ export function selectButton<T extends { label: string }>(
 
 function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
   const positional: string[] = []
-  let port: number | undefined
-  let pid: number | undefined
-  let vault: string | undefined
-  let forceNew: boolean | undefined
+  const target: DebugTargetArgs = {}
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
       const arg = argv[i]
-      if (arg === '--port' || arg === '--cdpPort') {
-        port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
-        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
-      } else if (arg === '--pid') {
-        pid = parseNumber('--pid', argv[++i])
-      } else if (arg.startsWith('--pid=')) {
-        pid = parseNumber('--pid', arg.slice('--pid='.length))
-      } else if (arg === '--vault') {
-        vault = readFlagValue('--vault', argv[++i])
-      } else if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
-      } else if (arg.startsWith('--')) {
-        return usage(`unknown flag: ${arg}`)
+      if (arg.startsWith('--')) {
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target)
+        if (!debugTargetFlag.matched) {
+          return usage(`unknown flag: ${arg}`)
+        }
+        i = debugTargetFlag.nextIndex
       } else {
         positional.push(arg)
       }
@@ -471,9 +446,9 @@ function parseArgs(argv: string[]): NodeClickOptions | Response<never> {
   return {
     nodeId: positional[0],
     buttonRef: positional[1],
-    port,
-    pid,
-    vault,
+    port: target.port,
+    pid: target.pid,
+    vault: target.vault,
   }
 }
 

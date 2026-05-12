@@ -17,6 +17,12 @@ import {
   type StepSpec,
 } from '../debug/stepShape'
 import { createLiveTransport } from '../liveTransport'
+import {
+  consumeDebugTargetFlag,
+  parseBooleanFlag,
+  readFlagValue,
+  type DebugTargetArgs,
+} from './argv'
 import { registerCommand } from './index'
 
 const DEFAULT_RUN_DIR = '/tmp/vt-debug/run'
@@ -245,28 +251,6 @@ function usage(message?: string): Response<never> {
   )
 }
 
-function readFlagValue(flag: string, value: string | undefined): string {
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${flag} requires a value`)
-  }
-  return value
-}
-
-function parseNumber(flag: string, value: string | undefined): number {
-  const parsed = Number.parseInt(readFlagValue(flag, value), 10)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} requires an integer`)
-  }
-  return parsed
-}
-
-function parseBoolean(flag: string, value: string | undefined): boolean {
-  const raw = readFlagValue(flag, value)
-  if (raw === 'true') return true
-  if (raw === 'false') return false
-  throw new Error(`${flag} must be true or false`)
-}
-
 export function parseRunArgs(argv: string[]): RunOptions | Response<never> {
   let specSource: string | undefined
   let screenshotEach = false
@@ -275,9 +259,7 @@ export function parseRunArgs(argv: string[]): RunOptions | Response<never> {
   let stateEach = false
   let stopOnError = true
   let outDir = path.join(DEFAULT_RUN_DIR, String(Date.now()))
-  let port: number | undefined
-  let pid: number | undefined
-  let vault: string | undefined
+  const target: DebugTargetArgs = {}
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -291,27 +273,19 @@ export function parseRunArgs(argv: string[]): RunOptions | Response<never> {
       } else if (arg === '--state-each') {
         stateEach = true
       } else if (arg === '--stop-on-error') {
-        stopOnError = parseBoolean('--stop-on-error', argv[++i])
+        stopOnError = parseBooleanFlag('--stop-on-error', argv[++i])
       } else if (arg.startsWith('--stop-on-error=')) {
-        stopOnError = parseBoolean('--stop-on-error', arg.slice('--stop-on-error='.length))
+        stopOnError = parseBooleanFlag('--stop-on-error', arg.slice('--stop-on-error='.length))
       } else if (arg === '--out') {
         outDir = path.resolve(readFlagValue('--out', argv[++i]))
       } else if (arg.startsWith('--out=')) {
         outDir = path.resolve(readFlagValue('--out', arg.slice('--out='.length)))
-      } else if (arg === '--port' || arg === '--cdpPort') {
-        port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
-        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
-      } else if (arg === '--pid') {
-        pid = parseNumber('--pid', argv[++i])
-      } else if (arg.startsWith('--pid=')) {
-        pid = parseNumber('--pid', arg.slice('--pid='.length))
-      } else if (arg === '--vault') {
-        vault = readFlagValue('--vault', argv[++i])
-      } else if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
       } else if (arg.startsWith('--')) {
-        return usage(`unknown argument: ${arg}`)
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target)
+        if (!debugTargetFlag.matched) {
+          return usage(`unknown argument: ${arg}`)
+        }
+        i = debugTargetFlag.nextIndex
       } else if (specSource === undefined) {
         specSource = arg
       } else {
@@ -334,9 +308,9 @@ export function parseRunArgs(argv: string[]): RunOptions | Response<never> {
     stateEach,
     stopOnError,
     outDir,
-    port,
-    pid,
-    vault,
+    port: target.port,
+    pid: target.pid,
+    vault: target.vault,
   }
 }
 

@@ -4,6 +4,12 @@ import { pressChord } from '../debug/pressChord'
 import { err, ok } from '../debug/Response'
 import { openDebugSession, type PageLike } from '../debug/playwrightSession'
 import type { Response } from '../debug/Response'
+import {
+  consumeDebugTargetFlag,
+  parseIntegerFlag,
+  readFlagValue,
+  type DebugTargetArgs,
+} from './argv'
 import { registerCommand } from './index'
 
 type ActiveElementInfo = {
@@ -75,29 +81,11 @@ function usage(message?: string): Response<never> {
   )
 }
 
-function readFlagValue(flag: string, value: string | undefined): string {
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${flag} requires a value`)
-  }
-  return value
-}
-
-function parseNumber(flag: string, value: string | undefined): number {
-  const parsed = Number.parseInt(readFlagValue(flag, value), 10)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} requires an integer`)
-  }
-  return parsed
-}
-
 function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
   const positional: string[] = []
   let selector: string | undefined
   let delayMs: number | undefined
-  let port: number | undefined
-  let pid: number | undefined
-  let vault: string | undefined
-  let forceNew: boolean | undefined
+  const target: DebugTargetArgs = {}
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -107,25 +95,15 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
       } else if (arg.startsWith('--selector=')) {
         selector = readFlagValue('--selector', arg.slice('--selector='.length))
       } else if (arg === '--delay-ms') {
-        delayMs = parseNumber('--delay-ms', argv[++i])
+        delayMs = parseIntegerFlag('--delay-ms', argv[++i])
       } else if (arg.startsWith('--delay-ms=')) {
-        delayMs = parseNumber('--delay-ms', arg.slice('--delay-ms='.length))
-      } else if (arg === '--port' || arg === '--cdpPort') {
-        port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
-        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
-      } else if (arg === '--pid') {
-        pid = parseNumber('--pid', argv[++i])
-      } else if (arg.startsWith('--pid=')) {
-        pid = parseNumber('--pid', arg.slice('--pid='.length))
-      } else if (arg === '--vault') {
-        vault = readFlagValue('--vault', argv[++i])
-      } else if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
-      } else if (arg === '--new') {
-        forceNew = true
+        delayMs = parseIntegerFlag('--delay-ms', arg.slice('--delay-ms='.length))
       } else if (arg.startsWith('--')) {
-        return usage(`unknown argument: ${arg}`)
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target, { allowForceNew: true })
+        if (!debugTargetFlag.matched) {
+          return usage(`unknown argument: ${arg}`)
+        }
+        i = debugTargetFlag.nextIndex
       } else {
         positional.push(arg)
       }
@@ -141,16 +119,13 @@ function parseTypeArgs(argv: string[]): TypeOpts | Response<never> {
     return usage('keyboard type requires text')
   }
 
-  return { text, selector, delayMs, port, pid, vault, forceNew }
+  return { text, selector, delayMs, ...target }
 }
 
 function parsePressArgs(argv: string[]): PressOpts | Response<never> {
   const positional: string[] = []
   let selector: string | undefined
-  let port: number | undefined
-  let pid: number | undefined
-  let vault: string | undefined
-  let forceNew: boolean | undefined
+  const target: DebugTargetArgs = {}
 
   try {
     for (let i = 0; i < argv.length; i += 1) {
@@ -159,22 +134,12 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
         selector = readFlagValue('--selector', argv[++i])
       } else if (arg.startsWith('--selector=')) {
         selector = readFlagValue('--selector', arg.slice('--selector='.length))
-      } else if (arg === '--port' || arg === '--cdpPort') {
-        port = parseNumber('--port', argv[++i])
-      } else if (arg.startsWith('--port=') || arg.startsWith('--cdpPort=')) {
-        port = parseNumber('--port', arg.slice(arg.indexOf('=') + 1))
-      } else if (arg === '--pid') {
-        pid = parseNumber('--pid', argv[++i])
-      } else if (arg.startsWith('--pid=')) {
-        pid = parseNumber('--pid', arg.slice('--pid='.length))
-      } else if (arg === '--vault') {
-        vault = readFlagValue('--vault', argv[++i])
-      } else if (arg.startsWith('--vault=')) {
-        vault = readFlagValue('--vault', arg.slice('--vault='.length))
-      } else if (arg === '--new') {
-        forceNew = true
       } else if (arg.startsWith('--')) {
-        return usage(`unknown argument: ${arg}`)
+        const debugTargetFlag = consumeDebugTargetFlag(argv, i, target, { allowForceNew: true })
+        if (!debugTargetFlag.matched) {
+          return usage(`unknown argument: ${arg}`)
+        }
+        i = debugTargetFlag.nextIndex
       } else {
         positional.push(arg)
       }
@@ -187,7 +152,7 @@ function parsePressArgs(argv: string[]): PressOpts | Response<never> {
     return usage('keyboard press requires one chord argument')
   }
 
-  return { chord: positional[0], selector, port, pid, vault, forceNew }
+  return { chord: positional[0], selector, ...target }
 }
 
 async function readActiveElement(page: PageLike): Promise<ActiveElementInfo> {
