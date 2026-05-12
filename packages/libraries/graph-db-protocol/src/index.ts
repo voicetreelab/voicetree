@@ -201,3 +201,9 @@ export const AddReadPathRequestSchema = z.object({
   path: z.string(),
 })
 export type AddReadPathRequest = z.infer<typeof AddReadPathRequestSchema>
+
+export const UnseenNodeSchema = z.object({
+  nodeId: z.string(),
+  content: z.string(),
+})
+export type UnseenNode = z.infer<typeof UnseenNodeSchema>

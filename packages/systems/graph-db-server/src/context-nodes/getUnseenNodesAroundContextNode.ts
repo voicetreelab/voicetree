@@ -3,14 +3,7 @@ import { getSubgraphByDistance } from '@vt/graph-model/graph'
 import { getGraph } from '../state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
 import { type VTSettings } from '@vt/graph-model/settings'
-
-/**
- * Result type for unseen nodes
- */
-export interface UnseenNode {
-    readonly nodeId: NodeIdAndFilePath
-    readonly content: string
-}
+import type { UnseenNode } from '@vt/graph-db-protocol'
 
 /**
  * Gets nodes around a context node that weren't included in the original context.
