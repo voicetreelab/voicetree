@@ -6,7 +6,6 @@ const config: KnipConfig = {
             entry: [
                 'scripts/*.mjs',
                 'scripts/*.cjs',
-                'vitest.config.ts',
                 'vitest.config.fuzz.ts',
                 'packages/systems/*.test.ts',
             ],
@@ -47,9 +46,6 @@ const config: KnipConfig = {
     },
     exclude: ['duplicates'],
     ignoreExportsUsedInFile: true,
-    ignoreDependencies: [
-        '@electron/rebuild',
-    ],
 }
 
 export default config
