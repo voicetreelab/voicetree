@@ -2,7 +2,13 @@ import path from 'path'
 import normalizePath from 'normalize-path'
 import type {ComplexityScore} from '@vt/graph-tools/node'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {OverrideEntry} from './createGraphValidation'
+
+export type ValidationRuleId = 'grandparent_attachment' | 'node_line_limit'
+
+export interface OverrideEntry {
+    readonly ruleId: ValidationRuleId
+    readonly rationale: string
+}
 
 export type ParentRef = { readonly filename: string; readonly edgeLabel: string }
 
