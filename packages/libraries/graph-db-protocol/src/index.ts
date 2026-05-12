@@ -32,15 +32,64 @@ export type SessionCreateResponse = z.infer<typeof SessionCreateResponseSchema>
 export const SessionInfoSchema = z.object({
   id: SessionIdSchema,
   lastAccessedAt: z.number().int().nonnegative(),
-  collapseSetSize: z.number().int().nonnegative(),
+  folderStateSize: z.number().int().nonnegative(),
   selectionSize: z.number().int().nonnegative(),
 })
 export type SessionInfo = z.infer<typeof SessionInfoSchema>
 
-export const CollapseStateResponseSchema = z.object({
-  collapseSet: z.array(z.string()),
+export const FolderStateSchema = z.enum(['expanded', 'collapsed', 'hidden'])
+export type FolderState = z.infer<typeof FolderStateSchema>
+
+export const FolderStateEntrySchema = z.tuple([z.string(), FolderStateSchema])
+export type FolderStateEntry = z.infer<typeof FolderStateEntrySchema>
+
+export const ActiveViewSchema = z.object({
+  viewId: z.string().min(1),
+  name: z.string(),
 })
-export type CollapseStateResponse = z.infer<typeof CollapseStateResponseSchema>
+export type ActiveView = z.infer<typeof ActiveViewSchema>
+
+export const FolderStateResponseSchema = z.object({
+  folderState: z.array(FolderStateEntrySchema),
+  activeView: ActiveViewSchema,
+})
+export type FolderStateResponse = z.infer<typeof FolderStateResponseSchema>
+
+export const FolderStatePatchRequestSchema = z.object({
+  state: FolderStateSchema,
+})
+export type FolderStatePatchRequest = z.infer<typeof FolderStatePatchRequestSchema>
+
+export const FolderStateBatchUpdateSchema = z.object({
+  path: z.string().min(1),
+  state: FolderStateSchema,
+})
+export type FolderStateBatchUpdate = z.infer<typeof FolderStateBatchUpdateSchema>
+
+export const FolderStateBatchRequestSchema = z.object({
+  updates: z.array(FolderStateBatchUpdateSchema).min(1),
+})
+export type FolderStateBatchRequest = z.infer<typeof FolderStateBatchRequestSchema>
+
+export const ViewRecordSchema = z.object({
+  viewId: z.string().min(1),
+  name: z.string(),
+  isActive: z.boolean(),
+})
+export type ViewRecord = z.infer<typeof ViewRecordSchema>
+
+export const ListViewsResponseSchema = z.array(ViewRecordSchema)
+export type ListViewsResponse = z.infer<typeof ListViewsResponseSchema>
+
+export const CreateViewRequestSchema = z.object({
+  name: z.string().min(1),
+})
+export type CreateViewRequest = z.infer<typeof CreateViewRequestSchema>
+
+export const CloneViewRequestSchema = z.object({
+  name: z.string().min(1),
+})
+export type CloneViewRequest = z.infer<typeof CloneViewRequestSchema>
 
 export const ViewResponseSchema = z.object({
   output: z.string(),
@@ -110,10 +159,10 @@ export const LiveStateSnapshotSchema = z.object({
     })
     .passthrough(),
   roots: z.object({
-    loaded: z.array(z.string()),
     folderTree: z.array(z.unknown()),
   }),
-  collapseSet: z.array(z.string()),
+  folderState: z.array(FolderStateEntrySchema),
+  activeView: ActiveViewSchema,
   selection: z.array(z.string()),
   layout: z.object({
     positions: z.array(z.tuple([z.string(), PositionSchema])),
@@ -137,11 +186,6 @@ export const VaultStateSchema = z.object({
   writePath: z.string(),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
-
-export const AddReadPathRequestSchema = z.object({
-  path: z.string(),
-})
-export type AddReadPathRequest = z.infer<typeof AddReadPathRequestSchema>
 
 export const SetWritePathRequestSchema = z.object({
   path: z.string(),
