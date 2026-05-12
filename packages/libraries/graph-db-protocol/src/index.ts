@@ -166,6 +166,7 @@ export const LiveStateSnapshotSchema = z.object({
   roots: z.object({
     folderTree: z.array(z.unknown()),
   }),
+  collapseSet: z.array(z.string()),
   folderState: z.array(FolderStateEntrySchema),
   activeView: ActiveViewSchema,
   selection: z.array(z.string()),

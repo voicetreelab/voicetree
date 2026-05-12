@@ -17,6 +17,7 @@ import {
 } from '../daemon/contract.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectSessionState } from '../session/project.ts'
+import { getFolderStateForActiveView } from '../views/folderStateOps.ts'
 
 function resolveWritePath(
   writePathOption: Awaited<ReturnType<typeof getWritePath>>,
@@ -52,6 +53,17 @@ function omitGraphNodeContent(snapshot: LiveStateSnapshot): LiveStateSnapshot {
       ),
     },
   }
+}
+
+function readFolderVisibilitySnapshot(vaultPath: string): Pick<LiveStateSnapshot, 'folderState' | 'activeView'> {
+  if (!vaultPath) {
+    return {
+      folderState: [],
+      activeView: { viewId: 'main', name: 'main' },
+    }
+  }
+
+  return getFolderStateForActiveView(vaultPath)
 }
 
 export function mountSessionStateRoutes(
@@ -93,7 +105,10 @@ export function mountSessionStateRoutes(
     }
 
     const snapshot = projectSessionState({ graph, vault, folderTree, session })
-    const body = LiveStateSnapshotSchema.parse(serializeState(snapshot))
+    const body = LiveStateSnapshotSchema.parse({
+      ...serializeState(snapshot),
+      ...readFolderVisibilitySnapshot(projectRoot ?? ''),
+    })
     return c.json(c.req.query('content') === 'omit' ? omitGraphNodeContent(body) : body)
   })
 }
