@@ -12,8 +12,8 @@ export type {
     SearchSimilarResult,
 } from './config/mcp-config'
 
-export {createMcpServer, startMcpServer, getMcpPort} from './mcp-server'
-export type {McpServerHandle, StartMcpServerOptions} from './mcp-server'
+export {createMcpServer, startMcpServer, getMcpPort} from './tools/mcp-server'
+export type {McpServerHandle, StartMcpServerOptions} from './tools/mcp-server'
 export {findAvailablePort, isPortAvailable} from './util/findAvailablePort'
 
 export {
@@ -26,8 +26,8 @@ export {
     setMcpIntegration,
 } from './config/mcp-client-config'
 
-export type {McpToolResponse} from './core/types'
-export {buildJsonResponse} from './core/types'
+export type {McpToolResponse} from './tools/toolResponse'
+export {buildJsonResponse} from './tools/toolResponse'
 
 export {
     registerAgentNodes,

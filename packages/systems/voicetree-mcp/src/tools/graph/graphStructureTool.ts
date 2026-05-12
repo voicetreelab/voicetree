@@ -1,5 +1,5 @@
-import { buildJsonResponse } from '../../core/types'
-import type { McpToolResponse } from '../../core/types'
+import { buildJsonResponse } from '../toolResponse'
+import type { McpToolResponse } from '../toolResponse'
 import {
     buildUniqueBasenameMap,
     deriveTitle,

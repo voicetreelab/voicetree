@@ -16,8 +16,8 @@
 import type { SerializedState } from '@vt/graph-state'
 import { getLiveStateBridge } from '../../config/mcp-config'
 
-import { buildJsonResponse } from '../../core/types'
-import type { McpToolResponse } from '../../core/types'
+import { buildJsonResponse } from '../toolResponse'
+import type { McpToolResponse } from '../toolResponse'
 
 export async function getLiveState(): Promise<SerializedState | null> {
     return await getLiveStateBridge().getLiveStateSnapshot()

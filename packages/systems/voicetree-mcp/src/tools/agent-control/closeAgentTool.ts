@@ -8,7 +8,7 @@
  */
 
 import {agentRuntime, type TerminalRecord, type TerminalId} from '@vt/agent-runtime'
-import {type McpToolResponse, buildJsonResponse} from '../../core/types'
+import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
 import {getNewNodesForAgent} from '../../agents/getNewNodesForAgent'
 import {getAgentNodes} from '../../agents/agentNodeIndex'
 import {getAgentStatus} from '../../agents/isAgentComplete'

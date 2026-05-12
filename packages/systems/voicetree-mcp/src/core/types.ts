@@ -1,15 +1,5 @@
 /**
- * Shared types and utilities for MCP tools.
+ * Compatibility export for MCP tool response helpers.
  */
 
-export type McpToolResponse = {
-    content: Array<{type: 'text'; text: string}>
-    isError?: boolean
-}
-
-export function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse {
-    return {
-        content: [{type: 'text', text: JSON.stringify(payload)}],
-        isError
-    }
-}
+export {buildJsonResponse, type McpToolResponse} from '../tools/toolResponse'
