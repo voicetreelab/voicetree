@@ -421,7 +421,7 @@ describe('graph CLI module resolution', () => {
         await mkdir(join(tempDir, 'b'), {recursive: true})
         await writeFile(
             join(tempDir, 'source.md'),
-            '# Source\n\nkeep A [[a/target.md]]\nkeep B [[b/target.md]]\nplain text\n',
+            '# Source\n\nkeep A [[a/target.md]]\nkeep B [[b/target.md]]\ncombo [[a/target.md]] plus [[b/target.md]]\nplain text\n',
             'utf8',
         )
         await writeFile(join(tempDir, 'a', 'target.md'), '# A\n', 'utf8')
@@ -447,8 +447,9 @@ describe('graph CLI module resolution', () => {
         expect(removeEdge.code, removeEdge.stderr).toBe(0)
 
         const sourceAfterRemove = await readFile(join(tempDir, 'source.md'), 'utf8')
-        expect(sourceAfterRemove).not.toContain('[[a/target.md]]')
+        expect(sourceAfterRemove).not.toContain('keep A [[a/target.md]]')
         expect(sourceAfterRemove).toContain('keep B [[b/target.md]]')
+        expect(sourceAfterRemove).toContain('combo [[a/target.md]] plus [[b/target.md]]')
         expect(sourceAfterRemove).toContain('plain text')
 
         const state: SpawnResult = await spawnCli(
@@ -457,8 +458,15 @@ describe('graph CLI module resolution', () => {
         )
         expect(state.code, state.stderr).toBe(0)
         const sourceNode = JSON.parse(state.stdout).graph.nodes[join(canonicalTempDir, 'source.md')]
-        expect(sourceNode.outgoingEdges).toEqual([
-            {targetId: join(canonicalTempDir, 'b', 'target.md'), label: 'keep B'},
-        ])
+        expect(sourceNode.outgoingEdges).toEqual(
+            expect.arrayContaining([
+                {targetId: join(canonicalTempDir, 'b', 'target.md'), label: 'keep B'},
+            ]),
+        )
+        expect(sourceNode.outgoingEdges).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({targetId: join(canonicalTempDir, 'a', 'target.md'), label: 'keep A'}),
+            ]),
+        )
     }, 60000)
 })

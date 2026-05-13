@@ -313,14 +313,41 @@ function linkReferencesTarget(
   return bestTargets.length === 1 && bestTarget !== undefined && pathIdentitiesOverlap(bestTarget, targetFile)
 }
 
-function lineReferencesTarget(
+function removeWikilinkMatchesFromLine(
   line: string,
   sourceFile: string,
   targetFile: string,
   candidateTargetIds: readonly string[],
-): boolean {
-  return [...line.matchAll(WIKILINK_PATTERN)]
-    .some((match) => linkReferencesTarget(match[1] ?? '', sourceFile, targetFile, candidateTargetIds))
+  removableLabels: readonly string[],
+): string | undefined {
+  const matches = [...line.matchAll(WIKILINK_PATTERN)]
+  const matchingSpans = matches
+    .filter((match) => linkReferencesTarget(match[1] ?? '', sourceFile, targetFile, candidateTargetIds))
+    .map((match) => ({
+      start: match.index ?? 0,
+      end: (match.index ?? 0) + match[0].length,
+    }))
+
+  if (matchingSpans.length === 0) return line
+  if (matchingSpans.length !== matches.length) return line
+
+  const nextLine = matchingSpans
+    .sort((left, right) => right.start - left.start)
+    .reduce(
+      (current, span) => `${current.slice(0, span.start)}${current.slice(span.end)}`,
+      line,
+    )
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+$/g, '')
+
+  const nextLineText = nextLine.trim()
+  if (matchingSpans.length === matches.length
+    && (nextLineText === '' || removableLabels.includes(nextLineText))
+  ) {
+    return undefined
+  }
+
+  return line
 }
 
 function removeEdgeLine(
@@ -328,9 +355,17 @@ function removeEdgeLine(
   sourceFile: string,
   targetFile: string,
   candidateTargetIds: readonly string[],
+  removableLabels: readonly string[],
 ): string {
   const nextLines = content.split(/\r?\n/)
-    .filter((line) => !lineReferencesTarget(line, sourceFile, targetFile, candidateTargetIds))
+    .map((line) => removeWikilinkMatchesFromLine(
+      line,
+      sourceFile,
+      targetFile,
+      candidateTargetIds,
+      removableLabels,
+    ))
+    .filter((line): line is string => line !== undefined)
   return withTrailingNewline(nextLines.join('\n').replace(/\n+$/, ''))
 }
 
@@ -612,16 +647,29 @@ async function persistLiveCrudCommand(
       return
     }
     case 'RemoveEdge': {
-      if (!hasLiveEdge(beforeNodes, command.source, command.targetId)
-        || hasLiveEdge(afterNodes, command.source, command.targetId)
-      ) return
+      if (!hasLiveEdge(beforeNodes, command.source, command.targetId)) return
       if (!fs.existsSync(command.source)) return
-      const sourceEdgeTargetIds = [...new Set((beforeNodes[command.source]?.outgoingEdges ?? [])
+      const sourceEdges = beforeNodes[command.source]?.outgoingEdges ?? []
+      const afterTargetLabels = new Set((afterNodes[command.source]?.outgoingEdges ?? [])
+        .filter((edge) => edge.targetId === command.targetId)
+        .map((edge) => edge.label ?? ''))
+      const sourceEdgeTargetIds = [...new Set(sourceEdges
         .map((edge) => edge.targetId)
         .filter((targetId): targetId is string => typeof targetId === 'string'))]
+      const removedEdgeLabels = sourceEdges
+        .filter((edge) => edge.targetId === command.targetId)
+        .map((edge) => edge.label ?? '')
+        .filter((label) => !afterTargetLabels.has(label))
+      if (removedEdgeLabels.length === 0) return
       fs.writeFileSync(
         command.source,
-        removeEdgeLine(fs.readFileSync(command.source, 'utf8'), command.source, command.targetId, sourceEdgeTargetIds),
+        removeEdgeLine(
+          fs.readFileSync(command.source, 'utf8'),
+          command.source,
+          command.targetId,
+          sourceEdgeTargetIds,
+          removedEdgeLabels,
+        ),
         'utf8',
       )
       return
