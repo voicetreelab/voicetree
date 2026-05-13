@@ -310,12 +310,40 @@ function readJsonRecord(filePath: string): Record<string, unknown> {
   }
 }
 
+function pathIdentityCandidates(filePath: string): readonly string[] {
+  const candidates = new Set<string>([path.resolve(filePath)])
+
+  try {
+    candidates.add(fs.realpathSync.native(filePath))
+  } catch {
+    // The path may not exist yet or may have just been deleted.
+  }
+
+  try {
+    candidates.add(path.join(fs.realpathSync.native(path.dirname(filePath)), path.basename(filePath)))
+  } catch {
+    // Parent may not exist yet; the resolved path above is still useful.
+  }
+
+  return [...candidates]
+}
+
+function isPathWithinRoot(filePath: string, root: string): boolean {
+  return filePath === root || filePath.startsWith(`${root}${path.sep}`)
+}
+
 function findLoadedRootForFile(loadedRoots: readonly string[], filePath: string): string | undefined {
-  const resolvedFile = path.resolve(filePath)
+  const fileCandidates = pathIdentityCandidates(filePath)
   return [...loadedRoots]
-    .map((root) => path.resolve(root))
-    .filter((root) => resolvedFile === root || resolvedFile.startsWith(`${root}${path.sep}`))
-    .sort((left, right) => right.length - left.length)[0]
+    .map((root) => ({
+      root,
+      rootCandidates: pathIdentityCandidates(root),
+    }))
+    .filter(({rootCandidates}) => rootCandidates
+      .some((rootCandidate) => fileCandidates
+        .some((fileCandidate) => isPathWithinRoot(fileCandidate, rootCandidate))))
+    .sort((left, right) => Math.max(...right.rootCandidates.map((candidate) => candidate.length))
+      - Math.max(...left.rootCandidates.map((candidate) => candidate.length)))[0]?.root
 }
 
 async function getLoadedRoots(port?: number): Promise<readonly string[]> {
@@ -360,6 +388,16 @@ function hasLiveNode(nodes: LiveGraphNodesSnapshot, nodeId: string): boolean {
   return nodes[nodeId] !== undefined
 }
 
+function pathIdentitiesOverlap(leftPath: string, rightPath: string): boolean {
+  const rightCandidates = new Set(pathIdentityCandidates(rightPath))
+  return pathIdentityCandidates(leftPath).some((candidate) => rightCandidates.has(candidate))
+}
+
+function resolveLiveNodeId(nodes: LiveGraphNodesSnapshot, filePath: string): string {
+  return Object.keys(nodes)
+    .find((nodeId) => pathIdentitiesOverlap(nodeId, filePath)) ?? filePath
+}
+
 function hasLiveEdge(
   nodes: LiveGraphNodesSnapshot,
   source: string,
@@ -379,6 +417,56 @@ function nodeHasLivePosition(
   return livePosition?._tag === 'Some'
     && livePosition.value?.x === position.x
     && livePosition.value?.y === position.y
+}
+
+function resolveCommandNodeIds(
+  parsed: ParsedLiveCrudCommand,
+  nodes: LiveGraphNodesSnapshot,
+): ParsedLiveCrudCommand {
+  const command = parsed.command
+
+  switch (command.type) {
+    case 'AddNode': {
+      const file = resolveLiveNodeId(nodes, command.node.absoluteFilePathIsID)
+      return {
+        ...parsed,
+        command: {
+          ...command,
+          node: {
+            ...command.node,
+            absoluteFilePathIsID: file,
+          },
+        },
+      }
+    }
+    case 'RemoveNode':
+      return {...parsed, command: {...command, id: resolveLiveNodeId(nodes, command.id)}}
+    case 'AddEdge':
+      return {
+        ...parsed,
+        command: {
+          ...command,
+          source: resolveLiveNodeId(nodes, command.source),
+          edge: {
+            ...command.edge,
+            targetId: resolveLiveNodeId(nodes, command.edge.targetId),
+          },
+        },
+      }
+    case 'RemoveEdge':
+      return {
+        ...parsed,
+        command: {
+          ...command,
+          source: resolveLiveNodeId(nodes, command.source),
+          targetId: resolveLiveNodeId(nodes, command.targetId),
+        },
+      }
+    case 'Move':
+      return {...parsed, command: {...command, id: resolveLiveNodeId(nodes, command.id)}}
+    default:
+      return parsed
+  }
 }
 
 function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]): ParsedLiveCrudCommand {
@@ -693,9 +781,10 @@ async function main(): Promise<void> {
       if (isLiveCrudVerb(liveSubcommand)) {
         const parsed = parseLiveCrudCommand(liveSubcommand, liveArgs)
         const beforeNodes = await getLiveGraphNodes(parsed.port)
-        const result = await liveApply(JSON.stringify(parsed.command), {port: parsed.port})
-        const afterNodes = await getLiveGraphNodes(parsed.port)
-        await persistLiveCrudCommand(parsed, result.delta, beforeNodes, afterNodes)
+        const resolvedParsed = resolveCommandNodeIds(parsed, beforeNodes)
+        const result = await liveApply(JSON.stringify(resolvedParsed.command), {port: resolvedParsed.port})
+        const afterNodes = await getLiveGraphNodes(resolvedParsed.port)
+        await persistLiveCrudCommand(resolvedParsed, result.delta, beforeNodes, afterNodes)
         process.stdout.write(result.output)
         break
       }

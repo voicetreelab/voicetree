@@ -342,4 +342,74 @@ describe('graph CLI module resolution', () => {
         const positionsAfterRemove = JSON.parse(await readFile(join(tempDir, '.voicetree', 'positions.json'), 'utf8'))
         expect(Object.hasOwn(positionsAfterRemove, join(canonicalTempDir, relativeFile))).toBe(false)
     }, 60000)
+
+    it('persists positions when the loaded vault root and CLI cwd use symlink variants', async () => {
+        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-symlink-root-'))
+        tempDirs.push(tempDir)
+        const canonicalTempDir: string = await realpath(tempDir)
+        const relativeFile = `rel-${process.pid}-${Date.now()}.md`
+        await writeFile(join(tempDir, 'source.md'), '# Source\n\nlegacy [[target.md]]\n', 'utf8')
+        await writeFile(join(tempDir, 'target.md'), '# Target\n', 'utf8')
+
+        const server = await startHeadless(tempDir)
+        servers.push(server)
+
+        const addNode: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'add-node',
+                '--file',
+                relativeFile,
+                '--label',
+                '# Relative\n',
+                '--x',
+                '1',
+                '--y',
+                '2',
+            ],
+            tempDir,
+        )
+        expect(addNode.code, addNode.stderr).toBe(0)
+
+        const moveNode: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'mv-node',
+                '--file',
+                relativeFile,
+                '--x',
+                '3',
+                '--y',
+                '4',
+            ],
+            tempDir,
+        )
+        expect(moveNode.code, moveNode.stderr).toBe(0)
+
+        const positions = JSON.parse(await readFile(join(tempDir, '.voicetree', 'positions.json'), 'utf8'))
+        expect(positions[join(canonicalTempDir, relativeFile)]).toEqual({x: 3, y: 4})
+
+        const removeEdge: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'rm-edge',
+                '--src-file',
+                'source.md',
+                '--tgt-file',
+                'target.md',
+            ],
+            tempDir,
+        )
+        expect(removeEdge.code, removeEdge.stderr).toBe(0)
+        expect(await readFile(join(tempDir, 'source.md'), 'utf8')).not.toContain('[[target.md]]')
+    }, 60000)
 })
