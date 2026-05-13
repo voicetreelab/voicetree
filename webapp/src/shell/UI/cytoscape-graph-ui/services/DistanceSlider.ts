@@ -10,10 +10,27 @@ const SLIDER_SQUARE_GAP: number = 2;
 const SLIDER_GOLD_COLOR: string = 'rgba(251, 191, 36, 0.9)';
 const SLIDER_GRAY_COLOR: string = 'rgba(255, 255, 255, 0.2)';
 
+/**
+ * Slider squares (1..10) map to weighted graph-distance budgets via 1.5^N.
+ * Squares 1-4 give fine-grained near-context; squares 7-10 reach far neighbors
+ * where each preview hits the per-node floor (see maxPreviewLinesForHops).
+ */
+const SLIDER_HOPS_BASE: number = 1.5;
+
+export function squareToHops(square: number): number {
+    const clamped: number = Math.max(1, Math.min(SLIDER_SQUARE_COUNT, Math.round(square)));
+    return Math.ceil(Math.pow(SLIDER_HOPS_BASE, clamped));
+}
+
+export function hopsToSquare(hops: number): number {
+    if (!Number.isFinite(hops) || hops <= squareToHops(1)) return 1;
+    const raw: number = Math.ceil(Math.log(hops) / Math.log(SLIDER_HOPS_BASE));
+    return Math.max(1, Math.min(SLIDER_SQUARE_COUNT, raw));
+}
+
 /** Module-level state for floating slider */
 let activeSlider: HTMLDivElement | null = null;
 let sliderHideTimeout: number | null = null;
-let currentMenuElement: HTMLElement | null = null;
 
 /** Options for showing the floating slider */
 export interface FloatingSliderOptions {
@@ -50,8 +67,6 @@ export function showFloatingSlider(options: FloatingSliderOptions): void {
             hideFloatingSlider();
         });
     }
-
-    currentMenuElement = options.menuElement;
 
     // Position above the menu using fixed positioning
     const rect: DOMRect = options.menuElement.getBoundingClientRect();

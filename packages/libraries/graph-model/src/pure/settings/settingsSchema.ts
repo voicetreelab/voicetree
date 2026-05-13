@@ -213,7 +213,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     },
 
     // ── Advanced (default section — no need to specify) ──────────────────
-    contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
+    contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 58, step: 1 } },
     enableSemanticContext:  { default: false, label: 'Semantic Context' },
     contextMaxChars:       { default: 8000, label: 'Context Budget (chars)', number: { min: 2000, max: 100000, step: 2000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },

@@ -35,6 +35,7 @@ import {
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
+import {hopsToSquare} from "@/shell/UI/cytoscape-graph-ui/services/DistanceSlider";
 import {FLOATING_EDITOR_WIDTH, ANCHORED_EDITOR_WIDTH} from "@/shell/edge/UI-edge/floating-windows/types";
 
 // Re-export from decomposed modules for backwards compatibility
@@ -113,7 +114,7 @@ export async function createFloatingEditor(
     // Pass agents and currentDistance for horizontal menu (editors only)
     const ui: FloatingWindowUIData = createWindowChrome(cy, editorData, editorId, {
         agents: settings.agents ?? [],
-        currentDistance: settings.contextNodeMaxDistance ?? 5,
+        currentDistance: hopsToSquare(settings.contextNodeMaxDistance ?? 5),
     });
 
     // Create EditorData with ui populated (immutable update)

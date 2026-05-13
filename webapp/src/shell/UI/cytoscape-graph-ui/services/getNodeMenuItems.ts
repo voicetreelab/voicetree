@@ -29,6 +29,7 @@ import type { WatchStatus } from '@/shell/electron';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/worktreeDeletePopup';
 import type { WorkflowTreeNode } from '@/shell/edge/main/workflows/workflowHandlers';
 import type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput } from './horizontalMenuTypes';
+import { squareToHops } from './DistanceSlider';
 
 /**
  * Create slider config for run buttons (non-context nodes only).
@@ -42,11 +43,11 @@ function createRunButtonSliderConfig(
 ): SliderConfig {
     return {
         currentDistance,
-        onDistanceChange: (newDistance: number): void => {
+        onDistanceChange: (newSquare: number): void => {
             void (async (): Promise<void> => {
                 const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
                 if (currentSettings && window.electronAPI) {
-                    await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: newDistance});
+                    await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: squareToHops(newSquare)});
                 }
                 clearContainedHighlights(cy);
                 await highlightPreviewNodes(cy, nodeId);
