@@ -48,6 +48,9 @@ export default defineConfig({
       'default',
       [ciCheckReporter, ciCheck],
     ],
+    // Codebase-health tests parse the whole repo and can exceed the default 5s
+    // budget under parallel-worker CPU contention.
+    testTimeout: 30_000,
     exclude: isRunningInsideWorktree
       ? [...configDefaults.exclude, ...sharedExclude]
       : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**'],
