@@ -412,4 +412,53 @@ describe('graph CLI module resolution', () => {
         expect(removeEdge.code, removeEdge.stderr).toBe(0)
         expect(await readFile(join(tempDir, 'source.md'), 'utf8')).not.toContain('[[target.md]]')
     }, 60000)
+
+    it('rm-edge preserves same-basename wikilinks that point at other live targets', async () => {
+        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-rm-edge-'))
+        tempDirs.push(tempDir)
+        const canonicalTempDir: string = await realpath(tempDir)
+        await mkdir(join(tempDir, 'a'), {recursive: true})
+        await mkdir(join(tempDir, 'b'), {recursive: true})
+        await writeFile(
+            join(tempDir, 'source.md'),
+            '# Source\n\nkeep A [[a/target.md]]\nkeep B [[b/target.md]]\nplain text\n',
+            'utf8',
+        )
+        await writeFile(join(tempDir, 'a', 'target.md'), '# A\n', 'utf8')
+        await writeFile(join(tempDir, 'b', 'target.md'), '# B\n', 'utf8')
+
+        const server = await startHeadless(canonicalTempDir)
+        servers.push(server)
+
+        const removeEdge: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'rm-edge',
+                '--src-file',
+                'source.md',
+                '--tgt-file',
+                'a/target.md',
+            ],
+            tempDir,
+        )
+        expect(removeEdge.code, removeEdge.stderr).toBe(0)
+
+        const sourceAfterRemove = await readFile(join(tempDir, 'source.md'), 'utf8')
+        expect(sourceAfterRemove).not.toContain('[[a/target.md]]')
+        expect(sourceAfterRemove).toContain('keep B [[b/target.md]]')
+        expect(sourceAfterRemove).toContain('plain text')
+
+        const state: SpawnResult = await spawnCli(
+            ['--port', String(server.port), 'graph', 'live', 'state', 'dump', '--no-pretty'],
+            tempDir,
+        )
+        expect(state.code, state.stderr).toBe(0)
+        const sourceNode = JSON.parse(state.stdout).graph.nodes[join(canonicalTempDir, 'source.md')]
+        expect(sourceNode.outgoingEdges).toEqual([
+            {targetId: join(canonicalTempDir, 'b', 'target.md'), label: 'keep B'},
+        ])
+    }, 60000)
 })

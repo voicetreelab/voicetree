@@ -280,22 +280,57 @@ function appendLineIfMissing(content: string, line: string): string {
 
 const WIKILINK_PATTERN = /\[\[([^\]\r\n]+)\]\]/g
 
-function linkReferencesTarget(linkText: string, sourceFile: string, targetFile: string): boolean {
-  const targetAbsolute = path.resolve(targetFile)
-  const relativeWithExtension = linkText.endsWith('.md') ? linkText : `${linkText}.md`
-  const resolvedRelative = path.resolve(path.dirname(sourceFile), relativeWithExtension)
-
-  return resolvedRelative === targetAbsolute || linkMatchScore(linkText, targetAbsolute) > 0
+function wikilinkTargetText(linkText: string): string {
+  return (linkText.split('|')[0] ?? '').split('#')[0]?.trim() ?? ''
 }
 
-function lineReferencesTarget(line: string, sourceFile: string, targetFile: string): boolean {
+function resolveWikilinkPath(sourceFile: string, linkText: string): string {
+  const targetText = wikilinkTargetText(linkText)
+  const relativeWithExtension = targetText.endsWith('.md') ? targetText : `${targetText}.md`
+  return path.resolve(path.dirname(sourceFile), relativeWithExtension)
+}
+
+function linkReferencesTarget(
+  linkText: string,
+  sourceFile: string,
+  targetFile: string,
+  candidateTargetIds: readonly string[],
+): boolean {
+  const linkTargetText = wikilinkTargetText(linkText)
+  if (linkTargetText === '') return false
+
+  if (pathIdentitiesOverlap(resolveWikilinkPath(sourceFile, linkText), targetFile)) {
+    return true
+  }
+
+  const scoredTargets = candidateTargetIds
+    .map((targetId) => ({targetId, score: linkMatchScore(linkTargetText, targetId)}))
+    .filter(({score}) => score > 0)
+  const bestScore = Math.max(0, ...scoredTargets.map(({score}) => score))
+  const bestTargets = scoredTargets.filter(({score}) => score === bestScore)
+  const bestTarget = bestTargets[0]?.targetId
+
+  return bestTargets.length === 1 && bestTarget !== undefined && pathIdentitiesOverlap(bestTarget, targetFile)
+}
+
+function lineReferencesTarget(
+  line: string,
+  sourceFile: string,
+  targetFile: string,
+  candidateTargetIds: readonly string[],
+): boolean {
   return [...line.matchAll(WIKILINK_PATTERN)]
-    .some((match) => linkReferencesTarget(match[1] ?? '', sourceFile, targetFile))
+    .some((match) => linkReferencesTarget(match[1] ?? '', sourceFile, targetFile, candidateTargetIds))
 }
 
-function removeEdgeLine(content: string, sourceFile: string, targetFile: string): string {
+function removeEdgeLine(
+  content: string,
+  sourceFile: string,
+  targetFile: string,
+  candidateTargetIds: readonly string[],
+): string {
   const nextLines = content.split(/\r?\n/)
-    .filter((line) => !lineReferencesTarget(line, sourceFile, targetFile))
+    .filter((line) => !lineReferencesTarget(line, sourceFile, targetFile, candidateTargetIds))
   return withTrailingNewline(nextLines.join('\n').replace(/\n+$/, ''))
 }
 
@@ -581,9 +616,12 @@ async function persistLiveCrudCommand(
         || hasLiveEdge(afterNodes, command.source, command.targetId)
       ) return
       if (!fs.existsSync(command.source)) return
+      const sourceEdgeTargetIds = [...new Set((beforeNodes[command.source]?.outgoingEdges ?? [])
+        .map((edge) => edge.targetId)
+        .filter((targetId): targetId is string => typeof targetId === 'string'))]
       fs.writeFileSync(
         command.source,
-        removeEdgeLine(fs.readFileSync(command.source, 'utf8'), command.source, command.targetId),
+        removeEdgeLine(fs.readFileSync(command.source, 'utf8'), command.source, command.targetId, sourceEdgeTargetIds),
         'utf8',
       )
       return
