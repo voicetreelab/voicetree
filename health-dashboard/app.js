@@ -54,8 +54,12 @@ function utilization(r) {
   return r.budget / r.current
 }
 
-function utilizationForBar(u) {
-  return Number.isFinite(u) ? Math.min(u, 2) : 2
+// Replace Infinity (budget=0, current>0) with a finite stand-in so the bar
+// stays renderable. Caller passes the max finite ratio in the dataset; we go
+// slightly past it so '∞' visibly outranks every concrete failure.
+function utilizationForBar(u, maxFinite) {
+  if (Number.isFinite(u)) return u
+  return Math.max(maxFinite * 1.25, 2)
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
@@ -223,7 +227,9 @@ function renderRanking(reports) {
   const ranked = [...reports].sort((a, b) => utilization(b) - utilization(a))
   const labels = ranked.map(r => r.metricName)
   const real   = ranked.map(utilization)
-  const bars   = real.map(utilizationForBar)
+  const maxFinite = real.reduce((m, u) => Number.isFinite(u) && u > m ? u : m, 1.2)
+  const bars   = real.map(u => utilizationForBar(u, maxFinite))
+  const axisMax = Math.max(maxFinite * 1.4, 1.5)
   const colors = ranked.map(r => r.passed ? 'rgba(156,227,99,0.88)' : 'rgba(255,68,56,0.92)')
 
   const wrap = canvas.parentElement
@@ -283,8 +289,7 @@ function renderRanking(reports) {
         x: {
           beginAtZero: true,
           suggestedMin: 0,
-          suggestedMax: 1.2,
-          max: 2,
+          max: axisMax,
           grid: {
             color: (ctx) => Math.abs(ctx.tick.value - 1.0) < 0.001 ? 'rgba(255,68,56,0.55)' : 'rgba(44,36,24,0.55)',
             lineWidth: (ctx) => Math.abs(ctx.tick.value - 1.0) < 0.001 ? 1.5 : 1,
@@ -293,12 +298,11 @@ function renderRanking(reports) {
           ticks: {
             color: '#a39676',
             font: { size: 10, family: FONT_MONO },
-            stepSize: 0.5,
-            callback: (v) => v >= 2 ? '≥2×' : `${v.toFixed(1)}×`,
+            callback: (v) => `${v.toFixed(1)}×`,
           },
           title: {
             display: true,
-            text: 'budget utilization — 1.0× at budget · >1× failing · capped 2×',
+            text: 'budget utilization — 1.0× at budget · >1× failing',
             color: '#6b6047',
             font: { size: 10, family: FONT_MONO, weight: '400' },
             padding: { top: 10 },

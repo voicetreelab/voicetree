@@ -14,8 +14,35 @@
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { colors, config, log } = require('./lib/config.cjs');
 const QualityChecker = require('./lib/quality-checker.cjs');
+
+// Record this hook run into the CI/CD checks panel. Patches process.exit so
+// every exit path (early returns, errors, blocking-fail) is captured. The
+// recording shell-out is best-effort — failures here never alter the exit code.
+const HOOK_STARTED_AT = Date.now();
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+const _originalExit = process.exit.bind(process);
+process.exit = (code = 0) => {
+  try {
+    spawnSync('node', [
+      '--no-warnings=ExperimentalWarning',
+      '--experimental-strip-types',
+      path.join(REPO_ROOT, 'scripts', 'record-result.mjs'),
+      '--id=claude-stop-quality',
+      '--name=Claude Code Stop (quality check)',
+      '--category=Hook',
+      '--display=webapp/.claude/hooks/stop-quality-check.cjs',
+      `--status=${code === 0 ? 'pass' : 'fail'}`,
+      `--duration-ms=${Date.now() - HOOK_STARTED_AT}`,
+      ...(code !== 0 ? [`--error-summary=stop hook blocked with exit ${code} (quality issues found)`] : []),
+    ], { stdio: 'ignore', timeout: 5000 });
+  } catch {
+    // Recording is observational; never let it disturb the hook contract.
+  }
+  _originalExit(code);
+};
 
 async function main() {
   let inputData = '';
