@@ -3,7 +3,7 @@ export {
     getGraphBridge,
     getLiveStateBridge,
     getSearchBridge,
-} from './config/mcp-config'
+} from './mcp-config'
 export type {
     AskQueryResponse,
     GraphBridge,
@@ -11,4 +11,4 @@ export type {
     McpServerConfig,
     SearchBridge,
     SearchSimilarResult,
-} from './config/mcp-config'
+} from './mcp-config'

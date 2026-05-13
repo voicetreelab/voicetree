@@ -7,4 +7,4 @@ export {
     isMcpIntegrationEnabled,
     isOpencodeAgent,
     setMcpIntegration,
-} from './config/mcp-client-config'
+} from './mcp-client-config'

@@ -5,7 +5,7 @@
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {type McpToolResponse, buildJsonResponse} from '../../core/types'
+import {type McpToolResponse, buildJsonResponse} from '../types'
 import * as O from 'fp-ts/lib/Option.js'
 import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '../../config/mcp-graph-bridge'
 import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'

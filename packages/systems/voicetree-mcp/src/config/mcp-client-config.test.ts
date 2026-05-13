@@ -17,7 +17,7 @@ describe('mcp-client-config: OpenCode integration', () => {
     const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
 
     // Mock the MCP server port
-    vi.mock('../tools/mcp-server', () => ({
+    vi.mock('../tools/agent-control/mcp-server', () => ({
         getMcpPort: vi.fn(() => 3001)
     }));
 

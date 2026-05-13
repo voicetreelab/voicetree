@@ -11,7 +11,7 @@ import {
     terminalExists,
     type TerminalRecord,
 } from './agentControlRuntime'
-import {type McpToolResponse, buildJsonResponse} from '../../core/types'
+import {type McpToolResponse, buildJsonResponse} from '../types'
 
 export interface ReadTerminalOutputParams {
     terminalId: string

@@ -11,7 +11,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getMcpPort } from '../tools/mcp-server';
+import { getMcpPort } from '../tools/agent-control/mcp-server';
 import {getMcpProjectRootWatchedDirectory} from './mcp-graph-bridge';
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const;

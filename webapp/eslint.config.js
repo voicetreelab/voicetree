@@ -248,7 +248,7 @@ export default tseslint.config([
       'packages/systems/agent-runtime/src/graph-bridge.ts',
       'packages/systems/voicetree-mcp/src/mcp-graph-bridge.ts',
       'packages/systems/agent-runtime/src/runtime-config.ts',
-      'packages/systems/voicetree-mcp/src/mcp-config.ts',
+      'packages/systems/voicetree-mcp/src/config/mcp-config-public.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', {
