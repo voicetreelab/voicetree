@@ -5,6 +5,11 @@ const HEAT_YELLOW = 1
 const HEAT_ORANGE = 2
 const HEAT_RED    = 4
 
+// Cap on how many tree rows (file + dir summaries) are visible by default.
+// Top-level dirs are always visible; opening a dir adds its (post-prune) children
+// to the count. Greedy-debt expansion stops as soon as the next reveal won't fit.
+const MAX_VISIBLE_NODES = 10
+
 const SEVERITY_ORDER = { green: 0, yellow: 1, orange: 2, red: 3 }
 
 // ── Extraction ────────────────────────────────────────────────────────────────
@@ -324,19 +329,47 @@ function compareChildren(a, b) {
   return a.name.localeCompare(b.name)
 }
 
-function renderNode(node, isRoot = false) {
+function renderNode(node, openSet, isRoot = false) {
   if (node.type === 'file') return renderFile(node)
   const sev = node.severity
-  // Auto-open hot subtrees only. Yellow (mild) and green (clean) stay collapsed
-  // — that's the "collapse greener subtrees" behavior.
-  const open = sev === 'red' || sev === 'orange'
+  const open = openSet.has(node.fullPath)
   const childArr = [...node.children.values()].sort(compareChildren)
-  const childHtml = childArr.map(c => renderNode(c, false)).join('')
+  const childHtml = childArr.map(c => renderNode(c, openSet, false)).join('')
   const details = `<details class="ft-dir ft-sev-${sev}" ${open ? 'open' : ''}>
     ${dirSummary(node)}
     <ul class="ft-children">${childHtml}</ul>
   </details>`
   return isRoot ? details : `<li class="ft-dir-item">${details}</li>`
+}
+
+// Pick which dirs to auto-open under a "max N visible nodes" budget. Top-level
+// dirs (children of the synthetic root) are always visible — they seed the
+// count. Then greedily open the highest-debt candidate whose direct children
+// still fit in the remaining budget. Opening a dir surfaces every (post-prune)
+// child as a new visible node, and its child dirs become future candidates.
+// Stops when no remaining visible-but-collapsed dir fits.
+function pickAutoOpenDirs(root, budget) {
+  const opened = new Set()
+  let visibleCount = root.children.size
+  const candidates = []
+  for (const c of root.children.values()) {
+    if (c.type === 'dir' && (c.debt ?? 0) > 0) candidates.push(c)
+  }
+  while (true) {
+    candidates.sort((a, b) => (b.debt ?? 0) - (a.debt ?? 0))
+    let chosenIdx = -1
+    for (let i = 0; i < candidates.length; i++) {
+      if (visibleCount + candidates[i].children.size <= budget) { chosenIdx = i; break }
+    }
+    if (chosenIdx < 0) break
+    const chosen = candidates.splice(chosenIdx, 1)[0]
+    opened.add(chosen.fullPath)
+    visibleCount += chosen.children.size
+    for (const gc of chosen.children.values()) {
+      if (gc.type === 'dir' && (gc.debt ?? 0) > 0) candidates.push(gc)
+    }
+  }
+  return opened
 }
 
 // ── Public ────────────────────────────────────────────────────────────────────
@@ -365,8 +398,9 @@ export function renderFileTreeSection(reports) {
   const totalDebt = tree.debt
   const metricsCount = new Set(flags.map(f => f.metricId)).size
 
+  const openSet = pickAutoOpenDirs(tree, MAX_VISIBLE_NODES)
   const roots = [...tree.children.values()].sort(compareChildren)
-  const body = roots.map(r => renderNode(r, true)).join('')
+  const body = roots.map(r => renderNode(r, openSet, true)).join('')
 
   return `<section class="filetree-section">
     <div class="category-header">
@@ -376,7 +410,7 @@ export function renderFileTreeSection(reports) {
     </div>
     <p class="ft-help">
       <strong>Containing debt</strong> rolls up per file (failing flag = ${FLAG_WEIGHT_FAILING}pts, passing-hot flag = ${FLAG_WEIGHT_PASSING}pt, +1 bonus per extra distinct metric) and aggregates into folders.
-      Children sort worst-debt first. Red/orange folders auto-open; yellow stays collapsed.
+      Children sort worst-debt first. Auto-expansion is budgeted to ${MAX_VISIBLE_NODES} visible rows total — opening a folder spends budget on every revealed file and subfolder.
     </p>
     <div class="ft-legend">
       <span class="ft-legend-item ft-sev-red"><span class="ft-dot"></span>hot · ${HEAT_RED}+ flags</span>
