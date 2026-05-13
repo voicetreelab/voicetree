@@ -22,6 +22,10 @@ const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
 const TSX_BIN: string = join(REPO_ROOT, 'node_modules/.bin/tsx')
+// Force ensureDaemon to spawn from source rather than the (often stale)
+// dist/vt-graphd.mjs bundle, so the test always exercises current daemon code.
+const GRAPHD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/graph-db-server/bin/vt-graphd.ts')
+const VT_GRAPHD_BIN_OVERRIDE: string = `${TSX_BIN} ${GRAPHD_SOURCE_BIN}`
 
 const SCENARIO_TIMEOUT_MS: number = 30_000
 const DAEMON_READY_TIMEOUT_MS: number = 10_000
@@ -48,6 +52,7 @@ function buildChildEnv(appSupport: string, overrides?: Record<string, string | u
     const merged: Record<string, string | undefined> = {
         ...process.env,
         VOICETREE_APP_SUPPORT: appSupport,
+        VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         ...overrides,
     }
 
