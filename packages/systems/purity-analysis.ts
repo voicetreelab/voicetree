@@ -297,7 +297,13 @@ export async function analyze(): Promise<{ fns: FnEntry[]; byLayer: Record<ArchL
     const files = (await Promise.all(SOURCE_ROOTS.map(listSourceFiles))).flat()
     const allFns: FnEntry[] = []
     await Promise.all(files.map(async fp => {
-        const text = await readFile(fp, 'utf8')
+        // Skip files that vanish between discovery and read (auditCytoscapeCoupling
+        // briefly creates and removes __audit_seed__.ts and can race this scan).
+        const text = await readFile(fp, 'utf8').catch((err: NodeJS.ErrnoException) => {
+            if (err.code === 'ENOENT') return null
+            throw err
+        })
+        if (text === null) return
         const sf = ts.createSourceFile(fp, text, ts.ScriptTarget.Latest, true)
         allFns.push(...extractFunctions(fp, sf))
     }))
