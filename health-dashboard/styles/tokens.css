@@ -1,0 +1,78 @@
+/* tokens — design system variables, reset, body, ::selection */
+/* =============================================================================
+   CODEBASE HEALTH — Diagnostic Bulletin
+   ----------------------------------------------------------------------------
+   Aesthetic: editorial newspaper × laboratory instrument.
+   Fraunces for display moments. IBM Plex Mono for every datum. Warm-paper
+   palette on charcoal ink. No rounded corners. Hairline rules. Bracketed
+   status. Numbers treated as typographic events.
+   ========================================================================== */
+
+/* ── Tokens ────────────────────────────────────────────────────────────────── */
+:root {
+  /* Ink — warm-black, not gray */
+  --ink-0:        #0c0a06;
+  --ink-1:        #15110b;
+  --ink-2:        #1d1810;
+  --ink-3:        #251d12;
+
+  /* Rules */
+  --rule:         #2c2418;
+  --rule-soft:    #1f1810;
+  --rule-strong:  #3d3220;
+
+  /* Paper — warm cream against ink (higher contrast for readability) */
+  --paper:        #f4ecda;
+  --paper-muted:  #c2b690;
+  --paper-faint:  #857a5d;
+  --paper-ghost:  #4d4430;
+
+  /* Signal */
+  --sig:          #ff4438;
+  --sig-soft:     rgba(255, 68, 56, 0.10);
+  --sig-edge:     rgba(255, 68, 56, 0.34);
+  --sig-deep:     rgba(255, 68, 56, 0.06);
+
+  /* Vital */
+  --vital:        #9ce363;
+  --vital-soft:   rgba(156, 227, 99, 0.10);
+  --vital-edge:   rgba(156, 227, 99, 0.32);
+
+  /* Caution */
+  --caution:      #f5b04a;
+  --caution-soft: rgba(245, 176, 74, 0.10);
+  --caution-edge: rgba(245, 176, 74, 0.34);
+
+  /* Accent — paper-highlight cream */
+  --accent:       #f7e3a6;
+
+  /* Fonts */
+  --serif:  'Fraunces', 'Iowan Old Style', 'Hoefler Text', Georgia, serif;
+  --sans:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:   'IBM Plex Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--paper);
+  background: var(--ink-0);
+  line-height: 1.5;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(at 12% 8%, rgba(247, 227, 166, 0.025), transparent 40%),
+    radial-gradient(at 88% 92%, rgba(255, 68, 56, 0.018), transparent 42%);
+  background-attachment: fixed;
+}
+
+::selection { background: var(--accent); color: var(--ink-0); }
+

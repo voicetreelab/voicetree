@@ -1,9 +1,13 @@
 import { esc, fmtNum, relTime, isStale } from './format.js'
 import { renderChecksSection, bindChecksSection } from './checks.js'
 import { renderFileTreeSection } from './fileTree.js'
+import { renderTreemapSection, bindTreemapSection } from './treemap.js'
+import { renderGitSection, renderGitTally, renderGitFolders, renderGitCommits } from './git.js'
 
 const REPORTS_URL = 'reports/latest.json'
 const CHECKS_URL = 'reports/checks.json'
+const GIT_URL = 'api/git'
+const GIT_POLL_MS = 5000
 const CATEGORY_ORDER = ['Coupling', 'Complexity', 'Structure', 'Purity', 'Behavioral', 'Shape', 'Churn', 'Other']
 const GATES_SHOWN_KEY = 'health-dashboard:gates-shown'
 
@@ -350,7 +354,7 @@ function updateHeader(reports, generatedAt) {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
-function renderDashboard(data, checksData) {
+function renderDashboard(data, checksData, gitData) {
   updateHeader(data.reports, data.generatedAt)
 
   const gates  = data.reports.filter(isGate)
@@ -362,10 +366,12 @@ function renderDashboard(data, checksData) {
     byCategory[cat].push(r)
   }
 
+  const gitHtml    = renderGitSection(gitData)
   const checksHtml = renderChecksSection(checksData)
   const gatesHtml  = renderGatesSection(gates, gatesShown())
   const axesHtml = renderAxes(data.reports)
   const fileTreeHtml = renderFileTreeSection(data.reports)
+  const treemapHtml = renderTreemapSection(data.reports)
 
   const rankingHtml = scored.length === 0 ? '' : `
 <section class="ranking-section">
@@ -385,9 +391,10 @@ function renderDashboard(data, checksData) {
     .join('')
 
   const main = document.getElementById('main')
-  main.innerHTML = checksHtml + gatesHtml + axesHtml + fileTreeHtml + rankingHtml + categoriesHtml
+  main.innerHTML = gitHtml + checksHtml + gatesHtml + axesHtml + fileTreeHtml + treemapHtml + rankingHtml + categoriesHtml
   bindChecksSection(main, checksData)
   bindGatesToggle(main)
+  bindTreemapSection(main, data.reports)
 
   if (scored.length > 0) renderRanking(scored)
 }
@@ -419,16 +426,67 @@ async function fetchJson(url) {
   }
 }
 
+function renderError(err) {
+  const main = document.getElementById('main')
+  if (!main) return
+  const msg = err && err.stack ? err.stack : String(err)
+  main.innerHTML = `<div class="state-empty">
+    <div class="state-empty-icon">!</div>
+    <h2>Dashboard failed to render</h2>
+    <p>Open the browser console for the full trace, or hard-reload (⇧⌘R) if you just pulled changes.</p>
+    <code style="white-space:pre-wrap; text-align:left; max-width:80ch;">${esc(msg)}</code>
+  </div>`
+}
+
 async function load() {
   renderLoading()
-  const [data, checksData] = await Promise.all([fetchJson(REPORTS_URL), fetchJson(CHECKS_URL)])
+  try {
+    const [data, checksData, gitData] = await Promise.all([
+      fetchJson(REPORTS_URL),
+      fetchJson(CHECKS_URL),
+      fetchJson(GIT_URL),
+    ])
 
-  if (!data?.reports?.length && !checksData?.reports?.length) {
-    renderEmpty()
-    return
+    if (!data?.reports?.length && !checksData?.reports?.length) {
+      renderEmpty()
+      return
+    }
+    renderDashboard(data ?? { reports: [], generatedAt: null }, checksData, gitData)
+  } catch (err) {
+    console.error('[health-dashboard] render failure', err)
+    renderError(err)
   }
-  renderDashboard(data ?? { reports: [], generatedAt: null }, checksData)
+}
+
+function currentCommitHashes(section) {
+  return [...section.querySelectorAll('[data-git-zone="commits"] .git-commit')]
+    .map(el => el.dataset.hash).join('|')
+}
+
+async function refreshGitOnly() {
+  const gitData = await fetchJson(GIT_URL)
+  const section = document.querySelector('[data-section="git"]')
+  if (!section) return
+
+  const tally = section.querySelector('[data-git-zone="tally"]')
+  const folders = section.querySelector('[data-git-zone="folders"]')
+  const commits = section.querySelector('[data-git-zone="commits"]')
+
+  if (tally) tally.innerHTML = renderGitTally(gitData)
+  if (folders) folders.innerHTML = renderGitFolders(gitData)
+
+  const nextHashes = (gitData?.commits ?? []).map(c => c.hash).join('|')
+  if (commits && nextHashes !== currentCommitHashes(section)) {
+    commits.innerHTML = renderGitCommits(gitData)
+  }
+
+  if (gitData) section.classList.remove('is-error')
+  else section.classList.add('is-error')
 }
 
 document.getElementById('btn-refresh')?.addEventListener('click', load)
+setInterval(refreshGitOnly, GIT_POLL_MS)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshGitOnly()
+})
 load()

@@ -30,9 +30,9 @@
     "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
     "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron",
     "check:dead-code": "knip --no-progress --no-config-hints --include files,exports",
-    "health:dashboard": "python3 -m http.server 8765 -d health-dashboard",
+    "health:dashboard": "node health-dashboard/server.mjs",
     "health:capture-ci": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/capture-ci-checks.mjs",
-    "devops": "(sleep 1 && open http://localhost:8765) & python3 -m http.server 8765 -d health-dashboard"
+    "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",

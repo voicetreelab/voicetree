@@ -1,0 +1,20 @@
+/* ranking — ranking-section, ranking-wrap, canvas */
+/* =============================================================================
+   RANKING
+   ========================================================================== */
+.ranking-wrap {
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  padding: 1.1rem 1.3rem 1.3rem;
+  position: relative;
+}
+.ranking-wrap::before {
+  content: '◢';
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  font-size: 0.6rem;
+  color: var(--paper-ghost);
+}
+.ranking-wrap canvas { display: block; width: 100% !important; }
+

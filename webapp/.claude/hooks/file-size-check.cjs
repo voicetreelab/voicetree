@@ -17,7 +17,7 @@ const path = require('path');
 const MAX_LINES = 500;
 
 function isSourceFile(filePath) {
-  return /\.(ts|tsx|js|jsx)$/.test(filePath);
+  return /\.(ts|tsx|js|jsx|css|scss|less)$/.test(filePath);
 }
 
 async function main() {

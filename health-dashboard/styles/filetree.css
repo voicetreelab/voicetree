@@ -1,0 +1,166 @@
+/* filetree — filetree-section, ft-tree, ft-row, ft-chips, severity */
+/* =============================================================================
+   FILETREE
+   ========================================================================== */
+.filetree-section { margin-bottom: 2.6rem; }
+
+.ft-help {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--paper-muted);
+  margin-bottom: 0.8rem;
+  max-width: 78ch;
+}
+
+.ft-legend {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+.ft-legend-item {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.22rem 0.6rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--ink-0);
+  font-family: var(--mono); font-size: 0.66rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+}
+
+.ft-tree {
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  padding: 0.95rem 1.1rem 1.05rem;
+  font-family: var(--mono);
+  font-size: 0.79rem;
+  line-height: 1.55;
+  position: relative;
+}
+.ft-tree::before {
+  content: '$';
+  position: absolute;
+  top: 0.7rem; right: 0.95rem;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--paper-ghost);
+  font-size: 0.95rem;
+}
+
+.ft-tree ul.ft-children {
+  list-style: none; margin: 0;
+  padding: 0 0 0 1.1rem;
+  border-left: 1px dashed var(--rule-strong);
+  margin-left: 0.45rem;
+}
+
+.ft-dir { display: block; }
+.ft-dir > .ft-row { cursor: pointer; }
+.ft-dir-item { list-style: none; }
+
+.ft-dir > summary { list-style: none; }
+.ft-dir > summary::-webkit-details-marker { display: none; }
+.ft-dir > summary::before {
+  content: '▸';
+  color: var(--paper-faint);
+  display: inline-block;
+  width: 0.95rem;
+  margin-right: 0.05rem;
+  font-size: 0.72rem;
+  transition: transform 0.16s ease;
+}
+.ft-dir[open] > summary::before { transform: rotate(90deg); }
+
+.ft-file { list-style: none; padding-left: 0.95rem; }
+.ft-file > .ft-row { padding-left: 0; }
+
+.ft-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.25rem;
+  transition: background 0.1s;
+}
+.ft-row:hover { background: var(--ink-2); }
+
+.ft-dot {
+  width: 7px; height: 7px;
+  background: var(--paper-ghost);
+  flex-shrink: 0; display: inline-block;
+}
+
+.ft-name {
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.ft-slash { color: var(--paper-ghost); }
+
+.ft-detail {
+  font-size: 0.7rem;
+  color: var(--paper-faint);
+  margin-left: auto;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.ft-count {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  background: var(--ink-0);
+  color: var(--paper-muted);
+  border: 1px solid var(--rule-strong);
+  padding: 0.04rem 0.45rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.ft-chips {
+  display: inline-flex; flex-wrap: wrap; gap: 0.28rem;
+  align-items: center;
+  margin-left: 0.45rem;
+}
+.ft-chip {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--ink-0);
+  color: var(--paper-faint);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.ft-chip.is-fail {
+  color: var(--sig);
+  background: var(--sig-soft);
+  border-color: var(--sig-edge);
+}
+
+.ft-sev-green  .ft-dot { background: var(--vital); }
+.ft-sev-yellow .ft-dot { background: var(--caution); }
+.ft-sev-orange .ft-dot { background: #f08838; }
+.ft-sev-red    .ft-dot { background: var(--sig); }
+
+.ft-legend-item.ft-sev-red    .ft-dot { background: var(--sig); }
+.ft-legend-item.ft-sev-orange .ft-dot { background: #f08838; }
+.ft-legend-item.ft-sev-yellow .ft-dot { background: var(--caution); }
+
+.ft-file.ft-sev-yellow .ft-name { color: var(--caution); }
+.ft-file.ft-sev-orange .ft-name { color: #f0a060; }
+.ft-file.ft-sev-red    .ft-name { color: var(--sig); font-weight: 600; }
+
+.ft-dir.ft-sev-red    > summary .ft-name,
+.ft-dir.ft-sev-red    > summary .ft-slash { color: var(--sig); }
+.ft-dir.ft-sev-orange > summary .ft-name,
+.ft-dir.ft-sev-orange > summary .ft-slash { color: #f0a060; }
+.ft-dir.ft-sev-yellow > summary .ft-name,
+.ft-dir.ft-sev-yellow > summary .ft-slash { color: var(--caution); }
+
+.ft-empty {
+  border: 1px dashed var(--rule-strong);
+  background: var(--ink-1);
+  padding: 1.4rem;
+  text-align: center;
+  color: var(--paper-muted);
+  font-family: var(--sans);
+  font-size: 0.84rem;
+}
+
