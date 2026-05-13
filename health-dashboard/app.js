@@ -3,14 +3,15 @@ import { renderChecksSection, bindChecksSection } from './checks.js'
 import { renderFileTreeSection } from './fileTree.js'
 import { renderTreemapSection, bindTreemapSection } from './treemap.js'
 import { renderGitSection, renderGitTally, renderGitFolders, renderGitCommits } from './git.js'
+import { getMetricExplanation } from './metricExplanations.js'
+import { bindCardExplainToggles } from './explainToggle.js'
+import { isGate, gatesShown, renderGatesSection, bindGatesToggle } from './gates.js'
 
 const REPORTS_URL = 'reports/latest.json'
 const CHECKS_URL = 'reports/checks.json'
 const GIT_URL = 'api/git'
 const GIT_POLL_MS = 5000
 const CATEGORY_ORDER = ['Coupling', 'Complexity', 'Structure', 'Purity', 'Behavioral', 'Shape', 'Churn', 'Other']
-const GATES_SHOWN_KEY = 'health-dashboard:gates-shown'
-
 const HEALTH_AXES = [
   {
     name: 'Structural',
@@ -31,15 +32,6 @@ const HEALTH_AXES = [
     match: (r) => ['function-health', 'purity-ast-p90-function-loc', 'exports-per-file-p90', 'exports-per-file-max'].includes(r.metricId),
   },
 ]
-
-const isGate = (r) => r.budget === 0 && r.comparison === 'lte'
-
-function gatesShown() {
-  try { return localStorage.getItem(GATES_SHOWN_KEY) === '1' } catch { return false }
-}
-function setGatesShown(v) {
-  try { localStorage.setItem(GATES_SHOWN_KEY, v ? '1' : '0') } catch {}
-}
 
 // ── Gauge / Utilization ───────────────────────────────────────────────────────
 
@@ -80,12 +72,20 @@ function renderCard(r) {
   const rel    = relTime(r.timestamp)
   const staleDot = stale ? `<span class="stale-dot" title="Last run >7 days ago">⚠ stale</span>` : ''
 
+  const explanation = getMetricExplanation(r)
+
   return `<div class="metric-card ${cls}" data-id="${esc(r.metricId)}">
   <div class="card-head">
     <span class="card-name">${esc(r.metricName)}</span>
+    <button class="card-info-btn" type="button" aria-expanded="false" aria-label="Explain ${esc(r.metricName)}" title="Explain this measure">
+      <span class="card-info-glyph" aria-hidden="true">i</span>
+    </button>
     <span class="badge ${badgeCls}">${badgeTxt}</span>
   </div>
   <p class="card-desc">${esc(r.description)}</p>
+  <div class="card-explain" hidden>
+    <p>${esc(explanation)}</p>
+  </div>
   <div class="card-values">
     <span class="val-current">${fmtNum(r.current)}</span>
     <span class="val-sep">/</span>
@@ -99,6 +99,7 @@ function renderCard(r) {
   </div>
 </div>`
 }
+
 
 function renderCategory(name, reports) {
   const pass  = reports.filter(r => r.passed).length
@@ -161,63 +162,6 @@ function renderAxes(reports) {
 
 function groupedMetricIds(reports) {
   return new Set(HEALTH_AXES.flatMap(axis => axisReports(axis, reports).map(report => report.metricId)))
-}
-
-// ── Gates section (binary pass/fail chips) ────────────────────────────────────
-
-function renderGateChip(r) {
-  const stale = isStale(r.timestamp)
-  const cls = stale ? 'is-stale' : r.passed ? 'is-pass' : 'is-fail'
-  const icon = stale ? '⚠' : r.passed ? '✓' : '✗'
-  const unit = r.unit ? ` ${esc(r.unit)}` : ''
-  const titleBits = [
-    r.metricName,
-    r.description,
-    `current: ${fmtNum(r.current)}${unit}   budget: ≤ ${fmtNum(r.budget)}${unit}`,
-    `last run: ${r.timestamp}`,
-  ].filter(Boolean)
-  return `<span class="gate-chip ${cls}" data-id="${esc(r.metricId)}" title="${esc(titleBits.join('\n'))}">
-    <span class="gate-chip-icon" aria-hidden="true">${icon}</span>
-    <span class="gate-chip-name">${esc(r.metricName)}</span>
-    ${r.passed || stale ? '' : `<span class="gate-chip-count">${fmtNum(r.current)}</span>`}
-  </span>`
-}
-
-function renderGatesSection(gates, shown) {
-  if (gates.length === 0) return ''
-  const pass = gates.filter(r => r.passed).length
-  const fail = gates.length - pass
-  const tally = fail > 0
-    ? `<span class="t-pass">${pass}</span> / <span class="t-fail">${gates.length}</span>`
-    : `<span class="t-pass">${pass}</span> / ${gates.length}`
-  return `<section class="gates-section" data-shown="${shown ? '1' : '0'}">
-    <div class="category-header">
-      <span class="category-name">Pass / Fail Gates</span>
-      <span class="category-rule"></span>
-      <span class="category-tally">${tally} passing</span>
-      <button class="btn-toggle-gates" id="btn-toggle-gates" type="button" aria-pressed="${shown}">${shown ? 'hide' : 'show'}</button>
-    </div>
-    <div class="gates-body" ${shown ? '' : 'hidden'}>
-      <p class="gates-help">Binary gates with budget 0. ✓ means zero violations — these can't rank on the bar chart because their utilization is always 0× (pass) or ∞× (fail).</p>
-      <div class="gate-chips">${gates.map(renderGateChip).join('')}</div>
-    </div>
-  </section>`
-}
-
-function bindGatesToggle(root) {
-  const btn = root.querySelector('#btn-toggle-gates')
-  if (!btn) return
-  btn.addEventListener('click', () => {
-    const next = !gatesShown()
-    setGatesShown(next)
-    const section = btn.closest('.gates-section')
-    const body = section?.querySelector('.gates-body')
-    if (!section || !body) return
-    section.dataset.shown = next ? '1' : '0'
-    btn.textContent = next ? 'hide' : 'show'
-    btn.setAttribute('aria-pressed', String(next))
-    if (next) body.removeAttribute('hidden'); else body.setAttribute('hidden', '')
-  })
 }
 
 // ── Ranking bar chart (Chart.js horizontal) ───────────────────────────────────
@@ -395,6 +339,7 @@ function renderDashboard(data, checksData, gitData) {
   bindChecksSection(main, checksData)
   bindGatesToggle(main)
   bindTreemapSection(main, data.reports)
+  bindCardExplainToggles(main)
 
   if (scored.length > 0) renderRanking(scored)
 }

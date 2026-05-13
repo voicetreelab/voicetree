@@ -162,3 +162,68 @@
 }
 .stale-dot { color: var(--caution); }
 
+/* ── Info button + explain panel ──────────────────────────────────────────── */
+.card-info-btn {
+  margin-left: auto;
+  margin-right: 0.4rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  color: var(--paper-faint);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.card-info-btn:hover,
+.card-info-btn:focus-visible {
+  color: var(--paper);
+  border-color: var(--paper-muted);
+  background: var(--ink-2);
+  outline: none;
+}
+.card-info-btn[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(247, 227, 166, 0.06);
+}
+.card-info-glyph {
+  display: block;
+  transform: translateY(-0.5px);
+}
+
+.card-explain {
+  margin-top: -0.15rem;
+  padding: 0.65rem 0.75rem 0.7rem;
+  border-left: 2px solid var(--accent);
+  background: var(--ink-2);
+  color: var(--paper-muted);
+}
+.card-explain p {
+  font-family: var(--serif);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
+  color: var(--paper);
+  max-width: 60ch;
+}
+.metric-card.is-fail .card-explain   { border-left-color: var(--sig); }
+.metric-card.is-stale .card-explain  { border-left-color: var(--caution); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-explain { animation: card-explain-in 0.18s ease-out both; }
+}
+@keyframes card-explain-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
