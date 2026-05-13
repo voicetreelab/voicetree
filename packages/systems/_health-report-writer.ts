@@ -1,4 +1,4 @@
-import {open, readdir, readFile, rename, unlink, writeFile, mkdir} from 'node:fs/promises'
+import {readdir, readFile, rename, unlink, writeFile, mkdir} from 'node:fs/promises'
 import {randomBytes} from 'node:crypto'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -7,9 +7,7 @@ const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
 const LATEST_REPORT_PATH: string = join(REPORTS_DIR, 'latest.json')
-const LATEST_LOCK_PATH: string = join(REPORTS_DIR, 'latest.json.lock')
 const METRIC_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const LOCK_TIMEOUT_MS = 5_000
 
 const CATEGORIES = ['Coupling', 'Complexity', 'Purity', 'Behavioral', 'Shape', 'Churn', 'Structure', 'Other'] as const
 const COMPARISONS = ['lte', 'gte'] as const
@@ -66,29 +64,6 @@ async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
     }
 }
 
-async function acquireLock(path: string): Promise<Awaited<ReturnType<typeof open>>> {
-    const deadline = Date.now() + LOCK_TIMEOUT_MS
-    while (Date.now() < deadline) {
-        try {
-            return await open(path, 'wx')
-        } catch (err) {
-            if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
-            await new Promise(resolve => setTimeout(resolve, 25))
-        }
-    }
-    throw new Error(`timed out waiting for report lock: ${path}`)
-}
-
-async function withLatestLock<T>(fn: () => Promise<T>): Promise<T> {
-    const handle = await acquireLock(LATEST_LOCK_PATH)
-    try {
-        return await fn()
-    } finally {
-        await handle.close().catch(() => {})
-        await unlink(LATEST_LOCK_PATH).catch(() => {})
-    }
-}
-
 function isMetricReportFile(name: string): boolean {
     return name.endsWith('.json')
         && name !== 'latest.json'
@@ -130,5 +105,5 @@ export async function recordHealthReport(report: HealthReport): Promise<void> {
     assertHealthReport(report)
     await mkdir(REPORTS_DIR, {recursive: true})
     await writeJsonAtomic(metricReportPath(report.metricId), report)
-    await withLatestLock(writeLatestReport)
+    await writeLatestReport()
 }

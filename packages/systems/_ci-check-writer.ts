@@ -1,4 +1,4 @@
-import {open, readdir, readFile, rename, unlink, writeFile, mkdir} from 'node:fs/promises'
+import {readdir, readFile, rename, unlink, writeFile, mkdir} from 'node:fs/promises'
 import {randomBytes} from 'node:crypto'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -8,9 +8,7 @@ const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
 const CHECKS_DIR: string = join(REPORTS_DIR, 'checks')
 const CHECKS_REPORT_PATH: string = join(REPORTS_DIR, 'checks.json')
-const CHECKS_LOCK_PATH: string = join(REPORTS_DIR, 'checks.json.lock')
 const CHECK_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const LOCK_TIMEOUT_MS = 5_000
 
 const CATEGORIES = ['Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Command', 'Hook', 'Other'] as const
 const STATUSES = ['pass', 'fail', 'skip'] as const
@@ -70,29 +68,6 @@ async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
     }
 }
 
-async function acquireLock(path: string): Promise<Awaited<ReturnType<typeof open>>> {
-    const deadline = Date.now() + LOCK_TIMEOUT_MS
-    while (Date.now() < deadline) {
-        try {
-            return await open(path, 'wx')
-        } catch (err) {
-            if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
-            await new Promise(resolve => setTimeout(resolve, 25))
-        }
-    }
-    throw new Error(`timed out waiting for checks lock: ${path}`)
-}
-
-async function withChecksLock<T>(fn: () => Promise<T>): Promise<T> {
-    const handle = await acquireLock(CHECKS_LOCK_PATH)
-    try {
-        return await fn()
-    } finally {
-        await handle.close().catch(() => {})
-        await unlink(CHECKS_LOCK_PATH).catch(() => {})
-    }
-}
-
 function isCheckReportFile(name: string): boolean {
     return name.endsWith('.json') && CHECK_ID_PATTERN.test(name.slice(0, -'.json'.length))
 }
@@ -137,5 +112,5 @@ export async function recordCheckReport(report: CheckReport): Promise<void> {
     assertCheckReport(report)
     await mkdir(CHECKS_DIR, {recursive: true})
     await writeJsonAtomic(checkReportPath(report.checkId), report)
-    await withChecksLock(writeChecksAggregate)
+    await writeChecksAggregate()
 }
