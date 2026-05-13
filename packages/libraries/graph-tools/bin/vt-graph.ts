@@ -1,4 +1,6 @@
 #!/usr/bin/env npx tsx
+import fs from 'node:fs'
+import path from 'node:path'
 import {
   dumpState,
   formatLintReportHuman,
@@ -21,6 +23,7 @@ import {
   formatHygieneReportJson,
   type HygieneRuleId,
 } from '../src/hygiene'
+import type {SerializedCommand} from '@vt/graph-state'
 import {parseStateDumpArgs} from './cliArgs'
 import {runStructureCommand} from './structureCommand'
 
@@ -42,6 +45,11 @@ function usage(): string {
     '       vt-graph live view [--collapse F]... [--select X]... [--mermaid] [--port N]',
     '       vt-graph live state dump [--no-pretty] [--port N]',
     '       vt-graph live apply \'<json-cmd>\' [--port N]',
+    '       vt-graph live add-node --file <path> [--label <string>] [--x <number>] [--y <number>] [--port <number>]',
+    '       vt-graph live rm-node --file <path> [--port <number>]',
+    '       vt-graph live add-edge --src-file <path> --tgt-file <path> [--label <string>] [--port <number>]',
+    '       vt-graph live rm-edge --src-file <path> --tgt-file <path> [--port <number>]',
+    '       vt-graph live mv-node --file <path> --x <number> --y <number> [--port <number>]',
     '       vt-graph live focus <node> [--hops N] [--port N]',
     '       vt-graph live neighbors <node> [--hops N] [--port N]',
     '       vt-graph live path <a> <b> [--port N]',
@@ -55,6 +63,368 @@ function getRequiredValue(parsedArgs: string[], index: number, flag: string): st
   }
 
   return value
+}
+
+type LiveCrudVerb = 'add-node' | 'rm-node' | 'add-edge' | 'rm-edge' | 'mv-node'
+
+type FlagKind = 'string' | 'number'
+
+interface FlagSpec {
+  readonly name: string
+  readonly hint: string
+  readonly kind: FlagKind
+  readonly required: boolean
+}
+
+interface ParsedLiveCrudCommand {
+  readonly command: SerializedCommand
+  readonly port?: number
+}
+
+const LIVE_CRUD_FLAGS: Record<LiveCrudVerb, readonly FlagSpec[]> = {
+  'add-node': [
+    {name: '--file', hint: '<file-path>', kind: 'string', required: true},
+    {name: '--label', hint: '<text>', kind: 'string', required: false},
+    {name: '--x', hint: '<num>', kind: 'number', required: false},
+    {name: '--y', hint: '<num>', kind: 'number', required: false},
+    {name: '--port', hint: '<num>', kind: 'number', required: false},
+  ],
+  'rm-node': [
+    {name: '--file', hint: '<file-path>', kind: 'string', required: true},
+    {name: '--port', hint: '<num>', kind: 'number', required: false},
+  ],
+  'add-edge': [
+    {name: '--src-file', hint: '<path>', kind: 'string', required: true},
+    {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
+    {name: '--label', hint: '<text>', kind: 'string', required: false},
+    {name: '--port', hint: '<num>', kind: 'number', required: false},
+  ],
+  'rm-edge': [
+    {name: '--src-file', hint: '<path>', kind: 'string', required: true},
+    {name: '--tgt-file', hint: '<path>', kind: 'string', required: true},
+    {name: '--port', hint: '<num>', kind: 'number', required: false},
+  ],
+  'mv-node': [
+    {name: '--file', hint: '<file-path>', kind: 'string', required: true},
+    {name: '--x', hint: '<num>', kind: 'number', required: true},
+    {name: '--y', hint: '<num>', kind: 'number', required: true},
+    {name: '--port', hint: '<num>', kind: 'number', required: false},
+  ],
+}
+
+const LIVE_CRUD_DESCRIPTIONS: Record<LiveCrudVerb, string> = {
+  'add-node': 'Adds a node to the live graph. Returns the resulting Delta as JSON.',
+  'rm-node': 'Removes a node from the live graph. Returns the resulting Delta as JSON.',
+  'add-edge': 'Adds an edge to the live graph. Returns the resulting Delta as JSON.',
+  'rm-edge': 'Removes an edge from the live graph. Returns the resulting Delta as JSON.',
+  'mv-node': 'Moves a node in the live graph. Returns the resulting Delta as JSON.',
+}
+
+function isLiveCrudVerb(value: string | undefined): value is LiveCrudVerb {
+  return value === 'add-node'
+    || value === 'rm-node'
+    || value === 'add-edge'
+    || value === 'rm-edge'
+    || value === 'mv-node'
+}
+
+function liveUsage(): string {
+  return [
+    'Usage: vt-graph live <subcommand> [args]',
+    '',
+    'Subcommands:',
+    '  view       Render the live graph.',
+    '  state dump Print live SerializedState JSON.',
+    '  apply      Apply raw Command JSON to the live graph.',
+    '  add-node   Add a node to the live graph.',
+    '  rm-node    Remove a node from the live graph.',
+    '  add-edge   Add an edge to the live graph.',
+    '  rm-edge    Remove an edge from the live graph.',
+    '  mv-node    Move a node in the live graph.',
+    '  focus      Render a focused ego graph.',
+    '  neighbors  Render a node neighborhood.',
+    '  path       Render a path between two nodes.',
+  ].join('\n')
+}
+
+function flagUsage(spec: FlagSpec): string {
+  const hint = spec.kind === 'number'
+    ? spec.hint.replace('<num>', '<number>')
+    : spec.hint
+      .replace('<file-path>', '<path>')
+      .replace('<text>', '<string>')
+  const usageText = `${spec.name} ${hint}`
+  return spec.required ? usageText : `[${usageText}]`
+}
+
+function liveCrudUsage(verb: LiveCrudVerb): string {
+  return [
+    `Usage: vt-graph live ${verb} ${LIVE_CRUD_FLAGS[verb].map(flagUsage).join(' ')}`,
+    `  ${LIVE_CRUD_DESCRIPTIONS[verb]}`,
+  ].join('\n')
+}
+
+function validFlagsMessage(verb: LiveCrudVerb): string {
+  return `Valid flags: ${LIVE_CRUD_FLAGS[verb].map((spec) => spec.name).join(', ')}`
+}
+
+function splitFlagArg(arg: string): {readonly flag: string; readonly value?: string} {
+  const equalsIndex = arg.indexOf('=')
+  if (equalsIndex === -1) return {flag: arg}
+  return {flag: arg.slice(0, equalsIndex), value: arg.slice(equalsIndex + 1)}
+}
+
+function parseNumberValue(flag: string, value: string): number {
+  if (value === '') fail(`error: ${flag} requires a numeric value`)
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) fail(`error: ${flag} expected a number, got '${value}'`)
+  return parsed
+}
+
+function parseLiveCrudFlagValues(
+  verb: LiveCrudVerb,
+  argsForVerb: readonly string[],
+): Record<string, string | number | undefined> {
+  const specs = LIVE_CRUD_FLAGS[verb]
+  const specByName = new Map(specs.map((spec) => [spec.name, spec]))
+  const values: Record<string, string | number | undefined> = {}
+
+  for (let i = 0; i < argsForVerb.length; i++) {
+    const arg = argsForVerb[i]
+    if (!arg.startsWith('--')) {
+      fail(`error: unexpected argument '${arg}' for '${verb}'. ${validFlagsMessage(verb)}`)
+    }
+
+    const {flag, value: inlineValue} = splitFlagArg(arg)
+    const spec = specByName.get(flag)
+    if (!spec) {
+      fail(`error: unknown flag ${flag} for '${verb}'. ${validFlagsMessage(verb)}`)
+    }
+
+    const rawValue = inlineValue ?? argsForVerb[++i]
+    if (rawValue === undefined || rawValue.startsWith('--')) {
+      const valueKind = spec.kind === 'number' ? 'numeric' : 'string'
+      fail(`error: ${flag} requires a ${valueKind} value`)
+    }
+
+    values[flag] = spec.kind === 'number' ? parseNumberValue(flag, rawValue) : rawValue
+  }
+
+  for (const spec of specs) {
+    if (spec.required && values[spec.name] === undefined) {
+      fail(`error: '${verb}' requires ${spec.name} ${spec.hint}`)
+    }
+  }
+
+  return values
+}
+
+function requiredString(values: Record<string, string | number | undefined>, flag: string): string {
+  const value = values[flag]
+  if (typeof value !== 'string') fail(`error: ${flag} requires a string value`)
+  return value
+}
+
+function optionalString(values: Record<string, string | number | undefined>, flag: string): string | undefined {
+  const value = values[flag]
+  return typeof value === 'string' ? value : undefined
+}
+
+function requiredNumber(values: Record<string, string | number | undefined>, flag: string): number {
+  const value = values[flag]
+  if (typeof value !== 'number') fail(`error: ${flag} requires a numeric value`)
+  return value
+}
+
+function optionalNumber(values: Record<string, string | number | undefined>, flag: string): number | undefined {
+  const value = values[flag]
+  return typeof value === 'number' ? value : undefined
+}
+
+function withTrailingNewline(content: string): string {
+  return content.endsWith('\n') ? content : `${content}\n`
+}
+
+function markdownLinkTarget(sourceFile: string, targetFile: string): string {
+  const relativePath = path.relative(path.dirname(sourceFile), targetFile).replaceAll(path.sep, '/')
+  return relativePath.replace(/\.md$/, '')
+}
+
+function edgeLine(sourceFile: string, targetFile: string, label: string): string {
+  const link = `[[${markdownLinkTarget(sourceFile, targetFile)}]]`
+  return label ? `${label} ${link}` : link
+}
+
+function appendLineIfMissing(content: string, line: string): string {
+  const lines = content.split(/\r?\n/)
+  if (lines.includes(line)) return content
+  return `${withTrailingNewline(content)}${line}\n`
+}
+
+function removeEdgeLine(content: string, sourceFile: string, targetFile: string): string {
+  const link = `[[${markdownLinkTarget(sourceFile, targetFile)}]]`
+  const nextLines = content.split(/\r?\n/).filter((line) => !line.includes(link))
+  return withTrailingNewline(nextLines.join('\n').replace(/\n+$/, ''))
+}
+
+function readJsonRecord(filePath: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function findLoadedRootForFile(loadedRoots: readonly string[], filePath: string): string | undefined {
+  const resolvedFile = path.resolve(filePath)
+  return [...loadedRoots]
+    .map((root) => path.resolve(root))
+    .filter((root) => resolvedFile === root || resolvedFile.startsWith(`${root}${path.sep}`))
+    .sort((left, right) => right.length - left.length)[0]
+}
+
+async function getLoadedRoots(port?: number): Promise<readonly string[]> {
+  const result = await liveStateDump({pretty: false, ...(port !== undefined ? {port} : {})})
+  const parsed = JSON.parse(result.json) as {roots?: {loaded?: unknown}}
+  return Array.isArray(parsed.roots?.loaded)
+    ? parsed.roots.loaded.filter((root): root is string => typeof root === 'string')
+    : []
+}
+
+async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, port?: number): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(port), filePath)
+  if (!root) return
+
+  const positionsPath = path.join(root, '.voicetree', 'positions.json')
+  const positions = readJsonRecord(positionsPath)
+  positions[filePath] = {x: position.x, y: position.y}
+  fs.mkdirSync(path.dirname(positionsPath), {recursive: true})
+  fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
+}
+
+async function removePositionForFile(filePath: string, port?: number): Promise<void> {
+  const root = findLoadedRootForFile(await getLoadedRoots(port), filePath)
+  if (!root) return
+
+  const positionsPath = path.join(root, '.voicetree', 'positions.json')
+  const positions = readJsonRecord(positionsPath)
+  delete positions[filePath]
+  fs.mkdirSync(path.dirname(positionsPath), {recursive: true})
+  fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
+}
+
+function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]): ParsedLiveCrudCommand {
+  if (argsForVerb.includes('--help')) {
+    console.log(liveCrudUsage(verb))
+    process.exit(0)
+  }
+  if (argsForVerb.length === 0) {
+    const firstRequired = LIVE_CRUD_FLAGS[verb].find((spec) => spec.required)
+    fail(`error: '${verb}' requires ${firstRequired?.name ?? '<flag>'} ${firstRequired?.hint ?? '<value>'}\n${liveCrudUsage(verb)}`)
+  }
+
+  const values = parseLiveCrudFlagValues(verb, argsForVerb)
+  const port = optionalNumber(values, '--port')
+
+  switch (verb) {
+    case 'add-node': {
+      const file = requiredString(values, '--file')
+      const label = optionalString(values, '--label')
+      const defaultHeading = `# ${path.basename(file, '.md')}\n`
+      const x = optionalNumber(values, '--x')
+      const y = optionalNumber(values, '--y')
+      if ((x === undefined) !== (y === undefined)) {
+        fail(`error: 'add-node' requires both --x <num> and --y <num> when setting a position`)
+      }
+      const command: SerializedCommand = {
+        type: 'AddNode',
+        node: {
+          outgoingEdges: [],
+          absoluteFilePathIsID: file,
+          contentWithoutYamlOrLinks: label !== undefined ? label : defaultHeading,
+          nodeUIMetadata: {
+            color: {_tag: 'None'},
+            position: x !== undefined && y !== undefined ? {_tag: 'Some', value: {x, y}} : {_tag: 'None'},
+            additionalYAMLProps: [],
+          },
+        },
+      }
+      return {command, ...(port !== undefined ? {port} : {})}
+    }
+    case 'rm-node': {
+      const file = requiredString(values, '--file')
+      return {command: {type: 'RemoveNode', id: file}, ...(port !== undefined ? {port} : {})}
+    }
+    case 'add-edge': {
+      const source = requiredString(values, '--src-file')
+      const targetId = requiredString(values, '--tgt-file')
+      const label = optionalString(values, '--label') ?? ''
+      return {
+        command: {type: 'AddEdge', source, edge: {targetId, label}},
+        ...(port !== undefined ? {port} : {}),
+      }
+    }
+    case 'rm-edge': {
+      const source = requiredString(values, '--src-file')
+      const targetId = requiredString(values, '--tgt-file')
+      return {command: {type: 'RemoveEdge', source, targetId}, ...(port !== undefined ? {port} : {})}
+    }
+    case 'mv-node': {
+      const file = requiredString(values, '--file')
+      const x = requiredNumber(values, '--x')
+      const y = requiredNumber(values, '--y')
+      return {command: {type: 'Move', id: file, to: {x, y}}, ...(port !== undefined ? {port} : {})}
+    }
+  }
+}
+
+async function persistLiveCrudCommand(parsed: ParsedLiveCrudCommand): Promise<void> {
+  const command = parsed.command
+
+  switch (command.type) {
+    case 'AddNode': {
+      const file = command.node.absoluteFilePathIsID
+      fs.mkdirSync(path.dirname(file), {recursive: true})
+      fs.writeFileSync(file, withTrailingNewline(command.node.contentWithoutYamlOrLinks), 'utf8')
+      if (command.node.nodeUIMetadata.position._tag === 'Some') {
+        await writePositionForFile(file, command.node.nodeUIMetadata.position.value, parsed.port)
+      }
+      return
+    }
+    case 'RemoveNode': {
+      if (fs.existsSync(command.id)) fs.rmSync(command.id, {force: true})
+      await removePositionForFile(command.id, parsed.port)
+      return
+    }
+    case 'AddEdge': {
+      const sourceContent = fs.existsSync(command.source) ? fs.readFileSync(command.source, 'utf8') : ''
+      const nextContent = appendLineIfMissing(
+        sourceContent,
+        edgeLine(command.source, command.edge.targetId, command.edge.label),
+      )
+      fs.mkdirSync(path.dirname(command.source), {recursive: true})
+      fs.writeFileSync(command.source, nextContent, 'utf8')
+      return
+    }
+    case 'RemoveEdge': {
+      if (!fs.existsSync(command.source)) return
+      fs.writeFileSync(
+        command.source,
+        removeEdgeLine(fs.readFileSync(command.source, 'utf8'), command.source, command.targetId),
+        'utf8',
+      )
+      return
+    }
+    case 'Move': {
+      await writePositionForFile(command.id, command.to, parsed.port)
+      return
+    }
+    default:
+      return
+  }
 }
 
 
@@ -127,6 +497,11 @@ async function main(): Promise<void> {
     }
     case 'live': {
       const [liveSubcommand, ...liveArgs] = args
+
+      if (!liveSubcommand || liveSubcommand === '--help') {
+        console.log(liveUsage())
+        break
+      }
 
       if (liveSubcommand === 'view') {
         let format: ViewFormat = 'ascii'
@@ -232,6 +607,14 @@ async function main(): Promise<void> {
         break
       }
 
+      if (isLiveCrudVerb(liveSubcommand)) {
+        const parsed = parseLiveCrudCommand(liveSubcommand, liveArgs)
+        const result = await liveApply(JSON.stringify(parsed.command), {port: parsed.port})
+        await persistLiveCrudCommand(parsed)
+        process.stdout.write(result.output)
+        break
+      }
+
       if (liveSubcommand === 'focus') {
         const nodeId = liveArgs[0]
         if (!nodeId || nodeId.startsWith('--')) fail('Usage: vt-graph live focus <node> [--hops N] [--port N]')
@@ -308,7 +691,7 @@ async function main(): Promise<void> {
         break
       }
 
-      fail(`Unknown live subcommand: "${liveSubcommand ?? ''}"\n${usage()}`)
+      fail(`error: unknown live subcommand "${liveSubcommand}"\n${liveUsage()}`)
       break
     }
 

@@ -96,6 +96,32 @@ function spawnCli(args: string[], cwd: string): Promise<SpawnResult> {
 }
 
 describe('graph CLI module resolution', () => {
+    it('prints top-level help without eagerly loading serve-only packages', async () => {
+        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-help-'))
+        tempDirs.push(tempDir)
+
+        const result: SpawnResult = await spawnCli(['--help'], tempDir)
+
+        expect(result.code, result.stderr).toBe(0)
+        expect(result.signal).toBeNull()
+        expect(result.stderr).toBe('')
+        expect(result.stdout).toContain('Usage: vt')
+        expect(result.stdout).toContain('serve')
+    }, 30000)
+
+    it('routes graph live through the vt-graph live implementation with vt-shaped help', async () => {
+        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-'))
+        tempDirs.push(tempDir)
+
+        const result: SpawnResult = await spawnCli(['graph', 'live', 'add-node', '--help'], tempDir)
+
+        expect(result.code, result.stderr).toBe(0)
+        expect(result.signal).toBeNull()
+        expect(result.stderr).toBe('')
+        expect(result.stdout).toContain('Usage: vt graph live add-node --file <path>')
+        expect(result.stdout).not.toContain('vt-graph live')
+    }, 30000)
+
     it('loads graph create through the real CLI entrypoint and validates filesystem mode', async () => {
         const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-create-'))
         tempDirs.push(tempDir)

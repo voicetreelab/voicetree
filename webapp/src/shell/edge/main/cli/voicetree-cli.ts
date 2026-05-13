@@ -8,7 +8,6 @@ import {
     agentWait,
 } from './commands/agent.ts'
 import {runDebugCommand} from './commands/debug.ts'
-import {runServeCommand} from './commands/serve.ts'
 import {runSessionCommand} from './commands/session.ts'
 import {runVaultCommand} from './commands/vault.ts'
 import {runViewCommand} from './commands/view.ts'
@@ -55,6 +54,7 @@ Subcommands:
 const GRAPH_HELP: string = `Usage: vt graph <subcommand> [args]
 
 Subcommands:
+  live        Live graph operations (view, state dump, apply, CRUD, focus, ...)
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
   create      Create progress nodes in the graph
   group       Group files into a new folder and update all references
@@ -236,6 +236,15 @@ async function dispatchGraphCommand(
             await graphUnseen(port, terminalId, args)
             return
         }
+        case 'live': {
+            const graphLive: CommandHandler = await loadDeferredHandler(
+                './commands/graph.ts',
+                'graphLive',
+                'Graph live commands are not available in this build yet'
+            )
+            await graphLive(port, terminalId, args)
+            return
+        }
         case 'structure': {
             const graphStructure: CommandHandler = await loadDeferredHandler(
                 './commands/graph.ts',
@@ -354,7 +363,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             await runDebugCommand(commandArgs.slice(1))
             return
         case 'serve':
-            await runServeCommand(commandArgs.slice(1))
+            {
+                const module: {runServeCommand: (argv: string[]) => Promise<void>} =
+                    await import('./commands/serve.ts')
+                await module.runServeCommand(commandArgs.slice(1))
+            }
             return
         default:
             error(`Unknown command: ${command}`)
