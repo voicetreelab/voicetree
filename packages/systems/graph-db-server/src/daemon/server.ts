@@ -8,23 +8,19 @@ import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
 import { createEmptyGraph } from '@vt/graph-model'
-import { getVaultPaths, resolveWritePath, setVaultPath, setWritePath } from '../watch-folder/paths/vault-allowlist.ts'
+import { getVaultPaths, resolveWritePath, setVaultPath, setWritePath } from '../state/vaultAllowlist.ts'
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setGraph } from '../state/graph-store.ts'
-import { loadGraphFromDisk } from '../graph/loadGraphFromDisk.ts'
-import { getDirectoryTree } from '../watch-folder/folder-scanner.ts'
+import { loadGraphFromDisk } from '../data/graph/loading/loadGraphFromDisk.ts'
+import { getDirectoryTree } from '../data/graph/loading/folderScanner.ts'
 import { clearWatchFolderState, onReadPathsChanged } from '../state/watch-folder-store.ts'
-import {
-  closeFolderVisibilityDb,
-  openFolderVisibilityDb,
-} from '../views/folderVisibilitySqlite.ts'
-import { ensureDefaultView } from '../views/viewsRepository.ts'
+import { ensureDefaultFolderVisibilityView } from '../data/views/viewsRepository.ts'
 import { CONTRACT_VERSION, type HealthResponse } from './contract.ts'
-import { createDaemonApp } from './daemonApp.ts'
+import { createDaemonApp } from '../routes/daemonApp.ts'
 import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
-import { SessionRegistry } from '../session/registry.ts'
-import { mountWatcher, type Watcher } from './watcher.ts'
+import { SessionRegistry } from '../application/session/registry.ts'
+import { mountWatcher, type Watcher } from '../data/graph/watching/daemonWatcher.ts'
 
 export type DaemonHandle = {
   port: number
@@ -224,12 +220,7 @@ export async function startDaemon(
   // --- folder visibility db ---
   const fvSpan = tracer.startSpan('daemon.folder-visibility-db')
   try {
-    const folderVisibilityDb = openFolderVisibilityDb(vault)
-    try {
-      ensureDefaultView(folderVisibilityDb)
-    } finally {
-      closeFolderVisibilityDb(folderVisibilityDb)
-    }
+    ensureDefaultFolderVisibilityView(vault)
     fvSpan.end()
   } catch (err) {
     fvSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })

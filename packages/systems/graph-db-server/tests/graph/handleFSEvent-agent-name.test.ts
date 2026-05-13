@@ -4,7 +4,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import { getGraph, getNode, setGraph } from '../../src/state/graph-store'
 import { clearRecentDeltas } from '../../src/state/recent-deltas-store'
-import { handleFSEventWithStateAndUISides } from '../../src/graph/handleFSEvent'
+import { handleFSEventWithStateAndUISides } from '../../src/data/graph/watching/handleFSEvent'
 import type { FSUpdate } from '@vt/graph-model'
 
 vi.mock('../../src/watch-folder/paths/vault-allowlist', () => ({

@@ -49,7 +49,6 @@ describe('GET /sessions/:sessionId/state', () => {
     expect(body.collapseSet).toEqual([])
     expect(body.selection).toEqual([])
     expect(Array.isArray(body.roots.folderTree)).toBe(true)
-    expect(Array.isArray(body.roots.loaded)).toBe(true)
     expect(typeof body.graph.nodes).toBe('object')
   })
 

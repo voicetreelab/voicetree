@@ -7,8 +7,8 @@ import {
   SessionCreateResponseSchema,
 } from '../../daemon/contract.ts'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionRegistry } from '../../session/registry.ts'
-import { mountCollapseRoutes } from '../collapse.ts'
+import { SessionRegistry } from '../../application/session/registry.ts'
+import { mountCollapseRoutes } from '../graph-endpoints/collapse.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-collapse-test-'))
