@@ -1,4 +1,4 @@
-import type {TerminalData} from '../../types'
+import type {TerminalData} from './types'
 import {
     terminalRecords,
     type TerminalRecord,

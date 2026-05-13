@@ -5,7 +5,7 @@ import { getUnseenNodesForTerminal } from '../inject/get-unseen-nodes-for-termin
 import { injectNodesIntoTerminal } from '../inject/inject-nodes-into-terminal'
 import { sendTextToTerminal } from '../inject/send-text-to-terminal'
 import { shouldFlipToActiveOnOutput } from '../lifecycle/output-transition'
-import { configureAgentRuntime, getRuntimeUI } from './runtime-config'
+import { configureAgentRuntime, getRuntimeUI } from '../runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../spawn/spawnTerminalWithContextNode'
 import { getTerminalManager } from '../terminals/terminal-manager-instance'

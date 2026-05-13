@@ -11,9 +11,9 @@
 
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {TerminalId} from '../../types'
-import {createTerminalData} from '../../types'
-import type {TerminalData, CreateTerminalDataParams} from '../../types'
+import type {TerminalId} from '../terminal-registry/types'
+import {createTerminalData} from '../terminal-registry/types'
+import type {TerminalData, CreateTerminalDataParams} from '../terminal-registry/types'
 
 // ─── Mocks for side-effect modules ─────────────────────────────────────────
 

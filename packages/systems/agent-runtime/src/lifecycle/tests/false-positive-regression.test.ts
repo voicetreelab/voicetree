@@ -16,8 +16,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createTerminalData } from '../../types';
-import type { TerminalData, TerminalId } from '../../types';
+import { createTerminalData } from '../../terminals/terminal-registry/types';
+import type { TerminalData, TerminalId } from '../../terminals/terminal-registry/types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import {
     recordTerminalSpawn,

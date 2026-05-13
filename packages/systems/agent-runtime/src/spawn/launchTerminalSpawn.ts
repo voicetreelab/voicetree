@@ -1,5 +1,5 @@
-import type {TerminalData, TerminalId} from '../types'
-import {getTerminalId} from '../types'
+import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
+import {getTerminalId} from '../terminals/terminal-registry/types'
 import {clearPendingTerminal} from '../terminals/terminal-registry'
 import {setTerminalBudget} from '../terminals/global-budget-registry'
 import {spawnHeadlessAgent, killHeadlessAgent} from '../headless/headlessAgentManager'

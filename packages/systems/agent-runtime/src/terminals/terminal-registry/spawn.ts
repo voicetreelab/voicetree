@@ -1,4 +1,4 @@
-import type {TerminalData} from '../../types'
+import type {TerminalData} from './types'
 import {sendTextToTerminal} from '../../inject/send-text-to-terminal'
 import {
     notificationStateByTerminal,

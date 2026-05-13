@@ -10,8 +10,8 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {EventEmitter} from 'events'
-import type {TerminalId} from '../../types'
-import type {TerminalData} from '../../types'
+import type {TerminalId} from '../../terminals/terminal-registry/types'
+import type {TerminalData} from '../../terminals/terminal-registry/types'
 
 // ─── Mocks (vi.hoisted ensures variables exist when vi.mock factories run) ─
 

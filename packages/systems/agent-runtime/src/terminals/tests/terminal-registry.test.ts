@@ -12,8 +12,8 @@
  */
 
 import {describe, it, expect, beforeEach, vi, type Mock} from 'vitest'
-import {createTerminalData, type TerminalId} from '../../types'
-import type {TerminalData} from '../../types'
+import {createTerminalData, type TerminalId} from '../terminal-registry/types'
+import type {TerminalData} from '../terminal-registry/types'
 import type {TerminalRecord} from '../terminal-registry'
 import {
     recordTerminalSpawn,

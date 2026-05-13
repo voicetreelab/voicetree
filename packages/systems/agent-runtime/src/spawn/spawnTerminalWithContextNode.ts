@@ -16,7 +16,7 @@
  */
 
 import { loadSettings } from '@vt/app-config/settings';
-import {type TerminalId } from '../types';
+import {type TerminalId } from '../terminals/terminal-registry/types';
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';

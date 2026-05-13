@@ -1,8 +1,8 @@
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
-import {getTerminalId} from '../types';
+import {getTerminalId} from './terminal-registry/types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
-import type {TerminalData} from '../types';
+import type {TerminalData} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
 import {getRuntimeTrace} from '../runtime/runtime-config';
@@ -187,7 +187,7 @@ export class TerminalManager {
   kill(terminalId: string): TerminalOperationResult {
     try {
       // Headless agents: shared close path (handles both running + exited)
-      const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as import('../types').TerminalId);
+      const headlessResult: {closed: true; wasRunning: boolean} | {closed: false} = closeHeadlessAgent(terminalId as import('./terminal-registry/types').TerminalId);
       if (headlessResult.closed) {
         return { success: true };
       }

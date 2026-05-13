@@ -8,9 +8,9 @@
  */
 
 import {spawn, type ChildProcess} from 'child_process'
-import type {TerminalId} from '../types'
+import type {TerminalId} from '../terminals/terminal-registry/types'
 import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
-import type {TerminalData} from '../types'
+import type {TerminalData} from '../terminals/terminal-registry/types'
 import {runStopHooks} from '../hooks/stopGateHookRunner'
 import {getRuntimeGraph} from '../runtime/graph-bridge'
 import {detectCliType} from '../spawn/headlessCli'

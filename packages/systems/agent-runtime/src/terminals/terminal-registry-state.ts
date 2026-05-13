@@ -1,5 +1,5 @@
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {TerminalData} from '../types'
+import type {TerminalData} from './terminal-registry/types'
 import type {TerminalKillReason} from '../lifecycle/types'
 
 export type TerminalStatus = 'running' | 'exited'

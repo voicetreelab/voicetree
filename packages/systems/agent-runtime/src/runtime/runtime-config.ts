@@ -5,7 +5,7 @@
 import * as O from 'fp-ts/lib/Option.js';
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
-import type { TerminalData } from '../types';
+import type { TerminalData } from '../terminals/terminal-registry/types';
 
 export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
 
