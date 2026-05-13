@@ -218,6 +218,12 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+
+# Codebase health dashboard report state
+/health-dashboard/reports/*.json
+/health-dashboard/reports/checks/*.json
+!/health-dashboard/reports/SCHEMA.md
+!/health-dashboard/reports/.gitkeep
 **/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/

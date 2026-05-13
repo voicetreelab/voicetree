@@ -3,7 +3,7 @@
 
 export type ParserKind = 'vitest' | 'playwright' | 'none'
 
-export type MeasureCategory = 'Unit' | 'Integration' | 'E2E' | 'Lint' | 'TypeCheck' | 'Static' | 'Other'
+export type MeasureCategory = 'Unit' | 'Integration' | 'E2E' | 'Lint' | 'TypeCheck' | 'Static' | 'Command' | 'Hook' | 'Other'
 
 export type CheckDef = {
     readonly id: string

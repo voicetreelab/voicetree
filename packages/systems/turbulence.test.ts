@@ -1,18 +1,13 @@
 import {execSync} from 'node:child_process'
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type FileTurbulence = {
     readonly packageName: string
@@ -28,27 +23,6 @@ type PackageAggregate = {
     readonly totalTurbulence: number
     readonly averageTurbulence: number
     readonly maxFile: FileTurbulence | null
-}
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        const srcRoot = join(SYSTEMS_ROOT, entry.name, 'src')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            if (!(await pathExists(srcRoot))) return null
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot,
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null)
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -233,6 +207,21 @@ describe('systems turbulence diagnostics', () => {
             formatTopFiles(rows),
             formatPackageAggregates(aggregates),
         ].join('\n'))
+
+        await recordHealthMetric({
+            metricId: 'turbulence',
+            metricName: 'Turbulence Coverage',
+            description: 'Number of production source files scored by churn multiplied by complexity.',
+            category: 'Churn',
+            current: rows.length,
+            budget: 1,
+            comparison: 'gte',
+            unit: 'files',
+            details: {
+                topFiles: rows.slice(0, 20),
+                aggregates,
+            },
+        })
 
         expect(rows.length).toBeGreaterThan(0)
     })

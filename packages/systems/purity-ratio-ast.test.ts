@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
     type ArchLayer, type FnEntry, type Stats,
+    GLOBAL_SIDE_EFFECT_CATEGORIES,
     analyze, classifyLayer, median, pct, percentile,
 } from './purity-analysis'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 type FunctionHealthMetrics = {
     readonly medianPureLoc: number
@@ -34,6 +36,35 @@ function functionHealthMetrics(fns: readonly FnEntry[]): FunctionHealthMetrics {
 function formatFunctionEntry(fn: FnEntry): string {
     const purity: string = fn.sideEffects.length === 0 ? 'pure' : `impure:${fn.sideEffects.join(',')}`
     return `  ${fn.file}:${fn.line} ${fn.name} ${fn.loc} LOC ${purity}`
+}
+
+function humanizeCategory(category: string): string {
+    const labels: Readonly<Record<string, string>> = {
+        console: 'Console',
+        'fs-io': 'FS I/O',
+        network: 'Network',
+        nondeterministic: 'Nondeterministic',
+        'process-io': 'Process I/O',
+        'react-hook': 'React Hook',
+        subprocess: 'Subprocess',
+        timer: 'Timer',
+    }
+    return labels[category] ?? category
+}
+
+function globalsByCategory(fns: readonly FnEntry[]): Record<string, FnEntry[]> {
+    const categories: ReadonlySet<string> = new Set(GLOBAL_SIDE_EFFECT_CATEGORIES)
+    const grouped: Record<string, FnEntry[]> = Object.fromEntries(
+        GLOBAL_SIDE_EFFECT_CATEGORIES.map(category => [category, [] as FnEntry[]]),
+    )
+
+    for (const fn of fns) {
+        for (const category of fn.sideEffects) {
+            if (categories.has(category)) grouped[category].push(fn)
+        }
+    }
+
+    return grouped
 }
 
 function report(byLayer: Record<ArchLayer, Stats>, totals: Stats, fns: readonly FnEntry[]): string {
@@ -89,6 +120,43 @@ describe('function purity ratio — AST-based (LOC)', () => {
         console.info(report(byLayer, totals, fns))
         const ratio = totals.pureLoc / totals.totalLoc
         console.info(`Overall: ${pct(totals.pureLoc, totals.totalLoc)} (${totals.pureLoc} / ${totals.totalLoc} LOC)`)
+        await recordHealthMetric({
+            metricId: 'purity-ratio-ast',
+            metricName: 'AST Purity Ratio',
+            description: 'Share of function LOC classified as pure by AST-based side-effect detection.',
+            category: 'Purity',
+            current: ratio,
+            budget: MINIMUM_PURITY_RATIO,
+            comparison: 'gte',
+            unit: 'ratio',
+            details: {totals, byLayer},
+        })
+
+        const globals = globalsByCategory(fns)
+        await Promise.all(GLOBAL_SIDE_EFFECT_CATEGORIES.map(async category => {
+            const functions = globals[category]
+            await recordHealthMetric({
+                metricId: `globals-${category}`,
+                metricName: `Globals ${humanizeCategory(category)}`,
+                description: `Functions directly tagged with ${category} global side effects.`,
+                category: 'Behavioral',
+                current: functions.length,
+                budget: functions.length,
+                comparison: 'lte',
+                unit: 'functions',
+                details: {
+                    category,
+                    functions: functions.map(fn => ({
+                        file: fn.file,
+                        line: fn.line,
+                        name: fn.name,
+                        loc: fn.loc,
+                        sideEffects: fn.sideEffects,
+                    })),
+                },
+            })
+        }))
+
         expect(ratio, `${pct(totals.pureLoc, totals.totalLoc)} < ${pct(MINIMUM_PURITY_RATIO, 1)}`).toBeGreaterThanOrEqual(MINIMUM_PURITY_RATIO)
     }, 30000)
 
@@ -102,6 +170,20 @@ describe('function purity ratio — AST-based (LOC)', () => {
             console.warn('pure/ violations:\n' + violations.map(f => `  ${f.file}:${f.line} ${f.name}() [${f.loc}] — ${f.sideEffects.join(', ')}`).join('\n'))
         }
         console.info(`pure/: ${tLoc} LOC, ${vLoc} LOC impure (${pct(vLoc, tLoc)})`)
+        await recordHealthMetric({
+            metricId: 'purity-ast-pure-dir-side-effects',
+            metricName: 'AST Pure Directory Side Effects',
+            description: 'Impure LOC detected inside pure/ directories by AST-based side-effect detection.',
+            category: 'Purity',
+            current: vLoc,
+            budget: tLoc * 0.14,
+            comparison: 'lte',
+            unit: 'LOC',
+            details: {
+                totalPureDirLoc: tLoc,
+                violations,
+            },
+        })
         expect(vLoc).toBeLessThanOrEqual(tLoc * 0.14)
     }, 30000)
 
@@ -110,6 +192,21 @@ describe('function purity ratio — AST-based (LOC)', () => {
         const health: FunctionHealthMetrics = functionHealthMetrics(fns)
         const purityRatio = totals.pureLoc / totals.totalLoc
         const score = purityRatio * health.complexityLocationRatio
+        const finiteScore = Number.isFinite(score) ? score : Number.MAX_SAFE_INTEGER
+        await recordHealthMetric({
+            metricId: 'purity-ast-health-score',
+            metricName: 'AST Composite Health Score',
+            description: 'Purity ratio multiplied by complexity-location ratio.',
+            category: 'Purity',
+            current: finiteScore,
+            budget: MINIMUM_HEALTH_SCORE,
+            comparison: 'gte',
+            unit: 'score',
+            details: {
+                purityRatio,
+                health,
+            },
+        })
         expect(
             score,
             `health score ${score.toFixed(3)} (${purityRatio.toFixed(3)} × ${health.complexityLocationRatio.toFixed(3)}) < ${MINIMUM_HEALTH_SCORE}`,
@@ -119,6 +216,17 @@ describe('function purity ratio — AST-based (LOC)', () => {
     it('shell thinness: median impure function LOC <= threshold', async () => {
         const { fns } = await analyze()
         const health: FunctionHealthMetrics = functionHealthMetrics(fns)
+        await recordHealthMetric({
+            metricId: 'purity-ast-shell-thinness',
+            metricName: 'AST Shell Thinness',
+            description: 'Median LOC of impure functions.',
+            category: 'Purity',
+            current: health.medianImpureLoc,
+            budget: MAX_MEDIAN_IMPURE_FUNCTION_LOC,
+            comparison: 'lte',
+            unit: 'LOC',
+            details: {health},
+        })
         expect(
             health.medianImpureLoc,
             `median impure function LOC ${health.medianImpureLoc} > ${MAX_MEDIAN_IMPURE_FUNCTION_LOC}`,
@@ -128,6 +236,20 @@ describe('function purity ratio — AST-based (LOC)', () => {
     it('no god functions: P90 function LOC <= threshold', async () => {
         const { fns } = await analyze()
         const health: FunctionHealthMetrics = functionHealthMetrics(fns)
+        await recordHealthMetric({
+            metricId: 'purity-ast-p90-function-loc',
+            metricName: 'AST P90 Function LOC',
+            description: 'P90 function body line count.',
+            category: 'Complexity',
+            current: health.p90Loc,
+            budget: MAX_P90_FUNCTION_LOC,
+            comparison: 'lte',
+            unit: 'LOC',
+            details: {
+                health,
+                longestFunctions: health.longestFunctions,
+            },
+        })
         expect(
             health.p90Loc,
             `P90 function LOC ${health.p90Loc} > ${MAX_P90_FUNCTION_LOC}`,

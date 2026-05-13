@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "test": "npm run health && npm --workspace webapp run test",
-    "test:codebase-health": "vitest run packages/systems/purity-ratio-ast.test.ts packages/systems/purity-ratio.test.ts packages/systems/function-health.test.ts packages/systems/codebase-shape.test.ts packages/systems/boundary-complexity.test.ts packages/systems/cognitive-complexity.test.ts packages/systems/cross-package-coupling.test.ts packages/systems/change-coupling.test.ts packages/systems/hypergraph-complexity.test.ts packages/systems/treewidth-coupling.test.ts packages/systems/dsm-compression.test.ts packages/systems/dsm-matrix.test.ts packages/systems/graph-entropy.test.ts packages/systems/martin-metrics.test.ts packages/systems/modularity-q.test.ts packages/systems/package-boundaries.test.ts packages/systems/turbulence.test.ts packages/systems/gate-integrity.test.ts",
+    "test:codebase-health": "vitest run packages/systems/purity-ratio-ast.test.ts packages/systems/purity-ratio.test.ts packages/systems/function-health.test.ts packages/systems/codebase-shape.test.ts packages/systems/exports-per-file.test.ts packages/systems/boundary-complexity.test.ts packages/systems/cognitive-complexity.test.ts packages/systems/cross-package-coupling.test.ts packages/systems/change-coupling.test.ts packages/systems/hypergraph-complexity.test.ts packages/systems/treewidth-coupling.test.ts packages/systems/dsm-compression.test.ts packages/systems/dsm-matrix.test.ts packages/systems/graph-entropy.test.ts packages/systems/martin-metrics.test.ts packages/systems/modularity-q.test.ts packages/systems/package-boundaries.test.ts packages/systems/turbulence.test.ts packages/systems/default-value-detection.test.ts packages/systems/gate-integrity.test.ts",
+    "orange-codebase-complexity-tests": "vitest run packages/systems/hierarchical-complexity.test.ts packages/systems/behavioral-complexity.test.ts packages/systems/shape-complexity.test.ts",
     "check": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests && npm run health",
     "check:circular-deps": "node scripts/check-circular-deps.mjs",
     "check:coupling": "node scripts/check-coupling.mjs",
@@ -25,7 +26,10 @@
     "test:e2e:tier2": "npm --workspace webapp run test:e2e:tier2",
     "test:e2e:tier2:browser": "npm --workspace webapp run test:e2e:tier2:browser",
     "test:e2e:tier2:electron": "npm --workspace webapp run test:e2e:tier2:electron",
-    "check:dead-code": "knip --no-progress --no-config-hints --include files,exports"
+    "check:dead-code": "knip --no-progress --no-config-hints --include files,exports",
+    "health:dashboard": "python3 -m http.server 8765 -d health-dashboard",
+    "health:capture-ci": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/capture-ci-checks.mjs",
+    "devops": "(sleep 1 && open http://localhost:8765) & python3 -m http.server 8765 -d health-dashboard"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",

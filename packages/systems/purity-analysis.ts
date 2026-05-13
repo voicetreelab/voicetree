@@ -62,6 +62,12 @@ export const IMPURE_IDENTIFIERS: ReadonlyMap<string, string> = new Map([
     ['useMemo', 'react-hook'], ['useCallback', 'react-hook'], ['useLayoutEffect', 'react-hook'],
 ])
 
+export const GLOBAL_SIDE_EFFECT_CATEGORIES: readonly string[] = [...new Set([
+    ...[...IMPURE_OBJ_METHODS.values()].map(entry => entry.category),
+    ...IMPURE_CHAIN.map(entry => entry.category),
+    ...IMPURE_IDENTIFIERS.values(),
+])].sort()
+
 const IMPURE_GLOBALS: ReadonlySet<string> = new Set([...IMPURE_OBJ_METHODS.keys()])
 
 function collectAliases(sf: ts.SourceFile): ReadonlyMap<string, string> {

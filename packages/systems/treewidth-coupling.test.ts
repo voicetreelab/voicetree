@@ -1,18 +1,14 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
-const TREE_WIDTH_BUDGET = 2
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
+// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+const TREE_WIDTH_BUDGET = 5
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type ImportEdge = {
     readonly fromPackage: string
@@ -33,25 +29,6 @@ type TreeWidthEstimate = {
     readonly ordering: readonly string[]
     readonly steps: readonly McsStep[]
     readonly treeWidth: number
-}
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -215,6 +192,22 @@ describe('tree-width coupling bounds', () => {
         const report = formatTreeWidthReport(adjacency, estimate)
 
         console.info(report)
+
+        await recordHealthMetric({
+            metricId: 'treewidth',
+            metricName: 'Import Graph Tree-Width',
+            description: 'MCS lower-bound tree-width of the systems package import graph.',
+            category: 'Structure',
+            current: estimate.treeWidth,
+            budget: TREE_WIDTH_BUDGET,
+            comparison: 'lte',
+            unit: 'width',
+            details: {
+                ordering: estimate.ordering,
+                steps: estimate.steps,
+                packages: [...adjacency.keys()].sort(),
+            },
+        })
 
         expect(estimate.treeWidth, report).toBeLessThanOrEqual(TREE_WIDTH_BUDGET)
     })

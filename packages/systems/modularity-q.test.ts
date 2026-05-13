@@ -1,18 +1,13 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 const MODULARITY_Q_BUDGET = 0.525
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type SourceFileInfo = {
     readonly absolutePath: string
@@ -41,25 +36,6 @@ type ModularityReport = {
     readonly q: number
     readonly edgeCount: number
     readonly packageStats: ReadonlyMap<string, PackageEdgeStats>
-}
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -259,6 +235,18 @@ describe('systems package modularity', () => {
         const report = computeModularityQ(graph, packages.map(pkg => pkg.dirName))
 
         console.info(formatReport(report))
+
+        await recordHealthMetric({
+            metricId: 'modularity-q',
+            metricName: 'Modularity Q',
+            description: 'How strongly file-level imports cluster inside current package boundaries.',
+            category: 'Structure',
+            current: report.q,
+            budget: MODULARITY_Q_BUDGET,
+            comparison: 'gte',
+            unit: 'score',
+            details: report,
+        })
 
         expect(report.q).toBeGreaterThanOrEqual(MODULARITY_Q_BUDGET)
     })

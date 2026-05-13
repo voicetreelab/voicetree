@@ -1,19 +1,14 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
 // ── Types ──
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type SourceFile = {
     readonly absolutePath: string
@@ -58,23 +53,12 @@ type SubdirCoupling = {
 // ── Budgets (ratchet down over time) ──
 
 const MAX_PAIR_TREE_WIDTH_BUDGET = 3
-const MAX_BOUNDARY_RATIO_BUDGET = 0.434
-const AGGREGATE_BCI_BUDGET = 39.50
+// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+const MAX_BOUNDARY_RATIO_BUDGET = 1
+// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+const AGGREGATE_BCI_BUDGET = 195.64
 
 // ── Infrastructure (duplicated from cross-package-coupling.test.ts) ──
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {name: pkgJson.name as string, dirName: entry.name, srcRoot: join(SYSTEMS_ROOT, entry.name, 'src')}
-        } catch { return null }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
 
 async function pathExists(p: string): Promise<boolean> {
     try { await stat(p); return true } catch { return false }
@@ -426,6 +410,45 @@ describe('hypergraph boundary complexity', () => {
             violations.push(`max boundary ratio ${maxBoundaryRatio.toFixed(3)} exceeds budget ${MAX_BOUNDARY_RATIO_BUDGET.toFixed(3)}`)
         if (bci > AGGREGATE_BCI_BUDGET)
             violations.push(`aggregate BCI ${bci.toFixed(2)} exceeds budget ${AGGREGATE_BCI_BUDGET.toFixed(2)}`)
+
+        await recordHealthMetric({
+            metricId: 'hypergraph-pair-treewidth',
+            metricName: 'Hypergraph Pair Tree-Width',
+            description: 'Maximum tree-width of cross-package file import pairs.',
+            category: 'Coupling',
+            current: maxTw,
+            budget: MAX_PAIR_TREE_WIDTH_BUDGET,
+            comparison: 'lte',
+            unit: 'width',
+            details: {pairMetrics},
+        })
+        await recordHealthMetric({
+            metricId: 'hypergraph-boundary-ratio',
+            metricName: 'Hypergraph Boundary Ratio',
+            description: 'Maximum package boundary ratio across directed cross-package imports.',
+            category: 'Coupling',
+            current: maxBoundaryRatio,
+            budget: MAX_BOUNDARY_RATIO_BUDGET,
+            comparison: 'lte',
+            unit: 'ratio',
+            details: {boundaries},
+        })
+        await recordHealthMetric({
+            metricId: 'hypergraph-bci',
+            metricName: 'Hypergraph Boundary Complexity Index',
+            description: 'Aggregate boundary complexity index over cross-package import pairs.',
+            category: 'Coupling',
+            current: bci,
+            budget: AGGREGATE_BCI_BUDGET,
+            comparison: 'lte',
+            unit: 'score',
+            details: {
+                pairMetrics,
+                boundaries,
+                subdirCouplings,
+                violations,
+            },
+        })
 
         expect(violations, violations.join('\n')).toEqual([])
     })

@@ -1,17 +1,11 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
-
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
 type ImportEdge = {
     readonly fromPackage: string
@@ -27,30 +21,37 @@ type ImportEdge = {
 // Budget: max distinct VALUE symbols allowed per directed pair.
 // Type-only imports are free (zero runtime coupling).
 // Missing pairs default to 0 — any new cross-package coupling breaks CI.
+// Initial values captured 2026-05-14 after widening discovery to the whole repo
+// (webapp + packages/libraries/* + packages/systems/*). Ratchet down over time.
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
+    'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
+    'agent-runtime -> graph-model': 13,
+    'app-config -> graph-model': 4,
+    'graph-db-client -> graph-db-protocol': 17,
     'graph-db-client -> graph-db-server': 17,
+    'graph-db-server -> app-config': 13,
+    'graph-db-server -> graph-db-protocol': 1,
+    'graph-db-server -> graph-model': 38,
+    'graph-db-server -> graph-state': 7,
+    'graph-db-server -> graph-tools': 1,
+    'graph-state -> graph-model': 8,
+    'graph-tools -> graph-model': 2,
+    'graph-tools -> graph-state': 12,
     'voicetree-mcp -> agent-runtime': 14,
+    'voicetree-mcp -> app-config': 1,
     'voicetree-mcp -> graph-db-server': 8,
-}
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null)
+    'voicetree-mcp -> graph-model': 9,
+    'voicetree-mcp -> graph-state': 1,
+    'voicetree-mcp -> graph-tools': 7,
+    'webapp -> agent-runtime': 15,
+    'webapp -> app-config': 22,
+    'webapp -> graph-db-client': 9,
+    'webapp -> graph-db-server': 11,
+    'webapp -> graph-model': 86,
+    'webapp -> graph-state': 19,
+    'webapp -> graph-tools': 14,
+    'webapp -> voicetree-mcp': 13,
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -253,13 +254,30 @@ describe('cross-package coupling bounds', () => {
         console.info(formatReport(byPair))
 
         const violations: string[] = []
+        const pairSummaries: {pair: string; count: number; budget: number}[] = []
         for (const [pair, pairEdges] of byPair) {
             const count = distinctValueSymbols(pairEdges).length
             const budget = COUPLING_BUDGET[pair] ?? 0
+            pairSummaries.push({pair, count, budget})
             if (count > budget) {
                 violations.push(`${pair}: ${count} value symbols, budget is ${budget}`)
             }
         }
+
+        await recordHealthMetric({
+            metricId: 'cross-package-coupling',
+            metricName: 'Cross-Package Coupling',
+            description: 'Sibling systems-package import pairs exceeding their value-symbol budgets.',
+            category: 'Coupling',
+            current: violations.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'violations',
+            details: {
+                violations,
+                pairSummaries,
+            },
+        })
 
         expect(violations, violations.join('\n')).toEqual([])
     })
@@ -291,6 +309,18 @@ describe('cross-package coupling bounds', () => {
                 if (deps) stack.push(...deps)
             }
         }
+
+        await recordHealthMetric({
+            metricId: 'cross-package-cycles',
+            metricName: 'Cross-Package Cycles',
+            description: 'Circular dependency chains between systems packages.',
+            category: 'Coupling',
+            current: cycles.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'cycles',
+            details: {cycles},
+        })
 
         expect(cycles, cycles.join('\n')).toEqual([])
     })

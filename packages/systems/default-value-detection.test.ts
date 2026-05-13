@@ -7,6 +7,7 @@ import {
     detectSideEffectsAST,
 } from './purity-analysis'
 import { readFile } from 'node:fs/promises'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 // ---------------------------------------------------------------------------
 // Known impure object.method pairs (mirrors IMPURE_OBJ_METHODS in purity-analysis)
@@ -278,6 +279,18 @@ function clean(x = 5) { return x + 1 }
             console.log('\n[default-value-gaming] No gaming patterns detected in codebase.')
         }
         // Always passes — this is a diagnostic scan
+        await recordHealthMetric({
+            metricId: 'default-value-detection',
+            metricName: 'Default Value Impurity Detection',
+            description: 'Functions whose bodies look pure while impure defaults hide side effects.',
+            category: 'Purity',
+            current: allFindings.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'findings',
+            details: {findings: allFindings},
+        })
+
         expect(true).toBe(true)
     }, 30_000)
 })

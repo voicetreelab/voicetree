@@ -17,6 +17,22 @@ const sharedExclude = [
   'tests/system/**',
   'old/**',
 ]
+const ciCheckReporter = path.resolve(__dirname, 'packages/systems/_vitest-ci-check-reporter.ts')
+const isOrangeGate = process.argv.some(arg =>
+  arg.includes('hierarchical-complexity.test.ts')
+  || arg.includes('behavioral-complexity.test.ts')
+  || arg.includes('shape-complexity.test.ts'))
+const ciCheck = isOrangeGate
+  ? {
+      checkId: 'orange-gate',
+      checkName: 'Orange Complexity Gate',
+      command: 'npm run orange-codebase-complexity-tests',
+    }
+  : {
+      checkId: 'systems-health',
+      checkName: 'Systems Health Suite',
+      command: 'npm run test:codebase-health',
+    }
 
 export default defineConfig({
   resolve: {
@@ -28,6 +44,10 @@ export default defineConfig({
     ],
   },
   test: {
+    reporters: [
+      'default',
+      [ciCheckReporter, ciCheck],
+    ],
     exclude: isRunningInsideWorktree
       ? [...configDefaults.exclude, ...sharedExclude]
       : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**'],

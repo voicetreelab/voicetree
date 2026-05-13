@@ -3,6 +3,7 @@ import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const SYSTEMS_ROOT: string = TEST_FILE_DIR
@@ -146,6 +147,18 @@ describe('systems module-level mutable state scanner', () => {
         const violations = await scanSystemsPackages()
 
         console.info(formatReport(violations))
+
+        await recordHealthMetric({
+            metricId: 'package-boundaries',
+            metricName: 'Module-Level Mutable State',
+            description: 'Top-level mutable declarations detected in scanned systems packages.',
+            category: 'Purity',
+            current: violations.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'declarations',
+            details: {violations},
+        })
 
         expect(violations.length).toBeGreaterThan(0)
     })

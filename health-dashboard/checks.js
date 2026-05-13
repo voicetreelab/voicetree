@@ -2,89 +2,169 @@ import { esc, relTime, isStale, fmtDuration } from './format.js'
 
 const CHECK_CATEGORY_ORDER = ['Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Other']
 
+const SLIDES = [
+  { id: 'rows',  name: 'Compact rows' },
+  { id: 'grid',  name: 'Dense grid' },
+  { id: 'cards', name: 'Heatmap cards' },
+]
+
 function statusBadge(status) {
   if (status === 'pass') return `<span class="badge badge-pass">PASS</span>`
   if (status === 'fail') return `<span class="badge badge-fail">FAIL</span>`
   return `<span class="badge badge-skip">SKIP</span>`
 }
 
-function renderCheckBar(c) {
-  if (c.testsTotal === undefined || c.testsTotal === 0) return ''
-  const passed = c.testsPassed ?? 0
-  const failed = c.testsFailed ?? 0
-  const skipped = c.testsSkipped ?? 0
-  const total = Math.max(c.testsTotal, passed + failed + skipped)
-  const pct = (n) => `${(n / total) * 100}%`
-  return `<div class="check-bar" role="img" aria-label="${passed} passed, ${failed} failed, ${skipped} skipped of ${total}">
-    <div class="check-bar-pass" style="width:${pct(passed)}"></div>
-    <div class="check-bar-fail" style="width:${pct(failed)}"></div>
-    <div class="check-bar-skip" style="width:${pct(skipped)}"></div>
+function squareCls(c) {
+  if (c.status === 'fail') return 'sq sq-fail'
+  if (c.status === 'skip') return 'sq sq-skip'
+  if (isStale(c.timestamp)) return 'sq sq-stale'
+  return 'sq sq-pass'
+}
+
+function squareTooltip(c) {
+  const head = `${c.checkName} — ${c.status.toUpperCase()}`
+  if (c.testsTotal !== undefined) {
+    const p = c.testsPassed ?? 0
+    const f = c.testsFailed ?? 0
+    const s = c.testsSkipped ?? 0
+    return `${head}\n${p}/${c.testsTotal} tests · ${f} fail · ${s} skip`
+  }
+  return head
+}
+
+function renderSquare(c) {
+  return `<button class="${squareCls(c)}" data-id="${esc(c.checkId)}" title="${esc(squareTooltip(c))}" type="button" aria-label="${esc(squareTooltip(c))}"></button>`
+}
+
+// fail → stale → pass → skip
+function sortSquares(reports) {
+  const rank = (r) => r.status === 'fail' ? 0 : isStale(r.timestamp) ? 1 : r.status === 'pass' ? 2 : 3
+  return [...reports].sort((a, b) => rank(a) - rank(b) || a.checkId.localeCompare(b.checkId))
+}
+
+function categoryStats(reports) {
+  const fail = reports.filter(r => r.status === 'fail').length
+  const skip = reports.filter(r => r.status === 'skip').length
+  const stale = reports.filter(r => r.status === 'pass' && isStale(r.timestamp)).length
+  const pass = reports.length - fail - skip - stale
+  return { fail, skip, pass, stale, total: reports.length }
+}
+
+function tallyChip(stats) {
+  if (stats.fail > 0) return `<span class="hm-tally is-fail"><span class="t-fail">${stats.fail}</span>/${stats.total - stats.skip} failing</span>`
+  if (stats.stale > 0) return `<span class="hm-tally is-stale">${stats.stale} stale · ${stats.pass} passing</span>`
+  if (stats.pass === 0 && stats.skip === stats.total) return `<span class="hm-tally is-skip">all skipped</span>`
+  return `<span class="hm-tally is-pass"><span class="t-pass">${stats.pass}</span>/${stats.total - stats.skip} passing</span>`
+}
+
+function bucketize(reports) {
+  const byCategory = Object.fromEntries(CHECK_CATEGORY_ORDER.map(c => [c, []]))
+  for (const r of reports) {
+    const cat = CHECK_CATEGORY_ORDER.includes(r.category) ? r.category : 'Other'
+    byCategory[cat].push(r)
+  }
+  return byCategory
+}
+
+function categoriesSortedWorstFirst(byCategory) {
+  return CHECK_CATEGORY_ORDER
+    .filter(c => byCategory[c].length > 0)
+    .map(c => ({ name: c, reports: byCategory[c], stats: categoryStats(byCategory[c]) }))
+    .sort((a, b) => b.stats.fail - a.stats.fail || b.stats.stale - a.stats.stale)
+}
+
+// ── Layout A: compact rows per category, skips folded to badge ──────────────
+function renderRowsLayout(byCategory) {
+  const cats = categoriesSortedWorstFirst(byCategory)
+  const rows = cats.map(({ name, reports, stats }) => {
+    const visible = sortSquares(reports.filter(r => r.status !== 'skip'))
+    const skipPill = stats.skip > 0
+      ? `<span class="hm-row-skip">+${stats.skip} skip</span>`
+      : `<span class="hm-row-skip is-empty"></span>`
+    return `<div class="hm-row" data-cat="${esc(name)}">
+      <span class="hm-row-cat">${esc(name)}</span>
+      <div class="hm-row-squares">${visible.map(renderSquare).join('')}</div>
+      ${skipPill}
+      ${tallyChip(stats)}
+    </div>`
+  }).join('')
+  return `<div class="hm-rows">${rows}</div>`
+}
+
+// ── Layout B: github-style dense grid, all checks visible, sorted per column
+function renderGridLayout(byCategory) {
+  const cats = categoriesSortedWorstFirst(byCategory)
+  const cols = cats.map(({ name, reports }) => {
+    const sorted = sortSquares(reports)
+    return `<div class="hm-grid-col" data-cat="${esc(name)}">
+      <div class="hm-grid-col-label">${esc(name)}</div>
+      <div class="hm-grid-col-squares">${sorted.map(renderSquare).join('')}</div>
+    </div>`
+  }).join('')
+  return `<div class="hm-grid">${cols}</div>`
+}
+
+// ── Layout C: per-category cards
+function renderCardsLayout(byCategory) {
+  const cats = categoriesSortedWorstFirst(byCategory)
+  const cards = cats.map(({ name, reports, stats }) => {
+    const visible = sortSquares(reports.filter(r => r.status !== 'skip'))
+    const skipFoot = stats.skip > 0 ? `<div class="hm-card-skipped">+${stats.skip} skipped</div>` : ''
+    return `<div class="hm-card" data-cat="${esc(name)}">
+      <div class="hm-card-head">
+        <span class="hm-card-name">${esc(name)}</span>
+        ${tallyChip(stats)}
+      </div>
+      <div class="hm-card-squares">${visible.map(renderSquare).join('')}</div>
+      ${skipFoot}
+    </div>`
+  }).join('')
+  return `<div class="hm-cards">${cards}</div>`
+}
+
+function renderSlide(slide, byCategory) {
+  if (slide.id === 'rows')  return renderRowsLayout(byCategory)
+  if (slide.id === 'grid')  return renderGridLayout(byCategory)
+  return renderCardsLayout(byCategory)
+}
+
+function renderCarousel(byCategory) {
+  const slides = SLIDES.map((s, i) =>
+    `<div class="hm-slide" data-i="${i}" data-id="${esc(s.id)}">${renderSlide(s, byCategory)}</div>`
+  ).join('')
+  const tabs = SLIDES.map((s, i) =>
+    `<button type="button" class="hm-tab" data-i="${i}">${esc(s.name)}</button>`
+  ).join('')
+  return `<div class="hm-carousel" data-slide="0">
+    <div class="hm-cs-bar">
+      <button type="button" class="hm-cs-nav hm-cs-prev" aria-label="Previous layout">‹</button>
+      <div class="hm-cs-tabs">${tabs}</div>
+      <button type="button" class="hm-cs-nav hm-cs-next" aria-label="Next layout">›</button>
+    </div>
+    <div class="hm-viewport">
+      <div class="hm-track" style="width:${SLIDES.length * 100}%">${slides}</div>
+    </div>
+    <div class="hm-detail" id="hm-detail" data-empty="1">
+      <div class="hm-detail-empty">hover a square to inspect · click to pin · arrows / 1·2·3 to switch layout</div>
+      <div class="hm-detail-body" hidden></div>
+    </div>
+    <div class="hm-legend">
+      <span class="hm-legend-item"><span class="sq sq-fail" aria-hidden="true"></span> fail</span>
+      <span class="hm-legend-item"><span class="sq sq-stale" aria-hidden="true"></span> stale</span>
+      <span class="hm-legend-item"><span class="sq sq-pass" aria-hidden="true"></span> pass</span>
+      <span class="hm-legend-item"><span class="sq sq-skip" aria-hidden="true"></span> skip</span>
+    </div>
   </div>`
 }
 
-function renderCheckCounts(c) {
-  if (c.testsTotal === undefined) return `<span class="check-row-counts is-empty">—</span>`
-  const passed = c.testsPassed ?? 0
-  return `<span class="check-row-counts">
-    <span class="check-counts-text"><span class="t-pass">${passed}</span><span class="t-sep">/</span>${c.testsTotal}</span>
-    ${renderCheckBar(c)}
-  </span>`
-}
-
-function renderCheckRow(c) {
-  const stale = isStale(c.timestamp)
-  const cls = c.status === 'fail' ? 'is-fail' : c.status === 'skip' ? 'is-skip' : stale ? 'is-stale' : ''
-  const errorBlock = c.status === 'fail' && c.errorSummary
-    ? `<button class="check-row-toggle" type="button" aria-expanded="false" aria-label="Toggle error details">▾</button>
-       <pre class="check-row-error" hidden>${esc(c.errorSummary)}</pre>`
-    : ''
-  const slowTag = c.slow ? `<span class="check-tag slow" title="Long-running — skipped under --quick">slow</span>` : ''
-  const source = `scripts/measures/${c.checkId}.ts`
-  return `<li class="check-row ${cls}" data-id="${esc(c.checkId)}" data-status="${esc(c.status)}">
-    ${statusBadge(c.status)}
-    <div class="check-row-meta">
-      <div class="check-row-name">${esc(c.checkName)}${slowTag}</div>
-      <code class="check-row-cmd">${esc(c.command)}</code>
-      <code class="check-row-source" title="Defined in this file — edit or copy to add a new check">${esc(source)}</code>
-    </div>
-    ${renderCheckCounts(c)}
-    <span class="check-row-duration">${fmtDuration(c.durationMs)}</span>
-    <time class="check-row-time" title="${esc(c.timestamp)}">${relTime(c.timestamp)}</time>
-    ${errorBlock}
-  </li>`
-}
-
-function catTallySummary(reports) {
-  const pass  = reports.filter(r => r.status === 'pass').length
-  const skip  = reports.filter(r => r.status === 'skip').length
-  const total = reports.length
-
-  let countsText = ''
-  const tested = reports.filter(r => r.testsTotal !== undefined)
-  if (tested.length > 0) {
-    const totalTests = tested.reduce((s, r) => s + (r.testsTotal ?? 0), 0)
-    const p          = tested.reduce((s, r) => s + (r.testsPassed ?? 0), 0)
-    const f          = tested.reduce((s, r) => s + (r.testsFailed ?? 0), 0)
-    countsText = `  ·  total ${totalTests} tests, <span class="t-pass">${p} passed</span>${f > 0 ? `, <span class="t-fail">${f} failed</span>` : ''}`
-  }
-
-  const failed = total - pass - skip
-  const passingLine = failed > 0
-    ? `<span class="t-pass">${pass}</span> / <span class="t-fail">${total - skip}</span>`
-    : `<span class="t-pass">${pass}</span> / ${total - skip}`
-  const skipNote = skip > 0 ? ` <span class="t-skip">(${skip} skip)</span>` : ''
-  return `${passingLine} passing${skipNote}${countsText}`
-}
-
-function renderCheckCategory(name, reports) {
-  return `<section class="check-cat-group" data-cat="${esc(name)}">
-    <div class="check-cat-head">
-      <span class="check-cat-name">${esc(name)}</span>
-      <span class="check-cat-rule"></span>
-      <span class="check-cat-tally">${catTallySummary(reports)}</span>
-    </div>
-    <ul class="check-rows">${reports.map(renderCheckRow).join('')}</ul>
-  </section>`
+function overallTally(reports) {
+  const stats = categoryStats(reports)
+  const parts = []
+  if (stats.fail > 0)  parts.push(`<span class="t-fail">${stats.fail} failing</span>`)
+  if (stats.stale > 0) parts.push(`${stats.stale} stale`)
+  parts.push(`<span class="t-pass">${stats.pass} passing</span>`)
+  if (stats.skip > 0)  parts.push(`<span class="t-skip">${stats.skip} skipped</span>`)
+  return `${reports.length} checks · ${parts.join(' · ')}`
 }
 
 export function renderChecksSection(checksData) {
@@ -103,42 +183,114 @@ export function renderChecksSection(checksData) {
     </section>`
   }
 
-  const byCategory = Object.fromEntries(CHECK_CATEGORY_ORDER.map(c => [c, []]))
-  for (const c of reports) {
-    const cat = CHECK_CATEGORY_ORDER.includes(c.category) ? c.category : 'Other'
-    byCategory[cat].push(c)
-  }
-
-  const groups = CHECK_CATEGORY_ORDER
-    .filter(c => byCategory[c].length > 0)
-    .map(c => renderCheckCategory(c, byCategory[c]))
-    .join('')
+  const byCategory = bucketize(reports)
 
   return `<section class="checks-section">
     <div class="category-header">
       <span class="category-name">CI / CD Checks</span>
       <span class="category-rule"></span>
-      <span class="category-tally">${catTallySummary(reports)}</span>
+      <span class="category-tally">${overallTally(reports)}</span>
     </div>
-    <div class="check-groups">${groups}</div>
+    ${renderCarousel(byCategory)}
   </section>`
 }
 
-export function bindCheckToggles(root) {
-  for (const btn of root.querySelectorAll('.check-row-toggle')) {
+// ── Wiring: carousel + square interactivity ─────────────────────────────────
+export function bindChecksSection(root, checksData) {
+  const car = root.querySelector('.hm-carousel')
+  if (!car) return
+  const reports = checksData?.reports ?? []
+  const byId = Object.fromEntries(reports.map(c => [c.checkId, c]))
+
+  // ── Carousel
+  const slides = car.querySelectorAll('.hm-slide')
+  const tabs   = car.querySelectorAll('.hm-tab')
+  const track  = car.querySelector('.hm-track')
+
+  function setSlide(i) {
+    const n = ((i % slides.length) + slides.length) % slides.length
+    car.dataset.slide = String(n)
+    if (track) track.style.transform = `translateX(-${(n * 100) / slides.length}%)`
+    tabs.forEach((t, idx) => t.classList.toggle('is-active', idx === n))
+  }
+
+  car.querySelector('.hm-cs-prev')?.addEventListener('click', () => setSlide(Number(car.dataset.slide) - 1))
+  car.querySelector('.hm-cs-next')?.addEventListener('click', () => setSlide(Number(car.dataset.slide) + 1))
+  tabs.forEach(t => t.addEventListener('click', () => setSlide(Number(t.dataset.i))))
+
+  // Keyboard within carousel
+  car.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft')  { setSlide(Number(car.dataset.slide) - 1); e.preventDefault() }
+    if (e.key === 'ArrowRight') { setSlide(Number(car.dataset.slide) + 1); e.preventDefault() }
+    if (e.key === '1') setSlide(0)
+    if (e.key === '2') setSlide(1)
+    if (e.key === '3') setSlide(2)
+  })
+
+  setSlide(0)
+
+  // ── Square hover / click → detail strip
+  const detail     = car.querySelector('#hm-detail')
+  const detailBody = detail.querySelector('.hm-detail-body')
+  const detailHint = detail.querySelector('.hm-detail-empty')
+  let pinned = null
+
+  function renderDetail(c) {
+    const counts = c.testsTotal !== undefined
+      ? `<span><span class="t-pass">${c.testsPassed ?? 0}</span><span class="t-sep">/</span>${c.testsTotal} tests</span><span class="hm-d-sep">·</span><span class="t-fail">${c.testsFailed ?? 0} fail</span><span class="hm-d-sep">·</span><span class="t-skip">${c.testsSkipped ?? 0} skip</span>`
+      : ''
+    const errBlock = c.errorSummary
+      ? `<pre class="hm-detail-error">${esc(c.errorSummary)}</pre>`
+      : ''
+    return `<div class="hm-detail-head">
+        ${statusBadge(c.status)}
+        <span class="hm-detail-name">${esc(c.checkName)}</span>
+        <code class="hm-detail-cmd">${esc(c.command)}</code>
+      </div>
+      <div class="hm-detail-meta">
+        ${counts}
+        ${counts ? '<span class="hm-d-sep">·</span>' : ''}
+        <span>${fmtDuration(c.durationMs)}</span>
+        <span class="hm-d-sep">·</span>
+        <time title="${esc(c.timestamp)}">${relTime(c.timestamp)}</time>
+        <code class="hm-detail-source" title="Defined in this file">scripts/measures/${esc(c.checkId)}.ts</code>
+      </div>
+      ${errBlock}`
+  }
+
+  function show(id) {
+    const c = byId[id]
+    if (!c) return
+    detail.dataset.empty = '0'
+    detailHint.hidden = true
+    detailBody.hidden = false
+    detailBody.innerHTML = renderDetail(c)
+  }
+  function clear() {
+    if (pinned) return
+    detail.dataset.empty = '1'
+    detailHint.hidden = false
+    detailBody.hidden = true
+    detailBody.innerHTML = ''
+    car.querySelectorAll('.sq.is-pinned').forEach(b => b.classList.remove('is-pinned'))
+  }
+
+  root.querySelectorAll('.sq[data-id]').forEach(btn => {
+    btn.addEventListener('mouseenter', () => show(btn.dataset.id))
+    btn.addEventListener('focus',      () => show(btn.dataset.id))
+    btn.addEventListener('mouseleave', () => { if (!pinned) clear() })
+    btn.addEventListener('blur',       () => { if (!pinned) clear() })
     btn.addEventListener('click', () => {
-      const row = btn.closest('.check-row')
-      const pre = row.querySelector('.check-row-error')
-      const open = !pre.hasAttribute('hidden')
-      if (open) {
-        pre.setAttribute('hidden', '')
-        btn.setAttribute('aria-expanded', 'false')
-        btn.textContent = '▾'
+      if (pinned === btn.dataset.id) {
+        pinned = null
+        btn.classList.remove('is-pinned')
+        clear()
       } else {
-        pre.removeAttribute('hidden')
-        btn.setAttribute('aria-expanded', 'true')
-        btn.textContent = '▴'
+        car.querySelectorAll('.sq.is-pinned').forEach(b => b.classList.remove('is-pinned'))
+        pinned = btn.dataset.id
+        btn.classList.add('is-pinned')
+        show(pinned)
       }
     })
-  }
+  })
 }

@@ -222,20 +222,6 @@ function printRow(check, outcome) {
 
 // ── Top-level orchestration ──────────────────────────────────────────────────
 
-async function recordSkipped(check, reason) {
-    await recordCheckReport({
-        checkId: check.id,
-        checkName: check.name,
-        category: check.category,
-        command: check.display,
-        status: 'skip',
-        durationMs: 0,
-        slow: check.slow,
-        timestamp: new Date().toISOString(),
-        details: {reason},
-    })
-}
-
 async function recordOutcome(check, outcome) {
     const errorSummary = outcome.status === 'fail'
         ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail)
@@ -292,8 +278,9 @@ async function main() {
         const skipForFailFast = stopScheduling
 
         if (explicitOnly || skipForQuick || skipForFailFast) {
-            const reason = explicitOnly ? 'not in --only' : skipForQuick ? 'slow:true skipped by --quick' : 'stopped by --fail-fast'
-            await recordSkipped(check, reason)
+            // Don't overwrite the persisted report — leave the prior pass/fail intact
+            // so dashboards reflect last-known status. Each check's own auto-record
+            // reporter (Playwright/Vitest) is the source of truth between full runs.
             printRow(check, {status: 'skip', durationMs: 0})
             continue
         }

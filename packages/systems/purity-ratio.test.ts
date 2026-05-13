@@ -3,6 +3,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../..')
@@ -438,6 +439,18 @@ describe('function purity ratio (LOC)', () => {
         const purityRatio: number = totals.pureLoc / totals.totalLoc
         console.info(`Overall purity ratio: ${(purityRatio * 100).toFixed(1)}% (${totals.pureLoc} / ${totals.totalLoc} LOC)`)
 
+        await recordHealthMetric({
+            metricId: 'purity-ratio',
+            metricName: 'Purity Ratio',
+            description: 'Share of function LOC classified as pure by lexical side-effect detection.',
+            category: 'Purity',
+            current: purityRatio,
+            budget: MINIMUM_PURITY_RATIO,
+            comparison: 'gte',
+            unit: 'ratio',
+            details: {totals, byLayer},
+        })
+
         expect(
             purityRatio,
             `Purity ratio ${(purityRatio * 100).toFixed(1)}% is below the ${(MINIMUM_PURITY_RATIO * 100).toFixed(0)}% threshold. `
@@ -463,6 +476,20 @@ describe('function purity ratio (LOC)', () => {
         console.info(
             `pure/ directory: ${totalPureDirLoc} LOC across ${pureDirFunctions.length} functions, ${violationLoc} LOC with side-effect indicators`,
         )
+        await recordHealthMetric({
+            metricId: 'purity-ratio-pure-dir-side-effects',
+            metricName: 'Purity Ratio Pure Directory Side Effects',
+            description: 'Impure LOC detected inside pure/ directories by lexical side-effect detection.',
+            category: 'Purity',
+            current: violationLoc,
+            budget: totalPureDirLoc * 0.14,
+            comparison: 'lte',
+            unit: 'LOC',
+            details: {
+                totalPureDirLoc,
+                violations,
+            },
+        })
         expect(violationLoc).toBeLessThanOrEqual(totalPureDirLoc * 0.14)
     }, 30000)
 })
