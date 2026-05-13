@@ -12,7 +12,7 @@ import * as fsSync from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 
-import { scanMarkdownFiles } from '../../src/graph/loadGraphFromDisk.ts'
+import { scanMarkdownFiles } from '../../src/data/graph/loading/loadGraphFromDisk.ts'
 
 const tempDirs: string[] = []
 
