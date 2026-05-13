@@ -1,6 +1,6 @@
 import { esc, relTime, isStale, fmtDuration } from './format.js'
 
-const CHECK_CATEGORY_ORDER = ['Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Other']
+const CHECK_CATEGORY_ORDER = ['Command', 'Hook', 'Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Other']
 
 const SLIDES = [
   { id: 'rows',  name: 'Compact rows' },

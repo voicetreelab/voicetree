@@ -954,14 +954,17 @@ body {
   font-weight: 600;
 }
 
+.hm-viewport {
+  overflow: hidden;
+  width: 100%;
+}
 .hm-track {
   display: flex;
-  width: 100%;
-  overflow: hidden;
   transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .hm-slide {
-  flex: 0 0 100%;
+  flex: 0 0 auto;
+  width: calc(100% / 3);
   min-width: 0;
   padding: 0.25rem 0.05rem 0.1rem;
 }
