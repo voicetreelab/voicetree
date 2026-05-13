@@ -23,7 +23,8 @@ import {
   formatHygieneReportJson,
   type HygieneRuleId,
 } from '../src/hygiene'
-import type {SerializedCommand} from '@vt/graph-state'
+import type {Delta, SerializedCommand} from '@vt/graph-state'
+import {linkMatchScore} from '@vt/graph-model'
 import {parseStateDumpArgs} from './cliArgs'
 import {runStructureCommand} from './structureCommand'
 
@@ -80,6 +81,18 @@ interface ParsedLiveCrudCommand {
   readonly command: SerializedCommand
   readonly port?: number
 }
+
+interface LiveGraphNodeSnapshot {
+  readonly outgoingEdges?: readonly {readonly targetId?: string; readonly label?: string}[]
+  readonly nodeUIMetadata?: {
+    readonly position?: {
+      readonly _tag?: string
+      readonly value?: {readonly x?: number; readonly y?: number}
+    }
+  }
+}
+
+type LiveGraphNodesSnapshot = Record<string, LiveGraphNodeSnapshot | undefined>
 
 const LIVE_CRUD_FLAGS: Record<LiveCrudVerb, readonly FlagSpec[]> = {
   'add-node': [
@@ -241,6 +254,10 @@ function optionalNumber(values: Record<string, string | number | undefined>, fla
   return typeof value === 'number' ? value : undefined
 }
 
+function resolvedRequiredPath(values: Record<string, string | number | undefined>, flag: string): string {
+  return path.resolve(requiredString(values, flag))
+}
+
 function withTrailingNewline(content: string): string {
   return content.endsWith('\n') ? content : `${content}\n`
 }
@@ -261,9 +278,24 @@ function appendLineIfMissing(content: string, line: string): string {
   return `${withTrailingNewline(content)}${line}\n`
 }
 
+const WIKILINK_PATTERN = /\[\[([^\]\r\n]+)\]\]/g
+
+function linkReferencesTarget(linkText: string, sourceFile: string, targetFile: string): boolean {
+  const targetAbsolute = path.resolve(targetFile)
+  const relativeWithExtension = linkText.endsWith('.md') ? linkText : `${linkText}.md`
+  const resolvedRelative = path.resolve(path.dirname(sourceFile), relativeWithExtension)
+
+  return resolvedRelative === targetAbsolute || linkMatchScore(linkText, targetAbsolute) > 0
+}
+
+function lineReferencesTarget(line: string, sourceFile: string, targetFile: string): boolean {
+  return [...line.matchAll(WIKILINK_PATTERN)]
+    .some((match) => linkReferencesTarget(match[1] ?? '', sourceFile, targetFile))
+}
+
 function removeEdgeLine(content: string, sourceFile: string, targetFile: string): string {
-  const link = `[[${markdownLinkTarget(sourceFile, targetFile)}]]`
-  const nextLines = content.split(/\r?\n/).filter((line) => !line.includes(link))
+  const nextLines = content.split(/\r?\n/)
+    .filter((line) => !lineReferencesTarget(line, sourceFile, targetFile))
   return withTrailingNewline(nextLines.join('\n').replace(/\n+$/, ''))
 }
 
@@ -316,6 +348,39 @@ async function removePositionForFile(filePath: string, port?: number): Promise<v
   fs.writeFileSync(positionsPath, `${JSON.stringify(positions, null, 2)}\n`, 'utf8')
 }
 
+async function getLiveGraphNodes(port?: number): Promise<LiveGraphNodesSnapshot> {
+  const result = await liveStateDump({pretty: false, ...(port !== undefined ? {port} : {})})
+  const parsed = JSON.parse(result.json) as {
+    graph?: {nodes?: Record<string, LiveGraphNodeSnapshot | undefined>}
+  }
+  return parsed.graph?.nodes ?? {}
+}
+
+function hasLiveNode(nodes: LiveGraphNodesSnapshot, nodeId: string): boolean {
+  return nodes[nodeId] !== undefined
+}
+
+function hasLiveEdge(
+  nodes: LiveGraphNodesSnapshot,
+  source: string,
+  targetId: string,
+  label?: string,
+): boolean {
+  return (nodes[source]?.outgoingEdges ?? [])
+    .some((edge) => edge.targetId === targetId && (label === undefined || edge.label === label))
+}
+
+function nodeHasLivePosition(
+  nodes: LiveGraphNodesSnapshot,
+  nodeId: string,
+  position: {readonly x: number; readonly y: number},
+): boolean {
+  const livePosition = nodes[nodeId]?.nodeUIMetadata?.position
+  return livePosition?._tag === 'Some'
+    && livePosition.value?.x === position.x
+    && livePosition.value?.y === position.y
+}
+
 function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]): ParsedLiveCrudCommand {
   if (argsForVerb.includes('--help')) {
     console.log(liveCrudUsage(verb))
@@ -331,7 +396,7 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
 
   switch (verb) {
     case 'add-node': {
-      const file = requiredString(values, '--file')
+      const file = resolvedRequiredPath(values, '--file')
       const label = optionalString(values, '--label')
       const defaultHeading = `# ${path.basename(file, '.md')}\n`
       const x = optionalNumber(values, '--x')
@@ -355,12 +420,12 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
       return {command, ...(port !== undefined ? {port} : {})}
     }
     case 'rm-node': {
-      const file = requiredString(values, '--file')
+      const file = resolvedRequiredPath(values, '--file')
       return {command: {type: 'RemoveNode', id: file}, ...(port !== undefined ? {port} : {})}
     }
     case 'add-edge': {
-      const source = requiredString(values, '--src-file')
-      const targetId = requiredString(values, '--tgt-file')
+      const source = resolvedRequiredPath(values, '--src-file')
+      const targetId = resolvedRequiredPath(values, '--tgt-file')
       const label = optionalString(values, '--label') ?? ''
       return {
         command: {type: 'AddEdge', source, edge: {targetId, label}},
@@ -368,12 +433,12 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
       }
     }
     case 'rm-edge': {
-      const source = requiredString(values, '--src-file')
-      const targetId = requiredString(values, '--tgt-file')
+      const source = resolvedRequiredPath(values, '--src-file')
+      const targetId = resolvedRequiredPath(values, '--tgt-file')
       return {command: {type: 'RemoveEdge', source, targetId}, ...(port !== undefined ? {port} : {})}
     }
     case 'mv-node': {
-      const file = requiredString(values, '--file')
+      const file = resolvedRequiredPath(values, '--file')
       const x = requiredNumber(values, '--x')
       const y = requiredNumber(values, '--y')
       return {command: {type: 'Move', id: file, to: {x, y}}, ...(port !== undefined ? {port} : {})}
@@ -381,12 +446,22 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
   }
 }
 
-async function persistLiveCrudCommand(parsed: ParsedLiveCrudCommand): Promise<void> {
+function deltaMovedPosition(delta: Delta, nodeId: string): boolean {
+  return delta.positionsMoved instanceof Map && delta.positionsMoved.has(nodeId)
+}
+
+async function persistLiveCrudCommand(
+  parsed: ParsedLiveCrudCommand,
+  delta: Delta,
+  beforeNodes: LiveGraphNodesSnapshot,
+  afterNodes: LiveGraphNodesSnapshot,
+): Promise<void> {
   const command = parsed.command
 
   switch (command.type) {
     case 'AddNode': {
       const file = command.node.absoluteFilePathIsID
+      if (!hasLiveNode(afterNodes, file)) return
       fs.mkdirSync(path.dirname(file), {recursive: true})
       fs.writeFileSync(file, withTrailingNewline(command.node.contentWithoutYamlOrLinks), 'utf8')
       if (command.node.nodeUIMetadata.position._tag === 'Some') {
@@ -395,11 +470,15 @@ async function persistLiveCrudCommand(parsed: ParsedLiveCrudCommand): Promise<vo
       return
     }
     case 'RemoveNode': {
+      if (!hasLiveNode(beforeNodes, command.id) || hasLiveNode(afterNodes, command.id)) return
       if (fs.existsSync(command.id)) fs.rmSync(command.id, {force: true})
       await removePositionForFile(command.id, parsed.port)
       return
     }
     case 'AddEdge': {
+      if (!hasLiveNode(beforeNodes, command.source)
+        || !hasLiveEdge(afterNodes, command.source, command.edge.targetId, command.edge.label)
+      ) return
       const sourceContent = fs.existsSync(command.source) ? fs.readFileSync(command.source, 'utf8') : ''
       const nextContent = appendLineIfMissing(
         sourceContent,
@@ -410,6 +489,9 @@ async function persistLiveCrudCommand(parsed: ParsedLiveCrudCommand): Promise<vo
       return
     }
     case 'RemoveEdge': {
+      if (!hasLiveEdge(beforeNodes, command.source, command.targetId)
+        || hasLiveEdge(afterNodes, command.source, command.targetId)
+      ) return
       if (!fs.existsSync(command.source)) return
       fs.writeFileSync(
         command.source,
@@ -419,6 +501,7 @@ async function persistLiveCrudCommand(parsed: ParsedLiveCrudCommand): Promise<vo
       return
     }
     case 'Move': {
+      if (!deltaMovedPosition(delta, command.id) && !nodeHasLivePosition(afterNodes, command.id, command.to)) return
       await writePositionForFile(command.id, command.to, parsed.port)
       return
     }
@@ -609,8 +692,10 @@ async function main(): Promise<void> {
 
       if (isLiveCrudVerb(liveSubcommand)) {
         const parsed = parseLiveCrudCommand(liveSubcommand, liveArgs)
+        const beforeNodes = await getLiveGraphNodes(parsed.port)
         const result = await liveApply(JSON.stringify(parsed.command), {port: parsed.port})
-        await persistLiveCrudCommand(parsed)
+        const afterNodes = await getLiveGraphNodes(parsed.port)
+        await persistLiveCrudCommand(parsed, result.delta, beforeNodes, afterNodes)
         process.stdout.write(result.output)
         break
       }

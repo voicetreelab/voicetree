@@ -24,6 +24,41 @@ function hasPortFlag(args: readonly string[]): boolean {
     return args.some((arg: string) => arg === '--port' || arg.startsWith('--port='))
 }
 
+const LIVE_PATH_FLAGS: ReadonlySet<string> = new Set(['--file', '--src-file', '--tgt-file'])
+
+function normalizePathFlagValue(flag: string, value: string, cwd: string): string {
+    return `${flag}=${path.resolve(cwd, value)}`
+}
+
+function normalizeLivePathArgs(args: readonly string[], cwd: string): string[] {
+    const normalized: string[] = []
+
+    for (let i = 0; i < args.length; i++) {
+        const arg: string = args[i] ?? ''
+        const equalsIndex: number = arg.indexOf('=')
+        if (equalsIndex !== -1) {
+            const flag: string = arg.slice(0, equalsIndex)
+            if (LIVE_PATH_FLAGS.has(flag)) {
+                normalized.push(normalizePathFlagValue(flag, arg.slice(equalsIndex + 1), cwd))
+                continue
+            }
+        }
+
+        if (LIVE_PATH_FLAGS.has(arg)) {
+            const value: string | undefined = args[i + 1]
+            if (value !== undefined && !value.startsWith('--')) {
+                normalized.push(arg, path.resolve(cwd, value))
+                i++
+                continue
+            }
+        }
+
+        normalized.push(arg)
+    }
+
+    return normalized
+}
+
 function formatVtGraphOutput(output: string): string {
     return output.replaceAll('vt-graph live', 'vt graph live')
 }
@@ -31,7 +66,8 @@ function formatVtGraphOutput(output: string): string {
 export async function graphLive(port: number, _terminalId: string | undefined, args: string[]): Promise<void> {
     const repoRoot: string = findRepoRoot()
     const vtGraphBin: string = path.join(repoRoot, 'packages', 'libraries', 'graph-tools', 'bin', 'vt-graph.ts')
-    const forwardedArgs: readonly string[] = hasPortFlag(args) ? args : [...args, '--port', String(port)]
+    const normalizedArgs: readonly string[] = normalizeLivePathArgs(args, process.cwd())
+    const forwardedArgs: readonly string[] = hasPortFlag(normalizedArgs) ? normalizedArgs : [...normalizedArgs, '--port', String(port)]
 
     try {
         const result: string = execFileSync(

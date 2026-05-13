@@ -1,5 +1,5 @@
 import {spawn, type ChildProcess} from 'node:child_process'
-import {mkdtemp, rm, writeFile} from 'node:fs/promises'
+import {access, mkdir, mkdtemp, readFile, realpath, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -10,6 +10,7 @@ const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../../../')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
 const TSX_LOADER: string = join(REPO_ROOT, 'node_modules/tsx/dist/loader.mjs')
 const CLI_EXIT_TIMEOUT_MS: number = 20_000
+const HEADLESS_START_TIMEOUT_MS: number = 15_000
 
 type SpawnResult = {
     code: number | null
@@ -19,8 +20,11 @@ type SpawnResult = {
 }
 
 const tempDirs: string[] = []
+const servers: Array<{close(): Promise<void>}> = []
 
 afterEach(async () => {
+    await Promise.all(servers.splice(0).map((server) => server.close()))
+
     while (tempDirs.length > 0) {
         const directory: string | undefined = tempDirs.pop()
         if (directory) {
@@ -93,6 +97,65 @@ function spawnCli(args: string[], cwd: string): Promise<SpawnResult> {
             })
         })
     })
+}
+
+async function startHeadless(vault: string): Promise<{readonly port: number; close(): Promise<void>}> {
+    const child: ChildProcess = spawn(
+        process.execPath,
+        [
+            '--import',
+            TSX_LOADER,
+            join(REPO_ROOT, 'packages/libraries/graph-tools/bin/vt-headless.ts'),
+            'serve',
+            '--port',
+            '0',
+            '--vault',
+            vault,
+        ],
+        {
+            cwd: REPO_ROOT,
+            env: buildChildEnv(),
+            stdio: ['ignore', 'pipe', 'pipe'],
+        },
+    )
+
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk: string): void => {
+        stdout += chunk
+    })
+    child.stderr?.on('data', (chunk: string): void => {
+        stderr += chunk
+    })
+
+    const port: number = await new Promise<number>((resolvePromise, rejectPromise) => {
+        const timeout: NodeJS.Timeout = setTimeout(() => {
+            child.kill('SIGINT')
+            rejectPromise(new Error(`vt-headless did not print a port. stdout=${stdout} stderr=${stderr}`))
+        }, HEADLESS_START_TIMEOUT_MS)
+
+        child.stdout?.on('data', (): void => {
+            const match: RegExpMatchArray | null = stdout.match(/Listening on port (\d+)/)
+            if (!match) return
+            clearTimeout(timeout)
+            resolvePromise(Number.parseInt(match[1] ?? '', 10))
+        })
+        child.once('exit', (code: number | null): void => {
+            clearTimeout(timeout)
+            rejectPromise(new Error(`vt-headless exited early with ${code}. stdout=${stdout} stderr=${stderr}`))
+        })
+    })
+
+    return {
+        port,
+        close: async (): Promise<void> => {
+            if (child.exitCode !== null) return
+            child.kill('SIGINT')
+            await new Promise<void>((resolvePromise) => child.once('exit', () => resolvePromise()))
+        },
+    }
 }
 
 describe('graph CLI module resolution', () => {
@@ -173,4 +236,110 @@ describe('graph CLI module resolution', () => {
         expect(result.stderr).toContain('Unknown argument: --bogus')
         expect(result.stderr).not.toContain("Cannot find package '@/shell'")
     }, 30000)
+
+    it('persists graph live CRUD through cwd-relative shell CLI paths', async () => {
+        const tempDir: string = await mkdtemp(join(tmpdir(), 'vt-cli-graph-live-crud-'))
+        tempDirs.push(tempDir)
+        const canonicalTempDir: string = await realpath(tempDir)
+        await mkdir(join(tempDir, '.voicetree'), {recursive: true})
+        await writeFile(join(tempDir, 'source.md'), '# Source\n\nlegacy [[target.md]]\n', 'utf8')
+        await writeFile(join(tempDir, 'target.md'), '# Target\n', 'utf8')
+
+        const server = await startHeadless(canonicalTempDir)
+        servers.push(server)
+        const relativeFile = `rel-${process.pid}-${Date.now()}.md`
+
+        const addNode: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'add-node',
+                '--file',
+                relativeFile,
+                '--label',
+                '# Relative\n',
+                '--x',
+                '4',
+                '--y',
+                '5',
+            ],
+            tempDir,
+        )
+        expect(addNode.code, addNode.stderr).toBe(0)
+        expect(await readFile(join(tempDir, relativeFile), 'utf8')).toBe('# Relative\n')
+        await expect(access(join(REPO_ROOT, relativeFile))).rejects.toThrow()
+
+        const state: SpawnResult = await spawnCli(
+            ['--port', String(server.port), 'graph', 'live', 'state', 'dump', '--no-pretty'],
+            tempDir,
+        )
+        expect(state.code, state.stderr).toBe(0)
+        expect(Object.keys(JSON.parse(state.stdout).graph.nodes)).toContain(join(canonicalTempDir, relativeFile))
+
+        const moveNode: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'mv-node',
+                '--file',
+                relativeFile,
+                '--x',
+                '6',
+                '--y',
+                '7',
+            ],
+            tempDir,
+        )
+        expect(moveNode.code, moveNode.stderr).toBe(0)
+        const positions = JSON.parse(await readFile(join(tempDir, '.voicetree', 'positions.json'), 'utf8'))
+        expect(positions[join(canonicalTempDir, relativeFile)]).toEqual({x: 6, y: 7})
+
+        const removeEdge: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'rm-edge',
+                '--src-file',
+                'source.md',
+                '--tgt-file',
+                'target.md',
+            ],
+            tempDir,
+        )
+        expect(removeEdge.code, removeEdge.stderr).toBe(0)
+        expect(await readFile(join(tempDir, 'source.md'), 'utf8')).not.toContain('[[target.md]]')
+
+        const missingSource = `missing-${process.pid}-${Date.now()}.md`
+        const addMissingEdge: SpawnResult = await spawnCli(
+            [
+                '--port',
+                String(server.port),
+                'graph',
+                'live',
+                'add-edge',
+                '--src-file',
+                missingSource,
+                '--tgt-file',
+                'target.md',
+            ],
+            tempDir,
+        )
+        expect(addMissingEdge.code, addMissingEdge.stderr).toBe(0)
+        await expect(access(join(tempDir, missingSource))).rejects.toThrow()
+
+        const removeNode: SpawnResult = await spawnCli(
+            ['--port', String(server.port), 'graph', 'live', 'rm-node', '--file', relativeFile],
+            tempDir,
+        )
+        expect(removeNode.code, removeNode.stderr).toBe(0)
+        await expect(access(join(tempDir, relativeFile))).rejects.toThrow()
+        const positionsAfterRemove = JSON.parse(await readFile(join(tempDir, '.voicetree', 'positions.json'), 'utf8'))
+        expect(Object.hasOwn(positionsAfterRemove, join(canonicalTempDir, relativeFile))).toBe(false)
+    }, 60000)
 })
