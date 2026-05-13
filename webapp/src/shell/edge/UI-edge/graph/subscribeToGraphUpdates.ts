@@ -7,7 +7,7 @@ import type {ProjectedGraph} from '@vt/graph-state/contract';
 import type {ElectronAPI} from '@/shell/electron';
 import {applyGraphDeltaToUI} from './applyGraphDeltaToUI';
 import {clearCytoscapeState} from './clearCytoscapeState';
-import {closeAllEditors} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
+import {closeAllEditors, updateFloatingEditorsFromProjectedGraph} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
 
 import {closeAllTerminals} from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal';
 import {
@@ -41,6 +41,7 @@ export function subscribeToGraphUpdates(
 
     const cy: Core = navigationService.getCy();
     let disposed: boolean = false;
+    let lastProjectedGraph: ProjectedGraph | null = null;
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
         markRendererLoadTiming('renderer:projected-graph-received', {nodeCount: graph.nodes.length});
@@ -50,6 +51,13 @@ export function subscribeToGraphUpdates(
 
         applyGraphDeltaToUI(cy, graph);
         searchService.updateSearchData();
+
+        // Floating editors don't ride applyGraphDeltaToUI — that path only
+        // syncs Cytoscape. Without this call, an external file change (FS
+        // watcher → daemon → SSE → ProjectedGraph) never reaches an open
+        // CodeMirror editor, so a focused mid-typing editor stays stale.
+        updateFloatingEditorsFromProjectedGraph(cy, graph, lastProjectedGraph);
+        lastProjectedGraph = graph;
 
         const recentNodeIds: readonly string[] = graph.recentNodeIds;
         if (recentNodeIds.length > 0) {
