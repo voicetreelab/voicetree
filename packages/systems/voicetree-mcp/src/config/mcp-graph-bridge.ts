@@ -15,14 +15,6 @@ function requireGraphBridge(operation: string): GraphBridge {
     return bridge
 }
 
-export function syncMcpGraphDbServerState(
-    _graph: Graph,
-    _projectRootWatchedDirectory: string | null,
-): void {
-    // Retained only as a temporary compatibility shim for BF-267 callers.
-    // MCP graph access is now exclusively through the configured bridge.
-}
-
 export async function getMcpGraph(): Promise<Graph> {
     return await requireGraphBridge('getMcpGraph').getGraph()
 }

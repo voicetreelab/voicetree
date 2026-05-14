@@ -17,7 +17,6 @@ import {
     getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
-    syncMcpGraphDbServerState,
 } from '@vt/voicetree-mcp';
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
@@ -49,11 +48,6 @@ import {createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
-import type {Graph} from '@vt/graph-model/graph';
-import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/context-nodes/createContextNode';
-import {createContextNodeFromSelectedNodes as createContextNodeFromSelectedNodesFromDb} from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
-import {getUnseenNodesAroundContextNode as getUnseenNodesAroundContextNodeFromDb} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
-import {updateContextNodeContainedIds as updateContextNodeContainedIdsFromDb} from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds';
 import {
     getActiveDaemonConnection,
     shutdownActiveDaemonConnection,
@@ -77,22 +71,20 @@ initializeGraphModel();
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {
-        getGraph: async () => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            return graph;
-        },
+        getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
             return O.isSome(writePath) ? writePath.value : null;
         },
-        applyGraphDelta: postDeltaThroughDaemonWithEditors,
+        applyGraphDelta: (delta, recordForUndo) =>
+            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
         getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+            return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
+                contextNodeId,
+                searchFromNode,
+            );
         },
     },
     liveState: {
@@ -126,26 +118,30 @@ agentRuntime.configureAgentRuntime({
             isWatching: (getActiveDaemonConnection()?.vault ?? null) !== null,
             directory: getActiveDaemonConnection()?.vault ?? undefined,
         }),
-        applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
+        applyGraphDelta: (delta, recordForUndo) =>
+            postDeltaThroughDaemonWithEditors(delta, recordForUndo),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            return createContextNodeFromDb(parentNodeId, semanticNodeIds ?? []);
+            const result = await getActiveGraphDbClient().createContextNode(
+                parentNodeId,
+                [...(semanticNodeIds ?? [])],
+            );
+            return result.nodeId;
         },
         createContextNodeFromSelectedNodes: async (taskNodeId, selectedNodeIds) => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            return createContextNodeFromSelectedNodesFromDb(taskNodeId, selectedNodeIds);
+            const result = await getActiveGraphDbClient().createContextNodeFromSelectedNodes(
+                taskNodeId,
+                selectedNodeIds,
+            );
+            return result.nodeId;
         },
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            return getUnseenNodesAroundContextNodeFromDb(contextNodeId, searchFromNode);
+            return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
+                contextNodeId,
+                searchFromNode,
+            );
         },
         updateContextNodeContainedIds: async (contextNodeId, newNodeIds) => {
-            const graph: Graph = await getGraphFromDaemon();
-            syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);
-            await updateContextNodeContainedIdsFromDb(contextNodeId, newNodeIds);
+            await getActiveGraphDbClient().updateContextNodeContainedIds(contextNodeId, newNodeIds);
         },
     },
     trace,
@@ -164,6 +160,14 @@ agentRuntime.configureAgentRuntime({
 });
 
 const {autoUpdater} = electronUpdater;
+
+function getActiveGraphDbClient(): NonNullable<ReturnType<typeof getActiveDaemonConnection>>['client'] {
+    const activeConnection = getActiveDaemonConnection();
+    if (!activeConnection) {
+        throw new Error('Graph daemon client is not active. Open a vault before using graph operations.');
+    }
+    return activeConnection.client;
+}
 
 configureEnvironment();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
