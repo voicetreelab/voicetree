@@ -24,12 +24,13 @@ esac
 # Check architecture
 ARCH="$(uname -m)"
 case "$ARCH" in
-    x86_64) ;;
-    *) error "Unsupported architecture: $ARCH. Linux AppImage is only available for x86_64." ;;
+    x86_64)  APPIMAGE="voicetree-x64.AppImage" ;;
+    aarch64) APPIMAGE="voicetree-arm64.AppImage" ;;
+    *) error "Unsupported architecture: $ARCH. Linux AppImage is available for x86_64 and aarch64." ;;
 esac
 
 # Download AppImage
-URL="https://github.com/$REPO/releases/latest/download/voicetree.AppImage"
+URL="https://github.com/$REPO/releases/latest/download/$APPIMAGE"
 
 info "Downloading Voicetree..."
 TMPDIR=$(mktemp -d)
