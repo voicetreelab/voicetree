@@ -1,0 +1,79 @@
+/* copy-button — small "copy status" button on every section header */
+/* =============================================================================
+   COPY-STATUS BUTTON
+   ----------------------------------------------------------------------------
+   Injected at the end of each section header. Positioned absolute top-right so
+   the existing flex layout of the header isn't disturbed. Matches the bulletin
+   aesthetic: hairline border, mono micro-tracking, no rounded corners.
+   ========================================================================== */
+
+/* Make every host header a positioning context and reserve a slot on the
+   right edge so the absolute-positioned copy button never overlaps the tally
+   or the section's own inline controls. .category-header already has
+   position: relative (sections.css); wc-head + axis-header don't. */
+.wc-head,
+.axis-header {
+  position: relative;
+}
+.category-header,
+.axis-header,
+.wc-head {
+  padding-right: 4.4rem;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  transition: color 0.14s, border-color 0.14s, background 0.14s;
+  line-height: 1;
+  font-weight: 500;
+  z-index: 2;
+}
+.copy-btn:hover {
+  color: var(--paper);
+  border-color: var(--rule-strong);
+  background: var(--ink-1);
+}
+.copy-btn:active { transform: translateY(1px); }
+.copy-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.copy-btn.is-copied {
+  color: var(--vital);
+  border-color: var(--vital-edge);
+  background: var(--vital-soft);
+}
+.copy-btn.is-error {
+  color: var(--sig);
+  border-color: var(--sig-edge);
+  background: var(--sig-soft);
+}
+
+/* Wall-clock panel: header is dashed-underlined and meta-text sits on the
+   right — push the button further right so it doesn't overlap the meta. */
+.wc-head .copy-btn {
+  top: 0.1rem;
+  right: 0;
+}
+
+/* The gates-section toggle button and the treemap's mode-switch chip group
+   already sit inline at the end of their headers. With every header now
+   reserving 4.4rem of right padding, those inline controls naturally end
+   before the copy-btn slot. Bump the reservation a little for treemap because
+   the mode chips are wider. */
+.treemap-section .category-header { padding-right: 4.6rem; }
+
+@media (max-width: 640px) {
+  .copy-btn { font-size: 0.58rem; padding: 0.18rem 0.45rem; letter-spacing: 0.12em; }
+}

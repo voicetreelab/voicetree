@@ -1,4 +1,4 @@
-import { esc, fmtMSS } from './format.js'
+import { esc, fmtDuration } from './format.js'
 
 // Duration tiers — calibrated to the dev's hand-feel of "fast vs slow".
 // Returned classname gets applied to the box; the order is also the visual
@@ -30,7 +30,7 @@ function renderBigBox(r, total) {
   const statusCls = r.status === 'fail' ? 'is-fail' : r.status === 'skip' ? 'is-skip' : 'is-pass'
   const statusTxt = r.status === 'fail' ? 'FAIL' : r.status === 'skip' ? 'SKIP' : 'PASS'
   return `<div class="wc-box wc-${tier} ${statusCls}" data-id="${esc(r.checkId)}" title="${esc(r.checkName)} · ${esc(r.command)}">
-    <div class="wc-box-time">${fmtMSS(r.durationMs)}</div>
+    <div class="wc-box-time">${fmtDuration(r.durationMs)}</div>
     <div class="wc-box-name">${esc(r.checkName)}</div>
     <div class="wc-box-foot">
       <span class="wc-box-status">${statusTxt}</span>
@@ -53,14 +53,14 @@ function renderStackBar(reports, total) {
   const stack = slices.map(r => {
     const pct = (r.durationMs / total) * 100
     const tier = TIER(r.durationMs)
-    return `<span class="wc-stack-seg wc-stack-${tier}" style="width:${pct.toFixed(2)}%" title="${esc(r.checkName)} — ${fmtMSS(r.durationMs)} (${pct.toFixed(0)}%)"></span>`
+    return `<span class="wc-stack-seg wc-stack-${tier}" style="width:${pct.toFixed(2)}%" title="${esc(r.checkName)} — ${fmtDuration(r.durationMs)} (${pct.toFixed(0)}%)"></span>`
   }).join('')
   const otherSeg = otherMs > 1000
-    ? `<span class="wc-stack-seg wc-stack-other" style="width:${((otherMs / total) * 100).toFixed(2)}%" title="Other ${sorted.length - slices.length} checks — ${fmtMSS(otherMs)}"></span>`
+    ? `<span class="wc-stack-seg wc-stack-other" style="width:${((otherMs / total) * 100).toFixed(2)}%" title="Other ${sorted.length - slices.length} checks — ${fmtDuration(otherMs)}"></span>`
     : ''
   const legendItems = slices.slice(0, 4).map(r => {
     const tier = TIER(r.durationMs)
-    return `<span class="wc-stack-legend-item"><span class="wc-stack-dot wc-stack-${tier}"></span>${esc(r.checkName)} · ${fmtMSS(r.durationMs)}</span>`
+    return `<span class="wc-stack-legend-item"><span class="wc-stack-dot wc-stack-${tier}"></span>${esc(r.checkName)} · ${fmtDuration(r.durationMs)}</span>`
   }).join('')
   return `<div class="wc-stack">
     <div class="wc-stack-bar">${stack}${otherSeg}</div>
@@ -83,7 +83,7 @@ export function renderWallClock(reports) {
     <div class="wc-head">
       <div class="wc-headline">
         <div class="wc-headline-label">total wall-clock</div>
-        <div class="wc-headline-time">${fmtMSS(total)}</div>
+        <div class="wc-headline-time">${fmtDuration(total)}</div>
       </div>
       <div class="wc-head-meta">
         ${headlineNote}

@@ -1,16 +1,22 @@
 import { esc, fmtNum, relTime, isStale } from './format.js'
 import { renderChecksSection, bindChecksSection } from './checks.js'
+import { renderWallClock } from './wallClock.js'
 import { renderFileTreeSection } from './fileTree.js'
 import { renderTreemapSection, bindTreemapSection } from './treemap.js'
 import { renderGitSection, renderGitTally, renderGitFolders, renderGitCommits } from './git.js'
 import { getMetricExplanation } from './metricExplanations.js'
 import { bindCardExplainToggles } from './explainToggle.js'
 import { isGate, gatesShown, renderGatesSection, bindGatesToggle } from './gates.js'
+import { bindCopyButtons } from './copyStatus.js'
 
 const REPORTS_URL = 'reports/latest.json'
 const CHECKS_URL = 'reports/checks.json'
 const GIT_URL = 'api/git'
 const GIT_POLL_MS = 5000
+
+// Mutable holder so copy-button click handlers always read the latest data,
+// including git data refreshed by the background poll.
+const liveState = { data: null, checksData: null, gitData: null }
 const CATEGORY_ORDER = ['Coupling', 'Complexity', 'Structure', 'Purity', 'Behavioral', 'Shape', 'Churn', 'Other']
 const HEALTH_AXES = [
   {
@@ -311,6 +317,7 @@ function renderDashboard(data, checksData, gitData) {
   }
 
   const gitHtml    = renderGitSection(gitData)
+  const wallClockHtml = renderWallClock(checksData?.reports ?? [])
   const checksHtml = renderChecksSection(checksData)
   const gatesHtml  = renderGatesSection(gates, gatesShown())
   const axesHtml = renderAxes(data.reports)
@@ -335,11 +342,18 @@ function renderDashboard(data, checksData, gitData) {
     .join('')
 
   const main = document.getElementById('main')
-  main.innerHTML = gitHtml + checksHtml + gatesHtml + axesHtml + fileTreeHtml + treemapHtml + rankingHtml + categoriesHtml
+  main.innerHTML = gitHtml + wallClockHtml + checksHtml + gatesHtml + axesHtml + fileTreeHtml + treemapHtml + rankingHtml + categoriesHtml
   bindChecksSection(main, checksData)
   bindGatesToggle(main)
   bindTreemapSection(main, data.reports)
   bindCardExplainToggles(main)
+  bindCopyButtons(main, () => ({
+    reports: liveState.data?.reports ?? [],
+    checksData: liveState.checksData,
+    gitData: liveState.gitData,
+    axisDefs: HEALTH_AXES,
+    categoryOrder: CATEGORY_ORDER,
+  }))
 
   if (scored.length > 0) renderRanking(scored)
 }
@@ -392,6 +406,10 @@ async function load() {
       fetchJson(GIT_URL),
     ])
 
+    liveState.data = data
+    liveState.checksData = checksData
+    liveState.gitData = gitData
+
     if (!data?.reports?.length && !checksData?.reports?.length) {
       renderEmpty()
       return
@@ -410,6 +428,7 @@ function currentCommitHashes(section) {
 
 async function refreshGitOnly() {
   const gitData = await fetchJson(GIT_URL)
+  liveState.gitData = gitData
   const section = document.querySelector('[data-section="git"]')
   if (!section) return
 

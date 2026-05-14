@@ -221,9 +221,11 @@ test_output/*
 
 # Codebase health dashboard report state
 /health-dashboard/reports/*.json
+/health-dashboard/reports/*.json.tmp.*
 /health-dashboard/reports/checks/*.json
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
 **/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/
+.codeql/
