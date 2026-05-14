@@ -10,7 +10,16 @@ const SYSTEM_PACKAGES = new Set([
 ]);
 
 const RUNTIME_THRESHOLD = 15;
+const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0;
 const root = join(import.meta.dirname, '..');
+const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES = new Set([
+  'webapp/src/shell/edge/main/cli/commands/serve.ts',
+  'webapp/src/shell/edge/main/cli/commands/daemonRouteParity.ts',
+  'webapp/src/shell/edge/main/cli/commands/graph-search.ts',
+  'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts',
+  'webapp/src/shell/edge/main/cli/commands/graph/types.ts',
+  'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+]);
 
 function buildPackageDirMap() {
   const map = new Map();
@@ -108,6 +117,54 @@ console.log('Type-only imports are free (compile-time only). Test imports report
 console.log(`Threshold: ${RUNTIME_THRESHOLD} production runtime symbols.\n`);
 
 let failures = 0;
+let daemonOwnedRatchetChecked = false;
+
+function symbolFileEntries(symbolFiles) {
+  return [...symbolFiles.entries()].flatMap(([symbol, files]) =>
+    [...files].map(file => ({ symbol, file }))
+  );
+}
+
+function summarizeSymbolCounts(entries) {
+  const counts = new Map();
+  for (const { symbol, file } of entries) {
+    if (!counts.has(symbol)) counts.set(symbol, new Set());
+    counts.get(symbol).add(file);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
+    .map(([symbol, files]) => `${symbol}(${files.size})`);
+}
+
+function checkDaemonOwnedMutationsRatchet(data) {
+  const runtimeEntries = symbolFileEntries(data.runtime.prod);
+  const allowlistedRuntimeEntries = runtimeEntries.filter(({ file }) =>
+    ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES.has(file)
+  );
+  const nonLauncherRuntimeEntries = runtimeEntries.filter(({ file }) =>
+    !ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES.has(file)
+  );
+
+  console.log('Daemon-owned-mutations coupling ratchet:');
+  console.log(`  nonLauncherGraphDbServerRuntimeImports=${nonLauncherRuntimeEntries.length} / ${DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD}${nonLauncherRuntimeEntries.length <= DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD ? ' ✓' : ' FAIL'}`);
+  console.log(`  allowlistedGraphDbServerRuntimeImports=${allowlistedRuntimeEntries.length}`);
+
+  const allowlistedSummary = summarizeSymbolCounts(allowlistedRuntimeEntries);
+  if (allowlistedSummary.length > 0) {
+    console.log(`  allowlisted top: ${allowlistedSummary.join(', ')}`);
+  }
+
+  if (nonLauncherRuntimeEntries.length > 0) {
+    console.log('  ── non-launcher production imports ──');
+    for (const { symbol, file } of nonLauncherRuntimeEntries.sort((a, b) => a.file.localeCompare(b.file) || a.symbol.localeCompare(b.symbol))) {
+      console.log(`    ${file}: ${symbol}`);
+    }
+    failures++;
+  }
+
+  console.log('');
+  daemonOwnedRatchetChecked = true;
+}
 
 for (const [pkg, data] of [...packageData].sort((a, b) => b[1].runtime.prod.size - a[1].runtime.prod.size)) {
   const rtProd = data.runtime.prod.size;
@@ -126,6 +183,10 @@ for (const [pkg, data] of [...packageData].sort((a, b) => b[1].runtime.prod.size
 
   if (data.reExportFiles.size > 0) {
     console.log(`  ⚠️  re-exported through: ${[...data.reExportFiles].join(', ')}`);
+  }
+
+  if (pkg === '@vt/graph-db-server') {
+    checkDaemonOwnedMutationsRatchet(data);
   }
 
   if (rtProd > RUNTIME_THRESHOLD) {
@@ -152,8 +213,14 @@ for (const pkg of SYSTEM_PACKAGES) {
   }
 }
 
+if (!daemonOwnedRatchetChecked) {
+  console.log('Daemon-owned-mutations coupling ratchet:');
+  console.log(`  nonLauncherGraphDbServerRuntimeImports=0 / ${DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD} ✓`);
+  console.log('  allowlistedGraphDbServerRuntimeImports=0\n');
+}
+
 if (failures) {
-  console.error(`✗ ${failures} system package(s) exceed runtime symbol threshold (${RUNTIME_THRESHOLD})`);
+  console.error(`✗ ${failures} coupling budget(s) exceeded`);
   process.exit(1);
 }
 
