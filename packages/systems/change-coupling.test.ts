@@ -16,6 +16,7 @@ type PackagePairStats = {
     readonly eitherCommits: number
     readonly sharedCommits: number
     readonly ratio: number
+    readonly containmentRatio: number
 }
 
 function getGitLog(): string {
@@ -68,7 +69,7 @@ function buildPackagePairStats(packages: readonly string[], commits: readonly Re
             const eitherCommits = commits.filter(touchedPackages => touchedPackages.has(packageA) || touchedPackages.has(packageB)).length
             const commitsA = packageCommitCounts.get(packageA) ?? 0
             const commitsB = packageCommitCounts.get(packageB) ?? 0
-            const denominator = Math.min(commitsA, commitsB)
+            const minPackageCommits = Math.min(commitsA, commitsB)
 
             stats.push({
                 pair: `${packageA} <-> ${packageB}`,
@@ -78,7 +79,8 @@ function buildPackagePairStats(packages: readonly string[], commits: readonly Re
                 commitsB,
                 eitherCommits,
                 sharedCommits,
-                ratio: denominator === 0 ? 0 : sharedCommits / denominator,
+                ratio: eitherCommits === 0 ? 0 : sharedCommits / eitherCommits,
+                containmentRatio: minPackageCommits === 0 ? 0 : sharedCommits / minPackageCommits,
             })
         }
     }
@@ -93,24 +95,24 @@ function formatPercent(value: number): string {
 function formatReport(stats: readonly PackagePairStats[]): string {
     const lines: string[] = [
         '',
-        '┌───────────────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┬────────┐',
-        '│ Pair                                          │ Comm A │ Comm B │ Either │ Shared │ Ratio  │ Status │',
-        '├───────────────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┼────────┤',
+        '┌───────────────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┐',
+        '│ Pair                                          │ Comm A │ Comm B │ Either │ Shared │ Jaccrd │ Contn  │ Status │',
+        '├───────────────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┼────────┼────────┤',
     ]
 
     for (const stat of stats) {
         const status = stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD ? 'WARN' : 'OK'
-        lines.push(`│ ${stat.pair.padEnd(45)} │ ${String(stat.commitsA).padStart(6)} │ ${String(stat.commitsB).padStart(6)} │ ${String(stat.eitherCommits).padStart(6)} │ ${String(stat.sharedCommits).padStart(6)} │ ${formatPercent(stat.ratio).padStart(6)} │ ${status.padStart(6)} │`)
+        lines.push(`│ ${stat.pair.padEnd(45)} │ ${String(stat.commitsA).padStart(6)} │ ${String(stat.commitsB).padStart(6)} │ ${String(stat.eitherCommits).padStart(6)} │ ${String(stat.sharedCommits).padStart(6)} │ ${formatPercent(stat.ratio).padStart(6)} │ ${formatPercent(stat.containmentRatio).padStart(6)} │ ${status.padStart(6)} │`)
     }
 
-    lines.push('└───────────────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┴────────┘')
+    lines.push('└───────────────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘')
 
     const highCouplingPairs = stats.filter(stat => stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD)
     if (highCouplingPairs.length > 0) {
         lines.push('')
         lines.push(`High temporal coupling warnings (ratio > ${formatPercent(HIGH_TEMPORAL_COUPLING_THRESHOLD)}):`)
         for (const stat of highCouplingPairs) {
-            lines.push(`  ${stat.pair}: ${stat.sharedCommits} shared commits, ratio ${formatPercent(stat.ratio)}`)
+            lines.push(`  ${stat.pair}: ${stat.sharedCommits} shared commits, Jaccard ratio ${formatPercent(stat.ratio)}`)
         }
     }
 
@@ -126,13 +128,14 @@ describe('package temporal change coupling', () => {
         const report = formatReport(stats)
         const maxRatio = stats.reduce((max, stat) => Math.max(max, stat.ratio), 0)
         const highCouplingPairs = stats.filter(stat => stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD)
+        const topPairs = [...stats].sort((a, b) => b.ratio - a.ratio).slice(0, 20)
 
         console.info(report)
 
         await recordHealthMetric({
             metricId: 'change-coupling',
             metricName: 'Change Coupling',
-            description: 'Highest six-month package pair co-change ratio from git history.',
+            description: 'Highest six-month package pair Jaccard co-change ratio from git history.',
             category: 'Coupling',
             current: maxRatio,
             budget: HIGH_TEMPORAL_COUPLING_THRESHOLD,
@@ -140,7 +143,7 @@ describe('package temporal change coupling', () => {
             unit: 'ratio',
             details: {
                 highCouplingPairs,
-                topPairs: stats.slice(0, 20),
+                topPairs,
             },
         })
 

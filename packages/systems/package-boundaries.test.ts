@@ -14,6 +14,7 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'agent-runtime',
     'voicetree-mcp',
 ] as const
+const MODULE_MUTABLE_STATE_BASELINE = 43
 
 type MutableStateViolation = {
     file: string
@@ -143,7 +144,7 @@ function formatReport(violations: readonly MutableStateViolation[]): string {
 }
 
 describe('systems module-level mutable state scanner', () => {
-    it('reports top-level let, Map, Set, and array declarations without enforcing yet', async () => {
+    it('keeps top-level mutable state at or below the current ratchet baseline', async () => {
         const violations = await scanSystemsPackages()
 
         console.info(formatReport(violations))
@@ -154,12 +155,15 @@ describe('systems module-level mutable state scanner', () => {
             description: 'Top-level mutable declarations detected in scanned systems packages.',
             category: 'Purity',
             current: violations.length,
-            budget: 0,
+            budget: MODULE_MUTABLE_STATE_BASELINE,
             comparison: 'lte',
             unit: 'declarations',
             details: {violations},
         })
 
-        expect(violations.length).toBeGreaterThan(0)
+        expect(
+            violations.length,
+            formatReport(violations),
+        ).toBeLessThanOrEqual(MODULE_MUTABLE_STATE_BASELINE)
     })
 })
