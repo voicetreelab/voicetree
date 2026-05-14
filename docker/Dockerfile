@@ -2,16 +2,18 @@
 #
 # Sandboxed VoiceTree runtime.
 #
-# Runs the released voicetree.AppImage inside a virtual desktop (Xvfb +
+# Runs the released VoiceTree AppImage inside a virtual desktop (Xvfb +
 # openbox), reachable from the host via a browser at http://localhost:6080
 # (noVNC). Intended use: contain agent activity (Claude Code etc.) so it
 # cannot touch the host filesystem.
 #
-# Architecture: linux/amd64 only. The published AppImage is x86_64.
+# Multi-arch: linux/amd64 + linux/arm64. The matching AppImage is selected
+# at build time from $TARGETARCH (set by buildx).
 
 FROM ubuntu:24.04
 
 ARG VOICETREE_VERSION=latest
+ARG TARGETARCH
 ARG NOVNC_VERSION=1.5.0
 ARG WEBSOCKIFY_VERSION=0.12.0
 
@@ -64,18 +66,25 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 # We unpack the embedded SquashFS directly with unsquashfs rather than running
 # ./voicetree.AppImage --appimage-extract, because the AppImage's prepended
 # ELF runtime wrapper does not survive non-native execution (e.g. Rosetta or
-# binfmt-misc emulation) — "exec format error". The SquashFS payload itself
-# is architecture-neutral filesystem data; unsquashfs reads it directly.
+# binfmt-misc emulation) — "exec format error". On a native build the ELF
+# wrapper would also work, but unsquashfs is harmless either way and keeps
+# the build identical across emulated and native paths.
 #
 # Offset of the squashfs payload = end of the ELF section header table:
 #     e_shoff + e_shentsize * e_shnum
-# all read straight from the 64-bit ELF header (LE on x86-64).
+# all read straight from the 64-bit ELF header. ELF64 header layout is the
+# same across x86-64 and aarch64, so the offsets work for both AppImages.
 WORKDIR /opt
 RUN set -eux; \
+    case "$TARGETARCH" in \
+        amd64) APPIMAGE="voicetree-x64.AppImage" ;; \
+        arm64) APPIMAGE="voicetree-arm64.AppImage" ;; \
+        *) echo "unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
     if [ "$VOICETREE_VERSION" = "latest" ]; then \
-        URL="https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.AppImage"; \
+        URL="https://github.com/voicetreelab/voicetree/releases/latest/download/$APPIMAGE"; \
     else \
-        URL="https://github.com/voicetreelab/voicetree/releases/download/${VOICETREE_VERSION}/voicetree.AppImage"; \
+        URL="https://github.com/voicetreelab/voicetree/releases/download/${VOICETREE_VERSION}/$APPIMAGE"; \
     fi; \
     curl -fL --retry 3 -o voicetree.AppImage "$URL"; \
     e_shoff=$(od -An -j40 -N8 -tu8 voicetree.AppImage | tr -d ' '); \

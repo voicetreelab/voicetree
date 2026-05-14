@@ -5,10 +5,9 @@ desktop, accessible from your browser. Use this when you want Claude Code
 (or other terminal agents) to work without any ability to touch your host
 filesystem.
 
-> **Architecture:** `linux/amd64` only — the published AppImage is x86_64.
-> Apple Silicon Macs run this image under emulation (Rosetta via Docker
-> Desktop / OrbStack / Colima). It works, but slower than native. A native
-> arm64 image (from source) is on the roadmap.
+> **Architecture:** multi-arch (`linux/amd64` + `linux/arm64`). `docker pull`
+> automatically selects the variant matching your host — Apple Silicon Macs
+> get the native arm64 image, no Rosetta emulation.
 
 ## Quick start
 
@@ -64,16 +63,15 @@ default to keep the base image small.
 ## Build locally
 
 ```bash
-docker build --platform=linux/amd64 -f docker/Dockerfile -t voicetree:dev .
+docker build -f docker/Dockerfile -t voicetree:dev .
 # or pin a version:
-docker build --platform=linux/amd64 -f docker/Dockerfile \
+docker build -f docker/Dockerfile \
     --build-arg VOICETREE_VERSION=v2.9.16 -t voicetree:2.9.16 .
 ```
 
-`--platform=linux/amd64` is required on Apple Silicon hosts — Docker
-Desktop defaults to your native architecture (arm64) and the published
-AppImage is x86_64-only. The build runs under Rosetta; it's slower but
-produces the correct image.
+The build picks up your host architecture automatically (amd64 or arm64).
+To cross-build (e.g. produce both arches from one machine) use
+`docker buildx build --platform=linux/amd64,linux/arm64 ...`.
 
 ## Performance knobs
 
@@ -84,8 +82,9 @@ produces the correct image.
 
 ## Known limits (MVP)
 
-- amd64 only.
 - Voice mode (microphone input) is not wired through; container has no
   audio device by default.
 - GPU acceleration is off — Electron falls back to software rendering inside
-  Xvfb. Fine for the graph; visible on heavy animations.
+  Xvfb. Fine for the graph; visible on heavy animations. Native arm64
+  doesn't change this — Docker Desktop on macOS does not pass the host GPU
+  into containers.
