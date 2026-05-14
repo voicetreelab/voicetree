@@ -211,6 +211,7 @@ webapp/workers/share-worker/.wrangler/**
 
 # Worktrees
 .worktrees/**/*
+**/.worktrees/
 
 # Misc
 **/transcript_history.txt
