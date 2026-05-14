@@ -11,6 +11,7 @@ import {
   SessionInfoSchema,
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
+  UnseenNodeSchema,
   VaultStateSchema,
   ViewResponseSchema,
   type GraphState,
@@ -22,6 +23,7 @@ import {
   type SelectionResponse,
   type SessionInfo,
   type ShutdownResponse,
+  type UnseenNode,
   type VaultState,
   type ViewResponse,
 } from './contract.ts'
@@ -36,7 +38,7 @@ type RequestOptions<T> = {
   body?: unknown
   expectNoContent?: boolean
   headers?: Record<string, string>
-  method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
+  method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
   responseSchema?: Schema<T>
 }
 
@@ -99,6 +101,24 @@ const ContextNodeFromQuestionResponseSchema: Schema<{
       parentNodePath: input.parentNodePath,
       title: input.title,
     }
+  },
+}
+
+const UnseenNodesResponseSchema: Schema<{ nodes: readonly UnseenNode[] }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || !Array.isArray(input.nodes)) {
+      throw new Error('Invalid unseen-nodes response body')
+    }
+    return { nodes: input.nodes.map((node) => UnseenNodeSchema.parse(node)) }
+  },
+}
+
+const UpdateContextNodeContainedIdsResponseSchema: Schema<{ updated: boolean }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || typeof input.updated !== 'boolean') {
+      throw new Error('Invalid context-node-contained-ids response body')
+    }
+    return { updated: input.updated }
   },
 }
 
@@ -234,6 +254,24 @@ export class GraphDbClient {
     })
   }
 
+  async applyGraphDelta(
+    delta: unknown[],
+    opts: { recordForUndo?: boolean; sessionId?: string } = {},
+  ): Promise<void> {
+    const headers: Record<string, string> = {}
+    if (opts.sessionId) {
+      headers['X-Session-Id'] = opts.sessionId
+    }
+
+    await this.request('/graph/apply-delta', {
+      body: { delta, recordForUndo: opts.recordForUndo },
+      expectNoContent: false,
+      headers,
+      method: 'POST',
+      responseSchema: { parse: (value) => value },
+    })
+  }
+
   async createContextNode(
     parentNodeId: string,
     semanticNodeIds: string[],
@@ -254,6 +292,40 @@ export class GraphDbClient {
       body: { nodeIds, question, semanticNodeIds },
       method: 'POST',
       responseSchema: ContextNodeFromQuestionResponseSchema,
+    })
+  }
+
+  async createContextNodeFromSelectedNodes(
+    taskNodeId: string,
+    selectedNodeIds: readonly string[],
+  ): Promise<{ nodeId: string }> {
+    return await this.request('/graph/context-node-from-selected-nodes', {
+      body: { taskNodeId, selectedNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeResponseSchema,
+    })
+  }
+
+  async getUnseenNodesAroundContextNode(
+    contextNodeId: string,
+    searchFromNode?: string,
+  ): Promise<readonly UnseenNode[]> {
+    const result = await this.request('/graph/unseen-nodes-around-context-node', {
+      body: { contextNodeId, searchFromNode },
+      method: 'POST',
+      responseSchema: UnseenNodesResponseSchema,
+    })
+    return result.nodes
+  }
+
+  async updateContextNodeContainedIds(
+    contextNodeId: string,
+    newNodeIds: readonly string[],
+  ): Promise<void> {
+    await this.request('/graph/context-node-contained-ids', {
+      body: { contextNodeId, newNodeIds },
+      method: 'PATCH',
+      responseSchema: UpdateContextNodeContainedIdsResponseSchema,
     })
   }
 

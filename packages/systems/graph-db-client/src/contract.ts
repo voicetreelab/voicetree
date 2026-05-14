@@ -14,6 +14,7 @@ export {
   SessionInfoSchema,
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
+  UnseenNodeSchema,
   VaultStateSchema,
   ViewResponseSchema,
   type AddReadPathRequest,
@@ -30,6 +31,7 @@ export {
   type SessionInfo,
   type SetWritePathRequest,
   type ShutdownResponse,
+  type UnseenNode,
   type VaultState,
   type ViewResponse,
 } from '@vt/graph-db-protocol'
