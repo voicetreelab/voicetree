@@ -21,10 +21,13 @@ export type FunctionNode = {
     readonly isExported: boolean
     readonly loc: number
     readonly folderAncestors: readonly string[]
+    readonly __compilerNode: ts.Node
+    readonly __sourceFile: SourceFile
 }
 
 export type CallGraph = {
     readonly nodes: ReadonlyMap<string, FunctionNode>
+    readonly sourceFiles: readonly SourceFile[]
     callees(fnId: string): ReadonlySet<string>
     callers(fnId: string): ReadonlySet<string>
     reachableFrom(fnId: string): ReadonlySet<string>
@@ -107,6 +110,7 @@ function createCallGraph(): CallGraph {
     const reachableMemo = new Map<string, ReadonlySet<string>>()
     const graph: CallGraph = {
         nodes,
+        sourceFiles,
         callees: (fnId: string): ReadonlySet<string> => calleeIdsByFnId.get(fnId) ?? new Set<string>(),
         callers: (fnId: string): ReadonlySet<string> => callerIdsByFnId.get(fnId) ?? new Set<string>(),
         reachableFrom: (fnId: string): ReadonlySet<string> => {
@@ -204,6 +208,8 @@ function createFunctionNode(
         isExported,
         loc: node.getEndLineNumber() - node.getStartLineNumber() + 1,
         folderAncestors: folderAncestors(file),
+        __compilerNode: node.compilerNode,
+        __sourceFile: sourceFile,
     }
 }
 
