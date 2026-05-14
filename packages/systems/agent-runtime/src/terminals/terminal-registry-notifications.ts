@@ -46,7 +46,7 @@ export async function notifyAgentOfUnseenNodes(
         }
 
         const unseenNodes: readonly UnseenNode[] = await getRuntimeUnseenNodesAroundContextNode(contextNodeId)
-        const graph: Graph = getRuntimeGraph()
+        const graph: Graph = await getRuntimeGraph()
         const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             if (!graphNode) return true

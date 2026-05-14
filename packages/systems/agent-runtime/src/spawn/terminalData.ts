@@ -60,7 +60,7 @@ export async function prepareTerminalDataInMain(
     envOverrides?: Record<string, string>,
     precomputedAgentName?: string
 ): Promise<TerminalData> {
-    const graph: Graph = getRuntimeGraph()
+    const graph: Graph = await getRuntimeGraph()
     const contextNode: GraphNode = graph.nodes[contextNodeId]
     if (!contextNode) {
         throw new Error(`Context node ${contextNodeId} not found in graph`)

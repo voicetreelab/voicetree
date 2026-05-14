@@ -1,16 +1,14 @@
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
+import type {UnseenNode} from '@vt/graph-db-protocol'
 import * as createContextNodeModule from '@vt/graph-db-server/context-nodes/createContextNode'
 import * as createContextNodeFromSelectedNodesModule from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
-import {
-    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
-    type UnseenNode,
-} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
+import {getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import * as updateContextNodeContainedIdsModule from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
 } from '@vt/graph-db-server/graph/applyGraphDelta'
-import { getGraph as getDefaultGraph, setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
+import { getGraph as getDefaultGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { getWatchStatus as getDefaultWatchStatus } from '@vt/graph-db-server/watch-folder/watchFolder'
 import {
@@ -19,19 +17,9 @@ import {
 } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { getGraphBridge, type GraphStateBridge, type WatchStatus } from './runtime-config'
 
-export function getRuntimeGraph(): Graph {
+export async function getRuntimeGraph(): Promise<Graph> {
     const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? bridge.getGraph() : getDefaultGraph()
-}
-
-export function setRuntimeGraph(graph: Graph): void {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        bridge.setGraph(graph)
-        return
-    }
-
-    setDefaultGraph(graph)
+    return bridge ? await bridge.getGraph() : getDefaultGraph()
 }
 
 export async function getRuntimeWritePath(): Promise<O.Option<FilePath>> {
@@ -65,13 +53,6 @@ export function getRuntimeProjectRoot(): FilePath | null {
 export function getRuntimeWatchStatus(): WatchStatus {
     const bridge: GraphStateBridge | undefined = getGraphBridge()
     return bridge ? bridge.getWatchStatus() : getDefaultWatchStatus()
-}
-
-export function runtimeRefreshGraphSideEffects(): void {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        bridge.refreshGraphChangeSideEffects()
-    }
 }
 
 export async function runtimeCreateContextNode(

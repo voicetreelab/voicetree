@@ -50,8 +50,6 @@ import {initializeGraphModel} from './graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import type {Graph} from '@vt/graph-model/graph';
-import {getGraph as getGraphFromStore, setGraph as setGraphInStore} from '@vt/graph-db-server/state/graph-store';
-import {refreshGraphChangeSideEffects as refreshGraphChangeSideEffectsFromDb} from '@vt/graph-db-server/graph/applyGraphDelta';
 import {createContextNode as createContextNodeFromDb} from '@vt/graph-db-server/context-nodes/createContextNode';
 import {createContextNodeFromSelectedNodes as createContextNodeFromSelectedNodesFromDb} from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes';
 import {getUnseenNodesAroundContextNode as getUnseenNodesAroundContextNodeFromDb} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
@@ -120,8 +118,7 @@ agentRuntime.configureAgentRuntime({
         },
     },
     graph: {
-        getGraph: () => getGraphFromStore(),
-        setGraph: (g) => setGraphInStore(g),
+        getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
         getWritePath: () => getWritePath(),
         getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
@@ -130,7 +127,6 @@ agentRuntime.configureAgentRuntime({
             directory: getActiveDaemonConnection()?.vault ?? undefined,
         }),
         applyGraphDelta: (delta, _recordForUndo) => postDeltaThroughDaemonWithEditors(delta),
-        refreshGraphChangeSideEffects: () => refreshGraphChangeSideEffectsFromDb(),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
             const graph: Graph = await getGraphFromDaemon();
             syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null);

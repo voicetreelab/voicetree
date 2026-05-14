@@ -31,7 +31,6 @@ import {launchTerminalSpawn} from './launchTerminalSpawn';
 import {resolveAgentCommand} from './agentCommand';
 import {
     defaultSpawnTerminalDeps,
-    tryReloadNodeFromDisk,
     type SpawnTerminalDeps,
 } from './reloadNodeFromDisk';
 
@@ -75,18 +74,11 @@ export async function spawnTerminalWithContextNode(
     const settings: VTSettings = await loadSettings();
     const command: string = resolveAgentCommand(agentCommand, settings, taskNodeId);
 
-    // Get task node from graph (self-heal if file exists on disk but missing from graph)
-    let graph: Graph = getRuntimeGraph();
-    let taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
+    // Read through the runtime graph bridge; the daemon watcher owns disk-to-graph synchronization.
+    const graph: Graph = await getRuntimeGraph();
+    const taskNode: GraphNode | undefined = graph.nodes[taskNodeId];
     if (!taskNode) {
-        taskNode = await tryReloadNodeFromDisk(taskNodeId, {
-            readTextFile: deps.readTextFile,
-            logger: deps.logger,
-        });
-        if (!taskNode) {
-            throw new Error(`Node ${taskNodeId} not found in graph or on disk`);
-        }
-        graph = getRuntimeGraph(); // re-read after self-heal mutated graph store
+        throw new Error(`Node ${taskNodeId} not found in graph`);
     }
 
     // Create or reuse context node

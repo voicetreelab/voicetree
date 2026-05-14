@@ -4,7 +4,7 @@
 
 import * as O from 'fp-ts/lib/Option.js';
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph';
-import type { UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode';
+import type { UnseenNode } from '@vt/graph-db-protocol';
 import type { TerminalData } from '../terminals/terminal-registry/types';
 
 export type TraceFn = <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
@@ -31,14 +31,12 @@ export type WatchStatus = {
 };
 
 export type GraphStateBridge = {
-    readonly getGraph: () => Graph;
-    readonly setGraph: (graph: Graph) => void;
+    readonly getGraph: () => Promise<Graph>;
     readonly getVaultPaths: () => Promise<readonly FilePath[]>;
     readonly getWritePath: () => Promise<O.Option<FilePath>>;
     readonly getProjectRootWatchedDirectory: () => FilePath | null;
     readonly getWatchStatus: () => WatchStatus;
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>;
-    readonly refreshGraphChangeSideEffects: () => void;
     readonly createContextNode: (
         parentNodeId: NodeIdAndFilePath,
         semanticNodeIds?: readonly NodeIdAndFilePath[],
