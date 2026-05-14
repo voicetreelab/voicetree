@@ -332,10 +332,20 @@ jobs:
           npx electron-builder --win --publish=always
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  build-linux-x64:
+  build-linux:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_linux) }}
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x64 is the critical path — if it fails the release fails.
+          - { arch: x64,   runs-on: ubuntu-latest,    soft_fail: false }
+          # arm64 is new; allowed to fail until proven stable. Flip
+          # soft_fail to false once a few releases ship cleanly.
+          - { arch: arm64, runs-on: ubuntu-24.04-arm, soft_fail: true  }
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: ${{ matrix.soft_fail }}
 
     steps:
       - uses: actions/checkout@v4
@@ -393,10 +403,24 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --linux --publish=always
+          npx electron-builder --linux --${{ matrix.arch }} --publish=always
+
+      # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
+      # pointing at the x64 build so existing consumers (the docker.yml
+      # workflow on main, hand-downloaders, anyone with a bookmarked URL)
+      # don't 404. Remove once all consumers are on the arch-suffixed names.
+      - name: Publish legacy AppImage alias (x64 only)
+        if: matrix.arch == 'x64'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          cp out/electron/voicetree-x64.AppImage out/electron/voicetree.AppImage
+          gh release upload "v${VERSION}" out/electron/voicetree.AppImage \
+            --clobber --repo voicetreelab/voicetree
 
   publish-release:
-    needs: [check-version, build-mac, build-windows, build-linux-x64, merge-mac-manifests]
+    needs: [check-version, build-mac, build-windows, build-linux, merge-mac-manifests]
     if: ${{ needs.check-version.outputs.should_build == 'true' }}
     runs-on: ubuntu-latest
     steps:

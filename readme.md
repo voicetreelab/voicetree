@@ -78,6 +78,18 @@ curl -fsSL https://raw.githubusercontent.com/voicetreelab/voicetree/main/install
 Windows:
 https://github.com/voicetreelab/voicetree/releases/latest/download/voicetree.exe
 
+Docker (sandboxed — keeps agents off your host filesystem)
+```bash
+docker run -d --rm -p 6080:6080 \
+    -v voicetree-vault:/home/vt/vault \
+    -v voicetree-claude:/home/vt/.config/claude \
+    --shm-size=1g \
+    -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+    ghcr.io/voicetreelab/voicetree:latest
+# then open http://localhost:6080/vnc.html?autoconnect=1&resize=remote
+```
+See [`docker/README.md`](docker/README.md) for details. amd64 only for now.
+
 ---
 
 ## How It Works
