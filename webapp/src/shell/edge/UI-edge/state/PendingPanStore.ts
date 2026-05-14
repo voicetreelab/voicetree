@@ -53,15 +53,6 @@ export function setPendingPanToNode(targetNodeId: string): void {
 }
 
 /**
- * Set a pending pan to follow a voice-created node after layout.
- * Used when a new /voice/ node is created during dictation —
- * pans to the latest voice node so the view follows the user's speech.
- */
-function setPendingVoiceFollowPan(targetNodeId: string): void {
-  pendingPan = { type: 'voice-follow', nodeIds: [], totalNodes: 0, targetNodeId };
-}
-
-/**
  * Set a pending pan to keep the focused editor's node in viewport after layout.
  * Pans to center the node without changing zoom — minimal disruption while editing.
  */

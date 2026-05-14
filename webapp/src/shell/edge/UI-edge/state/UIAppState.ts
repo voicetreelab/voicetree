@@ -30,12 +30,3 @@ export type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/edi
  * The dispose/focus callbacks should be accessed via EditorData.ui.cleanup or TerminalData.ui.cleanup.
  */
 export const vanillaFloatingWindowInstances: Map<string, { dispose: () => void; focus?: () => void; focusAtEnd?: () => void }> = new Map<string, { dispose: () => void; focus?: () => void; focusAtEnd?: () => void }>();
-
-/**
- * Get a vanilla instance by window ID (for testing)
- * @internal - Only for test usage
- * @deprecated Use getEditor/getTerminal and access ui.cleanup instead
- */
-function getVanillaInstance(windowId: string): { dispose: () => void; focus?: () => void; focusAtEnd?: () => void } | undefined {
-    return vanillaFloatingWindowInstances.get(windowId);
-}

@@ -1,21 +1,7 @@
-import type { Core, NodeSingular, CollectionReturnValue, EdgeSingular } from 'cytoscape';
+import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
 import { queryNodesInRect } from '@vt/graph-model/spatial';
-import type { SpatialIndex, SpatialNodeEntry, Rect } from '@vt/graph-model/spatial';
-import type { LocalGeometry, EdgeSegment } from '@vt/graph-model/spatial';
+import type { SpatialIndex, SpatialNodeEntry } from '@vt/graph-model/spatial';
 import { DEFAULT_EDGE_LENGTH } from './cytoscape-graph-constants';
-
-/**
- * Expand a set of root nodes to their N-hop neighborhood.
- * Each iteration includes the closed neighborhood (node + all its direct neighbors).
- */
-function getNHopNeighborhood(roots: CollectionReturnValue, hops: number): CollectionReturnValue {
-  let collection: CollectionReturnValue = roots;
-  for (let i: number = 0; i < hops; i++) {
-    collection = collection.closedNeighborhood();
-  }
-  // .filter() returns CollectionReturnValue (unlike .nodes() which returns NodeCollection)
-  return collection.filter(ele => ele.isNode());
-}
 
 /**
  * Hop-by-hop BFS expansion with a hard cap on result size.
@@ -111,34 +97,4 @@ export function getLocalNeighborhood(
   }
 
   return { runNodes, pinNodes };
-}
-
-/**
- * Extract plain geometry data from cytoscape collections for pure layout-correction check.
- * Shell boundary: reads cytoscape positions, produces immutable LocalGeometry.
- */
-function extractLocalGeometry(
-    newNodes: CollectionReturnValue,
-    subgraphEdges: CollectionReturnValue,
-    runNodes: CollectionReturnValue
-): LocalGeometry {
-    const newEdgeSet: CollectionReturnValue = newNodes.connectedEdges().filter(
-        (e: EdgeSingular) => subgraphEdges.contains(e)
-    );
-    const toSeg: (e: EdgeSingular) => EdgeSegment = (e: EdgeSingular): EdgeSegment => ({
-        p1: (e.source() as NodeSingular).position(),
-        p2: (e.target() as NodeSingular).position()
-    });
-    const toRect: (n: NodeSingular) => Rect = (n: NodeSingular): Rect => {
-        const bb: { x1: number; y1: number; x2: number; y2: number } = n.boundingBox({
-            includeLabels: false, includeOverlays: false, includeEdges: false
-        });
-        return { minX: bb.x1, minY: bb.y1, maxX: bb.x2, maxY: bb.y2 };
-    };
-    return {
-        newEdges: newEdgeSet.map(toSeg),
-        existingEdges: subgraphEdges.difference(newEdgeSet).map(toSeg),
-        newNodeRects: newNodes.map(toRect),
-        neighborRects: runNodes.difference(newNodes).map(toRect)
-    };
 }

@@ -36,8 +36,8 @@ type LayoutCtor = new (options: {
 } & typeof LAYOUT_OPTIONS) => { run: () => void };
 
 function scenario(withFolder: boolean): Core {
-  const node = (id: keyof typeof START, data: Record<string, unknown> = {}) => ({ data: { id, label: id, ...data }, position: START[id] });
-  const edge = (id: string, source: string, target: string) => ({ data: { id, source, target } });
+  const node = (id: keyof typeof START, data: Record<string, unknown> = {}): { data: Record<string, unknown>; position: Position } => ({ data: { id, label: id, ...data }, position: START[id] });
+  const edge = (id: string, source: string, target: string): { data: { id: string; source: string; target: string } } => ({ data: { id, source, target } });
   const cy: Core = cytoscape({ headless: true, styleEnabled: true, elements: [
     ...(withFolder ? [node('folder', { isFolderNode: true, folderLabel: 'folder' })] : []),
     node('child-a', withFolder ? { parent: 'folder' } : {}),

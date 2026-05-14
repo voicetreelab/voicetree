@@ -216,7 +216,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           };
         },
         onGraphClear: () => () => {},
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         _projectedGraphCallback: undefined as ((graph: ProjectedGraph) => void) | undefined,
       },
 

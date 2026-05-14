@@ -29,26 +29,6 @@ export interface MenuItem {
     disabled?: boolean;
 }
 
-/** Helper to show menu with optional direction config */
-function showCtxMenu(
-    items: MenuItem[],
-    event: MouseEvent,
-    direction: 'vertical' | 'horizontal' = 'vertical'
-): void {
-    const config: { attributes: { class: string; }; onShow: (menu: HTMLElement) => void; } | { attributes?: undefined; onShow?: undefined; } = direction === 'horizontal'
-        ? {
-            attributes: { class: 'ctxmenu horizontal' },
-            // Center horizontal menu after rendering (can't use CSS transform - breaks submenu positioning)
-            onShow: (menu: HTMLElement) => {
-                const menuWidth: number = menu.offsetWidth;
-                const currentLeft: number = parseFloat(menu.style.left) || 0;
-                menu.style.left = `${currentLeft - menuWidth / 2}px`;
-            },
-        }
-        : {};
-    ctxmenu.show(items, event, config);
-}
-
 export class VerticalMenuService {
     private cy: Core | null = null;
     private deps: VerticalMenuDependencies | null = null;

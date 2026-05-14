@@ -9,7 +9,6 @@ import {
     startMcpServer,
     type McpServerHandle,
 } from '@vt/voicetree-mcp'
-// eslint-disable-next-line no-restricted-imports -- relative paths required for tsx CLI execution
 import {error} from '../output.ts'
 
 type ServeArgs = {

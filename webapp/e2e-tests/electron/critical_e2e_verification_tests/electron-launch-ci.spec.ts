@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { WEBAPP_ROOT, robustElectronTeardown, resolveGraphDaemonNodeBin, getCiElectronFlags } from './electron-smoke-helpers';
+import { WEBAPP_ROOT, robustElectronTeardown, resolveGraphDaemonNodeBin } from './electron-smoke-helpers';
 
 test.describe('Electron CI Launch Fallback', () => {
   test('starts Electron and renders the project selection window', async () => {

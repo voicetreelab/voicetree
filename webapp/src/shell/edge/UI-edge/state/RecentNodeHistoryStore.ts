@@ -5,12 +5,10 @@
 import {
     addEntriesToHistory,
     createEmptyHistory,
-    updateHistoryFromDelta,
     type GraphNode,
     type UpsertNodeDelta,
     type RecentNodeHistory
 } from '@vt/graph-model/graph';
-import type {GraphDelta} from '@vt/graph-model/graph';
 import type {ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract';
 import * as O from 'fp-ts/lib/Option.js';
 
@@ -38,16 +36,6 @@ export function subscribeToRecentNodeHistoryChange(callback: (history: RecentNod
 }
 
 export function getRecentNodeHistory(): RecentNodeHistory {
-    return recentNodeHistory;
-}
-
-function setRecentNodeHistory(history: RecentNodeHistory): void {
-    recentNodeHistory = history;
-}
-
-function updateRecentNodeHistoryFromDelta(delta: GraphDelta): RecentNodeHistory {
-    recentNodeHistory = updateHistoryFromDelta(recentNodeHistory, delta);
-    notifySubscribers();
     return recentNodeHistory;
 }
 

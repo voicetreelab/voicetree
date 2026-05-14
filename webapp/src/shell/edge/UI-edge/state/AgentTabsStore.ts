@@ -25,10 +25,6 @@ const ZOOM_SUPPRESSION_MS: number = 800;
 // Display Order
 // =============================================================================
 
-function getDisplayOrder(): TerminalId[] {
-    return displayOrder;
-}
-
 /**
  * Get display order filtered to only pinned terminals (for keyboard navigation)
  */
@@ -58,30 +54,6 @@ export function syncDisplayOrder(terminals: TerminalData[]): TerminalId[] {
     }
 
     displayOrder = filtered;
-    return displayOrder;
-}
-
-/**
- * Reorder a terminal within the pinned section
- */
-function reorderInDisplayOrder(
-    terminals: TerminalData[],
-    fromIndex: number,
-    toIndex: number
-): TerminalId[] {
-    const pinnedIds: TerminalId[] = getPinnedDisplayOrder(terminals);
-
-    if (fromIndex < 0 || fromIndex >= pinnedIds.length || toIndex < 0 || toIndex > pinnedIds.length) {
-        return displayOrder;
-    }
-
-    const [moved] = pinnedIds.splice(fromIndex, 1);
-    pinnedIds.splice(toIndex, 0, moved);
-
-    // Rebuild displayOrder: pinned first in new order, then unpinned
-    const unpinnedIds: TerminalId[] = displayOrder.filter(id => !pinnedIds.includes(id));
-    displayOrder = [...pinnedIds, ...unpinnedIds];
-
     return displayOrder;
 }
 

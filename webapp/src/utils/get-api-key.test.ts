@@ -5,7 +5,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 // Dynamic import to reset module state between tests
-async function getModule() {
+async function getModule(): Promise<typeof import('./get-api-key')> {
   // Clear module cache to reset cached state
   vi.resetModules();
   return import('./get-api-key');

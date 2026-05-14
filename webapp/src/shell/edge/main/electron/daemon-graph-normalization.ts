@@ -65,7 +65,7 @@ export async function getNormalizedDaemonGraph(client: DaemonClient): Promise<Gr
   return graph
 }
 
-function buildGraphDiff(previous: Graph, next: Graph): GraphDelta {
+export function buildGraphDiff(previous: Graph, next: Graph): GraphDelta {
   const delta: GraphDelta[number][] = []
 
   for (const [nodeId, previousNode] of Object.entries(previous.nodes) as Array<

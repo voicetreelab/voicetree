@@ -178,7 +178,7 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
  * Print config as JSON for shell script consumption
  * Usage from bash: node -e "require('./electron/build-config').printConfig()"
  */
-function printConfig(): void {
+export function printConfig(): void {
   const config: BuildConfig = getBuildConfig();
   console.log(JSON.stringify(config, null, 2));
 }

@@ -30,11 +30,3 @@ export function addRecentlyVisited(nodeId: string): void {
 export function getRecentlyVisited(): string[] {
     return [...recentlyVisited];
 }
-
-/**
- * Clear the recently visited list (for testing or reset)
- * @internal
- */
-function clearRecentlyVisited(): void {
-    recentlyVisited = [];
-}

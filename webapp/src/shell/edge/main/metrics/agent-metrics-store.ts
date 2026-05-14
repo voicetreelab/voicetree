@@ -106,7 +106,7 @@ async function writeMetrics(data: AgentMetricsData): Promise<void> {
   await fs.rename(tempPath, metricsPath);
 }
 
-async function startSession(data: {
+export async function startSession(data: {
   sessionId: string;
   agentName: string;
   contextNode: string;

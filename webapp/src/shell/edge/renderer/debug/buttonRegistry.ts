@@ -25,7 +25,7 @@ export const _unregister: (nodeId: string, label: string) => void = (nodeId, lab
 // Opt-in React component API — no-op in prod so prod bundles have no overhead.
 // Usage: const cleanup = registerDebugButton({ nodeId, label, selector })
 //        return cleanup  // inside useEffect
-const registerDebugButton: (entry: ButtonEntry) => () => void = (entry) => {
+export const registerDebugButton: (entry: ButtonEntry) => () => void = (entry) => {
   if (import.meta.env.PROD) return () => {}
   _register(entry)
   return () => _unregister(entry.nodeId, entry.label)

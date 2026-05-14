@@ -172,26 +172,6 @@ export function removeTerminalByData(terminal: TerminalData): void {
 }
 
 /**
- * Update specific fields of a terminal (immutable update pattern)
- * Returns the updated terminal, or undefined if not found
- * NOTE: Only use for structural changes (isPinned) that require full re-render.
- * For running state (isDone, lastOutputTime, activityCount), use updateTerminalRunningState.
- */
-function updateTerminal(
-    terminalId: TerminalId,
-    updates: Partial<Pick<TerminalData, 'isPinned' | 'isMinimized'>>
-): TerminalData | undefined {
-    const existing: TerminalData | undefined = terminals.get(terminalId);
-    if (!existing) return undefined;
-
-    const updated: TerminalData = { ...existing, ...updates };
-    terminals.set(terminalId, updated);
-    notifySubscribers();
-
-    return updated;
-}
-
-/**
  * Update running state fields without triggering a full re-render.
  * Use targeted DOM updates (agentTabsDOMUpdates) after calling this.
  * Returns the updated terminal with previous isDone state for change detection.
@@ -214,19 +194,6 @@ export function updateTerminalRunningState(
 
     return { terminal: updated, previousIsDone };
 }
-
-/**
- * @deprecated Use addTerminal instead
- */
-const addTerminalToMapState: (terminal: TerminalData) => void = addTerminal;
-/**
- * @deprecated Use removeTerminalByData instead
- */
-const removeTerminalFromMapState: (terminal: TerminalData) => void = removeTerminalByData;
-/**
- * @deprecated Use removeTerminal instead
- */
-const removeTerminalFromMapStateById: (terminalId: TerminalId) => void = removeTerminal;
 
 export function getNextTerminalCount(
     terminalsMap: Map<TerminalId, TerminalData>,

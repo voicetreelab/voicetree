@@ -36,7 +36,7 @@ export async function applyLiveCommandToRenderer(command: unknown): Promise<void
         switch (cmd.type) {
             case 'Collapse':
                 if (typeof cmd.folder === 'string') {
-                    collapseFolder(getCyInstance(), cmd.folder, 'local')
+                    await collapseFolder(getCyInstance(), cmd.folder, 'local')
                 }
                 return
             case 'Expand':

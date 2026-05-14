@@ -123,6 +123,9 @@ export default tseslint.config([
     '**/dist',
     '**/node_modules',
     'webapp/dist-electron',
+    'webapp/e2e-tests/perf-traces/**',
+    'webapp/e2e-tests/test-results/**',
+    'webapp/playwright-report*/**',
     'webapp/.worktrees/**',
     'webapp/workers/**',
   ]),
@@ -195,10 +198,6 @@ export default tseslint.config([
       'no-restricted-syntax': ['error', {
         selector: 'TSImportType[argument.literal.value=/^.(Users|home|opt)/]',
         message: 'Do not use absolute filesystem paths in inline import types. Use relative or alias imports.'
-      }],
-      '@typescript-eslint/typedef': ['error', {
-        variableDeclaration: true,
-        variableDeclarationIgnoreFunction: false,
       }],
       '@typescript-eslint/explicit-function-return-type': ['error', {
         allowExpressions: true,
@@ -317,6 +316,13 @@ export default tseslint.config([
       'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'off'
     }
+  },
+  {
+    basePath: repoRootDir,
+    files: ['webapp/src/shell/edge/main/cli/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
   },
   {
     basePath: repoRootDir,

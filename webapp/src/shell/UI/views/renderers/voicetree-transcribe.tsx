@@ -500,7 +500,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             error={error}
             isMacPlatform={navigator.platform.includes('Mac')}
             micPermissionDenied={micPermissionDenied}
-            onOpenMicrophoneSettings={() => window.electronAPI?.main.openMicrophoneSettings()}
+            onOpenMicrophoneSettings={() => { void window.electronAPI?.main.openMicrophoneSettings() }}
           />
         </div>
       </div>

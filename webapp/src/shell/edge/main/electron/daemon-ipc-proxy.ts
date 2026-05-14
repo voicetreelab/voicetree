@@ -429,7 +429,7 @@ export async function setWritePathThroughDaemon(path: string): Promise<VaultStat
   return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
 }
 
-async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
+export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
   const connection: CurrentDaemonConnection = vault
     ? await ensureDaemonClientForVault(vault, { timeoutMs: MAIN_DAEMON_TIMEOUT_MS })
     : await getDaemonClientForCurrentVault()

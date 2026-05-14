@@ -48,16 +48,6 @@ export function addToAutoPinQueue(nodeId: NodeIdAndFilePath): NodeIdAndFilePath 
     return null;
 }
 
-/**
- * Remove an editor from the auto-pin queue (e.g., when manually pinned).
- */
-function removeFromAutoPinQueue(nodeId: NodeIdAndFilePath): void {
-    const index: number = autoPinnedEditorQueue.indexOf(nodeId);
-    if (index !== -1) {
-        autoPinnedEditorQueue.splice(index, 1);
-    }
-}
-
 export function getEditors(): Map<EditorId, EditorData> {
     return editors;
 }

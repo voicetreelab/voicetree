@@ -3,12 +3,6 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type {} from '@/shell/electron'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
 
-function isFolderCollapsed(folderId: string): boolean {
-    return typeof document !== 'undefined'
-        && document.querySelector != null
-        && (globalThis as unknown as { cy?: Core }).cy?.getElementById(folderId).data('collapsed') === true
-}
-
 export async function collapseFolder(cy: Core, folderId: string, syncMode: 'daemon' | 'local' = 'daemon'): Promise<void> {
     if (syncMode === 'local') return
     const graph: unknown = await window.electronAPI?.main.collapseFolderThroughDaemon(folderId)

@@ -80,7 +80,6 @@ async function createWorktree(repoRoot: string, worktreeName: string): Promise<s
     return createWorktreeCore(repoRoot, worktreeName, effectiveBlocking, effectiveAsync);
 }
 
-// eslint-disable-next-line @typescript-eslint/typedef
 export const mainAPI = {
   // Graph operations - daemon-only write path
   applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,

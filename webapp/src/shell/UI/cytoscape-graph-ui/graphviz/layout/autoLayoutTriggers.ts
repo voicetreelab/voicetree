@@ -16,10 +16,6 @@ export const fullLayoutTriggers: Map<Core, () => void> = new Map<Core, () => voi
  * Trigger a debounced layout run for the given cytoscape instance.
  * Use this for user-initiated resize events (expand button, CSS drag resize).
  */
-function triggerLayout(cy: Core): void {
-  layoutTriggers.get(cy)?.();
-}
-
 /**
  * Trigger a one-shot cola layout run for the given cytoscape instance.
  * Use this for user-initiated "tidy up" / reorganize layout.

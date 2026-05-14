@@ -6,10 +6,6 @@ import type {ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-
 
 const imageViewers: Map<ImageViewerId, ImageViewerData> = new Map<ImageViewerId, ImageViewerData>();
 
-function getImageViewers(): Map<ImageViewerId, ImageViewerData> {
-    return imageViewers;
-}
-
 export function addImageViewer(imageViewer: ImageViewerData): void {
     imageViewers.set(getImageViewerId(imageViewer), imageViewer);
 }

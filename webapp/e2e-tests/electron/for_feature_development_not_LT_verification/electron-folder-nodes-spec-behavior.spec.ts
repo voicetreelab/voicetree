@@ -18,7 +18,7 @@ import {
     type ExtendedWindow,
     createFolderTestVault,
     waitForGraphLoaded,
-} from '../for_feature_development_not_LT_verification/graph/folder-test-helpers';
+} from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 

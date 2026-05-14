@@ -1,9 +1,7 @@
 import path from 'node:path'
 import {GraphDbClient, readPortFile, type ViewResponse} from '@vt/graph-db-client'
 import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node'
-// eslint-disable-next-line no-restricted-imports -- relative paths required for tsx CLI execution
 import {error} from '../../output.ts'
-// eslint-disable-next-line no-restricted-imports -- relative paths required for tsx CLI execution
 import {handleCliError} from '../../util/exitCodes.ts'
 import {resolveGraphVault} from './snapshot.ts'
 

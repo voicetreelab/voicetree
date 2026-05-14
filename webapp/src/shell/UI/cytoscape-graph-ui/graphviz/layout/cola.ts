@@ -53,6 +53,7 @@ ColaLayout.prototype.run = function(){
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nonparentNodes: any = nodes.subtract(parentNodes);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ungroupedParentNodes.forEach(function(node: any){
         node.scratch().cola = node.scratch().cola ?? {
             fixed: node.locked()

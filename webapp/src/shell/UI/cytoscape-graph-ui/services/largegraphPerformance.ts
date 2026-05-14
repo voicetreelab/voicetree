@@ -69,12 +69,6 @@ function getRenderer(cy: Core): CytoscapeRenderer | undefined {
  *
  * Call from NavigationGestureService on every pan/zoom event.
  */
-function signalViewportManipulation(cy: Core): void {
-    const renderer: CytoscapeRenderer | undefined = getRenderer(cy);
-    if (!renderer) return;
-    applyViewportManipulationSignal(renderer);
-}
-
 /**
  * Same as signalViewportManipulation but uses the cached renderer — no cy
  * reference needed. Safe to call after initializeCytoscapeInstance has run

@@ -147,7 +147,6 @@ export function onSettingsChange(cb: SettingsChangeCallback): () => void {
 }
 
 // Export as object (like mainAPI)
-// eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
     launchTerminalOntoUI,
     updateFloatingEditorsFromExternal,

@@ -51,5 +51,4 @@ export const DEFAULT_OPTIONS: AutoLayoutOptions = {
 
 export const VALID_ENGINES: readonly LayoutEngine[] = ['cola'] as const;
 
-const COLA_ANIMATE_DURATION: number = 400;
 export const COLA_FAST_ANIMATE_DURATION: number = 1000;
