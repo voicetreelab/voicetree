@@ -1,9 +1,5 @@
 import {
-    getHeadlessAgentOutput,
-    getIdleSince,
-    getPendingTerminal,
-    getTerminalRecords,
-    sendTextToTerminal,
+    agentRuntime,
     type TerminalRecord,
 } from '@vt/agent-runtime'
 
@@ -14,22 +10,22 @@ export type PendingTerminalState = {
 }
 
 export function getTerminalIdleSince(terminalId: string): number | null {
-    return getIdleSince(terminalId)
+    return agentRuntime.getIdleSince(terminalId)
 }
 
 export function getPendingTerminalState(terminalId: string): PendingTerminalState | undefined {
-    return getPendingTerminal(terminalId)
+    return agentRuntime.getPendingTerminal(terminalId)
 }
 
 export function listTerminalRecordsSnapshot(): TerminalRecord[] {
-    const records: unknown = getTerminalRecords()
+    const records: unknown = agentRuntime.getTerminalRecords()
     return Array.isArray(records) ? records : []
 }
 
 export function readHeadlessTerminalOutput(terminalId: string): string {
-    return getHeadlessAgentOutput(terminalId)
+    return agentRuntime.getHeadlessAgentOutput(terminalId)
 }
 
-export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof sendTextToTerminal> {
-    return sendTextToTerminal(terminalId, message)
+export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof agentRuntime.sendTextToTerminal> {
+    return agentRuntime.sendTextToTerminal(terminalId, message)
 }
