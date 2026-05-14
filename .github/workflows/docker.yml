@@ -64,15 +64,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (and push on release / manual)
+      - name: Build (load locally, push on release / manual)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           platforms: linux/amd64
+          # PRs: load only (no registry push). Release/manual: push.
+          load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             VOICETREE_VERSION=${{ steps.ver.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        if: github.event_name != 'release'
+        env:
+          IMAGE: ${{ env.IMAGE }}:pr-${{ github.event.pull_request.number || 'manual' }}
+          BOOT_TIMEOUT: 120
+        run: |
+          # On workflow_dispatch the tag is :manual-<input>; pick whichever
+          # tag is loaded.
+          if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+              IMAGE=$(echo "${{ steps.tags.outputs.tags }}" | cut -d, -f1)
+              export IMAGE
+          fi
+          echo "Smoke-testing image: $IMAGE"
+          bash docker/test/smoke.sh
