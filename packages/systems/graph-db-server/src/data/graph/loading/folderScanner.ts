@@ -176,10 +176,23 @@ export async function getAvailableFoldersForSelector(
     );
 }
 
-const IGNORED_DIRS: ReadonlySet<string> = new Set([
-    'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
-    '.tox', '.venv', 'venv', '.worktrees',
-]);
+function isIgnoredDirectoryName(name: string): boolean {
+    switch (name) {
+        case 'node_modules':
+        case '.git':
+        case '.next':
+        case 'dist':
+        case '.cache':
+        case '__pycache__':
+        case '.tox':
+        case '.venv':
+        case 'venv':
+        case '.worktrees':
+            return true;
+        default:
+            return false;
+    }
+}
 
 /**
  * Recursively scan a directory and return a hierarchical DirectoryEntry tree.
@@ -205,7 +218,7 @@ export async function getDirectoryTree(
                     const absPath: AbsolutePath = toAbsolutePath(fullPath);
 
                     if (entry.isDirectory()) {
-                        if (IGNORED_DIRS.has(entry.name)) continue;
+                        if (isIgnoredDirectoryName(entry.name)) continue;
                         const subtree: DirectoryEntry = await scan(fullPath, depth + 1);
                         children.push(subtree);
                     } else {

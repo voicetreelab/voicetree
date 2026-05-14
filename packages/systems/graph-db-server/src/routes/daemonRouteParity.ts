@@ -133,11 +133,11 @@ export const DAEMON_ROUTE_PARITY_EXEMPTIONS = [
   },
 ] as const satisfies readonly DaemonRouteExemption[]
 
-const EXEMPT_SIGNATURES = new Set(
-  DAEMON_ROUTE_PARITY_EXEMPTIONS.map(
-    (route): string => `${route.method} ${route.path}`,
-  ),
-)
+function isExemptRouteSignature(signature: string): boolean {
+  return DAEMON_ROUTE_PARITY_EXEMPTIONS.some(
+    route => signature === `${route.method} ${route.path}`,
+  )
+}
 
 function toDaemonRouteMethod(method: string): DaemonRouteMethod {
   switch (method) {
@@ -178,7 +178,7 @@ export function normalizeDaemonRoute(
   route: Omit<NormalizedDaemonRoute, 'id'>,
 ): NormalizedDaemonRoute | null {
   const signature = `${route.method} ${route.path}`
-  if (EXEMPT_SIGNATURES.has(signature)) {
+  if (isExemptRouteSignature(signature)) {
     return null
   }
 

@@ -18,9 +18,18 @@ export type ExitClassification = 'completed' | 'errored';
  * SIGSEGV: invalid memory access. SIGABRT: assert/abort. SIGBUS: bus error.
  * SIGILL: illegal instruction. SIGFPE: floating point error.
  */
-const CRASH_SIGNALS: ReadonlySet<string> = new Set([
-    'SIGSEGV', 'SIGABRT', 'SIGBUS', 'SIGILL', 'SIGFPE',
-]);
+function isCrashSignal(signal: string): boolean {
+    switch (signal) {
+        case 'SIGSEGV':
+        case 'SIGABRT':
+        case 'SIGBUS':
+        case 'SIGILL':
+        case 'SIGFPE':
+            return true;
+        default:
+            return false;
+    }
+}
 
 export function classifyExit(
     code: number | null,
@@ -31,7 +40,7 @@ export function classifyExit(
     if (killReason === 'user') return 'completed';
 
     // Crash signals always errored, regardless of how we got the kill reason.
-    if (signal !== null && CRASH_SIGNALS.has(signal)) return 'errored';
+    if (signal !== null && isCrashSignal(signal)) return 'errored';
 
     // Any other signal with no recorded user intent: external kill → errored.
     if (signal !== null) return 'errored';

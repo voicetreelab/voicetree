@@ -230,4 +230,8 @@ const nodeLineLimitRule: ValidationRule = {
 // Export
 // ============================================================================
 
-export const ALL_RULES: readonly ValidationRule[] = [grandparentAttachmentRule, nodeLineLimitRule]
+function createValidationRules(): readonly ValidationRule[] {
+    return [grandparentAttachmentRule, nodeLineLimitRule]
+}
+
+export const ALL_RULES: readonly ValidationRule[] = createValidationRules()

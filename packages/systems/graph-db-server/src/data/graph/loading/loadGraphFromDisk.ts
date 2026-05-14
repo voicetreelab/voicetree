@@ -217,10 +217,22 @@ function isSupportedFile(filename: string): boolean {
 // a vault. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
 // markdown files in as graph nodes when a vault root is scanned.
-const IGNORED_DIRS: ReadonlySet<string> = new Set([
-  'node_modules', '.next', 'dist', '.cache', '__pycache__',
-  '.tox', '.venv', 'venv', '.worktrees',
-])
+function isIgnoredDirectoryName(name: string): boolean {
+  switch (name) {
+    case 'node_modules':
+    case '.next':
+    case 'dist':
+    case '.cache':
+    case '__pycache__':
+    case '.tox':
+    case '.venv':
+    case 'venv':
+    case '.worktrees':
+      return true
+    default:
+      return false
+  }
+}
 
 /**
  * Scans vault directory recursively for markdown and image files.
@@ -249,7 +261,7 @@ async function scanMarkdownFilesInDirectory(dirPath: string, relativePath = ''):
 
         if (entry.isDirectory()) {
           if (entry.name.startsWith('.')) return []
-          if (IGNORED_DIRS.has(entry.name)) return []
+          if (isIgnoredDirectoryName(entry.name)) return []
           return scanMarkdownFilesInDirectory(fullPath, relPath)
         } else if (entry.isFile() && isSupportedFile(entry.name)) {
           return [relPath]

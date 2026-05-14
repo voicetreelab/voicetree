@@ -46,8 +46,6 @@ export type StartDaemonOptions = {
   createStarterIfEmpty?: boolean
 }
 
-const LOOPBACK_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
-
 const tracer = trace.getTracer('vt-graphd')
 
 type DaemonLogger = {
@@ -57,6 +55,10 @@ type DaemonLogger = {
 
 function defaultClock(): number {
   return Date.now()
+}
+
+function isLoopbackAddress(address: string): boolean {
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
 }
 
 function defaultDaemonError(message?: unknown, ...optionalParams: unknown[]): void {
@@ -107,7 +109,7 @@ function formatAlreadyRunningMessage(vault: string, pid: number): string {
 }
 
 function shouldRejectRemoteAddress(remoteAddress: string | undefined): boolean {
-  return !remoteAddress || !LOOPBACK_ADDRS.has(remoteAddress)
+  return !remoteAddress || !isLoopbackAddress(remoteAddress)
 }
 
 function formatRejectedConnectionMessage(remoteAddress: string | undefined): string {

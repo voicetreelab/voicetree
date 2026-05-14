@@ -76,7 +76,8 @@ const RE_SHELL_PROMPT: RegExp = /[A-Za-z0-9_~/.\-)\]]\s*[\$#%>❯›▸→]\s*$/
 // Generic question fallback — line ends with ? after at least 8 chars of question text.
 const RE_QUESTION: RegExp = /[A-Za-z][^?\n]{6,}\?\s*$/;
 
-export const DEFAULT_PROMPT_PATTERNS: readonly PromptPattern[] = [
+function createDefaultPromptPatterns(): readonly PromptPattern[] {
+    return [
     // -------------------------------------------------------------------------
     // High confidence — agent is definitely blocking on the user
     // -------------------------------------------------------------------------
@@ -156,7 +157,10 @@ export const DEFAULT_PROMPT_PATTERNS: readonly PromptPattern[] = [
         confidence: 'medium',
         matches: (s: LineSnapshot): boolean => RE_QUESTION.test(s.currentLine),
     },
-];
+    ];
+}
+
+export const DEFAULT_PROMPT_PATTERNS: readonly PromptPattern[] = createDefaultPromptPatterns();
 
 // =============================================================================
 // Detector
