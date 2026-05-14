@@ -1,0 +1,7 @@
+# Keep the build context tiny — the Dockerfile only needs the docker/
+# directory. Everything else lives inside the AppImage that we download
+# during the build.
+
+*
+!docker/
+!docker/**
