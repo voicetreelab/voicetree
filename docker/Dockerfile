@@ -23,12 +23,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # System dependencies: virtual X stack, Electron runtime libs, VNC, Node (for
 # agent CLIs that ship as npm packages), git, curl. libasound2t64 is the
 # renamed-in-24.04 successor to libasound2.
+# No browser is installed in the base image; on Ubuntu 24.04 Firefox is
+# distributed as a snap which doesn't work inside a plain container.
+# Set ANTHROPIC_API_KEY in .env to skip Claude Code's OAuth-browser flow,
+# or apt-install a browser yourself inside a running container.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget git tini sudo \
+        squashfs-tools \
         xvfb x11vnc openbox xterm \
         novnc websockify \
         fonts-liberation fonts-noto-core \
-        firefox-esr \
         nodejs npm \
         # Electron runtime deps
         libnss3 libnspr4 libdbus-1-3 \
@@ -47,14 +51,25 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Non-root user. uid 1000 lines up with the default host user on most Linux
 # distros, which makes bind-mounting feel natural if a user opts in.
-RUN useradd --create-home --shell /bin/bash --uid 1000 vt \
+# Ubuntu 24.04 ships a placeholder `ubuntu` user at uid 1000, so we remove
+# it first to free the uid.
+RUN userdel -r ubuntu 2>/dev/null || true \
+    && useradd --create-home --shell /bin/bash --uid 1000 vt \
     && mkdir -p /home/vt/vault /home/vt/.config/claude "$XDG_RUNTIME_DIR" \
     && chown -R vt:vt /home/vt "$XDG_RUNTIME_DIR" \
     && chmod 700 "$XDG_RUNTIME_DIR"
 
-# Fetch and extract the AppImage at build time, so the image is self-contained
-# and tagged with a known VoiceTree version. --appimage-extract avoids needing
-# FUSE in the running container.
+# Fetch and extract the AppImage at build time.
+#
+# We unpack the embedded SquashFS directly with unsquashfs rather than running
+# ./voicetree.AppImage --appimage-extract, because the AppImage's prepended
+# ELF runtime wrapper does not survive non-native execution (e.g. Rosetta or
+# binfmt-misc emulation) — "exec format error". The SquashFS payload itself
+# is architecture-neutral filesystem data; unsquashfs reads it directly.
+#
+# Offset of the squashfs payload = end of the ELF section header table:
+#     e_shoff + e_shentsize * e_shnum
+# all read straight from the 64-bit ELF header (LE on x86-64).
 WORKDIR /opt
 RUN set -eux; \
     if [ "$VOICETREE_VERSION" = "latest" ]; then \
@@ -63,9 +78,12 @@ RUN set -eux; \
         URL="https://github.com/voicetreelab/voicetree/releases/download/${VOICETREE_VERSION}/voicetree.AppImage"; \
     fi; \
     curl -fL --retry 3 -o voicetree.AppImage "$URL"; \
-    chmod +x voicetree.AppImage; \
-    ./voicetree.AppImage --appimage-extract >/dev/null; \
-    mv squashfs-root voicetree; \
+    e_shoff=$(od -An -j40 -N8 -tu8 voicetree.AppImage | tr -d ' '); \
+    e_shentsize=$(od -An -j58 -N2 -tu2 voicetree.AppImage | tr -d ' '); \
+    e_shnum=$(od -An -j60 -N2 -tu2 voicetree.AppImage | tr -d ' '); \
+    offset=$((e_shoff + e_shentsize * e_shnum)); \
+    echo "squashfs offset: $offset"; \
+    unsquashfs -no-progress -o "$offset" -d voicetree voicetree.AppImage; \
     rm voicetree.AppImage; \
     chown -R vt:vt /opt/voicetree
 

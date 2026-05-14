@@ -9,7 +9,15 @@ set -euo pipefail
 VNC_PORT=${VNC_PORT:-5900}
 NOVNC_PORT=${NOVNC_PORT:-6080}
 SCREEN_GEOMETRY=${SCREEN_GEOMETRY:-1600x1000x24}
-VOICETREE_BIN=/opt/voicetree/voicetree
+APPDIR=/opt/voicetree
+VOICETREE_BIN=$APPDIR/voicetree-webapp
+
+# Replicates what the AppImage's AppRun script does, without its broken
+# AppDir auto-detection (which mis-parses --no-sandbox as a filename).
+export APPDIR
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share/:${XDG_DATA_DIRS:-/usr/share:/usr/local/share}"
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 
 pids=()
 cleanup() {

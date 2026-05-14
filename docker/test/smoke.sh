@@ -96,15 +96,15 @@ rm -f /tmp/vncpage.$$
 log "4. VoiceTree process running inside container"
 deadline=$((SECONDS + BOOT_TIMEOUT))
 while [ $SECONDS -lt $deadline ]; do
-    if docker exec "$NAME" pgrep -f /opt/voicetree/voicetree >/dev/null 2>&1; then
+    if docker exec "$NAME" pgrep -f /opt/voicetree/voicetree-webapp >/dev/null 2>&1; then
         break
     fi
     sleep 2
 done
-if docker exec "$NAME" pgrep -f /opt/voicetree/voicetree >/dev/null 2>&1; then
-    ok "voicetree process is running"
+if docker exec "$NAME" pgrep -f /opt/voicetree/voicetree-webapp >/dev/null 2>&1; then
+    ok "voicetree-webapp process is running"
 else
-    ng "no voicetree process found after ${BOOT_TIMEOUT}s"
+    ng "no voicetree-webapp process found after ${BOOT_TIMEOUT}s"
 fi
 
 # --- Test 5: claude-code CLI is available --------------------------------
