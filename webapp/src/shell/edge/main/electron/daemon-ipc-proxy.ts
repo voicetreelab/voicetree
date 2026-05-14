@@ -1,9 +1,6 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
-import path from 'node:path'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { syncMcpGraphDbServerState } from '@vt/voicetree-mcp'
-import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import type { VaultConfig } from '@vt/graph-model/settings'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
@@ -32,20 +29,7 @@ type CurrentDaemonConnection = {
   client: DaemonClient
   vault: string
 }
-type DesiredVaultState = Awaited<ReturnType<typeof getDesiredVaultStateForBootstrap>>
-
 const MAIN_DAEMON_TIMEOUT_MS: number = 15_000
-
-function resolveLocalWritePath(projectPath: string, writePath: string): string {
-  return path.isAbsolute(writePath)
-    ? writePath
-    : path.join(projectPath, writePath)
-}
-
-async function getConfiguredWritePathForVault(vault: string): Promise<string | null> {
-  const config: VaultConfig | undefined = await getVaultConfigForDirectory(vault)
-  return config?.writePath ? resolveLocalWritePath(vault, config.writePath) : vault
-}
 
 type SessionSyncCache = {
   readonly collapseSet: ReadonlySet<string>
@@ -95,18 +79,6 @@ async function getCurrentVaultOrThrow(): Promise<string> {
   const activeConnection: CachedDaemonConnection | null = getActiveDaemonConnection()
   if (activeConnection) return activeConnection.vault
   throw new Error('Watched directory not initialized')
-}
-
-async function getDesiredVaultStateForBootstrap(vault: string): Promise<{
-  readPaths: string[]
-  writePath: string
-}> {
-  const writePath: string | null = await getConfiguredWritePathForVault(vault)
-
-  return {
-    readPaths: [],
-    writePath: writePath ?? vault,
-  }
 }
 
 function resetCachesForVault(vault: string): void {
@@ -427,20 +399,6 @@ export async function removeReadPathThroughDaemon(path: string): Promise<VaultSt
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
-}
-
-export async function bootstrapDaemonVaultFromLocalState(vault?: string): Promise<void> {
-  const connection: CurrentDaemonConnection = vault
-    ? await ensureDaemonClientForVault(vault, { timeoutMs: MAIN_DAEMON_TIMEOUT_MS })
-    : await getDaemonClientForCurrentVault()
-
-  const desiredVaultState: DesiredVaultState = await getDesiredVaultStateForBootstrap(connection.vault)
-
-  await connection.client.setWritePath(desiredVaultState.writePath)
-
-  for (const readPath of desiredVaultState.readPaths) {
-    await connection.client.addReadPath(readPath)
-  }
 }
 
 export async function refreshMainGraphFromDaemon(vault?: string): Promise<void> {

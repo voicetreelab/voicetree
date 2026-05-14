@@ -1,4 +1,5 @@
 import { esc, relTime, isStale, fmtDuration } from './format.js'
+import { CHECK_TIERS, bucketizeByTier } from './checkTiers.js'
 
 const CHECK_CATEGORY_ORDER = ['Command', 'Hook', 'Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Other']
 
@@ -51,6 +52,7 @@ function categoryStats(reports) {
 }
 
 function tallyChip(stats) {
+  if (stats.total === 0) return `<span class="hm-tally is-skip">0 checks</span>`
   if (stats.fail > 0) return `<span class="hm-tally is-fail"><span class="t-fail">${stats.fail}</span>/${stats.total - stats.skip} failing</span>`
   if (stats.stale > 0) return `<span class="hm-tally is-stale">${stats.stale} stale · ${stats.pass} passing</span>`
   if (stats.pass === 0 && stats.skip === stats.total) return `<span class="hm-tally is-skip">all skipped</span>`
@@ -73,22 +75,43 @@ function categoriesSortedWorstFirst(byCategory) {
     .sort((a, b) => b.stats.fail - a.stats.fail || b.stats.stale - a.stats.stale)
 }
 
+function renderCategoryRow(name, reports, stats) {
+  const visible = sortSquares(reports.filter(r => r.status !== 'skip'))
+  const skipPill = stats.skip > 0
+    ? `<span class="hm-row-skip">+${stats.skip} skip</span>`
+    : `<span class="hm-row-skip is-empty"></span>`
+  return `<div class="hm-row" data-cat="${esc(name)}">
+    <span class="hm-row-cat">${esc(name)}</span>
+    <div class="hm-row-squares">${visible.map(renderSquare).join('')}</div>
+    ${skipPill}
+    ${tallyChip(stats)}
+  </div>`
+}
+
 // ── Layout A: compact rows per category, skips folded to badge ──────────────
-function renderRowsLayout(byCategory) {
-  const cats = categoriesSortedWorstFirst(byCategory)
-  const rows = cats.map(({ name, reports, stats }) => {
-    const visible = sortSquares(reports.filter(r => r.status !== 'skip'))
-    const skipPill = stats.skip > 0
-      ? `<span class="hm-row-skip">+${stats.skip} skip</span>`
-      : `<span class="hm-row-skip is-empty"></span>`
-    return `<div class="hm-row" data-cat="${esc(name)}">
-      <span class="hm-row-cat">${esc(name)}</span>
-      <div class="hm-row-squares">${visible.map(renderSquare).join('')}</div>
-      ${skipPill}
-      ${tallyChip(stats)}
-    </div>`
+function renderRowsLayout(reports) {
+  const byTier = bucketizeByTier(reports)
+  const tiers = CHECK_TIERS.map((tier) => {
+    const tierReports = byTier[tier.id]
+    const tierStats = categoryStats(tierReports)
+    const byCategory = bucketize(tierReports)
+    const rows = categoriesSortedWorstFirst(byCategory)
+      .map(({ name, reports: categoryReports, stats }) => renderCategoryRow(name, categoryReports, stats))
+      .join('')
+    const body = rows || `<div class="hm-tier-empty">no checks recorded</div>`
+    return `<section class="hm-tier hm-${tier.id}" data-tier-id="${esc(tier.id)}">
+      <div class="hm-tier-head">
+        <div class="hm-tier-title">
+          <span class="hm-tier-label">${esc(tier.label)}</span>
+          <span class="hm-tier-scope">${esc(tier.scope)}</span>
+          <span class="hm-tier-desc">${esc(tier.description)}</span>
+        </div>
+        ${tallyChip(tierStats)}
+      </div>
+      <div class="hm-tier-rows">${body}</div>
+    </section>`
   }).join('')
-  return `<div class="hm-rows">${rows}</div>`
+  return `<div class="hm-rows">${tiers}</div>`
 }
 
 // ── Layout B: github-style dense grid, all checks visible, sorted per column
@@ -123,7 +146,7 @@ function renderCardsLayout(byCategory) {
 }
 
 function renderSlide(slide, byCategory) {
-  if (slide.id === 'rows')  return renderRowsLayout(byCategory)
+  if (slide.id === 'rows')  return renderRowsLayout(Object.values(byCategory).flat())
   if (slide.id === 'grid')  return renderGridLayout(byCategory)
   return renderCardsLayout(byCategory)
 }

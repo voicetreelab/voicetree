@@ -29,7 +29,6 @@ import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc
 import {
     ensureDaemonClientForVault,
     getActiveDaemonConnection,
-    clearDaemonClientCache,
     shutdownActiveDaemonConnection,
     type CachedDaemonConnection,
 } from '@/shell/edge/main/electron/graph-daemon'
@@ -394,11 +393,6 @@ export function getVaultPath(): O.Option<FilePath> {
 
 export function setVaultPath(vaultPath: FilePath): void {
     pendingLoadedDirectory = vaultPath || null
-}
-
-export function clearVaultPath(): void {
-    pendingLoadedDirectory = null
-    clearDaemonClientCache()
 }
 
 export async function createDatedVoiceTreeFolder(): Promise<{

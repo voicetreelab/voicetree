@@ -4,6 +4,7 @@
 // through a getState() getter so git-poll refreshes pick up new data.
 
 import { fmtNum, relTime } from './format.js'
+import { CHECK_TIERS, bucketizeByTier } from './checkTiers.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -112,19 +113,7 @@ export function formatWallClock(reports) {
 
 const CHECK_CATEGORY_ORDER = ['Command', 'Hook', 'Unit', 'Integration', 'E2E', 'Lint', 'TypeCheck', 'Static', 'Other']
 
-export function formatChecks(checksData) {
-  const reports = checksData?.reports ?? []
-  if (reports.length === 0) {
-    return `## CI / CD Checks\n(no data — run \`npm run health:capture-ci\`)`
-  }
-  const fail = reports.filter(r => r.status === 'fail').length
-  const skip = reports.filter(r => r.status === 'skip').length
-  const pass = reports.length - fail - skip
-  const lines = [
-    '## CI / CD Checks',
-    `${reports.length} checks · ${fail} fail · ${pass} pass · ${skip} skip`,
-  ]
-
+function appendCheckReports(lines, reports) {
   const byCat = new Map()
   for (const r of reports) {
     const cat = CHECK_CATEGORY_ORDER.includes(r.category) ? r.category : 'Other'
@@ -154,6 +143,43 @@ export function formatChecks(checksData) {
       }
     }
   }
+}
+
+function checkTotalsLine(reports) {
+  const fail = reports.filter(r => r.status === 'fail').length
+  const skip = reports.filter(r => r.status === 'skip').length
+  const pass = reports.length - fail - skip
+  return `${reports.length} checks · ${fail} fail · ${pass} pass · ${skip} skip`
+}
+
+export function formatCheckTier(checksData, tierId) {
+  const reports = checksData?.reports ?? []
+  const tier = CHECK_TIERS.find(t => t.id === tierId)
+  if (!tier) return `## CI / CD Checks\n(unknown tier: ${tierId})`
+  const tierReports = bucketizeByTier(reports)[tierId] ?? []
+  const lines = [
+    `## CI / CD Checks — ${tier.label}`,
+    `${tier.scope} · ${tier.description}`,
+    checkTotalsLine(tierReports),
+  ]
+  appendCheckReports(lines, tierReports)
+  if (checksData?.generatedAt) {
+    lines.push('', `Captured ${relTime(checksData.generatedAt)}`)
+  }
+  return lines.join('\n')
+}
+
+export function formatChecks(checksData) {
+  const reports = checksData?.reports ?? []
+  if (reports.length === 0) {
+    return `## CI / CD Checks\n(no data — run \`npm run health:capture-ci\`)`
+  }
+  const lines = [
+    '## CI / CD Checks',
+    checkTotalsLine(reports),
+  ]
+
+  appendCheckReports(lines, reports)
   if (checksData?.generatedAt) {
     lines.push('', `Captured ${relTime(checksData.generatedAt)}`)
   }
@@ -393,6 +419,10 @@ export function bindCopyButtons(main, getState) {
   // CI / CD Checks
   injectAt(main.querySelector('.checks-section'), '.category-header',
     () => formatChecks(getState().checksData))
+  for (const tierEl of main.querySelectorAll('.checks-section .hm-tier')) {
+    const tierId = tierEl.dataset.tierId
+    injectAt(tierEl, '.hm-tier-head', () => formatCheckTier(getState().checksData, tierId))
+  }
 
   // Pass / Fail Gates
   injectAt(main.querySelector('.gates-section'), '.category-header',

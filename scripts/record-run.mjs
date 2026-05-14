@@ -51,17 +51,37 @@ function parseArgs(argv) {
 async function runChild(cmd) {
     const [bin, ...rest] = cmd
     const startedAt = Date.now()
+    let stdoutBuf = ''
+    let stderrBuf = ''
+    const appendTail = (current, chunk) => `${current}${chunk}`.slice(-8_000)
     const result = await new Promise(resolve => {
-        const child = spawn(bin, rest, {cwd: REPO_ROOT, stdio: 'inherit', shell: false})
+        const child = spawn(bin, rest, {cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: false})
+        child.stdout.on('data', chunk => {
+            const text = chunk.toString('utf8')
+            stdoutBuf = appendTail(stdoutBuf, text)
+            process.stdout.write(chunk)
+        })
+        child.stderr.on('data', chunk => {
+            const text = chunk.toString('utf8')
+            stderrBuf = appendTail(stderrBuf, text)
+            process.stderr.write(chunk)
+        })
         child.on('error', err => resolve({code: -1, signal: null, spawnError: String(err?.message ?? err)}))
         child.on('close', (code, signal) => resolve({code, signal, spawnError: null}))
     })
-    return {durationMs: Date.now() - startedAt, ...result}
+    return {durationMs: Date.now() - startedAt, stdoutTail: summarizeTail(stdoutBuf), stderrTail: summarizeTail(stderrBuf), ...result}
 }
 
 function statusFor(exitCode, spawnError) {
     if (spawnError) return 'fail'
     return exitCode === 0 ? 'pass' : 'fail'
+}
+
+function summarizeTail(text, maxLines = 4) {
+    if (!text) return undefined
+    const lines = text.split('\n').map(l => l.replace(/\s+$/, '')).filter(Boolean)
+    if (lines.length === 0) return undefined
+    return lines.slice(-maxLines).join('\n').slice(0, 800)
 }
 
 const {opts, cmd} = parseArgs(process.argv.slice(2))
@@ -79,7 +99,7 @@ try {
         durationMs: outcome.durationMs,
         slow: opts.slow || undefined,
         errorSummary: status === 'fail'
-            ? (outcome.spawnError ?? `exit ${outcome.code}${outcome.signal ? ` (${outcome.signal})` : ''}`)
+            ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail ?? `exit ${outcome.code}${outcome.signal ? ` (${outcome.signal})` : ''}`)
             : undefined,
         timestamp: new Date().toISOString(),
         details: {

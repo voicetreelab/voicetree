@@ -26,16 +26,6 @@ const ZOOM_SUPPRESSION_MS: number = 800;
 // =============================================================================
 
 /**
- * Get display order filtered to only pinned terminals (for keyboard navigation)
- */
-export function getPinnedDisplayOrder(terminals: TerminalData[]): TerminalId[] {
-    const pinnedIds: Set<TerminalId> = new Set(
-        terminals.filter(t => t.isPinned).map(t => getTerminalId(t))
-    );
-    return displayOrder.filter(id => pinnedIds.has(id));
-}
-
-/**
  * Sync displayOrder with actual terminals (handle add/remove)
  * Preserves existing order, removes stale IDs, appends new terminals at end
  */

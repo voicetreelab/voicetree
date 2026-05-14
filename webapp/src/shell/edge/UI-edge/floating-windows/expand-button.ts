@@ -100,18 +100,3 @@ export function createExpandButton(
 
     return button;
 }
-
-/**
- * Reset the expand button to its initial (maximize) state.
- * Call this whenever the window transitions back to mode-card so that
- * stale minimize-icon / expanded state doesn't persist into the next mode-pinned session.
- */
-export function resetExpandButton(button: HTMLButtonElement): void {
-    button.dataset.expanded = 'false';
-    button.dataset.icon = 'maximize';
-    button.innerHTML = '';
-    const icon: SVGElement = createElement(Maximize2);
-    icon.setAttribute('width', '16');
-    icon.setAttribute('height', '16');
-    button.appendChild(icon);
-}

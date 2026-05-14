@@ -12,12 +12,14 @@
    or the section's own inline controls. .category-header already has
    position: relative (sections.css); wc-head + axis-header don't. */
 .wc-head,
-.axis-header {
+.axis-header,
+.hm-tier-head {
   position: relative;
 }
 .category-header,
 .axis-header,
-.wc-head {
+.wc-head,
+.hm-tier-head {
   padding-right: 4.4rem;
 }
 
@@ -64,6 +66,10 @@
    right — push the button further right so it doesn't overlap the meta. */
 .wc-head .copy-btn {
   top: 0.1rem;
+  right: 0;
+}
+.hm-tier-head .copy-btn {
+  top: 0.05rem;
   right: 0;
 }
 
