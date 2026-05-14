@@ -11,7 +11,6 @@ import {
   SessionInfoSchema,
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
-  UnseenNodeSchema,
   VaultStateSchema,
   ViewResponseSchema,
   type GraphState,
@@ -29,10 +28,20 @@ import {
 } from './contract.ts'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
-
-type Schema<T> = {
-  parse(input: unknown): T
-}
+import {
+  ContextNodeFromQuestionResponseSchema,
+  ContextNodeResponseSchema,
+  FindFileMatchesResponseSchema,
+  PreviewContainedNodeIdsResponseSchema,
+  ReadPathsMutationResponseSchema,
+  UndoRedoResponseSchema,
+  UnknownResponseSchema,
+  UnseenNodesResponseSchema,
+  UpdateContextNodeContainedIdsResponseSchema,
+  WritePathMutationResponseSchema,
+  WritePositionsResponseSchema,
+  type Schema,
+} from './responseSchemas.ts'
 
 type RequestOptions<T> = {
   body?: unknown
@@ -50,85 +59,6 @@ type ErrorPayload = {
   code?: string
   error?: string
   message?: string
-}
-
-const ReadPathsMutationResponseSchema: Schema<{ readPaths: string[] }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || !Array.isArray(input.readPaths)) {
-      throw new Error('Invalid read-paths response body')
-    }
-    if (!input.readPaths.every((value) => typeof value === 'string')) {
-      throw new Error('Invalid read-paths response body')
-    }
-    return { readPaths: [...input.readPaths] }
-  },
-}
-
-const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.writePath !== 'string') {
-      throw new Error('Invalid write-path response body')
-    }
-    return { writePath: input.writePath }
-  },
-}
-
-const ContextNodeResponseSchema: Schema<{ nodeId: string }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.nodeId !== 'string') {
-      throw new Error('Invalid context-node response body')
-    }
-    return { nodeId: input.nodeId }
-  },
-}
-
-const ContextNodeFromQuestionResponseSchema: Schema<{
-  nodeId: string
-  parentNodePath: string
-  title: string
-}> = {
-  parse(input: unknown) {
-    if (
-      !isObject(input)
-      || typeof input.nodeId !== 'string'
-      || typeof input.parentNodePath !== 'string'
-      || typeof input.title !== 'string'
-    ) {
-      throw new Error('Invalid question context-node response body')
-    }
-    return {
-      nodeId: input.nodeId,
-      parentNodePath: input.parentNodePath,
-      title: input.title,
-    }
-  },
-}
-
-const UnseenNodesResponseSchema: Schema<{ nodes: readonly UnseenNode[] }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || !Array.isArray(input.nodes)) {
-      throw new Error('Invalid unseen-nodes response body')
-    }
-    return { nodes: input.nodes.map((node) => UnseenNodeSchema.parse(node)) }
-  },
-}
-
-const UpdateContextNodeContainedIdsResponseSchema: Schema<{ updated: boolean }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.updated !== 'boolean') {
-      throw new Error('Invalid context-node-contained-ids response body')
-    }
-    return { updated: input.updated }
-  },
-}
-
-const WritePositionsResponseSchema: Schema<{ written: number }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.written !== 'number') {
-      throw new Error('Invalid write-positions response body')
-    }
-    return { written: input.written }
-  },
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -250,7 +180,7 @@ export class GraphDbClient {
       expectNoContent: false,
       headers,
       method: 'POST',
-      responseSchema: { parse: (value) => value },
+      responseSchema: UnknownResponseSchema,
     })
   }
 
@@ -268,7 +198,7 @@ export class GraphDbClient {
       expectNoContent: false,
       headers,
       method: 'POST',
-      responseSchema: { parse: (value) => value },
+      responseSchema: UnknownResponseSchema,
     })
   }
 
@@ -377,7 +307,7 @@ export class GraphDbClient {
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'POST',
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }
@@ -390,7 +320,7 @@ export class GraphDbClient {
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'DELETE',
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }
@@ -410,42 +340,38 @@ export class GraphDbClient {
   }
 
   async findFileByName(name: string): Promise<string[]> {
-    const result = await this.request(
+    return await this.request(
       `/graph/find-file?name=${encodeURIComponent(name)}`,
-      { responseSchema: { parse: (v: unknown) => (v as { matches: string[] }).matches } },
+      { responseSchema: FindFileMatchesResponseSchema },
     )
-    return result
   }
 
   async undo(): Promise<boolean> {
-    const result = await this.request('/graph/undo', {
+    return await this.request('/graph/undo', {
       method: 'POST',
-      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+      responseSchema: UndoRedoResponseSchema,
     })
-    return result
   }
 
   async redo(): Promise<boolean> {
-    const result = await this.request('/graph/redo', {
+    return await this.request('/graph/redo', {
       method: 'POST',
-      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+      responseSchema: UndoRedoResponseSchema,
     })
-    return result
   }
 
   async getPreviewContainedNodeIds(nodeId: string): Promise<readonly string[]> {
-    const result = await this.request(
+    return await this.request(
       `/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`,
-      { responseSchema: { parse: (v: unknown) => (v as { nodeIds: string[] }).nodeIds } },
+      { responseSchema: PreviewContainedNodeIdsResponseSchema },
     )
-    return result
   }
 
   async getProjectedGraph(sessionId: string): Promise<unknown> {
     return await this.request(
       `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
       {
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }

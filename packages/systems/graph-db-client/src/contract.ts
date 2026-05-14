@@ -1,7 +1,6 @@
 export {
   CONTRACT_VERSION,
   AddReadPathRequestSchema,
-  CollapseStateResponseSchema,
   GraphStateSchema,
   HealthResponseSchema,
   LayoutPartialSchema,
