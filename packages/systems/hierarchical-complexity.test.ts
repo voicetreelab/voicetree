@@ -418,7 +418,7 @@ describe('hierarchical complexity', () => {
         // Orange gate: fail when any community exceeds the priority budget.
         // Lower this number as you address top offenders to ratchet quality up.
         // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-        const ORANGE_PRIORITY_BUDGET = 272
+        const ORANGE_PRIORITY_BUDGET = 258
 
         const overBudget = priorityRanked.filter(p => p.score > ORANGE_PRIORITY_BUDGET)
         await recordHealthMetric({

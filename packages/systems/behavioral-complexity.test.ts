@@ -279,7 +279,7 @@ function formatReport(reports: readonly CommunityBehavioralReport[]): string {
 // known empirical offenders surface; small communities with 0-1 bindings pass.
 // Lower this number as you address top offenders to ratchet quality up.
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const ORANGE_BEHAVIORAL_BUDGET = 421
+const ORANGE_BEHAVIORAL_BUDGET = 379
 const GRAPH_DB_SERVER_STATE_GOLD_STANDARD_SCORE_FLOOR = 6
 
 describe('behavioral complexity', () => {

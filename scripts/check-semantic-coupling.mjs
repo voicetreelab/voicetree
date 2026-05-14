@@ -12,7 +12,7 @@ const REBUILD = process.argv.includes('--rebuild-db')
 
 // Defaults track current observed values (baseline ratchet — regressions fail).
 const BUDGETS = {
-    maxPairWeight: Number(process.env.SC_MAX_PAIR_BUDGET ?? 116),
+    maxPairWeight: Number(process.env.SC_MAX_PAIR_BUDGET ?? 110),
     maxOutDegree: Number(process.env.SC_MAX_OUTDEGREE_BUDGET ?? 154),
 }
 
