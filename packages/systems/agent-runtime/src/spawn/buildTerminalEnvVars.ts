@@ -12,6 +12,10 @@ import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
 
+function selectRandomEnvVarValueIndex(values: readonly string[]): number {
+    return Math.floor(Math.random() * values.length)
+}
+
 export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
     readonly taskNodePath: string
@@ -20,7 +24,7 @@ export async function buildTerminalEnvVars(params: {
     readonly settings: VTSettings
     readonly promptTemplate?: string
     readonly envOverrides?: Record<string, string>
-}, selectEnvVarValueIndex: SelectEnvVarValueIndex = (values: readonly string[]) => Math.floor(Math.random() * values.length)): Promise<Record<string, string>> {
+}, selectEnvVarValueIndex: SelectEnvVarValueIndex = selectRandomEnvVarValueIndex): Promise<Record<string, string>> {
     const resolvedEnvVars: Record<string, string> = resolveEnvVarsWithSelection(
         params.settings.INJECT_ENV_VARS,
         selectEnvVarValueIndex

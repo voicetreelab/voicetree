@@ -67,9 +67,13 @@ export function getTerminalId(terminal: TerminalData): TerminalId {
     return terminal.terminalId;
 }
 
+function currentTimeMillis(): number {
+    return Date.now();
+}
+
 export function createTerminalData(
     params: CreateTerminalDataParams,
-    now: () => number = Date.now
+    now: () => number = currentTimeMillis
 ): TerminalData {
     return {
         type: 'Terminal',

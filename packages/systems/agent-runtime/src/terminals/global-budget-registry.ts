@@ -23,6 +23,8 @@ type BudgetLogger = {
     info(message: string): void
 }
 
+const defaultBudgetLogger: BudgetLogger = { warn: console.warn, info: console.log }
+
 // Map of terminal ID -> remaining budget (what this terminal has available)
 const terminalBudgets: Map<string, number> = new Map()
 
@@ -45,7 +47,7 @@ export function getTerminalBudget(terminalId: string): number | undefined {
 export function setTerminalBudget(
     terminalId: string,
     budget: number,
-    logger: BudgetLogger = { warn: console.warn, info: console.log },
+    logger: BudgetLogger = defaultBudgetLogger,
 ): void {
     return setTerminalBudgetWithLogger(terminalId, budget, logger)
 }
@@ -77,7 +79,7 @@ function setTerminalBudgetWithLogger(
  */
 export function tryConsumeAndSplitBudget(
     callerTerminalId: string,
-    logger: BudgetLogger = { warn: console.warn, info: console.log },
+    logger: BudgetLogger = defaultBudgetLogger,
 ): { allowed: boolean; childBudget: number | undefined } {
     return tryConsumeAndSplitBudgetWithLogger(callerTerminalId, logger)
 }

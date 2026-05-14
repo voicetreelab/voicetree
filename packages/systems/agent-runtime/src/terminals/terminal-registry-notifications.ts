@@ -13,13 +13,15 @@ import {
 
 type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
 
+const defaultNotificationDeps: TerminalRegistryClock & { logger: TerminalRegistryLogger } = {
+    now: Date.now,
+    logger: { info: console.log, error: console.error },
+}
+
 export async function notifyAgentOfUnseenNodes(
     terminalId: string,
     record: TerminalRecord,
-    deps: TerminalRegistryClock & { logger: TerminalRegistryLogger } = {
-        now: Date.now,
-        logger: { info: console.log, error: console.error },
-    },
+    deps: TerminalRegistryClock & { logger: TerminalRegistryLogger } = defaultNotificationDeps,
 ): Promise<void> {
     try {
         const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId

@@ -17,6 +17,15 @@ import {
 } from '../terminal-registry-state'
 import {getTerminalRecords, notifyRegistrySubscribers} from './subscribers'
 
+const defaultTerminalRegistryTimers: TerminalRegistryTimers = { setTimeout, clearTimeout }
+
+const defaultTerminalRegistryRuntime: TerminalRegistryRuntime = {
+    now: Date.now,
+    setTimeout,
+    clearTimeout,
+    logger: { info: console.log, error: console.error },
+}
+
 export function incrementAuditRetryCount(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
@@ -37,7 +46,7 @@ function wait_for_agent_to_still_be_done_after_n_seconds(
     terminalId: string,
     delayMs: number,
     callback: (terminalId: string, record: TerminalRecord) => void,
-    timers: TerminalRegistryTimers = { setTimeout, clearTimeout },
+    timers: TerminalRegistryTimers = defaultTerminalRegistryTimers,
 ): void {
     const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
     if (existing) timers.clearTimeout(existing)
@@ -106,12 +115,7 @@ function runIdleHooks(
 export function updateTerminalIsDone(
     terminalId: string,
     isDone: boolean,
-    runtime: TerminalRegistryRuntime = {
-        now: Date.now,
-        setTimeout,
-        clearTimeout,
-        logger: { info: console.log, error: console.error },
-    },
+    runtime: TerminalRegistryRuntime = defaultTerminalRegistryRuntime,
 ): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return

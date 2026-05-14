@@ -9,10 +9,12 @@ import {
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
 
+const defaultTerminalRegistryClock: TerminalRegistryClock = { now: Date.now }
+
 export function recordTerminalSpawn(
     terminalId: string,
     terminalData: TerminalData,
-    clock: TerminalRegistryClock = { now: Date.now },
+    clock: TerminalRegistryClock = defaultTerminalRegistryClock,
 ): void {
     // Capture-and-clear any pending state so the drain below is the last
     // observer of the queue (no race with concurrent enqueues that arrive

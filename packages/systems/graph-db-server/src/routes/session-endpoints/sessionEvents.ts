@@ -7,13 +7,15 @@ import {
 } from '../../application/workflows/sessionEvents.ts'
 import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
 
+const defaultSessionEventTimers: SessionEventTimers = {
+  setInterval: globalThis.setInterval,
+  clearInterval: globalThis.clearInterval,
+}
+
 export function mountSessionEventsRoute(
   app: Hono,
   registry: WorkflowSessionRegistry,
-  timers: SessionEventTimers = {
-    setInterval: globalThis.setInterval,
-    clearInterval: globalThis.clearInterval,
-  },
+  timers: SessionEventTimers = defaultSessionEventTimers,
 ): void {
   app.get('/sessions/:sessionId/events', (c) => {
     const sessionId = c.req.param('sessionId')

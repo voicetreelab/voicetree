@@ -38,10 +38,12 @@ export function signalNumberToName(signalNumber: number): string | null {
 
 let cachedWindowsShell: string | undefined
 
+function probePwshExecutable(): void {
+    execFileSync('pwsh.exe', ['-Version'], { stdio: 'ignore', timeout: 3000 })
+}
+
 export function getWindowsShell(
-    probePwsh: () => void = (): void => {
-        execFileSync('pwsh.exe', ['-Version'], { stdio: 'ignore', timeout: 3000 })
-    },
+    probePwsh: () => void = probePwshExecutable,
 ): string {
     if (cachedWindowsShell) return cachedWindowsShell
     try {

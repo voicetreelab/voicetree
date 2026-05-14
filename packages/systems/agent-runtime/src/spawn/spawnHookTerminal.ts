@@ -38,6 +38,14 @@ type HookTerminalLogger = {
     error(message?: unknown, ...optionalParams: unknown[]): void
 }
 
+const defaultHookTerminalWaitDeps: HookTerminalWaitDeps = {
+    now: Date.now,
+    sleep: (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
+    isAlive: isHookTerminalAlive,
+}
+
+const defaultHookTerminalLogger: HookTerminalLogger = { error: console.error }
+
 function isHookTerminalAlive(): boolean {
     const records: TerminalRecord[] = getTerminalRecords()
     const existing: TerminalRecord | undefined = records.find(
@@ -52,11 +60,7 @@ function isHookTerminalAlive(): boolean {
  * so we poll until it registers in the main-process terminal registry.
  */
 async function waitForTerminalReady(
-    deps: HookTerminalWaitDeps = {
-        now: Date.now,
-        sleep: (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms)),
-        isAlive: isHookTerminalAlive,
-    },
+    deps: HookTerminalWaitDeps = defaultHookTerminalWaitDeps,
 ): Promise<boolean> {
     const startTime: number = deps.now()
     while (deps.now() - startTime < TERMINAL_READY_TIMEOUT_MS) {
@@ -95,7 +99,7 @@ async function createHookNode(): Promise<string> {
 }
 
 async function spawnHookTerminal(
-    logger: HookTerminalLogger = { error: console.error },
+    logger: HookTerminalLogger = defaultHookTerminalLogger,
 ): Promise<void> {
     const settings: VTSettings = await loadSettings()
 
