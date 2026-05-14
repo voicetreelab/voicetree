@@ -15,11 +15,32 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'voicetree-mcp',
 ] as const
 const MODULE_MUTABLE_STATE_BASELINE = 43
+const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
+const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
+    join(REPO_ROOT, 'webapp/src'),
+    join(SYSTEMS_ROOT, 'agent-runtime/src'),
+    join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
+] as const
+const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
+    'webapp/src/shell/edge/main/cli/commands/serve.ts',
+    'webapp/src/shell/edge/main/cli/commands/daemonRouteParity.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph-search.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/types.ts',
+] as const
 
 type MutableStateViolation = {
     file: string
     line: number
     declaration: string
+}
+
+type GraphDbServerImportViolation = {
+    file: string
+    line: number
+    importPath: string
+    kind: string
+    snippet: string
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -52,6 +73,15 @@ async function listProductionSources(root: string): Promise<string[]> {
         return []
     }))
     return nested.flat()
+}
+
+function repoRelativePath(path: string): string {
+    return relative(REPO_ROOT, path).replaceAll('\\', '/')
+}
+
+function isAllowedGraphDbServerImportFile(file: string): boolean {
+    const relFile = repoRelativePath(file)
+    return ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES.includes(relFile)
 }
 
 function isLetDeclarationList(node: ts.VariableDeclarationList): boolean {
@@ -128,6 +158,85 @@ async function scanSystemsPackages(): Promise<MutableStateViolation[]> {
     return nested.flat()
 }
 
+function maybeRecordGraphDbServerImportViolation(
+    violations: GraphDbServerImportViolation[],
+    sourceFile: ts.SourceFile,
+    file: string,
+    node: ts.Node,
+    importPath: string,
+    kind: string,
+): void {
+    if (!GRAPH_DB_SERVER_IMPORT_PATTERN.test(importPath)) return
+    const {line} = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    violations.push({
+        file: repoRelativePath(file),
+        line: line + 1,
+        importPath,
+        kind,
+        snippet: node.getText(sourceFile).replace(/\s+/g, ' '),
+    })
+}
+
+function findGraphDbServerImportViolations(file: string, text: string): GraphDbServerImportViolation[] {
+    if (isAllowedGraphDbServerImportFile(file)) return []
+
+    const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+    const violations: GraphDbServerImportViolation[] = []
+
+    for (const statement of sourceFile.statements) {
+        if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+            maybeRecordGraphDbServerImportViolation(
+                violations,
+                sourceFile,
+                file,
+                statement,
+                statement.moduleSpecifier.text,
+                'import',
+            )
+        } else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+            maybeRecordGraphDbServerImportViolation(
+                violations,
+                sourceFile,
+                file,
+                statement,
+                statement.moduleSpecifier.text,
+                'export',
+            )
+        }
+    }
+
+    const visit = (node: ts.Node): void => {
+        if (
+            ts.isCallExpression(node)
+            && node.expression.kind === ts.SyntaxKind.ImportKeyword
+            && node.arguments.length > 0
+            && ts.isStringLiteral(node.arguments[0])
+        ) {
+            maybeRecordGraphDbServerImportViolation(
+                violations,
+                sourceFile,
+                file,
+                node,
+                node.arguments[0].text,
+                'dynamic import',
+            )
+        }
+        ts.forEachChild(node, visit)
+    }
+    ts.forEachChild(sourceFile, visit)
+
+    return violations
+}
+
+async function scanGraphDbServerConsumerImports(): Promise<GraphDbServerImportViolation[]> {
+    const sourceFiles = (await Promise.all(GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS.map(listProductionSources))).flat().sort()
+    const nested = await Promise.all(sourceFiles.map(async file => {
+        const text = await readFile(file, 'utf8')
+        return findGraphDbServerImportViolations(file, text)
+    }))
+    return nested.flat()
+}
+
 function formatViolation(violation: MutableStateViolation): string {
     return `${violation.file}:${violation.line} — ${violation.declaration}`
 }
@@ -140,6 +249,21 @@ function formatReport(violations: readonly MutableStateViolation[]): string {
     return [
         `Found ${violations.length} module-level mutable state declaration(s):`,
         ...violations.map(formatViolation),
+    ].join('\n')
+}
+
+function formatGraphDbServerImportViolation(violation: GraphDbServerImportViolation): string {
+    return `${violation.file}:${violation.line} — ${violation.kind} ${violation.importPath}\n    ${violation.snippet}`
+}
+
+function formatGraphDbServerImportReport(violations: readonly GraphDbServerImportViolation[]): string {
+    if (violations.length === 0) {
+        return 'No forbidden @vt/graph-db-server imports found in production consumer sources.'
+    }
+
+    return [
+        'Forbidden @vt/graph-db-server import(s) found outside launchers/search tools/tests:',
+        ...violations.map(formatGraphDbServerImportViolation),
     ].join('\n')
 }
 
@@ -165,5 +289,52 @@ describe('systems module-level mutable state scanner', () => {
             violations.length,
             formatReport(violations),
         ).toBeLessThanOrEqual(MODULE_MUTABLE_STATE_BASELINE)
+    })
+})
+
+describe('@vt/graph-db-server consumer import boundary', () => {
+    it('rejects static, dynamic, and re-exported imports from non-launcher production consumers', () => {
+        const violations = findGraphDbServerImportViolations(
+            join(REPO_ROOT, 'webapp/src/shell/edge/main/electron/bad-consumer.ts'),
+            `
+                import { getGraph } from '@vt/graph-db-server/state/graph-store'
+                export { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+                async function load() {
+                    return import('@vt/graph-db-server/context-nodes/createContextNode')
+                }
+                void getGraph
+                void load
+            `,
+        )
+
+        expect(violations.map(v => `${v.kind} ${v.importPath}`)).toEqual([
+            'import @vt/graph-db-server/state/graph-store',
+            'export @vt/graph-db-server/graph/loadGraphFromDisk',
+            'dynamic import @vt/graph-db-server/context-nodes/createContextNode',
+        ])
+    })
+
+    it('allows intentional webapp CLI launcher/search/parity imports', () => {
+        const violations = findGraphDbServerImportViolations(
+            join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts'),
+            `
+                import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
+                import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
+                void buildIndex
+                void search
+                void SearchIndexNotFoundError
+            `,
+        )
+
+        expect(violations).toEqual([])
+    })
+
+    it('keeps webapp, agent-runtime, and voicetree-mcp production sources off graph-db-server outside allowlisted entrypoints', async () => {
+        const violations = await scanGraphDbServerConsumerImports()
+
+        expect(
+            violations.map(formatGraphDbServerImportViolation),
+            formatGraphDbServerImportReport(violations),
+        ).toEqual([])
     })
 })
