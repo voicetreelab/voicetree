@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { DebugInstance } from './discover'
@@ -46,14 +47,24 @@ function extractChromium(pw: unknown): ChromiumLike {
   throw new Error('playwright-core loaded but chromium export not found')
 }
 
+function findWebappNodeModules(startDir: string): string {
+  let dir = startDir
+  while (dir !== path.dirname(dir)) {
+    const candidate = path.join(dir, 'webapp', 'node_modules')
+    if (fs.existsSync(candidate)) return candidate
+    dir = path.dirname(dir)
+  }
+  throw new Error('webapp/node_modules not found walking up from ' + startDir)
+}
+
 export async function resolveChromium(): Promise<ChromiumLike> {
   try {
     const pw = await import('playwright-core')
     return extractChromium(pw)
   } catch {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    const webappNm = path.resolve(dir, '../../../../../webapp/node_modules')
-    const pwPath = path.resolve(webappNm, 'playwright-core/index.js')
+    const webappNm = findWebappNodeModules(dir)
+    const pwPath = path.join(webappNm, 'playwright-core', 'index.js')
     try {
       const pw = await import(pathToFileURL(pwPath).href)
       return extractChromium(pw)
