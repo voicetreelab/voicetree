@@ -12,7 +12,6 @@ import {
   type CachedDaemonConnection,
 } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import { isLoadTimingActive, markLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import {
   isDaemonSSEActive,
   subscribeToDaemonSSE,
@@ -143,23 +142,9 @@ async function syncRendererFromDaemon(
 }
 
 async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void> {
-  const timingActive: boolean = isLoadTimingActive()
-  if (timingActive) markLoadTiming('main:daemon-get-graph-start')
   const nextGraph: Graph = await getNormalizedDaemonGraph(client)
-  if (timingActive) {
-    markLoadTiming('main:daemon-get-graph-end', {
-      nodeCount: Object.keys(nextGraph.nodes).length,
-    })
-  }
   const vaultState: VaultState = await client.getVault()
-
-  if (timingActive) {
-    markLoadTiming('main:graph-populated', {
-      nodeCount: Object.keys(nextGraph.nodes).length,
-    })
-  }
   await syncRendererFromDaemon(client, nextGraph, vaultState)
-  if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
 
 async function ensureRendererSession(client: DaemonClient): Promise<string> {
