@@ -44,7 +44,7 @@ import {cleanupOrphanedContextNodes} from '@/shell/edge/main/workspace/saveNodeP
 import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/startup-diagnostics';
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
-import {createWindow, stopTrackpadMonitoring} from './create-window';
+import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
@@ -226,7 +226,7 @@ void app.whenReady().then(async () => {
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {
-        const dockIconPath: string = path.join(__dirname, '../../build/icon.png');
+        const dockIconPath: string = appResource('build', 'icon.png');
         const dockIcon: Electron.NativeImage = nativeImage.createFromPath(dockIconPath);
         app.dock.setIcon(dockIcon);
     }
