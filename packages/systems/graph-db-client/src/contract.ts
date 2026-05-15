@@ -5,6 +5,7 @@ import type {
 } from '@vt/graph-db-protocol'
 
 export {
+  AddReadPathRequestSchema,
   CONTRACT_VERSION,
   CloneViewRequestSchema,
   CreateViewRequestSchema,
