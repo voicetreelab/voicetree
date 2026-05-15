@@ -4,12 +4,13 @@ import {
   ShutdownResponseSchema,
   type HealthResponse,
 } from '../daemon/contract.ts'
-import { mountCollapseRoutes } from './graph-endpoints/collapse.ts'
 import { createGraphRoutes } from './graph-endpoints/graph.ts'
 import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
+import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'
 import { mountSelectionRoutes } from './session-endpoints/selection.ts'
 import { mountSessionStateRoutes } from './session-endpoints/sessionState.ts'
 import { mountVaultRoutes } from './graph-endpoints/vault.ts'
+import { mountVaultViewsRoutes } from './graph-endpoints/vaultViews.ts'
 import { mountSessionRoutes } from './session-endpoints/sessions.ts'
 import { mountSessionEventsRoute } from './session-endpoints/sessionEvents.ts'
 import { mountViewRoutes } from './graph-endpoints/view.ts'
@@ -28,7 +29,7 @@ export function mountDaemonRoutes(
   mountSessionRoutes(app, opts.registry)
   mountSessionEventsRoute(app, opts.registry)
   mountSessionStateRoutes(app, opts.registry)
-  mountCollapseRoutes(app, opts.registry)
+  mountFolderStateRoutes(app, opts.registry)
   mountSelectionRoutes(app, opts.registry)
   mountLayoutRoutes(app, opts.registry)
   mountViewRoutes(app, opts.registry)
@@ -44,6 +45,7 @@ export function mountDaemonRoutes(
 
   app.route('/graph', createGraphRoutes(opts.registry))
   mountVaultRoutes(app)
+  mountVaultViewsRoutes(app)
 }
 
 export function createDaemonApp(opts: CreateDaemonAppOptions): Hono {

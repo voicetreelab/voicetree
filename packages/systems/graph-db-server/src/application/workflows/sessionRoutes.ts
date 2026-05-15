@@ -3,6 +3,8 @@ import {
   SessionInfoSchema,
 } from '@vt/graph-db-server/contract'
 import { type SessionRegistry } from '../session/registry.ts'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { emptyResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 
 export type WorkflowSessionRegistry = SessionRegistry
@@ -32,8 +34,20 @@ export function readSessionWorkflow(
     SessionInfoSchema.parse({
       id: session.id,
       lastAccessedAt: session.lastAccessedAt,
-      collapseSetSize: session.collapseSet.size,
+      folderStateSize: readFolderStateSize(),
       selectionSize: session.selection.size,
     }),
   )
+}
+
+function readFolderStateSize(): number {
+  const vaultPath = getProjectRootWatchedDirectory()
+  if (!vaultPath) {
+    return 0
+  }
+  try {
+    return getFolderStateForActiveView(vaultPath).folderState.length
+  } catch {
+    return 0
+  }
 }

@@ -15,18 +15,6 @@ export const UnknownResponseSchema: Schema<unknown> = {
   },
 }
 
-export const ReadPathsMutationResponseSchema: Schema<{ readPaths: string[] }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || !Array.isArray(input.readPaths)) {
-      throw new Error('Invalid read-paths response body')
-    }
-    if (!input.readPaths.every((value) => typeof value === 'string')) {
-      throw new Error('Invalid read-paths response body')
-    }
-    return { readPaths: [...input.readPaths] }
-  },
-}
-
 export const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
   parse(input: unknown) {
     if (!isObject(input) || typeof input.writePath !== 'string') {

@@ -29,6 +29,10 @@ import {
   registerVaultResource,
   resetVaultLifecycle,
 } from '../application/workflows/vaultLifecycle.ts'
+import {
+  closeFolderVisibilityForVault,
+  openFolderVisibilityForVault,
+} from '../data/views/folderVisibilityResource.ts'
 
 export type DaemonHandle = {
   port: number
@@ -271,6 +275,10 @@ export async function startDaemon(
   }
 
   configureVaultLifecycle({ activeVaultPath: null, registry })
+  registerVaultResource({
+    openForVault: openFolderVisibilityForVault,
+    closeForVault: closeFolderVisibilityForVault,
+  })
   registerVaultResource({
     async openForVault(vaultPath: string): Promise<void> {
       await startWatcher(vaultPath)

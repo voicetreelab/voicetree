@@ -46,7 +46,6 @@ type ActionType =
   | 'updateExistingNode'
   | 'deleteNodeDelta'
   | 'deleteNodeEndpoint'
-  | 'addReadPath'
   | 'getGraph'
 
 interface TrackedNode {
@@ -58,7 +57,6 @@ interface TrackedNode {
 interface TrackedState {
   filesOnDisk: Map<string, string> // path -> expected content
   nodesViaApi: Map<string, TrackedNode> // id -> tracked node
-  readPathsAdded: Set<string>
   deletedNodeIds: Set<string> // nodes we explicitly deleted (daemon doesn't cascade incoming edges)
 }
 
@@ -100,7 +98,7 @@ function generateAction(
   seqId: number,
   stepId: number,
 ): { type: ActionType; execute: () => Promise<void> } {
-  const candidates: ActionType[] = ['createFile', 'upsertNodeDelta', 'upsertNodeWithEdges', 'addReadPath', 'getGraph']
+  const candidates: ActionType[] = ['createFile', 'upsertNodeDelta', 'upsertNodeWithEdges', 'getGraph']
 
   if (tracked.filesOnDisk.size > 0) candidates.push('deleteFile')
   if (tracked.nodesViaApi.size > 0) {
@@ -315,24 +313,6 @@ function generateAction(
       }
     }
 
-    case 'addReadPath': {
-      const subdir = `fuzz-dir-${seqId}-${stepId}`
-      const dirPath = path.join(vault, subdir)
-      return {
-        type: 'addReadPath',
-        execute: async () => {
-          await mkdir(dirPath, { recursive: true })
-          const { status } = await fetchJson(`${baseUrl}/vault/read-paths`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ path: dirPath }),
-          })
-          expect(status).toBe(200)
-          tracked.readPathsAdded.add(dirPath)
-        },
-      }
-    }
-
     case 'getGraph': {
       return {
         type: 'getGraph',
@@ -450,14 +430,6 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
     })
     const baseUrl = `http://127.0.0.1:${handle.port}`
 
-    // Add vault root as a read path so file watcher picks up created files
-    const addRootRes = await fetchJson(`${baseUrl}/vault/read-paths`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path: vault }),
-    })
-    expect(addRootRes.status).toBe(200)
-
     const SEED = 0xF077_CAFE
     const SEQUENCES = 100
     const topRng = mulberry32(SEED)
@@ -470,7 +442,6 @@ describe('system lifecycle fuzz (100 sequences, black-box HTTP)', () => {
       const tracked: TrackedState = {
         filesOnDisk: new Map(),
         nodesViaApi: new Map(),
-        readPathsAdded: new Set(),
         deletedNodeIds: new Set(),
       }
 

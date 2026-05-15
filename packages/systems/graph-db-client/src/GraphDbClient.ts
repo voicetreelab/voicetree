@@ -1,9 +1,14 @@
 import {
-  AddReadPathRequestSchema,
+  CloneViewRequestSchema,
+  CreateViewRequestSchema,
+  FolderStateBatchRequestSchema,
+  FolderStatePatchRequestSchema,
+  FolderStateResponseSchema,
   GraphStateSchema,
   HealthResponseSchema,
   LayoutPartialSchema,
   LayoutResponseSchema,
+  ListViewsResponseSchema,
   LiveStateSnapshotSchema,
   SelectionRequestSchema,
   SelectionResponseSchema,
@@ -12,7 +17,11 @@ import {
   SetWritePathRequestSchema,
   ShutdownResponseSchema,
   VaultStateSchema,
+  ViewRecordSchema,
   ViewResponseSchema,
+  type FolderState,
+  type FolderStateResponse,
+  type FolderStateBatchUpdate,
   type GraphState,
   type HealthResponse,
   type LayoutPartial,
@@ -25,6 +34,7 @@ import {
   type ShutdownResponse,
   type UnseenNode,
   type VaultState,
+  type ViewRecord,
   type ViewResponse,
 } from './contract.ts'
 import {
@@ -39,7 +49,6 @@ import {
   ContextNodeResponseSchema,
   FindFileMatchesResponseSchema,
   PreviewContainedNodeIdsResponseSchema,
-  ReadPathsMutationResponseSchema,
   OpenVaultResponseSchema,
   UndoRedoResponseSchema,
   UnknownResponseSchema,
@@ -198,23 +207,6 @@ export class GraphDbClient {
     })
   }
 
-  async addReadPath(path: string): Promise<VaultState> {
-    await this.request('/vault/read-paths', {
-      body: AddReadPathRequestSchema.parse({ path }),
-      method: 'POST',
-      responseSchema: ReadPathsMutationResponseSchema,
-    })
-    return await this.getVault()
-  }
-
-  async removeReadPath(path: string): Promise<VaultState> {
-    await this.request(`/vault/read-paths/${encodeURIComponent(path)}`, {
-      method: 'DELETE',
-      responseSchema: ReadPathsMutationResponseSchema,
-    })
-    return await this.getVault()
-  }
-
   async setWritePath(path: string): Promise<VaultState> {
     await this.request('/vault/write-path', {
       body: SetWritePathRequestSchema.parse({ path }),
@@ -363,31 +355,75 @@ export class GraphDbClient {
     })
   }
 
-  async collapse(
-    sessionId: string,
-    folderId: string,
-  ): Promise<unknown> {
+  async getFolderState(sessionId: string): Promise<FolderStateResponse> {
     return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
+      `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
       {
-        method: 'POST',
-        responseSchema: UnknownResponseSchema,
+        responseSchema: FolderStateResponseSchema,
       },
     )
   }
 
-  async expand(
+  async setFolderState(
     sessionId: string,
-    folderId: string,
-  ): Promise<unknown> {
+    path: string,
+    state: FolderState,
+  ): Promise<FolderStateResponse> {
     return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
+      `/sessions/${encodeURIComponent(sessionId)}/folder-state/${encodeURIComponent(path)}`,
       {
-        method: 'DELETE',
-        responseSchema: UnknownResponseSchema,
+        body: FolderStatePatchRequestSchema.parse({ state }),
+        method: 'PATCH',
+        responseSchema: FolderStateResponseSchema,
       },
     )
   }
+
+  async setFolderStateBatch(
+    sessionId: string,
+    updates: readonly FolderStateBatchUpdate[],
+  ): Promise<FolderStateResponse> {
+    return await this.request(
+      `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
+      {
+        body: FolderStateBatchRequestSchema.parse({ updates }),
+        method: 'PATCH',
+        responseSchema: FolderStateResponseSchema,
+      },
+    )
+  }
+
+  readonly views = {
+    list: async (): Promise<readonly ViewRecord[]> => await this.request('/vault/views', {
+      responseSchema: ListViewsResponseSchema,
+    }),
+    create: async (name: string): Promise<ViewRecord> => await this.request('/vault/views', {
+      body: CreateViewRequestSchema.parse({ name }),
+      method: 'POST',
+      responseSchema: ViewRecordSchema,
+    }),
+    activate: async (viewId: string): Promise<ViewRecord> => await this.request(
+      `/vault/views/${encodeURIComponent(viewId)}/activate`,
+      {
+        method: 'POST',
+        responseSchema: ViewRecordSchema,
+      },
+    ),
+    clone: async (srcViewId: string, dstName: string): Promise<ViewRecord> => await this.request(
+      `/vault/views/${encodeURIComponent(srcViewId)}/clone`,
+      {
+        body: CloneViewRequestSchema.parse({ name: dstName }),
+        method: 'POST',
+        responseSchema: ViewRecordSchema,
+      },
+    ),
+    delete: async (viewId: string): Promise<void> => {
+      await this.request(`/vault/views/${encodeURIComponent(viewId)}`, {
+        expectNoContent: true,
+        method: 'DELETE',
+      })
+    },
+  } as const
 
   async setSelection(
     sessionId: string,

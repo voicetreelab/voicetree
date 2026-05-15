@@ -47,7 +47,7 @@ describe('session routes', () => {
     expect(getResponse.status).toBe(200)
     const info = SessionInfoSchema.parse(await getResponse.json())
     expect(info.id).toBe(createBody.sessionId)
-    expect(info.collapseSetSize).toBe(0)
+    expect(info.folderStateSize).toBe(0)
     expect(info.selectionSize).toBe(0)
 
     const healthAfterCreate = HealthResponseSchema.parse(
