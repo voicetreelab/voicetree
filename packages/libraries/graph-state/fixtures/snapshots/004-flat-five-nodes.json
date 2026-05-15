@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/alpha.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/beta.md",
@@ -25,6 +26,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/beta.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/beta.md",
           "contentWithoutYamlOrLinks": "# Beta\n\nExecution detail.\n",
@@ -39,6 +41,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/delta.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/delta.md",
           "contentWithoutYamlOrLinks": "# Delta\n\nStaging note.\n",
@@ -53,6 +56,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/epsilon.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/epsilon.md",
           "contentWithoutYamlOrLinks": "# Epsilon\n\nArchive note.\n",
@@ -67,6 +71,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/gamma.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/gamma.md",
           "contentWithoutYamlOrLinks": "# Gamma\n\nLoose note.\n",

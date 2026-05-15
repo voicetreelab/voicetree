@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/alpha.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/beta.md",
@@ -29,6 +30,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/beta.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/beta.md",
           "contentWithoutYamlOrLinks": "# Beta\n\nExecution detail.\n",
@@ -43,6 +45,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/gamma.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/gamma.md",
           "contentWithoutYamlOrLinks": "# Gamma\n\nLoose note.\n",

@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md",
@@ -25,6 +26,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
@@ -44,6 +46,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
           "contentWithoutYamlOrLinks": "# BF-118\n\nReady for execution.\n",

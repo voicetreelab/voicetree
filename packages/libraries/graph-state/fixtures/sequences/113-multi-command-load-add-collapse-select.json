@@ -13,6 +13,7 @@
     {
       "type": "AddNode",
       "node": {
+        "kind": "leaf",
         "outgoingEdges": [],
         "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
         "contentWithoutYamlOrLinks": "# delta\n\nAdded during the multi-command sequence.\n",

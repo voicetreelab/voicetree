@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/notes/retro.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/retro.md",
           "contentWithoutYamlOrLinks": "# retro\n\nWeekly retro.\n",
@@ -20,6 +21,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/notes/spec.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
           "contentWithoutYamlOrLinks": "# spec\n\nShared reference note.\n",
@@ -34,6 +36,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/notes/spec.md",
