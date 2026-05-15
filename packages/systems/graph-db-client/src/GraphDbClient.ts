@@ -69,6 +69,35 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function serializeNodeForIpc(node: unknown): unknown {
+  if (!isObject(node)) return node
+  const meta = (node as { nodeUIMetadata?: unknown }).nodeUIMetadata
+  if (!isObject(meta)) return node
+  const props = (meta as { additionalYAMLProps?: unknown }).additionalYAMLProps
+  if (!(props instanceof Map)) return node
+  return {
+    ...node,
+    nodeUIMetadata: {
+      ...meta,
+      additionalYAMLProps: Array.from(props.entries()),
+    },
+  }
+}
+
+function serializeDeltaForIpc(delta: unknown[]): unknown[] {
+  return delta.map((entry) => {
+    if (!isObject(entry)) return entry
+    if (entry.type !== 'UpsertNode') return entry
+    const nodeToUpsert = serializeNodeForIpc(entry.nodeToUpsert)
+    const previousNode = entry.previousNode
+    const serializedPrevious =
+      isObject(previousNode) && previousNode._tag === 'Some'
+        ? { ...previousNode, value: serializeNodeForIpc(previousNode.value) }
+        : previousNode
+    return { ...entry, nodeToUpsert, previousNode: serializedPrevious }
+  })
+}
+
 async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
   try {
     const body = (await response.json()) as unknown
@@ -194,7 +223,10 @@ export class GraphDbClient {
     }
 
     await this.request('/graph/apply-delta', {
-      body: { delta, recordForUndo: opts.recordForUndo },
+      body: {
+        delta: serializeDeltaForIpc(delta),
+        recordForUndo: opts.recordForUndo,
+      },
       expectNoContent: false,
       headers,
       method: 'POST',
