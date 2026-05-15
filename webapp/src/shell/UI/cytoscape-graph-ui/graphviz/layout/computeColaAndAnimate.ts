@@ -65,17 +65,20 @@ export const computeColaAndAnimate: (
         const progress: number = easeInOutCubic(rawProgress);
 
         cy.startBatch();
-        nodes.forEach((n: NodeSingular) => {
-          const s: { x: number; y: number } | undefined = startPos.get(n.id());
-          const e: { x: number; y: number } | undefined = endPos.get(n.id());
-          if (s && e) {
-            n.position({
-              x: s.x + (e.x - s.x) * progress,
-              y: s.y + (e.y - s.y) * progress
-            });
-          }
-        });
-        cy.endBatch();
+        try {
+          nodes.forEach((n: NodeSingular) => {
+            const s: { x: number; y: number } | undefined = startPos.get(n.id());
+            const e: { x: number; y: number } | undefined = endPos.get(n.id());
+            if (s && e) {
+              n.position({
+                x: s.x + (e.x - s.x) * progress,
+                y: s.y + (e.y - s.y) * progress
+              });
+            }
+          });
+        } finally {
+          cy.endBatch();
+        }
 
         if (rawProgress < 1) {
           requestAnimationFrame(animateFrame);

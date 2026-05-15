@@ -18,6 +18,7 @@ import {disposeTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSi
 import {disposeFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
 import {destroyHeadlessBadges} from '@/shell/edge/UI-edge/floating-windows/headless-badge-overlay';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
+import {resetLargeGraphPerformanceState} from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
 
 export interface GraphViewDisposeDependencies {
     cy: Core;
@@ -95,6 +96,9 @@ export function disposeGraphView(deps: GraphViewDisposeDependencies): void {
     if (deps.navigator) {
         deps.navigator.destroy();
     }
+
+    // Reset large-graph performance module state before destroying cy
+    resetLargeGraphPerformanceState();
 
     // Destroy Cytoscape
     deps.cy.destroy();
