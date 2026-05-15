@@ -56,14 +56,14 @@ async function listProductionSources(root: string): Promise<string[]> {
 
 function collectGitChurn(): ReadonlyMap<string, number> {
     const output = execSync(
-        "git log --since='6 months ago' --format=%H --name-only -- packages/systems",
-        {cwd: REPO_ROOT, encoding: 'utf8'},
+        "git log --since='6 months ago' --format= --name-only",
+        {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024},
     )
     const churn = new Map<string, number>()
 
     for (const line of output.split('\n')) {
         const file = line.trim()
-        if (!file || !file.startsWith('packages/systems/')) continue
+        if (!file) continue
         churn.set(file, (churn.get(file) ?? 0) + 1)
     }
 

@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
 import {
     IMPURE_IDENTIFIERS,
-    SOURCE_ROOTS,
     listSourceFiles,
     detectSideEffectsAST,
 } from './purity-analysis'
+import {discoverPackages} from './discover-packages'
 import { readFile } from 'node:fs/promises'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
@@ -262,12 +262,11 @@ function clean(x = 5) { return x + 1 }
 
     it('scans codebase source roots (informational)', async () => {
         const allFindings: GamingFinding[] = []
-        for (const root of SOURCE_ROOTS) {
-            const files = await listSourceFiles(root)
-            for (const file of files) {
-                const findings = await scanForDefaultValueGaming(file)
-                allFindings.push(...findings.map(f => ({ ...f, functionName: `${file}::${f.functionName}` })))
-            }
+        const packages = await discoverPackages()
+        const files = (await Promise.all(packages.map(pkg => listSourceFiles(pkg.srcRoot)))).flat()
+        for (const file of files) {
+            const findings = await scanForDefaultValueGaming(file)
+            allFindings.push(...findings.map(f => ({ ...f, functionName: `${file}::${f.functionName}` })))
         }
         // Informational: print what we find, don't gate
         if (allFindings.length > 0) {

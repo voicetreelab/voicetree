@@ -1,56 +1,13 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import {recordHealthMetric} from './_health-report-test-helpers'
+import { discoverPackages, DEFAULT_REPO_ROOT } from './discover-packages'
+import { listSourceFiles } from './purity-analysis'
 
-const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../..')
-
-const SOURCE_ROOTS: readonly string[] = [
-    join(REPO_ROOT, 'packages/libraries'),
-    join(REPO_ROOT, 'packages/systems'),
-    join(REPO_ROOT, 'webapp/src'),
-]
-
-function isProductionSource(filePath: string): boolean {
-    return (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
-        && !filePath.endsWith('.test.ts')
-        && !filePath.endsWith('.test.tsx')
-        && !filePath.endsWith('.spec.ts')
-        && !filePath.endsWith('.d.ts')
-        && !filePath.endsWith('.config.ts')
-        && !filePath.includes('__tests__')
-        && !filePath.includes('integration-tests')
-        && !filePath.includes('node_modules')
-        && !filePath.includes('/dist/')
-        && !filePath.includes('/build/')
-}
-
-async function listSourceFiles(root: string): Promise<string[]> {
-    const results: string[] = []
-
-    async function walk(dir: string): Promise<void> {
-        let entries
-        try {
-            entries = await readdir(dir, { withFileTypes: true })
-        } catch {
-            return
-        }
-        await Promise.all(entries.map(async entry => {
-            const fullPath: string = join(dir, entry.name)
-            if (entry.isDirectory()) {
-                await walk(fullPath)
-            } else if (entry.isFile() && isProductionSource(fullPath)) {
-                results.push(fullPath)
-            }
-        }))
-    }
-
-    await walk(root)
-    return results.sort()
-}
+const REPO_ROOT: string = resolve(DEFAULT_REPO_ROOT)
 
 type MutableFunctionInfo = {
     readonly name: string
@@ -340,7 +297,8 @@ async function analyzeAllFunctions(): Promise<{
     byLayer: Record<ArchLayer, LayerStats>
     totals: LayerStats
 }> {
-    const allFiles: string[] = (await Promise.all(SOURCE_ROOTS.map(listSourceFiles))).flat()
+    const packages = await discoverPackages()
+    const allFiles: string[] = (await Promise.all(packages.map(pkg => listSourceFiles(pkg.srcRoot)))).flat()
     const allMutable: MutableFunctionInfo[] = []
 
     await Promise.all(allFiles.map(async filePath => {
@@ -482,7 +440,7 @@ describe('function purity ratio (LOC)', () => {
             description: 'Impure LOC detected inside pure/ directories by lexical side-effect detection.',
             category: 'Purity',
             current: violationLoc,
-            budget: totalPureDirLoc * 0.14,
+            budget: 0,
             comparison: 'lte',
             unit: 'LOC',
             details: {
@@ -490,6 +448,6 @@ describe('function purity ratio (LOC)', () => {
                 violations,
             },
         })
-        expect(violationLoc).toBeLessThanOrEqual(totalPureDirLoc * 0.14)
+        expect(violationLoc).toBe(0)
     }, 30000)
 })

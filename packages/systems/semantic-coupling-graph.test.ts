@@ -1,13 +1,15 @@
-import {readdir, readFile} from 'node:fs/promises'
-import {join, relative, resolve} from 'node:path'
+import {dirname, relative, resolve} from 'node:path'
 import {Node, SyntaxKind, type SourceFile} from 'ts-morph'
 import {describe, expect, it} from 'vitest'
 import {buildCallGraph, type CallGraph} from './call-graph'
+import {discoverPackages, type PackageInfo} from './discover-packages'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
-const CODEQL_SEMANTIC_COUPLING_MAX_PAIR_BASELINE = 116
-const CODEQL_SEMANTIC_COUPLING_MAX_OUT_BASELINE = 154
+// Captured 2026-05-15 after widening discovery to whole repo and measuring
+// max community-level coupling across all directory containment depths.
+const SEMANTIC_COUPLING_MAX_PAIR_BASELINE = 217
+const SEMANTIC_COUPLING_MAX_OUT_BASELINE = 497
 const CANARY_TOLERANCE = 0.18
 
 type PairCounts = {
@@ -18,55 +20,73 @@ type PairCounts = {
     readonly total: number
 }
 
+type SourceCommunity = {
+    readonly packageName: string
+    readonly relToSrc: string
+}
+
+type PackageContext = {
+    readonly packagesByName: ReadonlyMap<string, PackageInfo>
+    readonly packagesBySrcRoot: readonly PackageInfo[]
+}
+
 describe('ts-morph semantic coupling canary', () => {
-    it('stays within 15% of the CodeQL semantic coupling baselines', async () => {
+    it('stays within 18% of the semantic coupling ratchet baselines', async () => {
         const started = performance.now()
         const graph = await buildCallGraph()
         const buildMs = Math.round(performance.now() - started)
-        const packageNameMap = await buildPackageNameMap()
-        const pairs = collectSemanticCouplingPairs(graph, packageNameMap)
+        const packages = await discoverPackages()
+        const pairReports = collectSemanticCouplingPairReports(graph, packages)
+        const pairs = pairReports.flatMap(report => report.pairs)
         const topPair = pairs.slice().sort(compareByTotal)[0]
         const maxPair = topPair?.total ?? 0
-        const maxOut = maxPackageOut(pairs)
-        const maxPairDiff = percentDiff(maxPair, CODEQL_SEMANTIC_COUPLING_MAX_PAIR_BASELINE)
-        const maxOutDiff = percentDiff(maxOut, CODEQL_SEMANTIC_COUPLING_MAX_OUT_BASELINE)
-        const expectedTopMatched = topPair?.from === 'graph-db-server' && topPair.to === 'graph-model'
+        const maxOut = Math.max(0, ...pairReports.map(report => maxCommunityOut(report.pairs)))
+        const maxPairDiff = percentDiff(maxPair, SEMANTIC_COUPLING_MAX_PAIR_BASELINE)
+        const maxOutDiff = percentDiff(maxOut, SEMANTIC_COUPLING_MAX_OUT_BASELINE)
+        const expectedTopMatched = topPair?.from === 'webapp/shell' && topPair.to === 'graph-model/__root__'
 
-        console.info(`TS semantic coupling max pair: ${maxPair} vs CodeQL ${CODEQL_SEMANTIC_COUPLING_MAX_PAIR_BASELINE} (${(maxPairDiff * 100).toFixed(2)}% diff); top=${formatPair(topPair)}`)
-        console.info(`TS semantic coupling max out: ${maxOut} vs CodeQL ${CODEQL_SEMANTIC_COUPLING_MAX_OUT_BASELINE} (${(maxOutDiff * 100).toFixed(2)}% diff)`)
+        console.info(`TS semantic coupling max pair: ${maxPair} vs baseline ${SEMANTIC_COUPLING_MAX_PAIR_BASELINE} (${(maxPairDiff * 100).toFixed(2)}% diff); top=${formatPair(topPair)}`)
+        console.info(`TS semantic coupling max out: ${maxOut} vs baseline ${SEMANTIC_COUPLING_MAX_OUT_BASELINE} (${(maxOutDiff * 100).toFixed(2)}% diff)`)
         if (!expectedTopMatched) {
-            console.warn(`TS semantic coupling top pair diverged from CodeQL graph-db-server -> graph-model winner:\n${pairs.slice().sort(compareByTotal).slice(0, 5).map(formatPair).join('\n')}`)
+            console.warn(`TS semantic coupling top pair diverged from webapp/shell -> graph-model/__root__ winner:\n${pairs.slice().sort(compareByTotal).slice(0, 5).map(formatPair).join('\n')}`)
         }
 
         await recordHealthMetric({
             metricId: 'semantic-coupling-max-pair-ts-canary',
             metricName: 'TS Canary Semantic Coupling Max Pair',
-            description: 'Maximum cross-package semantic coupling pair using call edges plus named import bindings.',
+            description: 'Maximum cross-community semantic coupling pair using call edges plus named import bindings.',
             category: 'Coupling',
             current: maxPair,
             budget: maxPair,
             comparison: 'lte',
             unit: 'edges',
             details: {
-                codeqlBaseline: CODEQL_SEMANTIC_COUPLING_MAX_PAIR_BASELINE,
+                baseline: SEMANTIC_COUPLING_MAX_PAIR_BASELINE,
                 percentDiff: maxPairDiff,
                 buildMs,
+                maxDepth: pairReports.at(-1)?.depth ?? 0,
                 topPair,
+                topByDepth: pairReports.map(report => ({
+                    depth: report.depth,
+                    topPair: report.pairs.slice().sort(compareByTotal)[0],
+                    maxOut: maxCommunityOut(report.pairs),
+                })),
                 expectedTopMatched,
             },
         })
         await recordHealthMetric({
             metricId: 'semantic-coupling-max-out-ts-canary',
             metricName: 'TS Canary Semantic Coupling Max Out',
-            description: 'Maximum outbound cross-package semantic coupling using call edges plus named import bindings.',
+            description: 'Maximum outbound cross-community semantic coupling using call edges plus named import bindings.',
             category: 'Coupling',
             current: maxOut,
             budget: maxOut,
             comparison: 'lte',
             unit: 'edges',
             details: {
-                codeqlBaseline: CODEQL_SEMANTIC_COUPLING_MAX_OUT_BASELINE,
+                baseline: SEMANTIC_COUPLING_MAX_OUT_BASELINE,
                 percentDiff: maxOutDiff,
+                maxDepth: pairReports.at(-1)?.depth ?? 0,
             },
         })
 
@@ -75,58 +95,83 @@ describe('ts-morph semantic coupling canary', () => {
     }, 120000)
 })
 
-async function buildPackageNameMap(): Promise<ReadonlyMap<string, string>> {
-    const packageNameMap = new Map<string, string>()
-    for (const layer of ['libraries', 'systems']) {
-        const layerDir = join(REPO_ROOT, 'packages', layer)
-        let entries: readonly string[] = []
-        try {
-            entries = await readdir(layerDir)
-        } catch {
-            continue
-        }
-        for (const entry of entries) {
-            const packageJsonPath = join(layerDir, entry, 'package.json')
-            try {
-                const parsed = JSON.parse(await readFile(packageJsonPath, 'utf8')) as {name?: unknown}
-                if (typeof parsed.name === 'string') packageNameMap.set(parsed.name, entry)
-            } catch {
-                continue
-            }
-        }
-    }
-    return packageNameMap
+function communityAtDepth(pkg: string, relToSrc: string, depth: number): string {
+    if (depth === 0) return pkg
+    const dir = dirname(relToSrc)
+    const parts = dir === '.' ? [] : dir.split('/')
+    const segments = parts.slice(0, depth)
+    if (segments.length < depth) return [pkg, ...segments, '__root__'].join('/')
+    return [pkg, ...segments].join('/')
 }
 
-function collectSemanticCouplingPairs(
+function buildPackageContext(packages: readonly PackageInfo[]): PackageContext {
+    return {
+        packagesByName: new Map(packages.map(pkg => [pkg.name, pkg])),
+        packagesBySrcRoot: packages
+            .slice()
+            .sort((a, b) => b.srcRoot.length - a.srcRoot.length),
+    }
+}
+
+function collectSemanticCouplingPairReports(
     graph: CallGraph,
-    packageNameMap: ReadonlyMap<string, string>,
+    packages: readonly PackageInfo[],
+): readonly {depth: number; pairs: readonly PairCounts[]}[] {
+    const packageContext = buildPackageContext(packages)
+    const sourceCommunities = graph.sourceFiles
+        .map(sourceFile => sourceCommunityForPath(sourceFile.getFilePath(), packageContext))
+        .filter((source): source is SourceCommunity => Boolean(source))
+    const maxDepth = Math.max(0, ...sourceCommunities.map(source => {
+        const dir = dirname(source.relToSrc)
+        return dir === '.' ? 0 : dir.split('/').length
+    }))
+
+    const reports: {depth: number; pairs: readonly PairCounts[]}[] = []
+    for (let depth = 1; depth <= maxDepth; depth++) {
+        reports.push({
+            depth,
+            pairs: collectSemanticCouplingPairsAtDepth(graph, packageContext, depth),
+        })
+    }
+    return reports
+}
+
+function collectSemanticCouplingPairsAtDepth(
+    graph: CallGraph,
+    packageContext: PackageContext,
+    depth: number,
 ): readonly PairCounts[] {
     const pairTotals = new Map<string, {from: string; to: string; callees: Set<string>; namedImports: Set<string>}>()
     for (const caller of graph.nodes.values()) {
-        const callerPackage = packageFromRepoPath(caller.file)
-        if (!callerPackage) continue
+        const callerSource = sourceCommunityForPath(caller.file, packageContext)
+        if (!callerSource) continue
+        const callerCommunity = communityAtDepth(callerSource.packageName, callerSource.relToSrc, depth)
         for (const calleeId of graph.callees(caller.id)) {
             const callee = graph.nodes.get(calleeId)
-            const calleePackage = callee ? packageFromRepoPath(callee.file) : undefined
-            if (!calleePackage || calleePackage === callerPackage) continue
-            pairFor(pairTotals, callerPackage, calleePackage).callees.add(callee.name)
+            const calleeSource = callee ? sourceCommunityForPath(callee.file, packageContext) : undefined
+            if (!calleeSource) continue
+            const calleeCommunity = communityAtDepth(calleeSource.packageName, calleeSource.relToSrc, depth)
+            if (calleeCommunity === callerCommunity) continue
+            pairFor(pairTotals, callerCommunity, calleeCommunity).callees.add(callee.name)
         }
     }
     for (const sourceFile of graph.sourceFiles) {
-        const callerPackage = packageFromRepoPath(relative(REPO_ROOT, sourceFile.getFilePath()).replaceAll('\\', '/'))
-        if (!callerPackage) continue
+        const callerSource = sourceCommunityForPath(sourceFile.getFilePath(), packageContext)
+        if (!callerSource) continue
+        const callerCommunity = communityAtDepth(callerSource.packageName, callerSource.relToSrc, depth)
         for (const importDecl of sourceFile.getImportDeclarations()) {
-            const targetPackage = packageFromImport(importDecl.getModuleSpecifierValue(), importDecl.getModuleSpecifierSourceFile()?.getFilePath(), packageNameMap)
-            if (!targetPackage || targetPackage === callerPackage) continue
+            const targetSource = sourceCommunityFromImport(importDecl.getModuleSpecifierValue(), importDecl.getModuleSpecifierSourceFile()?.getFilePath(), packageContext)
+            if (!targetSource) continue
+            const targetCommunity = communityAtDepth(targetSource.packageName, targetSource.relToSrc, depth)
+            if (targetCommunity === callerCommunity) continue
             const namedBindings = new Set(importDecl.getNamedImports().map(binding => binding.getName()))
             if (namedBindings.size === 0) continue
-            const pair = pairFor(pairTotals, callerPackage, targetPackage)
+            const pair = pairFor(pairTotals, callerCommunity, targetCommunity)
             for (const binding of namedBindings) pair.namedImports.add(binding)
         }
-        for (const call of calledNamedImportsByTarget(sourceFile, packageNameMap)) {
-            if (call.targetPackage === callerPackage) continue
-            pairFor(pairTotals, callerPackage, call.targetPackage).callees.add(call.importedName)
+        for (const call of calledNamedImportsByTarget(sourceFile, packageContext, depth)) {
+            if (call.targetCommunity === callerCommunity) continue
+            pairFor(pairTotals, callerCommunity, call.targetCommunity).callees.add(call.importedName)
         }
     }
     return [...pairTotals.values()].map(pair => ({
@@ -140,20 +185,22 @@ function collectSemanticCouplingPairs(
 
 function calledNamedImportsByTarget(
     sourceFile: SourceFile,
-    packageNameMap: ReadonlyMap<string, string>,
-): readonly {targetPackage: string; importedName: string}[] {
-    const importedByLocalName = new Map<string, {targetPackage: string; importedName: string}>()
+    packageContext: PackageContext,
+    depth: number,
+): readonly {targetCommunity: string; importedName: string}[] {
+    const importedByLocalName = new Map<string, {targetCommunity: string; importedName: string}>()
     for (const importDecl of sourceFile.getImportDeclarations()) {
-        const targetPackage = packageFromImport(importDecl.getModuleSpecifierValue(), importDecl.getModuleSpecifierSourceFile()?.getFilePath(), packageNameMap)
-        if (!targetPackage) continue
+        const targetSource = sourceCommunityFromImport(importDecl.getModuleSpecifierValue(), importDecl.getModuleSpecifierSourceFile()?.getFilePath(), packageContext)
+        if (!targetSource) continue
+        const targetCommunity = communityAtDepth(targetSource.packageName, targetSource.relToSrc, depth)
         for (const binding of importDecl.getNamedImports()) {
             importedByLocalName.set(binding.getAliasNode()?.getText() ?? binding.getName(), {
-                targetPackage,
+                targetCommunity,
                 importedName: binding.getName(),
             })
         }
     }
-    const called = new Map<string, {targetPackage: string; importedName: string}>()
+    const called = new Map<string, {targetCommunity: string; importedName: string}>()
     for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
         addCalledImport(call.getExpression())
     }
@@ -166,26 +213,40 @@ function calledNamedImportsByTarget(
         if (!Node.isIdentifier(expression)) return
         const imported = importedByLocalName.get(expression.getText())
         if (!imported) return
-        called.set(`${imported.targetPackage}\0${imported.importedName}`, imported)
+        called.set(`${imported.targetCommunity}\0${imported.importedName}`, imported)
     }
 }
 
-function packageFromImport(
+function sourceCommunityFromImport(
     specifier: string,
     resolvedPath: string | undefined,
-    packageNameMap: ReadonlyMap<string, string>,
-): string | undefined {
-    if (specifier.startsWith('@vt/')) {
-        const packageName = specifier.split('/').slice(0, 2).join('/')
-        return packageNameMap.get(packageName)
+    packageContext: PackageContext,
+): SourceCommunity | undefined {
+    const resolvedSource = resolvedPath ? sourceCommunityForPath(resolvedPath, packageContext) : undefined
+    if (resolvedSource) return resolvedSource
+
+    if (!specifier.startsWith('.')) {
+        for (const [packageName, pkg] of packageContext.packagesByName) {
+            if (specifier !== packageName && !specifier.startsWith(packageName + '/')) continue
+            const subPath = specifier === packageName ? 'index.ts' : specifier.slice(packageName.length + 1)
+            return {packageName: pkg.dirName, relToSrc: subPath}
+        }
     }
-    if (!specifier.startsWith('.') || !resolvedPath) return undefined
-    return packageFromRepoPath(relative(REPO_ROOT, resolvedPath).replaceAll('\\', '/'))
+    if (!resolvedPath) return undefined
+    return sourceCommunityForPath(resolvedPath, packageContext)
 }
 
-function packageFromRepoPath(file: string): string | undefined {
-    const match = file.match(/^packages\/(?:libraries|systems)\/([^/]+)\//)
-    return match?.[1]
+function sourceCommunityForPath(file: string, packageContext: PackageContext): SourceCommunity | undefined {
+    const absPath = normalizePath(resolve(REPO_ROOT, file))
+    for (const pkg of packageContext.packagesBySrcRoot) {
+        const srcRoot = normalizePath(pkg.srcRoot).replace(/\/$/, '')
+        if (absPath !== srcRoot && !absPath.startsWith(srcRoot + '/')) continue
+        return {
+            packageName: pkg.dirName,
+            relToSrc: normalizePath(relative(pkg.srcRoot, absPath)),
+        }
+    }
+    return undefined
 }
 
 function pairFor(
@@ -201,7 +262,7 @@ function pairFor(
     return created
 }
 
-function maxPackageOut(pairs: readonly PairCounts[]): number {
+function maxCommunityOut(pairs: readonly PairCounts[]): number {
     const totals = new Map<string, number>()
     for (const pair of pairs) {
         totals.set(pair.from, (totals.get(pair.from) ?? 0) + pair.total)
@@ -228,4 +289,8 @@ function formatPair(pair: PairCounts | undefined): string {
 
 function topPairsMessage(pairs: readonly PairCounts[]): string {
     return `TS semantic coupling max-pair canary is outside tolerance.\nTop pairs:\n${pairs.slice().sort(compareByTotal).slice(0, 5).map(formatPair).join('\n')}`
+}
+
+function normalizePath(path: string): string {
+    return path.replaceAll('\\', '/')
 }
