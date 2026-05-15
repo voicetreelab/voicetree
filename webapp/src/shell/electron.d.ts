@@ -28,6 +28,9 @@ export interface ElectronAPI {
 
   // File system event listeners (returns cleanup function)
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => () => void;
+  onVaultSwitching: (callback: (data: { path: string }) => void) => () => void;
+  onVaultReady: (callback: (data: { path: string }) => void) => () => void;
+  onVaultLost: (callback: (data: { path?: string; error?: string; pid?: number | null }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
   // Terminal operations

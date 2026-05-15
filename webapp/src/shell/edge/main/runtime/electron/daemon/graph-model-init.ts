@@ -23,20 +23,13 @@ import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-
 import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
-import { ensureDaemonClientForVault, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { ensureDaemonProcess, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
-
-const GRAPH_MODEL_DAEMON_TIMEOUT_MS: number = 15_000
+import { openVault } from '@/shell/edge/main/graph/watch_folder/openVault'
 
 async function loadGraphThroughDaemon(vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
     const activeClient = getActiveDaemonClient()
-    const client = activeClient ?? (
-        vaultPaths[0]
-            ? (await ensureDaemonClientForVault(vaultPaths[0], {
-                timeoutMs: GRAPH_MODEL_DAEMON_TIMEOUT_MS,
-            })).client
-            : null
-    )
+    const client = activeClient ?? (vaultPaths[0] ? (await ensureDaemonProcess()).client : null)
 
     return client
         ? E.right(await getNormalizedDaemonGraph(client))
@@ -168,9 +161,7 @@ export function initializeGraphModel(): void {
             return ensureProjectDotVoicetree(projectPath)
         },
         ensureDaemonForVault(vaultPath: string): Promise<void> {
-            return ensureDaemonClientForVault(vaultPath, {
-                timeoutMs: GRAPH_MODEL_DAEMON_TIMEOUT_MS,
-            }).then(() => undefined)
+            return openVault(vaultPath).then(() => undefined)
         },
         getOnboardingDirectory(): string {
             return getOnboardingDirectory()

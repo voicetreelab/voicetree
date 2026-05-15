@@ -7,7 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from './graph/watch_folder/watchFolder'
 import {getDirectoryTree} from './graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/daemon-graph-queries'
@@ -105,6 +105,10 @@ export const mainAPI = {
   saveSettings,
 
   // File watching operations - thin wrappers
+  openVault,
+
+  getStartupVaultHint,
+
   startFileWatching,
 
   stopFileWatching,

@@ -57,6 +57,27 @@ async function exposeElectronAPI(): Promise<void> {
             return () => ipcRenderer.off('watching-started', handler);
         },
 
+        onVaultSwitching: (callback) => {
+            type VaultSwitchingData = { path: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: VaultSwitchingData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('vault:switching', handler);
+            return () => ipcRenderer.off('vault:switching', handler);
+        },
+
+        onVaultReady: (callback) => {
+            type VaultReadyData = { path: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: VaultReadyData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('vault:ready', handler);
+            return () => ipcRenderer.off('vault:ready', handler);
+        },
+
+        onVaultLost: (callback) => {
+            type VaultLostData = { path?: string; error?: string; pid?: number | null };
+            const handler: (_event: Electron.IpcRendererEvent, data: VaultLostData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('vault:lost', handler);
+            return () => ipcRenderer.off('vault:lost', handler);
+        },
+
         // Remove event listeners (cleanup)
         removeAllListeners: (channel) => {
             ipcRenderer.removeAllListeners(channel);
@@ -130,6 +151,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
+                'vault:switching',
+                'vault:ready',
+                'vault:lost',
                 'ui:call',
             ]);
             if (!ALLOWED_ON_CHANNELS.has(channel)) {
@@ -147,6 +171,9 @@ async function exposeElectronAPI(): Promise<void> {
                 'graph:projectedGraphUpdate',
                 'graph:clear',
                 'watching-started',
+                'vault:switching',
+                'vault:ready',
+                'vault:lost',
                 'ui:call',
             ]);
             if (!ALLOWED_OFF_CHANNELS.has(channel)) {

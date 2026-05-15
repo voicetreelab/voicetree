@@ -8,7 +8,6 @@ import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup/debug-auto-setup';
 import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
-import {getActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 
@@ -156,8 +155,7 @@ export function createWindow(deps: {
             return;
         }
 
-        const projectRoot: string | null = getActiveDaemonConnection()?.vault ?? null;
-        if (deps.isQuitting() && projectRoot && !persistedPositionsBeforeClose) {
+        if (deps.isQuitting() && !persistedPositionsBeforeClose) {
             event.preventDefault();
             persistedPositionsBeforeClose = true;
             void writeCurrentPositionsThroughDaemon()
@@ -174,8 +172,7 @@ export function createWindow(deps: {
     mainWindow.on('closed', () => {
         cleanupTerminalsForWindow(deps.terminalManager, windowId);
         // Persist node positions to .voicetree/positions.json before exit
-        const projectRoot: string | null = getActiveDaemonConnection()?.vault ?? null;
-        if (projectRoot && !persistedPositionsBeforeClose) {
+        if (!persistedPositionsBeforeClose) {
             void writeCurrentPositionsThroughDaemon().catch((error: unknown) => {
                 console.warn('[Main] Failed to persist node positions on window close:', error);
             });

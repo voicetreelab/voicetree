@@ -2,72 +2,41 @@ import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import type { Stats } from 'node:fs'
 import * as O from 'fp-ts/lib/Option.js'
-import { getCallbacks, type FilePath } from '@vt/graph-model'
-import { getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
-import type { AbsolutePath, AvailableFolderItem } from '@vt/graph-model'
+import { getCallbacks, getAvailableFolders, parseSearchQuery, toAbsolutePath } from '@vt/graph-model'
+import type { AbsolutePath, AvailableFolderItem, FilePath } from '@vt/graph-model'
 import type { ParsedQuery } from '@vt/graph-model'
-import { initializeProject } from '@vt/app-config/project'
 import { createDatedSubfolder } from '@vt/app-config/project'
-import {
-    getLastDirectory,
-    getVaultConfigForDirectory,
-    saveLastDirectory,
-    saveVaultConfigForDirectory,
-} from '@vt/app-config/vault-config'
-import type { VaultConfig } from '@vt/graph-model/settings'
-
-import {
-    isDaemonGraphSyncActive,
-    startDaemonGraphSync,
-    stopDaemonGraphSync,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
-import {
-    markLoadTiming,
-    startLoadTiming,
-} from '@/shell/edge/main/observability/diagnostics/loadTiming'
-import { getActiveDaemonVaultState } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
-import {
-    ensureDaemonClientForVault,
-    getActiveDaemonConnection,
-    shutdownActiveDaemonConnection,
-    type CachedDaemonConnection,
-} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
-import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import type { VaultState } from '@vt/graph-db-client'
+
+import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
+import { callDaemon, shutdownActiveDaemonConnection } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
-    getSubfoldersWithModifiedAt,
-    isValidSubdirectory,
-} from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
+    getStartupVaultHint,
+    openVault,
+    setOnFolderSwitchCleanup,
+    type StartupVaultHint,
+} from './openVault'
 
-const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
-    process.env.VOICETREE_DAEMON_LOAD_TIMEOUT_MS ?? '',
-    10,
-)
-const DAEMON_LOAD_TIMEOUT_MS: number = Number.isFinite(configuredDaemonLoadTimeoutMs)
-    ? configuredDaemonLoadTimeoutMs
-    : process.env.CI ? 45_000 : 15_000
+export { getStartupVaultHint, openVault, setOnFolderSwitchCleanup }
 
-let pendingLoadedDirectory: FilePath | null = null
-let onFolderSwitchCleanup: (() => void) | null = null
-
-function getProjectRootWatchedDirectory(): FilePath | null {
-    return getActiveDaemonConnection()?.vault ?? pendingLoadedDirectory
+async function getVaultState(): Promise<VaultState> {
+    return await callDaemon((client) => client.getVault())
 }
 
-export function setOnFolderSwitchCleanup(cleanup: (() => void) | null): void {
-    onFolderSwitchCleanup = cleanup
-}
-
-function syncLoadedRoot(directory?: string): void {
-    syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
+async function getProjectRootWatchedDirectory(): Promise<string | null> {
+    try {
+        return (await getVaultState()).vaultPath
+    } catch {
+        return null
+    }
 }
 
 export async function getAvailableFoldersForSelector(
     searchQuery: string,
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot: string | null = getProjectRootWatchedDirectory()
+    const projectRoot: string | null = await getProjectRootWatchedDirectory()
     if (!projectRoot) {
         return []
     }
@@ -122,220 +91,55 @@ export async function getAvailableFoldersForSelector(
     )
 }
 
-async function pathIsDirectory(directoryPath: string): Promise<boolean> {
-    try {
-        return (await fs.stat(directoryPath)).isDirectory()
-    } catch {
-        return false
-    }
-}
-
-function resolveLocalWritePath(projectPath: string, writePath: string): string {
-    return path.isAbsolute(writePath)
-        ? writePath
-        : path.join(projectPath, writePath)
-}
-
-async function resolveOrCreateWritePath(projectPath: string): Promise<string> {
-    const existingConfig: VaultConfig | undefined = await getVaultConfigForDirectory(projectPath)
-    if (existingConfig?.writePath) {
-        const writePath: string = resolveLocalWritePath(projectPath, existingConfig.writePath)
-        if (await pathIsDirectory(writePath)) {
-            return writePath
-        }
-    }
-
-    const onboardingRoot: string | undefined = getCallbacks().getOnboardingDirectory?.()
-    const onboardingSourceDir: string | undefined = onboardingRoot
-        ? path.join(onboardingRoot, 'voicetree')
-        : undefined
-    const initializedPath: string | null = await initializeProject(projectPath, onboardingSourceDir)
-    const writePath: string = initializedPath ?? projectPath
-    await saveVaultConfigForDirectory(projectPath, { writePath })
-    return writePath
-}
-
-async function startDaemonSyncForLoadedDirectory(directory?: string): Promise<void> {
-    const loadedDirectory: string | null = directory ?? getProjectRootWatchedDirectory()
-    if (!loadedDirectory) {
-        syncLoadedRoot()
-        return
-    }
-
-    await ensureDaemonClientForVault(loadedDirectory, {
-        timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
-    })
-    await startDaemonGraphSync(loadedDirectory)
-    syncLoadedRoot(loadedDirectory)
-}
-
-let inflightInitialLoad: Promise<void> | null = null
-
-export async function initialLoad(): Promise<void> {
-    if (getProjectRootWatchedDirectory() !== null) {
-        return
-    }
-    if (inflightInitialLoad) {
-        return inflightInitialLoad
-    }
-
-    const pending: Promise<void> = doInitialLoad()
-    inflightInitialLoad = pending
-    try {
-        await pending
-    } finally {
-        if (inflightInitialLoad === pending) {
-            inflightInitialLoad = null
-        }
-    }
-}
-
-async function doInitialLoad(): Promise<void> {
-    const startupFolder: string | null = getStartupFolderOverride()
-    if (startupFolder !== null) {
-        await loadFolder(startupFolder)
-        return
-    }
-
-    const lastDirectory: O.Option<string> = await getLastDirectory()
-    if (getProjectRootWatchedDirectory() !== null) {
-        return
-    }
-    if (O.isSome(lastDirectory)) {
-        await loadFolder(lastDirectory.value)
-    }
-}
-
-const inflightLoadByPath: Map<string, Promise<{ readonly success: boolean }>> = new Map()
-
-export async function loadFolder(
-    watchedFolderPath: FilePath,
-): Promise<{ readonly success: boolean }> {
-    if (!(await pathIsDirectory(watchedFolderPath))) {
-        return { success: false }
-    }
-
-    // Idempotency: opening a project that is already the active project is a
-    // no-op. Three independent code paths (renderer bootstrap, UI click,
-    // startFileWatching IPC) can each request the same load. Without this
-    // short-circuit, the second/third arrival re-spawns vt-graphd and clears
-    // the graph view that the first load just populated.
-    if (
-        getProjectRootWatchedDirectory() === watchedFolderPath
-        && isDaemonGraphSyncActive()
-    ) {
-        process.stdout.write(
-            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:already-loaded dir=${watchedFolderPath}\n`,
-        )
-        return { success: true }
-    }
-
-    const existing: Promise<{ readonly success: boolean }> | undefined =
-        inflightLoadByPath.get(watchedFolderPath)
-    if (existing) {
-        process.stdout.write(
-            `[load-timing] ts=${new Date().toISOString()} event=loadFolder:dedupe-hit dir=${watchedFolderPath}\n`,
-        )
-        return existing
-    }
-
-    const pending: Promise<{ readonly success: boolean }> = doLoadFolder(watchedFolderPath)
-    inflightLoadByPath.set(watchedFolderPath, pending)
-    try {
-        return await pending
-    } finally {
-        if (inflightLoadByPath.get(watchedFolderPath) === pending) {
-            inflightLoadByPath.delete(watchedFolderPath)
-        }
-    }
-}
-
-async function doLoadFolder(
-    watchedFolderPath: FilePath,
-): Promise<{ readonly success: boolean }> {
-    startLoadTiming(watchedFolderPath)
-
-    const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
-    if (previousRoot) {
-        await writeCurrentPositionsThroughDaemon().catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err)
-            process.stdout.write(`[loadFolder] Could not save positions before vault switch (${msg}); continuing\n`)
-        })
-    }
-
-    pendingLoadedDirectory = watchedFolderPath
-    void getCallbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ })
-
-    onFolderSwitchCleanup?.()
-    getCallbacks().onGraphCleared?.()
-
-    const writePath: string = await resolveOrCreateWritePath(watchedFolderPath)
-    await getCallbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
-        console.warn('[loadFolder] Failed to set up .voicetree/ defaults:', error)
-    })
-
-    markLoadTiming('main:daemon-ensure-start')
-    const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedFolderPath, {
-        timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
-    })
-    pendingLoadedDirectory = null
-    markLoadTiming('main:daemon-ensure-end', {
-        port: connection.port,
-        launched: connection.launched,
-    })
-    await connection.client.setWritePath(writePath)
-    markLoadTiming('main:daemon-set-write-path-end')
-    await startDaemonSyncForLoadedDirectory(watchedFolderPath)
-    markLoadTiming('main:daemon-graph-sync-started')
-    await saveLastDirectory(watchedFolderPath)
-
-    getCallbacks().onWatchingStarted?.({
-        directory: watchedFolderPath,
-        writePath,
-        timestamp: new Date().toISOString(),
-    })
-
-    return { success: true }
+async function selectDirectory(directoryPath?: string): Promise<string | undefined> {
+    return directoryPath ?? await getCallbacks().openFolderDialog?.()
 }
 
 export async function startFileWatching(
     directoryPath?: string,
 ): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    const selectedDirectory: string | undefined = directoryPath
-        ?? await getCallbacks().openFolderDialog?.()
-
+    console.warn('[watchFolder] startFileWatching is deprecated; use openVault instead.')
+    const selectedDirectory: string | undefined = await selectDirectory(directoryPath)
     if (!selectedDirectory) {
         return { success: false, error: 'No new directory selected' }
     }
-    if (!(await pathIsDirectory(selectedDirectory))) {
-        return { success: false, error: `Path is not a directory: ${selectedDirectory}` }
-    }
 
-    const result: { readonly success: boolean } = await loadFolder(selectedDirectory)
-    return result.success
-        ? { success: true, directory: selectedDirectory }
-        : { success: false, error: 'Failed to load folder' }
+    try {
+        await openVault(selectedDirectory)
+        return { success: true, directory: selectedDirectory }
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        return { success: false, error: message }
+    }
 }
 
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
-    await stopDaemonGraphSync()
-    pendingLoadedDirectory = null
-    await shutdownActiveDaemonConnection()
-    syncWatchedProjectRoot(null)
-    getCallbacks().onFolderCleared?.()
-    return { success: true }
-}
-
-export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
-    const directory: string | undefined = getProjectRootWatchedDirectory() ?? undefined
-    return {
-        isWatching: directory !== undefined && isDaemonGraphSyncActive(),
-        directory,
+    try {
+        await stopDaemonGraphSync()
+        await callDaemon((client) => client.closeVault())
+        syncWatchedProjectRoot(null)
+        getCallbacks().onFolderCleared?.()
+        return { success: true }
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        return { success: false, error: message }
     }
 }
 
-export function isWatching(): boolean {
-    return getWatchStatus().isWatching
+export async function getWatchStatus(): Promise<{ readonly isWatching: boolean; readonly directory: string | undefined }> {
+    try {
+        const vaultState: VaultState = await getVaultState()
+        return {
+            isWatching: true,
+            directory: vaultState.vaultPath,
+        }
+    } catch {
+        return { isWatching: false, directory: undefined }
+    }
+}
+
+export async function isWatching(): Promise<boolean> {
+    return (await getWatchStatus()).isWatching
 }
 
 export async function loadPreviousFolder(): Promise<{
@@ -343,59 +147,47 @@ export async function loadPreviousFolder(): Promise<{
     readonly directory?: string
     readonly error?: string
 }> {
-    await initialLoad()
-    const watchedDir: string | null = getProjectRootWatchedDirectory()
-    return watchedDir
-        ? { success: true, directory: watchedDir }
-        : { success: false, error: 'No previous folder found' }
+    console.warn('[watchFolder] loadPreviousFolder is deprecated; use getStartupVaultHint + openVault instead.')
+    const hint: StartupVaultHint = await getStartupVaultHint()
+    if (hint.kind === 'none') {
+        return { success: false, error: 'No previous folder found' }
+    }
+
+    try {
+        await openVault(hint.path)
+        return { success: true, directory: hint.path }
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        return { success: false, error: message }
+    }
 }
 
 export async function markFrontendReady(): Promise<void> {
-    await initialLoad()
+    console.warn('[watchFolder] markFrontendReady is deprecated; use getStartupVaultHint + openVault instead.')
+    const hint: StartupVaultHint = await getStartupVaultHint()
+    if (hint.kind !== 'none') {
+        await openVault(hint.path)
+    }
 }
 
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
-    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
-    if (daemonVaultState) {
-        return [
-            daemonVaultState.writePath,
-            ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writePath),
-        ]
-    }
-
-    const writePath: O.Option<FilePath> = await getWritePath()
-    return O.isSome(writePath) ? [writePath.value] : []
+    const daemonVaultState: VaultState = await getVaultState()
+    return [
+        daemonVaultState.writePath,
+        ...daemonVaultState.readPaths.filter((path: string) => path !== daemonVaultState.writePath),
+    ]
 }
 
 export async function getReadPaths(): Promise<readonly FilePath[]> {
-    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
-    if (daemonVaultState) {
-        return daemonVaultState.readPaths
-    }
-
-    return []
+    return (await getVaultState()).readPaths
 }
 
 export async function getWritePath(): Promise<O.Option<FilePath>> {
-    const daemonVaultState: VaultState | null = await getActiveDaemonVaultState()
-    if (daemonVaultState) {
-        return O.some(daemonVaultState.writePath)
-    }
-
-    const watchedDir: FilePath | null = getProjectRootWatchedDirectory()
-    if (!watchedDir) {
+    try {
+        return O.some((await getVaultState()).writePath)
+    } catch {
         return O.none
     }
-    const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir)
-    return O.some(config?.writePath ? resolveLocalWritePath(watchedDir, config.writePath) : watchedDir)
-}
-
-export function getVaultPath(): O.Option<FilePath> {
-    return O.fromNullable(getProjectRootWatchedDirectory())
-}
-
-export function setVaultPath(vaultPath: FilePath): void {
-    pendingLoadedDirectory = vaultPath || null
 }
 
 export async function createDatedVoiceTreeFolder(): Promise<{
@@ -403,27 +195,24 @@ export async function createDatedVoiceTreeFolder(): Promise<{
     path?: string
     error?: string
 }> {
-    const watchedDir: string | null = getProjectRootWatchedDirectory()
-    if (!watchedDir) {
-        return { success: false, error: 'No project open' }
-    }
-
     try {
-        const previousVaultState: VaultState | null = await getActiveDaemonVaultState()
+        const previousVaultState: VaultState = await getVaultState()
+        const watchedDir: string = previousVaultState.vaultPath
         const newPath: string = await createDatedSubfolder(watchedDir)
-        const connection: CachedDaemonConnection = await ensureDaemonClientForVault(watchedDir, {
-            timeoutMs: DAEMON_LOAD_TIMEOUT_MS,
+        const nextVaultState: VaultState = await callDaemon(async (client) => {
+            await client.addReadPath(newPath)
+            return await client.setWritePath(newPath)
         })
-        await connection.client.addReadPath(newPath)
-        await connection.client.setWritePath(newPath)
+
         if (
-            previousVaultState?.writePath
+            previousVaultState.writePath
             && previousVaultState.writePath !== newPath
             && previousVaultState.writePath !== watchedDir
         ) {
-            await connection.client.removeReadPath(previousVaultState.writePath).catch(() => undefined)
+            await callDaemon((client) => client.removeReadPath(previousVaultState.writePath)).catch(() => undefined)
         }
-        await startDaemonSyncForLoadedDirectory(watchedDir)
+
+        syncWatchedProjectRoot(nextVaultState.vaultPath)
         return { success: true, path: newPath }
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)
@@ -446,4 +235,25 @@ export async function createSubfolder(
         const message: string = error instanceof Error ? error.message : String(error)
         return { success: false, error: message }
     }
+}
+
+export async function shutdownGraphDaemon(): Promise<void> {
+    await shutdownActiveDaemonConnection()
+}
+
+export async function loadFolder(
+    watchedFolderPath: FilePath,
+    _opts?: unknown,
+): Promise<{ readonly success: boolean }> {
+    console.warn('[watchFolder] loadFolder is deprecated; use openVault instead.')
+    await openVault(watchedFolderPath)
+    return { success: true }
+}
+
+export function getVaultPath(): O.Option<FilePath> {
+    return O.none
+}
+
+export function setVaultPath(_vaultPath: FilePath): void {
+    console.warn('[watchFolder] setVaultPath is deprecated and no longer stores webapp-side vault state.')
 }
