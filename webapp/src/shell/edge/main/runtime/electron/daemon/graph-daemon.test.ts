@@ -1,4 +1,10 @@
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+
+vi.mock('electron', () => ({
+    app: {
+        getPath: vi.fn(() => '/tmp/test-userdata-nonexistent-' + Date.now()),
+    },
+}))
 
 import {
     clearDaemonClientCache,
