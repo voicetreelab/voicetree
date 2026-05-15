@@ -16,8 +16,26 @@ export type DaemonCliParityReport = {
 
 export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] = [
     {command: 'vt vault show', routeId: 'vault.show'},
-    {command: 'vt vault add-read-path', routeId: 'vault.add-read-path'},
-    {command: 'vt vault remove-read-path', routeId: 'vault.remove-read-path'},
+    {
+        command: 'Electron openVault IPC',
+        routeId: 'vault.open',
+        notes: 'Awaitable vault lifecycle route consumed by Electron startup and project switching; not exposed as a user-facing CLI command.',
+    },
+    {
+        command: 'Electron closeVault IPC',
+        routeId: 'vault.close',
+        notes: 'Awaitable vault lifecycle route consumed by Electron shutdown/switching workflows; not exposed as a user-facing CLI command.',
+    },
+    {
+        command: 'vt vault add-read-path',
+        routeId: null,
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /vault/read-paths route.',
+    },
+    {
+        command: 'vt vault remove-read-path',
+        routeId: null,
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /vault/read-paths route.',
+    },
     {command: 'vt vault set-write-path', routeId: 'vault.set-write-path'},
     {command: 'vt session create', routeId: 'session.create'},
     {command: 'vt session delete', routeId: 'session.delete'},
@@ -28,8 +46,56 @@ export const CLI_DAEMON_ROUTE_COVERAGE: readonly CliDaemonRouteCoverageEntry[] =
         notes: 'SSE stream consumed by the Electron renderer for real-time graph delta notifications; not a user-facing CLI subcommand.',
     },
     {command: 'vt view show', routeId: 'view.show'},
-    {command: 'vt view collapse', routeId: 'view.collapse'},
-    {command: 'vt view expand', routeId: 'view.expand'},
+    {
+        command: 'vt view set-folder',
+        routeId: 'session.folder-state.set',
+        notes: 'UFV-2 daemon route for active-view folder visibility; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view set-folder --batch',
+        routeId: 'session.folder-state.batch',
+        notes: 'UFV-2 daemon route for bulk active-view folder visibility; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view state',
+        routeId: 'session.folder-state.read',
+        notes: 'UFV-2 daemon route for reading active-view folder visibility; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view list',
+        routeId: 'vault.views.list',
+        notes: 'UFV-2 daemon route for listing named vault views; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view create',
+        routeId: 'vault.views.create',
+        notes: 'UFV-2 daemon route for creating named vault views; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view switch',
+        routeId: 'vault.views.activate',
+        notes: 'UFV-2 daemon route for switching named vault views; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view clone',
+        routeId: 'vault.views.clone',
+        notes: 'UFV-2 daemon route for cloning named vault views; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view delete',
+        routeId: 'vault.views.delete',
+        notes: 'UFV-2 daemon route for deleting named vault views; CLI verb lands in BF-252.',
+    },
+    {
+        command: 'vt view collapse',
+        routeId: null,
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /collapse route in favor of session.folder-state.set.',
+    },
+    {
+        command: 'vt view expand',
+        routeId: null,
+        notes: 'Legacy CLI verb retained until BF-253; BF-247 removed the daemon /collapse route in favor of session.folder-state.set.',
+    },
     {command: 'vt view selection set', routeId: 'view.selection'},
     {command: 'vt view selection add', routeId: 'view.selection'},
     {command: 'vt view selection remove', routeId: 'view.selection'},
