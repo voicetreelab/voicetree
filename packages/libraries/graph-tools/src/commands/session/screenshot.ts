@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveChromium } from '../../debug/protocol/playwrightSession'
-import { formatCdpHttpEndpoint, resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { ok, err } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { resolveChromium } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { formatCdpHttpEndpoint, resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { ok, err } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 
 interface ScreenshotTargetLike {
   screenshot(options?: { path?: string; type?: 'png'; fullPage?: boolean }): Promise<Buffer>

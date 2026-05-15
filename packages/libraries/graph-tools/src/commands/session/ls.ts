@@ -1,7 +1,7 @@
 import { registerCommand } from '../index'
-import { filterInstancesBySelector, listLiveInstances } from '../../debug/protocol/discover'
-import { ok } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { filterInstancesBySelector, listLiveInstances } from '@vt/graph-tools/debug/protocol/discover'
+import { ok } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 
 type LsOptions = {
   port?: number
