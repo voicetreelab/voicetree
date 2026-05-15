@@ -297,14 +297,6 @@ export async function setFolderStateThroughDaemon(
   })
 }
 
-export async function getActiveDaemonVaultState(): Promise<VaultState | null> {
-  try {
-    return await callDaemon((client) => client.getVault())
-  } catch {
-    return null
-  }
-}
-
 export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
   return await runVaultMutation(`addReadPath:${path}`, (client) => client.addReadPath(path))
 }

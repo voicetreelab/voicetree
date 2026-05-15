@@ -10,7 +10,7 @@ import type { VaultState } from '@vt/graph-db-client'
 
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
-import { callDaemon, shutdownActiveDaemonConnection } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
     getStartupVaultHint,
@@ -235,10 +235,6 @@ export async function createSubfolder(
         const message: string = error instanceof Error ? error.message : String(error)
         return { success: false, error: message }
     }
-}
-
-export async function shutdownGraphDaemon(): Promise<void> {
-    await shutdownActiveDaemonConnection()
 }
 
 export async function loadFolder(
