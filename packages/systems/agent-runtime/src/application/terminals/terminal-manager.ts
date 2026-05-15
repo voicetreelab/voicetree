@@ -135,12 +135,19 @@ export class TerminalManager {
   // registers in terminal-registry. The renderer panel speaks WS to the relay
   // directly — no PTY is owned by this process for tmux-backed terminals.
   //
-  // Env strategy mirrors the headless path: only pass agent-specific overrides
-  // (terminalData.initialEnvVars) via `tmux new-session -e`. The tmux server
-  // inherits the spawner's process env (PATH/HOME/SHELL/USER/...) and panes
-  // inherit from the server, so passing the full process.env via `-e` is
-  // redundant AND overflows tmux's command-line buffer at ~70+ entries
-  // ("command too long" exit-1 — Zoe M1-rerun-2 failure mode).
+  // Env strategy: only forward agent-identity overrides (small env vars from
+  // terminalData.initialEnvVars). tmux's -e command-line buffer overflows on
+  // large values — AGENT_PROMPT_* are multi-KB strings (Aki M1-rerun-3 mode).
+  // Filtered classes:
+  //   - AGENT_PROMPT, AGENT_PROMPT_CORE, AGENT_PROMPT_LIGHTWEIGHT,
+  //     AGENT_PROMPT_PREVIOUS_BACKUP — prompt payloads; consumed by agent CLI,
+  //     not by the interactive shell. Phase 6 (default flip to tmux for
+  //     production) will need an env-file / source-on-startup workaround to
+  //     deliver these to the agent process. M1 only verifies the panel shell
+  //     surface, so dropping prompts here is acceptable for the sweep.
+  //   - Any value > 4 KB defensively dropped against future large-var classes.
+  // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
+  // context; panes inherit from the server.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -148,7 +155,15 @@ export class TerminalManager {
     try {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
-      const tmuxEnv: Record<string, string> = {...(terminalData.initialEnvVars ?? {})};
+      const tmuxEnv: Record<string, string> = {};
+      const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
+      for (const key of Object.keys(initial)) {
+        if (key.startsWith('AGENT_PROMPT')) continue;
+        const value: string = initial[key];
+        if (typeof value !== 'string') continue;
+        if (value.length > 4096) continue;
+        tmuxEnv[key] = value;
+      }
       await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv);
       return {success: true, terminalId};
     } catch (error: unknown) {
