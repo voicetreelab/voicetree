@@ -174,7 +174,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
 
                 if (isFolder) {
                     const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                    cy.add({
+                    const addedFolder = cy.add({
                         group: 'nodes' as const,
                         data: {
                             ...baseData,
@@ -189,6 +189,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                                 : {}),
                         },
                     })
+                    // Folder body is input-inert. The corner chip (FolderHandleService)
+                    // carries drag + collapse. Collapsed folders stay grabbable so the
+                    // pill itself can be dragged like a regular node.
+                    if (!collapsed) addedFolder.ungrabify()
                     continue
                 }
 
@@ -229,9 +233,13 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 if (collapsed) {
                     existing.data('collapsed', true)
                     existing.data('childCount', specNode.childCount ?? 0)
+                    // Collapsed pill is a regular node — grabbable
+                    if (!existing.grabbable()) existing.grabify()
                 } else {
                     if (existing.data('collapsed')) existing.removeData('collapsed')
                     if (existing.data('childCount') !== undefined) existing.removeData('childCount')
+                    // Expanded folder body is input-inert; chip handles drag.
+                    if (existing.grabbable()) existing.ungrabify()
                 }
                 continue
             }

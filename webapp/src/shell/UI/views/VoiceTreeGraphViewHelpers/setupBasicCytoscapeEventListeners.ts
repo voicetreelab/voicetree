@@ -32,6 +32,11 @@ export function setupBasicCytoscapeEventListeners(
 
     const node: NodeSingular = e.target;
 
+    // Folder compound nodes are input-inert in the body: no grab cursor, no
+    // auto-select. The corner chip (FolderHandleService) carries the affordances.
+    // Body remains hover-editor eligible via setupCommandHover (separate listener).
+    if (node.data('isFolderNode')) return;
+
     // Show grab cursor to indicate nodes are draggable
     cursorTarget.style.cursor = 'grab';
 
