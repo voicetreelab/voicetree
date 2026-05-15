@@ -67,6 +67,10 @@ export class SessionRegistry {
     return this.#sessions.delete(id)
   }
 
+  clear(): void {
+    this.#sessions.clear()
+  }
+
   touch(id: string): void {
     const session = this.#sessions.get(id)
     if (session) {

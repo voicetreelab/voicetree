@@ -9,6 +9,7 @@ import {
   type VaultState,
 } from '@vt/graph-db-server/contract'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { validateAbsolutePath } from '../util/validatePath.ts'
 import {
   addReadPath,
@@ -54,7 +55,7 @@ export function ensureVaultWorkflowInitialized(): void {
 function getMountedVaultRoot(): string {
   const vaultPath = getProjectRootWatchedDirectory()
   if (!vaultPath) {
-    throw new Error('Mounted vault root is not initialized')
+    throw new VaultNotOpenError()
   }
   return vaultPath
 }
@@ -75,6 +76,9 @@ export async function readVaultWorkflow(): Promise<HttpResult> {
   try {
     return jsonResult(await readVaultState())
   } catch (error) {
+    if (error instanceof VaultNotOpenError) {
+      return structuredVaultErrorResult(error)
+    }
     return errorResult(
       (error as Error).message,
       'VAULT_STATE_READ_FAILED',

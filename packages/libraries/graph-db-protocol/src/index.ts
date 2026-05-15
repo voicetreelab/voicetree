@@ -193,6 +193,22 @@ export const VaultStateSchema = z.object({
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
 
+export const OpenVaultRequestSchema = z.object({
+  path: z.string(),
+  writePath: z.string().optional(),
+})
+export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
+
+export const OpenVaultResponseSchema = z.object({
+  sessionId: SessionIdSchema,
+  writePath: z.string(),
+  vaultState: VaultStateSchema,
+  initialProjectedGraph: z.unknown(),
+  folderState: z.array(FolderStateEntrySchema),
+  activeView: ActiveViewSchema,
+})
+export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
+
 export const SetWritePathRequestSchema = z.object({
   path: z.string(),
 })
