@@ -12,7 +12,7 @@ import {
   ActiveViewDeleteError,
   ViewNotFoundError,
 } from '@vt/graph-db-server/views/viewsRepository'
-import { emptyResult, errorResult } from '../../application/workflows/httpResult.ts'
+import { emptyResult, errorResult } from '@vt/graph-db-server/application/workflows/httpResult'
 import { sendHttpResult } from '../httpResult.ts'
 
 function viewStore() {

@@ -1,9 +1,14 @@
 import {
   AddReadPathRequestSchema,
+  CloneViewRequestSchema,
+  CreateViewRequestSchema,
+  ListViewsResponseSchema,
   SetWritePathRequestSchema,
   VaultStateSchema,
+  ViewRecordSchema,
   type OpenVaultResponse,
   type VaultState,
+  type ViewRecord,
 } from '../contract.ts'
 import {
   OpenVaultResponseSchema,
@@ -67,5 +72,39 @@ export function createVaultClient(request: RequestClient) {
       })
       return await getVault()
     },
+
+    views: {
+      list: async (): Promise<readonly ViewRecord[]> =>
+        await request('/vault/views', {
+          responseSchema: ListViewsResponseSchema,
+        }),
+
+      create: async (name: string): Promise<ViewRecord> =>
+        await request('/vault/views', {
+          body: CreateViewRequestSchema.parse({ name }),
+          method: 'POST',
+          responseSchema: ViewRecordSchema,
+        }),
+
+      activate: async (viewId: string): Promise<ViewRecord> =>
+        await request(`/vault/views/${encodeURIComponent(viewId)}/activate`, {
+          method: 'POST',
+          responseSchema: ViewRecordSchema,
+        }),
+
+      clone: async (srcViewId: string, dstName: string): Promise<ViewRecord> =>
+        await request(`/vault/views/${encodeURIComponent(srcViewId)}/clone`, {
+          body: CloneViewRequestSchema.parse({ name: dstName }),
+          method: 'POST',
+          responseSchema: ViewRecordSchema,
+        }),
+
+      delete: async (viewId: string): Promise<void> => {
+        await request(`/vault/views/${encodeURIComponent(viewId)}`, {
+          expectNoContent: true,
+          method: 'DELETE',
+        })
+      },
+    } as const,
   }
 }

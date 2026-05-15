@@ -13,9 +13,9 @@ import {
 import {
   StructuredVaultError,
   structuredVaultErrorResult,
-} from '../../application/errors/vaultNotOpen.ts'
+} from '@vt/graph-db-server/application/errors/vaultNotOpen'
 import { sendHttpResult } from '../httpResult.ts'
-import { errorResult, emptyResult } from '../../application/workflows/httpResult.ts'
+import { errorResult, emptyResult } from '@vt/graph-db-server/application/workflows/httpResult'
 
 export function mountVaultRoutes(app: Hono): void {
   ensureVaultWorkflowInitialized()

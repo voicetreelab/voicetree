@@ -11,7 +11,7 @@ import {
   updateCurrentFolderState,
   updateCurrentFolderStateBatch,
 } from '@vt/graph-db-server/views/folderVisibilityResource'
-import { errorResult, jsonResult, notFoundResult } from '../../application/workflows/httpResult.ts'
+import { errorResult, jsonResult, notFoundResult } from '@vt/graph-db-server/application/workflows/httpResult'
 import { sendHttpResult } from '../httpResult.ts'
 
 function decodePath(raw: string): string | null {

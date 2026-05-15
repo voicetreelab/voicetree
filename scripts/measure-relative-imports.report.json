@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-15T07:59:45.901Z",
-  "sourceFileCount": 742,
+  "generatedAt": "2026-05-15T09:22:43.412Z",
+  "sourceFileCount": 744,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1180,
-    "samePackageRelativeImports": 1180,
+    "relativeImports": 1166,
+    "samePackageRelativeImports": 1166,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 685,
-    "../x": 495,
+    "./x": 677,
+    "../x": 489,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +63,12 @@
     {
       "package": "voicetree-webapp",
       "packageRoot": "webapp",
-      "relativeImports": 183,
-      "samePackageRelativeImports": 183,
+      "relativeImports": 179,
+      "samePackageRelativeImports": 179,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 170,
-        "../x": 13,
+        "./x": 171,
+        "../x": 8,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -89,12 +89,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 142,
-      "samePackageRelativeImports": 142,
+      "relativeImports": 150,
+      "samePackageRelativeImports": 150,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 69,
-        "../x": 73,
+        "./x": 72,
+        "../x": 78,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -128,12 +128,12 @@
     {
       "package": "@vt/graph-state",
       "packageRoot": "packages/libraries/graph-state",
-      "relativeImports": 75,
-      "samePackageRelativeImports": 75,
+      "relativeImports": 57,
+      "samePackageRelativeImports": 57,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 53,
-        "../x": 22,
+        "./x": 41,
+        "../x": 16,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -197,26 +197,20 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-state/src/index.ts",
-      "package": "@vt/graph-state",
-      "relativeImports": 19,
-      "crossPackageRelativeImports": 0
-    },
-    {
       "file": "packages/libraries/graph-model/src/graph.ts",
       "package": "@vt/graph-model",
       "relativeImports": 17,
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-tools/src/node.ts",
-      "package": "@vt/graph-tools",
-      "relativeImports": 15,
+      "file": "packages/libraries/graph-state/src/index.ts",
+      "package": "@vt/graph-state",
+      "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "webapp/src/shell/edge/main/runtime/api.ts",
-      "package": "voicetree-webapp",
+      "file": "packages/libraries/graph-tools/src/node.ts",
+      "package": "@vt/graph-tools",
       "relativeImports": 15,
       "crossPackageRelativeImports": 0
     },
@@ -227,21 +221,15 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-state/src/applyCommand.ts",
-      "package": "@vt/graph-state",
-      "relativeImports": 12,
-      "crossPackageRelativeImports": 0
-    },
-    {
       "file": "packages/systems/graph-db-server/src/daemon/server.ts",
       "package": "@vt/graph-db-server",
-      "relativeImports": 12,
+      "relativeImports": 13,
       "crossPackageRelativeImports": 0
     },
     {
       "file": "packages/systems/graph-db-server/src/routes/daemonApp.ts",
       "package": "@vt/graph-db-server",
-      "relativeImports": 11,
+      "relativeImports": 12,
       "crossPackageRelativeImports": 0
     },
     {
@@ -257,8 +245,20 @@
       "crossPackageRelativeImports": 0
     },
     {
+      "file": "packages/libraries/graph-state/src/applyCommand.ts",
+      "package": "@vt/graph-state",
+      "relativeImports": 10,
+      "crossPackageRelativeImports": 0
+    },
+    {
       "file": "packages/systems/graph-db-server/src/state/vaultAllowlist.ts",
       "package": "@vt/graph-db-server",
+      "relativeImports": 10,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "webapp/src/shell/edge/main/runtime/api.ts",
+      "package": "voicetree-webapp",
       "relativeImports": 10,
       "crossPackageRelativeImports": 0
     },
