@@ -201,6 +201,8 @@ export async function startDaemon(
   let remountChain: Promise<void> = Promise.resolve()
   let unsubscribeReadPaths: (() => void) | null = null
   let shuttingDown = false
+  let portFileVault: string | null = null
+  let assignedPort = 0
 
   const queueWatcherRemount = (watchPaths: readonly string[], watchedDir: string): void => {
     remountChain = remountChain
@@ -293,6 +295,30 @@ export async function startDaemon(
       registry.clear()
     },
   })
+  // BF-265: per-vault port-file discovery so external GraphDbClient.connect({vault})
+  // consumers can reach a vaultless daemon after openVault. Pre-DOVL the startupVault
+  // path wrote this once explicitly; this resource generalizes it to any openVault call.
+  registerVaultResource({
+    async openForVault(vaultPath: string): Promise<void> {
+      try {
+        if (portFileVault && portFileVault !== vaultPath) {
+          await deletePortFile(portFileVault).catch(() => {})
+        }
+        await writePortFile(vaultPath, assignedPort)
+        portFileVault = vaultPath
+      } catch (err) {
+        logger.writeStderr(
+          `vt-graphd: failed to write port file for ${vaultPath}: ${err instanceof Error ? err.message : String(err)}\n`,
+        )
+      }
+    },
+    async closeForVault(): Promise<void> {
+      if (portFileVault) {
+        await deletePortFile(portFileVault).catch(() => {})
+        portFileVault = null
+      }
+    },
+  })
 
   const app = createDaemonApp({
     registry,
@@ -317,8 +343,9 @@ export async function startDaemon(
             await stopWatcher()
           } finally {
             await lockHandle?.release()
-            if (startupVault) {
-              await deletePortFile(startupVault)
+            if (portFileVault) {
+              await deletePortFile(portFileVault).catch(() => {})
+              portFileVault = null
             }
             await opts.onShutdownComplete?.()
           }
@@ -376,7 +403,6 @@ export async function startDaemon(
     }
   })
 
-  let assignedPort: number
   try {
     assignedPort = await listenPromise
   } catch (err) {
@@ -413,12 +439,7 @@ export async function startDaemon(
       startSpan.end()
       throw err
     }
-
-    // --- write port file ---
-    const portFileSpan = tracer.startSpan('daemon.write-port-file')
-    await writePortFile(startupVault, assignedPort)
-    portFileSpan.setAttribute('port', assignedPort)
-    portFileSpan.end()
+    // Port file is now written by the BF-265 vault resource via openVaultWorkflow's openResources.
   }
 
   startSpan.setAttribute('port', assignedPort)
@@ -435,8 +456,9 @@ export async function startDaemon(
       await stopWatcher()
     } finally {
       await lockHandle?.release()
-      if (startupVault) {
-        await deletePortFile(startupVault)
+      if (portFileVault) {
+        await deletePortFile(portFileVault).catch(() => {})
+        portFileVault = null
       }
       clearWatchFolderState()
       setGraph(createEmptyGraph())
