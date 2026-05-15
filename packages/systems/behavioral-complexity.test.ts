@@ -1,8 +1,9 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
+import {readFile} from 'node:fs/promises'
+import {dirname, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages} from './discover-packages'
+import {type SourceFile, scanSourceFiles} from './import-graph'
 import {
     GLOBAL_SIDE_EFFECT_CATEGORIES,
     extractFunctions,
@@ -26,13 +27,6 @@ const MUTABLE_CONTAINER_CTORS: ReadonlySet<string> = new Set([
 ])
 
 
-type SourceFile = {
-    readonly absolutePath: string
-    readonly relativePath: string
-    readonly relToSrc: string
-    readonly packageName: string
-}
-
 type StateBinding = {
     readonly file: string
     readonly line: number
@@ -54,45 +48,7 @@ type CommunityBehavioralReport = {
     readonly score: number
 }
 
-// --- Discovery (mirrors hierarchical-complexity.test.ts shape) ---
-
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts')
-            && !path.endsWith('.test.ts')
-            && !path.endsWith('.spec.ts')
-            && !path.endsWith('.d.ts')
-            && !path.endsWith('.config.ts')
-            && !path.includes('/__tests__/')
-            && !path.includes('/__generated__/'))
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
-}
-
-async function scanSourceFiles(packages: readonly PackageInfo[]): Promise<SourceFile[]> {
-    const nested = await Promise.all(packages.map(async pkg => {
-        const files = await listProductionSources(pkg.srcRoot)
-        return files.map(file => ({
-            absolutePath: resolve(file),
-            relativePath: relative(REPO_ROOT, file),
-            relToSrc: relative(pkg.srcRoot, file),
-            packageName: pkg.dirName,
-        }))
-    }))
-    return nested.flat().sort((a, b) => a.relativePath.localeCompare(b.relativePath))
-}
-
-// --- Community assignment at arbitrary depth (mirrors hierarchical-complexity.test.ts) ---
+// --- Community assignment at arbitrary depth ---
 
 function communityAtDepth(pkg: string, relToSrc: string, depth: number): string {
     if (depth === 0) return pkg
@@ -294,7 +250,7 @@ describe('behavioral complexity', () => {
         const scope = process.env.BEHAVIORAL_SCOPE ? resolve(process.env.BEHAVIORAL_SCOPE) : null
 
         const packages = await discoverPackages()
-        const allFiles = await scanSourceFiles(packages)
+        const allFiles = await scanSourceFiles(packages, REPO_ROOT)
         const files = scope
             ? allFiles.filter(f => f.absolutePath.startsWith(scope + '/') || f.absolutePath === scope)
             : allFiles

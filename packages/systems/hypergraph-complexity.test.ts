@@ -1,11 +1,7 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {discoverPackages} from './discover-packages'
+import {buildImportGraph} from './import-graph'
 import {recordHealthMetric} from './_health-report-test-helpers'
-
-const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
 // ── Types ──
 
@@ -58,101 +54,27 @@ const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const AGGREGATE_BCI_BUDGET = 195.64
 
-// ── Infrastructure (duplicated from cross-package-coupling.test.ts) ──
-
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/'))
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
-}
-
-// ── AST Import Extraction ──
-
-function extractImportSpecifiers(filePath: string, text: string): string[] {
-    const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
-    const specs: string[] = []
-    for (const stmt of sf.statements) {
-        if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier))
-            specs.push(stmt.moduleSpecifier.text)
-        else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier))
-            specs.push(stmt.moduleSpecifier.text)
-    }
-    return specs
-}
-
-function resolveFileCandidate(basePath: string, knownFiles: ReadonlySet<string>): string | null {
-    const resolved = resolve(basePath)
-    const candidates = resolved.endsWith('.ts') ? [resolved] : [resolved, `${resolved}.ts`, join(resolved, 'index.ts')]
-    return candidates.find(c => knownFiles.has(c)) ?? null
-}
-
-function resolveSpecifier(
-    fromAbsPath: string,
-    specifier: string,
-    packagesByNpmName: ReadonlyMap<string, PackageInfo>,
-    knownFiles: ReadonlySet<string>,
-): string | null {
-    if (specifier.startsWith('.'))
-        return resolveFileCandidate(join(dirname(fromAbsPath), specifier), knownFiles)
-    for (const [npmName, pkg] of packagesByNpmName) {
-        if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-        const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-        return resolveFileCandidate(join(pkg.srcRoot, subPath), knownFiles)
-    }
-    return null
-}
-
 // ── Graph Construction ──
 
-function subdirectoryOf(absolutePath: string, srcRoot: string): string {
-    const srcRelative = relative(srcRoot, absolutePath)
-    const firstSlash = srcRelative.indexOf('/')
-    return firstSlash >= 0 ? srcRelative.slice(0, firstSlash) : '.'
+function subdirectoryOf(relToSrc: string): string {
+    const firstSlash = relToSrc.indexOf('/')
+    return firstSlash >= 0 ? relToSrc.slice(0, firstSlash) : '.'
 }
 
-async function buildDirectedFileGraph(packages: readonly PackageInfo[]): Promise<{files: SourceFile[], edges: DirectedFileEdge[]}> {
-    const files: SourceFile[] = []
-    for (const pkg of packages) {
-        const paths = await listProductionSources(pkg.srcRoot)
-        files.push(...paths.map(p => ({
-            absolutePath: resolve(p),
-            relativePath: relative(REPO_ROOT, p),
-            packageName: pkg.dirName,
-            subdirectory: subdirectoryOf(resolve(p), pkg.srcRoot),
-        })))
-    }
-
-    const filesByPath = new Map(files.map(f => [f.absolutePath, f]))
-    const knownFiles = new Set(filesByPath.keys())
-    const packagesByNpmName = new Map(packages.map(p => [p.name, p]))
-    const seenEdges = new Set<string>()
-    const edges: DirectedFileEdge[] = []
-
-    for (const fromFile of files) {
-        const text = await readFile(fromFile.absolutePath, 'utf8')
-        for (const spec of extractImportSpecifiers(fromFile.absolutePath, text)) {
-            const toPath = resolveSpecifier(fromFile.absolutePath, spec, packagesByNpmName, knownFiles)
-            if (!toPath || toPath === fromFile.absolutePath) continue
-            const toFile = filesByPath.get(toPath)
-            if (!toFile) continue
-            const edgeKey = `${fromFile.relativePath}\0${toFile.relativePath}`
-            if (seenEdges.has(edgeKey)) continue
-            seenEdges.add(edgeKey)
-            edges.push({from: fromFile.relativePath, to: toFile.relativePath, fromPackage: fromFile.packageName, toPackage: toFile.packageName})
-        }
-    }
-
+async function buildDirectedFileGraph(packages: Parameters<typeof buildImportGraph>[0]): Promise<{files: SourceFile[], edges: DirectedFileEdge[]}> {
+    const importGraph = await buildImportGraph(packages)
+    const files: SourceFile[] = importGraph.files.map(f => ({
+        absolutePath: f.absolutePath,
+        relativePath: f.relativePath,
+        packageName: f.packageName,
+        subdirectory: subdirectoryOf(f.relToSrc),
+    }))
+    const edges: DirectedFileEdge[] = importGraph.edges.map(e => ({
+        from: e.from.relativePath,
+        to: e.to.relativePath,
+        fromPackage: e.from.packageName,
+        toPackage: e.to.packageName,
+    }))
     return {files, edges}
 }
 
