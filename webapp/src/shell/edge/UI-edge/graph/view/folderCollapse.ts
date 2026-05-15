@@ -25,6 +25,14 @@ export async function expandFolder(cy: Core, folderId: string, syncMode: 'daemon
     }
 }
 
+export async function hideFolder(cy: Core, folderId: string): Promise<void> {
+    const graph: unknown = await window.electronAPI?.main.setFolderStateThroughDaemon(folderId, 'hidden')
+    removeCollapsedFolderLocally(folderId)
+    if (graph && typeof graph === 'object' && 'nodes' in graph) {
+        applyGraphDeltaToUI(cy, graph as ProjectedGraph)
+    }
+}
+
 export async function toggleFolderCollapse(cy: Core, folderId: string): Promise<void> {
     const folder: ReturnType<typeof cy.getElementById> = cy.getElementById(folderId)
     if (!folder.length || !folder.data('isFolderNode')) return

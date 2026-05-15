@@ -103,16 +103,31 @@ export class VerticalMenuService {
         }).sort((a, b) => b.ancestors().length - a.ancestors().length).first()
 
         if (folderAtPosition.length) {
-            const isCollapsed: boolean = folderAtPosition.data('collapsed')
             const folderId: string = folderAtPosition.id()
             const folderLabel: string = folderAtPosition.data('folderLabel') as string
-            menuItems.push({
-                text: isCollapsed ? `Expand "${folderLabel}"` : `Collapse "${folderLabel}"`,
-                action: async () => {
-                    const { toggleFolderCollapse } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
-                    void toggleFolderCollapse(this.cy!, folderId)
+            menuItems.push(
+                {
+                    text: `Expand "${folderLabel}"`,
+                    action: async () => {
+                        const { expandFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
+                        void expandFolder(this.cy!, folderId)
+                    },
                 },
-            })
+                {
+                    text: `Collapse "${folderLabel}"`,
+                    action: async () => {
+                        const { collapseFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
+                        void collapseFolder(this.cy!, folderId)
+                    },
+                },
+                {
+                    text: `Hide "${folderLabel}"`,
+                    action: async () => {
+                        const { hideFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
+                        void hideFolder(this.cy!, folderId)
+                    },
+                },
+            )
         }
 
         if (this.deps) {

@@ -88,6 +88,24 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                     setNewFolderName('');
                 },
             },
+            {
+                text: 'Expand',
+                action: () => {
+                    void window.electronAPI?.main.setFolderStateThroughDaemon(node.absolutePath, 'expanded');
+                },
+            },
+            {
+                text: 'Collapse',
+                action: () => {
+                    void window.electronAPI?.main.setFolderStateThroughDaemon(node.absolutePath, 'collapsed');
+                },
+            },
+            {
+                text: 'Hide',
+                action: () => {
+                    void window.electronAPI?.main.setFolderStateThroughDaemon(node.absolutePath, 'hidden');
+                },
+            },
         ];
         window.ctxmenu.show(items, e.nativeEvent);
     }, [expandedPaths, node.absolutePath, onToggleExpand]);
