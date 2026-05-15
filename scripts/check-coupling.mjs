@@ -13,11 +13,10 @@ const RUNTIME_THRESHOLD = 15;
 const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0;
 const root = join(import.meta.dirname, '..');
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES = new Set([
-  'webapp/src/shell/edge/main/cli/commands/serve.ts',
-  'webapp/src/shell/edge/main/cli/commands/daemonRouteParity.ts',
-  'webapp/src/shell/edge/main/cli/commands/graph-search.ts',
-  'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts',
-  'webapp/src/shell/edge/main/cli/commands/graph/types.ts',
+  'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+  'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+  'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+  'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
   'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ]);
 
