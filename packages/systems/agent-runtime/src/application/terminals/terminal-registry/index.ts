@@ -37,3 +37,8 @@ export {
     getNextTerminalCountForNode,
     removeTerminalFromRegistry,
 } from './queries'
+
+export {
+    reconcileTmuxTerminalRegistry,
+    type TmuxReconciliationResult,
+} from './reconciliation'

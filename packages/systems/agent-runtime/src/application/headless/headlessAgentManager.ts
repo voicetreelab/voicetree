@@ -11,7 +11,16 @@ import {spawn, type ChildProcess} from 'child_process'
 import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalId} from '../terminals/terminal-registry/types'
-import {markTerminalExited, recordTerminalSpawn, getTerminalRecords, incrementAuditRetryCount, removeTerminalFromRegistry, type TerminalRecord} from '../terminals/terminal-registry'
+import {
+    markTerminalExited,
+    recordTerminalSpawn,
+    getTerminalRecords,
+    incrementAuditRetryCount,
+    reconcileTmuxTerminalRegistry,
+    removeTerminalFromRegistry,
+    type TerminalRecord,
+    type TmuxReconciliationResult,
+} from '../terminals/terminal-registry'
 import type {TerminalData} from '../terminals/terminal-registry/types'
 import {runStopHooks} from '../hooks/stopGateHookRunner'
 import {getRuntimeGraph} from '../runtime/graph-bridge'
@@ -52,6 +61,7 @@ type TmuxTerminalMetadata = {
     readonly endedAt?: string
     readonly exitCode?: number | null
     readonly logFile: string
+    readonly terminalData: TerminalData
 }
 
 export type HeadlessLogEntry = {
@@ -212,6 +222,7 @@ async function spawnTmuxHeadlessAgent(
         session: terminalId,
         startedAt,
         logFile: paths.logPath,
+        terminalData,
     })
 
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, deps)
@@ -407,6 +418,29 @@ export function getHeadlessAgentOutput(terminalId: string): string {
  */
 export function hasHeadlessAgentOutput(terminalId: string): boolean {
     return lastOutputByTerminal.has(terminalId as TerminalId) || tmuxHeadlessSessions.has(terminalId as TerminalId)
+}
+
+export async function reconcileTmuxHeadlessAgents(
+    vaultPath: string,
+    deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
+): Promise<TmuxReconciliationResult> {
+    return reconcileTmuxTerminalRegistry(vaultPath, {
+        hasSession,
+        logger: {
+            info: (message?: unknown, ...optionalParams: unknown[]): void =>
+                deps.writeLog({level: 'info', message: String(message), error: optionalParams.length > 0 ? optionalParams : undefined}),
+            error: (message?: unknown, ...optionalParams: unknown[]): void =>
+                deps.writeLog({level: 'error', message: String(message), error: optionalParams.length > 0 ? optionalParams : undefined}),
+        },
+        onRunningSession: ({terminalId, metadataPath, metadata}) => {
+            if (tmuxHeadlessSessions.has(terminalId)) return
+            tmuxHeadlessSessions.set(terminalId, {
+                logPath: metadata.logFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.log`),
+                metadataPath,
+                pollTimer: startTmuxExitPoll(terminalId, deps),
+            })
+        },
+    })
 }
 
 /**

@@ -1,6 +1,6 @@
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
-import {configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
+import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     configureMcpServer,
@@ -155,6 +155,14 @@ export async function runServeCommand(argv: string[]): Promise<void> {
     } catch (cause) {
         await daemonHandle.stop().catch(() => undefined)
         error(`failed to start MCP server: ${(cause as Error).message}`)
+    }
+
+    const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
+    if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+        process.stderr.write(
+            `vt serve: reconciled tmux terminals imported=${reconciliation.imported.length} `
+            + `markedExited=${reconciliation.markedExited.length}\n`,
+        )
     }
 
     process.stdout.write(

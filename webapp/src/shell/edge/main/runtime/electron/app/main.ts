@@ -213,6 +213,13 @@ void app.whenReady().then(async () => {
     // Start MCP server in-process (shares graph state with Electron)
     await startMcpServer();
 
+    if (process.env.VOICETREE_VAULT_PATH) {
+        const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
+        if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+            log.info('[Startup] Reconciled tmux terminals', reconciliation);
+        }
+    }
+
     // Register this instance for vt-debug discovery
     await registerInstance();
 
