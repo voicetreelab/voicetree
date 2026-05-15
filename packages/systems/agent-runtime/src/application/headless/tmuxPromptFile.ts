@@ -101,12 +101,15 @@ export function rewriteCommandForPromptFile(command: string, promptFile: string)
 }
 
 /**
- * Wrap a rewritten command in `bash -c 'exec ...'` for the headless tmux
- * `new-session` argv. tmux argv stays short — only the bash invocation +
- * the rewritten command (which itself references the file by path).
+ * Wrap a rewritten command in `bash -c 'unset AGENT_PROMPT; exec ...'` for
+ * the headless tmux `new-session` argv. The `unset` defeats OS env-inheritance:
+ * the parent shell's AGENT_PROMPT leaks via electron → tmux server → pane,
+ * and tmux `-e KEY=` doesn't reliably override an inherited value across
+ * tmux versions. The on-disk prompt file remains the sole source via
+ * AGENT_PROMPT_FILE.
  */
 export function wrapForHeadlessTmux(rewrittenCommand: string): string {
-    return `bash -c ${shellSingleQuote(`exec ${rewrittenCommand}`)}`
+    return `bash -c ${shellSingleQuote(`unset AGENT_PROMPT; exec ${rewrittenCommand}`)}`
 }
 
 export type PromptFileSpawnPlan = {
@@ -135,9 +138,14 @@ export function applyPromptFileToHeadlessSpawn(args: {
     const rewritten: string = rewriteCommandForPromptFile(args.command, filePath)
     const wrapped: string = wrapForHeadlessTmux(rewritten)
     const {AGENT_PROMPT: _drop, ...rest} = args.env
+    // Explicit '' override: deleting the key from the tmux -e list does NOT
+    // unset values inherited via OS env-inheritance through the
+    // electron → tmux server → bash → node chain. Setting AGENT_PROMPT=''
+    // shadows any leaked parent-shell value so the agent reaches the
+    // AGENT_PROMPT_FILE fallback path.
     return {
         command: wrapped,
-        env: {...rest, AGENT_PROMPT_FILE: filePath},
+        env: {...rest, AGENT_PROMPT: '', AGENT_PROMPT_FILE: filePath},
         promptFilePath: filePath,
     }
 }
@@ -164,7 +172,11 @@ export async function injectAgentCommandHeadful(args: {
     readonly promptFilePath: string
 }): Promise<string> {
     const rewritten: string = rewriteCommandForPromptFile(args.command, args.promptFilePath)
+    // `unset AGENT_PROMPT` defeats OS env-inheritance: the parent shell's
+    // value would otherwise leak through electron → tmux server → pane → bash
+    // and mask the AGENT_PROMPT_FILE fallback path.
+    const command: string = `unset AGENT_PROMPT; ${rewritten}`
     await waitForTmuxShellReady(args.terminalId)
-    await sendKeys(args.terminalId, rewritten)
-    return rewritten
+    await sendKeys(args.terminalId, command)
+    return command
 }

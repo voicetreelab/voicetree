@@ -165,7 +165,16 @@ export class TerminalManager {
         const value: string = initial[key];
         if (typeof value === 'string') tmuxEnv[key] = value;
       }
+      // Explicit '' override defeats OS env-inheritance leak from parent
+      // electron process: simply omitting AGENT_PROMPT from the tmux -e set
+      // doesn't unset values inherited via electron → tmux server → bash → node.
+      tmuxEnv.AGENT_PROMPT = '';
       if (promptFile) tmuxEnv.AGENT_PROMPT_FILE = promptFile;
+      // spawnTmuxBackedTerminal demands VOICETREE_VAULT_PATH in tmuxEnv to
+      // resolve the log/metadata paths. IPC callers (Electron headful spawn)
+      // don't always set it in initialEnvVars — fall back to the main process
+      // env we already consulted above.
+      if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
       await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv, undefined, promptFile);
       if (promptFile && terminalData.initialCommand) {
         await injectAgentCommandHeadful({terminalId, command: terminalData.initialCommand, promptFilePath: promptFile});

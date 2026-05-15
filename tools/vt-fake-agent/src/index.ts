@@ -5,16 +5,17 @@ import { executeScript } from './executor.js'
 import { extractScript, type Action, type FakeAgentScript } from './types.js'
 
 /**
- * Phase 6 prompt delivery: prefer AGENT_PROMPT (positional/env path),
- * fall back to reading AGENT_PROMPT_FILE from disk so tmux-backed
- * panels (where the prompt is off the argv plane) keep working.
+ * Phase 6 prompt delivery: AGENT_PROMPT_FILE is authoritative when set.
+ * Parent-shell AGENT_PROMPT can leak through OS env-inheritance
+ * (electron → tmux server → bash → node) and otherwise mask the file
+ * delivery path. Fall back to AGENT_PROMPT only when no file is present.
  */
 function resolveAgentPrompt(env: NodeJS.ProcessEnv): string {
-  if (env.AGENT_PROMPT && env.AGENT_PROMPT.length > 0) return env.AGENT_PROMPT
   const file = env.AGENT_PROMPT_FILE
   if (file && existsSync(file)) {
-    try { return readFileSync(file, 'utf8') } catch { return '' }
+    try { return readFileSync(file, 'utf8') } catch { /* fall through to env */ }
   }
+  if (env.AGENT_PROMPT && env.AGENT_PROMPT.length > 0) return env.AGENT_PROMPT
   return ''
 }
 
