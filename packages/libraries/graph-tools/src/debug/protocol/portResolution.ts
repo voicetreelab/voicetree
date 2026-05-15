@@ -1,11 +1,25 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { listLiveInstances, pickInstance, type DebugInstance, type PickOpts, type PickResult } from './discover'
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..')
+function findRepoRoot(startDir: string): string {
+  let dir = startDir
+  while (dir !== path.dirname(dir)) {
+    const pkgPath = path.join(dir, 'package.json')
+    if (existsSync(pkgPath)) {
+      // The repo root has a `webapp/` subdir; package subdirs do not.
+      if (existsSync(path.join(dir, 'webapp', 'package.json'))) return dir
+    }
+    dir = path.dirname(dir)
+  }
+  throw new Error(`REPO_ROOT: workspace root not found from ${startDir}`)
+}
+
+const REPO_ROOT = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)))
 const AUTO_LAUNCH_TIMEOUT_MS = 30_000
 const AUTO_LAUNCH_POLL_MS = 250
 export const CDP_LOOPBACK_HOST = '127.0.0.1'
