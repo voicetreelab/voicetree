@@ -23,6 +23,7 @@ import {
 import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
+import { VaultNotOpenError } from '../errors/vaultNotOpen.ts'
 
 export type { Command, CommandOutput } from './command.ts'
 
@@ -40,7 +41,7 @@ function requireRegistry(deps: RunCommandDeps): SessionRegistry {
 async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
   const vaultPath = getProjectRootWatchedDirectory()
   if (!vaultPath) {
-    throw new Error('Mounted vault root is not initialized')
+    throw new VaultNotOpenError()
   }
 
   const readPaths = [...(await getReadPaths())]
