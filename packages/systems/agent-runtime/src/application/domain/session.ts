@@ -1,26 +1,19 @@
+import type {TerminalLifecycle} from '@vt/agent-runtime/lifecycle'
 import type {
-    Graph,
-    GraphDelta,
-    NodeIdAndFilePath,
-} from '@vt/graph-model/graph'
-import type {VTSettings} from '@vt/graph-model/settings'
-import type {
-    CreateTerminalDataParams,
-    TerminalData,
-    TerminalId,
-} from '@vt/agent-runtime/terminals/terminal-registry/types.ts'
+    TerminalRecord,
+    TerminalRegistryClock,
+    TerminalRegistryLogger,
+    TerminalRegistryRuntime,
+    TerminalRegistryTimers,
+} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
 
 export type {
-    CreateTerminalDataParams,
-    Graph,
-    GraphDelta,
-    NodeIdAndFilePath,
-    TerminalData,
-    TerminalId,
-    VTSettings,
+    TerminalLifecycle,
+    TerminalRecord,
+    TerminalRegistryClock,
+    TerminalRegistryLogger,
+    TerminalRegistryRuntime,
+    TerminalRegistryTimers,
 }
 
-export type PlainTerminalLaunch = {
-    nodeId: NodeIdAndFilePath
-    terminalDataParams: CreateTerminalDataParams
-}
+export type TerminalRegistrySnapshot = readonly TerminalRecord[]

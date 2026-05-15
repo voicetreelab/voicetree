@@ -1,30 +1,15 @@
-import {loadSettings} from '@vt/app-config/settings'
-import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
 import {classifyExit} from '@vt/agent-runtime/lifecycle'
 import type {TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
-import {runIdleStopGateAudit} from '../terminal-registry-audit'
-import {notifyAgentOfUnseenNodes} from '../terminal-registry-notifications'
+import {updateTerminalIsDoneWorkflow} from '@vt/agent-runtime/terminals/terminalIsDoneWorkflow.ts'
 import {
-    STOP_HOOK_DELAY_MS,
     hasActiveChildren,
-    idleSinceByTerminal,
     pendingNotificationTimeouts,
     terminalRecords,
     type TerminalRecord,
     type TerminalRegistryRuntime,
     type TerminalRegistryTimers,
 } from '../terminal-registry-state'
-import {getTerminalRecords, notifyRegistrySubscribers} from './subscribers'
-
-const defaultTerminalRegistryTimers: TerminalRegistryTimers = { setTimeout, clearTimeout }
-
-const defaultTerminalRegistryRuntime: TerminalRegistryRuntime = {
-    now: Date.now,
-    setTimeout,
-    clearTimeout,
-    logger: { info: console.log, error: console.error },
-}
+import {notifyRegistrySubscribers} from './subscribers'
 
 export function incrementAuditRetryCount(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
@@ -38,29 +23,6 @@ export function resetAuditRetryCount(terminalId: string): void {
     terminalRecords.set(terminalId, { ...record, auditRetryCount: 0 })
 }
 
-/**
- * Wait N seconds, then check if the terminal is still idle before firing callback.
- * Cancels any pending timeout for this terminal if it becomes active again.
- */
-function wait_for_agent_to_still_be_done_after_n_seconds(
-    terminalId: string,
-    delayMs: number,
-    callback: (terminalId: string, record: TerminalRecord) => void,
-    timers: TerminalRegistryTimers = defaultTerminalRegistryTimers,
-): void {
-    const existing: ReturnType<typeof setTimeout> | undefined = pendingNotificationTimeouts.get(terminalId)
-    if (existing) timers.clearTimeout(existing)
-
-    const timeout: ReturnType<typeof setTimeout> = timers.setTimeout(() => {
-        pendingNotificationTimeouts.delete(terminalId)
-        const currentRecord: TerminalRecord | undefined = terminalRecords.get(terminalId)
-        if (currentRecord?.terminalData.isDone) {
-            callback(terminalId, currentRecord)
-        }
-    }, delayMs)
-    pendingNotificationTimeouts.set(terminalId, timeout)
-}
-
 export function cancelPendingNotification(
     terminalId: string,
     timers: Pick<TerminalRegistryTimers, 'clearTimeout'> = { clearTimeout },
@@ -72,82 +34,12 @@ export function cancelPendingNotification(
     }
 }
 
-function lifecycleFromDoneSignal(
-    record: TerminalRecord,
-    isDone: boolean,
-): TerminalLifecycle {
-    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
-    if (currentLifecycle === 'completed' || currentLifecycle === 'errored' || currentLifecycle === 'awaiting_input') {
-        return currentLifecycle
-    }
-    if (isDone && hasActiveChildren(terminalRecords.values(), record.terminalId)) {
-        return 'idle'
-    }
-    return isDone ? currentLifecycle : 'active'
-}
-
-function runIdleHooks(
-    runtime: TerminalRegistryRuntime,
-): (terminalId: string, record: TerminalRecord) => void {
-    return (tid, rec) => {
-        void (async (): Promise<void> => {
-            await runIdleStopGateAudit(tid, rec, {
-                records: getTerminalRecords(),
-                graph: await getRuntimeGraph(),
-                incrementAuditRetryCount,
-                logger: runtime.logger,
-            })
-        })().catch((error: unknown) => {
-            runtime.logger.error('[terminal-registry] Failed to run idle stop-gate audit:', error)
-        })
-
-        void loadSettings()
-            .then((settings: VTSettings) => {
-                if (settings.autoNotifyUnseenNodes) {
-                    void notifyAgentOfUnseenNodes(tid, rec, {
-                        now: runtime.now,
-                        logger: runtime.logger,
-                    })
-                }
-            })
-            .catch((error: unknown) => {
-                runtime.logger.error('[terminal-registry] Failed to load settings for unseen-node notification:', error)
-            })
-    }
-}
-
 export function updateTerminalIsDone(
     terminalId: string,
     isDone: boolean,
-    runtime: TerminalRegistryRuntime = defaultTerminalRegistryRuntime,
+    runtime?: TerminalRegistryRuntime,
 ): void {
-    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
-    if (!record) return
-
-    // The UI lifecycle is not derived from heuristic silence: natural pauses
-    // from Claude Code / Codex should not surface as idle unless a parent is
-    // waiting on active children.
-    const wasNotDone: boolean = !record.terminalData.isDone
-    const lifecycle: TerminalLifecycle = lifecycleFromDoneSignal(record, isDone)
-
-    terminalRecords.set(terminalId, {
-        ...record,
-        terminalData: {...record.terminalData, isDone, lifecycle}
-    })
-    notifyRegistrySubscribers()
-
-    if (wasNotDone && isDone) {
-        idleSinceByTerminal.set(terminalId, runtime.now())
-        wait_for_agent_to_still_be_done_after_n_seconds(
-            terminalId,
-            STOP_HOOK_DELAY_MS,
-            runIdleHooks(runtime),
-            {setTimeout: runtime.setTimeout, clearTimeout: runtime.clearTimeout},
-        )
-    } else if (!isDone) {
-        idleSinceByTerminal.delete(terminalId)
-        cancelPendingNotification(terminalId, { clearTimeout: runtime.clearTimeout })
-    }
+    updateTerminalIsDoneWorkflow(terminalId, isDone, runtime)
 }
 
 export function markTerminalExited(

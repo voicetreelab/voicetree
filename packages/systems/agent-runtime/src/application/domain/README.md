@@ -32,12 +32,12 @@ one command variant per new side effect needed by a migrated handler, and let th
 
 ## Worked Example
 
-The first agent-runtime pilot is plain terminal spawning:
+The first agent-runtime pilot is terminal done-state handling:
 
-- `core/handlePlainTerminal.ts` decides terminal launch parameters.
-- `effects/runCommand.ts` creates terminal data, updates graph state, and launches UI.
-- `workflows/plainTerminal.ts` reads settings, graph, registry, and env state.
-- `spawn/spawnPlainTerminal.ts` is the transport-facing wrapper.
+- `core/handleTerminalIsDone.ts` decides lifecycle, state, and command data.
+- `effects/runCommand.ts` updates registry state, idle state, timers, and subscribers.
+- `workflows/terminalIsDone.ts` reads registry state and runs idle hooks.
+- `terminals/terminal-registry/lifecycle.ts` is the transport-facing wrapper.
 
 For the canonical package-level shape, compare
 `packages/systems/graph-db-server/src/application/domain/command.ts`,
