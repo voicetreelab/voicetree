@@ -14,10 +14,6 @@ export function markLoadTiming(event: string, extra?: Record<string, unknown>): 
   emit(event, extra)
 }
 
-export function isLoadTimingActive(): boolean {
-  return activeLoadId !== null
-}
-
 function emit(event: string, extra?: Record<string, unknown>): void {
   if (activeLoadId === null) return
   const elapsedMs: number = Date.now() - activeLoadStartedAt
