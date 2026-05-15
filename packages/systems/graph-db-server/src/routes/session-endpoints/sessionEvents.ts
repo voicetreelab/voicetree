@@ -6,6 +6,8 @@ import {
   type SessionEventTimers,
 } from '@vt/graph-db-server/application/workflows/sessionEvents'
 import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
+import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById } from '../routeSpecs.ts'
 
 function getDefaultSessionEventTimers(): SessionEventTimers {
   return {
@@ -19,8 +21,8 @@ export function mountSessionEventsRoute(
   registry: WorkflowSessionRegistry,
   timers: SessionEventTimers = getDefaultSessionEventTimers(),
 ): void {
-  app.get('/sessions/:sessionId/events', (c) => {
-    const sessionId = c.req.param('sessionId')
+  mountDaemonRoute(app, daemonRouteSpecById('session.events'), (c) => {
+    const sessionId = routeParam(c, 'sessionId')
     if (!sessionExistsWorkflow(registry, sessionId)) {
       return c.notFound()
     }
