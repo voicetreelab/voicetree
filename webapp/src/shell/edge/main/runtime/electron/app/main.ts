@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import {app, BrowserWindow, nativeImage} from 'electron';
 import path from 'path';
+import {fileURLToPath} from 'node:url';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -160,6 +161,7 @@ agentRuntime.configureAgentRuntime({
 });
 
 const {autoUpdater} = electronUpdater;
+const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
 
 function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
@@ -222,7 +224,7 @@ void app.whenReady().then(async () => {
 
     // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
     if (process.platform === 'darwin' && app.dock) {
-        const dockIconPath: string = path.join(__dirname, '../../build/icon.png');
+        const dockIconPath: string = path.join(appRuntimeDir, '../../build/icon.png');
         const dockIcon: Electron.NativeImage = nativeImage.createFromPath(dockIconPath);
         app.dock.setIcon(dockIcon);
     }

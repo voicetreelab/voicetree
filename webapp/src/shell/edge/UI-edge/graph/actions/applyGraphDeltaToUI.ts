@@ -1,5 +1,5 @@
 import type {Core, NodeSingular, CollectionReturnValue} from "cytoscape";
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {ProjectedEdge, ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract'
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";
@@ -11,8 +11,8 @@ import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/servi
 import {getTerminals} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {hasActualContentChanged} from "@vt/graph-model/pure/graph/contentChangeDetection";
-import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
+import {hasActualContentChanged} from "@vt/graph-model/graph";
+import {getNodeTitle} from "@vt/graph-model/markdown";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;

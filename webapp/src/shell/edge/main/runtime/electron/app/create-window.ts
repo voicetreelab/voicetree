@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
+import {fileURLToPath} from 'node:url';
 import type {getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
@@ -10,6 +11,7 @@ import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup
 import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
+const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
 
 async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): Promise<void> {
     if (!autoSetupComplete) {
@@ -54,8 +56,8 @@ export function createWindow(deps: {
     // Note: BrowserWindow icon property only works on Windows/Linux
     // macOS uses app.dock.setIcon() instead
     const iconPath: string = process.platform === 'darwin'
-        ? path.join(__dirname, '../../build/icon.png')
-        : path.join(__dirname, '../../build/icon.png');
+        ? path.join(appRuntimeDir, '../../build/icon.png')
+        : path.join(appRuntimeDir, '../../build/icon.png');
 
     // Get full screen dimensions (work area excludes dock/taskbar)
     const primaryDisplay: Electron.Display = screen.getPrimaryDisplay();
@@ -76,7 +78,7 @@ export function createWindow(deps: {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, '../preload/index.js')
+            preload: path.join(appRuntimeDir, '../preload/index.js')
         }
     });
 
@@ -111,7 +113,7 @@ export function createWindow(deps: {
     // Load the app
     const skipDevTools: boolean = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
     if (process.env.MINIMIZE_TEST === '1') {
-        void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+        void mainWindow.loadFile(path.join(appRuntimeDir, '../../dist/index.html'));
     } else if (process.env.ELECTRON_RENDERER_URL) {
         // electron-vite dev mode — ELECTRON_RENDERER_URL is set by electron-vite with the actual port
         console.log('[Main] Renderer URL:', process.env.ELECTRON_RENDERER_URL);
@@ -119,7 +121,7 @@ export function createWindow(deps: {
         if (!skipDevTools) mainWindow.webContents.openDevTools();
     } else {
         // Production or test mode
-        void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+        void mainWindow.loadFile(path.join(appRuntimeDir, '../../dist/index.html'));
     }
 
     // Control window visibility after content is ready

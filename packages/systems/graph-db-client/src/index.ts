@@ -10,6 +10,7 @@ export {
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
+  resolveDaemonRuntimeCommand,
   type EnsureDaemonResult,
 } from './autoLaunch.ts'
 export {

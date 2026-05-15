@@ -47,9 +47,9 @@ import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
 import {createRecentNodeTabsBar} from '@/shell/UI/views/ui-controls/RecentNodeTabsBar';
 // Terminal tree sidebar - shows open terminals as vertical tree on LHS
-import {createTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
+import {createTerminalTreeSidebar} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
 // Folder tree sidebar - shows project file hierarchy on LHS
-import {createFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
+import {createFolderTreeSidebar} from '@/shell/UI/views/folderTree/FolderTreeSidebar';
 import {toggleFolderTreeSidebar} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {getRecentNodeHistory} from '@/shell/edge/UI-edge/state/stores/RecentNodeHistoryStore';
 import type {RecentNodeHistory} from '@vt/graph-model/graph';
@@ -58,7 +58,7 @@ import {updateSpeedDialDarkMode} from '@/shell/UI/views/ui-controls/SpeedDialMen
 import {triggerColaLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 import type {Graph} from '@vt/graph-model/graph';
 import {createEmptyGraph} from '@vt/graph-model/graph';
-import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
+import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from '@/shell/UI/views/VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/view/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/view/subscribeToGraphUpdates';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
