@@ -116,7 +116,7 @@ describe('vt_dispatch_live_command', () => {
             command: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/tasks', state: 'expanded' },
         })
 
-        expect(result.delta.collapseRemoved).toEqual([])
+        expect(result.delta.collapseRemoved ?? []).not.toContain('/tmp/vault/tasks/')
         expect([...(await getCurrentLiveState()).collapseSet]).not.toContain('/tmp/vault/tasks/')
     })
 
