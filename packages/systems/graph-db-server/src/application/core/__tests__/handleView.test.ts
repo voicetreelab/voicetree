@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import type { State } from '@vt/graph-state'
-import type { Session } from '../../domain/session.ts'
+import type { Session } from '../session.ts'
 import {
   handleAddExpandOverride,
   handleDeleteExpandOverride,

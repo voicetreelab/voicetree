@@ -1,8 +1,8 @@
 import { project, type State } from '@vt/graph-state'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { renderTreeCover } from '@vt/graph-tools/autoView'
-import type { Command } from '../domain/command.ts'
-import type { Session } from '../domain/session.ts'
+import type { Command } from './command.ts'
+import type { Session } from './session.ts'
 
 export function handleRenderView(
   session: Session,

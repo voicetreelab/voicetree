@@ -20,7 +20,7 @@ import {
   removeReadPath,
   setWritePath,
 } from '@vt/graph-db-server/state/vaultAllowlist'
-import type { Command, CommandOutput } from '../domain/command.ts'
+import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
 

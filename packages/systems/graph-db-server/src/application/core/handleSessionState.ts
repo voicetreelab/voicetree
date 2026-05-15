@@ -5,7 +5,7 @@ import {
 } from '@vt/graph-db-server/contract'
 import type { AbsolutePath, FolderTreeNode, Graph } from '@vt/graph-model'
 import { serializeState } from '@vt/graph-state'
-import type { Session } from '../domain/session.ts'
+import type { Session } from './session.ts'
 import { projectSessionState } from '../session/project.ts'
 
 export type ReadSessionStateInput = {

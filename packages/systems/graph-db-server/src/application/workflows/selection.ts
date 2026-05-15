@@ -3,7 +3,7 @@ import {
   SelectionResponseSchema,
 } from '@vt/graph-db-server/contract'
 import { handleSelection } from '../core/handleSelection.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 

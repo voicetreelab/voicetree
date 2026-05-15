@@ -1,5 +1,5 @@
 import { handleCollapse } from '../core/handleCollapse.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 

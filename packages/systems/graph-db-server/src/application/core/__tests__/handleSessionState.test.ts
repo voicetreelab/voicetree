@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { describe, expect, test } from 'vitest'
 import { createGraph, type GraphNode } from '@vt/graph-model/graph'
-import type { Session } from '../../domain/session.ts'
+import type { Session } from '../session.ts'
 import { handleReadSessionState } from '../handleSessionState.ts'
 
 const NODE_ID = '/tmp/vault/docs/one.md'

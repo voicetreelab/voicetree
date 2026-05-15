@@ -3,7 +3,7 @@ import {
   LayoutResponseSchema,
 } from '@vt/graph-db-server/contract'
 import { handleLayout } from '../core/handleLayout.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import {
   errorResult,
   jsonResult,

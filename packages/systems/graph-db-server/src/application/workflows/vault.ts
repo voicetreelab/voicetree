@@ -2,7 +2,7 @@ import {
   AddReadPathRequestSchema,
   SetWritePathRequestSchema,
 } from '@vt/graph-db-server/contract'
-import { validateAbsolutePath } from '../util/validatePath.ts'
+import { validateAbsolutePath } from '../core/validatePath.ts'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
@@ -12,7 +12,7 @@ import {
   decodeVaultPath,
   resolveAppSupportPath,
 } from '../core/handleVault.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 export function ensureVaultWorkflowInitialized(): void {

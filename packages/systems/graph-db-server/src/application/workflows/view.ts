@@ -8,7 +8,7 @@ import {
   handleReadProjectedGraph,
   handleRenderView,
 } from '../core/handleView.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'

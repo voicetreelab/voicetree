@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { handleLayout } from '../handleLayout.ts'
-import type { Session } from '../../domain/session.ts'
+import type { Session } from '../session.ts'
 
 function sessionFixture(): Session {
   return {

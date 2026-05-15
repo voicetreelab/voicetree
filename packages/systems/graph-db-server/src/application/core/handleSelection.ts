@@ -1,7 +1,7 @@
 import type { SelectionMode } from '../session/selection.ts'
 import { applySelection } from '../session/selection.ts'
-import type { Command } from '../domain/command.ts'
-import type { Session } from '../domain/session.ts'
+import type { Command } from './command.ts'
+import type { Session } from './session.ts'
 
 export function handleSelection(
   session: Session,

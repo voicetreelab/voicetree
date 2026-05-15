@@ -1,5 +1,5 @@
-import type { Command } from '../domain/command.ts'
-import type { Session } from '../domain/session.ts'
+import type { Command } from './command.ts'
+import type { Session } from './session.ts'
 
 export type LayoutUpdate = {
   positions?: Session['layout']['positions']

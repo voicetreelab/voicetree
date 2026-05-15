@@ -25,7 +25,7 @@ import {
   graphWithUpdatedPositions,
   parseWritePositionsRequest,
 } from '../core/graph/handleWritePositions.ts'
-import { runCommand } from '../effects/runCommand.ts'
+import { runCommand } from '../core/runCommand.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 export async function readGraphWorkflow(): Promise<HttpResult> {
