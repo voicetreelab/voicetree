@@ -8,13 +8,15 @@ import { serve } from '@hono/node-server'
 import { initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
 import { createEmptyGraph } from '@vt/graph-model'
-import { getVaultPaths, resolveWritePath, setVaultPath, setWritePath } from '../state/vaultAllowlist.ts'
-import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
+import { getVaultPaths } from '../state/vaultAllowlist.ts'
 import { setGraph } from '../state/graph-store.ts'
 import { loadGraphFromDisk } from '../data/graph/loading/loadGraphFromDisk.ts'
 import { getDirectoryTree } from '../data/graph/loading/folderScanner.ts'
-import { clearWatchFolderState, onReadPathsChanged } from '../state/watch-folder-store.ts'
-import { ensureDefaultFolderVisibilityView } from '../data/views/viewsRepository.ts'
+import {
+  clearWatchFolderState,
+  getProjectRootWatchedDirectory,
+  onReadPathsChanged,
+} from '../state/watch-folder-store.ts'
 import { CONTRACT_VERSION, type HealthResponse } from './contract.ts'
 import { createDaemonApp } from '../routes/daemonApp.ts'
 import { acquireLock } from './lock.ts'
@@ -23,6 +25,7 @@ import { SessionRegistry } from '../application/session/registry.ts'
 import { mountWatcher, type Watcher } from '../data/graph/watching/daemonWatcher.ts'
 import {
   configureVaultLifecycle,
+  openVaultWorkflow,
   registerVaultResource,
   resetVaultLifecycle,
 } from '../application/workflows/vaultLifecycle.ts'
@@ -34,7 +37,7 @@ export type DaemonHandle = {
 }
 
 export type StartDaemonOptions = {
-  vault: string
+  vault?: string | null
   port?: number
   logLevel?: 'info' | 'debug'
   appSupportPath?: string
@@ -103,12 +106,6 @@ function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
   )
 }
 
-function resolveConfiguredWritePath(vault: string, configuredWritePath: string | undefined): string {
-  return configuredWritePath
-    ? resolveWritePath(vault, configuredWritePath)
-    : vault
-}
-
 function formatAlreadyRunningMessage(vault: string, pid: number): string {
   return `vt-graphd: already running for ${vault} (pid ${pid})\n`
 }
@@ -142,20 +139,22 @@ export async function startDaemon(
   return tracer.startActiveSpan('daemon.start', async (startSpan) => {
   const clock = opts.clock ?? defaultClock
   const logger = opts.logger ?? defaultDaemonLogger
-  const vault = resolve(opts.vault)
-  startSpan.setAttribute('vault', vault)
-  const dotDir = join(vault, '.voicetree')
-  await mkdir(dotDir, { recursive: true })
+  const startupVault = opts.vault ? resolve(opts.vault) : null
+  if (startupVault) {
+    startSpan.setAttribute('vault', startupVault)
+    const dotDir = join(startupVault, '.voicetree')
+    await mkdir(dotDir, { recursive: true })
+  }
 
   // --- acquire lock ---
   const lockSpan = tracer.startSpan('daemon.acquire-lock')
-  const lockResult = await acquireLock(vault)
-  if ('kind' in lockResult) {
+  const lockResult = startupVault ? await acquireLock(startupVault) : null
+  if (startupVault && lockResult && 'kind' in lockResult) {
     lockSpan.setAttribute('alreadyRunning', true)
     lockSpan.end()
     startSpan.end()
-    const existingPort = (await readPortFile(vault)) ?? 0
-    logger.writeStderr(formatAlreadyRunningMessage(vault, lockResult.pid))
+    const existingPort = (await readPortFile(startupVault)) ?? 0
+    logger.writeStderr(formatAlreadyRunningMessage(startupVault, lockResult.pid))
     return {
       port: existingPort,
       alreadyRunning: { pid: lockResult.pid },
@@ -164,7 +163,7 @@ export async function startDaemon(
   }
   lockSpan.end()
 
-  const lockHandle = lockResult
+  const lockHandle = lockResult && 'release' in lockResult ? lockResult : null
   clearWatchFolderState()
   setGraph(createEmptyGraph())
   const startMs = clock()
@@ -183,56 +182,7 @@ export async function startDaemon(
   } catch (err) {
     initSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
     initSpan.end()
-    await lockHandle.release()
-    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    startSpan.end()
-    throw err
-  }
-
-  // --- set write path ---
-  const loadWritePathResult = await tracer.startActiveSpan(
-    'daemon.set-write-path',
-    async (writePathSpan) => {
-      try {
-        setVaultPath(vault)
-        const savedConfig = await getVaultConfigForDirectory(vault)
-        const resolvedWritePath = resolveConfiguredWritePath(vault, savedConfig?.writePath)
-        const result = await setWritePath(resolvedWritePath, {
-          createStarterIfEmpty: opts.createStarterIfEmpty,
-        })
-        if (!result.success) {
-          writePathSpan.setStatus({
-            code: SpanStatusCode.ERROR,
-            message: result.error ?? `Failed to load vault ${vault}`,
-          })
-        }
-        writePathSpan.setAttribute('writePath', resolvedWritePath)
-        return result
-      } catch (err) {
-        writePathSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-        throw err
-      } finally {
-        writePathSpan.end()
-      }
-    },
-  )
-  if (!loadWritePathResult.success) {
-    const msg = loadWritePathResult.error ?? `Failed to load vault ${vault}`
-    await lockHandle.release()
-    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: msg })
-    startSpan.end()
-    throw new Error(msg)
-  }
-
-  // --- folder visibility db ---
-  const fvSpan = tracer.startSpan('daemon.folder-visibility-db')
-  try {
-    ensureDefaultFolderVisibilityView(vault)
-    fvSpan.end()
-  } catch (err) {
-    fvSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    fvSpan.end()
-    await lockHandle.release()
+    await lockHandle?.release()
     startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
     startSpan.end()
     throw err
@@ -304,20 +254,6 @@ export async function startDaemon(
     })
   }
 
-  // --- mount watcher ---
-  const watchSpan = tracer.startSpan('daemon.mount-watcher')
-  try {
-    await startWatcher(vault)
-    watchSpan.end()
-  } catch (err) {
-    watchSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    watchSpan.end()
-    await lockHandle.release()
-    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    startSpan.end()
-    throw err
-  }
-
   let idleSessionTimer: ReturnType<typeof setInterval> | null = setInterval(
     () => {
       registry.purgeIdle(idleTimeoutMs)
@@ -334,9 +270,31 @@ export async function startDaemon(
     idleSessionTimer = null
   }
 
+  configureVaultLifecycle({ activeVaultPath: null, registry })
+  registerVaultResource({
+    async openForVault(vaultPath: string): Promise<void> {
+      await startWatcher(vaultPath)
+    },
+    async closeForVault(): Promise<void> {
+      await stopWatcher()
+    },
+  })
+  registerVaultResource({
+    async openForVault(): Promise<void> {},
+    async closeForVault(): Promise<void> {
+      registry.clear()
+    },
+  })
+
   const app = createDaemonApp({
     registry,
-    readHealth: () => buildHealthResponse(CONTRACT_VERSION, vault, startMs, clock(), registry.size()),
+    readHealth: () => buildHealthResponse(
+      CONTRACT_VERSION,
+      getProjectRootWatchedDirectory() ?? startupVault ?? '',
+      startMs,
+      clock(),
+      registry.size(),
+    ),
     onShutdown: () => {
       if (shuttingDown) {
         return
@@ -350,8 +308,10 @@ export async function startDaemon(
             await closeServer()
             await stopWatcher()
           } finally {
-            await lockHandle.release()
-            await deletePortFile(vault)
+            await lockHandle?.release()
+            if (startupVault) {
+              await deletePortFile(startupVault)
+            }
             await opts.onShutdownComplete?.()
           }
         })()
@@ -390,7 +350,7 @@ export async function startDaemon(
     serveSpan.end()
     clearIdleSessionTimer()
     await stopWatcher().catch(() => {})
-    await lockHandle.release()
+    await lockHandle?.release()
     startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
     startSpan.end()
     throw err
@@ -416,7 +376,7 @@ export async function startDaemon(
     serveSpan.end()
     clearIdleSessionTimer()
     await stopWatcher().catch(() => {})
-    await lockHandle.release()
+    await lockHandle?.release()
     startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
     startSpan.end()
     throw err
@@ -424,11 +384,34 @@ export async function startDaemon(
   serveSpan.setAttribute('port', assignedPort)
   serveSpan.end()
 
-  // --- write port file ---
-  const portFileSpan = tracer.startSpan('daemon.write-port-file')
-  await writePortFile(vault, assignedPort)
-  portFileSpan.setAttribute('port', assignedPort)
-  portFileSpan.end()
+  if (startupVault) {
+    const openVaultSpan = tracer.startSpan('daemon.open-startup-vault')
+    try {
+      await openVaultWorkflow({
+        path: startupVault,
+        createStarterIfEmpty: opts.createStarterIfEmpty,
+      })
+      // Legacy startup opens should bind the vault without pre-creating a renderer session.
+      registry.clear()
+      openVaultSpan.end()
+    } catch (err) {
+      openVaultSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+      openVaultSpan.end()
+      clearIdleSessionTimer()
+      await closeServer().catch(() => {})
+      await stopWatcher().catch(() => {})
+      await lockHandle?.release()
+      startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+      startSpan.end()
+      throw err
+    }
+
+    // --- write port file ---
+    const portFileSpan = tracer.startSpan('daemon.write-port-file')
+    await writePortFile(startupVault, assignedPort)
+    portFileSpan.setAttribute('port', assignedPort)
+    portFileSpan.end()
+  }
 
   startSpan.setAttribute('port', assignedPort)
   startSpan.end()
@@ -443,28 +426,14 @@ export async function startDaemon(
       await closeServer()
       await stopWatcher()
     } finally {
-      await lockHandle.release()
-      await deletePortFile(vault)
+      await lockHandle?.release()
+      if (startupVault) {
+        await deletePortFile(startupVault)
+      }
       clearWatchFolderState()
       setGraph(createEmptyGraph())
     }
   }
-
-  configureVaultLifecycle({ activeVaultPath: vault, registry })
-  registerVaultResource({
-    async openForVault(vaultPath: string): Promise<void> {
-      await startWatcher(vaultPath)
-    },
-    async closeForVault(): Promise<void> {
-      await stopWatcher()
-    },
-  })
-  registerVaultResource({
-    async openForVault(): Promise<void> {},
-    async closeForVault(): Promise<void> {
-      registry.clear()
-    },
-  })
 
   return { port: assignedPort, stop }
   }) // end startActiveSpan

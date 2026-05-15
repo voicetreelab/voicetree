@@ -37,6 +37,10 @@ export type VaultResource = {
   closeForVault(): Promise<void>
 }
 
+type OpenVaultWorkflowInput = OpenVaultRequest & {
+  createStarterIfEmpty?: boolean
+}
+
 type LifecycleState = {
   activeSessionId: string | null
   activeVaultPath: string | null
@@ -155,7 +159,7 @@ async function openResources(vaultPath: string): Promise<void> {
   }
 }
 
-async function bindVault(input: OpenVaultRequest, targetVaultPath: string): Promise<void> {
+async function bindVault(input: OpenVaultWorkflowInput, targetVaultPath: string): Promise<void> {
   await mkdir(join(targetVaultPath, '.voicetree'), { recursive: true })
   setVaultPath(targetVaultPath)
 
@@ -165,13 +169,15 @@ async function bindVault(input: OpenVaultRequest, targetVaultPath: string): Prom
     ? resolveWritePath(targetVaultPath, configuredWritePath)
     : targetVaultPath
 
-  const result = await setWritePath(targetWritePath)
+  const result = await setWritePath(targetWritePath, {
+    createStarterIfEmpty: input.createStarterIfEmpty,
+  })
   if (!result.success) {
     throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetVaultPath}`)
   }
 }
 
-export async function openVaultWorkflow(input: OpenVaultRequest): Promise<OpenVaultResponse> {
+export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
   return await withVaultMutex(async () => {
     const body = OpenVaultRequestSchema.parse(input)
     const targetVaultPath = resolve(body.path)
@@ -189,7 +195,10 @@ export async function openVaultWorkflow(input: OpenVaultRequest): Promise<OpenVa
     setGraph(createEmptyGraph())
 
     try {
-      await bindVault(body, targetVaultPath)
+      await bindVault(
+        { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+        targetVaultPath,
+      )
       await openResources(targetVaultPath)
       lifecycleState.activeVaultPath = targetVaultPath
       return await buildOpenVaultResponse(targetVaultPath)
