@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-15T09:22:43.412Z",
-  "sourceFileCount": 744,
+  "generatedAt": "2026-05-15T14:51:15.655Z",
+  "sourceFileCount": 745,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1166,
-    "samePackageRelativeImports": 1166,
+    "relativeImports": 1170,
+    "samePackageRelativeImports": 1170,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 677,
-    "../x": 489,
+    "./x": 680,
+    "../x": 490,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -141,12 +141,12 @@
     {
       "package": "@vt/graph-db-client",
       "packageRoot": "packages/systems/graph-db-client",
-      "relativeImports": 48,
-      "samePackageRelativeImports": 48,
+      "relativeImports": 52,
+      "samePackageRelativeImports": 52,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 31,
-        "../x": 17,
+        "./x": 34,
+        "../x": 18,
         "../../x": 0,
         "../../../+x": 0
       }

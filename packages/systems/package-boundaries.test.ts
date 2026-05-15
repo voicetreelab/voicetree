@@ -29,6 +29,8 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
+    // vaultless daemon launcher (analogous to serve.ts for CLI)
+    'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
     'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
     'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
     'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',

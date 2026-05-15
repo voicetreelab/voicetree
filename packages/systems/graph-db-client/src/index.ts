@@ -16,7 +16,10 @@ export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
   resolveDaemonRuntimeCommand,
+  spawnVaultlessDaemon,
   type EnsureDaemonResult,
+  type SpawnVaultlessDaemonOptions,
+  type VaultlessDaemonHandle,
 } from './autoLaunch.ts'
 export {
   isVtGraphdProcessForVault,
