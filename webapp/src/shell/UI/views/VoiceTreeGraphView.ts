@@ -138,7 +138,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Initialize dark mode via DarkModeManager (handles async settings load)
         void initializeDarkMode(this.options.initialDarkMode, {
             updateGraphStyles: () => this.updateGraphStyles(),
-            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark)
+            updateSpeedDialMenu: (isDark) => updateSpeedDialDarkMode(isDark),
+            updateSearchTheme: (isDark) => this.searchService?.updateTheme(isDark)
         });
 
         // Render DOM structure

@@ -6,6 +6,9 @@ import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
+import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjection'
+import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
+import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeGraph, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
@@ -101,13 +104,24 @@ export async function prepareTerminalDataInMain(
     const worktreeName: string | undefined = extractWorktreeNameFromPath(initialSpawnDirectory)
     const agentTypeName: string = settings.agents.find(a => a.command === command)?.name ?? ''
 
+    // Auto-install lifecycle hooks per agent type. Each pure injector is a
+    // no-op for non-matching commands, so the same pipeline handles every
+    // agent. Claude: settings JSON in APP_SUPPORT. Codex: TOML inline `-c`
+    // flags with mcpPort + terminalId baked in at spawn time.
+    const env = getRuntimeEnv()
+    const appSupportPath: string = env.getAppSupportPath()
+    const mcpPort: number = env.getMcpPort()
+    const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(appSupportPath)
+    const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
+    const finalCommand: string = injectCodexHookFlags(claudeInjected, mcpPort, terminalId)
+
     return createTerminalData({
         terminalId,
         attachedToNodeId: contextNodeId,
         terminalCount,
         title,
         anchoredToNodeId: taskNodeId,
-        initialCommand: command,
+        initialCommand: finalCommand,
         executeCommand: true,
         initialSpawnDirectory,
         initialEnvVars: expandedEnvVars,
