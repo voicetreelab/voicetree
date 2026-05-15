@@ -1,9 +1,3 @@
-import * as O from 'fp-ts/lib/Option.js'
-import { z } from 'zod'
-import type { Graph, GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
-import { findFirstParentNode } from '@vt/graph-model/graph'
-import { getNodeTitle } from '@vt/graph-model/markdown'
-import { GraphStateSchema, UnseenNodeSchema } from '@vt/graph-db-server/contract'
 import { applyGraphDeltaToDBThroughMemAndUI } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { findFileByName } from '@vt/graph-db-server/graph/findFileByName'
 import { getPreviewContainedNodeIds } from '@vt/graph-db-server/context-nodes/getPreviewContainedNodeIds'
@@ -17,158 +11,37 @@ import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes
 import { getGraph, getNode, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import {
+  buildDeleteNodeDelta,
+  composeApplyDeltaResponse,
+  parseApplyDeltaRequest,
+  parseGraphDeltaRequest,
+} from '../core/graph/handleApplyDelta.ts'
+import {
+  composeContainedIdsUpdateResponse,
+  composeFromQuestionResponse,
+  composeNodeIdResponse,
+  composeUnseenNodesResponse,
+  parseContextNodeContainedIdsRequest,
+  parseContextNodeFromQuestionRequest,
+  parseContextNodeFromSelectedNodesRequest,
+  parseContextNodeRequest,
+  parseUnseenNodesAroundContextNodeRequest,
+} from '../core/graph/handleContextNode.ts'
+import {
+  classifyFindFileRequest,
+  composeAppliedResponse,
+  composeFindFileResponse,
+  composeGraphResponse,
+} from '../core/graph/handleReadGraph.ts'
+import {
+  graphWithUpdatedPositions,
+  parseWritePositionsRequest,
+} from '../core/graph/handleWritePositions.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
-const GraphDeltaRequestSchema = z.array(
-  z.discriminatedUnion('type', [
-    z.object({
-      type: z.literal('UpsertNode'),
-      nodeToUpsert: z.unknown(),
-      previousNode: z.unknown(),
-    }),
-    z.object({
-      type: z.literal('DeleteNode'),
-      nodeId: z.string(),
-      deletedNode: z.unknown(),
-    }),
-  ]),
-)
-
-const ContextNodeRequestSchema = z.object({
-  parentNodeId: z.string(),
-  semanticNodeIds: z.array(z.string()),
-})
-
-const ContextNodeFromQuestionRequestSchema = z.object({
-  nodeIds: z.array(z.string()),
-  question: z.string(),
-  semanticNodeIds: z.array(z.string()),
-})
-
-const ContextNodeFromSelectedNodesRequestSchema = z.object({
-  taskNodeId: z.string(),
-  selectedNodeIds: z.array(z.string()),
-})
-
-const UnseenNodesAroundContextNodeRequestSchema = z.object({
-  contextNodeId: z.string(),
-  searchFromNode: z.string().optional(),
-})
-
-const ContextNodeContainedIdsRequestSchema = z.object({
-  contextNodeId: z.string(),
-  newNodeIds: z.array(z.string()),
-})
-
-const ApplyGraphDeltaRequestSchema = z.object({
-  delta: GraphDeltaRequestSchema,
-  recordForUndo: z.boolean().optional(),
-})
-
-const PositionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-})
-
-const WritePositionsRequestSchema = z.object({
-  positions: z.record(z.string(), PositionSchema),
-})
-
-function normalizeAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
-  if (value instanceof Map) return value as ReadonlyMap<string, string>
-
-  if (Array.isArray(value)) {
-    return new Map(
-      value
-        .filter((entry): entry is readonly [string, unknown] =>
-          Array.isArray(entry) && typeof entry[0] === 'string',
-        )
-        .map(([key, entryValue]) => [key, String(entryValue)]),
-    )
-  }
-
-  if (typeof value === 'object' && value !== null) {
-    return new Map(
-      Object.entries(value).map(([key, entryValue]) => [
-        key,
-        typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
-      ]),
-    )
-  }
-
-  return new Map()
-}
-
-function normalizeGraphNode(node: unknown): GraphNode {
-  const candidate = node as GraphNode
-  return {
-    ...candidate,
-    nodeUIMetadata: {
-      ...candidate.nodeUIMetadata,
-      additionalYAMLProps: normalizeAdditionalYAMLProps(
-        candidate.nodeUIMetadata?.additionalYAMLProps,
-      ),
-    },
-  }
-}
-
-function graphWithUpdatedPositions(
-  graph: Graph,
-  positions: z.infer<typeof WritePositionsRequestSchema>['positions'],
-): { graph: Graph; written: number } {
-  let written = 0
-  const nodes: Record<string, GraphNode> = Object.entries(graph.nodes).reduce(
-    (acc: Record<string, GraphNode>, [nodeId, node]: [string, GraphNode]) => {
-      const position = positions[nodeId]
-      if (!position) {
-        return { ...acc, [nodeId]: node }
-      }
-
-      written += 1
-      return {
-        ...acc,
-        [nodeId]: {
-          ...node,
-          nodeUIMetadata: {
-            ...node.nodeUIMetadata,
-            position: O.some(position),
-          },
-        },
-      }
-    },
-    {},
-  )
-
-  return {
-    graph: {
-      ...graph,
-      nodes,
-    },
-    written,
-  }
-}
-
-function normalizeDelta(
-  delta: readonly z.infer<typeof GraphDeltaRequestSchema>[number][],
-): GraphDelta {
-  return delta.map((nodeDelta): NodeDelta => {
-    if (nodeDelta.type === 'DeleteNode') {
-      return nodeDelta as NodeDelta
-    }
-
-    const previousNode = nodeDelta.previousNode as O.Option<GraphNode>
-    return {
-      ...nodeDelta,
-      nodeToUpsert: normalizeGraphNode(nodeDelta.nodeToUpsert),
-      previousNode: O.isSome(previousNode)
-        ? O.some(normalizeGraphNode(previousNode.value))
-        : O.none,
-    }
-  })
-}
-
 export function readGraphWorkflow(): HttpResult {
-  return jsonResult(GraphStateSchema.parse(getGraph()))
+  return jsonResult(composeGraphResponse(getGraph()))
 }
 
 export async function applyGraphDeltaWorkflow(
@@ -176,17 +49,18 @@ export async function applyGraphDeltaWorkflow(
   sessionId: string,
   options: { recordForUndo?: boolean } = {},
 ): Promise<HttpResult> {
-  let delta: GraphDelta
-  try {
-    delta = normalizeDelta(GraphDeltaRequestSchema.parse(rawBody))
-  } catch {
-    return errorResult('Invalid GraphDelta request body', 'INVALID_GRAPH_DELTA')
+  const parsed = parseGraphDeltaRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
-    await applyGraphDeltaToDBThroughMemAndUI(delta, options.recordForUndo ?? true)
-    publish({ delta, source: `session:${sessionId}` })
-    return jsonResult({ delta, graph: GraphStateSchema.parse(getGraph()) })
+    await applyGraphDeltaToDBThroughMemAndUI(
+      parsed.delta,
+      options.recordForUndo ?? true,
+    )
+    publish({ delta: parsed.delta, source: `session:${sessionId}` })
+    return jsonResult(composeApplyDeltaResponse(parsed.delta, getGraph()))
   } catch (error) {
     return errorResult((error as Error).message, 'GRAPH_DELTA_APPLY_FAILED', 500)
   }
@@ -196,13 +70,13 @@ export async function applyGraphDeltaWithOptionsWorkflow(
   rawBody: unknown,
   sessionId: string,
 ): Promise<HttpResult> {
-  const body = ApplyGraphDeltaRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid apply-delta request body', 'INVALID_APPLY_DELTA')
+  const parsed = parseApplyDeltaRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
-  return await applyGraphDeltaWorkflow(body.data.delta, sessionId, {
-    recordForUndo: body.data.recordForUndo,
+  return await applyGraphDeltaWorkflow(parsed.delta, sessionId, {
+    recordForUndo: parsed.recordForUndo,
   })
 }
 
@@ -212,34 +86,27 @@ export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResul
     return errorResult(`Node not found: ${nodeId}`, 'NODE_NOT_FOUND', 404)
   }
 
-  const delta: GraphDelta = [
-    {
-      type: 'DeleteNode',
-      nodeId,
-      deletedNode: O.some(existingNode),
-    },
-  ]
+  const delta = buildDeleteNodeDelta(nodeId, existingNode)
 
   try {
     await applyGraphDeltaToDBThroughMemAndUI(delta)
-    return jsonResult({ delta, graph: GraphStateSchema.parse(getGraph()) })
+    return jsonResult(composeApplyDeltaResponse(delta, getGraph()))
   } catch (error) {
     return errorResult((error as Error).message, 'GRAPH_NODE_DELETE_FAILED', 500)
   }
 }
 
 export async function findFileWorkflow(name: string | undefined): Promise<HttpResult> {
-  if (!name) {
-    return errorResult('Missing required query parameter: name', 'MISSING_NAME')
+  const request = classifyFindFileRequest({
+    name,
+    searchPath: getProjectRootWatchedDirectory(),
+  })
+  if (request.kind === 'error') {
+    return errorResult(request.message, request.code, request.status)
   }
 
-  const searchPath = getProjectRootWatchedDirectory()
-  if (!searchPath) {
-    return errorResult('No vault is currently open', 'NO_VAULT', 503)
-  }
-
-  const matches = await findFileByName(name, searchPath)
-  return jsonResult({ matches })
+  const matches = await findFileByName(request.name, request.searchPath)
+  return jsonResult(composeFindFileResponse(matches))
 }
 
 export async function previewContainedNodesWorkflow(nodeId: string): Promise<HttpResult> {
@@ -248,17 +115,17 @@ export async function previewContainedNodesWorkflow(nodeId: string): Promise<Htt
 }
 
 export async function createContextNodeWorkflow(rawBody: unknown): Promise<HttpResult> {
-  const body = ContextNodeRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseContextNodeRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
     const nodeId = await createContextNode(
-      body.data.parentNodeId,
-      body.data.semanticNodeIds,
+      parsed.parentNodeId,
+      parsed.semanticNodeIds,
     )
-    return jsonResult({ nodeId })
+    return jsonResult(composeNodeIdResponse(nodeId))
   } catch (error) {
     return errorResult((error as Error).message, 'CONTEXT_NODE_CREATE_FAILED', 500)
   }
@@ -267,28 +134,18 @@ export async function createContextNodeWorkflow(rawBody: unknown): Promise<HttpR
 export async function createContextNodeFromQuestionWorkflow(
   rawBody: unknown,
 ): Promise<HttpResult> {
-  const body = ContextNodeFromQuestionRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseContextNodeFromQuestionRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
     const nodeId = await createContextNodeFromQuestion(
-      body.data.nodeIds,
-      body.data.question,
-      body.data.semanticNodeIds,
+      parsed.nodeIds,
+      parsed.question,
+      parsed.semanticNodeIds,
     )
-    const graph = getGraph()
-    const contextNode = graph.nodes[nodeId]
-    const parentNode = contextNode
-      ? findFirstParentNode(contextNode, graph)
-      : undefined
-
-    return jsonResult({
-      nodeId,
-      title: contextNode ? getNodeTitle(contextNode) : '',
-      parentNodePath: parentNode?.absoluteFilePathIsID ?? '',
-    })
+    return jsonResult(composeFromQuestionResponse(nodeId, getGraph()))
   } catch (error) {
     return errorResult(
       (error as Error).message,
@@ -301,17 +158,17 @@ export async function createContextNodeFromQuestionWorkflow(
 export async function createContextNodeFromSelectedNodesWorkflow(
   rawBody: unknown,
 ): Promise<HttpResult> {
-  const body = ContextNodeFromSelectedNodesRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseContextNodeFromSelectedNodesRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
     const nodeId = await createContextNodeFromSelectedNodes(
-      body.data.taskNodeId,
-      body.data.selectedNodeIds,
+      parsed.taskNodeId,
+      parsed.selectedNodeIds,
     )
-    return jsonResult({ nodeId })
+    return jsonResult(composeNodeIdResponse(nodeId))
   } catch (error) {
     return errorResult(
       (error as Error).message,
@@ -324,17 +181,17 @@ export async function createContextNodeFromSelectedNodesWorkflow(
 export async function getUnseenNodesAroundContextNodeWorkflow(
   rawBody: unknown,
 ): Promise<HttpResult> {
-  const body = UnseenNodesAroundContextNodeRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseUnseenNodesAroundContextNodeRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
     const nodes = await getUnseenNodesAroundContextNode(
-      body.data.contextNodeId,
-      body.data.searchFromNode,
+      parsed.contextNodeId,
+      parsed.searchFromNode,
     )
-    return jsonResult({ nodes: z.array(UnseenNodeSchema).parse(nodes) })
+    return jsonResult(composeUnseenNodesResponse(nodes))
   } catch (error) {
     return errorResult((error as Error).message, 'UNSEEN_NODES_LOOKUP_FAILED', 500)
   }
@@ -343,14 +200,14 @@ export async function getUnseenNodesAroundContextNodeWorkflow(
 export async function updateContextNodeContainedIdsWorkflow(
   rawBody: unknown,
 ): Promise<HttpResult> {
-  const body = ContextNodeContainedIdsRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseContextNodeContainedIdsRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   try {
-    await updateContextNodeContainedIds(body.data.contextNodeId, body.data.newNodeIds)
-    return jsonResult({ updated: true })
+    await updateContextNodeContainedIds(parsed.contextNodeId, parsed.newNodeIds)
+    return jsonResult(composeContainedIdsUpdateResponse())
   } catch (error) {
     return errorResult(
       (error as Error).message,
@@ -361,9 +218,9 @@ export async function updateContextNodeContainedIdsWorkflow(
 }
 
 export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResult> {
-  const body = WritePositionsRequestSchema.safeParse(rawBody)
-  if (!body.success) {
-    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  const parsed = parseWritePositionsRequest(rawBody)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code)
   }
 
   const projectRoot = getProjectRootWatchedDirectory()
@@ -372,7 +229,7 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
   }
 
   try {
-    const result = graphWithUpdatedPositions(getGraph(), body.data.positions)
+    const result = graphWithUpdatedPositions(getGraph(), parsed.positions)
     setGraph(result.graph)
     writeAllPositionsSync(result.graph, projectRoot)
     return jsonResult({ written: result.written })
@@ -382,9 +239,9 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
 }
 
 export async function undoWorkflow(): Promise<HttpResult> {
-  return jsonResult({ applied: await performUndo() })
+  return jsonResult(composeAppliedResponse(await performUndo()))
 }
 
 export async function redoWorkflow(): Promise<HttpResult> {
-  return jsonResult({ applied: await performRedo() })
+  return jsonResult(composeAppliedResponse(await performRedo()))
 }
