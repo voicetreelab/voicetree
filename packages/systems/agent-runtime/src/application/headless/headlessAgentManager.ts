@@ -198,14 +198,19 @@ function startTmuxExitPoll(terminalId: TerminalId, deps: HeadlessAgentDeps): Ret
     }, TMUX_EXIT_POLL_MS)
 }
 
-async function spawnTmuxHeadlessAgent(
+// Creates a tmux session running `command`, sets up log capture, persists
+// metadata, registers in terminal-registry, and starts the exit poll. Used
+// by both the headless spawn path (Phase 2: command = agent CLI) and the
+// Electron interactive IPC path (Phase 4 fix: command = user shell). The
+// caller decides what `command` is; this function is shape-agnostic.
+export async function spawnTmuxBackedTerminal(
     terminalId: TerminalId,
     terminalData: TerminalData,
     command: string,
     cwd: string | undefined,
     env: Record<string, string>,
-    deps: HeadlessAgentDeps,
-): Promise<void> {
+    deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
+): Promise<{readonly pid: number}> {
     const paths: {readonly logPath: string; readonly metadataPath: string} = resolveTmuxPaths(terminalId, env)
     const startedAt: string = new Date().toISOString()
     const created: {readonly pid: number} = await createSession(
@@ -228,7 +233,8 @@ async function spawnTmuxHeadlessAgent(
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, deps)
     tmuxHeadlessSessions.set(terminalId, {...paths, pollTimer})
     deps.recordTerminalSpawn(terminalId, terminalData)
-    deps.writeLog({level: 'info', message: `[headlessAgentManager] Spawned tmux-backed headless agent ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'}`})
+    deps.writeLog({level: 'info', message: `[headlessAgentManager] Spawned tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
+    return created
 }
 
 function readTmuxHeadlessOutput(terminalId: TerminalId): string {
@@ -276,7 +282,7 @@ export function spawnHeadlessAgent(
     ptyBackend: PtyBackend = 'node-pty',
 ): void {
     if (ptyBackend === 'tmux') {
-        void spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps).catch((error: unknown) => {
+        void spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env, deps).catch((error: unknown) => {
             deps.writeLog({level: 'error', message: `[headlessAgentManager] Failed to spawn tmux-backed headless agent ${terminalId}:`, error})
             deps.markTerminalExited(terminalId, null)
         })

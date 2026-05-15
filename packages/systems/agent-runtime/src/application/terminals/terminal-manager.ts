@@ -2,9 +2,10 @@ import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import {getTerminalId} from './terminal-registry/types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
-import type {TerminalData} from './terminal-registry/types';
+import type {TerminalData, TerminalId} from './terminal-registry/types';
+import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
-import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
+import {closeHeadlessAgent, cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
 import {getRuntimeTrace} from '../runtime/runtime-config';
 import {
   attachPtyProcessHandlers,
@@ -127,6 +128,31 @@ export class TerminalManager {
       return { success: true, terminalId }; // Return success with error terminal
     }
     });
+  }
+
+  // Tmux-backed interactive spawn. Creates a tmux session running the user
+  // shell (so the relay's WS attach has something to connect to) and
+  // registers in terminal-registry. The renderer panel speaks WS to the relay
+  // directly — no PTY is owned by this process for tmux-backed terminals.
+  async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
+    const {terminalData, getToolsDirectory} = opts;
+    const deps: TerminalManagerDeps = this.deps;
+    const terminalId: TerminalId = readTerminalId(terminalData);
+    try {
+      const shell: string = await resolveTerminalShell(deps);
+      const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
+      const env: NodeJS.ProcessEnv = buildTerminalEnvironment(terminalData, deps);
+      const tmuxEnv: Record<string, string> = {};
+      for (const key of Object.keys(env)) {
+        const value: string | undefined = env[key];
+        if (typeof value === 'string') tmuxEnv[key] = value;
+      }
+      await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv);
+      return {success: true, terminalId};
+    } catch (error: unknown) {
+      deps.logger.error(`Failed to spawn tmux-backed terminal ${terminalId}:`, error);
+      return {success: false, terminalId, error: error instanceof Error ? error.message : String(error)};
+    }
   }
 
   /**

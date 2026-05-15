@@ -9,10 +9,6 @@ import {
     untrackTerminal,
 } from '@/shell/edge/main/agent/terminals/terminal-window-tracker'
 
-type TerminalSpawnRequest = {
-    readonly terminalId?: string
-}
-
 // Bridge between Electron IPC and the runtime-agnostic TerminalManager.
 // The handler is the only place that knows about `event.sender`; it wraps
 // renderer IPC sends as onData/onExit callbacks for the manager.
@@ -26,11 +22,19 @@ export function registerTerminalIpcHandlers(
         const settings: VTSettings = await loadSettings()
 
         if (shouldBypassElectronNodePtySpawn(settings)) {
-            const terminalId: string | undefined = (terminalData as TerminalSpawnRequest).terminalId
-            if (!terminalId) {
-                return {success: false, terminalId: '', error: 'Missing terminalId for tmux relay attach'}
+            // Phase 4 + M1-fix: under ptyBackend='tmux', the renderer panel speaks
+            // WebSocket to the relay directly. The session it attaches to must
+            // already exist — without this call the panel hangs in "tmux reconnecting".
+            const tmuxResult: TerminalSpawnResult = await terminalManager.spawnTmuxBacked({
+                terminalData,
+                getToolsDirectory,
+                onData: (): void => {},
+                onExit: (terminalId: string): void => { untrackTerminal(terminalId) },
+            })
+            if (tmuxResult.success && !tmuxResult.terminalId.startsWith('error-')) {
+                trackTerminalForWindow(tmuxResult.terminalId, senderId)
             }
-            return {success: true, terminalId}
+            return tmuxResult
         }
 
         const result: TerminalSpawnResult = await terminalManager.spawn({

@@ -9,15 +9,17 @@ import {
     getHeadlessAgentOutput,
     sendHeadlessAgentInput,
     spawnHeadlessAgent,
+    spawnTmuxBackedTerminal,
 } from '../headlessAgentManager'
 import {createTerminalData, type TerminalData, type TerminalId} from '../../terminals/terminal-registry/types'
-import {clearTerminalRecords} from '../../terminals/terminal-registry'
+import {clearTerminalRecords, getTerminalRecords} from '../../terminals/terminal-registry'
 import {hasSession, killSession} from '../../terminals/tmux-session-manager'
 
 type TmuxMetadata = {
     readonly status: 'running' | 'exited'
     readonly pid: number
     readonly exitCode?: number | null
+    readonly terminalData: TerminalData
 }
 
 const sessions: Set<string> = new Set<string>()
@@ -118,6 +120,53 @@ describe('headlessAgentManager tmux backend', () => {
         const exited: TmuxMetadata | null = await readMetadata(metadataPath)
         expect(exited?.exitCode).toBeNull()
         await waitFor(async () => !(await hasSession(terminalId)))
+        sessions.delete(terminalId)
+        closeHeadlessAgent(terminalId)
+    }, 15000)
+
+    // M1-fix: Phase 4 (Electron interactive) creates tmux sessions via the same
+    // helper as Phase 2 (headless). The relay's WS attach can only connect to
+    // sessions that already exist; this verifies the missing-session class of
+    // failure Wei observed cannot recur.
+    it('spawns a tmux-backed interactive terminal (isHeadless=false) and persists the original terminalData for reconciliation', async () => {
+        const terminalId: TerminalId = makeName()
+        const vaultPath: string = await makeTempVault()
+        const metadataPath: string = join(vaultPath, '.voicetree', 'terminals', `${terminalId}.json`)
+        sessions.add(terminalId)
+
+        const interactiveTerminalData: TerminalData = createTerminalData({
+            terminalId,
+            attachedToNodeId: join(vaultPath, 'context.md') as NodeIdAndFilePath,
+            terminalCount: 0,
+            title: 'M1-fix interactive tmux',
+            agentName: terminalId,
+            isHeadless: false,
+            initialEnvVars: {
+                VOICETREE_TERMINAL_ID: terminalId,
+                VOICETREE_VAULT_PATH: vaultPath,
+            },
+        })
+
+        const created: {readonly pid: number} = await spawnTmuxBackedTerminal(
+            terminalId,
+            interactiveTerminalData,
+            '/bin/bash -l',
+            vaultPath,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+        )
+        expect(created.pid).toBeGreaterThan(0)
+
+        await waitFor(async () => hasSession(terminalId))
+        const meta: TmuxMetadata | null = await readMetadata(metadataPath)
+        expect(meta?.status).toBe('running')
+        expect(meta?.terminalData.isHeadless).toBe(false)
+        expect(meta?.terminalData.agentName).toBe(terminalId)
+
+        const record = getTerminalRecords().find((r) => r.terminalId === terminalId)
+        expect(record).toBeDefined()
+        expect(record?.terminalData.isHeadless).toBe(false)
+
+        await killSession(terminalId)
         sessions.delete(terminalId)
         closeHeadlessAgent(terminalId)
     }, 15000)
