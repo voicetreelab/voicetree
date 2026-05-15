@@ -283,11 +283,21 @@ export class TerminalVanilla {
   private async initRelayTerminal(): Promise<void> {
     if (!this.term) return;
 
-    this.terminalId = this.terminalData.terminalId;
+    // M1-fix follow-up (Yan finding): the relay endpoint runs `pty.spawn('tmux attach -t {name}')`
+    // which fails if the session doesn't exist. The IPC handler under ptyBackend='tmux'
+    // calls terminalManager.spawnTmuxBacked() to create the session — so we must trigger
+    // IPC spawn here BEFORE the WebSocket attach, otherwise the panel hangs in
+    // "tmux reconnecting" forever (Wei + Yan FAILs).
+    const spawnResult: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
+    if (!spawnResult.success) {
+      this.term.writeln('Failed to spawn tmux-backed terminal: ' + (spawnResult.error ?? 'Unknown error'));
+      return;
+    }
+    this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
     this.createRelayStatusIndicator();
 
     const relayPort: number = await window.electronAPI!.main.getMcpPort();
-    const encodedTerminalId: string = encodeURIComponent(this.terminalData.terminalId);
+    const encodedTerminalId: string = encodeURIComponent(this.terminalId);
     const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
 
     this.relayClient = new TerminalRelayClient({
