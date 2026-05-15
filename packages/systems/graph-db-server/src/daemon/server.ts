@@ -21,6 +21,11 @@ import { acquireLock } from './lock.ts'
 import { writePortFile, readPortFile, deletePortFile } from './portFile.ts'
 import { SessionRegistry } from '../application/session/registry.ts'
 import { mountWatcher, type Watcher } from '../data/graph/watching/daemonWatcher.ts'
+import {
+  configureVaultLifecycle,
+  registerVaultResource,
+  resetVaultLifecycle,
+} from '../application/workflows/vaultLifecycle.ts'
 
 export type DaemonHandle = {
   port: number
@@ -234,41 +239,24 @@ export async function startDaemon(
   }
 
   const registry = new SessionRegistry()
+  resetVaultLifecycle()
   const idleTimeoutMs = opts.idleTimeoutMs ?? 24 * 60 * 60 * 1000
 
-  // --- mount watcher ---
-  const watchSpan = tracer.startSpan('daemon.mount-watcher')
-  let watcher: Watcher
-  try {
-    watcher = mountWatcher(await getVaultPaths(), vault)
-    try {
-      await watcher.ready
-    } catch (err) {
-      await watcher.unmount().catch(() => {})
-      throw err
-    }
-    watchSpan.end()
-  } catch (err) {
-    watchSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    watchSpan.end()
-    await lockHandle.release()
-    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
-    startSpan.end()
-    throw err
-  }
-  let watcherStopped = false
+  let watcher: Watcher | null = null
+  let watcherStopped = true
   let remountChain: Promise<void> = Promise.resolve()
+  let unsubscribeReadPaths: (() => void) | null = null
   let shuttingDown = false
 
-  const queueWatcherRemount = (watchPaths: readonly string[]): void => {
+  const queueWatcherRemount = (watchPaths: readonly string[], watchedDir: string): void => {
     remountChain = remountChain
       .then(async () => {
-        if (watcherStopped) {
+        if (watcherStopped || !watcher) {
           return
         }
         await watcher.unmount()
         if (!watcherStopped) {
-          const nextWatcher = mountWatcher(watchPaths, vault)
+          const nextWatcher = mountWatcher(watchPaths, watchedDir)
           try {
             await nextWatcher.ready
           } catch (err) {
@@ -287,18 +275,47 @@ export async function startDaemon(
       })
   }
 
-  const unsubscribeReadPaths = onReadPathsChanged((watchPaths) => {
-    queueWatcherRemount(watchPaths)
-  })
-
   const stopWatcher = async (): Promise<void> => {
-    if (watcherStopped) {
+    if (watcherStopped && !watcher) {
       return
     }
     watcherStopped = true
-    unsubscribeReadPaths()
+    unsubscribeReadPaths?.()
+    unsubscribeReadPaths = null
     await remountChain
-    await watcher.unmount()
+    await watcher?.unmount()
+    watcher = null
+  }
+
+  const startWatcher = async (watchedDir: string): Promise<void> => {
+    await stopWatcher()
+    watcherStopped = false
+    const nextWatcher = mountWatcher(await getVaultPaths(), watchedDir)
+    try {
+      await nextWatcher.ready
+    } catch (err) {
+      await nextWatcher.unmount().catch(() => {})
+      watcherStopped = true
+      throw err
+    }
+    watcher = nextWatcher
+    unsubscribeReadPaths = onReadPathsChanged((watchPaths) => {
+      queueWatcherRemount(watchPaths, watchedDir)
+    })
+  }
+
+  // --- mount watcher ---
+  const watchSpan = tracer.startSpan('daemon.mount-watcher')
+  try {
+    await startWatcher(vault)
+    watchSpan.end()
+  } catch (err) {
+    watchSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    watchSpan.end()
+    await lockHandle.release()
+    startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
+    startSpan.end()
+    throw err
   }
 
   let idleSessionTimer: ReturnType<typeof setInterval> | null = setInterval(
@@ -432,6 +449,22 @@ export async function startDaemon(
       setGraph(createEmptyGraph())
     }
   }
+
+  configureVaultLifecycle({ activeVaultPath: vault, registry })
+  registerVaultResource({
+    async openForVault(vaultPath: string): Promise<void> {
+      await startWatcher(vaultPath)
+    },
+    async closeForVault(): Promise<void> {
+      await stopWatcher()
+    },
+  })
+  registerVaultResource({
+    async openForVault(): Promise<void> {},
+    async closeForVault(): Promise<void> {
+      registry.clear()
+    },
+  })
 
   return { port: assignedPort, stop }
   }) // end startActiveSpan
