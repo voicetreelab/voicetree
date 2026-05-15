@@ -291,6 +291,11 @@ export async function getGraphFromDaemon(): Promise<Graph> {
 }
 
 export async function getProjectedGraphFromDaemon(): Promise<unknown> {
+  // If the renderer races initial hydration before the daemon connection is
+  // active, return null instead of throwing. subscribeToGraphUpdates() treats
+  // !graph as "no initial hydration, wait for the SSE push" — same pattern as
+  // getLiveStateSnapshotFromDaemon.
+  if (!getActiveDaemonConnection()) return null
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const sessionId: string = await ensureRendererSession(client)
   return await client.getProjectedGraph(sessionId)
