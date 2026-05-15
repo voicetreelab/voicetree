@@ -1,9 +1,9 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { registerCommand } from '../index'
-import { diffCaptures, type Snapshot } from '#debug/state/captureDiff'
-import { err, ok } from '#debug/protocol/Response'
-import type { Response } from '#debug/protocol/Response'
+import { diffCaptures, type Snapshot } from '@vt/graph-tools/debug/state/captureDiff'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 
 const CAPTURES_DIR = '/tmp/vt-debug/captures'
 

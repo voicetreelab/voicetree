@@ -1,22 +1,22 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { hydrateCommand, serializeState, type Delta, type State } from '@vt/graph-state'
-import { type DebugInstance } from '#debug/protocol/discover'
-import { computeDrift, type DriftData, type FsContentById } from '#debug/state/drift'
-import { normalizeChord } from '#debug/input/normalizeChord'
-import { pressChord } from '#debug/input/pressChord'
-import { openDebugSession, type PageLike as SessionPageLike } from '#debug/protocol/playwrightSession'
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import { projectStateToCyDump } from '#debug/state/projectedCyDump'
-import { err, ok } from '#debug/protocol/Response'
-import type { Response } from '#debug/protocol/Response'
-import { parseCyDump, type CyDump } from '#debug/state/cyStateShape'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { computeDrift, type DriftData, type FsContentById } from '@vt/graph-tools/debug/state/drift'
+import { normalizeChord } from '@vt/graph-tools/debug/input/normalizeChord'
+import { pressChord } from '@vt/graph-tools/debug/input/pressChord'
+import { openDebugSession, type PageLike as SessionPageLike } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { projectStateToCyDump } from '@vt/graph-tools/debug/state/projectedCyDump'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
+import { parseCyDump, type CyDump } from '@vt/graph-tools/debug/state/cyStateShape'
 import {
   STEP_SPEC_SELECTOR_NOTE,
   validateStepSpec,
   type StepSpec,
-} from '#debug/flow/stepShape'
-import { createLiveTransport } from '#live/liveTransport'
+} from '@vt/graph-tools/debug/flow/stepShape'
+import { createLiveTransport } from '@vt/graph-tools/live/liveTransport'
 import {
   consumeDebugTargetFlag,
   parseBooleanFlag,

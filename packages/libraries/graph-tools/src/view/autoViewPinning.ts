@@ -1,7 +1,7 @@
 import * as path from 'node:path'
 import {type CollapseCluster} from './collapseBoundary'
 import {type RenderNode, type RenderGraph} from './autoView'
-import {type DirectedEdge} from '#scripts/L3-BF-192-tree-cover-render'
+import {type DirectedEdge} from '@vt/graph-tools/scripts/L3-BF-192-tree-cover-render'
 import {ancestorFolders, parentFolderPath} from './autoViewRender'
 
 interface FolderSeed {

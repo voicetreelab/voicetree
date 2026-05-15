@@ -1,8 +1,8 @@
-import { err, ok } from '#debug/protocol/Response'
-import { type DebugInstance } from '#debug/protocol/discover'
-import { resolveChromium } from '#debug/protocol/playwrightSession'
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import type { Response } from '#debug/protocol/Response'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { resolveChromium } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 import { registerCommand } from '../index'
 
 interface PageLike {

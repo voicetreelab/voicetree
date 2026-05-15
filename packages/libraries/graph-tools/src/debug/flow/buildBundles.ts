@@ -7,7 +7,7 @@ import path from 'node:path'
 
 import { loadFlowDefinition, FLOW_IDS, type FlowId } from './flows/index'
 import { buildJudgePrompt, type FlowBundle, type RunSummary, type StepOutputSummary } from './judge'
-import type { RunStepOutput, RunResult } from '#commands/capture/run'
+import type { RunStepOutput, RunResult } from '@vt/graph-tools/commands/capture/run'
 
 export type BuiltBundle = {
   flowId: FlowId

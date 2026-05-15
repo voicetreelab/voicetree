@@ -1,10 +1,10 @@
 import { registerCommand } from '../index'
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import { openDebugSession } from '#debug/protocol/playwrightSession'
-import { err, ok } from '#debug/protocol/Response'
-import type { Response } from '#debug/protocol/Response'
-import { parseCyDump, type CyDump } from '#debug/state/cyStateShape'
-import { computeFolderAspects, type FolderAspectReport } from '#view/folderAspect'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { openDebugSession } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
+import { parseCyDump, type CyDump } from '@vt/graph-tools/debug/state/cyStateShape'
+import { computeFolderAspects, type FolderAspectReport } from '@vt/graph-tools/view/folderAspect'
 
 interface PageLike {
   evaluate<T>(fn: () => T): Promise<T>

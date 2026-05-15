@@ -1,5 +1,5 @@
 import type { Response } from '../protocol/Response'
-import type { RunResult, RunStepOutput } from '#commands/capture/run'
+import type { RunResult, RunStepOutput } from '@vt/graph-tools/commands/capture/run'
 import type { JudgeVerdict } from './judge'
 
 export const PRE_REGISTERED_BASELINE = '≤3/8 pass (Ayu prediction B, conf 0.75)'

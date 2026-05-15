@@ -7,18 +7,18 @@
   "main": "src/api/index.ts",
   "exports": {
     ".": "./src/api/index.ts",
-    "./types": "./src/terminals/terminal-registry/types.ts",
-    "./lifecycle": "./src/lifecycle/index.ts",
-    "./lifecycle/output-transition": "./src/lifecycle/output-transition.ts",
+    "./types": "./src/application/terminals/terminal-registry/types.ts",
+    "./lifecycle": "./src/application/lifecycle/index.ts",
+    "./lifecycle/output-transition": "./src/application/lifecycle/output-transition.ts",
     "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
-    "./runtime/graph-bridge": "./src/runtime/graph-bridge.ts",
+    "./runtime/graph-bridge": "./src/application/runtime/graph-bridge.ts",
     "./api/*": "./src/api/*",
-    "./terminals/*": "./src/terminals/*",
-    "./headless/*": "./src/headless/*",
-    "./spawn/*": "./src/spawn/*",
-    "./hooks/*": "./src/hooks/*",
-    "./inject/*": "./src/inject/*",
-    "./util/*": "./src/util/*"
+    "./terminals/*": "./src/application/terminals/*",
+    "./headless/*": "./src/application/headless/*",
+    "./spawn/*": "./src/application/spawn/*",
+    "./hooks/*": "./src/application/hooks/*",
+    "./inject/*": "./src/application/inject/*",
+    "./util/*": "./src/application/util/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,14 +1,14 @@
 import fs from 'node:fs/promises'
 import type { State } from '@vt/graph-state'
 import { registerCommand } from '../index'
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import { computeDrift, type DriftData, type FsContentById } from '#debug/state/drift'
-import { openDebugSession, type PageLike } from '#debug/protocol/playwrightSession'
-import { projectStateToCyDump } from '#debug/state/projectedCyDump'
-import { ok, err } from '#debug/protocol/Response'
-import { parseCyDump, type CyDump } from '#debug/state/cyStateShape'
-import { createLiveTransport } from '#live/liveTransport'
-import type { Response } from '#debug/protocol/Response'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { computeDrift, type DriftData, type FsContentById } from '@vt/graph-tools/debug/state/drift'
+import { openDebugSession, type PageLike } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { projectStateToCyDump } from '@vt/graph-tools/debug/state/projectedCyDump'
+import { ok, err } from '@vt/graph-tools/debug/protocol/Response'
+import { parseCyDump, type CyDump } from '@vt/graph-tools/debug/state/cyStateShape'
+import { createLiveTransport } from '@vt/graph-tools/live/liveTransport'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 
 async function fetchRendered(page: PageLike): Promise<CyDump> {
   const raw = await page.evaluate(() => {

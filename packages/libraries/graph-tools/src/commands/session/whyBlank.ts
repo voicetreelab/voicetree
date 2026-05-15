@@ -1,9 +1,9 @@
 import { project, type State } from '@vt/graph-state'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '#debug/protocol/discover'
-import { resolveChromium } from '#debug/protocol/playwrightSession'
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import { ok, err } from '#debug/protocol/Response'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { resolveChromium } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { ok, err } from '@vt/graph-tools/debug/protocol/Response'
 import {
   diagnose,
   type BlankConsoleMessage,
@@ -12,9 +12,9 @@ import {
   type BlankState,
   type RootDomInfo,
   type ScreenshotSample,
-} from '#debug/state/whyBlank'
-import { createLiveTransport } from '#live/liveTransport'
-import type { Response } from '#debug/protocol/Response'
+} from '@vt/graph-tools/debug/state/whyBlank'
+import { createLiveTransport } from '@vt/graph-tools/live/liveTransport'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 
 type SeedScenario =
   | 'throw-in-init'

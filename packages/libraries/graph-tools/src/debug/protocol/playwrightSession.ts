@@ -37,6 +37,13 @@ export interface DebugSession {
   close(): Promise<void>
 }
 
+export interface OpenDebugSessionOptions {
+  waitForPagesMs?: number
+  pollMs?: number
+}
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
 function extractChromium(pw: unknown): ChromiumLike {
   const direct = (pw as Record<string, unknown>).chromium
   if (direct) return direct as ChromiumLike
@@ -76,11 +83,22 @@ export async function resolveChromium(): Promise<ChromiumLike> {
   }
 }
 
-export async function openDebugSession(instance: DebugInstance): Promise<DebugSession> {
+export async function openDebugSession(
+  instance: DebugInstance,
+  opts: OpenDebugSessionOptions = {},
+): Promise<DebugSession> {
   const chromium = await resolveChromium()
   const endpoint = `http://localhost:${instance.cdpPort}`
   const browser = await chromium.connectOverCDP(endpoint)
-  const pages = browser.contexts().flatMap(ctx => ctx.pages())
+  const waitMs = opts.waitForPagesMs ?? 5000
+  const pollMs = opts.pollMs ?? 250
+  const deadline = Date.now() + waitMs
+
+  let pages = browser.contexts().flatMap(ctx => ctx.pages())
+  while (pages.length === 0 && Date.now() < deadline) {
+    await sleep(pollMs)
+    pages = browser.contexts().flatMap(ctx => ctx.pages())
+  }
 
   return {
     browser,

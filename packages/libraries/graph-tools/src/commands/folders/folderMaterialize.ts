@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { resolveDebugInstance } from '#debug/protocol/portResolution'
-import { err, ok } from '#debug/protocol/Response'
-import { openDebugSession, type PageLike as SessionPageLike } from '#debug/protocol/playwrightSession'
-import type { Response } from '#debug/protocol/Response'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import { openDebugSession, type PageLike as SessionPageLike } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 import {
   consumeDebugTargetFlag,
   parseIntegerFlag,

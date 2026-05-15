@@ -1,5 +1,5 @@
 import path from 'node:path'
-import {computeArboricity, type DirectedEdge} from '#scripts/L3-BF-192-tree-cover-render'
+import {computeArboricity, type DirectedEdge} from '@vt/graph-tools/scripts/L3-BF-192-tree-cover-render'
 
 export type CollapseStrategy = 'folder-first' | 'louvain'
 
