@@ -2,13 +2,28 @@ import {readFile} from 'node:fs/promises'
 import {resolve as resolvePath} from 'node:path'
 import {
     ensureDaemon,
+    type FolderState,
     GraphDbClient,
     type SelectionMode,
+    type ViewRecord,
 } from '@vt/graph-db-client'
 import {resolveVault} from '@/shell/edge/main/cli/util/detectVault'
 import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes'
 import {parseSessionFlag, resolveSessionId} from '@/shell/edge/main/cli/util/sessionFlag'
-import {emitResult, formatLayout, formatCollapseResult, formatSelection, formatViewState} from './viewFormatters.ts'
+import {
+    emitResult,
+    formatFolderStateRow,
+    formatLayout,
+    formatCollapseResult,
+    formatSelection,
+    formatViewActivated,
+    formatViewCloned,
+    formatViewDeleted,
+    formatViewList,
+    formatViewState,
+    type CliFolderStateRow,
+    type CliViewRecord,
+} from './viewFormatters.ts'
 
 type Position = {
     x: number
@@ -34,6 +49,32 @@ type ParsedLayoutCommand = ParsedViewBase & {
     zoom?: number
 }
 
+type ParsedListCommand = ParsedViewBase & {
+    branch: 'list'
+}
+
+type ParsedSwitchCommand = ParsedViewBase & {
+    branch: 'switch'
+    target: string
+}
+
+type ParsedCloneCommand = ParsedViewBase & {
+    branch: 'clone'
+    source: string
+    name: string
+}
+
+type ParsedDeleteCommand = ParsedViewBase & {
+    branch: 'delete'
+    target: string
+}
+
+type ParsedSetFolderCommand = ParsedViewBase & {
+    branch: 'set-folder'
+    folderPath: string
+    state: FolderState
+}
+
 type ParsedCollapseCommand = ParsedViewBase & {
     branch: 'collapse'
     folderId: string
@@ -56,12 +97,22 @@ type ParsedShowCommand = ParsedViewBase & {
 
 type ParsedViewCommand =
     | ParsedLayoutCommand
+    | ParsedListCommand
+    | ParsedSwitchCommand
+    | ParsedCloneCommand
+    | ParsedDeleteCommand
+    | ParsedSetFolderCommand
     | ParsedCollapseCommand
     | ParsedExpandCommand
     | ParsedSelectionCommand
     | ParsedShowCommand
 
 const VIEW_USAGE: string = `Usage:
+  vt view list [--vault <path>] [--json]
+  vt view switch <id-or-name> [--vault <path>] [--json]
+  vt view clone <src-id-or-name> <dst-name> [--vault <path>] [--json]
+  vt view delete <id-or-name> [--vault <path>] [--json]
+  vt view set-folder <path> <expanded|collapsed|hidden> [--vault <path>] [--session <id>] [--json]
   vt view collapse <folderId> [--vault <path>] [--session <id>] [--json]
   vt view expand <folderId> [--vault <path>] [--session <id>] [--json]
   vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
@@ -134,6 +185,19 @@ function parseSelectionMode(value: string | undefined): SelectionMode {
     }
 }
 
+function parseFolderState(value: string | undefined): FolderState {
+    switch (value) {
+        case 'expanded':
+        case 'collapsed':
+        case 'hidden':
+            return value
+        case undefined:
+            return validationError('Missing required <expanded|collapsed|hidden> for `set-folder`.')
+        default:
+            return validationError(`Unknown folder state: ${value}`)
+    }
+}
+
 function parseViewCommand(argv: string[]): ParsedViewCommand {
     const {remaining, session} = parseSessionFlag(argv)
     const positionalArgs: string[] = []
@@ -173,6 +237,75 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
     const [rawBranch, ...rest] = positionalArgs
     if (!rawBranch) {
         throw new ArgValidationError(VIEW_USAGE)
+    }
+
+    if (rawBranch === 'list') {
+        if (rest.length > 0) {
+            validationError('`list` does not accept positional arguments.')
+        }
+
+        return {
+            branch: 'list',
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'switch') {
+        return {
+            branch: 'switch',
+            target: requireSingleValue(rest, '<id-or-name>', 'switch'),
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'clone') {
+        if (rest.length < 2) {
+            validationError('Missing required <src-id-or-name> <dst-name> for `clone`.')
+        }
+        if (rest.length > 2) {
+            validationError('Too many positional arguments for `clone`.')
+        }
+
+        return {
+            branch: 'clone',
+            source: rest[0],
+            name: rest[1],
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'delete') {
+        return {
+            branch: 'delete',
+            target: requireSingleValue(rest, '<id-or-name>', 'delete'),
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
+    }
+
+    if (rawBranch === 'set-folder') {
+        if (rest.length < 2) {
+            validationError('Missing required <path> <expanded|collapsed|hidden> for `set-folder`.')
+        }
+        if (rest.length > 2) {
+            validationError('Too many positional arguments for `set-folder`.')
+        }
+
+        return {
+            branch: 'set-folder',
+            folderPath: resolvePath(rest[0]),
+            state: parseFolderState(rest[1]),
+            vaultFlag,
+            sessionFlag: session,
+            forceJson,
+        }
     }
 
     if (rawBranch === 'collapse') {
@@ -345,7 +478,7 @@ async function readPositionsFile(filePath: string): Promise<LayoutPositions> {
 }
 
 async function buildLayoutMutation(
-    parsed: ParsedViewCommand,
+    parsed: ParsedLayoutCommand,
 ): Promise<{pan?: Position; positions?: LayoutPositions; zoom?: number}> {
     switch (parsed.subcommand) {
         case 'set-pan':
@@ -374,6 +507,26 @@ async function createSessionClient(vaultFlag: string | undefined): Promise<Graph
     })
 }
 
+function toCliViewRecord(view: ViewRecord): CliViewRecord {
+    return {
+        ...view,
+        is_active: view.isActive,
+    }
+}
+
+async function resolveViewRecord(client: GraphDbClient, target: string): Promise<ViewRecord> {
+    const views: readonly ViewRecord[] = await client.views.list()
+    const match: ViewRecord | undefined =
+        views.find((view: ViewRecord): boolean => view.viewId === target) ??
+        views.find((view: ViewRecord): boolean => view.name === target)
+
+    if (!match) {
+        validationError(`Unknown view: ${target}`)
+    }
+
+    return match
+}
+
 async function resolveCommandSessionId(
     client: GraphDbClient,
     sessionFlag: string | undefined,
@@ -392,6 +545,49 @@ async function runLayoutCommand(parsed: ParsedLayoutCommand): Promise<void> {
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
 
     emitResult(await client.updateLayout(sessionId, mutation), formatLayout, parsed.forceJson)
+}
+
+async function runListCommand(parsed: ParsedListCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    emitResult((await client.views.list()).map(toCliViewRecord), formatViewList, parsed.forceJson)
+}
+
+async function runSwitchCommand(parsed: ParsedSwitchCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const view: ViewRecord = await resolveViewRecord(client, parsed.target)
+    emitResult(
+        toCliViewRecord(await client.views.activate(view.viewId)),
+        formatViewActivated,
+        parsed.forceJson,
+    )
+}
+
+async function runCloneCommand(parsed: ParsedCloneCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const source: ViewRecord = await resolveViewRecord(client, parsed.source)
+    emitResult(
+        toCliViewRecord(await client.views.clone(source.viewId, parsed.name)),
+        formatViewCloned,
+        parsed.forceJson,
+    )
+}
+
+async function runDeleteCommand(parsed: ParsedDeleteCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const view: ViewRecord = await resolveViewRecord(client, parsed.target)
+    await client.views.delete(view.viewId)
+    emitResult(toCliViewRecord(view), formatViewDeleted, parsed.forceJson)
+}
+
+async function runSetFolderCommand(parsed: ParsedSetFolderCommand): Promise<void> {
+    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
+    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+    await client.setFolderState(sessionId, parsed.folderPath, parsed.state)
+    const row: CliFolderStateRow = {
+        path: parsed.folderPath,
+        state: parsed.state,
+    }
+    emitResult(row, formatFolderStateRow, parsed.forceJson)
 }
 
 async function runCollapseCommand(parsed: ParsedCollapseCommand): Promise<void> {
@@ -436,6 +632,21 @@ export async function runViewCommand(argv: string[]): Promise<void> {
         switch (parsed.branch) {
             case 'layout':
                 await runLayoutCommand(parsed)
+                return
+            case 'list':
+                await runListCommand(parsed)
+                return
+            case 'switch':
+                await runSwitchCommand(parsed)
+                return
+            case 'clone':
+                await runCloneCommand(parsed)
+                return
+            case 'delete':
+                await runDeleteCommand(parsed)
+                return
+            case 'set-folder':
+                await runSetFolderCommand(parsed)
                 return
             case 'collapse':
                 await runCollapseCommand(parsed)

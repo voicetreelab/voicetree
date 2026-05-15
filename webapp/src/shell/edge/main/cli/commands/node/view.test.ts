@@ -301,6 +301,94 @@ describe('runViewCommand', () => {
         })
     })
 
+    it('lists named vault views with the active view marked', async () => {
+        await createClient().views.clone('main', 'scratch')
+
+        const views = await runViewJson(['list', '--vault', harness.vault])
+
+        expect(views).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    name: 'main',
+                    isActive: true,
+                    is_active: true,
+                }),
+                expect.objectContaining({
+                    name: 'scratch',
+                    isActive: false,
+                    is_active: false,
+                }),
+            ]),
+        )
+    })
+
+    it('switches views by name', async () => {
+        await createClient().views.clone('main', 'scratch')
+
+        await expect(runViewJson(['switch', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
+            name: 'scratch',
+            isActive: true,
+            is_active: true,
+        })
+    })
+
+    it('clones a named view', async () => {
+        await expect(
+            runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault]),
+        ).resolves.toMatchObject({
+            name: 'scratch',
+            isActive: false,
+            is_active: false,
+        })
+    })
+
+    it('rejects deletion of the active view with the daemon active-view error', async () => {
+        const result: CommandResult = await captureCommand(() =>
+            runViewCommand(['delete', 'main', '--vault', harness.vault]),
+        )
+
+        expect(result.exitCode).toBe(EXIT.DAEMON_HTTP_ERROR)
+        expect(result.stderr).toMatch(/active view/i)
+    })
+
+    it('deletes a non-active view', async () => {
+        await createClient().views.clone('main', 'scratch')
+
+        await expect(runViewJson(['delete', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
+            name: 'scratch',
+            isActive: false,
+            is_active: false,
+        })
+        await expect(createClient().views.list()).resolves.not.toEqual(
+            expect.arrayContaining([expect.objectContaining({name: 'scratch'})]),
+        )
+    })
+
+    it('sets folder state on the active view', async () => {
+        const client: GraphDbClient = createClient()
+        const {sessionId}: {sessionId: string} = await client.createSession()
+        const folderPath: string = join(harness.vault, 'docs')
+
+        await expect(
+            runViewJson([
+                'set-folder',
+                folderPath,
+                'collapsed',
+                '--vault',
+                harness.vault,
+                '--session',
+                sessionId,
+            ]),
+        ).resolves.toEqual({
+            path: folderPath,
+            state: 'collapsed',
+        })
+        await expect(client.getFolderState(sessionId)).resolves.toMatchObject({
+            folderState: [[folderPath, 'collapsed']],
+            activeView: {name: 'main'},
+        })
+    })
+
     it('collapses a folder and shows it in the pinned session snapshot', async () => {
         const {sessionId}: {sessionId: string} = await createClient().createSession()
 
@@ -424,13 +512,15 @@ describe('runViewCommand', () => {
 
         expect((await client.health()).sessionCount).toBe(0)
         await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
-            collapseSet: [],
+            folderState: [],
+            activeView: {name: 'main'},
             selection: [],
         })
         expect((await client.health()).sessionCount).toBe(1)
 
         await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
-            collapseSet: [],
+            folderState: [],
+            activeView: {name: 'main'},
             selection: [],
         })
         expect((await client.health()).sessionCount).toBe(2)
