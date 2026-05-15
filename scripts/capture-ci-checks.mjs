@@ -3,7 +3,7 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every `.ts` file under `scripts/measures/`
+// Measure inventory is auto-detected: every `.ts` file under `scripts/measures/src/`
 // (excluding `_*.ts`) is dynamically imported and must export `check: CheckDef`.
 // Adding a new check = drop a new .ts file anywhere in that tree.
 
@@ -17,7 +17,7 @@ import {recordCheckReport} from '../packages/systems/_ci-check-writer.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..')
-const MEASURES_DIR = join(SCRIPT_DIR, 'measures')
+const MEASURES_DIR = join(SCRIPT_DIR, 'measures', 'src')
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 
@@ -40,7 +40,7 @@ async function loadChecks(folder = null) {
         .sort((a, b) => relativePath(relative(MEASURES_DIR, a)).localeCompare(relativePath(relative(MEASURES_DIR, b))))
     const checks = []
     for (const file of files) {
-        const measurePath = `scripts/measures/${relativePath(relative(MEASURES_DIR, file))}`
+        const measurePath = relativePath(relative(REPO_ROOT, file))
         const url = pathToFileURL(file).href
         const mod = await import(url)
         if (!mod.check) throw new Error(`measure file ${measurePath} must export \`check\``)
@@ -55,13 +55,13 @@ function relativePath(path) {
 
 function normalizeMeasureFolder(folder) {
     if (!folder) return null
-    const normalized = folder.replace(/^scripts\/measures\//, '').replace(/^\/+|\/+$/g, '')
-    if (normalized.includes('..')) throw new Error(`measure folder must stay inside scripts/measures: ${folder}`)
+    const normalized = folder.replace(/^scripts\/measures\/src\//, '').replace(/^\/+|\/+$/g, '')
+    if (normalized.includes('..')) throw new Error(`measure folder must stay inside scripts/measures/src: ${folder}`)
     return normalized
 }
 
 function measureFolderFor(measurePath) {
-    const relativeMeasure = measurePath.replace(/^scripts\/measures\//, '')
+    const relativeMeasure = measurePath.replace(/^scripts\/measures\/src\//, '')
     const slash = relativeMeasure.indexOf('/')
     return slash === -1 ? '' : relativeMeasure.slice(0, slash)
 }
@@ -91,7 +91,7 @@ function printHelp(checks) {
         'Flags:',
         '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --folder=<path>   run only checks under scripts/measures/<path>.',
+        '  --folder=<path>   run only checks under scripts/measures/src/<path>.',
         '  --fail-fast       still records every check that ran, but stops scheduling after the first fail.',
         '',
         'Check ids:',
@@ -296,7 +296,7 @@ async function main() {
 
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
 
-    const scope = opts.folder ? ` under scripts/measures/${opts.folder}` : ''
+    const scope = opts.folder ? ` under scripts/measures/src/${opts.folder}` : ''
     console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
 
     let failed = 0

@@ -5,8 +5,9 @@ import {DEFAULT_REPO_ROOT, discoverPackages} from './discover-packages'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
-// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const MAX_DIRECTORY_CHILDREN: number = 38
+// Hard design limit set 2026-05-15: a directory with more than 15 children
+// is a signal it has stopped being a coherent module and should be split.
+const MAX_DIRECTORY_CHILDREN: number = 15
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const MAX_FILE_LINES: number = 1081
 const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.tsx'])
