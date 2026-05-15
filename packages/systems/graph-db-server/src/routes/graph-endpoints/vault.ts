@@ -1,9 +1,7 @@
 import type { Hono } from 'hono'
 import {
-  addReadPathWorkflow,
   ensureVaultWorkflowInitialized,
   readVaultWorkflow,
-  removeReadPathWorkflow,
   setWritePathWorkflow,
 } from '@vt/graph-db-server/application/workflows/vault'
 import {
@@ -46,17 +44,6 @@ export function mountVaultRoutes(app: Hono): void {
   app.post('/vault/close', async (c) => {
     await closeVaultWorkflow()
     return sendHttpResult(c, emptyResult(204))
-  })
-
-  app.post('/vault/read-paths', async (c) => {
-    return sendHttpResult(c, await addReadPathWorkflow(await c.req.json()))
-  })
-
-  app.delete('/vault/read-paths/:encodedPath', async (c) => {
-    return sendHttpResult(
-      c,
-      await removeReadPathWorkflow(c.req.param('encodedPath')),
-    )
   })
 
   app.put('/vault/write-path', async (c) => {
