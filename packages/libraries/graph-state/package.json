@@ -19,7 +19,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/trivial-consumer-smoke.ts",
-    "test": "node ../../../node_modules/vitest/vitest.mjs run",
+    "test": "vitest run",
     "test:mutation": "stryker run stryker.config.json",
     "test:mutation:smoke": "stryker run stryker.smoke.config.json",
     "bench": "node --import tsx scripts/project-bench.ts"

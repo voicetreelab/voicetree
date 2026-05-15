@@ -1,6 +1,12 @@
-import { project } from '@vt/graph-state'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
-import { extractRecentNodesFromDelta } from '@vt/graph-model/graph'
+import {
+  decideReplayStrategy,
+  formatSSE,
+  handleProjectDeltaEvent,
+  handleReplayResetSnapshot,
+  parseSince,
+  stringifyGraphForSSE,
+} from '../core/handleSessionEvents.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { Session } from '../session/types.ts'
 import {
@@ -28,27 +34,6 @@ export type SessionEventTimers = {
 export type SessionEventStream = {
   readonly write: (chunk: string) => Promise<void>
   readonly onAbort: (callback: () => void) => void
-}
-
-function formatSSE(event: string, data: string): string {
-  return `event: ${event}\ndata: ${data}\n\n`
-}
-
-function stringifyGraphForSSE(graph: ProjectedGraph): string {
-  return JSON.stringify(graph, (_key: string, value: unknown) => {
-    if (value instanceof Map) {
-      return Object.fromEntries(value.entries())
-    }
-    return value
-  })
-}
-
-function parseSince(rawSince: string | undefined, currentSeq: number): number {
-  if (rawSince === undefined) return currentSeq
-
-  const parsed = Number.parseInt(rawSince, 10)
-  if (!Number.isFinite(parsed)) return currentSeq
-  return Math.max(0, parsed)
 }
 
 export function sessionExistsWorkflow(
@@ -86,9 +71,7 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return null
 
     const state = await buildDaemonState(freshSession)
-    const recentNodeIds = extractRecentNodesFromDelta(event.delta)
-      .map(delta => delta.nodeToUpsert.absoluteFilePathIsID)
-    return { ...project(state), recentNodeIds, seq: event.seq }
+    return handleProjectDeltaEvent(state, event).graph
   }
 
   const sendDeltaProjection = async (event: SequencedDeltaEvent): Promise<void> => {
@@ -106,17 +89,12 @@ export async function runSessionEventsWorkflow(input: {
     if (!freshSession) return snapshotSeq
 
     const state = await buildDaemonState(freshSession)
-    sendGraph({
-      ...project(state),
-      recentNodeIds: [],
-      seq: snapshotSeq,
-      replayReset: {
-        reason: 'buffer_evicted',
-        requestedSince,
-        oldestSeq,
-        currentSeq: snapshotSeq,
-      },
-    })
+    sendGraph(handleReplayResetSnapshot(
+      state,
+      requestedSince,
+      oldestSeq,
+      snapshotSeq,
+    ).graph)
     return snapshotSeq
   }
 
@@ -141,8 +119,16 @@ export async function runSessionEventsWorkflow(input: {
   })
 
   const oldestSeq = getOldestBufferedSeq()
-  if (!isReplayAvailableSince(requestedSince) && oldestSeq !== null) {
-    highWaterSeq = await sendReplayResetSnapshot(requestedSince, oldestSeq)
+  const replayStrategy = decideReplayStrategy({
+    requestedSince,
+    oldestSeq,
+    isReplayAvailable: isReplayAvailableSince(requestedSince),
+  })
+  if (replayStrategy.kind === 'reset') {
+    highWaterSeq = await sendReplayResetSnapshot(
+      replayStrategy.requestedSince,
+      replayStrategy.oldestSeq,
+    )
   } else {
     for (const event of replayEvents) {
       await sendDeltaProjection(event)

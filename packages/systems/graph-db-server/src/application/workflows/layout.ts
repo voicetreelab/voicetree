@@ -2,36 +2,26 @@ import {
   LayoutPartialSchema,
   LayoutResponseSchema,
 } from '@vt/graph-db-server/contract'
-import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { handleLayout } from '../core/handleLayout.ts'
+import { dispatch } from './dispatch.ts'
+import { errorResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
-export function updateLayoutWorkflow(
+export async function updateLayoutWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   rawBody: unknown,
-): HttpResult {
+): Promise<HttpResult> {
   const body = LayoutPartialSchema.safeParse(rawBody)
   if (!body.success) {
     return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
   }
 
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  session.layout = {
-    positions:
-      body.data.positions === undefined
-        ? session.layout.positions
-        : {
-            ...session.layout.positions,
-            ...body.data.positions,
-          },
-    pan: body.data.pan ?? session.layout.pan,
-    zoom: body.data.zoom ?? session.layout.zoom,
-  }
-  registry.touch(sessionId)
-
-  return jsonResult(LayoutResponseSchema.parse({ layout: session.layout }))
+  return dispatch(registry, sessionId, body.data, (session, update) => {
+    const result = handleLayout(session, update)
+    return {
+      ...result,
+      response: LayoutResponseSchema.parse(result.response),
+    }
+  })
 }

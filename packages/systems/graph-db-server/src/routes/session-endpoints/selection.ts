@@ -10,7 +10,11 @@ export function mountSelectionRoutes(
   app.post('/sessions/:sessionId/selection', async (c) => {
     return sendHttpResult(
       c,
-      updateSelectionWorkflow(registry, c.req.param('sessionId'), await c.req.json()),
+      await updateSelectionWorkflow(
+        registry,
+        c.req.param('sessionId'),
+        await c.req.json(),
+      ),
     )
   })
 }

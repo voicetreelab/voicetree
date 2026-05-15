@@ -21,7 +21,7 @@ import { sendHttpResult } from '../httpResult.ts'
 export function createGraphRoutes(_registry: WorkflowSessionRegistry): Hono {
   const app = new Hono()
 
-  app.get('/', (c) => sendHttpResult(c, readGraphWorkflow()))
+  app.get('/', async (c) => sendHttpResult(c, await readGraphWorkflow()))
 
   app.post('/delta', async (c) => {
     return sendHttpResult(
