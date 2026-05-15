@@ -98,16 +98,16 @@ describe('projectSessionState', () => {
     // webapp/src/shell/edge/main/state/buildLiveStateSnapshot.ts.
     const graph = makeGraph()
     const folderTree = makeFolderTree()
+    // Under expand-descendants-of-target semantics: /vault writePath expands
+    // every folder under it (docs, node_modules, node_modules/dep). docs is
+    // forced collapsed by session.collapseSet so its children prune to [].
     const expectedFolderTree: FolderTreeNode = {
       ...folderTree,
-      children: folderTree.children.map((child) =>
-        'children' in child
-          ? {
-              ...child,
-              children: [],
-            }
-          : child,
-      ),
+      children: folderTree.children.map((child) => {
+        if (!('children' in child)) return child
+        if (child.name === 'docs') return { ...child, children: [] }
+        return child
+      }),
     }
     const vault = makeVault()
     const session = makeSession({
@@ -170,7 +170,7 @@ describe('projectSessionState', () => {
     expect(snapshot.roots.folderTree).toEqual([])
   })
 
-  test('default-collapsed folder tree only serializes children under read/write paths', () => {
+  test('folders within a loaded vault path expand by default', () => {
     const snapshot = projectSessionState({
       graph: makeGraph(),
       vault: makeVault(),
@@ -181,9 +181,15 @@ describe('projectSessionState', () => {
     const root = snapshot.roots.folderTree[0]
     const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
     const nodeModules = root.children.find((child) => child.name === 'node_modules') as FolderTreeNode
+    const dep = nodeModules.children.find((child) => child.name === 'dep') as FolderTreeNode
 
+    // /vault writePath expands every descendant folder; /vault/docs readPath
+    // additionally expands docs. node_modules expands because /vault is an
+    // ancestor target — folder visibility is driven by loaded targets, not by
+    // an explicit ignore list.
     expect(docs.children.map((child) => child.name)).toEqual(['a.md', 'b.md'])
-    expect(nodeModules.children).toEqual([])
+    expect(nodeModules.children.map((child) => child.name)).toEqual(['dep'])
+    expect(dep.children.map((child) => child.name)).toEqual(['index.js'])
   })
 
   test('manual collapse prunes a read/write path from the serialized folder tree', () => {

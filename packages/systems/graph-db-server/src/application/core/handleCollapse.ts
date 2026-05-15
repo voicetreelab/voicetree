@@ -1,6 +1,6 @@
 import { dispatchCollapse, dispatchExpand } from '@vt/graph-state/state/collapseSetStore'
-import type { Command } from '../domain/command.ts'
-import type { Session } from '../domain/session.ts'
+import type { Command } from './command.ts'
+import type { Session } from './session.ts'
 
 export type CollapseAction = 'collapse' | 'expand'
 

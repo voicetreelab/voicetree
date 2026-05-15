@@ -32,7 +32,9 @@ function isDefaultExpandedFolder(
   expandedTargets: ReadonlySet<string>,
 ): boolean {
   for (const target of expandedTargets) {
-    if (isSameOrDescendantPath(folderPath, target)) {
+    // A folder is expanded by default when it IS or is a DESCENDANT of any
+    // loaded target. writePath=/vault → /vault/auth/, /vault/api/, etc. expand.
+    if (isSameOrDescendantPath(target, folderPath)) {
       return true
     }
   }

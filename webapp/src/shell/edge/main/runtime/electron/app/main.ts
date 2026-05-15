@@ -53,6 +53,15 @@ import {
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 
+// Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
+// don't become uncaughtException dialogs (which loop because SSE-driven
+// graph syncs keep writing load-timing lines after the dialog is dismissed).
+for (const stream of [process.stdout, process.stderr] as const) {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code !== 'EPIPE') throw err;
+    });
+}
+
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
 if (app.isPackaged) {

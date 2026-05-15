@@ -4,18 +4,13 @@ import {
   type AbsolutePath,
   type FolderTreeNode,
 } from '@vt/graph-model'
-import { serializeState } from '@vt/graph-state'
-import {
-  LiveStateSnapshotSchema,
-  type LiveStateSnapshot,
-  type VaultState,
-} from '@vt/graph-db-server/contract'
+import type { LiveStateSnapshot } from '@vt/graph-db-server/contract'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
 import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
-import { projectSessionState } from '../session/project.ts'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
+import { handleReadSessionState } from '../core/handleSessionState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
@@ -24,34 +19,6 @@ function resolveWritePath(
 ): AbsolutePath | null {
   const maybeValue = (writePathOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? toAbsolutePath(maybeValue) : null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function omitNodeContent(node: unknown): unknown {
-  if (!isRecord(node)) {
-    return node
-  }
-
-  const { contentWithoutYamlOrLinks: _contentWithoutYamlOrLinks, ...rest } = node
-  return rest
-}
-
-function omitGraphNodeContent(snapshot: LiveStateSnapshot): LiveStateSnapshot {
-  return {
-    ...snapshot,
-    graph: {
-      ...snapshot.graph,
-      nodes: Object.fromEntries(
-        Object.entries(snapshot.graph.nodes).map(([nodeId, node]) => [
-          nodeId,
-          omitNodeContent(node),
-        ]),
-      ),
-    },
-  }
 }
 
 function readFolderVisibilitySnapshot(
@@ -101,16 +68,16 @@ export async function readSessionStateWorkflow(
     }
   }
 
-  const vault: VaultState = {
-    vaultPath: projectRoot ?? '',
+  const result = handleReadSessionState({
+    session,
+    contentMode,
+    graph,
+    projectRoot,
+    writePath,
     readPaths,
-    writePath: writePath ?? projectRoot ?? '',
-  }
-
-  const snapshot = projectSessionState({ graph, vault, folderTree, session })
-  const body = LiveStateSnapshotSchema.parse({
-    ...serializeState(snapshot),
-    ...readFolderVisibilitySnapshot(projectRoot ?? ''),
+    folderTree,
+    folderVisibility: readFolderVisibilitySnapshot(projectRoot ?? ''),
   })
-  return jsonResult(contentMode === 'omit' ? omitGraphNodeContent(body) : body)
+
+  return jsonResult(result.response)
 }

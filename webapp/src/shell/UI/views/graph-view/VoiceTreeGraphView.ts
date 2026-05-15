@@ -42,6 +42,7 @@ import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/styles/StyleS
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/animation/BreathingAnimationService';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/menus/VerticalMenuService';
 import {setupCommandHover} from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor';
+import {setupFolderHandles} from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/FolderHandleService';
 import {HotkeyManager} from '@/shell/UI/views/infra/HotkeyManager';
 import {SearchService} from './SearchService';
 // V2 recent node tabs - tracks recently added/modified nodes (not visited)
@@ -188,15 +189,28 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup event listeners
         this.setupEventListeners();
 
-        // Signal to main process that frontend is ready to receive graph data
-        void window.electronAPI?.main?.markFrontendReady();
-
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues
         setupCommandHover(this.cy);
 
-        // Subscribe to graph delta updates via electronAPI
-        this.subscribeToGraphUpdates();
+        // Folder corner-chip overlays (collapse/expand affordance, drag/right-click
+        // moved off the folder body)
+        setupFolderHandles(this.cy, this.container);
+
+        // Initial graph hydration races against daemon startup. markFrontendReady()
+        // triggers main-side initialLoad() → ensureDaemonClientForVault(); the
+        // first getProjectedGraph() RPC throws "Watched directory not initialized"
+        // if it lands before that connection is active. Await readiness before
+        // subscribing.
+        void (async (): Promise<void> => {
+            try {
+                await window.electronAPI?.main?.markFrontendReady();
+            } catch (err: unknown) {
+                console.error('[VoiceTreeGraphView] markFrontendReady failed:', err);
+            }
+            if (this.isDisposed) return;
+            this.subscribeToGraphUpdates();
+        })();
     }
 
     /**

@@ -54,6 +54,16 @@ export function createWindowChrome(
     const typeClass: string = 'type' in fw ? `cy-floating-window-${fw.type.toLowerCase()}` : '';
     windowElement.className = `cy-floating-window ${typeClass}`.trim();
     windowElement.setAttribute('data-floating-window-id', id);
+    const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
+    const legacyEditorQueryRoot: HTMLDivElement | null = isEditor
+        ? createLegacyEditorQueryRoot(id)
+        : null;
+    if (legacyEditorQueryRoot) {
+        windowElement.appendChild(legacyEditorQueryRoot);
+    }
+    const appendChromeChild = (child: HTMLElement): void => {
+        (legacyEditorQueryRoot ?? windowElement).appendChild(child);
+    };
 
     // Store base dimensions for zoom scaling (used by updateWindowFromZoom)
     windowElement.dataset.baseWidth = String(dimensions.width);
@@ -77,7 +87,7 @@ export function createWindowChrome(
         const accentBar: HTMLDivElement = document.createElement('div');
         accentBar.className = 'cy-floating-window-accent';
         accentBar.style.background = nodeColor ?? '#4a9eff';
-        windowElement.appendChild(accentBar);
+        appendChromeChild(accentBar);
         // Expose accent color as CSS variable for child element styling
         windowElement.style.setProperty('--editor-accent-color', nodeColor ?? '#4a9eff');
     }
@@ -103,7 +113,6 @@ export function createWindowChrome(
     contentContainer.className = 'cy-floating-window-content';
 
     // Create horizontal menu for editors
-    const isEditor: boolean = 'type' in fw && fw.type === 'Editor';
     const hasAgents: boolean = options.agents !== undefined && options.agents.length > 0;
 
     // Menu cleanup destroys floating slider when editor closes
@@ -139,25 +148,25 @@ export function createWindowChrome(
         menuCleanup = cleanup;
         menuWrapper.className = 'cy-floating-window-horizontal-menu';
         menuWrapper.style.display = '';
-        windowElement.appendChild(menuWrapper);
+        appendChromeChild(menuWrapper);
     }
 
     // Phase 4: Terminal-specific chrome - minimal title bar with traffic lights at far right
     if (isTerminal && 'type' in fw && isTerminalData(fw)) {
         const { titleBar, contextPanel } = createTerminalTitleBar(windowElement, cy, fw, options.closeTerminal);
-        windowElement.appendChild(titleBar);
+        appendChromeChild(titleBar);
         if (contextPanel) {
-            windowElement.appendChild(contextPanel);
+            appendChromeChild(contextPanel);
         }
     }
 
     // Assemble window - content container only (no title bar in Phase 1)
-    windowElement.appendChild(contentContainer);
+    appendChromeChild(contentContainer);
 
     // Create bottom-left expand button (Phase 2B) — terminals get theirs in the title bar instead
     if (!isTerminal) {
         const expandButton: HTMLButtonElement = createExpandButton(windowElement, dimensions);
-        windowElement.appendChild(expandButton);
+        appendChromeChild(expandButton);
     }
 
     // Create resize zones for edges and corners (Phase 2C)
@@ -166,4 +175,12 @@ export function createWindowChrome(
     }
 
     return {windowElement, contentContainer, menuCleanup};
+}
+
+function createLegacyEditorQueryRoot(id: EditorId | TerminalId | ImageViewerId): HTMLDivElement {
+    const root: HTMLDivElement = document.createElement('div');
+    root.id = `window-editor-${id}`;
+    root.dataset.legacyEditorQueryRoot = 'true';
+    root.style.display = 'contents';
+    return root;
 }
