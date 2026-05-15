@@ -15,7 +15,7 @@ export type TerminalLifecycle =
     | 'spawning'         // created, no output yet
     | 'active'           // output observed within INACTIVITY_THRESHOLD_MS
     | 'idle'             // alive, quiet, no completion signal (the old `isDone === true`)
-    | 'awaiting_input'   // detected prompt or hook says agent is waiting on user
+    | 'awaiting_input'   // agent hook says it is waiting on user
     | 'completed'        // exit code 0, agent self-reported done, or VoiceTree-initiated kill
     | 'errored';         // crash, non-zero exit, or external kill
 
@@ -27,25 +27,23 @@ export type TerminalLifecycle =
 export type TerminalKillReason = 'user' | 'external';
 
 /**
- * Tier-1 agent lifecycle events emitted by hooks (Claude Code Notification/Stop/
- * UserPromptSubmit) or the SDK (`markAwaiting`/`markDone`). Highest-confidence
- * signal — when present, wins over heuristic detection.
+ * Agent lifecycle events emitted by hooks (Claude Code Notification/Stop/
+ * UserPromptSubmit, Codex Stop/PermissionRequest/UserPromptSubmit) or the
+ * SDK (`markAwaiting`/`markDone`). The sole source of awaiting_input.
  */
 export type AgentEventKind = 'awaiting' | 'done' | 'working';
 
 /**
  * Discriminated union of every signal the lifecycle reducer can consume.
- * All sources (PTY, terminal emulator, hook server, OS poller) push events
- * onto a single stream; `derive` is agnostic to who produced what.
+ * All sources (PTY, hook server, OS poller) push events onto a single
+ * stream; `derive` is agnostic to who produced what.
  */
 export type TerminalEvent =
     | { readonly type: 'output'; readonly at: number }
     | { readonly type: 'input'; readonly at: number }
     | { readonly type: 'exit'; readonly at: number; readonly code: number | null; readonly signal: string | null }
     | { readonly type: 'tick'; readonly at: number }
-    | { readonly type: 'agent_event'; readonly at: number; readonly kind: AgentEventKind }
-    | { readonly type: 'prompt_detected'; readonly at: number; readonly pattern: string }
-    | { readonly type: 'prompt_cleared'; readonly at: number };
+    | { readonly type: 'agent_event'; readonly at: number; readonly kind: AgentEventKind };
 
 /**
  * Per-terminal carry state for the reducer. The `lifecycle` field is what
@@ -55,7 +53,6 @@ export type TerminalEvent =
 export type TerminalSignalState = {
     readonly lifecycle: TerminalLifecycle;
     readonly lastOutputTime: number;
-    readonly promptDetected: boolean;
     readonly killReason: TerminalKillReason | null;
 };
 
@@ -75,7 +72,6 @@ export function initialSignalState(spawnTime: number): TerminalSignalState {
     return {
         lifecycle: 'spawning',
         lastOutputTime: spawnTime,
-        promptDetected: false,
         killReason: null,
     };
 }

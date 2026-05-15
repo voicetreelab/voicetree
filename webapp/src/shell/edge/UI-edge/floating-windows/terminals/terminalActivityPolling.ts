@@ -25,6 +25,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 
 let inactivityCheckInterval: ReturnType<typeof setInterval> | null = null;
 let unsubscribeOnData: (() => void) | null = null;
+let visibilityHandler: (() => void) | null = null;
 
 // =============================================================================
 // Inactivity Checking
@@ -95,9 +96,24 @@ export function startTerminalActivityPolling(): () => void {
     }) ?? null;
 
     // Start interval to check for inactive terminals
-    inactivityCheckInterval = setInterval(() => {
-        checkTerminalInactivity();
-    }, CHECK_INTERVAL_MS);
+    if (!document.hidden) {
+        inactivityCheckInterval = setInterval(checkTerminalInactivity, CHECK_INTERVAL_MS);
+    }
+
+    visibilityHandler = (): void => {
+        if (document.hidden) {
+            if (inactivityCheckInterval !== null) {
+                clearInterval(inactivityCheckInterval);
+                inactivityCheckInterval = null;
+            }
+        } else {
+            if (inactivityCheckInterval === null) {
+                checkTerminalInactivity();
+                inactivityCheckInterval = setInterval(checkTerminalInactivity, CHECK_INTERVAL_MS);
+            }
+        }
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
 
     // Return cleanup function
     return stopTerminalActivityPolling;
@@ -110,6 +126,11 @@ export function stopTerminalActivityPolling(): void {
     if (inactivityCheckInterval !== null) {
         clearInterval(inactivityCheckInterval);
         inactivityCheckInterval = null;
+    }
+
+    if (visibilityHandler !== null) {
+        document.removeEventListener('visibilitychange', visibilityHandler);
+        visibilityHandler = null;
     }
 
     unsubscribeOnData?.();

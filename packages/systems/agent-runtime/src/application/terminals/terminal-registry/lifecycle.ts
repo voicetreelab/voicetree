@@ -1,5 +1,6 @@
 import {classifyExit} from '@vt/agent-runtime/lifecycle'
-import type {TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
+import {recordTierEvent} from '@vt/agent-runtime/lifecycle'
+import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
 import {updateTerminalIsDoneWorkflow} from '@vt/agent-runtime/terminals/terminalIsDoneWorkflow.ts'
 import {
     hasActiveChildren,
@@ -76,37 +77,46 @@ export function markTerminalKillReason(terminalId: string, reason: TerminalKillR
     // No subscriber notify — this is a transient flag, not visible state.
 }
 
-function lifecycleFromPromptDetection(record: TerminalRecord, detected: boolean): TerminalLifecycle {
-    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+function lifecycleFromAgentEvent(
+    record: TerminalRecord,
+    kind: AgentEventKind,
+): TerminalLifecycle {
     const orchestratorWithChildren: boolean = hasActiveChildren(terminalRecords.values(), record.terminalId)
-
-    if (detected) {
-        return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+    switch (kind) {
+        case 'awaiting':
+            return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+        case 'working':
+            return 'active'
+        case 'done':
+            // Tier-1 done = agent self-reported task complete (for example,
+            // Claude Code Stop fires at turn end). Treat it as awaiting user
+            // input unless this terminal is currently orchestrating children.
+            return orchestratorWithChildren ? 'idle' : 'awaiting_input'
     }
-    if (orchestratorWithChildren) {
-        return 'idle'
-    }
-    // Clearing: fall back to 'active'. We deliberately do NOT honour the
-    // heuristic `isDone` flag here — see updateTerminalIsDone for why time-
-    // based silence is not a reliable "idle" signal.
-    return currentLifecycle === 'active' ? currentLifecycle : 'active'
 }
 
 /**
- * Set or clear the prompt-detected flag for a terminal. Drives the
- * `awaiting_input` lifecycle state. Sticky terminal states (completed/errored)
- * are preserved — exit always wins.
+ * Apply a lifecycle event from an agent hook (Claude Code, Codex) or SDK.
+ * This is the sole driver of `awaiting_input`; sticky terminal states are
+ * preserved because exit always wins.
  */
-export function updateTerminalPromptDetected(terminalId: string, detected: boolean): void {
+export function updateTerminalAgentEvent(terminalId: string, kind: AgentEventKind): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
+
+    recordTierEvent({
+        ts: Date.now(),
+        terminalId,
+        agentTypeName: record.terminalData.agentTypeName ?? '',
+        kind,
+    })
 
     const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
     if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
         return
     }
 
-    const nextLifecycle: TerminalLifecycle = lifecycleFromPromptDetection(record, detected)
+    const nextLifecycle: TerminalLifecycle = lifecycleFromAgentEvent(record, kind)
     if (nextLifecycle === currentLifecycle) {
         return
     }

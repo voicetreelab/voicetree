@@ -1,9 +1,9 @@
 /**
  * Public API surface for the terminal lifecycle module.
  *
- * Pure types + derive function. No I/O — edge code (PTY, hook server,
- * terminal emulator) feeds events into `derive`; consumers read the
- * `lifecycle` field of the resulting state.
+ * Pure types + derive function. No I/O — edge code (PTY, hook server)
+ * feeds events into `derive`; consumers read the `lifecycle` field of
+ * the resulting state.
  */
 
 export type {
@@ -28,23 +28,14 @@ export { shouldFlipToActiveOnOutput } from './output-transition';
 export { classifyExit, type ExitClassification } from './exit';
 
 export {
-    detectPromptShape,
-    DEFAULT_PROMPT_PATTERNS,
-    type LineSnapshot,
-    type PromptPattern,
-    type PromptKind,
-    type PromptDetectionResult,
-} from './prompts';
+    computeTelemetrySnapshot,
+    configureTelemetrySink,
+    getTierTelemetrySnapshot,
+    recordTierEvent,
+    type AgentBreakdown,
+    type TelemetrySnapshot,
+    type TierEvent,
+    type TierEventKind,
+} from './tierTelemetry';
 
-export { createEmulator, type Emulator, type EmulatorOptions } from './emulator';
-
-export {
-    startPromptDetection,
-    feedPromptDetector,
-    stopPromptDetection,
-    isPromptDetectionActive,
-    type PromptStateChange,
-    type PromptRunnerCallbacks,
-    type PromptRunnerDependencies,
-    type PromptRunnerOptions,
-} from './prompt-runner';
+export {installJsonlTelemetrySink, type JsonlSinkDeps} from './tierTelemetryJsonlSink';

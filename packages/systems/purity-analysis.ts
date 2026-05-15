@@ -11,6 +11,7 @@ function isProductionSource(p: string): boolean {
     return (p.endsWith('.ts') || p.endsWith('.tsx'))
         && !p.endsWith('.test.ts') && !p.endsWith('.test.tsx')
         && !p.endsWith('.spec.ts') && !p.endsWith('.d.ts') && !p.endsWith('.config.ts')
+        && !p.endsWith('/__audit_seed__.ts')
         && !p.includes('__tests__') && !p.includes('integration-tests')
         && !p.includes('node_modules') && !p.includes('/dist/') && !p.includes('/build/')
 }

@@ -18,6 +18,10 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 let activeWebGLContextCount: number = 0;
 const MAX_WEBGL_CONTEXTS: number = 8;
 
+// Dispose WebGL addon after 10 minutes of no terminal output or user focus,
+// reclaiming GPU-side framebuffers and glyph atlas textures (~20-50MB each).
+const WEBGL_IDLE_TIMEOUT_MS: number = 10 * 60 * 1000;
+
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
   container: HTMLElement;
@@ -37,6 +41,9 @@ export class TerminalVanilla {
   private shiftEnterSendsOptionEnter: boolean = true;
   private zoomEndUnsubscribe: (() => void) | null = null;
   private hasWebGLContext: boolean = false;
+  private webglAddon: WebglAddon | null = null;
+  private webglIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  private onVisibilityChange: (() => void) | null = null;
   private cleanupOnData: (() => void) | null = null;
   private cleanupOnExit: (() => void) | null = null;
 
@@ -76,22 +83,19 @@ export class TerminalVanilla {
     term.open(this.container);
 
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
-    if (activeWebGLContextCount < MAX_WEBGL_CONTEXTS) {
-      try {
-        const webglAddon: WebglAddon = new WebglAddon();
-        term.loadAddon(webglAddon);
-        activeWebGLContextCount++;
-        this.hasWebGLContext = true;
-        webglAddon.onContextLoss(() => {
-          console.warn('WebGL context lost, terminal will fall back to DOM renderer');
-          webglAddon.dispose();
-          activeWebGLContextCount--;
-          this.hasWebGLContext = false;
-        });
-      } catch (e) {
-        console.warn('WebGL2 not supported, using default DOM renderer:', e);
+    this.attachWebGL();
+    this.resetWebGLIdleTimer();
+
+    this.onVisibilityChange = (): void => {
+      if (document.hidden) {
+        if (this.webglIdleTimer !== null) {
+          clearTimeout(this.webglIdleTimer);
+          this.webglIdleTimer = null;
+        }
+        this.detachWebGL();
       }
-    }
+    };
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
 
     // Load clipboard addon for proper copy/paste handling
     const clipboardAddon: ClipboardAddon = new ClipboardAddon();
@@ -130,6 +134,8 @@ export class TerminalVanilla {
         return;
       }
       this.suppressNextEnter = false;
+
+      this.resetWebGLIdleTimer();
 
       if (this.terminalId && window.electronAPI?.terminal) {
         window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
@@ -249,6 +255,7 @@ export class TerminalVanilla {
       // Handle terminal output
       this.cleanupOnData = window.electronAPI.terminal.onData((id, data) => {
         if (id === result.terminalId && this.term) {
+          this.resetWebGLIdleTimer();
           this.term.write(data);
         }
       });
@@ -270,6 +277,8 @@ export class TerminalVanilla {
    * Focus the terminal so it receives keyboard input
    */
   focus(): void {
+    this.attachWebGL();
+    this.resetWebGLIdleTimer();
     this.term?.focus();
   }
 
@@ -280,10 +289,55 @@ export class TerminalVanilla {
     this.term?.scrollToBottom();
   }
 
+  private attachWebGL(): void {
+    if (!this.term || this.hasWebGLContext || activeWebGLContextCount >= MAX_WEBGL_CONTEXTS) return;
+    const addon = new WebglAddon();
+    try {
+      this.term.loadAddon(addon);
+      activeWebGLContextCount++;
+      this.hasWebGLContext = true;
+      this.webglAddon = addon;
+      addon.onContextLoss(() => this.detachWebGL());
+    } catch {
+      addon.dispose();
+    }
+  }
+
+  private detachWebGL(): void {
+    if (!this.hasWebGLContext || !this.webglAddon) return;
+    try {
+      this.webglAddon.dispose();
+    } finally {
+      this.webglAddon = null;
+      activeWebGLContextCount--;
+      this.hasWebGLContext = false;
+    }
+  }
+
+  private resetWebGLIdleTimer(): void {
+    if (this.webglIdleTimer !== null) {
+      clearTimeout(this.webglIdleTimer);
+      this.webglIdleTimer = null;
+    }
+    if (this.hasWebGLContext) {
+      this.webglIdleTimer = setTimeout(() => this.detachWebGL(), WEBGL_IDLE_TIMEOUT_MS);
+    }
+  }
+
   /**
    * Cleanup and destroy the terminal
    */
   dispose(): void {
+    if (this.onVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+      this.onVisibilityChange = null;
+    }
+
+    if (this.webglIdleTimer !== null) {
+      clearTimeout(this.webglIdleTimer);
+      this.webglIdleTimer = null;
+    }
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
@@ -304,10 +358,7 @@ export class TerminalVanilla {
     }
 
     // Release WebGL context slot so new terminals can use it
-    if (this.hasWebGLContext) {
-      activeWebGLContextCount--;
-      this.hasWebGLContext = false;
-    }
+    this.detachWebGL();
 
     // Dispose terminal instance
     this.term?.dispose();

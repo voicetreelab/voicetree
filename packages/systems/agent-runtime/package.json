@@ -29,7 +29,6 @@
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
-    "@xterm/headless": "^6.0.0",
     "fp-ts": "^2.16.9",
     "node-pty": "^1.1.0"
   },

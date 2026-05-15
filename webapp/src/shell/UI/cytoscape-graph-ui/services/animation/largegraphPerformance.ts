@@ -222,3 +222,10 @@ export function installTextureCacheSkip(cy: Core): void {
 
     textureCacheSkipInstalled = true;
 }
+
+export function resetLargeGraphPerformanceState(): void {
+    largeGraphModeActive = false;
+    cachedRenderer = undefined;
+    collectionCache = null;
+    textureCacheSkipInstalled = false;
+}

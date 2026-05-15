@@ -128,6 +128,8 @@ export interface VTSettings {
     readonly shell?: string;
     /** Name of the default agent (matched against agents[].name). Falls back to first agent if unset or not found. */
     readonly defaultAgent?: string;
+    /** Notify via OS notification when an agent completes or errors (only when app is unfocused) */
+    readonly notifyOnAgentCompletion?: boolean;
     /** Show FPS counter overlay on the Cytoscape WebGL renderer (top-left). Requires app restart. */
     readonly showFps?: boolean;
     /** Layout engine configuration as JSON. Supports 'cola' engine. Edit in Advanced settings. */
