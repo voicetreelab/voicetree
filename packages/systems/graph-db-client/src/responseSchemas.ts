@@ -24,6 +24,18 @@ export const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
   },
 }
 
+export const ReadPathsMutationResponseSchema: Schema<{ readPaths: readonly string[] }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || !Array.isArray(input.readPaths)) {
+      throw new Error('Invalid read-paths response body')
+    }
+    if (!input.readPaths.every((value) => typeof value === 'string')) {
+      throw new Error('Invalid read-paths response body')
+    }
+    return { readPaths: [...input.readPaths] }
+  },
+}
+
 function isFolderStateEntry(value: unknown): value is [string, 'expanded' | 'collapsed' | 'hidden'] {
   return Array.isArray(value)
     && value.length === 2
