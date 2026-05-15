@@ -12,6 +12,7 @@ import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {TerminalRelayClient, type RelayConnectionStatus} from './terminalRelayClient';
 
 // Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
 // cytoscape minimap, extensions, etc. Terminals beyond this cap use the DOM renderer.
@@ -39,13 +40,24 @@ export class TerminalVanilla {
   private hasWebGLContext: boolean = false;
   private cleanupOnData: (() => void) | null = null;
   private cleanupOnExit: (() => void) | null = null;
+  private relayClient: TerminalRelayClient | null = null;
+  private relayStatusEl: HTMLDivElement | null = null;
+  private terminalBackend: 'node-pty' | 'tmux' = 'node-pty';
+  private readonly settingsPromise: Promise<VTSettings | null>;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
+    this.settingsPromise = window.electronAPI?.main.loadSettings()
+      .then((settings: VTSettings) => settings)
+      .catch((error: unknown) => {
+        console.error('[TerminalVanilla] Failed to load settings:', error);
+        return null;
+      }) ?? Promise.resolve(null);
 
-    void window.electronAPI?.main.loadSettings().then(
-      (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter ?? true);
+    void this.settingsPromise.then((settings: VTSettings | null) => {
+      this.shiftEnterSendsOptionEnter = settings?.shiftEnterSendsOptionEnter ?? true;
+    });
 
     void this.mount();
   }
@@ -113,9 +125,7 @@ export class TerminalVanilla {
     // The suppressNextEnter flag prevents that duplicate '\r' from being sent.
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (this.shiftEnterSendsOptionEnter && event.type === 'keydown' && event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        if (this.terminalId && window.electronAPI?.terminal) {
-          void window.electronAPI.terminal.write(this.terminalId, '\x1b\r');
-        }
+        void this.writeToBackend('\x1b\r');
         this.suppressNextEnter = true;
         return false;
       }
@@ -131,11 +141,7 @@ export class TerminalVanilla {
       }
       this.suppressNextEnter = false;
 
-      if (this.terminalId && window.electronAPI?.terminal) {
-        window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
-          console.error('Terminal write error:', err);
-        });
-      }
+      void this.writeToBackend(data);
     });
 
     // Handle terminal resize
@@ -162,9 +168,7 @@ export class TerminalVanilla {
         console.trace('[TerminalVanilla] OVERSIZED xterm resize stack trace');
       }
 
-      if (this.terminalId && window.electronAPI?.terminal) {
-        void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
-      }
+      void this.resizeBackend(cols, rows);
     });
 
     // Set up ResizeObserver for container resize with scroll preservation.
@@ -236,6 +240,17 @@ export class TerminalVanilla {
       return;
     }
 
+    const settings: VTSettings | null = await this.settingsPromise;
+    this.terminalBackend = settings?.ptyBackend ?? 'node-pty';
+    if (this.terminalBackend === 'tmux') {
+      await this.initRelayTerminal();
+      return;
+    }
+
+    await this.initNodePtyTerminal();
+  }
+
+  private async initNodePtyTerminal(): Promise<void> {
     const result: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
 
     if (result.success && result.terminalId) {
@@ -263,6 +278,74 @@ export class TerminalVanilla {
     } else {
       this.term?.writeln('Failed to spawn terminal: ' + (result.error ?? 'Unknown error'));
     }
+  }
+
+  private async initRelayTerminal(): Promise<void> {
+    if (!this.term) return;
+
+    this.terminalId = this.terminalData.terminalId;
+    this.createRelayStatusIndicator();
+
+    const relayPort: number = await window.electronAPI!.main.getMcpPort();
+    const encodedTerminalId: string = encodeURIComponent(this.terminalData.terminalId);
+    const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
+
+    this.relayClient = new TerminalRelayClient({
+      url,
+      onData: (data: string): void => {
+        this.term?.write(data);
+      },
+      onStatus: (status: RelayConnectionStatus): void => {
+        this.setRelayStatus(status);
+        if (status === 'connected' && this.term) {
+          this.relayClient?.sendResize(this.term.cols, this.term.rows);
+        }
+      },
+    });
+    this.relayClient.connect();
+  }
+
+  private async writeToBackend(data: string): Promise<void> {
+    if (!this.terminalId) return;
+    if (this.terminalBackend === 'tmux') {
+      this.relayClient?.sendData(data);
+      return;
+    }
+    if (!window.electronAPI?.terminal) return;
+    window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
+      console.error('Terminal write error:', err);
+    });
+  }
+
+  private async resizeBackend(cols: number, rows: number): Promise<void> {
+    if (!this.terminalId) return;
+    if (this.terminalBackend === 'tmux') {
+      this.relayClient?.sendResize(cols, rows);
+      return;
+    }
+    if (window.electronAPI?.terminal) {
+      void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
+    }
+  }
+
+  private createRelayStatusIndicator(): void {
+    if (this.relayStatusEl) return;
+    this.container.classList.add('terminal-relay-container');
+    const statusEl: HTMLDivElement = document.createElement('div');
+    statusEl.className = 'terminal-relay-status connecting';
+    statusEl.textContent = 'tmux connecting';
+    this.container.appendChild(statusEl);
+    this.relayStatusEl = statusEl;
+  }
+
+  private setRelayStatus(status: RelayConnectionStatus): void {
+    if (!this.relayStatusEl) return;
+    this.relayStatusEl.className = `terminal-relay-status ${status}`;
+    this.relayStatusEl.textContent = status === 'connected'
+      ? 'tmux connected'
+      : status === 'reconnecting'
+        ? 'tmux reconnecting'
+        : `tmux ${status}`;
   }
 
 
@@ -293,13 +376,17 @@ export class TerminalVanilla {
     this.cleanupOnData = null;
     this.cleanupOnExit?.();
     this.cleanupOnExit = null;
+    this.relayClient?.dispose();
+    this.relayClient = null;
+    this.relayStatusEl?.remove();
+    this.relayStatusEl = null;
 
     // Unsubscribe from zoom-end callbacks
     this.zoomEndUnsubscribe?.();
     this.zoomEndUnsubscribe = null;
 
     // Kill terminal process
-    if (this.terminalId && window.electronAPI?.terminal) {
+    if (this.terminalBackend === 'node-pty' && this.terminalId && window.electronAPI?.terminal) {
       void window.electronAPI.terminal.kill(this.terminalId);
     }
 

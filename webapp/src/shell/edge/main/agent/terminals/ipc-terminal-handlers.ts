@@ -1,10 +1,17 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@vt/agent-runtime'
 import type { TerminalSpawnResult } from '@vt/agent-runtime'
+import type { VTSettings } from '@vt/graph-model/settings'
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
+import { shouldBypassElectronNodePtySpawn } from '@/shell/edge/main/agent/terminals/terminal-backend-gate'
 import {
     trackTerminalForWindow,
     untrackTerminal,
 } from '@/shell/edge/main/agent/terminals/terminal-window-tracker'
+
+type TerminalSpawnRequest = {
+    readonly terminalId?: string
+}
 
 // Bridge between Electron IPC and the runtime-agnostic TerminalManager.
 // The handler is the only place that knows about `event.sender`; it wraps
@@ -16,6 +23,15 @@ export function registerTerminalIpcHandlers(
     ipcMain.handle('terminal:spawn', async (event, terminalData) => {
         const sender: Electron.WebContents = event.sender
         const senderId: number = sender.id
+        const settings: VTSettings = await loadSettings()
+
+        if (shouldBypassElectronNodePtySpawn(settings)) {
+            const terminalId: string | undefined = (terminalData as TerminalSpawnRequest).terminalId
+            if (!terminalId) {
+                return {success: false, terminalId: '', error: 'Missing terminalId for tmux relay attach'}
+            }
+            return {success: true, terminalId}
+        }
 
         const result: TerminalSpawnResult = await terminalManager.spawn({
             terminalData,
