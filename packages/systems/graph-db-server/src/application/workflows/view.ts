@@ -1,9 +1,14 @@
-import { project } from '@vt/graph-state'
-import { renderTreeCover } from '@vt/graph-tools/autoView'
 import {
   ExpandOverridesResponseSchema,
   ViewResponseSchema,
 } from '@vt/graph-db-server/contract'
+import {
+  handleAddExpandOverride,
+  handleDeleteExpandOverride,
+  handleReadProjectedGraph,
+  handleRenderView,
+} from '../core/handleView.ts'
+import { runCommand } from '../effects/runCommand.ts'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
@@ -15,21 +20,10 @@ export async function renderSessionViewWorkflow(
   expandParams: readonly string[],
 ): Promise<HttpResult> {
   const session = registry.getOrCreate(sessionId)
-
-  const budget = budgetParam ? Math.max(1, Math.trunc(Number(budgetParam))) : 30
-  const mergedExpands = [...session.expandOverrides, ...expandParams]
-
   const state = await buildDaemonState(session)
-  const graph = project(state)
+  const result = handleRenderView(session, state, budgetParam, expandParams)
 
-  const output = renderTreeCover(graph, {
-    collapsed: session.collapseSet,
-    selected: session.selection,
-    pinnedFolderIds: mergedExpands,
-    budget,
-  })
-
-  return jsonResult(ViewResponseSchema.parse({ output, format: 'tree-cover' }))
+  return jsonResult(ViewResponseSchema.parse(result.response))
 }
 
 export async function readProjectedGraphWorkflow(
@@ -38,39 +32,47 @@ export async function readProjectedGraphWorkflow(
 ): Promise<HttpResult> {
   const session = registry.getOrCreate(sessionId)
   const state = await buildDaemonState(session)
-  return jsonResult(project(state), 200)
+  const result = handleReadProjectedGraph(state)
+
+  return jsonResult(result.response, 200)
 }
 
-export function addExpandOverrideWorkflow(
+export async function addExpandOverrideWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   folderId: string,
-): HttpResult {
+): Promise<HttpResult> {
   const session = registry.get(sessionId)
   if (!session) {
     return notFoundResult()
   }
 
-  session.expandOverrides.add(folderId)
-  registry.touch(sessionId)
-  return jsonResult(ExpandOverridesResponseSchema.parse({
-    expandOverrides: [...session.expandOverrides],
-  }))
+  const result = handleAddExpandOverride(session, folderId)
+  Object.assign(session, result.session)
+
+  for (const command of result.commands) {
+    await runCommand(command, { registry })
+  }
+
+  return jsonResult(ExpandOverridesResponseSchema.parse(result.response))
 }
 
-export function deleteExpandOverrideWorkflow(
+export async function deleteExpandOverrideWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   folderId: string,
-): HttpResult {
+): Promise<HttpResult> {
   const session = registry.get(sessionId)
   if (!session) {
     return notFoundResult()
   }
 
-  session.expandOverrides.delete(folderId)
-  registry.touch(sessionId)
-  return jsonResult(ExpandOverridesResponseSchema.parse({
-    expandOverrides: [...session.expandOverrides],
-  }))
+  const result = handleDeleteExpandOverride(session, folderId)
+  Object.assign(session, result.session)
+
+  for (const command of result.commands) {
+    await runCommand(command, { registry })
+  }
+
+  return jsonResult(ExpandOverridesResponseSchema.parse(result.response))
 }

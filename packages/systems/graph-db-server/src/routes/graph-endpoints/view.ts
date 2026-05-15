@@ -31,10 +31,10 @@ export function mountViewRoutes(
     )
   })
 
-  app.post('/sessions/:sessionId/expand/:folderId', (c) => {
+  app.post('/sessions/:sessionId/expand/:folderId', async (c) => {
     return sendHttpResult(
       c,
-      addExpandOverrideWorkflow(
+      await addExpandOverrideWorkflow(
         registry,
         c.req.param('sessionId'),
         c.req.param('folderId'),
@@ -42,10 +42,10 @@ export function mountViewRoutes(
     )
   })
 
-  app.delete('/sessions/:sessionId/expand/:folderId', (c) => {
+  app.delete('/sessions/:sessionId/expand/:folderId', async (c) => {
     return sendHttpResult(
       c,
-      deleteExpandOverrideWorkflow(
+      await deleteExpandOverrideWorkflow(
         registry,
         c.req.param('sessionId'),
         c.req.param('folderId'),
