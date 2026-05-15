@@ -1,4 +1,4 @@
 export {
     runIdleStopGateAudit,
     type IdleStopGateAuditDeps,
-} from '../application/effects/runIdleStopGateAudit.ts'
+} from '../effects/runIdleStopGateAudit.ts'
