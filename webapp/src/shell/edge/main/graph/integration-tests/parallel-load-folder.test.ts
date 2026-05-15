@@ -29,7 +29,7 @@ import {
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
 import { createGraph } from '@vt/graph-model/graph'
@@ -41,7 +41,7 @@ import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 const MIN_SMALL_NODE_COUNT: 10 = 10 as const
 const TIMEOUT_MS: 60000 = 60000 as const
 
-vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
+vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
     getMainWindow: vi.fn(() => ({
         webContents: { send: vi.fn(), isDestroyed: vi.fn(() => false) },
         isDestroyed: vi.fn(() => false),

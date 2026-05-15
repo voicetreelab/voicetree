@@ -6,7 +6,7 @@ import {
   loadFlowDefinition,
   resolveFlowDefinition,
   type FlowDefinition,
-} from '../src/debug/flows/index'
+} from '../src/debug/flow/flows/index'
 
 describe('flow library', () => {
   it('loads all ten authored golden flows', async () => {

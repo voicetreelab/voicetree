@@ -1,8 +1,8 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
-import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
-import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/dotGridBackground";
-import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
+import {VoiceTreeGraphView} from "@/shell/UI/views/graph-view/VoiceTreeGraphView";
+import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBackground";
+import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
 import {useEffect, useRef, useState, useCallback} from "react";

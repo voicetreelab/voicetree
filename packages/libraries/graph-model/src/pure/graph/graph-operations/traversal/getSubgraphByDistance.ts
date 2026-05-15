@@ -4,9 +4,9 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '../..'
-import { getIncomingNodes } from '../getIncomingNodes'
-import { setOutgoingEdges } from '../graph-edge-operations'
-import { removeContextNodes } from '../removeContextNodes'
+import { getIncomingNodes } from '../indexes/getIncomingNodes'
+import { setOutgoingEdges } from '../transforms/graph-edge-operations'
+import { removeContextNodes } from '../transforms/removeContextNodes'
 import { createEmptyGraph, createGraph } from '../graphOperationPrimitives'
 
 /**

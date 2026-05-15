@@ -1,7 +1,7 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
-import type { mainAPI } from '@/shell/edge/main/api';
+import type { mainAPI } from '@/shell/edge/main/runtime/api';
 
 // Re-export TerminalData for use in terminal API
 

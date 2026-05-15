@@ -20,26 +20,26 @@ import {
     isDaemonGraphSyncActive,
     startDaemonGraphSync,
     stopDaemonGraphSync,
-} from '@/shell/edge/main/electron/daemon-watch-sync'
+} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
 import {
     markLoadTiming,
     startLoadTiming,
-} from '@/shell/edge/main/diagnostics/loadTiming'
-import { getActiveDaemonVaultState } from '@/shell/edge/main/electron/daemon-ipc-proxy'
+} from '@/shell/edge/main/observability/diagnostics/loadTiming'
+import { getActiveDaemonVaultState } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
 import {
     ensureDaemonClientForVault,
     getActiveDaemonConnection,
     shutdownActiveDaemonConnection,
     type CachedDaemonConnection,
-} from '@/shell/edge/main/electron/graph-daemon'
-import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/electron/daemon-graph-queries'
-import { syncWatchedProjectRoot } from '@/shell/edge/main/state/live-state-store'
+} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries'
+import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import type { VaultState } from '@vt/graph-db-client'
 import {
     getSubfoldersWithModifiedAt,
     isValidSubdirectory,
 } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getStartupFolderOverride } from '@/shell/edge/main/electron/startup-folder-override'
+import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
 
 const configuredDaemonLoadTimeoutMs: number = Number.parseInt(
     process.env.VOICETREE_DAEMON_LOAD_TIMEOUT_MS ?? '',
@@ -257,7 +257,10 @@ async function doLoadFolder(
 
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory()
     if (previousRoot) {
-        await writeCurrentPositionsThroughDaemon()
+        await writeCurrentPositionsThroughDaemon().catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err)
+            process.stdout.write(`[loadFolder] Could not save positions before vault switch (${msg}); continuing\n`)
+        })
     }
 
     pendingLoadedDirectory = watchedFolderPath

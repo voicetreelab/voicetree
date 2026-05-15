@@ -20,7 +20,7 @@
     "./paths": "./src/paths.ts",
     "./pure/graph": "./src/pure/graph/index.ts",
     "./pure/graph/markdown-parsing": "./src/pure/graph/markdown-parsing/index.ts",
-    "./pure/graph/contentChangeDetection": "./src/pure/graph/contentChangeDetection.ts"
+    "./pure/graph/contentChangeDetection": "./src/pure/graph/nodes/contentChangeDetection.ts"
   },
   "scripts": {
     "test": "vitest run",

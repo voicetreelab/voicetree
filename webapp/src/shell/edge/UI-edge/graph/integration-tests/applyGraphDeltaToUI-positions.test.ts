@@ -8,12 +8,12 @@ import {
     addCollapsedFolderLocally,
     getFolderTreeState,
     removeCollapsedFolderLocally,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
+import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
 import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
 
-vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
+vi.mock('@/shell/edge/UI-edge/graph/popups/userEngagementPrompts', () => ({
     checkEngagementPrompts: vi.fn()
 }))
 

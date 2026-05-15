@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fromNodeToMarkdownContent } from './node_to_markdown'
 import { parseMarkdownToGraphNode } from '../markdown-parsing/parse-markdown-to-node'
-import { createGraph } from '../createGraph'
+import { createGraph } from '../construction/createGraph'
 import type { Graph, GraphNode } from '..'
 import * as O from 'fp-ts/lib/Option.js'
 

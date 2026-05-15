@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { CyDump, CyDumpNode } from '../src/debug/cyStateShape'
-import { folderAspect } from '../src/commands/folderAspect'
-import { computeFolderAspects } from '../src/folderAspect'
+import type { CyDump, CyDumpNode } from '../src/debug/state/cyStateShape'
+import { folderAspect } from '../src/commands/folders/folderAspect'
+import { computeFolderAspects } from '../src/view/folderAspect'
 
 function makeFolderNode(id = 'folder-1', folderLabel = 'Folder 1'): CyDumpNode {
   return {

@@ -12,16 +12,16 @@
 
 import type { Core, CollectionReturnValue, NodeSingular } from 'cytoscape';
 import { cyFitWithRelativeZoom } from '@/utils/responsivePadding';
-import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
-import { getTerminals, setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/stores/RecentlyVisitedStore';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import { getTerminals, setActiveTerminalId } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
 import { linkMatchScore, getPathComponents } from '@vt/graph-model/markdown';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
-import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore';
+import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/stores/EditorStore';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
 import { dispatchDeselect, dispatchSelect, getSelection } from '@vt/graph-state/state/selectionStore';
 

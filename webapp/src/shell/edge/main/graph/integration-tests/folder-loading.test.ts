@@ -39,7 +39,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
-import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -106,7 +106,7 @@ async function shutdownFixtureDaemons(): Promise<void> {
 }
 
 // Mock app-electron-state
-vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
+vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
   getMainWindow: vi.fn(() => mockMainWindow),
   setMainWindow: vi.fn()
 }))
@@ -491,6 +491,22 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
       // Verify that file watcher was set up after loading
       expect(isWatching()).toBe(true)
+    }, INTEGRATION_TEST_TIMEOUT_MS)
+
+    it('should not throw when switching vaults while pendingLoadedDirectory is set but daemon not connected', async () => {
+      // Regression: simulate the race where doLoadFolder was called with pendingLoadedDirectory
+      // set from a concurrent/failed first load, causing writeCurrentPositionsThroughDaemon to
+      // throw "No vault is currently open" and blocking the vault switch entirely.
+      //
+      // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
+      // second load seeing pendingLoadedDirectory from the first (daemon not yet connected).
+      setVaultPath(exampleSmallPath)
+      // getActiveDaemonConnection() is null → getProjectRootWatchedDirectory() returns exampleSmallPath
+      // doLoadFolder will attempt writeCurrentPositionsThroughDaemon → must not propagate the error
+
+      const result = await loadFolder(exampleLargePath)
+      expect(result.success).toBe(true)
+      expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
     it('should detect file addition and deletion after folder is loaded', async () => {

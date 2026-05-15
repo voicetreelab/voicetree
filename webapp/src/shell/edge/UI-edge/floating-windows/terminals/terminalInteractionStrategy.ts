@@ -11,10 +11,10 @@
 
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
+import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { getTerminalFontSize, TERMINAL_CSS_TRANSFORM_THRESHOLD } from '@vt/graph-model/floating-windows';
-import { updateWindowFromZoom } from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
+import { updateWindowFromZoom } from '@/shell/edge/UI-edge/floating-windows/chrome/update-window-from-zoom';
 
 /**
  * Set up interaction-driven strategy switching for a terminal window.

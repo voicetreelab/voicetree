@@ -1,4 +1,4 @@
-import type { DriftReport, Divergence } from '../drift'
+import type { DriftReport, Divergence } from '../state/drift'
 
 export const DIVERGENCE_CLASS_BASELINE_SCHEMA = 'vt-debug/divergence-class-baseline@1'
 

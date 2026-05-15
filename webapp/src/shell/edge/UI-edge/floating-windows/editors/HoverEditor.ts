@@ -5,10 +5,10 @@ import * as O from 'fp-ts/lib/Option.js';
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {isImageNode} from '@vt/graph-model/graph';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
-import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
+import type {Position} from '@/shell/UI/views/graph-view/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
-import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
+import {type EditorData} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
 import {createAnchoredFloatingEditor} from './AnchoredEditor';
 

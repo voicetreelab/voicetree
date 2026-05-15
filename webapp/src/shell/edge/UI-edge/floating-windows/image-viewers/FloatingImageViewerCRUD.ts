@@ -5,20 +5,20 @@ import * as O from 'fp-ts/lib/Option.js';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
-import type { Position } from '@/shell/UI/views/IVoiceTreeGraphView';
+import type { Position } from '@/shell/UI/views/graph-view/IVoiceTreeGraphView';
 
 import {
     createImageViewerData,
     type ImageViewerId,
     type FloatingWindowUIData,
     getImageViewerId,
-} from '@/shell/edge/UI-edge/floating-windows/types';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 import {
     disposeFloatingWindow,
     getOrCreateOverlay,
     registerFloatingWindow,
-} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
 
 import type { ImageViewerData } from '@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType';
 
@@ -26,11 +26,11 @@ import {
     addImageViewer,
     getImageViewerByNodeId,
     getHoverImageViewer,
-} from '@/shell/edge/UI-edge/state/ImageViewerStore';
+} from '@/shell/edge/UI-edge/state/stores/ImageViewerStore';
 
-import { createWindowChrome } from '@/shell/edge/UI-edge/floating-windows/create-window-chrome';
-import { anchorToNode } from '@/shell/edge/UI-edge/floating-windows/anchor-to-node';
-import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { createWindowChrome } from '@/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome';
+import { anchorToNode } from '@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node';
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
 
 /**
  * Browser-compatible basename function (Node.js path module doesn't work in browser)

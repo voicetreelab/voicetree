@@ -11,7 +11,7 @@
  * and positioned dynamically relative to the badge button via getBoundingClientRect().
  */
 
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type {} from '@/shell/electron';
 

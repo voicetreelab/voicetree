@@ -4,7 +4,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode } from '..'
-import { reverseGraphEdges } from '../graph-operations/graph-transformations'
+import { reverseGraphEdges } from '../graph-operations/transforms/graph-transformations'
 import { getNodeTitle } from '../markdown-parsing'
 
 /**

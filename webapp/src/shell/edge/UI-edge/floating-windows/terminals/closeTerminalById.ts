@@ -1,7 +1,7 @@
 import type {Core} from "cytoscape";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
-import {getTerminal} from "@/shell/edge/UI-edge/state/TerminalStore";
-import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
+import {getTerminal} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
+import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import * as O from "fp-ts/Option";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {closeTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal";

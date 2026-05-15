@@ -4,7 +4,7 @@ import {
     renderCytoscapeCouplingAuditSummary,
     runCytoscapeCouplingAudit,
     writeCytoscapeCouplingCatalogue,
-} from '../src/cytoscapeCouplingAudit'
+} from '../src/cytoscape/cytoscapeCouplingAudit'
 
 const scriptDir: string = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot: string = path.resolve(scriptDir, '../../../..')

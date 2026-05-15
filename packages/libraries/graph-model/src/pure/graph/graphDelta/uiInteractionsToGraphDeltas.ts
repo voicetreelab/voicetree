@@ -1,13 +1,13 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '..'
 import {CONTEXT_NODES_FOLDER} from '..'
-import {calculateInitialPositionForChild} from '../positioning/calculateInitialPosition';
-import {DEFAULT_EDGE_LENGTH} from '../positioning/angularPositionSeeding';
-import {addOutgoingEdge} from '../graph-operations/graph-edge-operations';
+import {calculateInitialPositionForChild} from '../positioning/placement/calculateInitialPosition';
+import {DEFAULT_EDGE_LENGTH} from '../positioning/placement/angularPositionSeeding';
+import {addOutgoingEdge} from '../graph-operations/transforms/graph-edge-operations';
 import * as O from "fp-ts/lib/Option.js";
 // TODO: parseMarkdownToGraphNode uses gray-matter which requires Node.js Buffer - move parsing to main process
 import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-node';
-import {ensureUniqueNodeId} from '../ensureUniqueNodeId';
-import {stableIdSuffix} from '../stableIdSuffix';
+import {ensureUniqueNodeId} from '../nodes/ensureUniqueNodeId';
+import {stableIdSuffix} from '../nodes/stableIdSuffix';
 
 /**
  * Pure action creator functions.

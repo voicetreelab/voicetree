@@ -6,16 +6,16 @@
  * to avoid click race conditions caused by DOM destruction mid-click.
  */
 
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals, updateTerminalRunningState, getActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/AgentTabsStore';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { getTerminals, updateTerminalRunningState, getActiveTerminalId } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
     CHECK_INTERVAL_MS,
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@vt/graph-model/agent-tabs';
 import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import type {} from '@/shell/electron';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 

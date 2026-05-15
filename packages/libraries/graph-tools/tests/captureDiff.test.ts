@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SerializedState } from '@vt/graph-state'
-import { diffCaptures, type Snapshot } from '../src/debug/captureDiff'
+import { diffCaptures, type Snapshot } from '../src/debug/state/captureDiff'
 
 function makeState(selection: readonly string[], revision: number, mutatedAt: string): SerializedState {
   return {

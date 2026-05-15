@@ -6,8 +6,8 @@
 import type {} from '@/shell/electron';
 import type {Core} from 'cytoscape';
 import type {VTSettings} from '@vt/graph-model/settings';
-import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
+import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import {X, createElement} from 'lucide';
 import {createRoot, type Root} from 'react-dom/client';
 import {createElement as reactCreateElement} from 'react';

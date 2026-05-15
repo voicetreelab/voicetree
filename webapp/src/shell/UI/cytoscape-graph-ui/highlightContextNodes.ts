@@ -2,7 +2,7 @@
  * Utilities for highlighting nodes contained within a context node's snapshot.
  */
 import type { Core } from 'cytoscape';
-import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
+import { getNodeFromMainToUI } from '@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI';
 import { CONTEXT_CONTAINED_CLASS, CONTEXT_EDGE_CLASS } from './constants';
 
 /**

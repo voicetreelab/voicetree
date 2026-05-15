@@ -11,7 +11,7 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
-import { findAvailablePort, isPortAvailable } from '@/shell/edge/main/port-utils';
+import { findAvailablePort, isPortAvailable } from '@/shell/edge/main/runtime/port-utils';
 
 describe('port-utils integration test', () => {
   const serverProcesses: ChildProcess[] = [];

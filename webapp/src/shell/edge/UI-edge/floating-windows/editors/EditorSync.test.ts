@@ -3,9 +3,9 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { ProjectedGraph, ProjectedNode, ProjectedEdge } from '@vt/graph-state/contract'
-import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/types'
-import { addEditor, getEditors } from '@/shell/edge/UI-edge/state/EditorStore'
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
+import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+import { addEditor, getEditors } from '@/shell/edge/UI-edge/state/stores/EditorStore'
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 import { updateFloatingEditors, updateFloatingEditorsFromProjectedGraph } from './EditorSync'
 
 vi.mock('./FloatingEditorCRUD', () => ({

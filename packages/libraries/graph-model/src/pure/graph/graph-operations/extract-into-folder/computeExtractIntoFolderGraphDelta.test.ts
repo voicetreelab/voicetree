@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { createGraph } from '../../createGraph'
+import { createGraph } from '../../construction/createGraph'
 import type { Graph, GraphNode } from '../..'
 import { computeExtractIntoFolderGraphDelta, getExtractIntoFolderSelectionSupport } from './computeExtractIntoFolderGraphDelta'
 

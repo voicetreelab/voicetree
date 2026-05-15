@@ -1,0 +1,32 @@
+// Re-export types for consumers (Phase 5 complete - all types from types-v2)
+export type { EditorId, TerminalId } from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
+export type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+export type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
+
+// =============================================================================
+// Editors State (NEW - uses types-v2)
+// =============================================================================
+
+
+
+// =============================================================================
+// Terminals State (uses types-v2 - Phase 5 complete)
+// =============================================================================
+
+// =============================================================================
+// Derived Editor Queries
+// =============================================================================
+
+// =============================================================================
+// Awaiting UI Saved Content (for race condition handling in editor save flow)
+// =============================================================================
+
+// =============================================================================
+// Legacy: vanillaFloatingWindowInstances (to be removed in Phase 3+)
+// =============================================================================
+
+/**
+ * @deprecated This will be removed once Phase 3-5 migrate to using ui field in EditorData/TerminalData.
+ * The dispose/focus callbacks should be accessed via EditorData.ui.cleanup or TerminalData.ui.cleanup.
+ */
+export const vanillaFloatingWindowInstances: Map<string, { dispose: () => void; focus?: () => void; focusAtEnd?: () => void }> = new Map<string, { dispose: () => void; focus?: () => void; focusAtEnd?: () => void }>();

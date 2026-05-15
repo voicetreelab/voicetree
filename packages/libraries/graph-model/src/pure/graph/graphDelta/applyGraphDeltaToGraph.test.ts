@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToGraph } from './applyGraphDeltaToGraph'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '..'
-import { createGraph, createEmptyGraph } from '../createGraph'
+import { createGraph, createEmptyGraph } from '../construction/createGraph'
 
 /**
  * Helper to create a minimal GraphNode for testing

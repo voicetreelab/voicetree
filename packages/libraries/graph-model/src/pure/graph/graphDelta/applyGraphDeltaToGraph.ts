@@ -1,13 +1,13 @@
 import type {Graph, GraphDelta, GraphNode} from '..'
-import { updateIndexForUpsert, updateIndexForDelete } from '../graph-operations/incomingEdgesIndex'
-import type { IncomingEdgesIndex } from '../graph-operations/incomingEdgesIndex'
+import { updateIndexForUpsert, updateIndexForDelete } from '../graph-operations/indexes/incomingEdgesIndex'
+import type { IncomingEdgesIndex } from '../graph-operations/indexes/incomingEdgesIndex'
 import {
   updateNodeByBaseNameIndexForUpsert,
   updateNodeByBaseNameIndexForDelete,
   updateUnresolvedLinksIndexForUpsert,
   updateUnresolvedLinksIndexForDelete
-} from '../graph-operations/linkResolutionIndexes'
-import type { NodeByBaseNameIndex, UnresolvedLinksIndex } from '../graph-operations/linkResolutionIndexes'
+} from '../graph-operations/indexes/linkResolutionIndexes'
+import type { NodeByBaseNameIndex, UnresolvedLinksIndex } from '../graph-operations/indexes/linkResolutionIndexes'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**

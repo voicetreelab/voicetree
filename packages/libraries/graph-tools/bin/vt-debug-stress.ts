@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url'
 
 import { loadProjection, loadSnapshot, type State } from '@vt/graph-state'
 
-import { type DebugInstance } from '../src/debug/discover'
-import { computeDrift, type DriftReport } from '../src/debug/drift'
-import { resolveDebugInstance } from '../src/debug/portResolution'
-import { err, ok } from '../src/debug/Response'
-import type { Response } from '../src/debug/Response'
-import { createScoreboard, type FlowScoreboard, type ScoreboardRow } from '../src/debug/scoreboard'
+import { type DebugInstance } from '../src/debug/protocol/discover'
+import { computeDrift, type DriftReport } from '../src/debug/state/drift'
+import { resolveDebugInstance } from '../src/debug/protocol/portResolution'
+import { err, ok } from '../src/debug/protocol/Response'
+import type { Response } from '../src/debug/protocol/Response'
+import { createScoreboard, type FlowScoreboard, type ScoreboardRow } from '../src/debug/flow/scoreboard'
 import {
   createDivergenceClassBaseline,
   classifyDriftReport,
@@ -26,9 +26,9 @@ import {
   generateStressSequence,
   resolveStressSequence,
 } from '../src/debug/stress/stressSpec'
-import { elementSpecToCyDump, projectStateToCyDump } from '../src/debug/projectedCyDump'
-import type { JudgeVerdict } from '../src/debug/judge'
-import type { RunResult } from '../src/commands/run'
+import { elementSpecToCyDump, projectStateToCyDump } from '../src/debug/state/projectedCyDump'
+import type { JudgeVerdict } from '../src/debug/flow/judge'
+import type { RunResult } from '../src/commands/capture/run'
 
 const DEFAULT_OUT_DIR = '/tmp/vt-debug/stress'
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -408,7 +408,7 @@ async function runLiveStress(
   options: RunnerOptions,
   instance: DebugInstance,
 ): Promise<LiveSequenceResult[]> {
-  const transportModule = await import('../src/liveTransport')
+  const transportModule = await import('../src/live/liveTransport')
   const transport = transportModule.createLiveTransport(instance.mcpPort)
   const initialState = await transport.getLiveState()
   const runtimeContext = deriveStressRuntimeContext(initialState)

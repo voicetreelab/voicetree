@@ -6,8 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./node": "./src/node.ts",
-    "./graphLint": "./src/graphLint.ts",
-    "./autoView": "./src/autoView.ts"
+    "./graphLint": "./src/lint/graphLint.ts",
+    "./autoView": "./src/view/autoView.ts"
   },
   "bin": {
     "vt-graph": "bin/vt-graph.ts",

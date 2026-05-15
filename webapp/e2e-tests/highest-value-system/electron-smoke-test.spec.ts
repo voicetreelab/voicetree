@@ -176,6 +176,9 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15000 });
 
     window.on('console', msg => {
+      if (msg.type() === 'error') {
+        electronDiagnostics.rendererErrors.push(msg.text());
+      }
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
     });
 

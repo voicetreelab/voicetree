@@ -7,13 +7,13 @@ import { getLayout } from '@vt/graph-state/state/layoutStore';
 
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {applyAnchoredEditorOpenStyle, applyAnchoredEditorCloseStyle} from './anchoredEditorVisualStyle';
-import type {EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
-import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/EditorStore';
-import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/PendingPanStore';
-import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/update-window-from-zoom';
-import {updateShadowNodeDimensions} from '@/shell/edge/UI-edge/floating-windows/setup-resize-observer';
-import {cleanupRegistry} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import {markNodeDirty} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
+import type {EditorData} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {addToAutoPinQueue, getEditorByNodeId} from '@/shell/edge/UI-edge/state/stores/EditorStore';
+import {setPendingEditorFocusPan} from '@/shell/edge/UI-edge/state/stores/PendingPanStore';
+import {updateWindowFromZoom} from '@/shell/edge/UI-edge/floating-windows/chrome/update-window-from-zoom';
+import {updateShadowNodeDimensions} from '@/shell/edge/UI-edge/floating-windows/chrome/setup-resize-observer';
+import {cleanupRegistry} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
+import {markNodeDirty} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
 import {cySmartCenter} from '@/utils/responsivePadding';
 import {closeEditor, createFloatingEditor} from './FloatingEditorCRUD';
 

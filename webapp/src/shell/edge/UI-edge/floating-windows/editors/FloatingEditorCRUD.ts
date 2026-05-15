@@ -9,34 +9,34 @@ import {
     type EditorId,
     type FloatingWindowUIData,
     getEditorId,
-} from '@/shell/edge/UI-edge/floating-windows/types';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 import {
     attachCloseHandler,
     disposeFloatingWindow,
     getOrCreateOverlay,
     registerFloatingWindow,
-} from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
 
-import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/UIAppState';
+import {type EditorData, vanillaFloatingWindowInstances,} from '@/shell/edge/UI-edge/state/stores/UIAppState';
 
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
-import {getNodeFromMainToUIOrNull} from '@/shell/edge/UI-edge/graph/getNodeFromMainToUI';
+import {getNodeFromMainToUIOrNull} from '@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI';
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
 import {getNodeTitle} from '@vt/graph-model/markdown';
 import {
     addEditor,
     getEditorByNodeId,
     getEditors,
-} from "@/shell/edge/UI-edge/state/EditorStore";
+} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {
     modifyNodeContentFromUI
 } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
-import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/select-floating-window-node";
+import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/select-floating-window-node";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
-import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/create-window-chrome";
-import {hopsToSquare} from "@/shell/UI/cytoscape-graph-ui/services/DistanceSlider";
-import {FLOATING_EDITOR_WIDTH, ANCHORED_EDITOR_WIDTH} from "@/shell/edge/UI-edge/floating-windows/types";
+import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome";
+import {hopsToSquare} from "@/shell/UI/cytoscape-graph-ui/services/menus/DistanceSlider";
+import {FLOATING_EDITOR_WIDTH, ANCHORED_EDITOR_WIDTH} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 
 // Re-export from decomposed modules for backwards compatibility
 export {isMouseInHoverZone, closeHoverEditor, setupCommandHover} from './HoverEditor';

@@ -10,8 +10,8 @@ import {
     getShadowNodeId,
     type ShadowNodeId,
     type TerminalId,
-} from '@/shell/edge/UI-edge/floating-windows/types';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import { createFloatingTerminal } from './createFloatingTerminal';
 
 vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }));

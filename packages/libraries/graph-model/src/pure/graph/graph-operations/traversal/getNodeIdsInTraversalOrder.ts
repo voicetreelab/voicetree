@@ -21,7 +21,7 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode } from '../..'
-import { reverseGraphEdges } from '../graph-transformations'
+import { reverseGraphEdges } from '../transforms/graph-transformations'
 
 export function getNodeIdsInTraversalOrder(graph: Graph): readonly NodeIdAndFilePath[] {
   // eslint-disable-next-line functional/prefer-readonly-type
