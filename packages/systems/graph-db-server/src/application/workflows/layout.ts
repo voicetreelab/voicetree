@@ -2,14 +2,21 @@ import {
   LayoutPartialSchema,
   LayoutResponseSchema,
 } from '@vt/graph-db-server/contract'
-import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { handleLayout } from '../core/handleLayout.ts'
+import { runCommand } from '../effects/runCommand.ts'
+import {
+  errorResult,
+  jsonResult,
+  notFoundResult,
+  type HttpResult,
+} from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
-export function updateLayoutWorkflow(
+export async function updateLayoutWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   rawBody: unknown,
-): HttpResult {
+): Promise<HttpResult> {
   const body = LayoutPartialSchema.safeParse(rawBody)
   if (!body.success) {
     return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
@@ -20,18 +27,12 @@ export function updateLayoutWorkflow(
     return notFoundResult()
   }
 
-  session.layout = {
-    positions:
-      body.data.positions === undefined
-        ? session.layout.positions
-        : {
-            ...session.layout.positions,
-            ...body.data.positions,
-          },
-    pan: body.data.pan ?? session.layout.pan,
-    zoom: body.data.zoom ?? session.layout.zoom,
-  }
-  registry.touch(sessionId)
+  const result = handleLayout(session, body.data)
+  Object.assign(session, result.session)
 
-  return jsonResult(LayoutResponseSchema.parse({ layout: session.layout }))
+  for (const command of result.commands) {
+    await runCommand(command, { registry })
+  }
+
+  return jsonResult(LayoutResponseSchema.parse(result.response))
 }
