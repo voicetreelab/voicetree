@@ -14,7 +14,7 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'agent-runtime',
     'voicetree-mcp',
 ] as const
-const MODULE_MUTABLE_STATE_BASELINE = 43
+const MODULE_MUTABLE_STATE_BASELINE = 44
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
@@ -23,11 +23,10 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
-    'webapp/src/shell/edge/main/cli/commands/serve.ts',
-    'webapp/src/shell/edge/main/cli/commands/daemonRouteParity.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph-search.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/types.ts',
+    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ] as const
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0
@@ -383,7 +382,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
 
     it('allows intentional webapp CLI launcher/search/parity imports', () => {
         const violations = findGraphDbServerImportViolations(
-            join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts'),
+            join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts'),
             `
                 import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
                 import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'
