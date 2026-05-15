@@ -1,52 +1,30 @@
-import { initGraphModel } from '@vt/graph-model'
 import {
   AddReadPathRequestSchema,
   SetWritePathRequestSchema,
-  type VaultState,
 } from '@vt/graph-db-server/contract'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { validateAbsolutePath } from '../util/validatePath.ts'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
   classifySetWritePathResult,
   composeReadPathsResponse,
-  composeVaultState,
   composeWritePathResponse,
   decodeVaultPath,
   resolveAppSupportPath,
 } from '../core/handleVault.ts'
-import {
-  addReadPath,
-  getReadPaths,
-  getWritePath,
-  removeReadPath,
-  setWritePath,
-} from '@vt/graph-db-server/state/vaultAllowlist'
+import { runCommand } from '../effects/runCommand.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 export function ensureVaultWorkflowInitialized(): void {
-  initGraphModel({ appSupportPath: resolveAppSupportPath() })
-}
-
-function getMountedVaultRoot(): string {
-  const vaultPath = getProjectRootWatchedDirectory()
-  if (!vaultPath) {
-    throw new Error('Mounted vault root is not initialized')
-  }
-  return vaultPath
-}
-
-async function readVaultState(): Promise<VaultState> {
-  const vaultPath = getMountedVaultRoot()
-  const readPaths = [...(await getReadPaths())]
-  const writePathOption = await getWritePath()
-  return composeVaultState({ vaultPath, readPaths, writePathOption })
+  void runCommand({
+    type: 'InitializeGraphModel',
+    appSupportPath: resolveAppSupportPath(),
+  })
 }
 
 export async function readVaultWorkflow(): Promise<HttpResult> {
   try {
-    return jsonResult(await readVaultState())
+    return jsonResult(await runCommand({ type: 'ReadVaultState' }))
   } catch (error) {
     return errorResult(
       (error as Error).message,
@@ -69,7 +47,10 @@ export async function addReadPathWorkflow(rawBody: unknown): Promise<HttpResult>
     return errorResult(validatedPath.error, validatedPath.code)
   }
 
-  const result = await addReadPath(validatedPath.path)
+  const result = await runCommand({
+    type: 'AddVaultReadPath',
+    path: validatedPath.path,
+  })
   const classification = classifyAddReadPathResult(result)
   if (classification.kind === 'error') {
     return errorResult(
@@ -79,7 +60,8 @@ export async function addReadPathWorkflow(rawBody: unknown): Promise<HttpResult>
     )
   }
 
-  return jsonResult(composeReadPathsResponse(await getReadPaths()))
+  const vaultState = await runCommand({ type: 'ReadVaultState' })
+  return jsonResult(composeReadPathsResponse(vaultState.readPaths))
 }
 
 export async function removeReadPathWorkflow(
@@ -95,7 +77,10 @@ export async function removeReadPathWorkflow(
     return errorResult(validatedPath.error, validatedPath.code)
   }
 
-  const result = await removeReadPath(validatedPath.path)
+  const result = await runCommand({
+    type: 'RemoveVaultReadPath',
+    path: validatedPath.path,
+  })
   const classification = classifyRemoveReadPathResult(result)
   if (classification.kind === 'error') {
     return errorResult(
@@ -105,7 +90,8 @@ export async function removeReadPathWorkflow(
     )
   }
 
-  return jsonResult(composeReadPathsResponse(await getReadPaths()))
+  const vaultState = await runCommand({ type: 'ReadVaultState' })
+  return jsonResult(composeReadPathsResponse(vaultState.readPaths))
 }
 
 export async function setWritePathWorkflow(rawBody: unknown): Promise<HttpResult> {
@@ -121,7 +107,10 @@ export async function setWritePathWorkflow(rawBody: unknown): Promise<HttpResult
     return errorResult(validatedPath.error, validatedPath.code)
   }
 
-  const result = await setWritePath(validatedPath.path)
+  const result = await runCommand({
+    type: 'SetVaultWritePath',
+    path: validatedPath.path,
+  })
   const classification = classifySetWritePathResult(result)
   if (classification.kind === 'error') {
     return errorResult(
