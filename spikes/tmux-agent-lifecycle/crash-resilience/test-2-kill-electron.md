@@ -1,15 +1,15 @@
 # BF-314 Test 2: kill Electron
 
-Verdict: M1 FAIL - M1-fix3 did not clear Electron tmux-backed spawn; `tmux new-session` still fails with `command too long` before any sessions exist. Phase 6 stays gated.
+Verdict: M1 FAIL - Electron tmux sessions now spawn and survive `kill -9`, but relaunch does not rebind them. The relaunched main process tries to create the same tmux sessions again and fails with `duplicate session`.
 
 Date: 2026-05-15
-Runner: Aki
+Runner: Ama
 Worktree: `wt-spike-filesystem-native-agent--1wx`
-Commit tested: `733dedae` (`[M1-fix3] fix: spawnTmuxBacked passes only initialEnvVars (tmux argv overflow)`)
+Commit tested: `acab1714` (`[M1-fix4] fix: filter AGENT_PROMPT/large vars from tmux env (>4KB cap)`)
 
 ## Summary
 
-`ptyBackend` was set to `tmux` in `/Users/bobbobby/Library/Application Support/Voicetree/settings.json`, backed up to `settings.json.pre-m1-rerun-3-2026-05-15T11-17-58-3NZ`, and restored after cleanup.
+`ptyBackend` was set to `tmux` in `/Users/bobbobby/Library/Application Support/Voicetree/settings.json`, backed up to `settings.json.pre-m1-rerun-4-2026-05-15T11-28-29Z`, and restored after cleanup.
 
 Native rebuild passed, and Electron launched headfully with persistent user data and fixed CDP:
 
@@ -17,137 +17,196 @@ Native rebuild passed, and Electron launched headfully with persistent user data
 VOICETREE_PERSIST_STATE=1 PLAYWRIGHT_MCP_CDP_ENDPOINT=http://localhost:9222 npm --workspace webapp run electron
 ```
 
-Electron reached a visible window with CDP on `9222` and MCP on `3001`. The renderer confirmed settings as `{ "ptyBackend": "tmux", "agents": 8 }`. Debug auto-setup loaded `example_small` and created three Fake Agent panels: `Aki`, `Ama`, and `Amit`.
+The clean launch auto-loaded `example_small` and spawned three Fake Agent panels: `Aki`, `Ama`, and `Amit`. The load-bearing pre-kill check passed for the first time in this cascade: `tmux ls` showed exactly three live attached sessions. The renderer also showed the three panels with `tmux connected`.
 
-The load-bearing pre-kill check still failed. `tmux ls` remained empty, and the main process logged `Failed to spawn tmux-backed terminal Aki: Error: tmux new-session ... failed with exit code 1: command too long`. The visible command line no longer included the full `process.env`, but it still included large `terminalData.initialEnvVars` entries such as `AGENT_PROMPT_LIGHTWEIGHT`, `AGENT_PROMPT_CORE`, `AGENT_PROMPT`, and `AGENT_PROMPT_PREVIOUS_BACKUP`; those prompt payloads are enough to overflow tmux's command buffer.
+Sentinels were written into all three sessions via `tmux send-keys` and confirmed in tmux scrollback:
 
-Per the M1 hard fence, the sweep stopped before sentinels, Electron kill, and relaunch. No production code was changed.
+```text
+sentinel-aki-pre-kill
+sentinel-ama-pre-kill
+sentinel-amit-pre-kill
+```
+
+`kill -9 86501` killed the Electron main process. Immediately after the kill, `tmux ls` still showed `Aki`, `Ama`, and `Amit`, proving the backing sessions survived the Electron crash.
+
+The relaunch failed the rebind requirement. Electron auto-loaded the same project and tried to spawn `Aki`, `Ama`, and `Amit` again. Because the sessions were already alive, `tmux new-session` failed with `duplicate session: Aki`, `duplicate session: Ama`, and `duplicate session: Amit`. `tmux ls` still showed the original sessions and the sentinel scrollback still existed, but the sessions stayed detached and the renderer did not return to the prior `tmux connected` state within the observation window.
+
+This is a fifth distinct layer: M1-fix4 cleared the tmux argv/prompt overflow and proved session creation, but the relaunch path is not idempotent against existing tmux sessions.
 
 ## Step Results
 
 | Step | Result | Evidence |
 | --- | --- | --- |
-| 1. Set runtime `ptyBackend = "tmux"` | PASS | Settings backup created at `settings.json.pre-m1-rerun-3-2026-05-15T11-17-58-3NZ`. Renderer confirmed `{ "ptyBackend": "tmux", "agents": 8 }`. Settings restored after cleanup. |
+| 1. Set runtime `ptyBackend = "tmux"` | PASS | Settings backup created at `settings.json.pre-m1-rerun-4-2026-05-15T11-28-29Z`. Renderer confirmed `ptyBackend: "tmux"`. Settings restored after cleanup. |
 | 2. Build natives and launch Electron | PASS | `scripts/rebuild-native.sh` passed. Electron script rebuilt natives again and launched with CDP `9222`, MCP `3001`, and persistent user data. |
-| 3. Trigger debug setup | FAIL at spawn backend | Debug auto-setup completed with `{"terminalsSpawned":["Aki","Ama","Amit"],"nodeCount":22,"projectLoaded":".../webapp/public/example_small"}`. UI showed all three panels. Main logged `Failed to spawn tmux-backed terminal Aki: Error: tmux new-session ... failed with exit code 1: command too long`. |
-| 4. Verify `tmux ls` before kill | FAIL | At `2026-05-15T11:19:52Z`, `tmux ls` returned `no server running on /private/tmp/tmux-501/default`. This is the load-bearing failure. |
-| 5. Emit sentinels | NOT RUN | No tmux sessions existed, so there was no valid shell to receive `echo "sentinel-<n>-pre-kill"`. |
-| 6. Capture Electron PID | PASS | Main dev Electron PID during the run: `65698`; electron-vite PID: `65624`; wrapper PID: `65030`. |
-| 7. `kill -9 $ELECTRON_PID` | NOT RUN | Stopped before kill because no tmux sessions existed to survive the kill. Dev Electron was stopped during cleanup with Ctrl-C. |
-| 8. `tmux ls` between kill and relaunch | NOT RUN | No valid pre-kill sessions existed. |
-| 9. Relaunch and observe panel rebind | NOT RUN | No sessions existed to rebind. |
+| 3. Trigger debug setup | PASS | Startup auto-setup completed with `{"terminalsSpawned":["Aki","Ama","Amit"],"nodeCount":31,...}`. Main logged tmux-backed spawn for all three. |
+| 4. Verify `tmux ls` before kill | PASS | At `2026-05-15T11:30:56Z`, `tmux ls` showed `Aki`, `Ama`, and `Amit` as attached sessions. |
+| 5. Emit sentinels | PASS | `tmux capture-pane -p -S -200` for each session showed the relevant `echo "sentinel-*-pre-kill"` command and output. |
+| 6. Capture Electron PID | PASS | Main Electron PID before kill: `86501`; wrapper PID: `85825`; electron-vite PID: `86456`. |
+| 7. `kill -9 $ELECTRON_PID` | PASS | `kill -9 86501` at `2026-05-15T11:31:33Z`. |
+| 8. `tmux ls` between kill and relaunch | PASS | Immediately after kill, `tmux ls` still showed `Aki`, `Ama`, and `Amit`. |
+| 9. Relaunch and observe panel rebind | FAIL | Relaunch tried `tmux new-session -s Aki/Ama/Amit` and failed with `duplicate session`; sessions remained detached and renderer did not show `tmux connected` after relaunch. |
 
 ## Timestamps
 
-- Settings override timestamp: 2026-05-15T11:17:58Z
-- Electron launch reached DevTools/MCP: 2026-05-15T11:18:25Z
-- Debug setup started loading `example_small`: 2026-05-15T11:18:41Z
-- Debug setup completed and reported `Aki`, `Ama`, `Amit`: 2026-05-15T11:18:43Z
-- Failure observation timestamp: 2026-05-15T11:19:52Z
-- Cleanup completed: 2026-05-15T11:20:34Z
-- Kill timestamp: not applicable; stopped before kill because no tmux sessions existed.
-- Relaunch timestamp: not applicable.
-- Observed rebind latency: not applicable.
+- Settings override timestamp: 2026-05-15T11:28:29Z
+- Clean Electron launch reached DevTools/MCP: 2026-05-15T11:30:19Z
+- Debug setup completed and reported `Aki`, `Ama`, `Amit`: 2026-05-15T11:30:35Z
+- Pre-kill `tmux ls` check: 2026-05-15T11:30:56Z
+- Electron kill timestamp: 2026-05-15T11:31:33Z
+- Relaunch reached DevTools/MCP: 2026-05-15T11:31:55Z
+- Relaunch duplicate-session failure observed: 2026-05-15T11:32:09Z
+- Post-relaunch observation: 2026-05-15T11:32:35Z
+- Cleanup completed after restoring settings and killing test sessions.
 
 ## Process Evidence
 
+Before kill:
+
 ```text
-65030 sh -c ../scripts/rebuild-native.sh && electron-vite dev
-65624 node .../webapp/node_modules/.bin/electron-vite dev
-65698 .../webapp/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron .
-66140 .../Electron Helper (Renderer) ... --remote-debugging-port=9222 ...
+85825 sh -c ../scripts/rebuild-native.sh && electron-vite dev
+86456 node .../webapp/node_modules/.bin/electron-vite dev
+86501 .../webapp/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron .
+86976 .../Electron Helper (Renderer) ... --remote-debugging-port=9222 ...
 ```
 
-After cleanup, no matching Electron/electron-vite process for this worktree remained.
+The tested kill was:
+
+```text
+kill -9 86501
+```
+
+After cleanup, no matching Electron/electron-vite process for this worktree remained, and `tmux ls` returned:
+
+```text
+no server running on /private/tmp/tmux-501/default
+```
 
 ## `tmux ls` Evidence
 
-Baseline before launch:
+Baseline before clean launch:
 
 ```text
 no server running on /private/tmp/tmux-501/default
 ```
 
-After debug setup:
+Before kill:
 
 ```text
-2026-05-15T11:19:52Z
-no server running on /private/tmp/tmux-501/default
+2026-05-15T11:30:56Z
+Aki: 1 windows (created Fri May 15 21:30:36 2026) (attached)
+Ama: 1 windows (created Fri May 15 21:30:36 2026) (attached)
+Amit: 1 windows (created Fri May 15 21:30:36 2026) (attached)
 ```
 
-After cleanup:
+Immediately after `kill -9 86501`:
 
 ```text
-no server running on /private/tmp/tmux-501/default
+2026-05-15T11:31:33Z
+Aki: 1 windows (created Fri May 15 21:30:36 2026)
+Ama: 1 windows (created Fri May 15 21:30:36 2026)
+Amit: 1 windows (created Fri May 15 21:30:36 2026)
 ```
 
-## Panel Text Capture
-
-Captured from the visible Electron renderer via CDP after setup:
+After relaunch:
 
 ```text
-TERMINALS
-Hover over me
-wt-spike-filesystem-native-agent--1wx
-Aki - Fake Agent
-Generate codebase graph (run me)
-wt-spike-filesystem-native-agent--1wx
-Ama - Fake Agent
-Voicetree
-wt-spike-filesystem-native-agent--1wx
-Amit - Fake Agent
-...
-Hover over me
-Aki
-wt-spike-filesystem-native-agent--1wx
-Generate codebase graph (run me)
-Ama
-wt-spike-filesystem-native-agent--1wx
-Voicetree
-Amit
-wt-spike-filesystem-native-agent--1wx
-No nodes in view
-Fit to Graph
+2026-05-15T11:32:35Z
+Aki: 1 windows (created Fri May 15 21:30:36 2026)
+Ama: 1 windows (created Fri May 15 21:30:36 2026)
+Amit: 1 windows (created Fri May 15 21:30:36 2026)
 ```
 
-Screenshot captured for audit:
+The missing `(attached)` marker after relaunch is load-bearing: the original sessions survived, but the relaunched app did not reattach to them.
+
+## Sentinel Evidence
+
+Pre-kill pane capture:
 
 ```text
-/tmp/m1-rerun-3-1778843788657qnb.png
+===== Aki =====
+echo "sentinel-aki-pre-kill"
+sentinel-aki-pre-kill
+
+===== Ama =====
+echo "sentinel-ama-pre-kill"
+sentinel-ama-pre-kill
+
+===== Amit =====
+echo "sentinel-amit-pre-kill"
+sentinel-amit-pre-kill
 ```
 
-## Main-Process Error Evidence
-
-The Electron main process log showed the same failure class after M1-fix3:
+Post-relaunch pane capture still found the sentinel lines via `tmux capture-pane -p -S -200`:
 
 ```text
-[Startup] Playwright debug auto-setup complete: {"terminalsSpawned":["Aki","Ama","Amit"],"nodeCount":22,"projectLoaded":"/Users/bobbobby/repos/voicetree-public/spike-filesystem-native-agent-lifecycle/.worktrees/wt-spike-filesystem-native-agent--1wx/webapp/public/example_small"}
-Failed to spawn tmux-backed terminal Aki: Error: tmux new-session -d -s Aki -e VOICETREE_PROJECT_DIR=... -e VOICETREE_APP_SUPPORT=... -e VOICETREE_VAULT_PATH=... -e ALL_MARKDOWN_READ_PATHS=... -e CONTEXT_NODE_PATH=... -e TASK_NODE_PATH=... -e VOICETREE_TERMINAL_ID=Aki -e VOICETREE_CALLER_TERMINAL_ID=Aki -e AGENT_NAME=Aki -e VOICETREE_MCP_PORT=3001 -e AGENT_PROMPT_LIGHTWEIGHT=... -e AGENT_PROMPT_CORE=... -e AGENT_PROMPT=... -e DEPTH_BUDGET=10 -e AGENT_PROMPT_PREVIOUS_BACKUP=... cd '.../webapp/public/example_small/' && /bin/zsh failed with exit code 1: command too long
+===== Aki full capture sentinel grep =====
+11: echo "sentinel-aki-pre-kill"
+13: sentinel-aki-pre-kill
+===== Ama full capture sentinel grep =====
+11: echo "sentinel-ama-pre-kill"
+13: sentinel-ama-pre-kill
+===== Amit full capture sentinel grep =====
+11: echo "sentinel-amit-pre-kill"
+13: sentinel-amit-pre-kill
 ```
 
-M1-fix3 removed the full `process.env` fan-out, but `terminalData.initialEnvVars` is not small in this Electron debug setup because it carries multiple long prompt strings. `tmux-session-manager.createSession()` still passes every env entry through `tmux new-session -e KEY=VALUE`, so long prompt-valued entries can still trip tmux's command buffer even when the entry count is modest.
+Screenshots captured for audit:
+
+```text
+/tmp/m1-rerun-4-pre-kill.png
+/tmp/m1-rerun-4-post-relaunch.png
+```
+
+## Main-Process Evidence
+
+Initial clean spawn succeeded:
+
+```text
+[Startup] Playwright debug auto-setup complete: {"terminalsSpawned":["Aki","Ama","Amit"],"nodeCount":31,"projectLoaded":".../webapp/public/example_small"}
+[headlessAgentManager] Spawned tmux-backed terminal Aki (pid=87293) ... headless=false
+[headlessAgentManager] Spawned tmux-backed terminal Ama (pid=87321) ... headless=false
+[headlessAgentManager] Spawned tmux-backed terminal Amit (pid=87357) ... headless=false
+```
+
+Relaunch failed to rebind because it retried creation:
+
+```text
+[Startup] Playwright debug auto-setup complete: {"terminalsSpawned":["Aki","Ama","Amit"],"nodeCount":34,"projectLoaded":".../webapp/public/example_small"}
+Failed to spawn tmux-backed terminal Aki: Error: tmux new-session ... failed with exit code 1: duplicate session: Aki
+Failed to spawn tmux-backed terminal Ama: Error: tmux new-session ... failed with exit code 1: duplicate session: Ama
+Failed to spawn tmux-backed terminal Amit: Error: tmux new-session ... failed with exit code 1: duplicate session: Amit
+```
 
 ## Load-Bearing Finding
 
-M1-fix3 changed the env source but did not remove the underlying tmux argv-size risk:
+M1-fix4 cleared the previous failure surface. The interactive Electron tmux path can now create sessions with filtered env:
 
 ```text
 TerminalVanilla.initTerminal()
   settings.ptyBackend === "tmux"
   -> initRelayTerminal()
   -> window.electronAPI.terminal.spawn(terminalData)
-  -> ipc-terminal-handlers terminal:spawn tmux branch
   -> terminalManager.spawnTmuxBacked()
-  -> tmuxEnv = {...terminalData.initialEnvVars}
-  -> spawnTmuxBackedTerminal()
-  -> createSession()
-  -> tmux new-session -e AGENT_PROMPT_* ...
-  -> tmux exits 1: command too long
-  -> tmux ls remains empty
+  -> tmux new-session succeeds for Aki/Ama/Amit
 ```
 
-Phase 6 default-flip remains blocked until Electron tmux-mode panels can create at least three backing tmux sessions before kill/relaunch. The next likely fix should avoid putting large prompt payloads directly into `tmux new-session` argv, for example by using a small env-file/bootstrap indirection or by setting prompt environment inside the spawned shell rather than with tmux `-e`.
+The new failure is on crash recovery:
 
-## Calibration Claim
+```text
+Electron killed with tmux sessions alive
+  -> relaunch loads same project and terminal nodes
+  -> debug setup / spawn path calls terminalManager.spawnTmuxBacked() again
+  -> tmux new-session -s Aki/Ama/Amit
+  -> duplicate session
+  -> renderer does not reattach within 5s
+```
 
-Claim (HIGH ~0.9): Phase 6 remains blocked by tmux-backed session creation from Electron. M1-fix3's "only initialEnvVars" approach is insufficient because the debug agent prompt values inside `initialEnvVars` are themselves large enough to reproduce the `command too long` failure.
+## Diagnostic Hypothesis
+
+Phase 6 remains blocked until the Electron tmux spawn/reconciliation path becomes idempotent. On relaunch, an existing tmux session with the requested terminal ID should be treated as a reusable backing session and the renderer should attach to it, not as a spawn failure. The likely fix is either:
+
+1. Have `TerminalManager.spawnTmuxBacked()` / `spawnTmuxBackedTerminal()` detect `duplicate session` and return success when the existing session matches the requested terminal identity.
+2. Reconcile persisted terminal registry entries before debug auto-setup or before renderer terminal initialization, so relaunch attaches to live sessions instead of issuing fresh `new-session` calls.
+
+Phase 6 default-flip remains blocked because the core promise is not just "sessions survive Electron"; it is "sessions survive and the UI rebinds to them."
