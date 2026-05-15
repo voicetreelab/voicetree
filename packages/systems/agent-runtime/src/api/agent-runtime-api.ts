@@ -8,6 +8,7 @@ import { shouldFlipToActiveOnOutput } from '../lifecycle/output-transition'
 import { configureAgentRuntime, getRuntimeUI } from '../runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../spawn/spawnTerminalWithContextNode'
+import { getOutput } from '../terminals/terminal-output-buffer'
 import { getTerminalManager } from '../terminals/terminal-manager-instance'
 import {
     enqueuePendingMessage,
@@ -37,6 +38,7 @@ export const agentRuntime = {
     getHeadlessAgentOutput,
     getIdleSince,
     getPendingTerminal,
+    getOutput,
     getRuntimeUI,
     getTerminalManager,
     getTerminalRecords,
