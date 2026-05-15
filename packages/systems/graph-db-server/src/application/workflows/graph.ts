@@ -3,8 +3,6 @@ import {
   composeApplyDeltaResponse,
   parseApplyDeltaRequest,
   parseGraphDeltaRequest,
-} from '../core/graph/handleApplyDelta.ts'
-import {
   composeContainedIdsUpdateResponse,
   composeFromQuestionResponse,
   composeNodeIdResponse,
@@ -14,22 +12,18 @@ import {
   parseContextNodeFromSelectedNodesRequest,
   parseContextNodeRequest,
   parseUnseenNodesAroundContextNodeRequest,
-} from '../core/graph/handleContextNode.ts'
-import {
   classifyFindFileRequest,
   composeAppliedResponse,
   composeFindFileResponse,
   composeGraphResponse,
-} from '../core/graph/handleReadGraph.ts'
-import {
   graphWithUpdatedPositions,
   parseWritePositionsRequest,
-} from '../core/graph/handleWritePositions.ts'
-import { runCommand } from '../core/runCommand.ts'
+} from '../core/graph/index.ts'
+import { executeCommand } from './dispatch.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 export async function readGraphWorkflow(): Promise<HttpResult> {
-  return jsonResult(composeGraphResponse(await runCommand({ type: 'ReadGraph' })))
+  return jsonResult(composeGraphResponse(await executeCommand({ type: 'ReadGraph' })))
 }
 
 export async function applyGraphDeltaWorkflow(
@@ -43,17 +37,17 @@ export async function applyGraphDeltaWorkflow(
   }
 
   try {
-    await runCommand({
+    await executeCommand({
       type: 'ApplyGraphDeltaToDB',
       delta: parsed.delta,
       recordForUndo: options.recordForUndo,
     })
-    await runCommand({
+    await executeCommand({
       type: 'PublishDelta',
       delta: parsed.delta,
       source: `session:${sessionId}`,
     })
-    const graph = await runCommand({ type: 'ReadGraph' })
+    const graph = await executeCommand({ type: 'ReadGraph' })
     return jsonResult(composeApplyDeltaResponse(parsed.delta, graph))
   } catch (error) {
     return errorResult((error as Error).message, 'GRAPH_DELTA_APPLY_FAILED', 500)
@@ -75,7 +69,7 @@ export async function applyGraphDeltaWithOptionsWorkflow(
 }
 
 export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResult> {
-  const existingNode = await runCommand({ type: 'ReadGraphNode', nodeId })
+  const existingNode = await executeCommand({ type: 'ReadGraphNode', nodeId })
   if (!existingNode) {
     return errorResult(`Node not found: ${nodeId}`, 'NODE_NOT_FOUND', 404)
   }
@@ -83,8 +77,8 @@ export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResul
   const delta = buildDeleteNodeDelta(nodeId, existingNode)
 
   try {
-    await runCommand({ type: 'ApplyGraphDeltaToDB', delta })
-    const graph = await runCommand({ type: 'ReadGraph' })
+    await executeCommand({ type: 'ApplyGraphDeltaToDB', delta })
+    const graph = await executeCommand({ type: 'ReadGraph' })
     return jsonResult(composeApplyDeltaResponse(delta, graph))
   } catch (error) {
     return errorResult((error as Error).message, 'GRAPH_NODE_DELETE_FAILED', 500)
@@ -94,13 +88,13 @@ export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResul
 export async function findFileWorkflow(name: string | undefined): Promise<HttpResult> {
   const request = classifyFindFileRequest({
     name,
-    searchPath: await runCommand({ type: 'GetWatchedDirectory' }),
+    searchPath: await executeCommand({ type: 'GetWatchedDirectory' }),
   })
   if (request.kind === 'error') {
     return errorResult(request.message, request.code, request.status)
   }
 
-  const matches = await runCommand({
+  const matches = await executeCommand({
     type: 'FindFileByName',
     name: request.name,
     searchPath: request.searchPath,
@@ -109,7 +103,7 @@ export async function findFileWorkflow(name: string | undefined): Promise<HttpRe
 }
 
 export async function previewContainedNodesWorkflow(nodeId: string): Promise<HttpResult> {
-  const nodeIds = await runCommand({
+  const nodeIds = await executeCommand({
     type: 'GetPreviewContainedNodeIds',
     nodeId,
   })
@@ -123,7 +117,7 @@ export async function createContextNodeWorkflow(rawBody: unknown): Promise<HttpR
   }
 
   try {
-    const nodeId = await runCommand({
+    const nodeId = await executeCommand({
       type: 'CreateContextNode',
       parentNodeId: parsed.parentNodeId,
       semanticNodeIds: parsed.semanticNodeIds,
@@ -143,13 +137,13 @@ export async function createContextNodeFromQuestionWorkflow(
   }
 
   try {
-    const nodeId = await runCommand({
+    const nodeId = await executeCommand({
       type: 'CreateContextNodeFromQuestion',
       nodeIds: parsed.nodeIds,
       question: parsed.question,
       semanticNodeIds: parsed.semanticNodeIds,
     })
-    const graph = await runCommand({ type: 'ReadGraph' })
+    const graph = await executeCommand({ type: 'ReadGraph' })
     return jsonResult(composeFromQuestionResponse(nodeId, graph))
   } catch (error) {
     return errorResult(
@@ -169,7 +163,7 @@ export async function createContextNodeFromSelectedNodesWorkflow(
   }
 
   try {
-    const nodeId = await runCommand({
+    const nodeId = await executeCommand({
       type: 'CreateContextNodeFromSelectedNodes',
       taskNodeId: parsed.taskNodeId,
       selectedNodeIds: parsed.selectedNodeIds,
@@ -193,7 +187,7 @@ export async function getUnseenNodesAroundContextNodeWorkflow(
   }
 
   try {
-    const nodes = await runCommand({
+    const nodes = await executeCommand({
       type: 'GetUnseenNodesAroundContextNode',
       contextNodeId: parsed.contextNodeId,
       searchFromNode: parsed.searchFromNode,
@@ -213,7 +207,7 @@ export async function updateContextNodeContainedIdsWorkflow(
   }
 
   try {
-    await runCommand({
+    await executeCommand({
       type: 'UpdateContextNodeContainedIds',
       contextNodeId: parsed.contextNodeId,
       newNodeIds: parsed.newNodeIds,
@@ -234,18 +228,18 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
     return errorResult(parsed.error, parsed.code)
   }
 
-  const projectRoot = await runCommand({ type: 'GetWatchedDirectory' })
+  const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
   if (!projectRoot) {
     return errorResult('No vault is currently open', 'NO_VAULT', 503)
   }
 
   try {
     const result = graphWithUpdatedPositions(
-      await runCommand({ type: 'ReadGraph' }),
+      await executeCommand({ type: 'ReadGraph' }),
       parsed.positions,
     )
-    await runCommand({ type: 'SetGraph', graph: result.graph })
-    await runCommand({
+    await executeCommand({ type: 'SetGraph', graph: result.graph })
+    await executeCommand({
       type: 'WriteAllPositions',
       graph: result.graph,
       projectRoot,
@@ -258,12 +252,12 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
 
 export async function undoWorkflow(): Promise<HttpResult> {
   return jsonResult(composeAppliedResponse(
-    await runCommand({ type: 'PerformUndo' }),
+    await executeCommand({ type: 'PerformUndo' }),
   ))
 }
 
 export async function redoWorkflow(): Promise<HttpResult> {
   return jsonResult(composeAppliedResponse(
-    await runCommand({ type: 'PerformRedo' }),
+    await executeCommand({ type: 'PerformRedo' }),
   ))
 }

@@ -8,9 +8,8 @@ import {
   handleReadProjectedGraph,
   handleRenderView,
 } from '../core/handleView.ts'
-import { runCommand } from '../core/runCommand.ts'
-import { buildDaemonState } from '../session/buildDaemonState.ts'
-import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { dispatch, dispatchOrCreateWithState } from './dispatch.ts'
+import type { HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function renderSessionViewWorkflow(
@@ -19,22 +18,35 @@ export async function renderSessionViewWorkflow(
   budgetParam: string | undefined,
   expandParams: readonly string[],
 ): Promise<HttpResult> {
-  const session = registry.getOrCreate(sessionId)
-  const state = await buildDaemonState(session)
-  const result = handleRenderView(session, state, budgetParam, expandParams)
-
-  return jsonResult(ViewResponseSchema.parse(result.response))
+  return dispatchOrCreateWithState(
+    registry,
+    sessionId,
+    { budgetParam, expandParams },
+    (session, state, input) => {
+      const result = handleRenderView(
+        session,
+        state,
+        input.budgetParam,
+        input.expandParams,
+      )
+      return {
+        ...result,
+        response: ViewResponseSchema.parse(result.response),
+      }
+    },
+  )
 }
 
 export async function readProjectedGraphWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
 ): Promise<HttpResult> {
-  const session = registry.getOrCreate(sessionId)
-  const state = await buildDaemonState(session)
-  const result = handleReadProjectedGraph(state)
-
-  return jsonResult(result.response, 200)
+  return dispatchOrCreateWithState(
+    registry,
+    sessionId,
+    undefined,
+    (_session, state) => handleReadProjectedGraph(state),
+  )
 }
 
 export async function addExpandOverrideWorkflow(
@@ -42,19 +54,13 @@ export async function addExpandOverrideWorkflow(
   sessionId: string,
   folderId: string,
 ): Promise<HttpResult> {
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  const result = handleAddExpandOverride(session, folderId)
-  Object.assign(session, result.session)
-
-  for (const command of result.commands) {
-    await runCommand(command, { registry })
-  }
-
-  return jsonResult(ExpandOverridesResponseSchema.parse(result.response))
+  return dispatch(registry, sessionId, folderId, (session, id) => {
+    const result = handleAddExpandOverride(session, id)
+    return {
+      ...result,
+      response: ExpandOverridesResponseSchema.parse(result.response),
+    }
+  })
 }
 
 export async function deleteExpandOverrideWorkflow(
@@ -62,17 +68,11 @@ export async function deleteExpandOverrideWorkflow(
   sessionId: string,
   folderId: string,
 ): Promise<HttpResult> {
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  const result = handleDeleteExpandOverride(session, folderId)
-  Object.assign(session, result.session)
-
-  for (const command of result.commands) {
-    await runCommand(command, { registry })
-  }
-
-  return jsonResult(ExpandOverridesResponseSchema.parse(result.response))
+  return dispatch(registry, sessionId, folderId, (session, id) => {
+    const result = handleDeleteExpandOverride(session, id)
+    return {
+      ...result,
+      response: ExpandOverridesResponseSchema.parse(result.response),
+    }
+  })
 }

@@ -3,8 +3,8 @@ import {
   SelectionResponseSchema,
 } from '@vt/graph-db-server/contract'
 import { handleSelection } from '../core/handleSelection.ts'
-import { runCommand } from '../core/runCommand.ts'
-import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { dispatch } from './dispatch.ts'
+import { errorResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function updateSelectionWorkflow(
@@ -17,17 +17,11 @@ export async function updateSelectionWorkflow(
     return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
   }
 
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  const result = handleSelection(session, body.data.nodeIds, body.data.mode)
-  Object.assign(session, result.session)
-
-  for (const command of result.commands) {
-    await runCommand(command, { registry })
-  }
-
-  return jsonResult(SelectionResponseSchema.parse(result.response))
+  return dispatch(registry, sessionId, body.data, (session, selection) => {
+    const result = handleSelection(session, selection.nodeIds, selection.mode)
+    return {
+      ...result,
+      response: SelectionResponseSchema.parse(result.response),
+    }
+  })
 }

@@ -3,13 +3,8 @@ import {
   LayoutResponseSchema,
 } from '@vt/graph-db-server/contract'
 import { handleLayout } from '../core/handleLayout.ts'
-import { runCommand } from '../core/runCommand.ts'
-import {
-  errorResult,
-  jsonResult,
-  notFoundResult,
-  type HttpResult,
-} from './httpResult.ts'
+import { dispatch } from './dispatch.ts'
+import { errorResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function updateLayoutWorkflow(
@@ -22,17 +17,11 @@ export async function updateLayoutWorkflow(
     return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
   }
 
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  const result = handleLayout(session, body.data)
-  Object.assign(session, result.session)
-
-  for (const command of result.commands) {
-    await runCommand(command, { registry })
-  }
-
-  return jsonResult(LayoutResponseSchema.parse(result.response))
+  return dispatch(registry, sessionId, body.data, (session, update) => {
+    const result = handleLayout(session, update)
+    return {
+      ...result,
+      response: LayoutResponseSchema.parse(result.response),
+    }
+  })
 }

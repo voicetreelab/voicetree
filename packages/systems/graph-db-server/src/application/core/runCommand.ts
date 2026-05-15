@@ -24,6 +24,8 @@ import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import { projectAndBroadcast } from '../session/projectAndBroadcast.ts'
 
+export type { Command, CommandOutput } from './command.ts'
+
 type RunCommandDeps = {
   registry?: SessionRegistry
 }
