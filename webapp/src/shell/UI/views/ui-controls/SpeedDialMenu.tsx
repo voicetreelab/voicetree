@@ -9,7 +9,7 @@
 import { createElement, useState } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import './styles/speed-dial-side-graph-floating-menu.css';
+import '@/shell/UI/views/styles/speed-dial-side-graph-floating-menu.css';
 
 // =============================================================================
 // Types
