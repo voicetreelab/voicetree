@@ -1,7 +1,22 @@
 import { createInterface } from 'readline'
+import { existsSync, readFileSync } from 'node:fs'
 import { connectToMcp } from './mcp-client.js'
 import { executeScript } from './executor.js'
 import { extractScript, type Action, type FakeAgentScript } from './types.js'
+
+/**
+ * Phase 6 prompt delivery: prefer AGENT_PROMPT (positional/env path),
+ * fall back to reading AGENT_PROMPT_FILE from disk so tmux-backed
+ * panels (where the prompt is off the argv plane) keep working.
+ */
+function resolveAgentPrompt(env: NodeJS.ProcessEnv): string {
+  if (env.AGENT_PROMPT && env.AGENT_PROMPT.length > 0) return env.AGENT_PROMPT
+  const file = env.AGENT_PROMPT_FILE
+  if (file && existsSync(file)) {
+    try { return readFileSync(file, 'utf8') } catch { return '' }
+  }
+  return ''
+}
 
 /** Strip ANSI escape sequences that sendTextToTerminal may inject via PTY */
 function stripAnsi(s: string): string {
@@ -71,7 +86,7 @@ async function main() {
   const terminalId = process.env.VOICETREE_TERMINAL_ID
   const mcpPort = process.env.VOICETREE_MCP_PORT ?? '3001'
   const taskNodePath = process.env.TASK_NODE_PATH ?? ''
-  const agentPrompt = process.env.AGENT_PROMPT ?? ''
+  const agentPrompt = resolveAgentPrompt(process.env)
 
   if (!terminalId) { console.error('Missing VOICETREE_TERMINAL_ID'); process.exit(1) }
 

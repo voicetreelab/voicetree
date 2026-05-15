@@ -6,6 +6,7 @@ import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {closeHeadlessAgent, cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
+import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {getRuntimeTrace} from '../runtime/runtime-config';
 import {
   attachPtyProcessHandlers,
@@ -135,19 +136,16 @@ export class TerminalManager {
   // registers in terminal-registry. The renderer panel speaks WS to the relay
   // directly — no PTY is owned by this process for tmux-backed terminals.
   //
-  // Env strategy: only forward agent-identity overrides (small env vars from
-  // terminalData.initialEnvVars). tmux's -e command-line buffer overflows on
-  // large values — AGENT_PROMPT_* are multi-KB strings (Aki M1-rerun-3 mode).
-  // Filtered classes:
-  //   - AGENT_PROMPT, AGENT_PROMPT_CORE, AGENT_PROMPT_LIGHTWEIGHT,
-  //     AGENT_PROMPT_PREVIOUS_BACKUP — prompt payloads; consumed by agent CLI,
-  //     not by the interactive shell. Phase 6 (default flip to tmux for
-  //     production) will need an env-file / source-on-startup workaround to
-  //     deliver these to the agent process. M1 only verifies the panel shell
-  //     surface, so dropping prompts here is acceptable for the sweep.
-  //   - Any value > 4 KB defensively dropped against future large-var classes.
+  // Phase 6 prompt delivery: the agent prompt is written to a disk file
+  // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
+  // time and never crosses tmux's argv. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` with a short reference to the
+  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
+  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server.
+  // context; panes inherit from the server. Only AGENT_PROMPT itself is
+  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
+  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -155,16 +153,23 @@ export class TerminalManager {
     try {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
-      const tmuxEnv: Record<string, string> = {};
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
+      const vaultPath: string | undefined = deps.env.VOICETREE_VAULT_PATH ?? initial.VOICETREE_VAULT_PATH;
+      const agentPrompt: string | undefined = initial.AGENT_PROMPT;
+      const promptFile: string | null = agentPrompt && vaultPath
+        ? writePromptFile(vaultPath, terminalId, agentPrompt)
+        : null;
+      const tmuxEnv: Record<string, string> = {};
       for (const key of Object.keys(initial)) {
-        if (key.startsWith('AGENT_PROMPT')) continue;
+        if (key === 'AGENT_PROMPT') continue;
         const value: string = initial[key];
-        if (typeof value !== 'string') continue;
-        if (value.length > 4096) continue;
-        tmuxEnv[key] = value;
+        if (typeof value === 'string') tmuxEnv[key] = value;
       }
-      await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv);
+      if (promptFile) tmuxEnv.AGENT_PROMPT_FILE = promptFile;
+      await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv, undefined, promptFile);
+      if (promptFile && terminalData.initialCommand) {
+        await injectAgentCommandHeadful({terminalId, command: terminalData.initialCommand, promptFilePath: promptFile});
+      }
       return {success: true, terminalId};
     } catch (error: unknown) {
       deps.logger.error(`Failed to spawn tmux-backed terminal ${terminalId}:`, error);
