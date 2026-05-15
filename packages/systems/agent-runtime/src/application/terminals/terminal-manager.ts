@@ -134,6 +134,13 @@ export class TerminalManager {
   // shell (so the relay's WS attach has something to connect to) and
   // registers in terminal-registry. The renderer panel speaks WS to the relay
   // directly — no PTY is owned by this process for tmux-backed terminals.
+  //
+  // Env strategy mirrors the headless path: only pass agent-specific overrides
+  // (terminalData.initialEnvVars) via `tmux new-session -e`. The tmux server
+  // inherits the spawner's process env (PATH/HOME/SHELL/USER/...) and panes
+  // inherit from the server, so passing the full process.env via `-e` is
+  // redundant AND overflows tmux's command-line buffer at ~70+ entries
+  // ("command too long" exit-1 — Zoe M1-rerun-2 failure mode).
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -141,12 +148,7 @@ export class TerminalManager {
     try {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
-      const env: NodeJS.ProcessEnv = buildTerminalEnvironment(terminalData, deps);
-      const tmuxEnv: Record<string, string> = {};
-      for (const key of Object.keys(env)) {
-        const value: string | undefined = env[key];
-        if (typeof value === 'string') tmuxEnv[key] = value;
-      }
+      const tmuxEnv: Record<string, string> = {...(terminalData.initialEnvVars ?? {})};
       await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv);
       return {success: true, terminalId};
     } catch (error: unknown) {
