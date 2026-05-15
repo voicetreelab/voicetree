@@ -85,6 +85,7 @@ function buildProject(): Project {
         `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.d.ts`,
         `!${REPO_ROOT}/**/__tests__/**`,
+        `!${REPO_ROOT}/**/__generated__/**`,
         `!${REPO_ROOT}/**/integration-tests/**`,
         `!${REPO_ROOT}/**/node_modules/**`,
         `!${REPO_ROOT}/**/dist/**`,
