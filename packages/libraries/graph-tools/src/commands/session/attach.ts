@@ -1,9 +1,9 @@
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { openDebugSession } from '../../debug/protocol/playwrightSession'
-import { ok, err } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { openDebugSession } from '#debug/protocol/playwrightSession'
+import { ok, err } from '#debug/protocol/Response'
+import type { Response } from '#debug/protocol/Response'
 
 export type AttachResult = {
   pageTitle: string

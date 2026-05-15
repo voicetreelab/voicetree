@@ -2,10 +2,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { formatCdpHttpEndpoint, resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { ok, err } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { formatCdpHttpEndpoint, resolveDebugInstance } from '#debug/protocol/portResolution'
+import { ok, err } from '#debug/protocol/Response'
+import type { Response } from '#debug/protocol/Response'
 
 interface ScreenshotTargetLike {
   screenshot(options?: { path?: string; type?: 'png'; fullPage?: boolean }): Promise<Buffer>

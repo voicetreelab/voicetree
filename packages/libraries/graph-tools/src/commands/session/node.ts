@@ -1,18 +1,18 @@
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { ok, err } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
-import { createLiveTransport } from '../../live/liveTransport'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { ok, err } from '#debug/protocol/Response'
+import type { Response } from '#debug/protocol/Response'
+import { createLiveTransport } from '#live/liveTransport'
 import {
   mergeButtons,
   type BBox,
   type ButtonCandidate,
   type ButtonInfo,
   type RegistryButtonCandidate,
-} from '../../debug/input/mergeButtons'
+} from '#debug/input/mergeButtons'
 
 interface ElementHandleLike {
   readonly __playwrightHandle?: true

@@ -1,12 +1,12 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { mergeButtons, type ButtonCandidate, type ButtonInfo, type RegistryButtonCandidate } from '../../debug/input/mergeButtons'
-import { openDebugSession } from '../../debug/protocol/playwrightSession'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { err, ok } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { mergeButtons, type ButtonCandidate, type ButtonInfo, type RegistryButtonCandidate } from '#debug/input/mergeButtons'
+import { openDebugSession } from '#debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { err, ok } from '#debug/protocol/Response'
+import type { Response } from '#debug/protocol/Response'
 import { consumeDebugTargetFlag, type DebugTargetArgs } from '../core/argv'
 import { registerCommand } from '../index'
 

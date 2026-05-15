@@ -1,10 +1,10 @@
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { ok, err } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { ok, err } from '#debug/protocol/Response'
+import type { Response } from '#debug/protocol/Response'
 
 interface ElementHandleLike {}
 

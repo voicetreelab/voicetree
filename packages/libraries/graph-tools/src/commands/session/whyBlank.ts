@@ -2,9 +2,9 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { project, type State } from '@vt/graph-state'
 import { registerCommand } from '../index'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { ok, err } from '../../debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { ok, err } from '#debug/protocol/Response'
 import {
   diagnose,
   type BlankConsoleMessage,
@@ -13,9 +13,9 @@ import {
   type BlankState,
   type RootDomInfo,
   type ScreenshotSample,
-} from '../../debug/state/whyBlank'
-import { createLiveTransport } from '../../live/liveTransport'
-import type { Response } from '../../debug/protocol/Response'
+} from '#debug/state/whyBlank'
+import { createLiveTransport } from '#live/liveTransport'
+import type { Response } from '#debug/protocol/Response'
 
 type SeedScenario =
   | 'throw-in-init'

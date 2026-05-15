@@ -64,7 +64,7 @@ import {
     deriveTitle,
     relId,
     type DirectedEdge,
-} from '../../scripts/L3-BF-192-tree-cover-render'
+} from '#scripts/L3-BF-192-tree-cover-render'
 import {
     buildAutoHeader,
     buildAutoFooter,

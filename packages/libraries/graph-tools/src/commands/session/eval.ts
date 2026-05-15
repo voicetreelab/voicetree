@@ -1,10 +1,10 @@
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
-import { err, ok } from '../../debug/protocol/Response'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import type { Response } from '../../debug/protocol/Response'
+import { err, ok } from '#debug/protocol/Response'
+import { type DebugInstance } from '#debug/protocol/discover'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import type { Response } from '#debug/protocol/Response'
 import { registerCommand } from '../index'
 
 interface PageLike {

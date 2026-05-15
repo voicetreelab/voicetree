@@ -1,9 +1,9 @@
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { normalizeChord } from '../../debug/input/normalizeChord'
-import { pressChord } from '../../debug/input/pressChord'
-import { err, ok } from '../../debug/protocol/Response'
-import { openDebugSession, type PageLike } from '../../debug/protocol/playwrightSession'
-import type { Response } from '../../debug/protocol/Response'
+import { resolveDebugInstance } from '#debug/protocol/portResolution'
+import { normalizeChord } from '#debug/input/normalizeChord'
+import { pressChord } from '#debug/input/pressChord'
+import { err, ok } from '#debug/protocol/Response'
+import { openDebugSession, type PageLike } from '#debug/protocol/playwrightSession'
+import type { Response } from '#debug/protocol/Response'
 import {
   consumeDebugTargetFlag,
   parseIntegerFlag,

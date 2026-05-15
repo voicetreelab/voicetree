@@ -9,6 +9,13 @@
     "./graphLint": "./src/lint/graphLint.ts",
     "./autoView": "./src/view/autoView.ts"
   },
+  "imports": {
+    "#commands/*": "./src/commands/*.ts",
+    "#debug/*": "./src/debug/*.ts",
+    "#live/*": "./src/live/*.ts",
+    "#scripts/*": "./scripts/*.ts",
+    "#view/*": "./src/view/*.ts"
+  },
   "bin": {
     "vt-graph": "bin/vt-graph.ts",
     "vt-headless": "bin/vt-headless.ts",
