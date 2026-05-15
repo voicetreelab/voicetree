@@ -33,7 +33,7 @@ process.exit = (code = 0) => {
       '--id=claude-stop-quality',
       '--name=Claude Code Stop (quality check)',
       '--category=Hook',
-      '--display=webapp/.claude/hooks/stop-quality-check.cjs',
+      '--display=node webapp/.claude/hooks/stop-quality-check.cjs',
       `--status=${code === 0 ? 'pass' : 'fail'}`,
       `--duration-ms=${Date.now() - HOOK_STARTED_AT}`,
       ...(code !== 0 ? [`--error-summary=stop hook blocked with exit ${code} (quality issues found)`] : []),

@@ -24,15 +24,23 @@ import * as O from 'fp-ts/lib/Option.js';
 
 // ─── Module State ─────────────────────────────────────────────────────────────
 
-const badgeElements: Map<TerminalId, HTMLElement> = new Map();
-// Track which Cytoscape node each badge is anchored to (needed for cleanup after terminal removal)
-const badgeNodeIds: Map<TerminalId, string> = new Map();
-let zoomListenerRegistered: boolean = false;
+type BadgeOverlayState = {
+    readonly badgeElements: Map<TerminalId, HTMLElement>
+    readonly badgeNodeIds: Map<TerminalId, string>
+    zoomListenerRegistered: boolean
+    activePopover: HTMLElement | null
+    activePopoverTerminalId: TerminalId | null
+    hoverDebounceTimer: ReturnType<typeof setTimeout> | null
+}
 
-// Hover popover state
-let activePopover: HTMLElement | null = null;
-let activePopoverTerminalId: TerminalId | null = null;
-let hoverDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const badgeOverlayState: BadgeOverlayState = {
+    badgeElements: new Map(),
+    badgeNodeIds: new Map(),
+    zoomListenerRegistered: false,
+    activePopover: null,
+    activePopoverTerminalId: null,
+    hoverDebounceTimer: null,
+};
 const HOVER_DEBOUNCE_MS: number = 150;
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -59,27 +67,27 @@ export function updateHeadlessBadges(): void {
     }
 
     // Nothing to do if no badge-eligible terminals and no existing badges
-    if (badgeTerminals.length === 0 && badgeElements.size === 0) return;
+    if (badgeTerminals.length === 0 && badgeOverlayState.badgeElements.size === 0) return;
 
     // Lazy-register zoom listener for badge repositioning
     // cy-only: cy.on('zoom') fires after layoutProjection applies zoom to cy; subscribeLayout fires before cy.zoom() so badges would reposition before the viewport updates
-    if (!zoomListenerRegistered) {
+    if (!badgeOverlayState.zoomListenerRegistered) {
         cy.on('zoom', repositionBadges);
-        zoomListenerRegistered = true;
+        badgeOverlayState.zoomListenerRegistered = true;
     }
 
     const overlay: HTMLElement = getOrCreateOverlay(cy);
 
     // Remove badges for terminals that no longer exist in the store
     const activeIds: Set<TerminalId> = new Set(badgeTerminals.map(t => t.terminalId));
-    for (const [terminalId, element] of badgeElements) {
+    for (const [terminalId, element] of badgeOverlayState.badgeElements) {
         if (!activeIds.has(terminalId)) {
             element.remove();
-            badgeElements.delete(terminalId);
+            badgeOverlayState.badgeElements.delete(terminalId);
 
             // Clear hasRunningTerminal on task node if no other terminals remain
-            const nodeId: string | undefined = badgeNodeIds.get(terminalId);
-            badgeNodeIds.delete(terminalId);
+            const nodeId: string | undefined = badgeOverlayState.badgeNodeIds.get(terminalId);
+            badgeOverlayState.badgeNodeIds.delete(terminalId);
             if (nodeId && !hasTerminalsOnNode(nodeId)) {
                 // [L2-seam-residual] cy-only: node data (hasRunningTerminal) controls cy node shape styling
                 const node: CollectionReturnValue = cy.getElementById(nodeId);
@@ -93,18 +101,18 @@ export function updateHeadlessBadges(): void {
     // Create or update badges for each badge-eligible terminal (headless or minimized)
     for (const terminal of badgeTerminals) {
         const status: TerminalStatus = getTerminalStatus(terminal.terminalId) ?? 'running';
-        const existing: HTMLElement | undefined = badgeElements.get(terminal.terminalId);
+        const existing: HTMLElement | undefined = badgeOverlayState.badgeElements.get(terminal.terminalId);
 
         if (existing) {
             updateBadgeContent(existing, terminal, status);
         } else {
             const badge: HTMLElement = createBadgeElement(terminal, status);
             overlay.appendChild(badge);
-            badgeElements.set(terminal.terminalId, badge);
+            badgeOverlayState.badgeElements.set(terminal.terminalId, badge);
 
             // Track anchored node and mark it as having a running terminal (shape → square)
             if (O.isSome(terminal.anchoredToNodeId)) {
-                badgeNodeIds.set(terminal.terminalId, terminal.anchoredToNodeId.value);
+                badgeOverlayState.badgeNodeIds.set(terminal.terminalId, terminal.anchoredToNodeId.value);
                 // [L2-seam-residual] cy-only: node data (hasRunningTerminal) controls cy node shape styling
                 const node: CollectionReturnValue = cy.getElementById(terminal.anchoredToNodeId.value);
                 if (node.length > 0) {
@@ -123,12 +131,12 @@ export function updateHeadlessBadges(): void {
  */
 export function destroyHeadlessBadges(): void {
     dismissPopover();
-    for (const element of badgeElements.values()) {
+    for (const element of badgeOverlayState.badgeElements.values()) {
         element.remove();
     }
-    badgeElements.clear();
-    badgeNodeIds.clear();
-    zoomListenerRegistered = false;
+    badgeOverlayState.badgeElements.clear();
+    badgeOverlayState.badgeNodeIds.clear();
+    badgeOverlayState.zoomListenerRegistered = false;
 }
 
 // ─── Internal Functions ───────────────────────────────────────────────────────
@@ -205,7 +213,7 @@ function repositionBadges(): void {
     const zoom: number = cy.zoom();
     const terminals: Map<TerminalId, TerminalData> = getTerminals();
 
-    for (const [terminalId, badge] of badgeElements) {
+    for (const [terminalId, badge] of badgeOverlayState.badgeElements) {
         const terminal: TerminalData | undefined = terminals.get(terminalId);
         if (!terminal || !O.isSome(terminal.anchoredToNodeId)) continue;
 
@@ -248,18 +256,18 @@ function hasTerminalsOnNode(nodeId: string): boolean {
  * Debounced mouseenter handler: fetch output from main process and show popover.
  */
 function onBadgeMouseEnter(terminalId: TerminalId, badge: HTMLElement): void {
-    if (hoverDebounceTimer !== null) {
-        clearTimeout(hoverDebounceTimer);
+    if (badgeOverlayState.hoverDebounceTimer !== null) {
+        clearTimeout(badgeOverlayState.hoverDebounceTimer);
     }
-    hoverDebounceTimer = setTimeout(() => {
+    badgeOverlayState.hoverDebounceTimer = setTimeout(() => {
         void showOutputPopover(terminalId, badge);
     }, HOVER_DEBOUNCE_MS);
 }
 
 function onBadgeMouseLeave(): void {
-    if (hoverDebounceTimer !== null) {
-        clearTimeout(hoverDebounceTimer);
-        hoverDebounceTimer = null;
+    if (badgeOverlayState.hoverDebounceTimer !== null) {
+        clearTimeout(badgeOverlayState.hoverDebounceTimer);
+        badgeOverlayState.hoverDebounceTimer = null;
     }
     dismissPopover();
 }
@@ -274,7 +282,7 @@ async function showOutputPopover(terminalId: TerminalId, badge: HTMLElement): Pr
     const output: string = await window.electronAPI?.main.getHeadlessAgentOutput(terminalId) as string;
 
     // Check if mouse has already left (race condition with async IPC)
-    if (hoverDebounceTimer === null && activePopoverTerminalId !== terminalId) {
+    if (badgeOverlayState.hoverDebounceTimer === null && badgeOverlayState.activePopoverTerminalId !== terminalId) {
         return;
     }
 
@@ -294,9 +302,9 @@ async function showOutputPopover(terminalId: TerminalId, badge: HTMLElement): Pr
     // Also dismiss popover when mouse leaves the popover itself
     popover.addEventListener('mouseenter', () => {
         // Keep popover alive while mouse is over it
-        if (hoverDebounceTimer !== null) {
-            clearTimeout(hoverDebounceTimer);
-            hoverDebounceTimer = null;
+        if (badgeOverlayState.hoverDebounceTimer !== null) {
+            clearTimeout(badgeOverlayState.hoverDebounceTimer);
+            badgeOverlayState.hoverDebounceTimer = null;
         }
     });
     popover.addEventListener('mouseleave', () => {
@@ -310,15 +318,15 @@ async function showOutputPopover(terminalId: TerminalId, badge: HTMLElement): Pr
     popover.style.bottom = `${window.innerHeight - badgeRect.top + 4}px`;
 
     document.body.appendChild(popover);
-    activePopover = popover;
-    activePopoverTerminalId = terminalId;
+    badgeOverlayState.activePopover = popover;
+    badgeOverlayState.activePopoverTerminalId = terminalId;
 }
 
 function dismissPopover(): void {
-    if (activePopover) {
-        activePopover.remove();
-        activePopover = null;
-        activePopoverTerminalId = null;
+    if (badgeOverlayState.activePopover) {
+        badgeOverlayState.activePopover.remove();
+        badgeOverlayState.activePopover = null;
+        badgeOverlayState.activePopoverTerminalId = null;
     }
 }
 

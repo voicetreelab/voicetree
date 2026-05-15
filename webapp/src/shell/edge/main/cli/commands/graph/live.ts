@@ -24,7 +24,11 @@ function hasPortFlag(args: readonly string[]): boolean {
     return args.some((arg: string) => arg === '--port' || arg.startsWith('--port='))
 }
 
-const LIVE_PATH_FLAGS: ReadonlySet<string> = new Set(['--file', '--src-file', '--tgt-file'])
+const LIVE_PATH_FLAGS: readonly string[] = ['--file', '--src-file', '--tgt-file']
+
+function isLivePathFlag(flag: string): boolean {
+    return LIVE_PATH_FLAGS.includes(flag)
+}
 
 function normalizePathFlagValue(flag: string, value: string, cwd: string): string {
     return `${flag}=${path.resolve(cwd, value)}`
@@ -38,13 +42,13 @@ function normalizeLivePathArgs(args: readonly string[], cwd: string): string[] {
         const equalsIndex: number = arg.indexOf('=')
         if (equalsIndex !== -1) {
             const flag: string = arg.slice(0, equalsIndex)
-            if (LIVE_PATH_FLAGS.has(flag)) {
+            if (isLivePathFlag(flag)) {
                 normalized.push(normalizePathFlagValue(flag, arg.slice(equalsIndex + 1), cwd))
                 continue
             }
         }
 
-        if (LIVE_PATH_FLAGS.has(arg)) {
+        if (isLivePathFlag(arg)) {
             const value: string | undefined = args[i + 1]
             if (value !== undefined && !value.startsWith('--')) {
                 normalized.push(arg, path.resolve(cwd, value))

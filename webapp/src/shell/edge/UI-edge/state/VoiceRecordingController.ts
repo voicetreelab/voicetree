@@ -8,10 +8,14 @@ type StopFn = () => void;
 type CancelFn = () => void;
 type GetStateFn = () => RecorderState;
 
-let startTranscription: StartFn | null = null;
-let stopTranscription: StopFn | null = null;
-let cancelTranscription: CancelFn | null = null;
-let getRecorderState: GetStateFn | null = null;
+type VoiceRecordingController = {
+    readonly start: StartFn
+    readonly stop: StopFn
+    readonly cancel: CancelFn
+    readonly getState: GetStateFn
+}
+
+let controller: VoiceRecordingController | null = null;
 
 /**
  * Initialize the voice recording controller with functions from the React component.
@@ -23,20 +27,14 @@ export function initVoiceRecording(
     cancel: CancelFn,
     getState: GetStateFn
 ): void {
-    startTranscription = start;
-    stopTranscription = stop;
-    cancelTranscription = cancel;
-    getRecorderState = getState;
+    controller = {start, stop, cancel, getState};
 }
 
 /**
  * Cleanup when component unmounts.
  */
 export function disposeVoiceRecording(): void {
-    startTranscription = null;
-    stopTranscription = null;
-    cancelTranscription = null;
-    getRecorderState = null;
+    controller = null;
 }
 
 /**
@@ -45,18 +43,18 @@ export function disposeVoiceRecording(): void {
  * force-cancels to prevent getting stuck.
  */
 export function toggleVoiceRecording(): void {
-    if (!startTranscription || !stopTranscription || !cancelTranscription || !getRecorderState) {
+    if (!controller) {
         console.warn('[VoiceRecordingController] Not initialized');
         return;
     }
 
-    const state: RecorderState = getRecorderState();
+    const state: RecorderState = controller.getState();
 
     if (state === 'Running') {
-        stopTranscription();
+        controller.stop();
     } else if (state === 'RequestingMedia' || state === 'OpeningWebSocket' || state === 'FinishingProcessing') {
-        cancelTranscription();
+        controller.cancel();
     } else {
-        void startTranscription();
+        void controller.start();
     }
 }

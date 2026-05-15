@@ -32,5 +32,3 @@ export * from '../hooks/onNewNodeHook'
 export * from '../inject/get-unseen-nodes-for-terminal'
 export * from '../inject/inject-nodes-into-terminal'
 export * from '../inject/send-text-to-terminal'
-
-export { shellQuote } from '../util/shellQuote'
