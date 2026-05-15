@@ -5,6 +5,7 @@ import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBa
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
+import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
@@ -358,9 +359,10 @@ function App(): JSX.Element {
 
             {/* Bottom bar: Fixed to viewport bottom to prevent dropdown-induced layout shifts */}
             <div className="fixed bottom-0 left-0 right-0 z-[1050] py-1 bg-background">
-                {/* File watching panel - anchored bottom left, vertically centered */}
-                <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                {/* File watching panel + view switcher - anchored bottom left, vertically centered */}
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     <FileWatchingPanel/>
+                    <ViewSwitcher/>
                 </div>
                 {/* Transcription panel - centered, with right margin? for minimap */}
                 <div className="flex justify-center">

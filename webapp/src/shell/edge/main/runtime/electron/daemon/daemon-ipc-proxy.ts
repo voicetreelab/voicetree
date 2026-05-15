@@ -1,6 +1,6 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState } from '@vt/graph-db-client'
+import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState, ViewRecord } from '@vt/graph-db-client'
 import type { SerializedState, State } from '@vt/graph-state'
 
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
@@ -319,4 +319,27 @@ export async function setWritePathThroughDaemon(path: string): Promise<VaultStat
 
 export async function refreshMainGraphFromDaemon(_vault?: string): Promise<void> {
   await callDaemon((client) => syncMainGraphFromDaemonClient(client))
+}
+
+export async function listViewsThroughDaemon(): Promise<readonly ViewRecord[]> {
+  return await callDaemon((client) => client.views.list())
+}
+
+export async function activateViewThroughDaemon(viewId: string): Promise<ViewRecord> {
+  return await callDaemon(async (client) => {
+    const result = await client.views.activate(viewId)
+    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('view:switched', { activeViewId: viewId })
+    }
+    return result
+  })
+}
+
+export async function cloneViewThroughDaemon(srcViewId: string, dstName: string): Promise<ViewRecord> {
+  return await callDaemon((client) => client.views.clone(srcViewId, dstName))
+}
+
+export async function deleteViewThroughDaemon(viewId: string): Promise<void> {
+  return await callDaemon((client) => client.views.delete(viewId))
 }

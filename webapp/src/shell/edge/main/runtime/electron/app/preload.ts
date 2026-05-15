@@ -36,9 +36,25 @@ async function exposeElectronAPI(): Promise<void> {
     const apiKeys: string[] = await ipcRenderer.invoke('rpc:getApiKeys') as string[]
 
     // Step 2: Build RPC wrappers dynamically (zero-boilerplate: just add to mainAPI)
-    const mainAPIWrappers: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
+    // Dotted keys (e.g. "views.list") create nested objects so renderers can call
+    // window.electronAPI.main.views.list() with correct TypeScript types.
+    const mainAPIWrappers: Record<string, unknown> = {}
     for (const key of apiKeys) {
-        mainAPIWrappers[key] = (...args: unknown[]) => ipcRenderer.invoke('rpc:call', key, args)
+        const wrapper = (...args: unknown[]): Promise<unknown> => ipcRenderer.invoke('rpc:call', key, args)
+        const parts = key.split('.')
+        if (parts.length === 1) {
+            mainAPIWrappers[key] = wrapper
+        } else {
+            let target = mainAPIWrappers
+            for (let i = 0; i < parts.length - 1; i++) {
+                const part = parts[i]!
+                if (typeof target[part] !== 'object' || target[part] === null) {
+                    target[part] = {}
+                }
+                target = target[part] as Record<string, unknown>
+            }
+            target[parts[parts.length - 1]!] = wrapper
+        }
     } // see rpc-handler.ts
 
     // Step 3: Build electronAPI with dynamically generated wrappers
@@ -76,6 +92,13 @@ async function exposeElectronAPI(): Promise<void> {
             const handler: (_event: Electron.IpcRendererEvent, data: VaultLostData) => void = (_event, data) => callback(data);
             ipcRenderer.on('vault:lost', handler);
             return () => ipcRenderer.off('vault:lost', handler);
+        },
+
+        onViewSwitched: (callback) => {
+            type ViewSwitchedData = { activeViewId: string };
+            const handler: (_event: Electron.IpcRendererEvent, data: ViewSwitchedData) => void = (_event, data) => callback(data);
+            ipcRenderer.on('view:switched', handler);
+            return () => ipcRenderer.off('view:switched', handler);
         },
 
         // Remove event listeners (cleanup)
@@ -155,6 +178,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'vault:ready',
                 'vault:lost',
                 'ui:call',
+                'view:switched',
             ]);
             if (!ALLOWED_ON_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked subscription to unauthorized channel: ${channel}`);
@@ -175,6 +199,7 @@ async function exposeElectronAPI(): Promise<void> {
                 'vault:ready',
                 'vault:lost',
                 'ui:call',
+                'view:switched',
             ]);
             if (!ALLOWED_OFF_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked unsubscribe from unauthorized channel: ${channel}`);

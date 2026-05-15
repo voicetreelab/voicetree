@@ -53,6 +53,10 @@ import {
   setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
+  listViewsThroughDaemon,
+  activateViewThroughDaemon,
+  cloneViewThroughDaemon,
+  deleteViewThroughDaemon,
 } from './electron/daemon/daemon-ipc-proxy';
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/daemon-sse-subscription';
 import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/graph-daemon';
@@ -246,4 +250,12 @@ export const mainAPI = {
   listWorkflows,
   readSkillFile,
   readSkillFileSummary,
+
+  // View operations (folder-visibility per-project views)
+  views: {
+    list: listViewsThroughDaemon,
+    activate: activateViewThroughDaemon,
+    clone: cloneViewThroughDaemon,
+    delete: deleteViewThroughDaemon,
+  },
 }
