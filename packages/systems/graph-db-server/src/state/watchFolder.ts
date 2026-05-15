@@ -82,6 +82,8 @@ export interface WatchFolderEffects {
     readonly nowIso: () => string;
 }
 
+type WatchFolderConfig = { writePath: string; allowlist: readonly string[] };
+
 const defaultWatchFolderEffects: WatchFolderEffects = {
     warn(message?: unknown, ...optionalParams: unknown[]): void {
         console.warn(message, ...optionalParams);
@@ -107,6 +109,10 @@ function buildWatchingStartedPayload(
     timestamp: string,
 ): { readonly directory: string; readonly writePath: string; readonly timestamp: string } {
     return { directory, writePath, timestamp };
+}
+
+function getWatchingStartedDirectory(watchedFolderPath: FilePath): string {
+    return getProjectRootWatchedDirectory() ?? watchedFolderPath;
 }
 
 function validateDirectoryForWatching(selectedDirectory: string): string | null {
@@ -171,9 +177,9 @@ export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise
 async function resolveOrCreateConfig(
     watchedFolderPath: string,
     options: WatchFolderLoadOptions = {},
-): Promise<{ writePath: string; allowlist: readonly string[] }> {
+): Promise<WatchFolderConfig> {
     // Try to resolve from saved vaultConfig first
-    const savedConfig: { allowlist: readonly string[]; writePath: string } | null =
+    const savedConfig: WatchFolderConfig | null =
         await resolveAllowlistForProject(watchedFolderPath, {
             includeActiveViewExpandedPaths: options.includeActiveViewExpandedPaths,
         });
@@ -182,27 +188,48 @@ async function resolveOrCreateConfig(
         return savedConfig;
     }
 
-    // No saved config - find or create voicetree subfolder
+    const subfolderPath: string = await findOrCreateSubfolder(watchedFolderPath);
+    const allowlist: string[] = await buildPatternAllowlist(watchedFolderPath, subfolderPath, options);
+
+    // Save config with subfolder as writePath
+    await saveVaultConfigForDirectory(watchedFolderPath, {
+        writePath: subfolderPath,
+    });
+
+    return {
+        allowlist,
+        writePath: subfolderPath,
+    };
+}
+
+async function findOrCreateSubfolder(watchedFolderPath: string): Promise<string> {
     const existingVoicetreeDir: string | null = await findExistingVoicetreeDir(watchedFolderPath);
-    let subfolderPath: string;
 
     if (existingVoicetreeDir !== null) {
         // Use existing voicetree directory (don't copy onboarding)
-        subfolderPath = existingVoicetreeDir;
-    } else {
-        // Create new voicetree-{date} subfolder
-        subfolderPath = await createDatedSubfolder(watchedFolderPath);
+        return existingVoicetreeDir;
+    }
 
-        // Copy onboarding files into the new subfolder
-        const onboardingDir: string | undefined = getCallbacks().getOnboardingDirectory?.();
-        if (onboardingDir) {
-            const onboardingSourceDir: string = path.join(onboardingDir, 'voicetree');
-            if (await pathExists(onboardingSourceDir)) {
-                await copyMarkdownFiles(onboardingSourceDir, subfolderPath);
-            }
+    // Create new voicetree-{date} subfolder
+    const subfolderPath: string = await createDatedSubfolder(watchedFolderPath);
+
+    // Copy onboarding files into the new subfolder
+    const onboardingDir: string | undefined = getCallbacks().getOnboardingDirectory?.();
+    if (onboardingDir) {
+        const onboardingSourceDir: string = path.join(onboardingDir, 'voicetree');
+        if (await pathExists(onboardingSourceDir)) {
+            await copyMarkdownFiles(onboardingSourceDir, subfolderPath);
         }
     }
 
+    return subfolderPath;
+}
+
+async function buildPatternAllowlist(
+    watchedFolderPath: string,
+    subfolderPath: string,
+    options: WatchFolderLoadOptions,
+): Promise<string[]> {
     // Build allowlist with the new subfolder as write path
     const allowlist: string[] = [subfolderPath];
 
@@ -224,15 +251,63 @@ async function resolveOrCreateConfig(
         }
     }
 
-    // Save config with subfolder as writePath
-    await saveVaultConfigForDirectory(watchedFolderPath, {
-        writePath: subfolderPath,
-    });
+    return allowlist;
+}
 
-    return {
-        allowlist,
-        writePath: subfolderPath,
-    };
+function getExpandedPaths(config: WatchFolderConfig): readonly string[] {
+    return config.allowlist.filter((folderPath: string) => folderPath !== config.writePath);
+}
+
+async function handleVaultLoadResult(
+    result: LoadVaultPathResult,
+    watchedFolderPath: FilePath,
+    config: WatchFolderConfig,
+    options: WatchFolderLoadOptions,
+): Promise<{ success: boolean } | null> {
+    if (result.success) return null;
+
+    const fileCount: number | null = extractFileLimitCount(result.error);
+    if (fileCount !== null) {
+        return createNewWorkspaceOnFileLimitExceeded(
+            watchedFolderPath,
+            fileCount,
+            getExpandedPaths(config),
+            options,
+        );
+    }
+
+    return { success: false };
+}
+
+async function loadExpandedPaths(
+    config: WatchFolderConfig,
+    positions: ReadonlyMap<string, Position>,
+    watchedFolderPath: FilePath,
+    options: WatchFolderLoadOptions,
+    effects: WatchFolderEffects,
+): Promise<{ success: boolean } | null> {
+    for (const expandedPath of getExpandedPaths(config)) {
+        const expandedResult: LoadVaultPathResult = await loadAndMergeVaultPath(
+            expandedPath,
+            { isWritePath: false },
+            positions
+        );
+
+        if (expandedResult.success) continue;
+
+        if (extractFileLimitCount(expandedResult.error) !== null) {
+            return handleVaultLoadResult(
+                expandedResult,
+                watchedFolderPath,
+                config,
+                options,
+            );
+        }
+
+        effects.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
+    }
+
+    return null;
 }
 
 export async function loadFolder(
@@ -272,8 +347,7 @@ export async function loadFolder(
     getCallbacks().onGraphCleared?.();
 
     // Resolve or create config (unified path)
-    const config: { writePath: string; allowlist: readonly string[] } =
-        await resolveOrCreateConfig(watchedFolderPath, options);
+    const config: WatchFolderConfig = await resolveOrCreateConfig(watchedFolderPath, options);
 
     // Ensure .voicetree/ has default prompts and hook scripts (copy-on-first-open)
     await getCallbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
@@ -291,39 +365,23 @@ export async function loadFolder(
 
     // Load write path first (handles all side effects internally)
     const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
-    if (!writeResult.success) {
-        // Check for file limit exceeded error
-        const fileCount: number | null = extractFileLimitCount(writeResult.error);
-        if (fileCount !== null) {
-            return createNewWorkspaceOnFileLimitExceeded(
-                watchedFolderPath,
-                fileCount,
-                config.allowlist.filter((folderPath: string) => folderPath !== config.writePath),
-                options,
-            );
-        }
-        return { success: false };
-    }
+    const writeRecoveryResult: { success: boolean } | null = await handleVaultLoadResult(
+        writeResult,
+        watchedFolderPath,
+        config,
+        options,
+    );
+    if (writeRecoveryResult) return writeRecoveryResult;
 
     // Load active-view expanded paths (handles all side effects internally)
-    for (const expandedPath of config.allowlist.filter((folderPath: string) => folderPath !== config.writePath)) {
-        const expandedResult: LoadVaultPathResult = await loadAndMergeVaultPath(expandedPath, { isWritePath: false }, positions);
-        if (!expandedResult.success) {
-            // Check for file limit exceeded error
-            const fileCount: number | null = extractFileLimitCount(expandedResult.error);
-            if (fileCount !== null) {
-                return createNewWorkspaceOnFileLimitExceeded(
-                    watchedFolderPath,
-                    fileCount,
-                    config.allowlist.filter((folderPath: string) => folderPath !== config.writePath),
-                    options,
-                );
-            }
-            // Log but continue with remaining paths for non-fatal errors
-            effects.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
-            continue;
-        }
-    }
+    const expandedRecoveryResult: { success: boolean } | null = await loadExpandedPaths(
+        config,
+        positions,
+        watchedFolderPath,
+        options,
+        effects,
+    );
+    if (expandedRecoveryResult) return expandedRecoveryResult;
 
     if (options.mountWatcher !== false) {
         // Resolve watcher options lazily so renderer imports never touch process.env.
@@ -341,7 +399,7 @@ export async function loadFolder(
 
     // Notify UI that watching has started
     getCallbacks().onWatchingStarted?.(buildWatchingStartedPayload(
-        getProjectRootWatchedDirectory() ?? watchedFolderPath,
+        getWatchingStartedDirectory(watchedFolderPath),
         config.writePath,
         effects.nowIso(),
     ));

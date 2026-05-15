@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {BrowserWindow, screen} from 'electron';
+import {app, BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
 import type {getTerminalManager} from '@vt/agent-runtime';
@@ -12,6 +12,11 @@ import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/elec
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
+
+/** Resolve a path relative to the webapp package root in both dev and packaged builds. */
+export function appResource(...segments: string[]): string {
+    return path.join(app.getAppPath(), ...segments);
+}
 
 async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): Promise<void> {
     if (!autoSetupComplete) {
@@ -56,8 +61,8 @@ export function createWindow(deps: {
     // Note: BrowserWindow icon property only works on Windows/Linux
     // macOS uses app.dock.setIcon() instead
     const iconPath: string = process.platform === 'darwin'
-        ? path.join(appRuntimeDir, '../../build/icon.png')
-        : path.join(appRuntimeDir, '../../build/icon.png');
+        ? appResource('build', 'icon.png')
+        : appResource('build', 'icon.png');
 
     // Get full screen dimensions (work area excludes dock/taskbar)
     const primaryDisplay: Electron.Display = screen.getPrimaryDisplay();
@@ -113,7 +118,7 @@ export function createWindow(deps: {
     // Load the app
     const skipDevTools: boolean = process.env.ENABLE_PLAYWRIGHT_DEBUG === '1';
     if (process.env.MINIMIZE_TEST === '1') {
-        void mainWindow.loadFile(path.join(appRuntimeDir, '../../dist/index.html'));
+        void mainWindow.loadFile(appResource('dist', 'index.html'));
     } else if (process.env.ELECTRON_RENDERER_URL) {
         // electron-vite dev mode — ELECTRON_RENDERER_URL is set by electron-vite with the actual port
         console.log('[Main] Renderer URL:', process.env.ELECTRON_RENDERER_URL);
@@ -121,7 +126,7 @@ export function createWindow(deps: {
         if (!skipDevTools) mainWindow.webContents.openDevTools();
     } else {
         // Production or test mode
-        void mainWindow.loadFile(path.join(appRuntimeDir, '../../dist/index.html'));
+        void mainWindow.loadFile(appResource('dist', 'index.html'));
     }
 
     // Control window visibility after content is ready

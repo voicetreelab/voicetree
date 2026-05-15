@@ -1,11 +1,26 @@
 import { spawn } from 'node:child_process'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs'
 import net from 'node:net'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { listLiveInstances, pickInstance, type DebugInstance, type PickOpts, type PickResult } from './discover'
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..')
+function findRepoRoot(startDir: string): string {
+  let dir = startDir
+  while (dir !== path.dirname(dir)) {
+    const pkgPath = path.join(dir, 'package.json')
+    if (existsSync(pkgPath)) {
+      // The repo root has a `webapp/` subdir; package subdirs do not.
+      if (existsSync(path.join(dir, 'webapp', 'package.json'))) return dir
+    }
+    dir = path.dirname(dir)
+  }
+  throw new Error(`REPO_ROOT: workspace root not found from ${startDir}`)
+}
+
+const REPO_ROOT = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)))
 const AUTO_LAUNCH_TIMEOUT_MS = 30_000
 const AUTO_LAUNCH_POLL_MS = 250
 export const CDP_LOOPBACK_HOST = '127.0.0.1'
@@ -17,6 +32,7 @@ export function formatCdpHttpEndpoint(port: number): string {
 export type LaunchedChild = {
   exited: boolean
   exitCode: number | null
+  logPath?: string
   output: string[]
 }
 
@@ -87,7 +103,18 @@ async function allocatePort(): Promise<number> {
 const MAX_OUTPUT_LINES = 50
 
 async function launchDevSession(port: number): Promise<LaunchedChild> {
-  const handle: LaunchedChild = { exited: false, exitCode: null, output: [] }
+  const logDir = path.join(os.tmpdir(), 'vt-debug-electron')
+  mkdirSync(logDir, { recursive: true })
+  const logPath = path.join(logDir, `${port}.log`)
+  const logFd = openSync(logPath, 'a')
+  const handle: LaunchedChild = { exited: false, exitCode: null, logPath, output: [] }
+  let logFdClosed = false
+
+  const closeLogFd = () => {
+    if (logFdClosed) return
+    logFdClosed = true
+    closeSync(logFd)
+  }
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
@@ -96,7 +123,7 @@ async function launchDevSession(port: number): Promise<LaunchedChild> {
       {
         cwd: REPO_ROOT,
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['ignore', logFd, logFd],
         env: {
           ...process.env,
           ENABLE_PLAYWRIGHT_DEBUG: '1',
@@ -106,39 +133,18 @@ async function launchDevSession(port: number): Promise<LaunchedChild> {
       },
     )
 
-    const collectLine = (line: string) => {
-      handle.output.push(line)
-      if (handle.output.length > MAX_OUTPUT_LINES) {
-        handle.output.shift()
-      }
-    }
-
-    let stdoutRemainder = ''
-    child.stdout!.on('data', (chunk: Buffer) => {
-      const text = stdoutRemainder + chunk.toString()
-      const lines = text.split('\n')
-      stdoutRemainder = lines.pop() ?? ''
-      for (const line of lines) collectLine(line)
-    })
-
-    let stderrRemainder = ''
-    child.stderr!.on('data', (chunk: Buffer) => {
-      const text = stderrRemainder + chunk.toString()
-      const lines = text.split('\n')
-      stderrRemainder = lines.pop() ?? ''
-      for (const line of lines) collectLine(line)
-    })
-
     child.once('close', (code) => {
-      if (stdoutRemainder) collectLine(stdoutRemainder)
-      if (stderrRemainder) collectLine(stderrRemainder)
       handle.exited = true
       handle.exitCode = code
     })
 
-    child.once('error', reject)
+    child.once('error', (error) => {
+      closeLogFd()
+      reject(error)
+    })
     child.once('spawn', () => {
       child.unref()
+      closeLogFd()
       resolve()
     })
   })
@@ -148,6 +154,22 @@ async function launchDevSession(port: number): Promise<LaunchedChild> {
 
 async function sleep(ms: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function readLaunchOutputTail(child: LaunchedChild): string {
+  if (child.logPath && existsSync(child.logPath)) {
+    try {
+      return readFileSync(child.logPath, 'utf8')
+        .split('\n')
+        .slice(-MAX_OUTPUT_LINES)
+        .join('\n')
+        .trim()
+    } catch {
+      // Fall through to in-memory output from injected test doubles.
+    }
+  }
+
+  return child.output.join('\n')
 }
 
 function formatPortList(instances: readonly DebugInstance[]): string {
@@ -180,7 +202,7 @@ async function waitForAutoLaunchedInstance(
 
   while (deps.now() <= deadline) {
     if (child.exited) {
-      const output = child.output.join('\n')
+      const output = readLaunchOutputTail(child)
       return {
         ok: false,
         message: `auto-launched dev session exited with code ${child.exitCode ?? 'unknown'}`,
@@ -202,7 +224,7 @@ async function waitForAutoLaunchedInstance(
     await deps.sleep(AUTO_LAUNCH_POLL_MS)
   }
 
-  const output = child.output.join('\n')
+  const output = readLaunchOutputTail(child)
   return {
     ok: false,
     message: `timed out waiting for auto-launched dev session on port ${port} to register`,

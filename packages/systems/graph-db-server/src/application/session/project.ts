@@ -91,7 +91,7 @@ export function projectSessionState(args: ProjectSessionStateArgs): State {
   return {
     graph,
     roots: {
-      loaded: new Set<string>(vault.readPaths),
+      loaded: new Set<string>([vault.writePath, ...vault.readPaths].filter((path) => path.length > 0)),
       folderTree: projectFolderTree(folderTree, vault, session),
     },
     collapseSet: new Set(session.collapseSet),

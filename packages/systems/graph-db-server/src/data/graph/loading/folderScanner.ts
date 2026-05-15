@@ -176,21 +176,53 @@ export async function getAvailableFoldersForSelector(
     );
 }
 
+const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
+    'node_modules',
+    '.git',
+    '.next',
+    'dist',
+    '.cache',
+    '__pycache__',
+    '.tox',
+    '.venv',
+    'venv',
+    '.worktrees',
+]);
+
 function isIgnoredDirectoryName(name: string): boolean {
-    switch (name) {
-        case 'node_modules':
-        case '.git':
-        case '.next':
-        case 'dist':
-        case '.cache':
-        case '__pycache__':
-        case '.tox':
-        case '.venv':
-        case 'venv':
-        case '.worktrees':
-            return true;
-        default:
-            return false;
+    return IGNORED_DIRECTORY_NAMES.has(name);
+}
+
+function shouldSkipDirent(entry: Dirent): boolean {
+    if (entry.name.startsWith('.')) return true;
+    return entry.isDirectory() && isIgnoredDirectoryName(entry.name);
+}
+
+async function buildChildEntry(
+    dirPath: string,
+    entry: Dirent,
+    depth: number,
+    scan: (dirPath: string, depth: number) => Promise<DirectoryEntry>,
+): Promise<DirectoryEntry> {
+    const fullPath: string = normalizePath(path.join(dirPath, entry.name));
+
+    if (entry.isDirectory()) {
+        return scan(fullPath, depth + 1);
+    }
+
+    return {
+        absolutePath: toAbsolutePath(fullPath),
+        name: entry.name,
+        isDirectory: false,
+    };
+}
+
+async function readDirectoryEntries(dirPath: string): Promise<readonly Dirent[]> {
+    try {
+        return await fs.readdir(dirPath, { withFileTypes: true });
+    } catch {
+        // Permission denied or path gone — return empty children
+        return [];
     }
 }
 
@@ -208,30 +240,19 @@ export async function getDirectoryTree(
         const absDirPath: AbsolutePath = toAbsolutePath(normalizePath(dirPath));
         const children: DirectoryEntry[] = [];
 
-        if (depth < maxDepth) {
-            try {
-                const entries: Dirent[] = await fs.readdir(dirPath, { withFileTypes: true });
-                for (const entry of entries) {
-                    if (entry.name.startsWith('.')) continue;
+        if (depth >= maxDepth) {
+            return {
+                absolutePath: absDirPath,
+                name: dirName,
+                isDirectory: true,
+                children,
+            };
+        }
 
-                    const fullPath: string = normalizePath(path.join(dirPath, entry.name));
-                    const absPath: AbsolutePath = toAbsolutePath(fullPath);
-
-                    if (entry.isDirectory()) {
-                        if (isIgnoredDirectoryName(entry.name)) continue;
-                        const subtree: DirectoryEntry = await scan(fullPath, depth + 1);
-                        children.push(subtree);
-                    } else {
-                        children.push({
-                            absolutePath: absPath,
-                            name: entry.name,
-                            isDirectory: false,
-                        });
-                    }
-                }
-            } catch {
-                // Permission denied or path gone — return empty children
-            }
+        const entries: readonly Dirent[] = await readDirectoryEntries(dirPath);
+        for (const entry of entries) {
+            if (shouldSkipDirent(entry)) continue;
+            children.push(await buildChildEntry(dirPath, entry, depth, scan));
         }
 
         return {

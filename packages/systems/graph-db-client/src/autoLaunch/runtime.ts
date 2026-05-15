@@ -20,18 +20,15 @@ type RuntimeValidation = { ok: true } | { ok: false; reason: string }
 const tracer = trace.getTracer('vt-daemon-client')
 
 const requireFromHere = createRequire(import.meta.url)
-const GRAPH_DB_SERVER_ENTRYPOINT = requireFromHere.resolve('@vt/graph-db-server')
+const GRAPH_DB_SERVER_PKG_JSON = requireFromHere.resolve(
+  '@vt/graph-db-server/package.json',
+)
+const GRAPH_DB_SERVER_ROOT = dirname(GRAPH_DB_SERVER_PKG_JSON)
 
-// Resolve from the installed workspace package, not from import.meta.url.
+// Resolve from the installed workspace package root, not from import.meta.url.
 // In the bundled Electron main process, import.meta.url points into dist output.
-const FALLBACK_BIN_PATH = resolve(
-  dirname(GRAPH_DB_SERVER_ENTRYPOINT),
-  '../../dist/vt-graphd.mjs',
-)
-const SOURCE_BIN_PATH = resolve(
-  dirname(GRAPH_DB_SERVER_ENTRYPOINT),
-  '../../bin/vt-graphd.ts',
-)
+const FALLBACK_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'dist', 'vt-graphd.mjs')
+const SOURCE_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'bin', 'vt-graphd.ts')
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()
 const runtimeCommandCache = new Map<string, string>()

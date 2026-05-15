@@ -1,4 +1,9 @@
-export { GraphDbClient } from './GraphDbClient.ts'
+export {
+  createGraphDbClient,
+  GraphDbClient,
+  type GraphDbClientApi,
+  type GraphDbClientOptions,
+} from './GraphDbClient.ts'
 export {
   DaemonLaunchTimeout,
   DaemonLockHeldError,

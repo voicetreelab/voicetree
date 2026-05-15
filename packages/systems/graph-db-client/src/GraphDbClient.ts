@@ -1,557 +1,64 @@
 import {
-  CloneViewRequestSchema,
-  CreateViewRequestSchema,
-  FolderStateBatchRequestSchema,
-  FolderStatePatchRequestSchema,
-  FolderStateResponseSchema,
-  GraphStateSchema,
-  HealthResponseSchema,
-  LayoutPartialSchema,
-  LayoutResponseSchema,
-  ListViewsResponseSchema,
-  LiveStateSnapshotSchema,
-  SelectionRequestSchema,
-  SelectionResponseSchema,
-  SessionCreateResponseSchema,
-  SessionInfoSchema,
-  SetWritePathRequestSchema,
-  ShutdownResponseSchema,
-  VaultStateSchema,
-  ViewRecordSchema,
-  ViewResponseSchema,
-  type FolderState,
-  type FolderStateResponse,
-  type FolderStateBatchUpdate,
-  type GraphState,
-  type HealthResponse,
-  type LayoutPartial,
-  type LayoutResponse,
-  type LiveStateSnapshot,
-  type OpenVaultResponse,
-  type SelectionRequest,
-  type SelectionResponse,
-  type SessionInfo,
-  type ShutdownResponse,
-  type UnseenNode,
-  type VaultState,
-  type ViewRecord,
-  type ViewResponse,
-} from './contract.ts'
+  connect,
+  createDaemonClient,
+  type ConnectOptions,
+  type DaemonClient,
+} from './client/daemonClient.ts'
 import {
-  DaemonUnreachableError,
-  GraphDbClientError,
-  VaultNotOpenError,
-  VaultOpenFailedError,
-} from './errors.ts'
-import { discoverPort } from './portDiscovery.ts'
+  createContextNodeClient,
+  type ContextNodeClient,
+} from './client/contextNodeClient.ts'
 import {
-  ContextNodeFromQuestionResponseSchema,
-  ContextNodeResponseSchema,
-  FindFileMatchesResponseSchema,
-  PreviewContainedNodeIdsResponseSchema,
-  OpenVaultResponseSchema,
-  UndoRedoResponseSchema,
-  UnknownResponseSchema,
-  UnseenNodesResponseSchema,
-  UpdateContextNodeContainedIdsResponseSchema,
-  WritePathMutationResponseSchema,
-  WritePositionsResponseSchema,
-  type Schema,
-} from './responseSchemas.ts'
+  createGraphClient,
+  type GraphClient,
+} from './client/graphClient.ts'
+import { createRequest, normalizeBaseUrl } from './client/requestCore.ts'
+import {
+  createSessionClient,
+  type SessionClient,
+} from './client/sessionClient.ts'
+import {
+  createVaultClient,
+  type VaultClient,
+} from './client/vaultClient.ts'
 
-type RequestOptions<T> = {
-  body?: unknown
-  expectNoContent?: boolean
-  headers?: Record<string, string>
-  method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
-  responseSchema?: Schema<T>
+export type GraphDbClientOptions = {
+  baseUrl: string
+  sessionId?: string
 }
 
-type GetSessionStateOptions = {
-  readonly content?: 'full' | 'omit'
-}
+export type GraphDbClientApi = {
+  readonly baseUrl: string
+  readonly sessionId?: string
+} & ContextNodeClient &
+  DaemonClient &
+  GraphClient &
+  SessionClient &
+  VaultClient
 
-type ErrorPayload = {
-  code?: string
-  error?: string | { code?: string; message?: string }
-  message?: string
-}
+export function createGraphDbClient(opts: GraphDbClientOptions): GraphDbClientApi {
+  const baseUrl = normalizeBaseUrl(opts.baseUrl)
+  const request = createRequest(baseUrl)
 
-function normalizeBaseUrl(baseUrl: string): string {
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function serializeNodeForIpc(node: unknown): unknown {
-  if (!isObject(node)) return node
-  const meta = (node as { nodeUIMetadata?: unknown }).nodeUIMetadata
-  if (!isObject(meta)) return node
-  const props = (meta as { additionalYAMLProps?: unknown }).additionalYAMLProps
-  if (!(props instanceof Map)) return node
   return {
-    ...node,
-    nodeUIMetadata: {
-      ...meta,
-      additionalYAMLProps: Array.from(props.entries()),
-    },
+    baseUrl,
+    sessionId: opts.sessionId,
+    ...createDaemonClient(request),
+    ...createVaultClient(request),
+    ...createGraphClient(request),
+    ...createContextNodeClient(request),
+    ...createSessionClient(request),
   }
 }
 
-function serializeDeltaForIpc(delta: unknown[]): unknown[] {
-  return delta.map((entry) => {
-    if (!isObject(entry)) return entry
-    if (entry.type !== 'UpsertNode') return entry
-    const nodeToUpsert = serializeNodeForIpc(entry.nodeToUpsert)
-    const previousNode = entry.previousNode
-    const serializedPrevious =
-      isObject(previousNode) && previousNode._tag === 'Some'
-        ? { ...previousNode, value: serializeNodeForIpc(previousNode.value) }
-        : previousNode
-    return { ...entry, nodeToUpsert, previousNode: serializedPrevious }
-  })
-}
-
-async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
-  try {
-    const body = (await response.json()) as unknown
-    if (!isObject(body)) {
-      return {}
-    }
-    return {
-      code: typeof body.code === 'string' ? body.code : undefined,
-      error:
-        typeof body.error === 'string'
-          ? body.error
-          : isObject(body.error)
-            ? {
-                code: typeof body.error.code === 'string' ? body.error.code : undefined,
-                message: typeof body.error.message === 'string'
-                  ? body.error.message
-                  : undefined,
-              }
-            : undefined,
-      message: typeof body.message === 'string' ? body.message : undefined,
-    }
-  } catch {
-    return {}
-  }
-}
+export interface GraphDbClient extends GraphDbClientApi {}
 
 export class GraphDbClient {
-  public readonly baseUrl: string
-  public readonly sessionId?: string
-
-  constructor(opts: { baseUrl: string; sessionId?: string }) {
-    this.baseUrl = normalizeBaseUrl(opts.baseUrl)
-    this.sessionId = opts.sessionId
+  constructor(opts: GraphDbClientOptions) {
+    Object.assign(this, createGraphDbClient(opts))
   }
 
-  static async connect(opts: {
-    vault: string
-    sessionId?: string
-  }): Promise<GraphDbClient> {
-    const port = await discoverPort(opts.vault)
-    const client = new GraphDbClient({
-      baseUrl: `http://127.0.0.1:${port}`,
-      sessionId: opts.sessionId,
-    })
-
-    try {
-      await client.health()
-    } catch (error) {
-      if (error instanceof GraphDbClientError) {
-        throw error
-      }
-      throw new DaemonUnreachableError(
-        `Discovered vt-graphd for vault ${opts.vault}, but /health was unreachable`,
-      )
-    }
-
-    return client
-  }
-
-  async health(): Promise<HealthResponse> {
-    return await this.request('/health', {
-      responseSchema: HealthResponseSchema,
-    })
-  }
-
-  async shutdown(): Promise<ShutdownResponse> {
-    return await this.request('/shutdown', {
-      method: 'POST',
-      responseSchema: ShutdownResponseSchema,
-    })
-  }
-
-  async getVault(): Promise<VaultState> {
-    return await this.request('/vault', {
-      responseSchema: VaultStateSchema,
-    })
-  }
-
-  async openVault(path: string, opts: { writePath?: string } = {}): Promise<OpenVaultResponse> {
-    return await this.request('/vault/open', {
-      body: opts.writePath === undefined ? { path } : { path, writePath: opts.writePath },
-      method: 'POST',
-      responseSchema: OpenVaultResponseSchema,
-    })
-  }
-
-  async closeVault(): Promise<void> {
-    await this.request('/vault/close', {
-      expectNoContent: true,
-      method: 'POST',
-    })
-  }
-
-  async setWritePath(path: string): Promise<VaultState> {
-    await this.request('/vault/write-path', {
-      body: SetWritePathRequestSchema.parse({ path }),
-      method: 'PUT',
-      responseSchema: WritePathMutationResponseSchema,
-    })
-    return await this.getVault()
-  }
-
-  async getGraph(): Promise<GraphState> {
-    return await this.request('/graph', {
-      responseSchema: GraphStateSchema,
-    })
-  }
-
-  async postDelta(delta: unknown[], sessionId?: string): Promise<void> {
-    const headers: Record<string, string> = {}
-    if (sessionId) {
-      headers['X-Session-Id'] = sessionId
-    }
-
-    await this.request('/graph/delta', {
-      body: delta,
-      expectNoContent: false,
-      headers,
-      method: 'POST',
-      responseSchema: UnknownResponseSchema,
-    })
-  }
-
-  async applyGraphDelta(
-    delta: unknown[],
-    opts: { recordForUndo?: boolean; sessionId?: string } = {},
-  ): Promise<void> {
-    const headers: Record<string, string> = {}
-    if (opts.sessionId) {
-      headers['X-Session-Id'] = opts.sessionId
-    }
-
-    await this.request('/graph/apply-delta', {
-      body: {
-        delta: serializeDeltaForIpc(delta),
-        recordForUndo: opts.recordForUndo,
-      },
-      expectNoContent: false,
-      headers,
-      method: 'POST',
-      responseSchema: UnknownResponseSchema,
-    })
-  }
-
-  async createContextNode(
-    parentNodeId: string,
-    semanticNodeIds: string[],
-  ): Promise<{ nodeId: string }> {
-    return await this.request('/graph/context-node', {
-      body: { parentNodeId, semanticNodeIds },
-      method: 'POST',
-      responseSchema: ContextNodeResponseSchema,
-    })
-  }
-
-  async createContextNodeFromQuestion(
-    nodeIds: string[],
-    question: string,
-    semanticNodeIds: string[],
-  ): Promise<{ nodeId: string; parentNodePath: string; title: string }> {
-    return await this.request('/graph/context-node-from-question', {
-      body: { nodeIds, question, semanticNodeIds },
-      method: 'POST',
-      responseSchema: ContextNodeFromQuestionResponseSchema,
-    })
-  }
-
-  async createContextNodeFromSelectedNodes(
-    taskNodeId: string,
-    selectedNodeIds: readonly string[],
-  ): Promise<{ nodeId: string }> {
-    return await this.request('/graph/context-node-from-selected-nodes', {
-      body: { taskNodeId, selectedNodeIds },
-      method: 'POST',
-      responseSchema: ContextNodeResponseSchema,
-    })
-  }
-
-  async getUnseenNodesAroundContextNode(
-    contextNodeId: string,
-    searchFromNode?: string,
-  ): Promise<readonly UnseenNode[]> {
-    const result = await this.request('/graph/unseen-nodes-around-context-node', {
-      body: { contextNodeId, searchFromNode },
-      method: 'POST',
-      responseSchema: UnseenNodesResponseSchema,
-    })
-    return result.nodes
-  }
-
-  async updateContextNodeContainedIds(
-    contextNodeId: string,
-    newNodeIds: readonly string[],
-  ): Promise<void> {
-    await this.request('/graph/context-node-contained-ids', {
-      body: { contextNodeId, newNodeIds },
-      method: 'PATCH',
-      responseSchema: UpdateContextNodeContainedIdsResponseSchema,
-    })
-  }
-
-  async writePositions(
-    positions: Record<string, { x: number; y: number }>,
-  ): Promise<{ written: number }> {
-    return await this.request('/graph/write-positions', {
-      body: { positions },
-      method: 'POST',
-      responseSchema: WritePositionsResponseSchema,
-    })
-  }
-
-  async createSession(): Promise<{ sessionId: string }> {
-    return await this.request('/sessions', {
-      method: 'POST',
-      responseSchema: SessionCreateResponseSchema,
-    })
-  }
-
-  async getSession(id: string): Promise<SessionInfo> {
-    return await this.request(`/sessions/${encodeURIComponent(id)}`, {
-      responseSchema: SessionInfoSchema,
-    })
-  }
-
-  async deleteSession(id: string): Promise<void> {
-    await this.request(`/sessions/${encodeURIComponent(id)}`, {
-      expectNoContent: true,
-      method: 'DELETE',
-    })
-  }
-
-  async getSessionState(
-    id: string,
-    opts: GetSessionStateOptions = {},
-  ): Promise<LiveStateSnapshot> {
-    const contentQuery = opts.content === 'omit' ? '?content=omit' : ''
-    return await this.request(`/sessions/${encodeURIComponent(id)}/state${contentQuery}`, {
-      responseSchema: LiveStateSnapshotSchema,
-    })
-  }
-
-  async getFolderState(sessionId: string): Promise<FolderStateResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
-      {
-        responseSchema: FolderStateResponseSchema,
-      },
-    )
-  }
-
-  async setFolderState(
-    sessionId: string,
-    path: string,
-    state: FolderState,
-  ): Promise<FolderStateResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/folder-state/${encodeURIComponent(path)}`,
-      {
-        body: FolderStatePatchRequestSchema.parse({ state }),
-        method: 'PATCH',
-        responseSchema: FolderStateResponseSchema,
-      },
-    )
-  }
-
-  async setFolderStateBatch(
-    sessionId: string,
-    updates: readonly FolderStateBatchUpdate[],
-  ): Promise<FolderStateResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
-      {
-        body: FolderStateBatchRequestSchema.parse({ updates }),
-        method: 'PATCH',
-        responseSchema: FolderStateResponseSchema,
-      },
-    )
-  }
-
-  readonly views = {
-    list: async (): Promise<readonly ViewRecord[]> => await this.request('/vault/views', {
-      responseSchema: ListViewsResponseSchema,
-    }),
-    create: async (name: string): Promise<ViewRecord> => await this.request('/vault/views', {
-      body: CreateViewRequestSchema.parse({ name }),
-      method: 'POST',
-      responseSchema: ViewRecordSchema,
-    }),
-    activate: async (viewId: string): Promise<ViewRecord> => await this.request(
-      `/vault/views/${encodeURIComponent(viewId)}/activate`,
-      {
-        method: 'POST',
-        responseSchema: ViewRecordSchema,
-      },
-    ),
-    clone: async (srcViewId: string, dstName: string): Promise<ViewRecord> => await this.request(
-      `/vault/views/${encodeURIComponent(srcViewId)}/clone`,
-      {
-        body: CloneViewRequestSchema.parse({ name: dstName }),
-        method: 'POST',
-        responseSchema: ViewRecordSchema,
-      },
-    ),
-    delete: async (viewId: string): Promise<void> => {
-      await this.request(`/vault/views/${encodeURIComponent(viewId)}`, {
-        expectNoContent: true,
-        method: 'DELETE',
-      })
-    },
-  } as const
-
-  async setSelection(
-    sessionId: string,
-    req: SelectionRequest,
-  ): Promise<SelectionResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/selection`,
-      {
-        body: SelectionRequestSchema.parse(req),
-        method: 'POST',
-        responseSchema: SelectionResponseSchema,
-      },
-    )
-  }
-
-  async findFileByName(name: string): Promise<string[]> {
-    return await this.request(
-      `/graph/find-file?name=${encodeURIComponent(name)}`,
-      { responseSchema: FindFileMatchesResponseSchema },
-    )
-  }
-
-  async undo(): Promise<boolean> {
-    return await this.request('/graph/undo', {
-      method: 'POST',
-      responseSchema: UndoRedoResponseSchema,
-    })
-  }
-
-  async redo(): Promise<boolean> {
-    return await this.request('/graph/redo', {
-      method: 'POST',
-      responseSchema: UndoRedoResponseSchema,
-    })
-  }
-
-  async getPreviewContainedNodeIds(nodeId: string): Promise<readonly string[]> {
-    return await this.request(
-      `/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`,
-      { responseSchema: PreviewContainedNodeIdsResponseSchema },
-    )
-  }
-
-  async getProjectedGraph(sessionId: string): Promise<unknown> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
-      {
-        responseSchema: UnknownResponseSchema,
-      },
-    )
-  }
-
-  async updateLayout(
-    sessionId: string,
-    partial: LayoutPartial,
-  ): Promise<LayoutResponse> {
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/layout`,
-      {
-        body: LayoutPartialSchema.parse(partial),
-        method: 'PUT',
-        responseSchema: LayoutResponseSchema,
-      },
-    )
-  }
-
-  async getView(
-    sessionId: string,
-    opts?: { budget?: number; expand?: string[] },
-  ): Promise<ViewResponse> {
-    const params = new URLSearchParams()
-    if (opts?.budget !== undefined) params.set('budget', String(opts.budget))
-    for (const id of opts?.expand ?? []) params.append('expand', id)
-    const query = params.toString()
-    const suffix = query ? `?${query}` : ''
-    return await this.request(
-      `/sessions/${encodeURIComponent(sessionId)}/view${suffix}`,
-      { responseSchema: ViewResponseSchema },
-    )
-  }
-
-  private async request<T>(
-    path: string,
-    opts: RequestOptions<T>,
-  ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      headers: {
-        ...(opts.body === undefined
-          ? undefined
-          : { 'content-type': 'application/json' }),
-        ...opts.headers,
-      },
-      method: opts.method ?? 'GET',
-    })
-
-    if (!response.ok) {
-      throw await this.toGraphDbClientError(response)
-    }
-
-    if (opts.expectNoContent) {
-      return undefined as T
-    }
-
-    if (!opts.responseSchema) {
-      throw new Error(`Missing response schema for ${opts.method ?? 'GET'} ${path}`)
-    }
-
-    return opts.responseSchema.parse(await response.json())
-  }
-
-  private async toGraphDbClientError(
-    response: Response,
-  ): Promise<GraphDbClientError> {
-    const payload = await parseErrorPayload(response)
-    const nestedError = isObject(payload.error) ? payload.error : undefined
-    const code = payload.code ?? nestedError?.code ?? `http_${response.status}`
-    const message =
-      payload.message
-      ?? nestedError?.message
-      ?? (typeof payload.error === 'string' ? payload.error : undefined)
-      ?? response.statusText
-    if (response.status === 409 && code === 'vault_not_open') {
-      return new VaultNotOpenError(message)
-    }
-    if (response.status === 409 && code === 'vault_open_failed') {
-      return new VaultOpenFailedError(message)
-    }
-    return new GraphDbClientError(response.status, code, message)
+  static async connect(opts: ConnectOptions): Promise<GraphDbClient> {
+    return await connect(opts, (clientOpts) => new GraphDbClient(clientOpts))
   }
 }
