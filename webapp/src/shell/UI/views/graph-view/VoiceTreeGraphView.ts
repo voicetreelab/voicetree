@@ -189,9 +189,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup event listeners
         this.setupEventListeners();
 
-        // Signal to main process that frontend is ready to receive graph data
-        void window.electronAPI?.main?.markFrontendReady();
-
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues
         setupCommandHover(this.cy);
@@ -200,8 +197,20 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // moved off the folder body)
         setupFolderHandles(this.cy, this.container);
 
-        // Subscribe to graph delta updates via electronAPI
-        this.subscribeToGraphUpdates();
+        // Initial graph hydration races against daemon startup. markFrontendReady()
+        // triggers main-side initialLoad() → ensureDaemonClientForVault(); the
+        // first getProjectedGraph() RPC throws "Watched directory not initialized"
+        // if it lands before that connection is active. Await readiness before
+        // subscribing.
+        void (async (): Promise<void> => {
+            try {
+                await window.electronAPI?.main?.markFrontendReady();
+            } catch (err: unknown) {
+                console.error('[VoiceTreeGraphView] markFrontendReady failed:', err);
+            }
+            if (this.isDisposed) return;
+            this.subscribeToGraphUpdates();
+        })();
     }
 
     /**
