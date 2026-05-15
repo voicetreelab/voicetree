@@ -1,10 +1,12 @@
-printf '\033[36mBF208_RENDER_ANSI\033[0m\n'; printf '\u2554\u2550\u2550 BOX TOP\n'; claude --print 'Reply exactly BF208_RENDER_PASS and nothing else.'; echo BF208_RENDER_DONE; sleep 5
-[38;5;76m❯[39m [32mprintf[39m [33m'\033[36mBF208_RENDER_ANSI\033[0m\n'[39m; [32mprintf[39m [33m'\u2554\u2550\u2550 BOX TOP\n'[39m; [32mclaude[39m --print [33m'Reply exactly BF208_RENDER_PASS and nothing else.'[39m; [32mecho[39m BF208_RENDER_DONE; [32msleep[39m 5
-[36mBF208_RENDER_ANSI
-[39m╔══ BOX TOP
-
-
-
+[fake-agent] Executing: log
+[fake-agent] [36mBF208_RENDER_ANSI
+[39m[fake-agent] Executing: log
+[fake-agent] ╔══ BOX TOP
+[fake-agent] Executing: log
+[fake-agent] BF208_RENDER_PASS
+[fake-agent] Executing: log
+[fake-agent] BF208_RENDER_DONE
+[fake-agent] Executing: delay
 
 
 

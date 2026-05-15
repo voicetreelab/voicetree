@@ -1,9 +1,12 @@
-printf '\033[36mBF208_RENDER_ANSI\033[0m\n'; printf '\u2554\u2550\u2550 BOX TOP\n'; claude --print 'Reply exactly BF208_RENDER_PASS and nothing else.'; echo
- BF208_RENDER_DONE; sleep 5
-❯ printf '\033[36mBF208_RENDER_ANSI\033[0m\n'; printf '\u2554\u2550\u2550 BOX TOP\n'; claude --print 'Reply exactly BF208_RENDER_PASS and nothing else.'; ec
-ho BF208_RENDER_DONE; sleep 5
-BF208_RENDER_ANSI
-╔══ BOX TOP
+[fake-agent] Executing: log
+[fake-agent] BF208_RENDER_ANSI
+[fake-agent] Executing: log
+[fake-agent] ╔══ BOX TOP
+[fake-agent] Executing: log
+[fake-agent] BF208_RENDER_PASS
+[fake-agent] Executing: log
+[fake-agent] BF208_RENDER_DONE
+[fake-agent] Executing: delay
 
 
 
@@ -37,7 +40,4 @@ BF208_RENDER_ANSI
 
 
 
-
-
-
-[wi-Q1] 0:zsh*                                                                                                            "MacBookPro.modem" 17:11 15-May-26
+[wi-Q1] 0:node*                                                                                                           "MacBookPro.modem" 19:09 15-May-26

@@ -34,6 +34,7 @@
     "Q3: fed 2402 chars from pipe-pane raw-ANSI log ../pipe-pane-probe/EVIDENCE/tui.stream.log.",
     "Q3 (LOAD-BEARING): existing read_terminal_output sanitizer collapses pipe-pane raw .log to ~0 readable chars (essentially empty). Root cause: pipe-pane emits `\\r\\r\\n` line terminators; the sanitizer's CR-overwrite heuristic discards everything before the trailing `\\r` on each line. A 1-LOC patch (`cleaned = cleaned.replace(/\\r+\\n/g, '\\n')` before the existing CRLF normalize) lifts output to ~649 readable chars containing the expected text content (Claude version, cwd, status tokens).",
     "Q3: input contained 622 UTF-8 box/symbol chars (U+2500-259F + U+2600-27BF) which the printable-ASCII filter drops. Text content survives the fix; UI glyphs do not. To preserve glyphs widen the filter (~5 LOC: add the two Unicode ranges to the keep set).",
-    "Q3: BF-203 capture-pane .log control feed (836 bytes) -> 566 readable chars with unmodified production sanitizer (includes \"no token\"). Confirms the fix only affects pipe-pane raw .log, not normal CRLF streams."
+    "Q3: BF-203 capture-pane .log control feed (836 bytes) -> 566 readable chars with unmodified production sanitizer (includes \"no token\"). Confirms the fix only affects pipe-pane raw .log, not normal CRLF streams.",
+    "Q1: tmux pane launched with vt-fake-agent runner as PID 1 (no zsh) — earlier `claude --print` inside zsh+p10k let the transient prompt redraw over the output before screenshot. Runner emits ANSI cyan + Unicode box-drawing + ASCII tokens deterministically; rendered output stays on screen for the screenshot."
   ]
 }
