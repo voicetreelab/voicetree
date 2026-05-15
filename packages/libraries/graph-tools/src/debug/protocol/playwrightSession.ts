@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { DebugInstance } from './discover'
@@ -36,6 +37,13 @@ export interface DebugSession {
   close(): Promise<void>
 }
 
+export interface OpenDebugSessionOptions {
+  waitForPagesMs?: number
+  pollMs?: number
+}
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
 function extractChromium(pw: unknown): ChromiumLike {
   const direct = (pw as Record<string, unknown>).chromium
   if (direct) return direct as ChromiumLike
@@ -46,14 +54,24 @@ function extractChromium(pw: unknown): ChromiumLike {
   throw new Error('playwright-core loaded but chromium export not found')
 }
 
+function findWebappNodeModules(startDir: string): string {
+  let dir = startDir
+  while (dir !== path.dirname(dir)) {
+    const candidate = path.join(dir, 'webapp', 'node_modules')
+    if (fs.existsSync(candidate)) return candidate
+    dir = path.dirname(dir)
+  }
+  throw new Error('webapp/node_modules not found walking up from ' + startDir)
+}
+
 export async function resolveChromium(): Promise<ChromiumLike> {
   try {
     const pw = await import('playwright-core')
     return extractChromium(pw)
   } catch {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    const webappNm = path.resolve(dir, '../../../../../webapp/node_modules')
-    const pwPath = path.resolve(webappNm, 'playwright-core/index.js')
+    const webappNm = findWebappNodeModules(dir)
+    const pwPath = path.join(webappNm, 'playwright-core', 'index.js')
     try {
       const pw = await import(pathToFileURL(pwPath).href)
       return extractChromium(pw)
@@ -65,11 +83,22 @@ export async function resolveChromium(): Promise<ChromiumLike> {
   }
 }
 
-export async function openDebugSession(instance: DebugInstance): Promise<DebugSession> {
+export async function openDebugSession(
+  instance: DebugInstance,
+  opts: OpenDebugSessionOptions = {},
+): Promise<DebugSession> {
   const chromium = await resolveChromium()
   const endpoint = `http://localhost:${instance.cdpPort}`
   const browser = await chromium.connectOverCDP(endpoint)
-  const pages = browser.contexts().flatMap(ctx => ctx.pages())
+  const waitMs = opts.waitForPagesMs ?? 5000
+  const pollMs = opts.pollMs ?? 250
+  const deadline = Date.now() + waitMs
+
+  let pages = browser.contexts().flatMap(ctx => ctx.pages())
+  while (pages.length === 0 && Date.now() < deadline) {
+    await sleep(pollMs)
+    pages = browser.contexts().flatMap(ctx => ctx.pages())
+  }
 
   return {
     browser,

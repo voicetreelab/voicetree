@@ -3,7 +3,7 @@ import type {Graph} from '@vt/graph-model/graph'
 import type {SupportedHeadlessCli} from '../spawn/headlessCli'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {StopHookResult} from '../hooks/stopGateHookRunner'
-import type {HeadlessAgentDeps} from './headlessAgentManager'
+import type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentManager'
 import type {TerminalRecord} from '../terminals/terminal-registry'
 
 export type HeadlessLifecycleState = {
@@ -11,6 +11,13 @@ export type HeadlessLifecycleState = {
     readonly lastOutputByTerminal: Map<TerminalId, string>
     readonly outputRingSize: number
     readonly appendRingBuffer: (previous: string, chunk: Buffer, size: number) => string
+}
+
+export type ExitFacts = {
+    readonly code: number | null
+    readonly output: string
+    readonly spawnedChildren: boolean
+    readonly terminalId: TerminalId
 }
 
 function appendChildOutput(
@@ -30,8 +37,68 @@ function hasActiveChildren(terminalId: TerminalId, records: readonly TerminalRec
 }
 
 /**
+ * Pure decision function: derive diagnostic log entries from exit facts.
+ * 0–2 entries. Black-box testable via table-driven cases.
+ */
+export function classifyExit(facts: ExitFacts): readonly HeadlessLogEntry[] {
+    const {code, output, spawnedChildren, terminalId} = facts
+    const hasOutput: boolean = output.trim().length > 0
+    const entries: HeadlessLogEntry[] = []
+
+    if (code !== 0 && code !== null) {
+        entries.push({
+            level: 'error',
+            message: `[headlessAgentManager] Agent ${terminalId} exited with code ${code}. Last output: ${output.slice(-500)}`,
+        })
+    } else if (!hasOutput) {
+        entries.push({
+            level: 'warn',
+            message: `[headlessAgentManager] Agent ${terminalId} exited code=${code} with ZERO output - likely silent failure`,
+        })
+    }
+
+    if (hasOutput && !spawnedChildren && code === 0) {
+        entries.push({
+            level: 'warn',
+            message: `[headlessAgentManager] Agent ${terminalId} exited without spawning a successor - possible missed handover`,
+        })
+    }
+
+    return entries
+}
+
+/**
+ * Side-effect-at-edge: run stop gate audit; resume with deficiency if hooks fail
+ * and we're still under the retry budget. Returns whether the caller's lifecycle
+ * has been "consumed" by a resume (caller must NOT delete process state).
+ *
+ * Retry semantics: resume only if record exists AND auditRetryCount < 2 (strict).
+ */
+async function runAuditAndMaybeResume(
+    terminalId: TerminalId,
+    deps: HeadlessAgentDeps,
+    state: HeadlessLifecycleState,
+): Promise<{readonly resumed: boolean}> {
+    const graph: Graph = await deps.getGraph()
+    const records: readonly TerminalRecord[] = deps.getTerminalRecords()
+    if (hasActiveChildren(terminalId, records)) return {resumed: false}
+
+    const hookResult: StopHookResult = await deps.runStopHooks(terminalId, graph, records)
+    if (hookResult.passed) return {resumed: false}
+
+    const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
+    if (record && record.auditRetryCount < 2) {
+        resumeWithDeficiency(terminalId, record, hookResult.message ?? 'Stop gate hooks failed', deps, state)
+        return {resumed: true}
+    }
+
+    deps.writeLog({level: 'warn', message: `[headlessAgentManager] Agent ${terminalId} FAILED audit after 2 retries`})
+    return {resumed: false}
+}
+
+/**
  * Shared exit handler for both initial spawn and resumed agents.
- * Runs stop gate audit on successful exit and resumes with deficiency if needed.
+ * Pipeline: gather facts → log decisions → mark exited → audit/resume → cleanup.
  */
 export async function handleAgentExit(
     terminalId: TerminalId,
@@ -40,38 +107,17 @@ export async function handleAgentExit(
     state: HeadlessLifecycleState,
 ): Promise<void> {
     const output: string = state.lastOutputByTerminal.get(terminalId) ?? ''
-    const hasOutput: boolean = output.trim().length > 0
-    if (code !== 0 && code !== null) {
-        deps.writeLog({ level: 'error', message: `[headlessAgentManager] Agent ${terminalId} exited with code ${code}. Last output: ${output.slice(-500)}` })
-    } else if (!hasOutput) {
-        deps.writeLog({ level: 'warn', message: `[headlessAgentManager] Agent ${terminalId} exited code=${code} with ZERO output - likely silent failure` })
-    }
-
     const spawnedChildren: boolean = deps.getTerminalRecords().some(
         r => r.terminalData.parentTerminalId === terminalId
     )
-    if (hasOutput && !spawnedChildren && code === 0) {
-        deps.writeLog({ level: 'warn', message: `[headlessAgentManager] Agent ${terminalId} exited without spawning a successor - possible missed handover` })
+    for (const entry of classifyExit({code, output, spawnedChildren, terminalId})) {
+        deps.writeLog(entry)
     }
-
     deps.markTerminalExited(terminalId, code)
 
-    // Stop gate audit derives SKILL.md from graph at audit time.
-    // Skip audit if active child agents may still satisfy the parent's obligations.
     if (code === 0 || code === null) {
-        const graph: Graph = await deps.getGraph()
-        const records: readonly TerminalRecord[] = deps.getTerminalRecords()
-        if (!hasActiveChildren(terminalId, records)) {
-            const hookResult: StopHookResult = await deps.runStopHooks(terminalId, graph, records)
-            const record: TerminalRecord | undefined = records.find(r => r.terminalId === terminalId)
-            if (!hookResult.passed && record && record.auditRetryCount < 2) {
-                resumeWithDeficiency(terminalId, record, hookResult.message ?? 'Stop gate hooks failed', deps, state)
-                return
-            }
-            if (!hookResult.passed) {
-                deps.writeLog({ level: 'warn', message: `[headlessAgentManager] Agent ${terminalId} FAILED audit after 2 retries` })
-            }
-        }
+        const {resumed} = await runAuditAndMaybeResume(terminalId, deps, state)
+        if (resumed) return
     }
 
     state.headlessProcesses.delete(terminalId)

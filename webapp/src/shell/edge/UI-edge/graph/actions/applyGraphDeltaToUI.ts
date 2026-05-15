@@ -11,7 +11,7 @@ import {syncLargeGraphPerformanceMode} from "@/shell/UI/cytoscape-graph-ui/servi
 import {getTerminals} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {hasActualContentChanged} from "@vt/graph-model/pure/graph/contentChangeDetection";
+import {hasActualContentChanged} from "@vt/graph-model/graph";
 import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
 
 function isValidCSSColor(color: string): boolean {

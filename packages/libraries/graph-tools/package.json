@@ -7,7 +7,12 @@
     ".": "./src/index.ts",
     "./node": "./src/node.ts",
     "./graphLint": "./src/lint/graphLint.ts",
-    "./autoView": "./src/view/autoView.ts"
+    "./autoView": "./src/view/autoView.ts",
+    "./debug/*": "./src/debug/*.ts",
+    "./live/*": "./src/live/*.ts",
+    "./view/*": "./src/view/*.ts",
+    "./scripts/*": "./scripts/*.ts",
+    "./commands/*": "./src/commands/*.ts"
   },
   "bin": {
     "vt-graph": "bin/vt-graph.ts",

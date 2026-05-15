@@ -1,10 +1,8 @@
-import path from 'path'
-import { fileURLToPath, pathToFileURL } from 'url'
-
-import { err, ok } from '../../debug/protocol/Response'
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import type { Response } from '../../debug/protocol/Response'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { resolveChromium } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 import { registerCommand } from '../index'
 
 interface PageLike {
@@ -140,38 +138,6 @@ function serializeEvalValue(value) {
   return walk(value)
 }
 `
-
-function extractChromium(pw: unknown): ChromiumLike {
-  const direct = (pw as Record<string, unknown>).chromium
-  if (direct) return direct as ChromiumLike
-
-  const def = (pw as Record<string, unknown>).default
-  if (def && (def as Record<string, unknown>).chromium) {
-    return (def as Record<string, unknown>).chromium as ChromiumLike
-  }
-
-  throw new Error('playwright-core loaded but chromium export not found')
-}
-
-async function resolveChromium(): Promise<ChromiumLike> {
-  try {
-    const pw = await import('playwright-core')
-    return extractChromium(pw)
-  } catch {
-    const dir = path.dirname(fileURLToPath(import.meta.url))
-    const webappNm = path.resolve(dir, '../../../../../webapp/node_modules')
-    const pwPath = path.resolve(webappNm, 'playwright-core/index.js')
-
-    try {
-      const pw = await import(pathToFileURL(pwPath).href)
-      return extractChromium(pw)
-    } catch (e2) {
-      throw new Error(
-        `playwright-core not found. Install with: npm install playwright-core\nDetail: ${String(e2)}`,
-      )
-    }
-  }
-}
 
 export function serializeEvalValue(value: unknown): unknown {
   const seen = new WeakSet<object>()
@@ -453,7 +419,7 @@ async function evalHandler(argv: string[]): Promise<Response<unknown>> {
 
   let chromium: ChromiumLike
   try {
-    chromium = await resolveChromium()
+    chromium = (await resolveChromium()) as unknown as ChromiumLike
   } catch (e) {
     return err('eval', String(e), undefined, 3)
   }

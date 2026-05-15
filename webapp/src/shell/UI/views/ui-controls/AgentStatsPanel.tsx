@@ -1,11 +1,11 @@
 import type { JSX } from 'react';
 import { useState, useMemo } from 'react';
 import { cn } from '@/utils/lib/utils';
-import { useAgentMetrics, type SessionMetric } from './hooks/useAgentMetrics';
-import { SessionDurationChart } from './components/SessionDurationChart';
-import { AvgTokensChart } from './components/AvgTokensChart';
-import { TotalTokensChart } from './components/TotalTokensChart';
-import { UsageSection } from './components/UsageSection';
+import { useAgentMetrics, type SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
+import { SessionDurationChart } from '@/shell/UI/views/components/SessionDurationChart';
+import { AvgTokensChart } from '@/shell/UI/views/components/AvgTokensChart';
+import { TotalTokensChart } from '@/shell/UI/views/components/TotalTokensChart';
+import { UsageSection } from '@/shell/UI/views/components/UsageSection';
 
 type TimeFilter = 'today' | 'week' | 'all';
 

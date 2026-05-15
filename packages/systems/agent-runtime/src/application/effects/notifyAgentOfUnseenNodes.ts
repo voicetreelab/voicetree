@@ -1,7 +1,10 @@
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {sendTextToTerminal} from '../inject/send-text-to-terminal'
-import {getRuntimeGraph, getRuntimeUnseenNodesAroundContextNode} from '../runtime/graph-bridge'
+import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
+import {
+    getRuntimeGraph,
+    getRuntimeUnseenNodesAroundContextNode,
+} from '@vt/agent-runtime/runtime/graph-bridge'
 import {
     NOTIFICATION_COOLDOWN_MS,
     notificationStateByTerminal,
@@ -9,7 +12,7 @@ import {
     type TerminalRegistryClock,
     type TerminalRegistryLogger,
     type UnseenNodesNotificationState,
-} from './terminal-registry-state'
+} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
 
 type UnseenNode = Awaited<ReturnType<typeof getRuntimeUnseenNodesAroundContextNode>>[number]
 

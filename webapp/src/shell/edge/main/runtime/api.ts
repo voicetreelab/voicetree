@@ -5,10 +5,10 @@
  * Each function should be defined in its own module.
  */
 
-import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
+import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from './graph/watch_folder/watchFolder'
-import {getDirectoryTree} from './graph/watch_folder/folderScanning'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/daemon-graph-queries'
@@ -37,8 +37,8 @@ import {
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
-import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from './graph/watch_folder/starredFolders';
-import {listWorkflows, readSkillFile, readSkillFileSummary} from './workflows/workflowHandlers';
+import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from '@/shell/edge/main/graph/watch_folder/starredFolders';
+import {listWorkflows, readSkillFile, readSkillFileSummary} from '@/shell/edge/main/workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,
   collapseFolderThroughDaemon,

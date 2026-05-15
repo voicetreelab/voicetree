@@ -189,9 +189,8 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-state/**/*.md
 !docker/**/*.md
 
-# MCP config
+# MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
-!/.mcp.json
 
 # Wrangler
 **/.wrangler/**

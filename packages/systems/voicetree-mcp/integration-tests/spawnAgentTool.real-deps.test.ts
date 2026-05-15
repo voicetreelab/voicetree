@@ -22,24 +22,24 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {initGraphModel} from '@vt/graph-model'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {
-    recordTerminalSpawn,
-    clearTerminalRecords,
-    clearAllBudgets,
-    setTerminalBudget,
-} from '@vt/agent-runtime'
+import {recordTerminalSpawn} from '@vt/agent-runtime/terminals/terminal-registry/spawn.ts'
+import {clearTerminalRecords} from '@vt/agent-runtime/terminals/terminal-registry/queries.ts'
+import {clearAllBudgets, setTerminalBudget} from '@vt/agent-runtime/terminals/global-budget-registry.ts'
 import type {TerminalData, TerminalId} from '@vt/agent-runtime'
-import {createTerminalData} from '@vt/agent-runtime'
+import {createTerminalData} from '@vt/agent-runtime/types'
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
     let spawnCounter: number = 0
     return {
         ...actual,
-        spawnTerminalWithContextNode: vi.fn().mockImplementation(async () => {
-            spawnCounter += 1
-            return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
-        }),
+        agentRuntime: {
+            ...actual.agentRuntime,
+            spawnTerminalWithContextNode: vi.fn().mockImplementation(async () => {
+                spawnCounter += 1
+                return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
+            }),
+        },
     }
 })
 

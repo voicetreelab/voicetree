@@ -1,11 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
-import { type DebugInstance } from '../../debug/protocol/discover'
-import { openDebugSession, type DebugSession, type PageLike } from '../../debug/protocol/playwrightSession'
-import { resolveDebugInstance } from '../../debug/protocol/portResolution'
-import { err, ok } from '../../debug/protocol/Response'
-import type { Response } from '../../debug/protocol/Response'
+import { type DebugInstance } from '@vt/graph-tools/debug/protocol/discover'
+import { openDebugSession, type DebugSession, type PageLike } from '@vt/graph-tools/debug/protocol/playwrightSession'
+import { resolveDebugInstance } from '@vt/graph-tools/debug/protocol/portResolution'
+import { err, ok } from '@vt/graph-tools/debug/protocol/Response'
+import type { Response } from '@vt/graph-tools/debug/protocol/Response'
 import { extractSelectorFlags, registerCommand } from '../index'
 
 type PrettySetupResult = {

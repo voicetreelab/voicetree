@@ -34,7 +34,7 @@ import {
     startMcpServer,
     type McpServerHandle,
 } from '@vt/voicetree-mcp'
-import {configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
+import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 
 interface Args {
     readonly vault: string
@@ -163,7 +163,7 @@ async function main(): Promise<void> {
             await mcpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: mcp stop error: ${(err as Error).message}\n`)
             })
-            getTerminalManager().cleanup()
+            agentRuntime.getTerminalManager().cleanup()
             await daemonHandle.stop()
             process.exit(0)
         } catch (err) {

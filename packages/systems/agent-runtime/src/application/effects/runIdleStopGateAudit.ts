@@ -1,13 +1,13 @@
 import type {Graph} from '@vt/graph-model/graph'
-import {sendTextToTerminal} from '../inject/send-text-to-terminal'
-import {runStopHooks, type StopHookResult} from '../hooks/stopGateHookRunner'
-import {
-    hasActiveChildren,
-    type TerminalRecord,
-    type TerminalRegistryLogger,
-} from './terminal-registry-state'
+import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
+import {runStopHooks, type StopHookResult} from '@vt/agent-runtime/hooks/stopGateHookRunner.ts'
+import {hasActiveChildren} from '@vt/agent-runtime/terminals/terminal-registry-state.ts'
+import type {
+    TerminalRecord,
+    TerminalRegistryLogger,
+} from '../domain/session.ts'
 
-type IdleStopGateAuditDeps = {
+export type IdleStopGateAuditDeps = {
     readonly records: readonly TerminalRecord[]
     readonly graph: Graph
     readonly incrementAuditRetryCount: (terminalId: string) => void
