@@ -1,7 +1,5 @@
 import {
   UnseenNodeSchema,
-  VaultStateSchema,
-  type OpenVaultResponse,
   type UnseenNode,
 } from './contract.ts'
 
@@ -33,42 +31,6 @@ export const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
       throw new Error('Invalid write-path response body')
     }
     return { writePath: input.writePath }
-  },
-}
-
-function isFolderStateEntry(value: unknown): value is [string, 'expanded' | 'collapsed' | 'hidden'] {
-  return Array.isArray(value)
-    && value.length === 2
-    && typeof value[0] === 'string'
-    && (value[1] === 'expanded' || value[1] === 'collapsed' || value[1] === 'hidden')
-}
-
-export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
-  parse(input: unknown) {
-    if (
-      !isObject(input)
-      || typeof input.sessionId !== 'string'
-      || typeof input.writePath !== 'string'
-      || !Array.isArray(input.folderState)
-      || !input.folderState.every(isFolderStateEntry)
-      || !isObject(input.activeView)
-      || typeof input.activeView.viewId !== 'string'
-      || typeof input.activeView.name !== 'string'
-    ) {
-      throw new Error('Invalid open-vault response body')
-    }
-
-    return {
-      sessionId: input.sessionId,
-      writePath: input.writePath,
-      vaultState: VaultStateSchema.parse(input.vaultState),
-      initialProjectedGraph: input.initialProjectedGraph,
-      folderState: input.folderState,
-      activeView: {
-        viewId: input.activeView.viewId,
-        name: input.activeView.name,
-      },
-    }
   },
 }
 

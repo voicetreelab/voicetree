@@ -1,9 +1,3 @@
-import type {
-  ActiveView,
-  FolderStateEntry,
-  VaultState,
-} from '@vt/graph-db-protocol'
-
 export {
   CONTRACT_VERSION,
   AddReadPathRequestSchema,
@@ -40,12 +34,3 @@ export {
   type VaultState,
   type ViewResponse,
 } from '@vt/graph-db-protocol'
-
-export type OpenVaultResponse = {
-  sessionId: string
-  writePath: string
-  vaultState: VaultState
-  initialProjectedGraph: unknown
-  folderState: FolderStateEntry[]
-  activeView: ActiveView
-}

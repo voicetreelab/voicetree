@@ -18,7 +18,6 @@ import {
   type LayoutPartial,
   type LayoutResponse,
   type LiveStateSnapshot,
-  type OpenVaultResponse,
   type SelectionRequest,
   type SelectionResponse,
   type SessionInfo,
@@ -27,12 +26,7 @@ import {
   type VaultState,
   type ViewResponse,
 } from './contract.ts'
-import {
-  DaemonUnreachableError,
-  GraphDbClientError,
-  VaultNotOpenError,
-  VaultOpenFailedError,
-} from './errors.ts'
+import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
 import {
   ContextNodeFromQuestionResponseSchema,
@@ -40,7 +34,6 @@ import {
   FindFileMatchesResponseSchema,
   PreviewContainedNodeIdsResponseSchema,
   ReadPathsMutationResponseSchema,
-  OpenVaultResponseSchema,
   UndoRedoResponseSchema,
   UnknownResponseSchema,
   UnseenNodesResponseSchema,
@@ -64,7 +57,7 @@ type GetSessionStateOptions = {
 
 type ErrorPayload = {
   code?: string
-  error?: string | { code?: string; message?: string }
+  error?: string
   message?: string
 }
 
@@ -113,17 +106,7 @@ async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
     }
     return {
       code: typeof body.code === 'string' ? body.code : undefined,
-      error:
-        typeof body.error === 'string'
-          ? body.error
-          : isObject(body.error)
-            ? {
-                code: typeof body.error.code === 'string' ? body.error.code : undefined,
-                message: typeof body.error.message === 'string'
-                  ? body.error.message
-                  : undefined,
-              }
-            : undefined,
+      error: typeof body.error === 'string' ? body.error : undefined,
       message: typeof body.message === 'string' ? body.message : undefined,
     }
   } catch {
@@ -180,21 +163,6 @@ export class GraphDbClient {
   async getVault(): Promise<VaultState> {
     return await this.request('/vault', {
       responseSchema: VaultStateSchema,
-    })
-  }
-
-  async openVault(path: string, opts: { writePath?: string } = {}): Promise<OpenVaultResponse> {
-    return await this.request('/vault/open', {
-      body: opts.writePath === undefined ? { path } : { path, writePath: opts.writePath },
-      method: 'POST',
-      responseSchema: OpenVaultResponseSchema,
-    })
-  }
-
-  async closeVault(): Promise<void> {
-    await this.request('/vault/close', {
-      expectNoContent: true,
-      method: 'POST',
     })
   }
 
@@ -503,19 +471,8 @@ export class GraphDbClient {
     response: Response,
   ): Promise<GraphDbClientError> {
     const payload = await parseErrorPayload(response)
-    const nestedError = isObject(payload.error) ? payload.error : undefined
-    const code = payload.code ?? nestedError?.code ?? `http_${response.status}`
-    const message =
-      payload.message
-      ?? nestedError?.message
-      ?? (typeof payload.error === 'string' ? payload.error : undefined)
-      ?? response.statusText
-    if (response.status === 409 && code === 'vault_not_open') {
-      return new VaultNotOpenError(message)
-    }
-    if (response.status === 409 && code === 'vault_open_failed') {
-      return new VaultOpenFailedError(message)
-    }
+    const code = payload.code ?? `http_${response.status}`
+    const message = payload.message ?? payload.error ?? response.statusText
     return new GraphDbClientError(response.status, code, message)
   }
 }

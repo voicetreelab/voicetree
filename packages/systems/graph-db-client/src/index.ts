@@ -4,8 +4,6 @@ export {
   DaemonLockHeldError,
   DaemonUnreachableError,
   GraphDbClientError,
-  VaultNotOpenError,
-  VaultOpenFailedError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {

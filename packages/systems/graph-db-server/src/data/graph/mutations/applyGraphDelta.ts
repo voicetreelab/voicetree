@@ -10,7 +10,6 @@ import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
 import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
-import { VaultNotOpenError } from '../../../application/errors/vaultNotOpen.ts'
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -79,7 +78,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     const watchedDirectory: string = pipe(
         O.fromNullable(getProjectRootWatchedDirectory()),
         O.getOrElseW(() => {
-            throw new VaultNotOpenError()
+            throw new Error('Watched directory not initialized')
         })
     )
 

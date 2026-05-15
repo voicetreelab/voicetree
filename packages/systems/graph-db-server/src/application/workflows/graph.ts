@@ -17,7 +17,6 @@ import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes
 import { getGraph, getNode, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 const GraphDeltaRequestSchema = z.array(
@@ -189,9 +188,6 @@ export async function applyGraphDeltaWorkflow(
     publish({ delta, source: `session:${sessionId}` })
     return jsonResult({ delta, graph: GraphStateSchema.parse(getGraph()) })
   } catch (error) {
-    if (error instanceof VaultNotOpenError) {
-      return structuredVaultErrorResult(error)
-    }
     return errorResult((error as Error).message, 'GRAPH_DELTA_APPLY_FAILED', 500)
   }
 }
@@ -239,7 +235,7 @@ export async function findFileWorkflow(name: string | undefined): Promise<HttpRe
 
   const searchPath = getProjectRootWatchedDirectory()
   if (!searchPath) {
-    return structuredVaultErrorResult(new VaultNotOpenError())
+    return errorResult('No vault is currently open', 'NO_VAULT', 503)
   }
 
   const matches = await findFileByName(name, searchPath)
@@ -372,7 +368,7 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
 
   const projectRoot = getProjectRootWatchedDirectory()
   if (!projectRoot) {
-    return structuredVaultErrorResult(new VaultNotOpenError())
+    return errorResult('No vault is currently open', 'NO_VAULT', 503)
   }
 
   try {
