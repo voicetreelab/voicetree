@@ -3,6 +3,8 @@ export interface AgentConfig {
     readonly command: string;
 }
 
+export type PtyBackend = 'node-pty' | 'tmux';
+
 /** Returns the default agent (by name match), falling back to agents[0]. */
 export function getDefaultAgent(agents: readonly AgentConfig[], defaultAgentName?: string): AgentConfig | undefined {
     if (defaultAgentName) {
@@ -82,6 +84,8 @@ export interface HookSettings {
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
+    /** Backend used for agent PTY ownership. Defaults to node-pty until the tmux migration is explicitly enabled. */
+    readonly ptyBackend: PtyBackend;
     readonly shiftEnterSendsOptionEnter: boolean;
     readonly INJECT_ENV_VARS: Record<string, EnvVarValue>;
     /** Maximum traversal distance when creating context nodes */

@@ -7,6 +7,8 @@ import {
     enqueuePendingTerminalMessage,
     findTerminalRecord,
     getPendingTerminalState,
+    isTmuxHeadlessTerminal,
+    sendHeadlessTerminalText,
     sendTerminalText,
     terminalExists,
     type TerminalRecord,
@@ -64,8 +66,32 @@ export async function sendMessageTool({
         }, true)
     }
 
-    // 2b. Guard: headless agents have no PTY/stdin — cannot receive messages
+    // 2b. Tmux-backed headless agents receive input via tmux send-keys.
     if (targetRecord.terminalData.isHeadless) {
+        if (isTmuxHeadlessTerminal(terminalId)) {
+            try {
+                const prefixedMessage: string = buildPrefixedMessage(callerTerminalId, message)
+                const result: Awaited<ReturnType<typeof sendHeadlessTerminalText>> = await sendHeadlessTerminalText(terminalId, prefixedMessage)
+                if (!result.success) {
+                    return buildJsonResponse({
+                        success: false,
+                        error: result.error ?? 'Failed to send message'
+                    }, true)
+                }
+                return buildJsonResponse({
+                    success: true,
+                    terminalId,
+                    message: `Successfully sent message to tmux-backed headless terminal: ${terminalId}`
+                })
+            } catch (error) {
+                const errorMessage: string = error instanceof Error ? error.message : String(error)
+                return buildJsonResponse({
+                    success: false,
+                    error: errorMessage
+                }, true)
+            }
+        }
+
         return buildJsonResponse({
             success: false,
             error: `Cannot send message to headless agent "${terminalId}". Headless agents have no terminal input. They receive work via their task node and produce output as graph nodes. Use get_unseen_nodes_nearby to read their output.`

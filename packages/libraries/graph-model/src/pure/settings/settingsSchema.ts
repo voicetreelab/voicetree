@@ -142,6 +142,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
         ] as readonly AgentConfig[],
         section: 'agents',
     },
+    ptyBackend: { default: 'node-pty', section: 'agents', label: 'PTY Backend' },
     INJECT_ENV_VARS: {
         default: {
             AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH

@@ -1,4 +1,4 @@
-import { closeHeadlessAgent, getHeadlessAgentOutput } from '../application/headless/headlessAgentManager'
+import { closeHeadlessAgent, getHeadlessAgentOutput, isTmuxHeadlessAgent, sendHeadlessAgentInput } from '../application/headless/headlessAgentManager'
 import { dispatchOnNewNodeHooks } from '../application/hooks/onNewNodeHook'
 import { runStopHooks } from '../application/hooks/stopGateHookRunner'
 import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
@@ -36,6 +36,7 @@ export const agentRuntime = {
     enqueuePendingMessage,
     getExistingAgentNames,
     getHeadlessAgentOutput,
+    isTmuxHeadlessAgent,
     getIdleSince,
     getPendingTerminal,
     getOutput,
@@ -49,6 +50,7 @@ export const agentRuntime = {
     resetAuditRetryCount,
     runStopHooks,
     sendTextToTerminal,
+    sendHeadlessAgentInput,
     shouldFlipToActiveOnOutput,
     spawnPlainTerminal,
     spawnPlainTerminalWithNode,
