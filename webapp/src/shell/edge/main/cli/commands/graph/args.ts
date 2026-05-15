@@ -1,5 +1,5 @@
 import type {StructureManifest} from '@vt/graph-tools/node'
-import {error} from '../../output.ts'
+import {error} from '../graphCliDependencies.ts'
 import {readGraphFileUtf8} from './filesystem.ts'
 import type {GraphCreateNode, ParsedGraphCreateArgs} from './types.ts'
 import {getErrorMessage} from './util.ts'

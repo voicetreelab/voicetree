@@ -1,5 +1,5 @@
 import type {TerminalData} from './types'
-import {sendTextToTerminal} from '../../inject/send-text-to-terminal'
+import {sendTextToTerminal} from '@vt/agent-runtime/inject/send-text-to-terminal.ts'
 import {
     notificationStateByTerminal,
     pendingTerminals,

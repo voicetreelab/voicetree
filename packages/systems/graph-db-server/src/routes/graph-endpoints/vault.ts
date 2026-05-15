@@ -5,7 +5,7 @@ import {
   readVaultWorkflow,
   removeReadPathWorkflow,
   setWritePathWorkflow,
-} from '../../application/workflows/vault.ts'
+} from '@vt/graph-db-server/application/workflows/vault'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountVaultRoutes(app: Hono): void {

@@ -1,7 +1,7 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
 import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
 import {getNodeTitle, parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
-import {getGraph} from '../../state/graph-store'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'

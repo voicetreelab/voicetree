@@ -1,8 +1,8 @@
 import type { Hono } from 'hono'
 import {
   updateLayoutWorkflow,
-} from '../../application/workflows/layout.ts'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+} from '@vt/graph-db-server/application/workflows/layout'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountLayoutRoutes(

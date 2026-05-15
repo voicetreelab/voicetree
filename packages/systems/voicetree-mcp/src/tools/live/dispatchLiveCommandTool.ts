@@ -18,7 +18,7 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
-import { getLiveStateBridge } from '../../config/mcp-config'
+import { getLiveStateBridge } from '../mcpConfigDependencies'
 
 import { buildJsonResponse } from '../toolResponse'
 import type { McpToolResponse } from '../toolResponse'

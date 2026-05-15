@@ -4,10 +4,10 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '../..'
-import { createGraph, createEmptyGraph } from '../../createGraph'
 import { getIncomingNodes } from '../getIncomingNodes'
 import { setOutgoingEdges } from '../graph-edge-operations'
 import { removeContextNodes } from '../removeContextNodes'
+import { createEmptyGraph, createGraph } from '../graphOperationPrimitives'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.

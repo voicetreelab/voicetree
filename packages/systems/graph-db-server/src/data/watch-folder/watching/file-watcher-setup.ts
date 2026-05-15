@@ -14,8 +14,8 @@ import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { FilePath, FSUpdate, FSDelete } from '@vt/graph-model/graph';
 import { isImageNode } from '@vt/graph-model/graph';
-import { handleFSEventWithStateAndUISides } from "../../graph/watching/handleFSEvent";
-import { getWatcher, setWatcher } from "../../../state/watch-folder-store";
+import { handleFSEventWithStateAndUISides } from "@vt/graph-db-server/graph/handleFSEvent";
+import { getWatcher, setWatcher } from "@vt/graph-db-server/state/watch-folder-store";
 import { broadcastFolderTree } from "../broadcast/broadcast-folder-tree";
 import { clearPendingWrite, isPendingWrite } from "../pending-writes";
 

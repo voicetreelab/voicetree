@@ -1,11 +1,9 @@
 import normalizePath from 'normalize-path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '../..'
-import { linkMatchScore } from '../../markdown-parsing/extract-edges'
-import { getFolderDescendantNodeIds, getFolderParent } from '../../folderCollapse'
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
-import { stableIdSuffix } from '../../stableIdSuffix'
+import { getFolderDescendantNodeIds, getFolderParent, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean

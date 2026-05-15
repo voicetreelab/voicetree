@@ -8,7 +8,7 @@ import {type McpToolResponse, buildJsonResponse} from '../types'
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
-} from '../../agents/agent-completion-monitor'
+} from '../agentDependencies'
 import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
 export interface WaitForAgentsParams {

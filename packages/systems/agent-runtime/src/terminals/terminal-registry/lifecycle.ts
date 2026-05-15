@@ -1,8 +1,8 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeGraph} from '../../runtime/graph-bridge'
-import {classifyExit} from '../../lifecycle/exit'
-import type {TerminalLifecycle, TerminalKillReason} from '../../lifecycle/types'
+import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
+import {classifyExit} from '@vt/agent-runtime/lifecycle'
+import type {TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
 import {runIdleStopGateAudit} from '../terminal-registry-audit'
 import {notifyAgentOfUnseenNodes} from '../terminal-registry-notifications'
 import {

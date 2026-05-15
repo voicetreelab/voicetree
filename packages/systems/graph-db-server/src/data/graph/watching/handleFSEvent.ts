@@ -2,14 +2,14 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {getGraph} from "../../../state/graph-store";
+import {getGraph} from "@vt/graph-db-server/state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {
     applyGraphDeltaToMemState,
     refreshGraphChangeSideEffects
 } from "../mutations/applyGraphDelta";
-import {isOurRecentDelta} from "../../../state/recent-deltas-store";
-import {publish} from "../../../state/events/deltaEventBus";
+import {isOurRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
+import {publish} from "@vt/graph-db-server/state/events/deltaEventBus";
 
 /**
  * Handle filesystem events by:

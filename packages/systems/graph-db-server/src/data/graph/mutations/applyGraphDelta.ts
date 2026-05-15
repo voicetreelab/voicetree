@@ -3,11 +3,11 @@ import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
-import {recordUserActionAndSetDeltaHistoryState} from '../../../state/undo-store'
+import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
-import {getGraph, setGraph} from "../../../state/graph-store";
+import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
-import {getProjectRootWatchedDirectory} from "../../../state/watch-folder-store";
+import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
 

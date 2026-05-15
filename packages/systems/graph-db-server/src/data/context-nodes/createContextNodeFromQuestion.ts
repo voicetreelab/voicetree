@@ -1,6 +1,6 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
 import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
-import {getGraph} from '../../state/graph-store'
+import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
 import {type VTSettings} from '@vt/graph-model/settings'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'

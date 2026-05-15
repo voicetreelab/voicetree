@@ -1,7 +1,7 @@
 import {
   LayoutPartialSchema,
   LayoutResponseSchema,
-} from '../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 

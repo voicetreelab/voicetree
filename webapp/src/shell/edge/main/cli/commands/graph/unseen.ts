@@ -1,5 +1,5 @@
-import {callMcpTool} from '../../mcp-client.ts'
-import {error, output} from '../../output.ts'
+import {callMcpTool} from '../graphCliDependencies.ts'
+import {error, output} from '../graphCliDependencies.ts'
 import {getErrorMessage, getRequiredValue, requireTerminalId} from './args.ts'
 import type {GraphUnseenNode, GraphUnseenSuccess, ToolFailure} from './types.ts'
 

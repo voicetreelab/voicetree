@@ -3,14 +3,14 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every `.ts` file in `scripts/measures/`
+// Measure inventory is auto-detected: every `.ts` file under `scripts/measures/`
 // (excluding `_*.ts`) is dynamically imported and must export `check: CheckDef`.
-// Adding a new check = drop a new .ts file in that folder.
+// Adding a new check = drop a new .ts file anywhere in that tree.
 
 import {spawn} from 'node:child_process'
 import {mkdir, mkdtemp, readdir, readFile, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
-import {dirname, join, resolve} from 'node:path'
+import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../packages/systems/_ci-check-writer.ts'
@@ -23,52 +23,79 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 
 // ── Auto-detected measure inventory ──────────────────────────────────────────
 
-async function loadChecks() {
-    const entries = await readdir(MEASURES_DIR, {withFileTypes: true})
-    const files = entries
-        .filter(e => e.isFile() && e.name.endsWith('.ts') && !e.name.startsWith('_'))
-        .map(e => e.name)
-        .sort()
+async function discoverMeasureFiles(dir = MEASURES_DIR) {
+    const entries = await readdir(dir, {withFileTypes: true})
+    const nested = await Promise.all(entries.map(async entry => {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) return discoverMeasureFiles(path)
+        if (!entry.isFile() || !entry.name.endsWith('.ts') || entry.name.startsWith('_')) return []
+        return [path]
+    }))
+    return nested.flat()
+}
+
+async function loadChecks(folder = null) {
+    const files = (await discoverMeasureFiles())
+        .filter(file => folder === null || relativePath(relative(MEASURES_DIR, file)).startsWith(`${folder}/`))
+        .sort((a, b) => relativePath(relative(MEASURES_DIR, a)).localeCompare(relativePath(relative(MEASURES_DIR, b))))
     const checks = []
     for (const file of files) {
-        const url = pathToFileURL(join(MEASURES_DIR, file)).href
+        const measurePath = `scripts/measures/${relativePath(relative(MEASURES_DIR, file))}`
+        const url = pathToFileURL(file).href
         const mod = await import(url)
-        if (!mod.check) throw new Error(`measure file ${file} must export \`check\``)
-        checks.push(mod.check)
+        if (!mod.check) throw new Error(`measure file ${measurePath} must export \`check\``)
+        checks.push({...mod.check, measurePath, measureFolder: measureFolderFor(measurePath)})
     }
     return checks
 }
 
-const CHECKS = await loadChecks()
+function relativePath(path) {
+    return path.split(sep).join('/')
+}
+
+function normalizeMeasureFolder(folder) {
+    if (!folder) return null
+    const normalized = folder.replace(/^scripts\/measures\//, '').replace(/^\/+|\/+$/g, '')
+    if (normalized.includes('..')) throw new Error(`measure folder must stay inside scripts/measures: ${folder}`)
+    return normalized
+}
+
+function measureFolderFor(measurePath) {
+    const relativeMeasure = measurePath.replace(/^scripts\/measures\//, '')
+    const slash = relativeMeasure.indexOf('/')
+    return slash === -1 ? '' : relativeMeasure.slice(0, slash)
+}
 
 // ── CLI parsing ──────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-    const opts = {quick: false, failFast: false, only: null, help: false}
+    const opts = {quick: false, failFast: false, only: null, folder: null, help: false}
     for (const arg of argv) {
         if (arg === '--quick') opts.quick = true
         else if (arg === '--fail-fast') opts.failFast = true
         else if (arg === '-h' || arg === '--help') opts.help = true
         else if (arg.startsWith('--only=')) opts.only = new Set(arg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean))
+        else if (arg.startsWith('--folder=')) opts.folder = normalizeMeasureFolder(arg.slice('--folder='.length))
         else throw new Error(`unknown flag: ${arg}`)
     }
     return opts
 }
 
-function printHelp() {
+function printHelp(checks) {
     const lines = [
         'capture-ci-checks — run every locally-runnable CI/CD check and record reports.',
         '',
         'Usage:',
-        '  npm run health:capture-ci -- [--quick] [--only=id1,id2,...] [--fail-fast]',
+        '  npm run health:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--fail-fast]',
         '',
         'Flags:',
         '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
+        '  --folder=<path>   run only checks under scripts/measures/<path>.',
         '  --fail-fast       still records every check that ran, but stops scheduling after the first fail.',
         '',
         'Check ids:',
-        ...CHECKS.map(c => `  ${c.id.padEnd(24)} ${c.category.padEnd(11)} ${c.display}`),
+        ...checks.map(c => `  ${c.id.padEnd(32)} ${c.category.padEnd(11)} ${c.measurePath}`),
     ]
     console.log(lines.join('\n'))
 }
@@ -227,7 +254,7 @@ async function recordOutcome(check, outcome) {
         ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail)
         : undefined
     /** @type {Record<string, unknown>} */
-    const details = {exitCode: outcome.exitCode}
+    const details = {exitCode: outcome.exitCode, measurePath: check.measurePath, measureFolder: check.measureFolder}
     if (outcome.timedOut) details.timedOut = true
     if (outcome.signal) details.signal = outcome.signal
     if (outcome.spawnError) details.spawnError = outcome.spawnError
@@ -251,13 +278,14 @@ async function recordOutcome(check, outcome) {
 
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
+    const checks = await loadChecks(opts.folder)
     if (opts.help) {
-        printHelp()
+        printHelp(checks)
         return 0
     }
 
     if (opts.only) {
-        const ids = new Set(CHECKS.map(c => c.id))
+        const ids = new Set(checks.map(c => c.id))
         for (const id of opts.only) {
             if (!ids.has(id)) {
                 console.error(`unknown --only id: ${id}`)
@@ -268,11 +296,12 @@ async function main() {
 
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
 
-    console.log(`\n  capture-ci-checks · ${CHECKS.length} checks total\n`)
+    const scope = opts.folder ? ` under scripts/measures/${opts.folder}` : ''
+    console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
 
     let failed = 0
     let stopScheduling = false
-    for (const check of CHECKS) {
+    for (const check of checks) {
         const explicitOnly = opts.only && !opts.only.has(check.id)
         const skipForQuick = opts.quick && check.slow === true
         const skipForFailFast = stopScheduling

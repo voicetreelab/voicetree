@@ -3,7 +3,7 @@
  * Called after any vault path or starred folder mutation.
  */
 
-import { getVaultPaths, getWritePath } from '../../../state/vaultAllowlist';
+import { getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist';
 import { getStarredFolders } from '../starred-folders';
 import { broadcastFolderTreeImmediate } from './broadcast-folder-tree';
 import * as O from 'fp-ts/lib/Option.js';

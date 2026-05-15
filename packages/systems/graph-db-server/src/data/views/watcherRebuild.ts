@@ -6,10 +6,10 @@
 
 import * as O from 'fp-ts/lib/Option.js'
 import type { FilePath } from '@vt/graph-model/graph'
-import { getWatcher, setWatcher, getProjectRootWatchedDirectory } from '../../state/watch-folder-store'
+import { getWatcher, setWatcher, getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { onViewSwitched } from './viewsStore'
 import { getWatchRootsForActiveView } from '../watch-folder/folder-visibility-active-view'
-import { getWritePath } from '../../state/vaultAllowlist'
+import { getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
 import { setupWatcher } from '../watch-folder/watching/file-watcher-setup'
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from '../watch-folder/watching/watcher-options.shared'
 import { broadcastVaultState } from '../watch-folder/broadcast/broadcast-vault-state'

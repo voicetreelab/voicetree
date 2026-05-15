@@ -9,7 +9,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../mcpConfigDependencies'
 import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
 
 export interface TriggerOvernightParams {

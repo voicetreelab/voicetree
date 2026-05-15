@@ -4,8 +4,8 @@ import {
   runSessionEventsWorkflow,
   sessionExistsWorkflow,
   type SessionEventTimers,
-} from '../../application/workflows/sessionEvents.ts'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+} from '@vt/graph-db-server/application/workflows/sessionEvents'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 
 const defaultSessionEventTimers: SessionEventTimers = {
   setInterval: globalThis.setInterval,

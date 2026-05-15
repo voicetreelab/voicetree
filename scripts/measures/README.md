@@ -2,13 +2,17 @@
 
 Single source of truth for the CI/CD checks shown on the codebase health dashboard.
 
-Every `.ts` file in this folder (except `_*.ts`) defines one check. The capture
-runner (`scripts/capture-ci-checks.mjs`) globs this folder, dynamically imports
-each file, and expects a `check: CheckDef` export. Adding a check = drop a file.
+Every `.ts` file under this folder (except `_*.ts`) defines one check. The capture
+runner (`scripts/capture-ci-checks.mjs`) recursively discovers this tree,
+dynamically imports each file, and expects a `check: CheckDef` export. Adding a
+check = drop a file.
+
+`npm run health` also runs every check under `scripts/measures/tier_1/` through
+`npm run health:tier1`. Keep that folder for enforced push-tier checks.
 
 ## Add a new check
 
-Create `scripts/measures/<id>.ts`:
+Create `scripts/measures/<id>.ts` or `scripts/measures/<tier>/<id>.ts`:
 
 ```ts
 import {type CheckDef, npmRun} from './_types.ts'
@@ -23,10 +27,14 @@ export const check: CheckDef = {
 }
 ```
 
+Use `../_types.ts` when the measure lives in a subfolder.
+
 Then:
 
 ```bash
 npm run health:capture-ci -- --only=my-new-check    # smoke-test just this one
+npm run health:capture-ci -- --folder=tier_1        # run an enforced tier folder
+npm run health:tier1                                # same tier_1 checks used by npm run health
 npm run health:capture-ci                           # full run, writes reports
 npm run health:dashboard                            # see it on the dashboard
 ```

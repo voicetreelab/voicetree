@@ -1,4 +1,4 @@
-import {type CheckDef, npmRun, vitestJsonArgs} from './_types.ts'
+import {type CheckDef, npmRun, vitestJsonArgs} from '../_types.ts'
 
 export const check: CheckDef = {
     id: 'orange-gate',

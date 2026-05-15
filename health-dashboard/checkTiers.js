@@ -41,6 +41,7 @@ const TIER1_CHECK_IDS = new Set([
 ])
 
 export function checkTierId(report) {
+  if (report.details?.measureFolder === 'tier_1') return 'tier1'
   if (TIER0_CHECK_IDS.has(report.checkId)) return 'tier0'
   if (TIER1_CHECK_IDS.has(report.checkId)) return 'tier1'
   if (report.category === 'Lint' || report.category === 'TypeCheck') return 'tier0'

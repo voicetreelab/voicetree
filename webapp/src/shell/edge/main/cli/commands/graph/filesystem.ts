@@ -6,7 +6,7 @@ import type {
     FilesystemAuthoringReportEntry,
     FilesystemAuthoringValidationError,
 } from '@vt/graph-tools/node'
-import {error, isJsonMode, output} from '../../output.ts'
+import {error, isJsonMode, output} from '../graphCliDependencies.ts'
 import type {
     FilesystemCreateFailure,
     FilesystemCreateSuccess,

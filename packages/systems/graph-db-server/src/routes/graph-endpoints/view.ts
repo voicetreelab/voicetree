@@ -1,11 +1,11 @@
 import type { Hono } from 'hono'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import {
   addExpandOverrideWorkflow,
   deleteExpandOverrideWorkflow,
   readProjectedGraphWorkflow,
   renderSessionViewWorkflow,
-} from '../../application/workflows/view.ts'
+} from '@vt/graph-db-server/application/workflows/view'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountViewRoutes(

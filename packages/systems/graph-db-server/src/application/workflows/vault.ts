@@ -7,8 +7,8 @@ import {
   SetWritePathRequestSchema,
   VaultStateSchema,
   type VaultState,
-} from '../../daemon/contract.ts'
-import { getProjectRootWatchedDirectory } from '../../state/watch-folder-store.ts'
+} from '@vt/graph-db-server/contract'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { validateAbsolutePath } from '../util/validatePath.ts'
 import {
   addReadPath,
@@ -16,7 +16,7 @@ import {
   getWritePath,
   removeReadPath,
   setWritePath,
-} from '../../state/vaultAllowlist.ts'
+} from '@vt/graph-db-server/state/vaultAllowlist'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 const ReadPathsResponseSchema = z.object({

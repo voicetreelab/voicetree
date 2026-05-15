@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
-import { collapseSessionFolderWorkflow } from '../../application/workflows/collapse.ts'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+import { collapseSessionFolderWorkflow } from '@vt/graph-db-server/application/workflows/collapse'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountCollapseRoutes(

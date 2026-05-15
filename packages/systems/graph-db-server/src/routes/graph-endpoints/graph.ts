@@ -14,8 +14,8 @@ import {
   undoWorkflow,
   updateContextNodeContainedIdsWorkflow,
   writePositionsWorkflow,
-} from '../../application/workflows/graph.ts'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+} from '@vt/graph-db-server/application/workflows/graph'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function createGraphRoutes(_registry: WorkflowSessionRegistry): Hono {

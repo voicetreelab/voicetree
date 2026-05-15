@@ -10,11 +10,11 @@ import {
   isReplayAvailableSince,
   subscribe as subscribeDelta,
   type SequencedDeltaEvent,
-} from '../../state/events/deltaEventBus.ts'
+} from '@vt/graph-db-server/state/events/deltaEventBus'
 import {
   subscribeToProjectedGraph,
   type ProjectedGraphEvent,
-} from '../../state/events/projectedGraphEventBus.ts'
+} from '@vt/graph-db-server/state/events/projectedGraphEventBus'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export type SessionEventTimers = {
