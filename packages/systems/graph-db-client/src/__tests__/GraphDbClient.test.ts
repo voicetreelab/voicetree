@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store'
@@ -60,6 +60,7 @@ describe('GraphDbClient', () => {
   })
 
   afterEach(async () => {
+    vi.unstubAllGlobals()
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
@@ -167,6 +168,80 @@ describe('GraphDbClient', () => {
   })
 
   describe('graph endpoint', () => {
+    test('sends wave 5 graph mutation helper request shapes', async () => {
+      const calls: Array<{ body: unknown; headers: Headers; method: string; path: string }> = []
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+          const requestUrl = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+          const path = new URL(requestUrl).pathname
+          const body = init?.body === undefined ? undefined : JSON.parse(String(init.body))
+          const applyDeltaBody = body as { delta?: unknown[] } | undefined
+          calls.push({
+            body,
+            headers: new Headers(init?.headers),
+            method: init?.method ?? 'GET',
+            path,
+          })
+
+          const responseByPath: Record<string, unknown> = {
+            '/graph/apply-delta': { delta: applyDeltaBody?.delta ?? [], graph: {} },
+            '/graph/context-node-from-selected-nodes': { nodeId: 'ctx.md' },
+            '/graph/unseen-nodes-around-context-node': {
+              nodes: [{ nodeId: 'node.md', content: '# Node' }],
+            },
+            '/graph/context-node-contained-ids': { updated: true },
+          }
+
+          return new Response(JSON.stringify(responseByPath[path]), {
+            headers: { 'content-type': 'application/json' },
+            status: 200,
+          })
+        }),
+      )
+
+      const client = new GraphDbClient({ baseUrl: 'http://127.0.0.1:9191' })
+      const delta = [{ type: 'DeleteNode', nodeId: 'old.md', deletedNode: { _tag: 'None' } }]
+
+      await expect(
+        client.applyGraphDelta(delta, { recordForUndo: false, sessionId: 'session-1' }),
+      ).resolves.toBeUndefined()
+      await expect(
+        client.createContextNodeFromSelectedNodes('task.md', ['a.md', 'b.md']),
+      ).resolves.toEqual({ nodeId: 'ctx.md' })
+      await expect(client.getUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
+        { nodeId: 'node.md', content: '# Node' },
+      ])
+      await expect(
+        client.updateContextNodeContainedIds('ctx.md', ['node.md']),
+      ).resolves.toBeUndefined()
+
+      expect(calls).toMatchObject([
+        {
+          body: { delta, recordForUndo: false },
+          method: 'POST',
+          path: '/graph/apply-delta',
+        },
+        {
+          body: { taskNodeId: 'task.md', selectedNodeIds: ['a.md', 'b.md'] },
+          method: 'POST',
+          path: '/graph/context-node-from-selected-nodes',
+        },
+        {
+          body: { contextNodeId: 'ctx.md', searchFromNode: 'task.md' },
+          method: 'POST',
+          path: '/graph/unseen-nodes-around-context-node',
+        },
+        {
+          body: { contextNodeId: 'ctx.md', newNodeIds: ['node.md'] },
+          method: 'PATCH',
+          path: '/graph/context-node-contained-ids',
+        },
+      ])
+      expect(calls[0].headers.get('X-Session-Id')).toBe('session-1')
+    })
+
     test('returns graph state after watcher-driven updates', async () => {
       await start()
       const client = await connect()

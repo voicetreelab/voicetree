@@ -13,7 +13,7 @@
  * idempotency surface so it isn't blocked by that.
  *
  * Black-box rules: drives the public loadFolder() API, asserts on observable
- * graph state via getGraph(), and counts daemons via `ps` (no internal
+ * daemon graph state via GraphDbClient, and counts daemons via `ps` (no internal
  * idempotency-map inspection, no mocks of internal collaborators).
  */
 
@@ -28,7 +28,7 @@ import {
     setVaultPath,
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
+import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import { clearDaemonClientCache } from '@/shell/edge/main/electron/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
@@ -36,7 +36,6 @@ import { createGraph } from '@vt/graph-model/graph'
 import type { GraphDelta } from '@vt/graph-model/graph'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { clearRecentDeltas } from '@vt/graph-db-server/state/recent-deltas-store'
-import { waitForCondition } from '@/utils/test-utils/waitForCondition'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 
 const MIN_SMALL_NODE_COUNT: 10 = 10 as const
@@ -84,6 +83,24 @@ function countVtGraphdProcessesForVault(vault: string): number {
     if (result.status !== 0 || !result.stdout) return 0
     const re: RegExp = new RegExp(`vt-graphd\\.ts.*--vault\\s+${vault}(\\s|$)`)
     return result.stdout.split('\n').filter(line => re.test(line)).length
+}
+
+async function readDaemonNodeCount(vault: string): Promise<number> {
+    const client: GraphDbClient = await GraphDbClient.connect({ vault })
+    const graph: Awaited<ReturnType<GraphDbClient['getGraph']>> = await client.getGraph()
+    return Object.keys(graph.nodes).length
+}
+
+async function waitForDaemonNodeCount(vault: string): Promise<number> {
+    const startedAt: number = Date.now()
+    while (Date.now() - startedAt < 10_000) {
+        const nodeCount: number = await readDaemonNodeCount(vault)
+        if (nodeCount >= MIN_SMALL_NODE_COUNT) {
+            return nodeCount
+        }
+        await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    throw new Error('daemon graph never reached MIN_SMALL_NODE_COUNT after parallel load (waited 10000ms)')
 }
 
 describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
@@ -160,12 +177,8 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
         // THEN: every caller saw success.
         results.forEach(r => expect(r.success).toBe(true))
 
-        // AND: graph populated — not cleared by a late re-spawn.
-        await waitForCondition(
-            () => Object.keys(getGraph().nodes).length >= MIN_SMALL_NODE_COUNT,
-            { maxWaitMs: 10_000, errorMessage: 'graph never reached MIN_SMALL_NODE_COUNT after parallel load' },
-        )
-        const nodeCount: number = Object.keys(getGraph().nodes).length
+        // AND: daemon graph populated — not cleared by a late re-spawn.
+        const nodeCount: number = await waitForDaemonNodeCount(vaultPath)
         expect(nodeCount).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
         // AND: at most 1 vt-graphd process for this vault.
@@ -181,7 +194,7 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
             includeActiveViewExpandedPaths: false,
         })
         expect(followup.success).toBe(true)
-        const nodeCountAfterFollowup: number = Object.keys(getGraph().nodes).length
+        const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(vaultPath)
         expect(nodeCountAfterFollowup).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
     }, TIMEOUT_MS)
 })

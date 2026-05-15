@@ -15,7 +15,7 @@ const MAX_NODES_PER_INJECTION: number = 5
 
 export type InjectNodesDeps = {
     readonly getTerminalRecords: () => TerminalRecord[]
-    readonly getGraph: () => Graph
+    readonly getGraph: () => Promise<Graph>
     readonly getNodeTitle: (node: GraphNode) => string
     readonly sendTextToTerminal: (terminalId: string, text: string) => Promise<{ success: boolean }>
     readonly updateContextNodeContainedIds: (contextNodeId: NodeIdAndFilePath, nodeIds: readonly string[]) => Promise<unknown>
@@ -79,7 +79,7 @@ export async function injectNodesIntoTerminal(
     }
 
     const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
-    const graph: Graph = deps.getGraph()
+    const graph: Graph = await deps.getGraph()
 
     // Cap at MAX_NODES_PER_INJECTION to avoid PTY buffer issues
     const nodeIdsToInject: readonly string[] = nodeIds.slice(0, MAX_NODES_PER_INJECTION)

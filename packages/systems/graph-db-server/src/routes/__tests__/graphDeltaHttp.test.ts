@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
+import { resetUndoState } from '../../state/undo-store.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-delta-test-'))
@@ -28,6 +29,7 @@ describe('HTTP graph delta writes', () => {
     vault = await withTempVault()
     appSupport = await createAppSupport(vault)
     handles = []
+    resetUndoState()
   })
 
   afterEach(async () => {
@@ -79,6 +81,48 @@ describe('HTTP graph delta writes', () => {
     await expect(readFile(testNodePath, 'utf8')).resolves.toContain(
       '# Test HTTP Node',
     )
+  }, 20000)
+
+  test('applies delta with recordForUndo disabled on the apply-delta endpoint', async () => {
+    const handle = await startDaemon({ vault, appSupportPath: appSupport })
+    handles.push(handle)
+    const base = `http://127.0.0.1:${handle.port}`
+    const testNodePath = join(vault, 'no-undo-node.md')
+    const delta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: {
+          kind: 'leaf',
+          outgoingEdges: [],
+          absoluteFilePathIsID: testNodePath,
+          contentWithoutYamlOrLinks: '# No Undo\nApplied without undo history',
+          nodeUIMetadata: {
+            color: { _tag: 'None' },
+            position: { _tag: 'None' },
+            additionalYAMLProps: {},
+          },
+        },
+        previousNode: { _tag: 'None' },
+      },
+    ]
+
+    const res = await fetch(`${base}/graph/apply-delta`, {
+      body: JSON.stringify({ delta, recordForUndo: false }),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': 'agent-runtime-456',
+      },
+      method: 'POST',
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.delta).toEqual(delta)
+    expect(body.graph.nodes[testNodePath]).toBeDefined()
+    await expect(readFile(testNodePath, 'utf8')).resolves.toContain('# No Undo')
+
+    const undoRes = await fetch(`${base}/graph/undo`, { method: 'POST' })
+    await expect(undoRes.json()).resolves.toEqual({ applied: false })
   }, 20000)
 
   test('rejects invalid graph delta payloads', async () => {

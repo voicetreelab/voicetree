@@ -1,118 +1,67 @@
 import type { FilePath, Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
-import * as createContextNodeModule from '@vt/graph-db-server/context-nodes/createContextNode'
-import * as createContextNodeFromSelectedNodesModule from '@vt/graph-db-server/context-nodes/createContextNodeFromSelectedNodes'
-import {
-    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
-    type UnseenNode,
-} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import * as updateContextNodeContainedIdsModule from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
-} from '@vt/graph-db-server/graph/applyGraphDelta'
-import { getGraph as getDefaultGraph, setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
-import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getWatchStatus as getDefaultWatchStatus } from '@vt/graph-db-server/watch-folder/watchFolder'
-import {
-    getVaultPaths as getDefaultVaultPaths,
-    getWritePath as getDefaultWritePath,
-} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import type { UnseenNode } from '@vt/graph-db-protocol'
 import { getGraphBridge, type GraphStateBridge, type WatchStatus } from './runtime-config'
 
-export function getRuntimeGraph(): Graph {
+function requireGraphBridge(): GraphStateBridge {
     const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? bridge.getGraph() : getDefaultGraph()
+    if (!bridge) {
+        throw new Error('Agent runtime graph bridge not configured. Call configureAgentRuntime({ graph: ... }) at boot.')
+    }
+    return bridge
 }
 
-export function setRuntimeGraph(graph: Graph): void {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        bridge.setGraph(graph)
-        return
-    }
-
-    setDefaultGraph(graph)
+export async function getRuntimeGraph(): Promise<Graph> {
+    return await requireGraphBridge().getGraph()
 }
 
 export async function getRuntimeWritePath(): Promise<O.Option<FilePath>> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? await bridge.getWritePath() : await getDefaultWritePath()
+    return await requireGraphBridge().getWritePath()
 }
 
 export async function getRuntimeVaultPaths(): Promise<readonly FilePath[]> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? await bridge.getVaultPaths() : await getDefaultVaultPaths()
+    return await requireGraphBridge().getVaultPaths()
 }
 
 export async function applyRuntimeGraphDelta(
     delta: GraphDelta,
     recordForUndo: boolean = true,
 ): Promise<void> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        await bridge.applyGraphDelta(delta, recordForUndo)
-        return
-    }
-
-    await applyDefaultGraphDelta(delta, recordForUndo)
+    await requireGraphBridge().applyGraphDelta(delta, recordForUndo)
 }
 
 export function getRuntimeProjectRoot(): FilePath | null {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? bridge.getProjectRootWatchedDirectory() : getDefaultProjectRootWatchedDirectory()
+    return requireGraphBridge().getProjectRootWatchedDirectory()
 }
 
 export function getRuntimeWatchStatus(): WatchStatus {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge ? bridge.getWatchStatus() : getDefaultWatchStatus()
-}
-
-export function runtimeRefreshGraphSideEffects(): void {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        bridge.refreshGraphChangeSideEffects()
-    }
+    return requireGraphBridge().getWatchStatus()
 }
 
 export async function runtimeCreateContextNode(
     parentNodeId: NodeIdAndFilePath,
     semanticNodeIds: readonly NodeIdAndFilePath[] = [],
 ): Promise<NodeIdAndFilePath> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge
-        ? await bridge.createContextNode(parentNodeId, semanticNodeIds)
-        : await createContextNodeModule.createContextNode(parentNodeId, semanticNodeIds)
+    return await requireGraphBridge().createContextNode(parentNodeId, semanticNodeIds)
 }
 
 export async function runtimeCreateContextNodeFromSelectedNodes(
     taskNodeId: NodeIdAndFilePath,
     selectedNodeIds: readonly NodeIdAndFilePath[],
 ): Promise<NodeIdAndFilePath> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge
-        ? await bridge.createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
-        : await createContextNodeFromSelectedNodesModule.createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
+    return await requireGraphBridge().createContextNodeFromSelectedNodes(taskNodeId, selectedNodeIds)
 }
 
 export async function getRuntimeUnseenNodesAroundContextNode(
     contextNodeId: NodeIdAndFilePath,
     searchFromNode?: NodeIdAndFilePath,
 ): Promise<readonly UnseenNode[]> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    return bridge
-        ? await bridge.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
-        : await getDefaultUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
+    return await requireGraphBridge().getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
 }
 
 export async function runtimeUpdateContextNodeContainedIds(
     contextNodeId: NodeIdAndFilePath,
     newNodeIds: readonly string[],
 ): Promise<void> {
-    const bridge: GraphStateBridge | undefined = getGraphBridge()
-    if (bridge) {
-        await bridge.updateContextNodeContainedIds(contextNodeId, newNodeIds)
-        return
-    }
-
-    await updateContextNodeContainedIdsModule.updateContextNodeContainedIds(contextNodeId, newNodeIds)
+    await requireGraphBridge().updateContextNodeContainedIds(contextNodeId, newNodeIds)
 }

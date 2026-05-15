@@ -90,11 +90,15 @@ function runIdleHooks(
     runtime: TerminalRegistryRuntime,
 ): (terminalId: string, record: TerminalRecord) => void {
     return (tid, rec) => {
-        void runIdleStopGateAudit(tid, rec, {
-            records: getTerminalRecords(),
-            graph: getRuntimeGraph(),
-            incrementAuditRetryCount,
-            logger: runtime.logger,
+        void (async (): Promise<void> => {
+            await runIdleStopGateAudit(tid, rec, {
+                records: getTerminalRecords(),
+                graph: await getRuntimeGraph(),
+                incrementAuditRetryCount,
+                logger: runtime.logger,
+            })
+        })().catch((error: unknown) => {
+            runtime.logger.error('[terminal-registry] Failed to run idle stop-gate audit:', error)
         })
 
         void loadSettings()

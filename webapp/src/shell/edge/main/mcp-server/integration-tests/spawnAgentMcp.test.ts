@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 
@@ -14,10 +14,17 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    const spawnTerminalWithContextNode = vi.fn()
+    const getTerminalRecords = vi.fn()
     return {
         ...actual,
-        spawnTerminalWithContextNode: vi.fn(),
-        getTerminalRecords: vi.fn(),
+        spawnTerminalWithContextNode,
+        getTerminalRecords,
+        agentRuntime: {
+            ...actual.agentRuntime,
+            spawnTerminalWithContextNode,
+            getTerminalRecords,
+        },
     }
 })
 
@@ -38,7 +45,7 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
 })
 
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {spawnAgentTool} from '@vt/voicetree-mcp'
+import {configureMcpServer, spawnAgentTool} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
@@ -120,6 +127,16 @@ function setupGraph(nodeId: string = 'node-1.md', content: string = '# Node One'
 describe('MCP spawn_agent tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        configureMcpServer({
+            graph: {
+                getGraph: async () => getGraph(),
+                getVaultPaths: async () => [],
+                getWritePath: async () => O.toNullable(await getWritePath()),
+                applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
+                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
+                },
+            }
+        })
         vi.mocked(loadSettings).mockResolvedValue({agents: []} as unknown as VTSettings)
     })
 
@@ -254,6 +271,16 @@ describe('MCP spawn_agent tool', () => {
 describe('MCP spawn_agent depthBudget auto-decrement', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        configureMcpServer({
+            graph: {
+                getGraph: async () => getGraph(),
+                getVaultPaths: async () => [],
+                getWritePath: async () => O.toNullable(await getWritePath()),
+                applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
+                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
+                },
+            }
+        })
     })
 
     function mockCallerWithBudget(budget: string): void {

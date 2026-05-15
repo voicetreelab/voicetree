@@ -1,6 +1,5 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { syncMcpGraphDbServerState } from '@vt/voicetree-mcp'
 import type { VaultState } from '@vt/graph-db-client'
 import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
 
@@ -159,7 +158,6 @@ async function syncMainGraphFromDaemonClient(client: DaemonClient): Promise<void
       nodeCount: Object.keys(nextGraph.nodes).length,
     })
   }
-  syncMcpGraphDbServerState(nextGraph, getActiveDaemonConnection()?.vault ?? null)
   await syncRendererFromDaemon(client, nextGraph, vaultState)
   if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
@@ -304,9 +302,7 @@ async function doRunVaultMutation(
 
 export async function getGraphFromDaemon(): Promise<Graph> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
-  const graph: Graph = await getNormalizedDaemonGraph(client)
-  syncMcpGraphDbServerState(graph, getActiveDaemonConnection()?.vault ?? null)
-  return graph
+  return await getNormalizedDaemonGraph(client)
 }
 
 export async function getProjectedGraphFromDaemon(): Promise<unknown> {
@@ -315,14 +311,20 @@ export async function getProjectedGraphFromDaemon(): Promise<unknown> {
   return await client.getProjectedGraph(sessionId)
 }
 
-export async function postDeltaThroughDaemon(delta: GraphDelta): Promise<void> {
+export async function postDeltaThroughDaemon(
+  delta: GraphDelta,
+  recordForUndo: boolean = true,
+): Promise<void> {
   const { client }: CurrentDaemonConnection = await getDaemonClientForCurrentVault()
   const sessionId: string = await ensureRendererSession(client)
-  await client.postDelta(delta as unknown[], sessionId)
+  await client.applyGraphDelta(delta as unknown[], { recordForUndo, sessionId })
 }
 
-export async function postDeltaThroughDaemonWithEditors(delta: GraphDelta): Promise<void> {
-  await postDeltaThroughDaemon(delta)
+export async function postDeltaThroughDaemonWithEditors(
+  delta: GraphDelta,
+  recordForUndo: boolean = true,
+): Promise<void> {
+  await postDeltaThroughDaemon(delta, recordForUndo)
   getCallbacks().onFloatingEditorUpdate?.(delta)
 }
 

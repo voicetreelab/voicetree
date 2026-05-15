@@ -16,6 +16,7 @@
     "postinstall": "../scripts/rebuild-native.sh",
     "test": "vitest run && npm run test:e2e:tier1 && npm run test:e2e:tier2:browser",
     "test:listen": "vitest",
+    "pretest:e2e:tier1": "../scripts/build-vt-fake-agent.sh",
     "test:e2e:tier1": "electron-vite build && ../scripts/rebuild-native.sh && playwright test --config=playwright-tier1-system.config.ts",
     "test:e2e:tier2": "npm run test:e2e:tier2:electron && npm run test:e2e:tier2:browser",
     "test:e2e:tier2:electron": "electron-vite build && ../scripts/rebuild-native.sh && playwright test --config=playwright-electron.config.ts",

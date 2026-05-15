@@ -22,21 +22,32 @@ import {
   type SelectionResponse,
   type SessionInfo,
   type ShutdownResponse,
+  type UnseenNode,
   type VaultState,
   type ViewResponse,
 } from './contract.ts'
 import { DaemonUnreachableError, GraphDbClientError } from './errors.ts'
 import { discoverPort } from './portDiscovery.ts'
-
-type Schema<T> = {
-  parse(input: unknown): T
-}
+import {
+  ContextNodeFromQuestionResponseSchema,
+  ContextNodeResponseSchema,
+  FindFileMatchesResponseSchema,
+  PreviewContainedNodeIdsResponseSchema,
+  ReadPathsMutationResponseSchema,
+  UndoRedoResponseSchema,
+  UnknownResponseSchema,
+  UnseenNodesResponseSchema,
+  UpdateContextNodeContainedIdsResponseSchema,
+  WritePathMutationResponseSchema,
+  WritePositionsResponseSchema,
+  type Schema,
+} from './responseSchemas.ts'
 
 type RequestOptions<T> = {
   body?: unknown
   expectNoContent?: boolean
   headers?: Record<string, string>
-  method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
+  method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
   responseSchema?: Schema<T>
 }
 
@@ -48,67 +59,6 @@ type ErrorPayload = {
   code?: string
   error?: string
   message?: string
-}
-
-const ReadPathsMutationResponseSchema: Schema<{ readPaths: string[] }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || !Array.isArray(input.readPaths)) {
-      throw new Error('Invalid read-paths response body')
-    }
-    if (!input.readPaths.every((value) => typeof value === 'string')) {
-      throw new Error('Invalid read-paths response body')
-    }
-    return { readPaths: [...input.readPaths] }
-  },
-}
-
-const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.writePath !== 'string') {
-      throw new Error('Invalid write-path response body')
-    }
-    return { writePath: input.writePath }
-  },
-}
-
-const ContextNodeResponseSchema: Schema<{ nodeId: string }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.nodeId !== 'string') {
-      throw new Error('Invalid context-node response body')
-    }
-    return { nodeId: input.nodeId }
-  },
-}
-
-const ContextNodeFromQuestionResponseSchema: Schema<{
-  nodeId: string
-  parentNodePath: string
-  title: string
-}> = {
-  parse(input: unknown) {
-    if (
-      !isObject(input)
-      || typeof input.nodeId !== 'string'
-      || typeof input.parentNodePath !== 'string'
-      || typeof input.title !== 'string'
-    ) {
-      throw new Error('Invalid question context-node response body')
-    }
-    return {
-      nodeId: input.nodeId,
-      parentNodePath: input.parentNodePath,
-      title: input.title,
-    }
-  },
-}
-
-const WritePositionsResponseSchema: Schema<{ written: number }> = {
-  parse(input: unknown) {
-    if (!isObject(input) || typeof input.written !== 'number') {
-      throw new Error('Invalid write-positions response body')
-    }
-    return { written: input.written }
-  },
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -230,7 +180,25 @@ export class GraphDbClient {
       expectNoContent: false,
       headers,
       method: 'POST',
-      responseSchema: { parse: (value) => value },
+      responseSchema: UnknownResponseSchema,
+    })
+  }
+
+  async applyGraphDelta(
+    delta: unknown[],
+    opts: { recordForUndo?: boolean; sessionId?: string } = {},
+  ): Promise<void> {
+    const headers: Record<string, string> = {}
+    if (opts.sessionId) {
+      headers['X-Session-Id'] = opts.sessionId
+    }
+
+    await this.request('/graph/apply-delta', {
+      body: { delta, recordForUndo: opts.recordForUndo },
+      expectNoContent: false,
+      headers,
+      method: 'POST',
+      responseSchema: UnknownResponseSchema,
     })
   }
 
@@ -254,6 +222,40 @@ export class GraphDbClient {
       body: { nodeIds, question, semanticNodeIds },
       method: 'POST',
       responseSchema: ContextNodeFromQuestionResponseSchema,
+    })
+  }
+
+  async createContextNodeFromSelectedNodes(
+    taskNodeId: string,
+    selectedNodeIds: readonly string[],
+  ): Promise<{ nodeId: string }> {
+    return await this.request('/graph/context-node-from-selected-nodes', {
+      body: { taskNodeId, selectedNodeIds },
+      method: 'POST',
+      responseSchema: ContextNodeResponseSchema,
+    })
+  }
+
+  async getUnseenNodesAroundContextNode(
+    contextNodeId: string,
+    searchFromNode?: string,
+  ): Promise<readonly UnseenNode[]> {
+    const result = await this.request('/graph/unseen-nodes-around-context-node', {
+      body: { contextNodeId, searchFromNode },
+      method: 'POST',
+      responseSchema: UnseenNodesResponseSchema,
+    })
+    return result.nodes
+  }
+
+  async updateContextNodeContainedIds(
+    contextNodeId: string,
+    newNodeIds: readonly string[],
+  ): Promise<void> {
+    await this.request('/graph/context-node-contained-ids', {
+      body: { contextNodeId, newNodeIds },
+      method: 'PATCH',
+      responseSchema: UpdateContextNodeContainedIdsResponseSchema,
     })
   }
 
@@ -305,7 +307,7 @@ export class GraphDbClient {
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'POST',
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }
@@ -318,7 +320,7 @@ export class GraphDbClient {
       `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
       {
         method: 'DELETE',
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }
@@ -338,42 +340,38 @@ export class GraphDbClient {
   }
 
   async findFileByName(name: string): Promise<string[]> {
-    const result = await this.request(
+    return await this.request(
       `/graph/find-file?name=${encodeURIComponent(name)}`,
-      { responseSchema: { parse: (v: unknown) => (v as { matches: string[] }).matches } },
+      { responseSchema: FindFileMatchesResponseSchema },
     )
-    return result
   }
 
   async undo(): Promise<boolean> {
-    const result = await this.request('/graph/undo', {
+    return await this.request('/graph/undo', {
       method: 'POST',
-      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+      responseSchema: UndoRedoResponseSchema,
     })
-    return result
   }
 
   async redo(): Promise<boolean> {
-    const result = await this.request('/graph/redo', {
+    return await this.request('/graph/redo', {
       method: 'POST',
-      responseSchema: { parse: (v: unknown) => (v as { applied: boolean }).applied },
+      responseSchema: UndoRedoResponseSchema,
     })
-    return result
   }
 
   async getPreviewContainedNodeIds(nodeId: string): Promise<readonly string[]> {
-    const result = await this.request(
+    return await this.request(
       `/graph/preview-contained-nodes/${encodeURIComponent(nodeId)}`,
-      { responseSchema: { parse: (v: unknown) => (v as { nodeIds: string[] }).nodeIds } },
+      { responseSchema: PreviewContainedNodeIdsResponseSchema },
     )
-    return result
   }
 
   async getProjectedGraph(sessionId: string): Promise<unknown> {
     return await this.request(
       `/sessions/${encodeURIComponent(sessionId)}/projected-graph`,
       {
-        responseSchema: { parse: (value: unknown) => value },
+        responseSchema: UnknownResponseSchema,
       },
     )
   }

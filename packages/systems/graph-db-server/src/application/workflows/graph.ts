@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Graph, GraphDelta, GraphNode, NodeDelta } from '@vt/graph-model/graph'
 import { findFirstParentNode } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
-import { GraphStateSchema } from '../../daemon/contract.ts'
+import { GraphStateSchema, UnseenNodeSchema } from '../../daemon/contract.ts'
 import { applyGraphDeltaToDBThroughMemAndUI } from '../../data/graph/mutations/applyGraphDelta.ts'
 import { findFileByName } from '../../data/graph/loading/findFileByName.ts'
 import { getPreviewContainedNodeIds } from '../../data/context-nodes/getPreviewContainedNodeIds.ts'
@@ -11,6 +11,9 @@ import { performRedo, performUndo } from '../../data/graph/mutations/undoOperati
 import { writeAllPositionsSync } from '../../data/graph/mutations/writeAllPositionsOnExit.ts'
 import { createContextNode } from '../../data/context-nodes/createContextNode.ts'
 import { createContextNodeFromQuestion } from '../../data/context-nodes/createContextNodeFromQuestion.ts'
+import { createContextNodeFromSelectedNodes } from '../../data/context-nodes/createContextNodeFromSelectedNodes.ts'
+import { getUnseenNodesAroundContextNode } from '../../data/context-nodes/getUnseenNodesAroundContextNode.ts'
+import { updateContextNodeContainedIds } from '../../data/context-nodes/updateContextNodeContainedIds.ts'
 import { getGraph, getNode, setGraph } from '../../state/graph-store.ts'
 import { publish } from '../../state/events/deltaEventBus.ts'
 import { getProjectRootWatchedDirectory } from '../../state/watch-folder-store.ts'
@@ -40,6 +43,26 @@ const ContextNodeFromQuestionRequestSchema = z.object({
   nodeIds: z.array(z.string()),
   question: z.string(),
   semanticNodeIds: z.array(z.string()),
+})
+
+const ContextNodeFromSelectedNodesRequestSchema = z.object({
+  taskNodeId: z.string(),
+  selectedNodeIds: z.array(z.string()),
+})
+
+const UnseenNodesAroundContextNodeRequestSchema = z.object({
+  contextNodeId: z.string(),
+  searchFromNode: z.string().optional(),
+})
+
+const ContextNodeContainedIdsRequestSchema = z.object({
+  contextNodeId: z.string(),
+  newNodeIds: z.array(z.string()),
+})
+
+const ApplyGraphDeltaRequestSchema = z.object({
+  delta: GraphDeltaRequestSchema,
+  recordForUndo: z.boolean().optional(),
 })
 
 const PositionSchema = z.object({
@@ -151,6 +174,7 @@ export function readGraphWorkflow(): HttpResult {
 export async function applyGraphDeltaWorkflow(
   rawBody: unknown,
   sessionId: string,
+  options: { recordForUndo?: boolean } = {},
 ): Promise<HttpResult> {
   let delta: GraphDelta
   try {
@@ -160,12 +184,26 @@ export async function applyGraphDeltaWorkflow(
   }
 
   try {
-    await applyGraphDeltaToDBThroughMemAndUI(delta)
+    await applyGraphDeltaToDBThroughMemAndUI(delta, options.recordForUndo ?? true)
     publish({ delta, source: `session:${sessionId}` })
     return jsonResult({ delta, graph: GraphStateSchema.parse(getGraph()) })
   } catch (error) {
     return errorResult((error as Error).message, 'GRAPH_DELTA_APPLY_FAILED', 500)
   }
+}
+
+export async function applyGraphDeltaWithOptionsWorkflow(
+  rawBody: unknown,
+  sessionId: string,
+): Promise<HttpResult> {
+  const body = ApplyGraphDeltaRequestSchema.safeParse(rawBody)
+  if (!body.success) {
+    return errorResult('Invalid apply-delta request body', 'INVALID_APPLY_DELTA')
+  }
+
+  return await applyGraphDeltaWorkflow(body.data.delta, sessionId, {
+    recordForUndo: body.data.recordForUndo,
+  })
 }
 
 export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResult> {
@@ -255,6 +293,68 @@ export async function createContextNodeFromQuestionWorkflow(
     return errorResult(
       (error as Error).message,
       'QUESTION_CONTEXT_NODE_CREATE_FAILED',
+      500,
+    )
+  }
+}
+
+export async function createContextNodeFromSelectedNodesWorkflow(
+  rawBody: unknown,
+): Promise<HttpResult> {
+  const body = ContextNodeFromSelectedNodesRequestSchema.safeParse(rawBody)
+  if (!body.success) {
+    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  }
+
+  try {
+    const nodeId = await createContextNodeFromSelectedNodes(
+      body.data.taskNodeId,
+      body.data.selectedNodeIds,
+    )
+    return jsonResult({ nodeId })
+  } catch (error) {
+    return errorResult(
+      (error as Error).message,
+      'SELECTED_CONTEXT_NODE_CREATE_FAILED',
+      500,
+    )
+  }
+}
+
+export async function getUnseenNodesAroundContextNodeWorkflow(
+  rawBody: unknown,
+): Promise<HttpResult> {
+  const body = UnseenNodesAroundContextNodeRequestSchema.safeParse(rawBody)
+  if (!body.success) {
+    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  }
+
+  try {
+    const nodes = await getUnseenNodesAroundContextNode(
+      body.data.contextNodeId,
+      body.data.searchFromNode,
+    )
+    return jsonResult({ nodes: z.array(UnseenNodeSchema).parse(nodes) })
+  } catch (error) {
+    return errorResult((error as Error).message, 'UNSEEN_NODES_LOOKUP_FAILED', 500)
+  }
+}
+
+export async function updateContextNodeContainedIdsWorkflow(
+  rawBody: unknown,
+): Promise<HttpResult> {
+  const body = ContextNodeContainedIdsRequestSchema.safeParse(rawBody)
+  if (!body.success) {
+    return errorResult('Invalid request body', 'INVALID_REQUEST_BODY')
+  }
+
+  try {
+    await updateContextNodeContainedIds(body.data.contextNodeId, body.data.newNodeIds)
+    return jsonResult({ updated: true })
+  } catch (error) {
+    return errorResult(
+      (error as Error).message,
+      'CONTEXT_NODE_CONTAINED_IDS_UPDATE_FAILED',
       500,
     )
   }

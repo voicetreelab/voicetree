@@ -21,7 +21,7 @@ import {getRuntimeUI} from '../runtime/runtime-config';
 export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCount: number): Promise<void> {
   const settings: VTSettings = await loadSettings();
 
-  const graph: Graph = getRuntimeGraph();
+  const graph: Graph = await getRuntimeGraph();
   const node: GraphNode | undefined = graph.nodes[nodeId];
   const title: string = node ? getNodeTitle(node) : 'Terminal';
 
@@ -78,7 +78,7 @@ export async function spawnPlainTerminalWithNode(
     // Get write path (absolute) for new node creation
     const writePathOption: O.Option<string> = await getRuntimeWritePath();
     const writePath: string = O.getOrElse(() => '')(writePathOption);
-    const graph: Graph = getRuntimeGraph();
+    const graph: Graph = await getRuntimeGraph();
 
     // Create a new orphan node (same as 'Add Node Here')
     const {newNode, graphDelta}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =

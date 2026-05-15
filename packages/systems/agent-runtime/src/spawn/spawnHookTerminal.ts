@@ -81,7 +81,7 @@ async function createHookNode(): Promise<string> {
         throw new Error('No write path available for hook terminal node')
     }
 
-    const graph: Graph = getRuntimeGraph()
+    const graph: Graph = await getRuntimeGraph()
     const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
     const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
@@ -103,7 +103,8 @@ async function spawnHookTerminal(
 ): Promise<void> {
     const settings: VTSettings = await loadSettings()
 
-    if (!hookNodeId || !getRuntimeGraph().nodes[hookNodeId]) {
+    const graph: Graph = await getRuntimeGraph()
+    if (!hookNodeId || !graph.nodes[hookNodeId]) {
         hookNodeId = await createHookNode()
     }
 
