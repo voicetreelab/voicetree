@@ -43,6 +43,7 @@ async function attachHandler(argv: string[]): Promise<Response<unknown>> {
   let port: number | undefined
   let pid: number | undefined
   let vault: string | undefined
+  let forceNew = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -58,10 +59,12 @@ async function attachHandler(argv: string[]): Promise<Response<unknown>> {
       vault = argv[++i]
     } else if (arg.startsWith('--vault=')) {
       vault = arg.slice('--vault='.length)
+    } else if (arg === '--new') {
+      forceNew = true
     }
   }
 
-  const pick = await resolveDebugInstance({ port, pid, vault })
+  const pick = await resolveDebugInstance({ port, pid, vault, forceNew })
 
   if (!pick.ok) {
     return err('attach', pick.message, pick.hint, 2)
