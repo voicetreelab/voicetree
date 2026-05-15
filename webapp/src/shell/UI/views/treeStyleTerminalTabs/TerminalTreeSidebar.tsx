@@ -11,8 +11,8 @@
 import { createElement, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
@@ -77,10 +77,10 @@ import {
     getTerminals,
     getActiveTerminalId,
     clearTerminals,
-} from '@/shell/edge/UI-edge/state/TerminalStore';
+} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {
     syncDisplayOrder,
-} from '@/shell/edge/UI-edge/state/AgentTabsStore';
+} from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
     startTerminalActivityPolling,
     stopTerminalActivityPolling,

@@ -15,15 +15,15 @@
 
 import type { Core } from 'cytoscape';
 import { MIN_ZOOM, MAX_ZOOM } from '@/shell/UI/cytoscape-graph-ui/constants';
-import { getEditors } from '@/shell/edge/UI-edge/state/EditorStore';
-import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
-import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import { getEditors } from '@/shell/edge/UI-edge/state/stores/EditorStore';
+import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { getIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/controllers/trackpad-state';
+import type { EditorId, TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { EditorData } from '@/shell/edge/UI-edge/floating-windows/editors/editorDataType';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import type { VTSettings } from '@vt/graph-model/settings';
 import { onSettingsChange } from '@/shell/edge/UI-edge/api';
-import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
+import { signalViewportManipulationCached } from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
 import { isSelected } from '@vt/graph-state/state/selectionStore';
 import { getLayout, dispatchSetZoom, dispatchSetPan } from '@vt/graph-state/state/layoutStore';
 

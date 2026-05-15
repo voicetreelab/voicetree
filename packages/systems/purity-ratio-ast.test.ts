@@ -176,7 +176,7 @@ describe('function purity ratio — AST-based (LOC)', () => {
             description: 'Impure LOC detected inside pure/ directories by AST-based side-effect detection.',
             category: 'Purity',
             current: vLoc,
-            budget: tLoc * 0.14,
+            budget: 0,
             comparison: 'lte',
             unit: 'LOC',
             details: {
@@ -184,7 +184,7 @@ describe('function purity ratio — AST-based (LOC)', () => {
                 violations,
             },
         })
-        expect(vLoc).toBeLessThanOrEqual(tLoc * 0.14)
+        expect(vLoc).toBe(0)
     }, 30000)
 
     it('composite health score: purity_ratio × complexity_location >= threshold', async () => {

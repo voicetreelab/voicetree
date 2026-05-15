@@ -23,7 +23,7 @@ import { createEmptyGraph } from '@vt/graph-model/graph'
 import type { VaultConfig } from '@vt/graph-model/settings'
 import { initGraphModel } from '@vt/graph-model'
 
-vi.mock('@/shell/edge/main/ui-api-proxy', () => ({
+vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
   uiAPI: {
     fitViewport: vi.fn()
   }

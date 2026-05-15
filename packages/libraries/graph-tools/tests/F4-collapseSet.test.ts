@@ -11,9 +11,9 @@ import {
   applyDeltaToStateCaptureOverlay,
   buildCapturedSerializedState,
   createStateCaptureOverlay,
-} from '../src/commands/run'
-import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../src/debug/flows/index'
-import type { CyDump } from '../src/debug/cyStateShape'
+} from '../src/commands/capture/run'
+import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../src/debug/flow/flows/index'
+import type { CyDump } from '../src/debug/state/cyStateShape'
 
 function renderProjectedElements(): CyDump
 function renderProjectedElements(elements: readonly (NodeElement | EdgeElement)[]): CyDump

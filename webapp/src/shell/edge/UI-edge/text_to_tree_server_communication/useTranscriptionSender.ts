@@ -7,8 +7,8 @@ import {
   updateTranscriptionPreview,
   hasActiveTranscriptionPreview,
   dismissTranscriptionPreview
-} from "@/shell/edge/UI-edge/floating-windows/speech-to-focused";
-import { subscribe as subscribeToStore, getFinalTokens } from "@/shell/edge/UI-edge/state/TranscriptionStore";
+} from "@/shell/edge/UI-edge/floating-windows/anchoring/speech-to-focused";
+import { subscribe as subscribeToStore, getFinalTokens } from "@/shell/edge/UI-edge/state/stores/TranscriptionStore";
 
 interface UseTranscriptionSenderOptions {
   endpoint: string;

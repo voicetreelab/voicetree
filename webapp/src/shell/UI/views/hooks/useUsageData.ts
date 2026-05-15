@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ClaudeUsage, UsageData } from '@/shell/edge/main/usage/types';
+import type { ClaudeUsage, UsageData } from '@/shell/edge/main/observability/usage/types';
 
 const REFRESH_INTERVAL_MS: number = 60_000;
 

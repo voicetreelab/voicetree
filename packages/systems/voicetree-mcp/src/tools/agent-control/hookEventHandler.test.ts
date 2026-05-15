@@ -189,4 +189,3 @@ describe('resolveHookEventName', () => {
         expect(eventName).toBe('Stop')
     })
 })
-

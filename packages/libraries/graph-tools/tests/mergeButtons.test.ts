@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeButtons, type ButtonCandidate, type RegistryButtonCandidate } from '../src/debug/mergeButtons'
+import { mergeButtons, type ButtonCandidate, type RegistryButtonCandidate } from '../src/debug/input/mergeButtons'
 
 const AX_BUTTONS: readonly ButtonCandidate[] = [
   {

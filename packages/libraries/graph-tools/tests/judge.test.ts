@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildJudgePrompt, parseJudgeResponse, type FlowBundle, type JudgeVerdict } from '../src/debug/judge'
+import { buildJudgePrompt, parseJudgeResponse, type FlowBundle, type JudgeVerdict } from '../src/debug/flow/judge'
 
 const MINIMAL_BUNDLE: FlowBundle = {
   flowId: 'F1',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseArgs } from '../src/commands/screenshot'
+import { parseArgs } from '../src/commands/session/screenshot'
 
 describe('parseArgs', () => {
   it.each(['--out', '--output', '-o'])('parses %s as the screenshot output path', flag => {

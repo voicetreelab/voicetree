@@ -2,7 +2,7 @@
  * Viewport visibility utilities for checking node visibility within the Cytoscape viewport.
  */
 import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, NodeCollection } from 'cytoscape';
-import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
 import { queryNodesInRect } from '@vt/graph-model/spatial';
 import type { Rect, SpatialIndex, SpatialNodeEntry } from '@vt/graph-model/spatial';
 import { getVisibleViewportExtent } from '@/utils/visibleViewport';

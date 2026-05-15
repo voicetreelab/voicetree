@@ -32,7 +32,9 @@ function isDefaultExpandedFolder(
   expandedTargets: ReadonlySet<string>,
 ): boolean {
   for (const target of expandedTargets) {
-    if (isSameOrDescendantPath(folderPath, target)) {
+    // A folder is expanded by default when it IS or is a DESCENDANT of any
+    // loaded target. writePath=/vault → /vault/auth/, /vault/api/, etc. expand.
+    if (isSameOrDescendantPath(target, folderPath)) {
       return true
     }
   }
@@ -91,7 +93,7 @@ export function projectSessionState(args: ProjectSessionStateArgs): State {
   return {
     graph,
     roots: {
-      loaded: new Set<string>(vault.readPaths),
+      loaded: new Set<string>([vault.writePath, ...vault.readPaths].filter((path) => path.length > 0)),
       folderTree: projectFolderTree(folderTree, vault, session),
     },
     collapseSet: new Set(session.collapseSet),

@@ -6,7 +6,7 @@ export {
     resolveLinkTarget,
     buildUniqueBasenameMap,
     type StructureNode,
-} from './primitives'
+} from './core/primitives'
 
 
 export {
@@ -14,14 +14,14 @@ export {
     type ViewFormat,
     type ViewGraphOptions,
     type ViewGraphResult,
-} from './viewGraph'
+} from './view/viewGraph'
 
 export {
     dumpState,
     graphStateApply,
     type StateDumpOptions,
     type StateDumpResult,
-} from './state'
+} from './live/state'
 
 export {
     liveStateDump,
@@ -38,9 +38,9 @@ export {
     type LiveFocusOptions,
     type LiveNeighborsOptions,
     type LivePathOptions,
-} from './live'
+} from './live/live'
 
-export {createLiveTransport, DEFAULT_MCP_PORT, type LiveTransport} from './liveTransport'
+export {createLiveTransport, DEFAULT_MCP_PORT, type LiveTransport} from './live/liveTransport'
 
 export {
     lintGraph,
@@ -61,11 +61,11 @@ export {
     type GraphLintAuthoringEntry,
     type GraphLintAuthoringReport,
     type LintConfig,
-} from './graphLint'
+} from './lint/graphLint'
 
-export { graphRename } from './rename'
-export { graphMove } from './move'
-export { graphGroup } from './group'
+export { graphRename } from './authoring/rename'
+export { graphMove } from './authoring/move'
+export { graphGroup } from './authoring/group'
 
 export {
     computeMetricsFromVault,
@@ -76,19 +76,19 @@ export {
     estimatePlanarity,
     type EdgePair,
     type GraphMetrics,
-} from './graphMetrics'
+} from './view/graphMetrics'
 
 export {
     selectFormat,
     buildAutoHeader,
     type FormatChoice,
     type FormatDecision,
-} from './selectFormat'
+} from './view/selectFormat'
 
 export {
     renderAutoView,
     type AutoViewOptions,
-} from './autoView'
+} from './view/autoView'
 
 export {
     findCollapseBoundary,
@@ -98,13 +98,13 @@ export {
     type CollapseCluster,
     type CollapseStrategy,
     type FindCollapseBoundaryOptions,
-} from './collapseBoundary'
+} from './view/collapseBoundary'
 
 export {
     createHeadlessServer,
     type HeadlessServerOptions,
     type HeadlessServer,
-} from './headlessServer'
+} from './live/headlessServer'
 
 export {
     buildMarkdownBody,
@@ -118,4 +118,4 @@ export {
     type FilesystemAuthoringPlanEntry,
     type FilesystemAuthoringReportEntry,
     type FilesystemAuthoringPlanResult,
-} from './filesystemAuthoring'
+} from './authoring/filesystemAuthoring'

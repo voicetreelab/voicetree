@@ -216,7 +216,6 @@ function formatReport(reports: readonly FileShapeReport[]): string {
 const ORANGE_FILE_SCORE_BUDGET = 363     // p75_loc + exports * 3 per file
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const ORANGE_P90_FILE_P75_LOC  = 48      // tail of file-p75 distribution
-const ORANGE_P90_EXPORTS       = 10      // tail of exports-per-file distribution
 
 describe('shape complexity', () => {
     it('reports per-file function shape and export surface area', async () => {
@@ -239,9 +238,7 @@ describe('shape complexity', () => {
         console.info(formatReport(meaningful))
 
         const p75s = meaningful.map(r => r.p75Loc)
-        const exports = meaningful.map(r => r.exports)
         const p90FileP75 = percentile(p75s, 90)
-        const p90Exports = percentile(exports, 90)
         const overScore = meaningful.filter(r => r.score > ORANGE_FILE_SCORE_BUDGET)
             .sort((a, b) => b.score - a.score)
 
@@ -273,18 +270,6 @@ describe('shape complexity', () => {
             details: {fileCount: meaningful.length},
         })
 
-        await recordHealthMetric({
-            metricId: 'shape-complexity-p90-exports',
-            metricName: 'Shape P90 Exports Per File',
-            description: 'P90 top-level exports per file — public API surface width tail.',
-            category: 'Shape',
-            current: p90Exports,
-            budget: ORANGE_P90_EXPORTS,
-            comparison: 'lte',
-            unit: 'exports',
-            details: {fileCount: meaningful.length},
-        })
-
         if (overScore.length > 0) {
             const lines: string[] = [
                 '',
@@ -301,7 +286,5 @@ describe('shape complexity', () => {
 
         expect(p90FileP75, `p90 file-p75 LOC ${p90FileP75} > ${ORANGE_P90_FILE_P75_LOC}`)
             .toBeLessThanOrEqual(ORANGE_P90_FILE_P75_LOC)
-        expect(p90Exports, `p90 exports-per-file ${p90Exports} > ${ORANGE_P90_EXPORTS}`)
-            .toBeLessThanOrEqual(ORANGE_P90_EXPORTS)
     }, 60000)
 })

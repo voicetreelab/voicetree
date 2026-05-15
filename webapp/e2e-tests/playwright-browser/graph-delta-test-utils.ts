@@ -313,9 +313,9 @@ export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
   await page.evaluate(async () => {
     // Import the actual modules now that Vite has loaded them
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const terminalStore = await import('/src/shell/edge/UI-edge/state/TerminalStore.ts' as any);
+    const terminalStore = await import('/src/shell/edge/UI-edge/state/stores/TerminalStore.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const types = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
+    const types = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/types.ts' as any);
 
     (window as unknown as {
       terminalStoreAPI: {

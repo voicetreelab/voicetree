@@ -19,7 +19,7 @@ import { recordHealthMetric } from './_health-report-test-helpers'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../..')
-const CODEQL_TRANSITIVE_IMPURITY_BASELINE = 312
+const CODEQL_TRANSITIVE_IMPURITY_BASELINE = 277
 const CANARY_TOLERANCE = 0.05
 const IMPURE_RATIO_BUDGET = 1
 const IMPURE_MODULES: ReadonlySet<string> = new Set([

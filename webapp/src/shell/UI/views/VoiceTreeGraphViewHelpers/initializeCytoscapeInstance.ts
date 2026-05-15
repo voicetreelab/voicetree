@@ -4,7 +4,7 @@
  */
 import cytoscape, {type Core, type CytoscapeOptions, type StylesheetCSS} from 'cytoscape';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants';
-import {installCollectionCache, installTextureCacheSkip} from '@/shell/UI/cytoscape-graph-ui/services/largegraphPerformance';
+import {installCollectionCache, installTextureCacheSkip} from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
 
 export interface CytoscapeInitConfig {
     container: HTMLElement;

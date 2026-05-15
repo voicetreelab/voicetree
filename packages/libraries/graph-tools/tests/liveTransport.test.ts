@@ -14,7 +14,7 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {describe, it, expect, beforeEach, afterEach} from 'vitest'
 import {z} from 'zod'
 
-import {createLiveTransport} from '../src/liveTransport'
+import {createLiveTransport} from '../src/live/liveTransport'
 
 // ── fixture state ──────────────────────────────────────────────────────────
 

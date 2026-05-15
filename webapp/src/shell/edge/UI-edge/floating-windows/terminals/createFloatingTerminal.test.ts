@@ -11,12 +11,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
-import type { TerminalId, FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/types'
+import type { TerminalId, FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type { TerminalData } from '@vt/agent-runtime/types'
 import { createTerminalData } from '@vt/agent-runtime/types'
 
 // Mock heavy renderer dependencies before importing the module under test
-vi.mock('@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows', () => ({
+vi.mock('@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows', () => ({
     getOrCreateOverlay: vi.fn(() => document.createElement('div')),
     registerFloatingWindow: vi.fn(),
 }))
@@ -27,14 +27,14 @@ vi.mock('@/shell/UI/floating-windows/terminals/TerminalVanilla', () => ({
 
 vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }))
 
-vi.mock('@/shell/edge/UI-edge/floating-windows/create-window-chrome', () => ({
+vi.mock('@/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome', () => ({
     createWindowChrome: vi.fn((): FloatingWindowUIData => ({
         windowElement: document.createElement('div'),
         contentContainer: document.createElement('div'),
     })),
 }))
 
-vi.mock('@/shell/edge/UI-edge/floating-windows/anchor-to-node', () => ({
+vi.mock('@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node', () => ({
     anchorToNode: (_cy: unknown, terminalWithUI: { ui?: { windowElement: HTMLElement } }) => {
         const windowElement = terminalWithUI.ui?.windowElement
         if (!windowElement) return
@@ -44,11 +44,11 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/anchor-to-node', () => ({
     },
 }))
 
-vi.mock('@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync', () => ({
+vi.mock('@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync', () => ({
     getCurrentIndex: vi.fn(() => undefined),
 }))
 
-vi.mock('@/shell/edge/UI-edge/state/UIAppState', () => ({
+vi.mock('@/shell/edge/UI-edge/state/stores/UIAppState', () => ({
     vanillaFloatingWindowInstances: new Map(),
 }))
 
@@ -62,7 +62,7 @@ vi.mock('@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal', () => (
 }))
 
 import { createFloatingTerminal } from './createFloatingTerminal'
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 
 type TestCy = import('cytoscape').Core & {
     getNodeData: (key: string) => unknown

@@ -1,0 +1,176 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, test } from 'vitest'
+import {
+  classifyAddReadPathResult,
+  classifyRemoveReadPathResult,
+  classifySetWritePathResult,
+  composeReadPathsResponse,
+  composeVaultState,
+  composeWritePathResponse,
+  decodeVaultPath,
+  resolveAppSupportPath,
+} from '../handleVault.ts'
+
+describe('handleVault', () => {
+  const originalAppSupportPath = process.env.VOICETREE_APP_SUPPORT
+  const originalAppData = process.env.APPDATA
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME
+
+  afterEach(() => {
+    if (originalAppSupportPath === undefined) {
+      delete process.env.VOICETREE_APP_SUPPORT
+    } else {
+      process.env.VOICETREE_APP_SUPPORT = originalAppSupportPath
+    }
+    if (originalAppData === undefined) {
+      delete process.env.APPDATA
+    } else {
+      process.env.APPDATA = originalAppData
+    }
+    if (originalXdgConfigHome === undefined) {
+      delete process.env.XDG_CONFIG_HOME
+    } else {
+      process.env.XDG_CONFIG_HOME = originalXdgConfigHome
+    }
+  })
+
+  test('resolves app support path from VOICETREE_APP_SUPPORT when set', () => {
+    process.env.VOICETREE_APP_SUPPORT = ' /tmp/voicetree-support '
+
+    expect(resolveAppSupportPath()).toBe('/tmp/voicetree-support')
+  })
+
+  test('resolves platform default app support path when env override is absent', () => {
+    delete process.env.VOICETREE_APP_SUPPORT
+    delete process.env.APPDATA
+    delete process.env.XDG_CONFIG_HOME
+
+    const expected = process.platform === 'darwin'
+      ? join(homedir(), 'Library', 'Application Support', 'Voicetree')
+      : process.platform === 'win32'
+        ? join(homedir(), 'AppData', 'Roaming', 'Voicetree')
+        : join(homedir(), '.config', 'Voicetree')
+
+    expect(resolveAppSupportPath()).toBe(expected)
+  })
+
+  test('decodes valid vault path parameters', () => {
+    expect(decodeVaultPath(encodeURIComponent('/tmp/vault/docs'))).toEqual({
+      ok: true,
+      decoded: '/tmp/vault/docs',
+    })
+  })
+
+  test('returns a typed encoding error for malformed vault path parameters', () => {
+    expect(decodeVaultPath('%FF')).toEqual({
+      ok: false,
+      error: 'Invalid encoded path',
+      code: 'INVALID_PATH_ENCODING',
+    })
+  })
+
+  test('composes vault state using configured write path when present', () => {
+    expect(composeVaultState({
+      vaultPath: '/tmp/vault',
+      readPaths: ['/tmp/vault/docs'],
+      writePathOption: { value: '/tmp/vault/out' },
+    })).toEqual({
+      vaultPath: '/tmp/vault',
+      readPaths: ['/tmp/vault/docs'],
+      writePath: '/tmp/vault/out',
+    })
+  })
+
+  test('composes vault state using vault path when write path is absent', () => {
+    expect(composeVaultState({
+      vaultPath: '/tmp/vault',
+      readPaths: [],
+      writePathOption: { value: null },
+    })).toEqual({
+      vaultPath: '/tmp/vault',
+      readPaths: [],
+      writePath: '/tmp/vault',
+    })
+  })
+
+  test.each([
+    {
+      result: { success: true },
+      expected: { kind: 'success' },
+    },
+    {
+      result: { success: false, error: 'Path already in readPaths' },
+      expected: { kind: 'idempotent-success' },
+    },
+    {
+      result: { success: false, error: 'Path already expanded' },
+      expected: { kind: 'idempotent-success' },
+    },
+    {
+      result: { success: false, error: 'disk denied' },
+      expected: {
+        kind: 'error',
+        message: 'disk denied',
+        code: 'ADD_READ_PATH_FAILED',
+        status: 500,
+      },
+    },
+  ])('classifies add read path result %#', ({ result, expected }) => {
+    expect(classifyAddReadPathResult(result)).toEqual(expected)
+  })
+
+  test.each([
+    {
+      result: { success: true },
+      expected: { kind: 'success' },
+    },
+    {
+      result: { success: false, error: 'Cannot remove write path' },
+      expected: {
+        kind: 'error',
+        message: 'Cannot remove write path',
+        code: 'CANNOT_REMOVE_WRITE_PATH',
+        status: 400,
+      },
+    },
+    {
+      result: { success: false, error: 'not mounted' },
+      expected: {
+        kind: 'error',
+        message: 'not mounted',
+        code: 'REMOVE_READ_PATH_FAILED',
+        status: 500,
+      },
+    },
+  ])('classifies remove read path result %#', ({ result, expected }) => {
+    expect(classifyRemoveReadPathResult(result)).toEqual(expected)
+  })
+
+  test.each([
+    {
+      result: { success: true },
+      expected: { kind: 'success' },
+    },
+    {
+      result: { success: false, error: 'not writable' },
+      expected: {
+        kind: 'error',
+        message: 'not writable',
+        code: 'SET_WRITE_PATH_FAILED',
+        status: 500,
+      },
+    },
+  ])('classifies set write path result %#', ({ result, expected }) => {
+    expect(classifySetWritePathResult(result)).toEqual(expected)
+  })
+
+  test('composes schema-valid read and write path responses', () => {
+    expect(composeReadPathsResponse(['/tmp/vault/docs'])).toEqual({
+      readPaths: ['/tmp/vault/docs'],
+    })
+    expect(composeWritePathResponse('/tmp/vault/out')).toEqual({
+      writePath: '/tmp/vault/out',
+    })
+  })
+})

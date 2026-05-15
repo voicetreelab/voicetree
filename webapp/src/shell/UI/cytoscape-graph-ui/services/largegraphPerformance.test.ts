@@ -4,7 +4,7 @@ import {
     installTextureCacheSkip,
     resetLargeGraphPerformanceState,
     syncLargeGraphPerformanceMode,
-} from './largegraphPerformance'
+} from './animation/largegraphPerformance'
 
 function createMockCy(nodeCount: number) {
     const nodesCollection = { length: nodeCount }

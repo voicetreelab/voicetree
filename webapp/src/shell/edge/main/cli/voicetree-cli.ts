@@ -6,11 +6,11 @@ import {
     agentSend,
     agentSpawn,
     agentWait,
-} from './commands/agent.ts'
-import {runDebugCommand} from './commands/debug.ts'
-import {runSessionCommand} from './commands/session.ts'
-import {runVaultCommand} from './commands/vault.ts'
-import {runViewCommand} from './commands/view.ts'
+} from './commands/runtime/agent.ts'
+import {runDebugCommand} from './commands/runtime/debug.ts'
+import {runSessionCommand} from './commands/runtime/session.ts'
+import {runVaultCommand} from './commands/runtime/vault.ts'
+import {runViewCommand} from './commands/node/view.ts'
 import {error} from './output.ts'
 
 type GlobalOptions = {
@@ -202,7 +202,7 @@ async function dispatchGraphCommand(
     switch (subcommand) {
         case 'create': {
             const graphCreate: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphCreate',
                 'Graph commands are not available in this build yet'
             )
@@ -211,7 +211,7 @@ async function dispatchGraphCommand(
         }
         case 'index': {
             const graphIndex: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphIndex',
                 'Graph commands are not available in this build yet'
             )
@@ -220,7 +220,7 @@ async function dispatchGraphCommand(
         }
         case 'search': {
             const graphSearch: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphSearch',
                 'Graph commands are not available in this build yet'
             )
@@ -229,7 +229,7 @@ async function dispatchGraphCommand(
         }
         case 'unseen': {
             const graphUnseen: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphUnseen',
                 'Graph commands are not available in this build yet'
             )
@@ -238,7 +238,7 @@ async function dispatchGraphCommand(
         }
         case 'live': {
             const graphLive: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphLive',
                 'Graph live commands are not available in this build yet'
             )
@@ -247,7 +247,7 @@ async function dispatchGraphCommand(
         }
         case 'structure': {
             const graphStructure: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphStructure',
                 'Graph commands are not available in this build yet'
             )
@@ -256,7 +256,7 @@ async function dispatchGraphCommand(
         }
         case 'view': {
             const graphView: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphView',
                 'Graph commands are not available in this build yet'
             )
@@ -265,7 +265,7 @@ async function dispatchGraphCommand(
         }
         case 'lint': {
             const graphLintCommand: CommandHandler = await loadDeferredHandler(
-                './commands/graph.ts',
+                './commands/graph/core/graph',
                 'graphLintCommand',
                 'Graph commands are not available in this build yet'
             )
@@ -274,7 +274,7 @@ async function dispatchGraphCommand(
         }
         case 'rename': {
             const graphRename: CommandHandler = await loadDeferredHandler(
-                './commands/rename.ts',
+                './commands/node/rename.ts',
                 'graphRename',
                 'Rename command is not available in this build yet'
             )
@@ -283,7 +283,7 @@ async function dispatchGraphCommand(
         }
         case 'mv': {
             const graphMove: CommandHandler = await loadDeferredHandler(
-                './commands/move.ts',
+                './commands/node/move.ts',
                 'graphMove',
                 'Move command is not available in this build yet'
             )
@@ -292,7 +292,7 @@ async function dispatchGraphCommand(
         }
         case 'group': {
             const graphGroup: CommandHandler = await loadDeferredHandler(
-                './commands/group.ts',
+                './commands/node/group.ts',
                 'graphGroup',
                 'Group command is not available in this build yet'
             )
@@ -315,7 +315,7 @@ async function dispatchSearchCommand(
     args: string[]
 ): Promise<void> {
     const searchHandler: CommandHandler = await loadDeferredHandler(
-        './commands/search.ts',
+        './commands/node/search.ts',
         'searchCommand',
         'Search commands are not available in this build yet'
     )
@@ -365,7 +365,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         case 'serve':
             {
                 const module: {runServeCommand: (argv: string[]) => Promise<void>} =
-                    await import('./commands/serve.ts')
+                    await import('./commands/runtime/serve.ts')
                 await module.runServeCommand(commandArgs.slice(1))
             }
             return

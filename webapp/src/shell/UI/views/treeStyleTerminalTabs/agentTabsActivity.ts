@@ -6,9 +6,9 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js';
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import { getTerminals, updateTerminalActivityAndNotify } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { getTerminals, updateTerminalActivityAndNotify } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import type {} from '@/shell/electron';
 
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 import path from 'path'
-import {createHeadlessServer} from '../src/headlessServer'
+import {createHeadlessServer} from '../src/live/headlessServer'
 
 const [,, subcommand, ...args] = process.argv
 

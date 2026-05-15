@@ -223,7 +223,7 @@ export default defineConfig({
       logLevel: 'error',
       rollupOptions: {
         input: {
-          index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
+          index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/main.ts')
         },
         external: isMainExternal
       }
@@ -254,7 +254,7 @@ export default defineConfig({
       logLevel: 'error',
       rollupOptions: {
         input: {
-          index: path.resolve(__dirname, 'src/shell/edge/main/electron/preload.ts')
+          index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/preload.ts')
         },
         output: {
           format: 'cjs',

@@ -2,9 +2,9 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync}
 import os from 'node:os'
 import path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {graphGroup} from '../src/group'
-import {graphMove} from '../src/move'
-import {graphRename} from '../src/rename'
+import {graphGroup} from '../src/authoring/group'
+import {graphMove} from '../src/authoring/move'
+import {graphRename} from '../src/authoring/rename'
 
 async function captureJsonOutput(run: () => Promise<void>): Promise<any> {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)

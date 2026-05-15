@@ -7,8 +7,8 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
 import type { VTSettings } from '@vt/graph-model/settings';
-import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
+import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

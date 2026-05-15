@@ -18,8 +18,8 @@ import {
 import {
   getBaseName,
   buildNodeByBaseNameIndex
-} from '../graph-operations/linkResolutionIndexes'
-import type { NodeByBaseNameIndex } from '../graph-operations/linkResolutionIndexes'
+} from '../graph-operations/indexes/linkResolutionIndexes'
+import type { NodeByBaseNameIndex } from '../graph-operations/indexes/linkResolutionIndexes'
 import { fromNodeToContentWithWikilinks } from '../markdown-writing/node_to_markdown'
 import { replaceWikilinkPlaceholders } from '../rename/replaceWikilinkPlaceholders'
 import type { GraphNode, Edge } from '..'

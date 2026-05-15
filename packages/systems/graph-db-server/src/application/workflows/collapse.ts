@@ -1,6 +1,6 @@
 import { handleCollapse } from '../core/handleCollapse.ts'
-import { runCommand } from '../effects/runCommand.ts'
-import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import { dispatch } from './dispatch.ts'
+import type { HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function collapseSessionFolderWorkflow(
@@ -9,16 +9,10 @@ export async function collapseSessionFolderWorkflow(
   folderId: string,
   action: 'collapse' | 'expand',
 ): Promise<HttpResult> {
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  const result = handleCollapse(session, folderId, action)
-  Object.assign(session, result.session)
-
-  for (const command of result.commands) {
-    await runCommand(command, { registry })
-  }
-  return jsonResult(result.response)
+  return dispatch(
+    registry,
+    sessionId,
+    { folderId, action },
+    (session, input) => handleCollapse(session, input.folderId, input.action),
+  )
 }

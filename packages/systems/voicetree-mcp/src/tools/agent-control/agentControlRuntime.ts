@@ -1,14 +1,5 @@
 import {
     agentRuntime,
-    enqueuePendingMessage,
-    getHeadlessAgentOutput,
-    getOutput,
-    getPendingTerminal,
-    getTerminalRecords,
-    registerChild,
-    sendTextToTerminal,
-    spawnTerminalWithContextNode,
-    tryConsumeAndSplitBudget,
     type StopHookResult,
     type TerminalId,
     type TerminalRecord,
@@ -21,7 +12,7 @@ export type PendingTerminalState = {
 }
 
 export function listTerminalRecords(): TerminalRecord[] {
-    return getTerminalRecords()
+    return agentRuntime.getTerminalRecords()
 }
 
 export function findTerminalRecord(terminalId: string, records: readonly TerminalRecord[] = listTerminalRecords()): TerminalRecord | undefined {
@@ -33,28 +24,28 @@ export function terminalExists(terminalId: string, records: readonly TerminalRec
 }
 
 export function getPendingTerminalState(terminalId: string): PendingTerminalState | undefined {
-    return getPendingTerminal(terminalId)
+    return agentRuntime.getPendingTerminal(terminalId)
 }
 
 export function enqueuePendingTerminalMessage(terminalId: string, message: string): void {
-    enqueuePendingMessage(terminalId, message)
+    agentRuntime.enqueuePendingMessage(terminalId, message)
 }
 
 export function readHeadlessTerminalOutput(terminalId: string): string {
-    return getHeadlessAgentOutput(terminalId)
+    return agentRuntime.getHeadlessAgentOutput(terminalId)
 }
 
 export function readInteractiveTerminalOutput(terminalId: string, nChars: number): string | undefined {
-    return getOutput(terminalId, nChars)
+    return agentRuntime.getOutput(terminalId, nChars)
 }
 
-export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof sendTextToTerminal> {
-    return sendTextToTerminal(terminalId, message)
+export function sendTerminalText(terminalId: string, message: string): ReturnType<typeof agentRuntime.sendTextToTerminal> {
+    return agentRuntime.sendTextToTerminal(terminalId, message)
 }
 
-export const consumeSpawnBudget = tryConsumeAndSplitBudget
-export const rememberChildTerminal = registerChild
-export const spawnContextTerminal = spawnTerminalWithContextNode
+export const consumeSpawnBudget = agentRuntime.tryConsumeAndSplitBudget
+export const rememberChildTerminal = agentRuntime.registerChild
+export const spawnContextTerminal = agentRuntime.spawnTerminalWithContextNode
 
 export function closeHeadlessTerminal(terminalId: TerminalId): {closed: true; wasRunning: boolean} | {closed: false} {
     return agentRuntime.closeHeadlessAgent(terminalId)

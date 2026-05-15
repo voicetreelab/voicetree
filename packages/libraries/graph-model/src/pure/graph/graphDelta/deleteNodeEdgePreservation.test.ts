@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphNode, GraphDelta, NodeIdAndFilePath } from '..'
-import { createGraph } from '../createGraph'
+import { createGraph } from '../construction/createGraph'
 import { applyGraphDeltaToGraph } from './applyGraphDeltaToGraph'
 import { deleteNodeSimple } from '@vt/graph-model'
 

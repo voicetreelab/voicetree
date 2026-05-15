@@ -1,3 +1,12 @@
-[submodule "workflows"]
+[submodule "brain"]
 	path = brain
 	url = git@github.com:voicetreelab/brain.git
+	ignore = dirty
+[submodule "voicetree-evals"]
+	path = voicetree-evals
+	url = https://github.com/voicetreelab/voicetree-evals.git
+	ignore = dirty
+[submodule "vt-website-quartz"]
+	path = vt-website-quartz
+	url = https://github.com/voicetreelab/vt-website.git
+	ignore = dirty

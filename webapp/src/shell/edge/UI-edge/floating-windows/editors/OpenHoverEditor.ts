@@ -1,5 +1,5 @@
-import type {Position} from "@/shell/UI/views/IVoiceTreeGraphView";
-import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import type {Position} from "@/shell/UI/views/graph-view/IVoiceTreeGraphView";
+import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/actions/handleUIActions";
 
 /**
  * Handle adding a node at a specific position

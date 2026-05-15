@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateStepSpec } from '../src/debug/stepShape'
+import { validateStepSpec } from '../src/debug/flow/stepShape'
 
 describe('validateStepSpec', () => {
   it('accepts the supported step variants', () => {

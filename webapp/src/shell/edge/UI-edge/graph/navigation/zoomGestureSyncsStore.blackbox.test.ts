@@ -30,7 +30,7 @@ import {
     flushLayout,
     getLayout,
 } from '@vt/graph-state/state/layoutStore';
-import { setIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/trackpad-state';
+import { setIsTrackpadScrolling } from '@/shell/edge/UI-edge/state/controllers/trackpad-state';
 
 import { NavigationGestureService } from './NavigationGestureService';
 

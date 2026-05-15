@@ -19,8 +19,18 @@ done
 sub="${1:-}"
 rest="${*:2}"
 reason=""
+merge_assertion=""   # non-empty → use this password instead of GIT_GATE_PASS
 
 case "$sub" in
+  merge)
+    # --continue / --abort are conflict-resolution steps, not new merges — let through
+    if [[ ! "$rest" =~ (^|[[:space:]])(--continue|--abort|--quit)([[:space:]]|$) ]]; then
+      target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
+      current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
+      reason="merging ${target_branch:-branch} into ${current_branch}"
+      merge_assertion="yes_tests_and_measures_green"
+    fi
+    ;;
   reset)
     [[ "$rest" =~ (^|[[:space:]])--hard([[:space:]]|$) ]] && reason="reset --hard destroys uncommitted changes"
     ;;
@@ -50,23 +60,43 @@ case "$sub" in
 esac
 
 if [ -n "$reason" ]; then
-  {
-    echo ""
-    echo "  ╔══════════════════════════════════════════════════════════════════╗"
-    echo "  ║  git-gate: BLOCKED                                               ║"
-    echo "  ╚══════════════════════════════════════════════════════════════════╝"
-    echo "    command: git $*"
-    echo "    reason:  $reason"
-    echo ""
-    echo "    Think before you run destructive git commands."
-    echo "    Other agents may be working in this repo right now."
-    echo "    Prefer multiple commits to get where you want — not destructive"
-    echo "    rewrites that stomp on parallel work."
-    echo ""
-  } >&2
-
-  expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
-  expected="${expected:-changeme}"
+  if [ -n "$merge_assertion" ]; then
+    {
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════════════════╗"
+      echo "  ║  git-gate: MERGE BLOCKED                                         ║"
+      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo "    command: git $*"
+      echo ""
+      echo "    Before merging, confirm ALL of the following:"
+      echo ""
+      echo "      1. \`npm run test\` passes in this worktree"
+      echo "      2. Tier 1 e2e tests are green"
+      echo "      3. Complexity measures have not regressed"
+      echo ""
+      echo "    If all green, type the assertion password to proceed:"
+      echo "      yes_tests_and_measures_green"
+      echo ""
+    } >&2
+    expected="$merge_assertion"
+  else
+    {
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════════════════╗"
+      echo "  ║  git-gate: BLOCKED                                               ║"
+      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo "    command: git $*"
+      echo "    reason:  $reason"
+      echo ""
+      echo "    Think before you run destructive git commands."
+      echo "    Other agents may be working in this repo right now."
+      echo "    Prefer multiple commits to get where you want — not destructive"
+      echo "    rewrites that stomp on parallel work."
+      echo ""
+    } >&2
+    expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
+    expected="${expected:-changeme}"
+  fi
 
   if ! read -rsp "    password: " pass < /dev/tty 2>/dev/null; then
     echo "    no tty — aborted." >&2

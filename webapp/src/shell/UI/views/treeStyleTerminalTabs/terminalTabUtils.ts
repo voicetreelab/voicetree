@@ -8,13 +8,13 @@
  * - Zoom inactivity suppression (for cytoscape-floating-windows.ts)
  */
 
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import {
     suppressInactivityDuringZoom as storeSuppress,
-} from '@/shell/edge/UI-edge/state/AgentTabsStore';
-import { getTerminals } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
+} from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
+import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import { buildTerminalTree } from '@vt/graph-model/agent-tabs';
 import type {} from '@/shell/electron';
 

@@ -61,7 +61,7 @@ let mockMainWindow: {
 }
 
 // Mock app-electron-state
-vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
+vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
   getMainWindow: vi.fn(() => mockMainWindow),
   setMainWindow: vi.fn()
 }))

@@ -1,11 +1,15 @@
-import { project } from '@vt/graph-state'
-import { renderTreeCover } from '@vt/graph-tools/autoView'
 import {
   ExpandOverridesResponseSchema,
   ViewResponseSchema,
 } from '@vt/graph-db-server/contract'
-import { buildDaemonState } from '../session/buildDaemonState.ts'
-import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
+import {
+  handleAddExpandOverride,
+  handleDeleteExpandOverride,
+  handleReadProjectedGraph,
+  handleRenderView,
+} from '../core/handleView.ts'
+import { dispatch, dispatchOrCreateWithState } from './dispatch.ts'
+import type { HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 
 export async function renderSessionViewWorkflow(
@@ -14,63 +18,61 @@ export async function renderSessionViewWorkflow(
   budgetParam: string | undefined,
   expandParams: readonly string[],
 ): Promise<HttpResult> {
-  const session = registry.getOrCreate(sessionId)
-
-  const budget = budgetParam ? Math.max(1, Math.trunc(Number(budgetParam))) : 30
-  const mergedExpands = [...session.expandOverrides, ...expandParams]
-
-  const state = await buildDaemonState(session)
-  const graph = project(state)
-
-  const output = renderTreeCover(graph, {
-    collapsed: session.collapseSet,
-    selected: session.selection,
-    pinnedFolderIds: mergedExpands,
-    budget,
-  })
-
-  return jsonResult(ViewResponseSchema.parse({ output, format: 'tree-cover' }))
+  return dispatchOrCreateWithState(
+    registry,
+    sessionId,
+    { budgetParam, expandParams },
+    (session, state, input) => {
+      const result = handleRenderView(
+        session,
+        state,
+        input.budgetParam,
+        input.expandParams,
+      )
+      return {
+        ...result,
+        response: ViewResponseSchema.parse(result.response),
+      }
+    },
+  )
 }
 
 export async function readProjectedGraphWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
 ): Promise<HttpResult> {
-  const session = registry.getOrCreate(sessionId)
-  const state = await buildDaemonState(session)
-  return jsonResult(project(state), 200)
+  return dispatchOrCreateWithState(
+    registry,
+    sessionId,
+    undefined,
+    (_session, state) => handleReadProjectedGraph(state),
+  )
 }
 
-export function addExpandOverrideWorkflow(
+export async function addExpandOverrideWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   folderId: string,
-): HttpResult {
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  session.expandOverrides.add(folderId)
-  registry.touch(sessionId)
-  return jsonResult(ExpandOverridesResponseSchema.parse({
-    expandOverrides: [...session.expandOverrides],
-  }))
+): Promise<HttpResult> {
+  return dispatch(registry, sessionId, folderId, (session, id) => {
+    const result = handleAddExpandOverride(session, id)
+    return {
+      ...result,
+      response: ExpandOverridesResponseSchema.parse(result.response),
+    }
+  })
 }
 
-export function deleteExpandOverrideWorkflow(
+export async function deleteExpandOverrideWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   folderId: string,
-): HttpResult {
-  const session = registry.get(sessionId)
-  if (!session) {
-    return notFoundResult()
-  }
-
-  session.expandOverrides.delete(folderId)
-  registry.touch(sessionId)
-  return jsonResult(ExpandOverridesResponseSchema.parse({
-    expandOverrides: [...session.expandOverrides],
-  }))
+): Promise<HttpResult> {
+  return dispatch(registry, sessionId, folderId, (session, id) => {
+    const result = handleDeleteExpandOverride(session, id)
+    return {
+      ...result,
+      response: ExpandOverridesResponseSchema.parse(result.response),
+    }
+  })
 }

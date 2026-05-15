@@ -3,9 +3,9 @@ import * as O from 'fp-ts/lib/Option.js';
 
 import type {Edge, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph';
 import type {ProjectedEdge, ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract';
-import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
 import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/graph";
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';

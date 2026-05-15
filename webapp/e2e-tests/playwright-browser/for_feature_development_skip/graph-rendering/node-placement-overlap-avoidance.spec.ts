@@ -186,7 +186,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
       // imported dynamically via Vite dev server in the browser context
       const position = await page.evaluate(async (args: { parentId: string; childIndex: number }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts' as any);
+        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/extractObstaclesFromCytoscape.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const positionModule = await import('/src/pure/graph/positioning/findBestPosition.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -321,7 +321,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
 
       const position = await page.evaluate(async (args: { parentId: string; childIndex: number }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts' as any);
+        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/extractObstaclesFromCytoscape.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const positionModule = await import('/src/pure/graph/positioning/findBestPosition.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -441,7 +441,7 @@ test.describe('Node Placement: Overlap Avoidance', () => {
 
       const position = await page.evaluate(async (args: { parentId: string; childIndex: number }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/extractObstaclesFromCytoscape.ts' as any);
+        const obstacleModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/extractObstaclesFromCytoscape.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const positionModule = await import('/src/pure/graph/positioning/findBestPosition.ts' as any);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,8 +5,8 @@
  * createLiveTransport, and verifies round-trips. Port 3002 is never bound.
  */
 import {describe, it, expect} from 'vitest'
-import {createHeadlessServer, type HeadlessServer} from '../src/headlessServer'
-import {createLiveTransport} from '../src/liveTransport'
+import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
+import {createLiveTransport} from '../src/live/liveTransport'
 
 describe('vt-headless serve', () => {
     it('boots on ephemeral port — not 3002, not 0, responds to vt_get_live_state', async () => {

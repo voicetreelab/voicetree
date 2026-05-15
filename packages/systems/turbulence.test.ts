@@ -25,6 +25,12 @@ type PackageAggregate = {
     readonly maxFile: FileTurbulence | null
 }
 
+function isNotFoundError(error: unknown): boolean {
+    return error instanceof Error
+        && 'code' in error
+        && (error as {readonly code?: string}).code === 'ENOENT'
+}
+
 async function pathExists(p: string): Promise<boolean> {
     try {
         await stat(p)
@@ -56,14 +62,14 @@ async function listProductionSources(root: string): Promise<string[]> {
 
 function collectGitChurn(): ReadonlyMap<string, number> {
     const output = execSync(
-        "git log --since='6 months ago' --format=%H --name-only -- packages/systems",
-        {cwd: REPO_ROOT, encoding: 'utf8'},
+        "git log --since='6 months ago' --format= --name-only",
+        {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024},
     )
     const churn = new Map<string, number>()
 
     for (const line of output.split('\n')) {
         const file = line.trim()
-        if (!file || !file.startsWith('packages/systems/')) continue
+        if (!file) continue
         churn.set(file, (churn.get(file) ?? 0) + 1)
     }
 
@@ -97,8 +103,15 @@ async function measureFile(
     pkg: PackageInfo,
     filePath: string,
     churnByFile: ReadonlyMap<string, number>,
-): Promise<FileTurbulence> {
-    const text = await readFile(filePath, 'utf8')
+): Promise<FileTurbulence | null> {
+    let text: string
+    try {
+        text = await readFile(filePath, 'utf8')
+    } catch (error) {
+        if (isNotFoundError(error)) return null
+        throw error
+    }
+
     const file = relative(REPO_ROOT, filePath)
     const churn = churnByFile.get(file) ?? 0
     const complexity = countComplexity(filePath, text)
@@ -117,7 +130,7 @@ async function measureTurbulence(packages: readonly PackageInfo[]): Promise<File
         const files = await listProductionSources(pkg.srcRoot)
         return Promise.all(files.map(file => measureFile(pkg, file, churnByFile)))
     }))
-    return nested.flat().sort((a, b) =>
+    return nested.flat().filter((row): row is FileTurbulence => row !== null).sort((a, b) =>
         b.turbulence - a.turbulence
         || b.churn - a.churn
         || b.complexity - a.complexity

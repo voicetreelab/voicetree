@@ -3,7 +3,7 @@ import { buildTerminalTree } from '@vt/graph-model/agent-tabs';
 import type { TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import type { TerminalLifecycle } from '@vt/graph-model/agent-tabs';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 // Helper to create minimal TerminalData for testing
 function createTerminal(

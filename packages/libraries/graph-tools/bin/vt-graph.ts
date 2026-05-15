@@ -22,7 +22,7 @@ import {
   formatHygieneReportHuman,
   formatHygieneReportJson,
   type HygieneRuleId,
-} from '../src/hygiene'
+} from '../src/lint/hygiene'
 import type {Delta, SerializedCommand} from '@vt/graph-state'
 import {linkMatchScore} from '@vt/graph-model'
 import {parseStateDumpArgs} from './cliArgs'

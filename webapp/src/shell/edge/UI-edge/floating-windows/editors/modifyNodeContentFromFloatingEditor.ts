@@ -3,7 +3,7 @@ import type {Core} from "cytoscape";
 import {fromContentChangeToGraphDelta} from "@vt/graph-model/graph";
 import {parseMarkdownToGraphNode} from "@vt/graph-model/markdown";
 import * as O from 'fp-ts/lib/Option.js';
-import {mergeNodeUIMetadata} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {mergeNodeUIMetadata} from "@/shell/edge/UI-edge/graph/actions/handleUIActions";
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
 

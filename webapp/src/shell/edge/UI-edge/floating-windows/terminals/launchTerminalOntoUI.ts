@@ -1,9 +1,9 @@
-import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
+import {getTerminalId, type TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {Core} from "cytoscape";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
+import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
 import {createFloatingTerminal} from "@/shell/edge/UI-edge/floating-windows/terminals/createFloatingTerminal";
-import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/TerminalStore";
-import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState";
+import {setTerminalUI, getTerminalByNodeId} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
 import * as O from "fp-ts/lib/Option.js";
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";

@@ -7,8 +7,8 @@ import {
   applyDeltaToStateCaptureOverlay,
   buildCapturedSerializedState,
   createStateCaptureOverlay,
-} from '../src/commands/run'
-import type { CyDump } from '../src/debug/cyStateShape'
+} from '../src/commands/capture/run'
+import type { CyDump } from '../src/debug/state/cyStateShape'
 
 function buildGraph(nodeIds: readonly NodeIdAndFilePath[]): Graph {
   const nodes = Object.fromEntries(

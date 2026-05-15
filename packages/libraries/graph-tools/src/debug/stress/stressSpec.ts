@@ -1,6 +1,6 @@
 import type { FolderTreeNode, FileTreeNode } from '@vt/graph-model'
 import type { State } from '@vt/graph-state'
-import type { StepSpec } from '../stepShape'
+import type { StepSpec } from '../flow/stepShape'
 
 export const DEFAULT_STRESS_SEED = 17
 export const DEFAULT_STRESS_SEQUENCE_LENGTH = 4

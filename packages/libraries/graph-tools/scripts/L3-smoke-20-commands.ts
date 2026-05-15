@@ -19,8 +19,8 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import {z} from 'zod'
 
-import {createLiveTransport} from '../src/liveTransport'
-import {liveStateDump, liveView} from '../src/live'
+import {createLiveTransport} from '../src/live/liveTransport'
+import {liveStateDump, liveView} from '../src/live/live'
 import {applyCommandWithDelta, applyCommandAsyncWithDelta, emptyState} from '@vt/graph-state'
 import type {Command, State} from '@vt/graph-state'
 

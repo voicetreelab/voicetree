@@ -1,8 +1,8 @@
 import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {findCollapseBoundary} from '../src/collapseBoundary'
-import {buildAutoViewGraph, buildPinnedClusters, renderAutoView, deriveRenderGraph} from '../src/autoView'
+import {findCollapseBoundary} from '../src/view/collapseBoundary'
+import {buildAutoViewGraph, buildPinnedClusters, renderAutoView, deriveRenderGraph} from '../src/view/autoView'
 
 const testDir: string = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot: string = path.resolve(testDir, '../../../..')
