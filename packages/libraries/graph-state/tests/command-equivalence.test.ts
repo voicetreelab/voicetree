@@ -62,16 +62,14 @@ function runSequence(fixtureName: string): void {
 
 /**
  * Command-equivalence matrix (L1-I / V-L1-3, extended for L2-BF-167).
- * One row per Command discriminator. All 15 variants referenced below
- * (11 from L1 + SetZoom/SetPan/SetPositions/RequestFit from L2-BF-167).
- * Rows marked it.skip are pending BF-150 (AddEdge) / BF-152 (Move, LoadRoot, UnloadRoot).
+ * One row per supported Command discriminator plus multi-command fixtures.
  */
 describe('command-equivalence matrix', () => {
-    it("'Collapse': fixture 100-collapse-command", () => {
+    it("'SetFolderState collapsed': fixture 100-collapse-command", () => {
         runSequence('100-collapse-command')
     })
 
-    it("'Expand': fixture 101-expand-command", () => {
+    it("'SetFolderState expanded': fixture 101-expand-command", () => {
         runSequence('101-expand-command')
     })
 
@@ -105,17 +103,15 @@ describe('command-equivalence matrix', () => {
         runSequence('108-move-command')
     })
 
-    // TODO: enable once BF-152 lands
-    it.skip("'LoadRoot': fixture 109-load-root-command", () => {
+    it.skip("'SetFolderState expanded implicit-root': fixture 109-load-root-command", () => {
         runSequence('109-load-root-command')
     })
 
-    // TODO: enable once BF-152 lands
-    it.skip("'UnloadRoot': fixture 110-unload-root-command", () => {
+    it.skip("'SetFolderState hidden implicit-root': fixture 110-unload-root-command", () => {
         runSequence('110-unload-root-command')
     })
 
-    it('round-trip Collapse→Expand restores initial state: 111', () => {
+    it('round-trip SetFolderState collapsed→expanded restores initial state: 111', () => {
         runSequence('111-collapse-expand-round-trip')
     })
 
@@ -123,8 +119,7 @@ describe('command-equivalence matrix', () => {
         runSequence('112-select-deselect-round-trip')
     })
 
-    // TODO: enable once BF-152 (LoadRoot) lands — 113 starts with LoadRoot
-    it.skip('multi-command LoadRoot+AddNode+Collapse+Select: 113', () => {
+    it.skip('multi-command SetFolderState+AddNode+SetFolderState+Select: 113', () => {
         runSequence('113-multi-command-load-add-collapse-select')
     })
 

@@ -4,7 +4,7 @@
  * Three operations bridging the CLI to a running Electron app via LiveTransport:
  *   - liveStateDump  → vt_get_live_state → print SerializedState JSON
  *   - liveApply      → vt_dispatch_live_command → print Delta JSON
- *   - liveView       → dispatch collapse/select + vt_get_live_state → ASCII tree
+ *   - liveView       → dispatch folder-state/select + vt_get_live_state → ASCII tree
  */
 import {hydrateCommand, serializeState, type SerializedCommand} from '@vt/graph-state'
 import type {Command, Delta} from '@vt/graph-state/contract'
@@ -48,9 +48,9 @@ export async function liveStateDump(options: LiveStateDumpOptions = {}): Promise
 // ── live apply ─────────────────────────────────────────────────────────────
 
 const VALID_COMMAND_TYPES = new Set([
-    'Collapse', 'Expand', 'Select', 'Deselect',
+    'SetFolderState', 'Select', 'Deselect',
     'AddNode', 'RemoveNode', 'AddEdge', 'RemoveEdge',
-    'Move', 'LoadRoot', 'UnloadRoot',
+    'Move',
 ])
 
 export interface LiveApplyOptions {
@@ -103,11 +103,16 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
     const port = getMcpPort(options.port)
     const transport = createLiveTransport(port)
 
-    // Dispatch any collapse commands first (idempotent — if already collapsed, noop)
+    // Dispatch any folder-state commands first (idempotent if already collapsed).
     for (const folder of options.collapsedFolders ?? []) {
-        const folderId = folder.endsWith('/') ? folder : `${folder}/`
+        const path = folder.endsWith('/') ? folder.slice(0, -1) : folder
         try {
-            await transport.dispatchLiveCommand({type: 'Collapse', folder: folderId})
+            await transport.dispatchLiveCommand({
+                type: 'SetFolderState',
+                viewId: 'main',
+                path,
+                state: 'collapsed',
+            })
         } catch (error) {
             // best-effort: log but don't block rendering
             process.stderr.write(

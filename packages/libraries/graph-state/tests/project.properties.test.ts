@@ -24,6 +24,15 @@ function collectAllFolderIds(tree: readonly FolderTreeNode[]): FolderId[] {
     return ids
 }
 
+function setFolderState(folderId: FolderId, state: 'expanded' | 'collapsed' | 'hidden') {
+    return {
+        type: 'SetFolderState' as const,
+        viewId: 'main',
+        path: folderId.endsWith('/') ? folderId.slice(0, -1) : folderId,
+        state,
+    }
+}
+
 function deriveStatesWithCollapseVariations(state: State): State[] {
     const folderIds = collectAllFolderIds(state.roots.folderTree)
     if (folderIds.length === 0) return [state]
@@ -32,14 +41,14 @@ function deriveStatesWithCollapseVariations(state: State): State[] {
 
     for (const folderId of folderIds) {
         let s = state
-        s = applyCommand(s, { type: 'Collapse', folder: folderId })
+        s = applyCommand(s, setFolderState(folderId, 'collapsed'))
         variants.push(s)
     }
 
     if (folderIds.length >= 2) {
         let allCollapsed = state
         for (const folderId of folderIds) {
-            allCollapsed = applyCommand(allCollapsed, { type: 'Collapse', folder: folderId })
+            allCollapsed = applyCommand(allCollapsed, setFolderState(folderId, 'collapsed'))
         }
         variants.push(allCollapsed)
     }
@@ -244,10 +253,10 @@ describe('project() property-based tests', () => {
                 const before = project(state)
                 let s = state
                 for (const folderId of folderIds) {
-                    s = applyCommand(s, { type: 'Collapse', folder: folderId })
+                    s = applyCommand(s, setFolderState(folderId, 'collapsed'))
                 }
                 for (const folderId of folderIds) {
-                    s = applyCommand(s, { type: 'Expand', folder: folderId })
+                    s = applyCommand(s, setFolderState(folderId, 'expanded'))
                 }
                 const after = project(s)
                 expect(after.nodes).toEqual(before.nodes)
@@ -302,7 +311,7 @@ describe('project() property-based tests', () => {
                 const folderIds = collectAllFolderIds(state.roots.folderTree)
                 let s = state
                 for (const folderId of folderIds) {
-                    s = applyCommand(s, { type: 'Collapse', folder: folderId })
+                    s = applyCommand(s, setFolderState(folderId, 'collapsed'))
                 }
                 const collapsed = project(s)
 

@@ -1,5 +1,5 @@
 /**
- * L4-BF-197 — Round-trip: getCurrentLiveState reflects all 15 Command variants.
+ * L4-BF-197 — Round-trip: getCurrentLiveState reflects supported Command variants.
  *
  * CASES is typed Record<Command['type'], TestCase> so adding a new Command
  * variant to contract.d.ts without adding a row here breaks the build.
@@ -45,18 +45,6 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         additive?: boolean
     }) => {
         switch (command.type) {
-            case 'Collapse':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set([...rendererCollapseSet, command.folder])
-                }
-                break
-            case 'Expand':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set(
-                        [...rendererCollapseSet].filter((folder) => folder !== command.folder),
-                    )
-                }
-                break
             case 'Select': {
                 const next: Set<string> =
                     command.additive === true ? new Set(rendererSelection) : new Set()
@@ -83,9 +71,7 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         }
     }),
     isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
-        command.type === 'Collapse'
-        || command.type === 'Expand'
-        || command.type === 'Select'
+        command.type === 'Select'
         || command.type === 'Deselect'
         || command.type === 'SetZoom'
         || command.type === 'SetPan'
@@ -143,20 +129,20 @@ type TestCase = {
     check: (s: State) => void
 }
 
-describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command variants', () => {
+describe('L4-BF-197 — getCurrentLiveState round-trip for supported Command variants', () => {
     const nodeId: string = `${TMP_ROOT}/note.md`
     const otherId: string = `${TMP_ROOT}/other.md`
     const folder: string = `${TMP_ROOT}/subdir/`
 
     const CASES: Record<Command['type'], TestCase> = {
-        Collapse: {
-            cmd: { type: 'Collapse', folder },
-            check: (s) => expect(s.collapseSet.has(folder)).toBe(false),
-        },
-        Expand: {
-            setup: async () => { await applyLiveCommandAsync({ type: 'Collapse', folder }) },
-            cmd: { type: 'Expand', folder },
-            check: (s) => expect(s.collapseSet.has(folder)).toBe(false),
+        SetFolderState: {
+            cmd: {
+                type: 'SetFolderState',
+                viewId: 'main',
+                path: folder.slice(0, -1),
+                state: 'collapsed',
+            },
+            check: (s) => expect(s.meta.revision).toBeGreaterThanOrEqual(1),
         },
         Select: {
             cmd: { type: 'Select', ids: [nodeId] },
@@ -200,15 +186,6 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command varian
             cmd: { type: 'Move', id: nodeId, to: { x: 10, y: 20 } },
             check: (s) => expect(s.meta.revision).toBeGreaterThanOrEqual(1),
         },
-        LoadRoot: {
-            cmd: { type: 'LoadRoot', root: TMP_ROOT },
-            check: (s) => expect(s.roots.loaded.has(TMP_ROOT)).toBe(true),
-        },
-        UnloadRoot: {
-            setup: async () => { await applyLiveCommandAsync({ type: 'LoadRoot', root: TMP_ROOT }) },
-            cmd: { type: 'UnloadRoot', root: TMP_ROOT },
-            check: (s) => expect(s.roots.loaded.has(TMP_ROOT)).toBe(false),
-        },
         SetZoom: {
             cmd: { type: 'SetZoom', zoom: 2.0 },
             check: (s) => expect(s.layout.zoom).toBe(2.0),
@@ -227,8 +204,8 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command varian
         },
     }
 
-    it('covers exactly 15 Command variants (compile-time + runtime guard)', () => {
-        expect(Object.keys(CASES)).toHaveLength(15)
+    it('covers exactly 12 Command variants (compile-time + runtime guard)', () => {
+        expect(Object.keys(CASES)).toHaveLength(12)
     })
 
     for (const [type, testCase] of Object.entries(CASES) as Array<[Command['type'], TestCase]>) {

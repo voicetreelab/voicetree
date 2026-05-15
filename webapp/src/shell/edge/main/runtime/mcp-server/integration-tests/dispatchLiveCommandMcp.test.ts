@@ -3,7 +3,7 @@
  *
  * Mirrors the BF-161 integration harness: spins up the same express +
  * StreamableHTTPServerTransport stack the Electron app uses, dispatches a
- * `Collapse` command via the MCP client, then calls `vt_get_live_state` to
+ * `SetFolderState` command via the MCP client, then calls `vt_get_live_state` to
  * assert the folder landed in `collapseSet`. This is the unit-of-work
  * equivalent of the spec's real-instance verify (no need for a live
  * Electron binary here — the MCP roundtrip is what we actually need to
@@ -55,18 +55,6 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         additive?: boolean
     }) => {
         switch (command.type) {
-            case 'Collapse':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set([...rendererCollapseSet, command.folder])
-                }
-                break
-            case 'Expand':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set(
-                        [...rendererCollapseSet].filter((folder) => folder !== command.folder),
-                    )
-                }
-                break
             case 'Select': {
                 const next: Set<string> =
                     command.additive === true ? new Set(rendererSelection) : new Set()
@@ -93,9 +81,7 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         }
     }),
     isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
-        command.type === 'Collapse'
-        || command.type === 'Expand'
-        || command.type === 'Select'
+        command.type === 'Select'
         || command.type === 'Deselect',
 }))
 
@@ -213,7 +199,7 @@ describe.skip('vt_dispatch_live_command real MCP roundtrip', () => {
         __resetLiveStoreForTests()
     })
 
-    it('dispatch Collapse → vt_get_live_state: folder in collapseSet + not-yet-wired sentinel works', async () => {
+    it('dispatch SetFolderState → vt_get_live_state: folder in collapseSet + no not-yet-wired sentinel', async () => {
         const client: Client = new Client({ name: 'bf162-test', version: '1.0.0' })
         const transport: StreamableHTTPClientTransport = new StreamableHTTPClientTransport(
             new URL(`http://127.0.0.1:${server.port}/mcp`),
@@ -229,7 +215,14 @@ describe.skip('vt_dispatch_live_command real MCP roundtrip', () => {
             const folder: string = '/tmp/vault/brain/working-memory/tasks/'
             const dispatchResult: ToolCallResult = await client.callTool({
                 name: 'vt_dispatch_live_command',
-                arguments: { command: { type: 'Collapse', folder } },
+                arguments: {
+                    command: {
+                        type: 'SetFolderState',
+                        viewId: 'main',
+                        path: folder.slice(0, -1),
+                        state: 'collapsed',
+                    },
+                },
             })
             expect(dispatchResult.isError).not.toBe(true)
             const dispatchPayload: Record<string, unknown> = parseTextBlock(dispatchResult)
@@ -264,7 +257,7 @@ describe.skip('vt_dispatch_live_command real MCP roundtrip', () => {
             })
             const movePayload: Record<string, unknown> = parseTextBlock(moveResult)
             expect(JSON.stringify(movePayload)).not.toContain('not-yet-wired')
-            expect(movePayload.revision).toBe(2) // Collapse = 1, Move = 2
+            expect(movePayload.revision).toBe(2) // SetFolderState = 1, Move = 2
         } finally {
             await client.close()
         }

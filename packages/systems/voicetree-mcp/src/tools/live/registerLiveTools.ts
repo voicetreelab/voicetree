@@ -10,11 +10,10 @@ import { getLiveStateTool } from './getLiveStateTool'
 
 const DISPATCH_DESCRIPTION: string = [
     'SerializedCommand payload. Shape per command.type:',
-    '- Collapse/Expand: {type, folder}',
+    '- SetFolderState: {type, viewId, path, state}',
     '- Select: {type, ids[], additive?}',
     '- Deselect: {type, ids[]}',
     '- Move: {type, id, to:{x,y}}',
-    '- LoadRoot/UnloadRoot: {type, root}',
     '- AddEdge: {type, source, edge:{targetId,label}}',
     '- RemoveEdge: {type, source, targetId}',
     '- RemoveNode: {type, id}',
@@ -36,7 +35,7 @@ export function registerLiveTools(server: McpServer): void {
         'vt_dispatch_live_command',
         {
             title: 'Dispatch Live VoiceTree Command',
-            description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}. Legacy Collapse/Expand/LoadRoot/UnloadRoot command inputs remain accepted until Phase 4 while getLiveState reports folderState and activeView.',
+            description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}.',
             inputSchema: {
                 command: z.record(z.string(), z.unknown()).describe(DISPATCH_DESCRIPTION),
             },

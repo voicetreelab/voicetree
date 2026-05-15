@@ -13,7 +13,7 @@ export interface RendererLiveStateSnapshot {
 
 export type RendererOwnedLiveCommand = Extract<
     Command,
-    { type: 'Collapse' | 'Expand' | 'Select' | 'Deselect' | 'SetZoom' | 'SetPan' | 'RequestFit' }
+    { type: 'Select' | 'Deselect' | 'SetZoom' | 'SetPan' | 'RequestFit' }
 >
 
 function getWebContents(): Electron.WebContents {
@@ -70,9 +70,7 @@ export function isRendererOwnedLiveCommand(
     command: Command,
 ): command is RendererOwnedLiveCommand {
     return (
-        command.type === 'Collapse'
-        || command.type === 'Expand'
-        || command.type === 'Select'
+        command.type === 'Select'
         || command.type === 'Deselect'
         || command.type === 'SetZoom'
         || command.type === 'SetPan'

@@ -21,10 +21,8 @@ function mulberry32(seed: number): () => number {
 
 // ---- Command generation ----
 
-// Expand to 11 once BF-150 (AddEdge) + BF-152 (Move/LoadRoot/UnloadRoot) land —
-// just add them here and in the switch below.
 const SUPPORTED_COMMANDS = [
-    'Collapse', 'Expand', 'Select', 'Deselect', 'AddNode', 'RemoveNode', 'RemoveEdge',
+    'SetFolderState', 'Select', 'Deselect', 'AddNode', 'RemoveNode', 'RemoveEdge',
 ] as const
 type SupportedCommandType = (typeof SUPPORTED_COMMANDS)[number]
 
@@ -54,7 +52,7 @@ function generateCommand(rng: () => number, state: State): Command | null {
     const baseRoot = [...state.roots.loaded][0] ?? '/tmp/fuzz-root'
 
     const candidates = (SUPPORTED_COMMANDS as readonly SupportedCommandType[]).filter((t) => {
-        if (t === 'Collapse' || t === 'Expand') return folderIds.length > 0
+        if (t === 'SetFolderState') return folderIds.length > 0
         if (t === 'RemoveNode' || t === 'RemoveEdge') return nodeIds.length > 0
         return true
     })
@@ -63,12 +61,15 @@ function generateCommand(rng: () => number, state: State): Command | null {
     const type = pick(rng, candidates)
 
     switch (type) {
-        case 'Collapse':
-            return { type: 'Collapse', folder: pick(rng, folderIds) }
-
-        case 'Expand': {
+        case 'SetFolderState': {
             const collapsed = [...state.collapseSet]
-            return { type: 'Expand', folder: pick(rng, collapsed.length > 0 ? collapsed : folderIds) }
+            const path = pick(rng, collapsed.length > 0 ? collapsed : folderIds)
+            return {
+                type: 'SetFolderState',
+                viewId: 'main',
+                path: path.endsWith('/') ? path.slice(0, -1) : path,
+                state: rng() < 0.5 ? 'collapsed' : 'expanded',
+            }
         }
 
         case 'Select': {

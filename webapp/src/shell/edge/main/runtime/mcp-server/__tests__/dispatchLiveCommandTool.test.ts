@@ -32,18 +32,6 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         additive?: boolean
     }) => {
         switch (command.type) {
-            case 'Collapse':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set([...rendererCollapseSet, command.folder])
-                }
-                break
-            case 'Expand':
-                if (typeof command.folder === 'string') {
-                    rendererCollapseSet = new Set(
-                        [...rendererCollapseSet].filter((folder) => folder !== command.folder),
-                    )
-                }
-                break
             case 'Select': {
                 const next: Set<string> =
                     command.additive === true ? new Set(rendererSelection) : new Set()
@@ -70,9 +58,7 @@ vi.mock('@/shell/edge/main/runtime/state/renderer-live-state-proxy', () => ({
         }
     }),
     isRendererOwnedLiveCommand: (command: { type: string }): boolean =>
-        command.type === 'Collapse'
-        || command.type === 'Expand'
-        || command.type === 'Select'
+        command.type === 'Select'
         || command.type === 'Deselect',
 }))
 
@@ -110,9 +96,9 @@ beforeEach(() => {
 })
 
 describe('vt_dispatch_live_command', () => {
-    it('Collapse emits a collapse delta without repopulating main-process collapseSet', async () => {
+    it('SetFolderState collapsed emits a collapse delta without repopulating main-process collapseSet', async () => {
         const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
-            command: { type: 'Collapse', folder: '/tmp/vault/tasks/' },
+            command: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/tasks', state: 'collapsed' },
         })
 
         expect(result.revision).toBe(1)
@@ -122,10 +108,12 @@ describe('vt_dispatch_live_command', () => {
         expect(state.meta.revision).toBe(1)
     })
 
-    it('Expand leaves main-process collapseSet empty after renderer-owned collapse', async () => {
-        await dispatchLiveCommand({ command: { type: 'Collapse', folder: '/tmp/vault/tasks/' } })
+    it('SetFolderState expanded leaves main-process collapseSet empty after collapse', async () => {
+        await dispatchLiveCommand({
+            command: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/tasks', state: 'collapsed' },
+        })
         const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
-            command: { type: 'Expand', folder: '/tmp/vault/tasks/' },
+            command: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/tasks', state: 'expanded' },
         })
 
         expect(result.delta.collapseRemoved).toEqual([])
@@ -177,7 +165,7 @@ describe('vt_dispatch_live_command', () => {
     it('dispatchLiveCommandTool wraps the payload in an MCP response', async () => {
         const resp: Awaited<ReturnType<typeof dispatchLiveCommandTool>> =
             await dispatchLiveCommandTool({
-                command: { type: 'Collapse', folder: '/tmp/vault/x/' },
+                command: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/x', state: 'collapsed' },
             })
 
         expect(resp.isError).not.toBe(true)
@@ -188,9 +176,11 @@ describe('vt_dispatch_live_command', () => {
         expect(delta.collapseAdded).toEqual(['/tmp/vault/x/'])
     })
 
-    it('dispatch → getCurrentLiveState round-trip: Collapse does not land in main collapseSet', async () => {
+    it('dispatch → getCurrentLiveState round-trip: SetFolderState does not land in main collapseSet', async () => {
         const folder: string = '/Users/bobbobby/repos/voicetree-public/brain/working-memory/tasks/'
-        await dispatchLiveCommand({ command: { type: 'Collapse', folder } })
+        await dispatchLiveCommand({
+            command: { type: 'SetFolderState', viewId: 'main', path: folder.slice(0, -1), state: 'collapsed' },
+        })
         const roundTrip: Awaited<ReturnType<typeof getCurrentLiveState>> = await getCurrentLiveState()
         expect([...roundTrip.collapseSet]).not.toContain(folder)
     })

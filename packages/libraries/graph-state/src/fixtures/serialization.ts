@@ -97,8 +97,6 @@ export interface SerializedState {
 }
 
 export type SerializedCommand =
-    | { readonly type: 'Collapse'; readonly folder: string }
-    | { readonly type: 'Expand'; readonly folder: string }
     | { readonly type: 'Select'; readonly ids: readonly string[]; readonly additive?: boolean }
     | { readonly type: 'Deselect'; readonly ids: readonly string[] }
     | { readonly type: 'AddNode'; readonly node: SerializedGraphNode }
@@ -106,8 +104,6 @@ export type SerializedCommand =
     | { readonly type: 'AddEdge'; readonly source: string; readonly edge: SerializedEdge }
     | { readonly type: 'RemoveEdge'; readonly source: string; readonly targetId: string }
     | { readonly type: 'Move'; readonly id: string; readonly to: Position }
-    | { readonly type: 'LoadRoot'; readonly root: string }
-    | { readonly type: 'UnloadRoot'; readonly root: string }
     | { readonly type: 'SetFolderState'; readonly viewId: string; readonly path: string; readonly state: FolderState }
     | { readonly type: 'SetZoom'; readonly zoom: number }
     | { readonly type: 'SetPan'; readonly pan: Position }
@@ -381,9 +377,6 @@ export function hydrateState(state: SerializedState): State {
 
 export function serializeCommand(command: Command): SerializedCommand {
     switch (command.type) {
-        case 'Collapse':
-        case 'Expand':
-            return command
         case 'Select':
             return {
                 type: 'Select',
@@ -401,9 +394,6 @@ export function serializeCommand(command: Command): SerializedCommand {
         case 'RemoveEdge':
             return command
         case 'Move':
-            return command
-        case 'LoadRoot':
-        case 'UnloadRoot':
             return command
         case 'SetFolderState':
             return command
@@ -425,13 +415,9 @@ export function serializeCommand(command: Command): SerializedCommand {
 
 export function hydrateCommand(command: SerializedCommand): Command {
     switch (command.type) {
-        case 'Collapse':
-        case 'Expand':
         case 'RemoveNode':
         case 'RemoveEdge':
         case 'Move':
-        case 'LoadRoot':
-        case 'UnloadRoot':
         case 'SetFolderState':
             return command
         case 'Select':

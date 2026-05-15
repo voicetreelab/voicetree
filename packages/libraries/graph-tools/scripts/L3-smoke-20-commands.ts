@@ -5,11 +5,10 @@
  * `liveStateDump` — both reading from the same graph-state store.
  *
  * Transport stack: in-process MCP mock on an ephemeral port (NOT 3002).
- * Covers 11/15 Command variants (SetZoom/SetPan/SetPositions/RequestFit excluded from
- * the live-apply CLI's VALID_COMMAND_TYPES — transport limitation, not a test gap).
+ * Covers the command variants exercised by the live-apply smoke path.
  *
- * L3-BF-190: mock MCP now routes through the real applyCommandWithDelta /
- * applyCommandAsyncWithDelta reducer (no more hardcoded WIRED set).
+ * L3-BF-190: mock MCP now routes through the real applyCommandWithDelta
+ * reducer (no more hardcoded WIRED set).
  * All 20 commands bump revision. Layout/root state-persistence gap is a known L4 item.
  */
 import express, {type Express} from 'express'
@@ -21,7 +20,7 @@ import {z} from 'zod'
 
 import {createLiveTransport} from '../src/live/liveTransport'
 import {liveStateDump, liveView} from '../src/live/live'
-import {applyCommandWithDelta, applyCommandAsyncWithDelta, emptyState} from '@vt/graph-state'
+import {applyCommandWithDelta, emptyState} from '@vt/graph-state'
 import type {Command, State} from '@vt/graph-state'
 
 // ── vault fixture (liveView reads from disk) ───────────────────────────────
@@ -124,8 +123,6 @@ interface TestServer {
     close(): Promise<void>
 }
 
-const ASYNC_COMMAND_TYPES: ReadonlySet<string> = new Set(['LoadRoot'])
-
 async function startMockServer(): Promise<TestServer> {
     let currentState: State = emptyState()
 
@@ -156,9 +153,7 @@ async function startMockServer(): Promise<TestServer> {
             async ({command}) => {
                 try {
                     const cmd = command as unknown as Command
-                    const result = ASYNC_COMMAND_TYPES.has(cmd.type)
-                        ? await applyCommandAsyncWithDelta(currentState, cmd)
-                        : applyCommandWithDelta(currentState, cmd)
+                    const result = applyCommandWithDelta(currentState, cmd)
                     currentState = result.state
                     const {delta} = result
                     return {
@@ -243,11 +238,11 @@ interface CommandEntry {
 function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntry[] {
     const nodeId = (s: string) => s as ReturnType<typeof String>
     return [
-        // 1-4: Collapse/Expand basics
-        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Collapse tasks/'},
-        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/'},
-        {cmd: {type: 'Expand', folder: FOLDER_TASKS}, description: 'Expand tasks/'},
-        {cmd: {type: 'Collapse', folder: FOLDER_TASKS}, description: 'Re-collapse tasks/ (chaos)'},
+        // 1-4: folder-state basics
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_TASKS.slice(0, -1), state: 'collapsed'}, description: 'Set tasks/ collapsed'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_DOCS.slice(0, -1), state: 'collapsed'}, description: 'Set docs/ collapsed'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_TASKS.slice(0, -1), state: 'expanded'}, description: 'Set tasks/ expanded'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_TASKS.slice(0, -1), state: 'collapsed'}, description: 'Set tasks/ collapsed again'},
         // 5-6: Select / Deselect
         {cmd: {type: 'Select', ids: [nodeId(nodeA)]}, description: 'Select intro.md'},
         {cmd: {type: 'Select', ids: [nodeId(nodeB)], additive: true}, description: 'Add design.md to selection'},
@@ -255,7 +250,7 @@ function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntr
         {cmd: {type: 'Deselect', ids: [nodeId(nodeA)]}, description: 'Deselect intro.md'},
         {cmd: {type: 'Select', ids: [nodeId(nodeC)]}, description: 'Select impl.md (replace)'},
         // 9-10: Final collapse cleanup
-        {cmd: {type: 'Expand', folder: FOLDER_DOCS}, description: 'Expand docs/ (was collapsed)'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_DOCS.slice(0, -1), state: 'expanded'}, description: 'Set docs/ expanded'},
         {cmd: {type: 'Deselect', ids: [nodeId(nodeB), nodeId(nodeC)]}, description: 'Clear B+C selection'},
         // 11-17: Formerly not-yet-wired — now routed through real reducer
         {
@@ -278,11 +273,11 @@ function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntr
         {cmd: {type: 'AddEdge', source: nodeId(nodeA), edge: {targetId: nodeId(nodeC), label: 'shortcut'}}, description: 'AddEdge A→C (no-op: node not in reducer state)'},
         {cmd: {type: 'RemoveEdge', source: nodeId(nodeA), targetId: nodeId(nodeB)}, description: 'RemoveEdge A→B (no-op: node not in reducer state)'},
         {cmd: {type: 'Move', id: nodeId(nodeA), to: {x: 150, y: 250}}, description: 'Move intro.md'},
-        {cmd: {type: 'LoadRoot', root: VAULT_ROOT}, description: 'LoadRoot smoke-vault (real disk I/O)'},
-        {cmd: {type: 'UnloadRoot', root: `${VAULT_ROOT}/sub`}, description: 'UnloadRoot sub (no-op: not loaded)'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: VAULT_ROOT, state: 'expanded'}, description: 'Set smoke-vault expanded'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: `${VAULT_ROOT}/sub`, state: 'hidden'}, description: 'Set sub hidden'},
         // 18-20: Final wired chaos
         {cmd: {type: 'Select', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Select A+B (final)'},
-        {cmd: {type: 'Collapse', folder: FOLDER_DOCS}, description: 'Collapse docs/ again'},
+        {cmd: {type: 'SetFolderState', viewId: 'main', path: FOLDER_DOCS.slice(0, -1), state: 'collapsed'}, description: 'Set docs/ collapsed again'},
         {cmd: {type: 'Deselect', ids: [nodeId(nodeA), nodeId(nodeB)]}, description: 'Clear all selection'},
     ]
 }
@@ -408,11 +403,11 @@ async function main(): Promise<void> {
         // ── Summary ──────────────────────────────────────────────────────────
         console.log(`\n=== Results: ${passes} pass / ${failures} fail ===`)
         console.log(`Commands dispatched:    ${commands.length}/20`)
-        console.log(`Command variants:       11/15 (all routed through real reducer)`)
-        console.log(`  Wired through reducer: Collapse Expand Select Deselect AddNode RemoveNode AddEdge RemoveEdge Move LoadRoot UnloadRoot`)
+        console.log(`Command variants:       10/12 (all routed through real reducer)`)
+        console.log(`  Wired through reducer: SetFolderState Select Deselect AddNode RemoveNode AddEdge RemoveEdge Move`)
         console.log(`  Not in CLI (not in smoke): SetZoom SetPan SetPositions RequestFit`)
         console.log(`State consistency:      live-state-dump ↔ live-view ✓`)
-        console.log(`Mock alignment:         real applyCommandWithDelta / applyCommandAsyncWithDelta`)
+        console.log(`Mock alignment:         real applyCommandWithDelta`)
 
         if (failures > 0) {
             console.error(`\n✗ SMOKE TEST FAILED (${failures} failures)`)
@@ -423,7 +418,7 @@ async function main(): Promise<void> {
         console.log('NOTE: Uses in-process mock MCP. Electron build blocked: pre-existing')
         console.log('  fsevents.node rollup error in chokidar v3 @ root workspace.')
         console.log('  The transport stack is identical to production.')
-        console.log('NOTE: Layout/root changes (Move/LoadRoot/UnloadRoot) bump revision but')
+        console.log('NOTE: Layout/root changes bump revision but')
         console.log('  do not round-trip through vt_get_live_state (L4 follow-up).')
 
     } finally {

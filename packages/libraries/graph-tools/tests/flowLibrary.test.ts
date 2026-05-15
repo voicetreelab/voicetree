@@ -9,10 +9,10 @@ import {
 } from '../src/debug/flow/flows/index'
 
 describe('flow library', () => {
-  it('loads all ten authored golden flows', async () => {
+  it('loads all authored golden flows', async () => {
     const flows = await loadAllFlowDefinitions()
 
-    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'])
+    expect(flows.map(flow => flow.flow)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F9', 'F10'])
     expect(flows.every(flow => flow.steps.length > 0)).toBe(true)
   })
 
@@ -68,6 +68,7 @@ describe('flow library', () => {
       primaryNodeId: '/tmp/vault/a.md',
       secondaryNodeId: '/tmp/vault/b.md',
       primaryFolderId: '/tmp/vault/notes/',
+      primaryFolderPath: '/tmp/vault/notes',
     })
   })
 
@@ -82,8 +83,7 @@ describe('flow library', () => {
       steps: [
         { tapNode: '{{primaryNodeId}}' },
         { dispatch: { type: 'Select', ids: ['{{primaryNodeId}}'] } },
-        { dispatch: { type: 'Collapse', folder: '{{primaryFolderId}}' } },
-        { dispatch: { type: 'LoadRoot', root: '{{rootPath}}' } },
+        { dispatch: { type: 'SetFolderState', viewId: 'main', path: '{{primaryFolderPath}}', state: 'collapsed' } },
       ],
     } satisfies FlowDefinition
 
@@ -92,13 +92,13 @@ describe('flow library', () => {
       primaryNodeId: '/tmp/vault/a.md',
       secondaryNodeId: '/tmp/vault/b.md',
       primaryFolderId: '/tmp/vault/notes/',
+      primaryFolderPath: '/tmp/vault/notes',
     })
 
     expect(resolved.steps).toEqual([
       { tapNode: '/tmp/vault/a.md' },
       { dispatch: { type: 'Select', ids: ['/tmp/vault/a.md'] } },
-      { dispatch: { type: 'Collapse', folder: '/tmp/vault/notes/' } },
-      { dispatch: { type: 'LoadRoot', root: '/tmp/vault' } },
+      { dispatch: { type: 'SetFolderState', viewId: 'main', path: '/tmp/vault/notes', state: 'collapsed' } },
     ])
   })
 })

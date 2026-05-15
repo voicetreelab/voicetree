@@ -69,8 +69,8 @@ function defaultScheduler(): FlushScheduler {
 }
 
 // ============================================================================
-// Module-level singleton — mirrors collapseSetStore / selectionStore /
-// loadedRootsStore so L2-O migration agents have a consistent API surface.
+// Module-level singleton mirrors selectionStore so renderer callers have a
+// consistent API surface.
 // The singleton wraps `createLayoutStore` with default scheduler so renderer
 // callers can import `getLayout / dispatchSetZoom / ...` directly.
 // ============================================================================

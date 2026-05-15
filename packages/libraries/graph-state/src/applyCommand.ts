@@ -10,19 +10,15 @@ import {
 import type {
     AddEdge,
     AddNode,
-    Collapse,
     Command,
     Delta,
     Deselect,
-    Expand,
-    LoadRoot,
     Move,
     RemoveEdge,
     RemoveNode,
     Select,
     SetFolderState,
     State,
-    UnloadRoot,
 } from './contract'
 import {
     updateFolderTreeForAddedNode,
@@ -37,15 +33,12 @@ import {
     rebuildSourceNodeForRemovedEdge,
 } from './apply/markdownEdits'
 import { applyMove } from './apply/move'
-import { applyLoadRoot, applyUnloadRoot } from './apply/roots'
 import { applySetFolderState } from './apply/folderVisibility'
 import { applySetZoom } from './apply/setZoom'
 import { applySetPan } from './apply/setPan'
 import { applySetPositions } from './apply/setPositions'
 import { applyRequestFit } from './apply/requestFit'
 import { stripTrailingSlash } from './state/folderVisibility/path'
-
-const DEFAULT_VIEW_ID = 'main'
 
 interface OutgoingEdgeRef {
     readonly targetId: string
@@ -287,72 +280,6 @@ function applyRemoveEdge(
     }
 }
 
-function applyCollapse(
-    state: State,
-    command: Collapse,
-): { readonly state: State; readonly delta: Delta } {
-    const { state: visibilityState } = applyFolderStateCommand(state, {
-        type: 'SetFolderState',
-        viewId: DEFAULT_VIEW_ID,
-        path: stripTrailingSlash(command.folder),
-        state: 'collapsed',
-    })
-    const alreadyCollapsed = state.collapseSet.has(command.folder)
-    const nextRevision = visibilityState.meta.revision
-    const collapseSet = alreadyCollapsed
-        ? state.collapseSet
-        : new Set([...state.collapseSet, command.folder])
-
-    return {
-        state: {
-            graph: state.graph,
-            roots: state.roots,
-            collapseSet,
-            selection: state.selection,
-            layout: state.layout,
-            meta: visibilityState.meta,
-        },
-        delta: {
-            revision: nextRevision,
-            cause: command,
-            collapseAdded: alreadyCollapsed ? [] : [command.folder],
-        },
-    }
-}
-
-function applyExpand(
-    state: State,
-    command: Expand,
-): { readonly state: State; readonly delta: Delta } {
-    const { state: visibilityState } = applyFolderStateCommand(state, {
-        type: 'SetFolderState',
-        viewId: DEFAULT_VIEW_ID,
-        path: stripTrailingSlash(command.folder),
-        state: 'expanded',
-    })
-    const wasCollapsed = state.collapseSet.has(command.folder)
-    const nextRevision = visibilityState.meta.revision
-    const collapseSet = wasCollapsed
-        ? new Set([...state.collapseSet].filter((id) => id !== command.folder))
-        : state.collapseSet
-
-    return {
-        state: {
-            graph: state.graph,
-            roots: state.roots,
-            collapseSet,
-            selection: state.selection,
-            layout: state.layout,
-            meta: visibilityState.meta,
-        },
-        delta: {
-            revision: nextRevision,
-            cause: command,
-            collapseRemoved: wasCollapsed ? [command.folder] : [],
-        },
-    }
-}
-
 function applySelect(
     state: State,
     command: Select,
@@ -469,10 +396,6 @@ export function applyCommandWithDelta(
     command: Command,
 ): { readonly state: State; readonly delta: Delta } {
     switch (command.type) {
-        case 'Collapse':
-            return applyCollapse(state, command)
-        case 'Expand':
-            return applyExpand(state, command)
         case 'Select':
             return applySelect(state, command)
         case 'Deselect':
@@ -487,8 +410,6 @@ export function applyCommandWithDelta(
             return applyRemoveEdge(state, command)
         case 'Move':
             return applyMove(state, command)
-        case 'UnloadRoot':
-            return applyUnloadRoot(state, command)
         case 'SetFolderState':
             return applyFolderStateCommand(state, command)
         case 'SetZoom':
@@ -499,8 +420,6 @@ export function applyCommandWithDelta(
             return applySetPositions(state, command)
         case 'RequestFit':
             return applyRequestFit(state, command)
-        case 'LoadRoot':
-            throw new Error('LoadRoot requires async disk I/O — use applyCommandAsync instead')
         default:
             throw new Error(`applyCommand not implemented for command type "${(command as Command).type}"`)
     }
@@ -511,9 +430,6 @@ export function applyCommand(state: State, command: Command): State {
 }
 
 export async function applyCommandAsync(state: State, command: Command): Promise<State> {
-    if (command.type === 'LoadRoot') {
-        return (await applyLoadRoot(state, command)).state
-    }
     return applyCommand(state, command)
 }
 
@@ -521,8 +437,5 @@ export async function applyCommandAsyncWithDelta(
     state: State,
     command: Command,
 ): Promise<{ readonly state: State; readonly delta: Delta }> {
-    if (command.type === 'LoadRoot') {
-        return applyLoadRoot(state, command)
-    }
     return applyCommandWithDelta(state, command)
 }

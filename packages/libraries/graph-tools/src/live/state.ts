@@ -23,8 +23,7 @@ export interface StateDumpResult {
 }
 
 const COMMAND_TYPES = [
-    'Collapse',
-    'Expand',
+    'SetFolderState',
     'Select',
     'Deselect',
     'AddNode',
@@ -32,8 +31,6 @@ const COMMAND_TYPES = [
     'AddEdge',
     'RemoveEdge',
     'Move',
-    'LoadRoot',
-    'UnloadRoot',
 ] as const
 
 function formatStateJson(value: unknown, pretty: boolean): string {

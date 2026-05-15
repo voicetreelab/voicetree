@@ -13,7 +13,7 @@ import type {
     StateLayout,
     StateRoots,
 } from '@vt/graph-state'
-import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
+import { applyCommandWithDelta } from '@vt/graph-state'
 import { createEmptyGraph, type Graph } from '@vt/graph-model'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
@@ -129,17 +129,10 @@ export function syncWatchedProjectRoot(root: string | null): void {
 
 export async function applyLiveCommand(cmd: Command): Promise<Delta> {
     const before: State = await getCurrentLiveState()
-    const { state, delta }: { state: State; delta: Delta } =
-        cmd.type === 'LoadRoot'
-            ? await applyCommandAsyncWithDelta(before, cmd)
-            : applyCommandWithDelta(before, cmd)
+    const { state, delta }: { state: State; delta: Delta } = applyCommandWithDelta(before, cmd)
 
     if (isRendererOwnedLiveCommand(cmd)) {
         await applyRendererLiveCommand(cmd)
-    }
-
-    if (cmd.type === 'LoadRoot' || cmd.type === 'UnloadRoot') {
-        hasExplicitRootState = true
     }
 
     commitMainOwnedState(state)

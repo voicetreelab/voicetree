@@ -28,8 +28,7 @@ export const STEP_SPEC_SELECTOR_NOTE =
 
 const STEP_KEYS = ['click', 'tapNode', 'type', 'press', 'wait', 'waitFor', 'navigate', 'dispatch'] as const
 const COMMAND_TYPES = new Set([
-  'Collapse',
-  'Expand',
+  'SetFolderState',
   'Select',
   'Deselect',
   'AddNode',
@@ -37,8 +36,6 @@ const COMMAND_TYPES = new Set([
   'AddEdge',
   'RemoveEdge',
   'Move',
-  'LoadRoot',
-  'UnloadRoot',
   'SetZoom',
   'SetPan',
   'SetPositions',
