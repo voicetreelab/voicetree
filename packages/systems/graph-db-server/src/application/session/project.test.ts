@@ -120,7 +120,7 @@ describe('projectSessionState', () => {
     const expected: State = {
       graph,
       roots: {
-        loaded: new Set(['/vault/docs']),
+        loaded: new Set(['/vault', '/vault/docs']),
         folderTree: [expectedFolderTree],
       },
       collapseSet: new Set(['/vault/docs/']),

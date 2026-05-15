@@ -1,5 +1,6 @@
 import { project } from '@vt/graph-state'
 import { renderTreeCover } from '@vt/graph-tools/autoView'
+import path from 'node:path'
 import {
   ExpandOverridesResponseSchema,
   ViewResponseSchema,
@@ -21,12 +22,15 @@ export async function renderSessionViewWorkflow(
 
   const state = await buildDaemonState(session)
   const graph = project(state)
+  const title = path.basename(graph.rootPath)
 
   const output = renderTreeCover(graph, {
     collapsed: session.collapseSet,
     selected: session.selection,
     pinnedFolderIds: mergedExpands,
     budget,
+    title,
+    viewApplied: true,
   })
 
   return jsonResult(ViewResponseSchema.parse({ output, format: 'tree-cover' }))
