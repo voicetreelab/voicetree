@@ -26,7 +26,7 @@ import {runStopHooks} from '../hooks/stopGateHookRunner'
 import {getRuntimeGraph} from '../runtime/graph-bridge'
 import {detectCliType} from '../spawn/headlessCli'
 import {captureOutput, getOutput} from '../terminals/terminal-output-buffer'
-import {createSession, hasSession, killSession, pipePaneToFile, sendKeys} from '../terminals/tmux-session-manager'
+import {createSession, getPanePid, hasSession, killSession, pipePaneToFile, sendKeys} from '../terminals/tmux-session-manager'
 import {shellQuote} from '../util/shellQuote.ts'
 import {
     buildResumeCommand,
@@ -203,6 +203,14 @@ function startTmuxExitPoll(terminalId: TerminalId, deps: HeadlessAgentDeps): Ret
 // by both the headless spawn path (Phase 2: command = agent CLI) and the
 // Electron interactive IPC path (Phase 4 fix: command = user shell). The
 // caller decides what `command` is; this function is shape-agnostic.
+//
+// M1-fix5: idempotent on session name. If a tmux session with `terminalId`
+// already exists (load-bearing case after Electron kill/relaunch — tmux
+// outlives Electron), rebind to the existing pane instead of running
+// `tmux new-session` (which would fail with "duplicate session"). The
+// rebind path re-pipes pane output to the log, preserves the original
+// `startedAt`, re-arms the exit poll in this Electron process, and
+// re-registers in terminal-registry.
 export async function spawnTmuxBackedTerminal(
     terminalId: TerminalId,
     terminalData: TerminalData,
@@ -212,28 +220,33 @@ export async function spawnTmuxBackedTerminal(
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
 ): Promise<{readonly pid: number}> {
     const paths: {readonly logPath: string; readonly metadataPath: string} = resolveTmuxPaths(terminalId, env)
+    const sessionExists: boolean = await hasSession(terminalId)
     const startedAt: string = new Date().toISOString()
-    const created: {readonly pid: number} = await createSession(
-        terminalId,
-        buildTmuxCommand(command, resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory())),
-        env,
-    )
+    const created: {readonly pid: number} = sessionExists
+        ? {pid: await getPanePid(terminalId)}
+        : await createSession(
+            terminalId,
+            buildTmuxCommand(command, resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory())),
+            env,
+        )
 
     await pipePaneToFile(terminalId, paths.logPath)
+    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readTmuxMetadata(paths.metadataPath) : null
     writeTmuxMetadata(paths.metadataPath, {
         name: terminalId,
         status: 'running',
         pid: created.pid,
         session: terminalId,
-        startedAt,
+        startedAt: existingMeta?.startedAt ?? startedAt,
         logFile: paths.logPath,
         terminalData,
     })
 
+    clearTmuxPoll(terminalId)
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, deps)
     tmuxHeadlessSessions.set(terminalId, {...paths, pollTimer})
     deps.recordTerminalSpawn(terminalId, terminalData)
-    deps.writeLog({level: 'info', message: `[headlessAgentManager] Spawned tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
+    deps.writeLog({level: 'info', message: `[headlessAgentManager] ${sessionExists ? 'Rebound to existing' : 'Spawned'} tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
     return created
 }
 

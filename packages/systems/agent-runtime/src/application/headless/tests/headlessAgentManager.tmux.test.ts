@@ -170,4 +170,48 @@ describe('headlessAgentManager tmux backend', () => {
         sessions.delete(terminalId)
         closeHeadlessAgent(terminalId)
     }, 15000)
+
+    // M1-fix5: tmux sessions outlive Electron. When Electron is killed and
+    // relaunched, the renderer triggers a fresh spawnTmuxBacked for the same
+    // terminalId. Before M1-fix5, the second call ran `tmux new-session`
+    // which failed with "duplicate session" and the panel never reconnected.
+    // After the fix, the second call rebinds to the existing pane.
+    it('rebinds to an existing tmux session instead of failing with duplicate session (Electron relaunch case)', async () => {
+        const terminalId: TerminalId = makeName()
+        const vaultPath: string = await makeTempVault()
+        const metadataPath: string = join(vaultPath, '.voicetree', 'terminals', `${terminalId}.json`)
+        sessions.add(terminalId)
+
+        const td: TerminalData = makeTerminalData(terminalId, vaultPath)
+        const first: {readonly pid: number} = await spawnTmuxBackedTerminal(
+            terminalId,
+            td,
+            '/bin/bash -l',
+            vaultPath,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+        )
+        expect(first.pid).toBeGreaterThan(0)
+        expect(await hasSession(terminalId)).toBe(true)
+        const firstMeta: TmuxMetadata | null = await readMetadata(metadataPath)
+        expect(firstMeta?.status).toBe('running')
+        const originalStartedAt: string | undefined = (firstMeta as unknown as {startedAt?: string})?.startedAt
+
+        const second: {readonly pid: number} = await spawnTmuxBackedTerminal(
+            terminalId,
+            td,
+            '/bin/bash -l',
+            vaultPath,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+        )
+        expect(second.pid).toBe(first.pid)
+        expect(await hasSession(terminalId)).toBe(true)
+        const reboundMeta: TmuxMetadata | null = await readMetadata(metadataPath)
+        expect(reboundMeta?.status).toBe('running')
+        expect((reboundMeta as unknown as {startedAt?: string})?.startedAt).toBe(originalStartedAt)
+        expect(getTerminalRecords().find((r) => r.terminalId === terminalId)).toBeDefined()
+
+        await killSession(terminalId)
+        sessions.delete(terminalId)
+        closeHeadlessAgent(terminalId)
+    }, 15000)
 })
