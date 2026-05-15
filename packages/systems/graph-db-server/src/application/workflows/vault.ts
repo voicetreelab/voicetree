@@ -1,15 +1,21 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import { initGraphModel } from '@vt/graph-model'
-import { z } from 'zod'
 import {
   AddReadPathRequestSchema,
   SetWritePathRequestSchema,
-  VaultStateSchema,
   type VaultState,
 } from '@vt/graph-db-server/contract'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { validateAbsolutePath } from '../util/validatePath.ts'
+import {
+  classifyAddReadPathResult,
+  classifyRemoveReadPathResult,
+  classifySetWritePathResult,
+  composeReadPathsResponse,
+  composeVaultState,
+  composeWritePathResponse,
+  decodeVaultPath,
+  resolveAppSupportPath,
+} from '../core/handleVault.ts'
 import {
   addReadPath,
   getReadPaths,
@@ -18,34 +24,6 @@ import {
   setWritePath,
 } from '@vt/graph-db-server/state/vaultAllowlist'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
-
-const ReadPathsResponseSchema = z.object({
-  readPaths: z.array(z.string()),
-})
-
-const WritePathResponseSchema = z.object({
-  writePath: z.string(),
-})
-
-function resolveAppSupportPath(): string {
-  const fromEnv = process.env.VOICETREE_APP_SUPPORT?.trim()
-  if (fromEnv) return fromEnv
-
-  const home = homedir()
-  if (process.platform === 'darwin') {
-    return join(home, 'Library', 'Application Support', 'Voicetree')
-  }
-  if (process.platform === 'win32') {
-    return join(
-      process.env.APPDATA ?? join(home, 'AppData', 'Roaming'),
-      'Voicetree',
-    )
-  }
-  return join(
-    process.env.XDG_CONFIG_HOME ?? join(home, '.config'),
-    'Voicetree',
-  )
-}
 
 export function ensureVaultWorkflowInitialized(): void {
   initGraphModel({ appSupportPath: resolveAppSupportPath() })
@@ -63,12 +41,7 @@ async function readVaultState(): Promise<VaultState> {
   const vaultPath = getMountedVaultRoot()
   const readPaths = [...(await getReadPaths())]
   const writePathOption = await getWritePath()
-  const writePath =
-    typeof (writePathOption as { value?: unknown }).value === 'string'
-      ? (writePathOption as { value: string }).value
-      : vaultPath
-
-  return VaultStateSchema.parse({ vaultPath, readPaths, writePath })
+  return composeVaultState({ vaultPath, readPaths, writePathOption })
 }
 
 export async function readVaultWorkflow(): Promise<HttpResult> {
@@ -97,57 +70,42 @@ export async function addReadPathWorkflow(rawBody: unknown): Promise<HttpResult>
   }
 
   const result = await addReadPath(validatedPath.path)
-  if (!result.success) {
-    if (
-      result.error === 'Path already in readPaths' ||
-      result.error === 'Path already expanded'
-    ) {
-      return jsonResult(ReadPathsResponseSchema.parse({
-        readPaths: [...(await getReadPaths())],
-      }))
-    }
+  const classification = classifyAddReadPathResult(result)
+  if (classification.kind === 'error') {
     return errorResult(
-      result.error ?? 'Failed to add read path',
-      'ADD_READ_PATH_FAILED',
-      500,
+      classification.message,
+      classification.code,
+      classification.status,
     )
   }
 
-  return jsonResult(ReadPathsResponseSchema.parse({
-    readPaths: [...(await getReadPaths())],
-  }))
+  return jsonResult(composeReadPathsResponse(await getReadPaths()))
 }
 
 export async function removeReadPathWorkflow(
   encodedPath: string,
 ): Promise<HttpResult> {
-  let decodedPath: string
-  try {
-    decodedPath = decodeURIComponent(encodedPath)
-  } catch {
-    return errorResult('Invalid encoded path', 'INVALID_PATH_ENCODING')
+  const decodedPath = decodeVaultPath(encodedPath)
+  if (!decodedPath.ok) {
+    return errorResult(decodedPath.error, decodedPath.code)
   }
 
-  const validatedPath = await validateAbsolutePath(decodedPath)
+  const validatedPath = await validateAbsolutePath(decodedPath.decoded)
   if (!validatedPath.ok) {
     return errorResult(validatedPath.error, validatedPath.code)
   }
 
   const result = await removeReadPath(validatedPath.path)
-  if (!result.success) {
-    if (result.error === 'Cannot remove write path') {
-      return errorResult(result.error, 'CANNOT_REMOVE_WRITE_PATH')
-    }
+  const classification = classifyRemoveReadPathResult(result)
+  if (classification.kind === 'error') {
     return errorResult(
-      result.error ?? 'Failed to remove read path',
-      'REMOVE_READ_PATH_FAILED',
-      500,
+      classification.message,
+      classification.code,
+      classification.status,
     )
   }
 
-  return jsonResult(ReadPathsResponseSchema.parse({
-    readPaths: [...(await getReadPaths())],
-  }))
+  return jsonResult(composeReadPathsResponse(await getReadPaths()))
 }
 
 export async function setWritePathWorkflow(rawBody: unknown): Promise<HttpResult> {
@@ -164,15 +122,14 @@ export async function setWritePathWorkflow(rawBody: unknown): Promise<HttpResult
   }
 
   const result = await setWritePath(validatedPath.path)
-  if (!result.success) {
+  const classification = classifySetWritePathResult(result)
+  if (classification.kind === 'error') {
     return errorResult(
-      result.error ?? 'Failed to set write path',
-      'SET_WRITE_PATH_FAILED',
-      500,
+      classification.message,
+      classification.code,
+      classification.status,
     )
   }
 
-  return jsonResult(WritePathResponseSchema.parse({
-    writePath: validatedPath.path,
-  }))
+  return jsonResult(composeWritePathResponse(validatedPath.path))
 }
