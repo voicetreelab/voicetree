@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, screen} from 'electron';
+import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
 import type {getTerminalManager} from '@vt/agent-runtime';
@@ -15,7 +15,12 @@ const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
 
 /** Resolve a path relative to the webapp package root in both dev and packaged builds. */
 export function appResource(...segments: string[]): string {
-    return path.join(app.getAppPath(), ...segments);
+    // Compiled main bundle lives at <webapp-root>/dist-electron/main/index.js, so
+    // __dirname is two levels below webapp-root in every launch mode (electron-vite
+    // dev, e2e smoke via dist-electron, packaged asar). app.getAppPath() is not
+    // reliable here — per build-config.ts:89-91 it returns dist-electron/main when
+    // running the built version, which breaks loadFile/icon resolution.
+    return path.join(__dirname, '..', '..', ...segments);
 }
 
 async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): Promise<void> {
