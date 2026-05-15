@@ -142,11 +142,11 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
     });
 }
 
-let stylesInjected: boolean = false;
+const STYLE_ELEMENT_ID = 'vt-folder-handle-styles';
 function injectStylesheet(): void {
-    if (stylesInjected) return;
-    stylesInjected = true;
+    if (document.getElementById(STYLE_ELEMENT_ID)) return;
     const style: HTMLStyleElement = document.createElement('style');
+    style.id = STYLE_ELEMENT_ID;
     style.textContent = `
 .vt-folder-handle {
   position: absolute;
