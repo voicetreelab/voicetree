@@ -8,8 +8,8 @@ import {
   type FSUpdate,
 } from '@vt/graph-model'
 import { handleFSEventWithStateAndUISides } from './handleFSEvent.ts'
-import { readFileWithRetry } from '../../watch-folder/watching/file-watcher-setup.ts'
-import type { FileWatcherLogger } from '../../watch-folder/watching/file-watcher-setup.ts'
+import { readFileWithRetry } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
+import type { FileWatcherLogger } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
 
 export type Watcher = {
   readonly ready: Promise<void>

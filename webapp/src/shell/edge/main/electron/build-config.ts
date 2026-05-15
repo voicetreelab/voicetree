@@ -169,19 +169,3 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     hookScriptsSource,
   };
 }
-
-// ============================================================================
-// CLI Wrapper (For Shell Scripts)
-// ============================================================================
-
-/**
- * Print config as JSON for shell script consumption
- * Usage from bash: node -e "require('./electron/build-config').printConfig()"
- */
-export function printConfig(): void {
-  const config: BuildConfig = getBuildConfig();
-  console.log(JSON.stringify(config, null, 2));
-}
-
-// CLI support removed - incompatible with ES modules
-// To run as CLI, use: node -e "import('./build-config.js').then(m => m.printConfig())"

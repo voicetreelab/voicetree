@@ -18,6 +18,21 @@ const defaultNotificationDeps: TerminalRegistryClock & { logger: TerminalRegistr
     logger: { info: console.log, error: console.error },
 }
 
+function getOrCreateNotificationState(
+    terminalId: string,
+    deps: TerminalRegistryClock,
+): UnseenNodesNotificationState {
+    const existing: UnseenNodesNotificationState | undefined = notificationStateByTerminal.get(terminalId)
+    if (existing) return existing
+    const created: UnseenNodesNotificationState = {
+        lastNotificationTime: 0,
+        spawnTime: deps.now(),
+        alertedNodeIds: new Set()
+    }
+    notificationStateByTerminal.set(terminalId, created)
+    return created
+}
+
 export async function notifyAgentOfUnseenNodes(
     terminalId: string,
     record: TerminalRecord,
@@ -27,15 +42,7 @@ export async function notifyAgentOfUnseenNodes(
         const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
         const agentName: string = record.terminalData.agentName
 
-        let notificationState: UnseenNodesNotificationState | undefined = notificationStateByTerminal.get(terminalId)
-        if (!notificationState) {
-            notificationState = {
-                lastNotificationTime: 0,
-                spawnTime: deps.now(),
-                alertedNodeIds: new Set()
-            }
-            notificationStateByTerminal.set(terminalId, notificationState)
-        }
+        const notificationState: UnseenNodesNotificationState = getOrCreateNotificationState(terminalId, deps)
 
         const now: number = deps.now()
         const timeSinceLastNotification: number = now - notificationState.lastNotificationTime
@@ -46,7 +53,7 @@ export async function notifyAgentOfUnseenNodes(
         }
 
         const unseenNodes: readonly UnseenNode[] = await getRuntimeUnseenNodesAroundContextNode(contextNodeId)
-        const graph: Graph = getRuntimeGraph()
+        const graph: Graph = await getRuntimeGraph()
         const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             if (!graphNode) return true

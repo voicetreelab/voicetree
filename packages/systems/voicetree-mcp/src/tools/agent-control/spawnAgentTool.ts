@@ -13,8 +13,8 @@ import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
-import {startMonitor} from '../../agents/agent-completion-monitor'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
+import {startMonitor} from '../agentDependencies'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../mcpConfigDependencies'
 import {
     consumeSpawnBudget,
     listTerminalRecords,

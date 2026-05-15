@@ -59,7 +59,7 @@ export async function handleAgentExit(
     // Stop gate audit derives SKILL.md from graph at audit time.
     // Skip audit if active child agents may still satisfy the parent's obligations.
     if (code === 0 || code === null) {
-        const graph: Graph = deps.getGraph()
+        const graph: Graph = await deps.getGraph()
         const records: readonly TerminalRecord[] = deps.getTerminalRecords()
         if (!hasActiveChildren(terminalId, records)) {
             const hookResult: StopHookResult = await deps.runStopHooks(terminalId, graph, records)

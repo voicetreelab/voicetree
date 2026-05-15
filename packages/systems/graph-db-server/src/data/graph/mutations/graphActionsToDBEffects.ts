@@ -12,8 +12,8 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { fromNodeToMarkdownContent } from '@vt/graph-model/markdown'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
-import {markRecentDelta} from "../../../state/recent-deltas-store";
-import { markPendingDelete, markPendingWrite } from '../../watch-folder/pending-writes'
+import {markRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
+import { markPendingDelete, markPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 
 /**
  * Helper to convert unknown errors to Error type

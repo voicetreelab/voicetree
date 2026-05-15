@@ -1,27 +1,28 @@
 import type { Core } from 'cytoscape';
 
-// Registry for layout triggers - allows external code to trigger layout via triggerLayout(cy)
-export const layoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
+type AutoLayoutTriggerSet = {
+  readonly runColaLayout: () => void
+  readonly markDirtyNode: (nodeId: string) => void
+  readonly runFullLayout: () => void
+}
 
-// Registry for cola layout triggers - allows external code to run cola layout on demand
-export const colaLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
+// Registry for layout triggers - allows external code to trigger layout via a narrow API.
+const layoutTriggers: Map<Core, AutoLayoutTriggerSet> = new Map<Core, AutoLayoutTriggerSet>();
 
-// Registry for dirty-node markers - allows external code to mark a node as needing local layout
-export const dirtyNodeMarkers: Map<Core, (nodeId: string) => void> = new Map<Core, (nodeId: string) => void>();
+export function registerAutoLayoutTriggers(cy: Core, triggers: AutoLayoutTriggerSet): void {
+  layoutTriggers.set(cy, triggers);
+}
 
-// Registry for full layout resets - allows external code to trigger R-tree pack + Cola from scratch
-export const fullLayoutTriggers: Map<Core, () => void> = new Map<Core, () => void>();
+export function unregisterAutoLayoutTriggers(cy: Core): void {
+  layoutTriggers.delete(cy);
+}
 
-/**
- * Trigger a debounced layout run for the given cytoscape instance.
- * Use this for user-initiated resize events (expand button, CSS drag resize).
- */
 /**
  * Trigger a one-shot cola layout run for the given cytoscape instance.
  * Use this for user-initiated "tidy up" / reorganize layout.
  */
 export function triggerColaLayout(cy: Core): void {
-  colaLayoutTriggers.get(cy)?.();
+  layoutTriggers.get(cy)?.runColaLayout();
 }
 
 /**
@@ -29,7 +30,7 @@ export function triggerColaLayout(cy: Core): void {
  * Use this for user-initiated resize events where a specific node changed dimensions.
  */
 export function markNodeDirty(cy: Core, nodeId: string): void {
-  dirtyNodeMarkers.get(cy)?.(nodeId);
+  layoutTriggers.get(cy)?.markDirtyNode(nodeId);
 }
 
 /**
@@ -37,5 +38,5 @@ export function markNodeDirty(cy: Core, nodeId: string): void {
  * Use this when graph topology changes substantially (e.g. vault folders added/removed).
  */
 export function triggerFullLayout(cy: Core): void {
-  fullLayoutTriggers.get(cy)?.();
+  layoutTriggers.get(cy)?.runFullLayout();
 }

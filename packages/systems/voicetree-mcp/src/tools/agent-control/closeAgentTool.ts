@@ -8,10 +8,8 @@
  */
 
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
-import {getNewNodesForAgent} from '../../agents/getNewNodesForAgent'
-import {getAgentNodes} from '../../agents/agentNodeIndex'
-import {getAgentStatus} from '../../agents/isAgentComplete'
-import {getMcpGraph} from '../../config/mcp-graph-bridge'
+import {getAgentNodes, getAgentStatus, getNewNodesForAgent} from '../agentDependencies'
+import {getMcpGraph} from '../mcpConfigDependencies'
 import {
     closeHeadlessTerminal,
     closeInteractiveTerminal,

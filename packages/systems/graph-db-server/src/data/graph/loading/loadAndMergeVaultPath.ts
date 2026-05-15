@@ -13,10 +13,10 @@ import {
     resolveLinkedNodesInWatchedFolder,
 } from "./loadGraphFromDisk";
 import { notifyTextToTreeServerOfDirectory } from "./notifyTextToTreeServer";
-import { setGraph, getGraph } from "../../../state/graph-store";
-import { getProjectRootWatchedDirectory } from "../../../state/watch-folder-store";
-import { createStarterNode } from "../../watch-folder/create-starter-node";
-import { traceGraphdSpan } from "../../watch-folder/paths/traceGraphdSpan";
+import { setGraph, getGraph } from "@vt/graph-db-server/state/graph-store";
+import { getProjectRootWatchedDirectory } from "@vt/graph-db-server/state/watch-folder-store";
+import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-starter-node";
+import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
 export interface LoadVaultPathOptions {
   isWritePath: boolean;

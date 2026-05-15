@@ -35,6 +35,32 @@ function extractRateLimit(node: RawRateLimitNode | undefined): CodexRateLimit | 
   };
 }
 
+function codexUsageFromRow(row: { ts: number; feedback_log_body: string }): CodexUsage {
+  const idx: number = row.feedback_log_body.indexOf(WEBSOCKET_MARKER);
+  if (idx < 0) return { available: false };
+
+  const jsonPart: string = row.feedback_log_body.slice(idx + WEBSOCKET_MARKER.length).trim();
+
+  let parsed: RawRateLimitsPayload;
+  try {
+    parsed = JSON.parse(jsonPart);
+  } catch {
+    return { available: false };
+  }
+
+  if (!parsed || parsed.type !== 'codex.rate_limits' || !parsed.rate_limits) {
+    return { available: false };
+  }
+
+  return {
+    available: true,
+    planType: typeof parsed.plan_type === 'string' ? parsed.plan_type : undefined,
+    primary: extractRateLimit(parsed.rate_limits.primary),
+    secondary: extractRateLimit(parsed.rate_limits.secondary),
+    capturedAt: new Date(row.ts * 1000).toISOString(),
+  };
+}
+
 export async function fetchCodexUsage(): Promise<CodexUsage> {
   const dbPath: string = path.join(os.homedir(), '.codex', 'logs_2.sqlite');
 
@@ -70,29 +96,5 @@ export async function fetchCodexUsage(): Promise<CodexUsage> {
   if (!Array.isArray(rows) || rows.length === 0) return { available: false };
 
   const row: { ts: number; feedback_log_body: string } = rows[0];
-  const body: string = row.feedback_log_body;
-
-  const idx: number = body.indexOf(WEBSOCKET_MARKER);
-  if (idx < 0) return { available: false };
-
-  const jsonPart: string = body.slice(idx + WEBSOCKET_MARKER.length).trim();
-
-  let parsed: RawRateLimitsPayload;
-  try {
-    parsed = JSON.parse(jsonPart);
-  } catch {
-    return { available: false };
-  }
-
-  if (!parsed || parsed.type !== 'codex.rate_limits' || !parsed.rate_limits) {
-    return { available: false };
-  }
-
-  return {
-    available: true,
-    planType: typeof parsed.plan_type === 'string' ? parsed.plan_type : undefined,
-    primary: extractRateLimit(parsed.rate_limits.primary),
-    secondary: extractRateLimit(parsed.rate_limits.secondary),
-    capturedAt: new Date(row.ts * 1000).toISOString(),
-  };
+  return codexUsageFromRow(row);
 }

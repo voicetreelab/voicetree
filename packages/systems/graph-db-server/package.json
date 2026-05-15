@@ -7,6 +7,7 @@
   "main": "src/daemon/index.ts",
   "exports": {
     ".": "./src/daemon/index.ts",
+    "./application/workflows/*": "./src/application/workflows/*.ts",
     "./contract": "./src/daemon/contract.ts",
     "./daemonRouteParity": "./src/routes/daemonRouteParity.ts",
     "./lock": "./src/daemon/lock.ts",

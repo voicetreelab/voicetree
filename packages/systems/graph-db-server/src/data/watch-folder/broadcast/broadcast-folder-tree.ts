@@ -4,11 +4,11 @@
  * Debounced to avoid excessive filesystem scans during rapid FS changes.
  */
 
-import { getProjectRootWatchedDirectory } from '../../../state/watch-folder-store';
-import { getVaultPaths, getWritePath } from '../../../state/vaultAllowlist';
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store';
+import { getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist';
 import { getStarredFolders } from '../starred-folders';
-import { getGraph } from '../../../state/graph-store';
-import { getDirectoryTree } from '../../graph/loading/folderScanner';
+import { getGraph } from '@vt/graph-db-server/state/graph-store';
+import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner';
 import { buildFolderTree, getExternalReadPaths } from '@vt/graph-model/folders';
 import type { DirectoryEntry } from '@vt/graph-model/folders';
 import type { FolderTreeNode, AbsolutePath } from '@vt/graph-model/folders';

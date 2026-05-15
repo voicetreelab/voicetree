@@ -11,6 +11,7 @@
     "./lifecycle": "./src/lifecycle/index.ts",
     "./lifecycle/output-transition": "./src/lifecycle/output-transition.ts",
     "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
+    "./runtime/graph-bridge": "./src/runtime/graph-bridge.ts",
     "./api/*": "./src/api/*",
     "./terminals/*": "./src/terminals/*",
     "./headless/*": "./src/headless/*",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@vt/app-config": "*",
+    "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@xterm/headless": "^6.0.0",

@@ -3,7 +3,7 @@ import { renderTreeCover } from '@vt/graph-tools/autoView'
 import {
   ExpandOverridesResponseSchema,
   ViewResponseSchema,
-} from '../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'

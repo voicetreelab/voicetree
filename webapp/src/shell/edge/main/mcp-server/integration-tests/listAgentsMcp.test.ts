@@ -12,28 +12,34 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@vt/agent-runtime', () => ({
-    closeHeadlessAgent: vi.fn(),
-    enqueuePendingMessage: vi.fn(),
-    getHeadlessAgentOutput: vi.fn(),
-    getIdleSince: vi.fn(),
-    getOutput: vi.fn(),
-    getPendingTerminal: vi.fn(),
-    getRuntimeUI: vi.fn(),
-    getTerminalRecords: vi.fn(),
-    registerChild: vi.fn(),
-    resetAuditRetryCount: vi.fn(),
-    runStopHooks: vi.fn(),
-    sendTextToTerminal: vi.fn(),
-    spawnTerminalWithContextNode: vi.fn(),
-    tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
-}))
+vi.mock('@vt/agent-runtime', () => {
+    const runtime = {
+        closeHeadlessAgent: vi.fn(),
+        enqueuePendingMessage: vi.fn(),
+        getHeadlessAgentOutput: vi.fn(),
+        getIdleSince: vi.fn(),
+        getOutput: vi.fn(),
+        getPendingTerminal: vi.fn(),
+        getRuntimeUI: vi.fn(),
+        getTerminalRecords: vi.fn(),
+        registerChild: vi.fn(),
+        resetAuditRetryCount: vi.fn(),
+        runStopHooks: vi.fn(),
+        sendTextToTerminal: vi.fn(),
+        spawnTerminalWithContextNode: vi.fn(),
+        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
+    }
+    return {
+        ...runtime,
+        agentRuntime: runtime,
+    }
+})
 
 vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn()
 }))
 
-import {listAgentsTool} from '@vt/voicetree-mcp'
+import {configureMcpServer, listAgentsTool} from '@vt/voicetree-mcp'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {getTerminalRecords} from '@vt/agent-runtime'
@@ -65,6 +71,15 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
 describe('MCP list_agents tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        configureMcpServer({
+            graph: {
+                getGraph: async () => getGraph(),
+                getVaultPaths: async () => [],
+                getWritePath: async () => null,
+                applyGraphDelta: async () => {},
+                getUnseenNodesAroundContextNode,
+            }
+        })
     })
 
     it('lists all agents with status and new nodes', async () => {

@@ -4,7 +4,7 @@ import {
   deleteSessionWorkflow,
   readSessionWorkflow,
   type WorkflowSessionRegistry,
-} from '../../application/workflows/sessionRoutes.ts'
+} from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountSessionRoutes(

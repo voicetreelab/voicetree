@@ -9,7 +9,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
-import { shellQuote } from '@vt/agent-runtime';
+import { shellQuote } from '@vt/agent-runtime/util/shellQuote.ts';
 
 export { shellQuote };
 

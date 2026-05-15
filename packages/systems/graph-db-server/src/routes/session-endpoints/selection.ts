@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
-import { updateSelectionWorkflow } from '../../application/workflows/selection.ts'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
+import { updateSelectionWorkflow } from '@vt/graph-db-server/application/workflows/selection'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountSelectionRoutes(

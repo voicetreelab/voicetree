@@ -1,4 +1,4 @@
-import {error} from '../../output.ts'
+import {error} from '../graphCliDependencies.ts'
 import type {GraphCreateNode, GraphCreatePayload} from './types.ts'
 import {getErrorMessage, isRecord} from './util.ts'
 

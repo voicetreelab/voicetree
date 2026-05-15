@@ -1,7 +1,7 @@
 import {
   SelectionRequestSchema,
   SelectionResponseSchema,
-} from '../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { applySelection } from '../session/selection.ts'
 import { errorResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'

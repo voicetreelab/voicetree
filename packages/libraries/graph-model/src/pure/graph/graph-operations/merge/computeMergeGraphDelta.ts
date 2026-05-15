@@ -4,9 +4,7 @@ import { getIncomingEdgesToSubgraph } from './getIncomingEdgesToSubgraph'
 import { createRepresentativeNode, type MergeTitleInfo } from './createRepresentativeNode'
 import { redirectEdgeTarget } from './redirectEdgeTarget'
 import { findRepresentativeNode } from './findRepresentativeNode'
-import { getNodeTitle } from '../../markdown-parsing'
-import { ensureUniqueNodeId } from '../../ensureUniqueNodeId'
-import { stableIdSuffix } from '../../stableIdSuffix'
+import { ensureUniqueNodeId, getNodeTitle, stableIdSuffix } from '../graphOperationPrimitives'
 
 /**
  * Generates a unique ID for a merged node based on the merge inputs.

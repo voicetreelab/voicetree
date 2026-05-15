@@ -14,8 +14,8 @@ import { toAbsolutePath } from '@vt/graph-model/folders';
 import type { DirectoryEntry } from '@vt/graph-model/folders';
 import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/folders';
 import type { ParsedQuery } from '@vt/graph-model/folders';
-import { getProjectRootWatchedDirectory } from '../../../state/watch-folder-store';
-import { getVaultPaths } from '../../../state/vaultAllowlist';
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store';
+import { getVaultPaths } from '@vt/graph-db-server/state/vaultAllowlist';
 
 /**
  * Security validation: ensure target path is within project root.

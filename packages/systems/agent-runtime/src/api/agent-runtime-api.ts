@@ -27,7 +27,6 @@ import {
     registerChild,
     tryConsumeAndSplitBudget,
 } from '../terminals/global-budget-registry'
-import { shellQuote } from '../util/shellQuote'
 
 export const agentRuntime = {
     closeHeadlessAgent,
@@ -48,7 +47,6 @@ export const agentRuntime = {
     resetAuditRetryCount,
     runStopHooks,
     sendTextToTerminal,
-    shellQuote,
     shouldFlipToActiveOnOutput,
     spawnPlainTerminal,
     spawnPlainTerminalWithNode,

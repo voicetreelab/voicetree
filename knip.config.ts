@@ -6,6 +6,8 @@ const config: KnipConfig = {
             entry: [
                 'scripts/*.mjs',
                 'scripts/*.cjs',
+                'scripts/measures/**/*.ts',
+                'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
                 'packages/systems/*.test.ts',
             ],
@@ -16,6 +18,7 @@ const config: KnipConfig = {
                 'old/**',
                 'tools/**',
                 '.venv-server/**',
+                'health-dashboard/mockups/**',
             ],
         },
         'webapp': {
@@ -46,6 +49,7 @@ const config: KnipConfig = {
     },
     exclude: ['duplicates'],
     ignoreExportsUsedInFile: true,
+    tags: ['-knipignore'],
 }
 
 export default config

@@ -10,7 +10,7 @@ const REBUILD = process.argv.includes('--rebuild-db')
 
 // Defaults track current observed values (baseline ratchet — regressions fail).
 const BUDGETS = {
-    functions: Number(process.env.PURITY_FUNCTIONS_BUDGET ?? 312),
+    functions: Number(process.env.PURITY_FUNCTIONS_BUDGET ?? 296),
     ratio: Number(process.env.PURITY_RATIO_BUDGET ?? 1.0),
 }
 

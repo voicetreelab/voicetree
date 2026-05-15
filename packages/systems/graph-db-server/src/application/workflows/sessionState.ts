@@ -9,13 +9,13 @@ import {
   LiveStateSnapshotSchema,
   type LiveStateSnapshot,
   type VaultState,
-} from '../../daemon/contract.ts'
-import { getGraph } from '../../state/graph-store.ts'
-import { getProjectRootWatchedDirectory } from '../../state/watch-folder-store.ts'
-import { getDirectoryTree } from '../../data/graph/loading/folderScanner.ts'
-import { getReadPaths, getVaultPaths, getWritePath } from '../../state/vaultAllowlist.ts'
+} from '@vt/graph-db-server/contract'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
+import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
 import { projectSessionState } from '../session/project.ts'
-import { getFolderStateForActiveView } from '../../data/views/folderStateOps.ts'
+import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
 

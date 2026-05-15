@@ -1,4 +1,4 @@
-import { popUndoDelta, popRedoDelta } from '../../../state/undo-store'
+import { popUndoDelta, popRedoDelta } from '@vt/graph-db-server/state/undo-store'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "./applyGraphDelta";

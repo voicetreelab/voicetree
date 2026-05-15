@@ -14,7 +14,7 @@
  * implementation used by BF-163's CLI live-view adapter.
  */
 import type { SerializedState } from '@vt/graph-state'
-import { getLiveStateBridge } from '../../config/mcp-config'
+import { getLiveStateBridge } from '../mcpConfigDependencies'
 
 import { buildJsonResponse } from '../toolResponse'
 import type { McpToolResponse } from '../toolResponse'

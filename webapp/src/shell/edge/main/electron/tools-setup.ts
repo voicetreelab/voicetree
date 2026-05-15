@@ -62,15 +62,6 @@ export function getToolsDirectory(): string {
 }
 
 /**
- * Get the backend directory absolutePath in Application Support
- * Returns the user-writable location where backend modules are stored
- */
-export function getBackendDirectory(): string {
-  const config: BuildConfig = getBuildConfig();
-  return config.backendDest;
-}
-
-/**
  * Recursive async copy function
  */
 async function copyDir(src: string, dest: string): Promise<void> {

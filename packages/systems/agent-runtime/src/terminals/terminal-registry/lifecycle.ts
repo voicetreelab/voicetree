@@ -1,8 +1,8 @@
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getRuntimeGraph} from '../../runtime/graph-bridge'
-import {classifyExit} from '../../lifecycle/exit'
-import type {TerminalLifecycle, TerminalKillReason} from '../../lifecycle/types'
+import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
+import {classifyExit} from '@vt/agent-runtime/lifecycle'
+import type {TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
 import {runIdleStopGateAudit} from '../terminal-registry-audit'
 import {notifyAgentOfUnseenNodes} from '../terminal-registry-notifications'
 import {
@@ -90,11 +90,15 @@ function runIdleHooks(
     runtime: TerminalRegistryRuntime,
 ): (terminalId: string, record: TerminalRecord) => void {
     return (tid, rec) => {
-        void runIdleStopGateAudit(tid, rec, {
-            records: getTerminalRecords(),
-            graph: getRuntimeGraph(),
-            incrementAuditRetryCount,
-            logger: runtime.logger,
+        void (async (): Promise<void> => {
+            await runIdleStopGateAudit(tid, rec, {
+                records: getTerminalRecords(),
+                graph: await getRuntimeGraph(),
+                incrementAuditRetryCount,
+                logger: runtime.logger,
+            })
+        })().catch((error: unknown) => {
+            runtime.logger.error('[terminal-registry] Failed to run idle stop-gate audit:', error)
         })
 
         void loadSettings()

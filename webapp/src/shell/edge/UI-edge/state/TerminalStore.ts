@@ -142,6 +142,9 @@ export function getTerminalStatus(terminalId: TerminalId): TerminalStatus | unde
     return terminalStatuses.get(terminalId);
 }
 
+/**
+ * @knipignore Used by Playwright browser tests through a dynamic Vite import.
+ */
 export function addTerminal(terminal: TerminalData): void {
     terminals.set(getTerminalId(terminal), terminal);
     notifySubscribers();
@@ -163,11 +166,6 @@ export function getTerminalByNodeId(nodeId: NodeIdAndFilePath): Option<TerminalD
 
 export function removeTerminal(terminalId: TerminalId): void {
     terminals.delete(terminalId);
-    notifySubscribers();
-}
-
-export function removeTerminalByData(terminal: TerminalData): void {
-    terminals.delete(getTerminalId(terminal));
     notifySubscribers();
 }
 

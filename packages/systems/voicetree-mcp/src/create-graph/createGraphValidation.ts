@@ -138,6 +138,37 @@ export function formatViolationError(unresolved: readonly RuleViolation[]): stri
 
 const MAX_ANCESTOR_DEPTH: number = 20
 
+function collectAncestorNodeIds(
+    graph: Graph,
+    callerTaskNodeId: NodeIdAndFilePath,
+): ReadonlySet<NodeIdAndFilePath> {
+    const ancestors: Set<NodeIdAndFilePath> = new Set()
+    const queue: NodeIdAndFilePath[] = [callerTaskNodeId]
+    let depth: number = 0
+
+    while (queue.length > 0 && depth < MAX_ANCESTOR_DEPTH) {
+        const levelSize: number = queue.length
+        for (let i: number = 0; i < levelSize; i++) {
+            const current: NodeIdAndFilePath = queue[i]
+            const parents: readonly NodeIdAndFilePath[] | undefined =
+                graph.incomingEdgesIndex.get(current)
+            if (parents) {
+                for (const parent of parents) {
+                    if (!ancestors.has(parent)) {
+                        ancestors.add(parent)
+                        queue.push(parent)
+                    }
+                }
+            }
+        }
+        // Remove processed nodes from front of queue
+        queue.splice(0, levelSize)
+        depth++
+    }
+
+    return ancestors
+}
+
 /**
  * Grandparent attachment rule: agents should attach nodes to their own task node
  * or descendants of it, not to ancestors of the task node.
@@ -159,29 +190,8 @@ const grandparentAttachmentRule: ValidationRule = {
         if (ctx.resolvedParentNodeId === ctx.callerTaskNodeId) return []
 
         // BFS upward from task node to collect ancestors
-        const ancestors: Set<NodeIdAndFilePath> = new Set()
-        const queue: NodeIdAndFilePath[] = [ctx.callerTaskNodeId]
-        let depth: number = 0
-
-        while (queue.length > 0 && depth < MAX_ANCESTOR_DEPTH) {
-            const levelSize: number = queue.length
-            for (let i: number = 0; i < levelSize; i++) {
-                const current: NodeIdAndFilePath = queue[i]
-                const parents: readonly NodeIdAndFilePath[] | undefined =
-                    ctx.graph.incomingEdgesIndex.get(current)
-                if (parents) {
-                    for (const parent of parents) {
-                        if (!ancestors.has(parent)) {
-                            ancestors.add(parent)
-                            queue.push(parent)
-                        }
-                    }
-                }
-            }
-            // Remove processed nodes from front of queue
-            queue.splice(0, levelSize)
-            depth++
-        }
+        const ancestors: ReadonlySet<NodeIdAndFilePath> =
+            collectAncestorNodeIds(ctx.graph, ctx.callerTaskNodeId)
 
         if (ancestors.has(ctx.resolvedParentNodeId)) {
             return [{

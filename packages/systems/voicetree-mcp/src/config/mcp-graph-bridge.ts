@@ -1,79 +1,53 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import { getGraph as getDefaultGraph } from '@vt/graph-db-server/state/graph-store'
-import { setGraph as setDefaultGraph } from '@vt/graph-db-server/state/graph-store'
-import { getProjectRootWatchedDirectory as getDefaultProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import {
-    getVaultPaths as getDefaultVaultPaths,
-    getWritePath as getDefaultWritePath,
-    setVaultPath as setDefaultVaultPath,
-} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {
-    applyGraphDeltaToDBThroughMemAndUIAndEditors as applyDefaultGraphDelta,
-} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {
-    getUnseenNodesAroundContextNode as getDefaultUnseenNodesAroundContextNode,
-    type UnseenNode,
-} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
+import type { UnseenNode } from '@vt/graph-db-protocol'
 import { getGraphBridge, type GraphBridge } from './mcp-config'
 
 export type {UnseenNode}
 
-export function syncMcpGraphDbServerState(
-    graph: Graph,
-    projectRootWatchedDirectory: string | null,
-): void {
-    setDefaultGraph(graph)
-    if (projectRootWatchedDirectory) {
-        setDefaultVaultPath(projectRootWatchedDirectory)
+function requireGraphBridge(operation: string): GraphBridge {
+    const bridge: GraphBridge | undefined = getGraphBridge()
+    if (!bridge) {
+        throw new Error(
+            `MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before ${operation}.`,
+        )
     }
+    return bridge
 }
 
 export async function getMcpGraph(): Promise<Graph> {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    return bridge ? await bridge.getGraph() : getDefaultGraph()
+    return await requireGraphBridge('getMcpGraph').getGraph()
 }
 
 export async function getMcpWritePath(): Promise<O.Option<string>> {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    if (!bridge) {
-        return await getDefaultWritePath()
-    }
-
-    return O.fromNullable(await bridge.getWritePath())
+    return O.fromNullable(await requireGraphBridge('getMcpWritePath').getWritePath())
 }
 
 export async function getMcpVaultPaths(): Promise<readonly string[]> {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    return bridge ? await bridge.getVaultPaths() : await getDefaultVaultPaths()
+    return await requireGraphBridge('getMcpVaultPaths').getVaultPaths()
 }
 
 export function getMcpProjectRootWatchedDirectory(): string | null {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    return bridge?.getProjectRootWatchedDirectory
-        ? bridge.getProjectRootWatchedDirectory()
-        : getDefaultProjectRootWatchedDirectory()
+    const bridge: GraphBridge = requireGraphBridge('getMcpProjectRootWatchedDirectory')
+    return bridge.getProjectRootWatchedDirectory ? bridge.getProjectRootWatchedDirectory() : null
 }
 
 export async function getMcpUnseenNodesAroundContextNode(
     contextNodeId: NodeIdAndFilePath,
     searchFromNode?: NodeIdAndFilePath,
 ): Promise<readonly UnseenNode[]> {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    return bridge?.getUnseenNodesAroundContextNode
-        ? await bridge.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
-        : await getDefaultUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
+    const bridge: GraphBridge = requireGraphBridge('getMcpUnseenNodesAroundContextNode')
+    if (!bridge.getUnseenNodesAroundContextNode) {
+        throw new Error(
+            'MCP graph bridge does not implement getUnseenNodesAroundContextNode.',
+        )
+    }
+    return await bridge.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
 }
 
 export async function applyMcpGraphDelta(
     delta: GraphDelta,
     recordForUndo: boolean = true,
 ): Promise<void> {
-    const bridge: GraphBridge | undefined = getGraphBridge()
-    if (bridge) {
-        await bridge.applyGraphDelta(delta, recordForUndo)
-        return
-    }
-
-    await applyDefaultGraphDelta(delta, recordForUndo)
+    await requireGraphBridge('applyMcpGraphDelta').applyGraphDelta(delta, recordForUndo)
 }

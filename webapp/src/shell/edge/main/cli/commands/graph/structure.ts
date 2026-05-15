@@ -1,8 +1,8 @@
 import path from 'node:path'
 import {GraphDbClient, readPortFile, type ViewResponse} from '@vt/graph-db-client'
 import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node'
-import {error} from '../../output.ts'
-import {handleCliError} from '../../util/exitCodes.ts'
+import {error} from '../graphCliDependencies.ts'
+import {handleCliError} from '../graphCliDependencies.ts'
 import {resolveGraphVault} from './snapshot.ts'
 
 export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {

@@ -14,16 +14,6 @@ export function markLoadTiming(event: string, extra?: Record<string, unknown>): 
   emit(event, extra)
 }
 
-export function endLoadTiming(
-  event: string = 'loadFolder:end',
-  extra?: Record<string, unknown>,
-): void {
-  if (activeLoadId === null) return
-  emit(event, extra)
-  activeLoadId = null
-  activeLoadStartedAt = 0
-}
-
 export function isLoadTimingActive(): boolean {
   return activeLoadId !== null
 }

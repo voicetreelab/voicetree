@@ -39,7 +39,7 @@ import { onSettingsChange } from '@/shell/edge/UI-edge/api';
 import type { AutoLayoutOptions, LayoutConfig } from './autoLayoutTypes';
 import { DEFAULT_OPTIONS } from './autoLayoutTypes';
 import { parseLayoutConfig } from './autoLayoutConfig';
-import { layoutTriggers, colaLayoutTriggers, dirtyNodeMarkers, fullLayoutTriggers } from './autoLayoutTriggers';
+import { registerAutoLayoutTriggers, unregisterAutoLayoutTriggers } from './autoLayoutTriggers';
 
 // Re-export public API from sibling modules
 export type { AutoLayoutOptions } from './autoLayoutTypes';
@@ -341,35 +341,30 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   // That event fires on zoom-induced dimension changes (not just user resize),
   // which would cause unnecessary full layout recalculations during zoom/pan.
   // Shadow node dimensions still update correctly without triggering layout.
-  // User-initiated resizes (expand button, CSS drag) call triggerLayout() directly.
+  // User-initiated resizes (expand button, CSS drag) mark the resized node dirty directly.
 
-  // Register trigger for external callers (user-initiated resize)
-  layoutTriggers.set(cy, debouncedRunLayout);
-
-  // Register dirty-node marker for external callers (floating window resize)
-  dirtyNodeMarkers.set(cy, (nodeId: string) => {
-    pendingNewNodeIds.add(nodeId);
-    debouncedRunLayout();
-  });
-
-  // Register full layout reset for external callers (vault path changes)
-  fullLayoutTriggers.set(cy, () => {
-    hasRunInitialLayout = false;
-    debouncedRunLayout();
-  });
-
-  // Register cola layout trigger for manual "tidy up" button (full ultimate layout: R-tree pack → Cola → fit)
-  colaLayoutTriggers.set(cy, () => {
-    if (layoutRunning) { layoutQueued = true; return; }
-    if (cy.nodes().length === 0) return;
-    layoutRunning = true;
-    layoutSafetyTimeout = setTimeout(() => {
-      if (layoutRunning) {
-        console.error(`[AutoLayout] ⚠️ Safety timeout (${LAYOUT_SAFETY_TIMEOUT_MS}ms) — tidy callback never fired, force-resetting.`);
-        onLayoutComplete();
-      }
-    }, LAYOUT_SAFETY_TIMEOUT_MS);
-    runFullUltimateLayout();
+  registerAutoLayoutTriggers(cy, {
+    markDirtyNode: (nodeId: string) => {
+      pendingNewNodeIds.add(nodeId);
+      debouncedRunLayout();
+    },
+    runFullLayout: () => {
+      hasRunInitialLayout = false;
+      debouncedRunLayout();
+    },
+    // Manual "tidy up" button: full ultimate layout, R-tree pack → Cola → fit.
+    runColaLayout: () => {
+      if (layoutRunning) { layoutQueued = true; return; }
+      if (cy.nodes().length === 0) return;
+      layoutRunning = true;
+      layoutSafetyTimeout = setTimeout(() => {
+        if (layoutRunning) {
+          console.error(`[AutoLayout] ⚠️ Safety timeout (${LAYOUT_SAFETY_TIMEOUT_MS}ms) — tidy callback never fired, force-resetting.`);
+          onLayoutComplete();
+        }
+      }, LAYOUT_SAFETY_TIMEOUT_MS);
+      runFullUltimateLayout();
+    },
   });
 
   //console.log('[AutoLayout] Auto-layout enabled');
@@ -381,10 +376,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     cy.off('remove', 'node', onNodeRemove);
     cy.off('add', 'edge', debouncedRunLayout);
     cy.off('remove', 'edge', debouncedRunLayout);
-    layoutTriggers.delete(cy);
-    colaLayoutTriggers.delete(cy);
-    dirtyNodeMarkers.delete(cy);
-    fullLayoutTriggers.delete(cy);
+    unregisterAutoLayoutTriggers(cy);
     unsubSettings();
 
     if (debounceTimeout) {

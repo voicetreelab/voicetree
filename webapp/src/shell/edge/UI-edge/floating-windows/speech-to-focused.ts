@@ -115,34 +115,6 @@ function insertTextAtCursor(view: EditorView, text: string): void {
 }
 
 /**
- * Route speech text to the currently focused editor or terminal.
- * Returns true if text was routed, false if nothing was focused.
- *
- * This is the main entry point - a "deep function" that hides complexity.
- */
-export function routeSpeechToFocused(text: string): boolean {
-  const focused: FocusedWindow | null = getFocusedFloatingWindow();
-  if (!focused) return false;
-
-  if (focused.type === 'editor') {
-    const view: EditorView | null = getEditorViewFromDOM();
-    if (view) {
-      insertTextAtCursor(view, text);
-      return true;
-    }
-  } else if (focused.type === 'terminal') {
-    // Write directly to terminal PTY via electron IPC
-    const electronAPI: ElectronAPI | undefined = window.electronAPI;
-    if (electronAPI) {
-      void electronAPI.terminal.write(focused.id, text);
-    }
-    return true;
-  }
-
-  return false;
-}
-
-/**
  * Escape HTML special characters to prevent XSS
  */
 function escapeHtml(text: string): string {

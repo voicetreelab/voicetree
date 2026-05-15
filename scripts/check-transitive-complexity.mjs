@@ -11,7 +11,7 @@ const REBUILD = process.argv.includes('--rebuild-db')
 
 // Defaults track current observed values (baseline ratchet — regressions fail).
 const BUDGETS = {
-    maxFunction: Number(process.env.TCX_MAX_BUDGET ?? 1743),
+    maxFunction: Number(process.env.TCX_MAX_BUDGET ?? 1569),
     folderMean: Number(process.env.TCX_FOLDER_MEAN_BUDGET ?? 300),
 }
 

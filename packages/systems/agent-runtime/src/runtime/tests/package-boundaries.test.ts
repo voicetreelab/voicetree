@@ -31,6 +31,10 @@ const FORBIDDEN_RULES: readonly {rule: string, pattern: RegExp}[] = [
         rule: "No deep 'webapp/src/...' imports — depend on packages or accept callbacks",
         pattern: /from\s+['"]webapp\/src\//,
     },
+    {
+        rule: "No '@vt/graph-db-server' imports in production sources",
+        pattern: /from\s+['"]@vt\/graph-db-server(?:\/[^'"]*)?['"]/,
+    },
 ] as const
 
 async function pathExists(p: string): Promise<boolean> {
@@ -96,7 +100,7 @@ function formatViolation(v: Violation): string {
 }
 
 describe('@vt/agent-runtime package boundaries', () => {
-    it('forbids electron / webapp-edge / uiAPI / deep webapp imports in production sources', async () => {
+    it('forbids electron / webapp-edge / uiAPI / deep webapp / graph-db-server imports in production sources', async () => {
         const violations = await findViolations()
         expect(violations.map(formatViolation)).toEqual([])
     })

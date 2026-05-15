@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
-import type { WorkflowSessionRegistry } from '../../application/workflows/sessionRoutes.ts'
-import { readSessionStateWorkflow } from '../../application/workflows/sessionState.ts'
+import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
+import { readSessionStateWorkflow } from '@vt/graph-db-server/application/workflows/sessionState'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountSessionStateRoutes(

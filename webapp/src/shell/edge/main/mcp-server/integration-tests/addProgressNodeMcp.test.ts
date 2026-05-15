@@ -14,22 +14,28 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
     getGraph: vi.fn()
 }))
 
-vi.mock('@vt/agent-runtime', () => ({
-    closeHeadlessAgent: vi.fn(),
-    enqueuePendingMessage: vi.fn(),
-    getHeadlessAgentOutput: vi.fn(),
-    getIdleSince: vi.fn(),
-    getOutput: vi.fn(),
-    getPendingTerminal: vi.fn(),
-    getRuntimeUI: vi.fn(),
-    getTerminalRecords: vi.fn(),
-    registerChild: vi.fn(),
-    resetAuditRetryCount: vi.fn(),
-    runStopHooks: vi.fn(),
-    sendTextToTerminal: vi.fn(),
-    spawnTerminalWithContextNode: vi.fn(),
-    tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
-}))
+vi.mock('@vt/agent-runtime', () => {
+    const runtime = {
+        closeHeadlessAgent: vi.fn(),
+        enqueuePendingMessage: vi.fn(),
+        getHeadlessAgentOutput: vi.fn(),
+        getIdleSince: vi.fn(),
+        getOutput: vi.fn(),
+        getPendingTerminal: vi.fn(),
+        getRuntimeUI: vi.fn(),
+        getTerminalRecords: vi.fn(),
+        registerChild: vi.fn(),
+        resetAuditRetryCount: vi.fn(),
+        runStopHooks: vi.fn(),
+        sendTextToTerminal: vi.fn(),
+        spawnTerminalWithContextNode: vi.fn(),
+        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
+    }
+    return {
+        ...runtime,
+        agentRuntime: runtime,
+    }
+})
 
 vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
     applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
@@ -45,7 +51,7 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-import {createGraphTool} from '@vt/voicetree-mcp'
+import {configureMcpServer, createGraphTool} from '@vt/voicetree-mcp'
 import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
@@ -149,6 +155,16 @@ function setupStandardMocks(graphOverride?: Graph): void {
 describe('MCP create_graph tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        configureMcpServer({
+            graph: {
+                getGraph: async () => getGraph(),
+                getVaultPaths: async () => getVaultPaths(),
+                getWritePath: async () => O.toNullable(await getWritePath()),
+                applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
+                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
+                },
+            }
+        })
     })
 
     // =========================================================================

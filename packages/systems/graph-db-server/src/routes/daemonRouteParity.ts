@@ -24,7 +24,7 @@ const DAEMON_ROUTE_IDS = [
 
 export type DaemonRouteId = (typeof DAEMON_ROUTE_IDS)[number]
 
-export type DaemonRouteMethod = 'DELETE' | 'GET' | 'POST' | 'PUT'
+export type DaemonRouteMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
 
 export type NormalizedDaemonRoute = {
   id: DaemonRouteId
@@ -127,6 +127,30 @@ export const DAEMON_ROUTE_PARITY_EXEMPTIONS = [
   },
   {
     method: 'POST',
+    path: '/graph/context-node-from-selected-nodes',
+    reason:
+      '`/graph/context-node-from-selected-nodes` creates transient agent context files for Electron selected-node workflows; it is not a user-facing CLI command.',
+  },
+  {
+    method: 'POST',
+    path: '/graph/unseen-nodes-around-context-node',
+    reason:
+      '`/graph/unseen-nodes-around-context-node` collects agent context for MCP orchestration; it is not a user-facing CLI command.',
+  },
+  {
+    method: 'POST',
+    path: '/graph/apply-delta',
+    reason:
+      '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/MCP bridges; the user-facing CLI remains covered by `/graph/delta`.',
+  },
+  {
+    method: 'PATCH',
+    path: '/graph/context-node-contained-ids',
+    reason:
+      '`/graph/context-node-contained-ids` updates MCP context-node bookkeeping; it is not a user-facing CLI command.',
+  },
+  {
+    method: 'POST',
     path: '/graph/write-positions',
     reason:
       '`/graph/write-positions` persists renderer layout coordinates from Electron; it is not a user-facing CLI command.',
@@ -143,6 +167,7 @@ function toDaemonRouteMethod(method: string): DaemonRouteMethod {
   switch (method) {
     case 'DELETE':
     case 'GET':
+    case 'PATCH':
     case 'POST':
     case 'PUT':
       return method

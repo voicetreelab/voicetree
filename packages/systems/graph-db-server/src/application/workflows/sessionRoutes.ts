@@ -1,7 +1,7 @@
 import {
   SessionCreateResponseSchema,
   SessionInfoSchema,
-} from '../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { type SessionRegistry } from '../session/registry.ts'
 import { emptyResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 

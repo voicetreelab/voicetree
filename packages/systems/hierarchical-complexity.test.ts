@@ -1,30 +1,9 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import * as ts from 'typescript'
+import {dirname} from 'node:path'
 import {describe, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {discoverPackages} from './discover-packages'
 import {computeDsm, computeModularityQ, computeNormalizedEntropy, computeTreeWidth} from './hierarchical-complexity-measures'
+import {type Edge, type SourceFile, buildImportGraph} from './import-graph'
 import {recordHealthMetric} from './_health-report-test-helpers'
-
-const REPO_ROOT: string = DEFAULT_REPO_ROOT
-
-
-type SourceFile = {
-    readonly absolutePath: string
-    readonly relativePath: string
-    readonly relToSrc: string
-    readonly packageName: string
-}
-
-type Edge = {
-    readonly from: SourceFile
-    readonly to: SourceFile
-}
-
-type ImportGraph = {
-    readonly files: readonly SourceFile[]
-    readonly edges: readonly Edge[]
-}
 
 type CommunityReport = {
     readonly id: string
@@ -49,97 +28,6 @@ type SiblingGroupReport = {
     readonly normalizedEntropy: number
     readonly modularityQ: number
     readonly dsm: { readonly names: readonly string[]; readonly matrix: readonly (readonly number[])[] }
-}
-
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/'))
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
-}
-
-async function scanSourceFiles(packages: readonly PackageInfo[]): Promise<SourceFile[]> {
-    const nested = await Promise.all(packages.map(async pkg => {
-        const files = await listProductionSources(pkg.srcRoot)
-        return files.map(file => ({
-            absolutePath: resolve(file),
-            relativePath: relative(REPO_ROOT, file),
-            relToSrc: relative(pkg.srcRoot, file),
-            packageName: pkg.dirName,
-        }))
-    }))
-    return nested.flat().sort((a, b) => a.relativePath.localeCompare(b.relativePath))
-}
-
-// --- Import Resolution ---
-
-function importSpecifiers(filePath: string, text: string): string[] {
-    const sourceFile = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
-    const specifiers: string[] = []
-    for (const statement of sourceFile.statements) {
-        if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier))
-            specifiers.push(statement.moduleSpecifier.text)
-        else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier))
-            specifiers.push(statement.moduleSpecifier.text)
-    }
-    return specifiers
-}
-
-function resolveFileCandidate(basePath: string, knownPaths: ReadonlySet<string>): string | null {
-    const candidates = basePath.endsWith('.ts') ? [basePath] : [basePath, `${basePath}.ts`, join(basePath, 'index.ts')]
-    return candidates.map(c => resolve(c)).find(c => knownPaths.has(c)) ?? null
-}
-
-function resolvePackageImport(
-    specifier: string,
-    packagesByNpmName: ReadonlyMap<string, PackageInfo>,
-    knownPaths: ReadonlySet<string>,
-): string | null {
-    for (const [npmName, pkg] of packagesByNpmName) {
-        if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-        const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-        return resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
-    }
-    return null
-}
-
-async function buildImportGraph(packages: readonly PackageInfo[]): Promise<ImportGraph> {
-    const files = await scanSourceFiles(packages)
-    const filesByPath = new Map(files.map(f => [f.absolutePath, f]))
-    const knownPaths = new Set(filesByPath.keys())
-    const packagesByNpmName = new Map(packages.map(pkg => [pkg.name, pkg]))
-    const dedupedEdges = new Set<string>()
-
-    for (const file of files) {
-        const text = await readFile(file.absolutePath, 'utf8')
-        for (const specifier of importSpecifiers(file.absolutePath, text)) {
-            let toPath: string | null = null
-            if (specifier.startsWith('.')) {
-                toPath = resolveFileCandidate(join(dirname(file.absolutePath), specifier), knownPaths)
-            } else {
-                toPath = resolvePackageImport(specifier, packagesByNpmName, knownPaths)
-            }
-            if (!toPath || toPath === file.absolutePath) continue
-            dedupedEdges.add(`${file.absolutePath}\0${toPath}`)
-        }
-    }
-
-    const edges = [...dedupedEdges].sort().map(key => {
-        const [fromPath, toPath] = key.split('\0')
-        return {from: filesByPath.get(fromPath)!, to: filesByPath.get(toPath)!}
-    })
-
-    return {files, edges}
 }
 
 // --- Hierarchical Community Assignment ---
@@ -418,7 +306,7 @@ describe('hierarchical complexity', () => {
         // Orange gate: fail when any community exceeds the priority budget.
         // Lower this number as you address top offenders to ratchet quality up.
         // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-        const ORANGE_PRIORITY_BUDGET = 272
+        const ORANGE_PRIORITY_BUDGET = 258
 
         const overBudget = priorityRanked.filter(p => p.score > ORANGE_PRIORITY_BUDGET)
         await recordHealthMetric({

@@ -7,22 +7,28 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals
 import type {TerminalRecord} from '@vt/agent-runtime'
 
 // Mock leaf dependencies
-vi.mock('@vt/agent-runtime', () => ({
-    closeHeadlessAgent: vi.fn(),
-    enqueuePendingMessage: vi.fn(),
-    getHeadlessAgentOutput: vi.fn(),
-    getIdleSince: vi.fn(),
-    getOutput: vi.fn(),
-    getPendingTerminal: vi.fn(),
-    getRuntimeUI: vi.fn(),
-    getTerminalRecords: vi.fn(),
-    registerChild: vi.fn(),
-    resetAuditRetryCount: vi.fn(),
-    runStopHooks: vi.fn(),
-    sendTextToTerminal: vi.fn(),
-    spawnTerminalWithContextNode: vi.fn(),
-    tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
-}))
+vi.mock('@vt/agent-runtime', () => {
+    const runtime = {
+        closeHeadlessAgent: vi.fn(),
+        enqueuePendingMessage: vi.fn(),
+        getHeadlessAgentOutput: vi.fn(),
+        getIdleSince: vi.fn(),
+        getOutput: vi.fn(),
+        getPendingTerminal: vi.fn(),
+        getRuntimeUI: vi.fn(),
+        getTerminalRecords: vi.fn(),
+        registerChild: vi.fn(),
+        resetAuditRetryCount: vi.fn(),
+        runStopHooks: vi.fn(),
+        sendTextToTerminal: vi.fn(),
+        spawnTerminalWithContextNode: vi.fn(),
+        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
+    }
+    return {
+        ...runtime,
+        agentRuntime: runtime,
+    }
+})
 
 vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
     const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()

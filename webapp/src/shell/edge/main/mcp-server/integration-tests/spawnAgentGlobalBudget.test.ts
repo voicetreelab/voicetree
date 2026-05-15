@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type {GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import type {GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/types'
 import type {TerminalRecord} from '@vt/agent-runtime'
 import {clearAllBudgets, setTerminalBudget, getTerminalBudget} from '@vt/agent-runtime'
@@ -15,11 +15,19 @@ vi.mock('@vt/graph-db-server/state/graph-store', () => ({
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    const spawnTerminalWithContextNode = vi.fn()
+    const getTerminalRecords = vi.fn()
+    const recordTerminalSpawn = vi.fn()
     return {
         ...actual,
-        spawnTerminalWithContextNode: vi.fn(),
-        getTerminalRecords: vi.fn(),
-        recordTerminalSpawn: vi.fn(),
+        spawnTerminalWithContextNode,
+        getTerminalRecords,
+        recordTerminalSpawn,
+        agentRuntime: {
+            ...actual.agentRuntime,
+            spawnTerminalWithContextNode,
+            getTerminalRecords,
+        },
     }
 })
 
@@ -44,8 +52,10 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
 })
 
 import {spawnAgentTool} from '@vt/voicetree-mcp'
+import {configureMcpServer} from '@vt/voicetree-mcp'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
+import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
@@ -80,6 +90,16 @@ describe('MCP spawn_agent fair rebalancing budget enforcement', () => {
         vi.clearAllMocks()
         clearAllBudgets()
         spawnCallCount = 0
+        configureMcpServer({
+            graph: {
+                getGraph: async () => getGraph(),
+                getVaultPaths: async () => [],
+                getWritePath: async () => O.toNullable(await getWritePath()),
+                applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
+                    await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
+                },
+            }
+        })
     })
 
     function mockTerminalWithBudget(terminalId: string, budget: string, parentTerminalId: string | null = null): TerminalData {
