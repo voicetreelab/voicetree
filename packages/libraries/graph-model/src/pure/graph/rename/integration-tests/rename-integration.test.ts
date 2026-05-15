@@ -282,7 +282,8 @@ describe('Rename Node - Integration Tests', () => {
 
             const initialGraph: Graph = createGraph({
                 [oldId]: {
-                    relativeFilePathIsID: oldId,
+                    kind: 'leaf',
+                    absoluteFilePathIsID: oldId,
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Colored Node',
                     nodeUIMetadata: {

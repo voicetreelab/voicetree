@@ -37,6 +37,7 @@ export interface SerializedEdge {
 }
 
 export interface SerializedGraphNode {
+    readonly kind?: GraphNode['kind']
     readonly outgoingEdges: readonly SerializedEdge[]
     readonly absoluteFilePathIsID: string
     readonly contentWithoutYamlOrLinks: string
@@ -179,6 +180,7 @@ function legacyFolderState(state: SerializedState): readonly (readonly [string, 
 
 export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
     return {
+        kind: node.kind,
         outgoingEdges: [...node.outgoingEdges]
             .sort(
                 (left, right) =>
@@ -202,6 +204,7 @@ export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
 
 export function hydrateGraphNode(node: SerializedGraphNode): GraphNode {
     return {
+        kind: node.kind ?? 'leaf',
         outgoingEdges: node.outgoingEdges.map((edge) => ({
             targetId: edge.targetId,
             label: edge.label,

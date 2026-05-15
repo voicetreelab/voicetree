@@ -27,7 +27,7 @@ export function aggregateTokensByDay(sessions: readonly SessionMetric[]): readon
     readonly sessionCount: number;
   }
   const byDay: ReadonlyMap<string, DayAccumulator> = sessionsWithTokens.reduce(
-    (acc: ReadonlyMap<string, DayAccumulator>, session) => {
+    (acc: Map<string, DayAccumulator>, session) => {
       const date: string = session.startTime.slice(0, 10);
       const sessionTotal: number = session.tokens.input + session.tokens.output + (session.tokens.cacheRead ?? 0);
       const existing: DayAccumulator = acc.get(date) ?? { totalTokens: 0, sessionCount: 0 };
