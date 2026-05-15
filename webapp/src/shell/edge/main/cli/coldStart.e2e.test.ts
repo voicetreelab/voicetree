@@ -226,20 +226,20 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         }, DAEMON_CLEANUP_HOOK_TIMEOUT_MS)
 
         it(
-            'Scenario A — cold start: auto-launches vt-graphd and persists a new read path',
+            'Scenario A — cold start: auto-launches vt-graphd and persists folder state',
             async () => {
                 const portFile: string = join(vault, '.voicetree', 'graphd.port')
                 // Pre-check: no daemon running.
                 await expect(stat(portFile)).rejects.toMatchObject({code: 'ENOENT'})
 
-                const addResult: SpawnResult = await spawnCli(
-                    ['vault', 'add-read-path', readDir, '--vault', vault, '--json'],
+                const setFolderResult: SpawnResult = await spawnCli(
+                    ['view', 'set-folder', readDir, 'expanded', '--vault', vault, '--json'],
                     appSupport,
                 )
-                expect(addResult.code, `add-read-path stderr: ${addResult.stderr}`).toBe(0)
+                expect(setFolderResult.code, `set-folder stderr: ${setFolderResult.stderr}`).toBe(0)
 
-                const addPayload: {readPaths: string[]} = parseJsonStdout(addResult)
-                expect(addPayload.readPaths).toContain(readDir)
+                const folderPayload: {path: string; state: string} = parseJsonStdout(setFolderResult)
+                expect(folderPayload).toEqual({path: readDir, state: 'expanded'})
 
                 // Port file now exists; daemon PID is alive.
                 const portAfterAdd: number = await waitForPortFile(vault, DAEMON_READY_TIMEOUT_MS)
@@ -258,7 +258,6 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
                 const showPayload: {readPaths: string[]; vaultPath: string} = parseJsonStdout(showResult)
                 expect(showPayload.vaultPath).toBe(vault)
-                expect(showPayload.readPaths).toContain(readDir)
 
                 const portAfterShow: number = await waitForPortFile(vault, 1_000)
                 expect(portAfterShow).toBe(portAfterAdd)
@@ -268,7 +267,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         )
 
         it(
-            'Scenario B — session isolation: two sessions hold disjoint collapse sets',
+            'Scenario B — active-view folder state is visible to sessions',
             async () => {
                 const create1: SpawnResult = await spawnCli(
                     ['session', 'create', '--vault', vault, '--json'],
@@ -287,26 +286,35 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 expect(sid1).not.toEqual(sid2)
 
                 const folderId: string = '/some/folder'
-                const collapse: SpawnResult = await spawnCli(
-                    ['view', 'collapse', folderId, '--vault', vault, '--session', sid1, '--json'],
+                const setFolder: SpawnResult = await spawnCli(
+                    ['view', 'set-folder', folderId, 'collapsed', '--vault', vault, '--session', sid1, '--json'],
                     appSupport,
                 )
-                expect(collapse.code, `view collapse stderr: ${collapse.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(collapse).collapseSet).toBeInstanceOf(Array)
+                expect(setFolder.code, `view set-folder stderr: ${setFolder.stderr}`).toBe(0)
+                expect(parseJsonStdout<{path: string; state: string}>(setFolder)).toEqual({
+                    path: folderId,
+                    state: 'collapsed',
+                })
 
                 const showSid2: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid2, '--json'],
                     appSupport,
                 )
                 expect(showSid2.code, `view show sid2 stderr: ${showSid2.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(showSid2).collapseSet).not.toContain(folderId)
+                expect(parseJsonStdout<{folderState: [string, string][]}>(showSid2).folderState).toContainEqual([
+                    folderId,
+                    'collapsed',
+                ])
 
                 const showSid1: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid1, '--json'],
                     appSupport,
                 )
                 expect(showSid1.code, `view show sid1 stderr: ${showSid1.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(showSid1).collapseSet).toContain(folderId)
+                expect(parseJsonStdout<{folderState: [string, string][]}>(showSid1).folderState).toContainEqual([
+                    folderId,
+                    'collapsed',
+                ])
             },
             SCENARIO_TIMEOUT_MS,
         )

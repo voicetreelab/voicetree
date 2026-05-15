@@ -14,7 +14,6 @@ import {
     emitResult,
     formatFolderStateRow,
     formatLayout,
-    formatCollapseResult,
     formatSelection,
     formatViewActivated,
     formatViewCloned,
@@ -75,16 +74,6 @@ type ParsedSetFolderCommand = ParsedViewBase & {
     state: FolderState
 }
 
-type ParsedCollapseCommand = ParsedViewBase & {
-    branch: 'collapse'
-    folderId: string
-}
-
-type ParsedExpandCommand = ParsedViewBase & {
-    branch: 'expand'
-    folderId: string
-}
-
 type ParsedSelectionCommand = ParsedViewBase & {
     branch: 'selection'
     mode: SelectionMode
@@ -102,8 +91,6 @@ type ParsedViewCommand =
     | ParsedCloneCommand
     | ParsedDeleteCommand
     | ParsedSetFolderCommand
-    | ParsedCollapseCommand
-    | ParsedExpandCommand
     | ParsedSelectionCommand
     | ParsedShowCommand
 
@@ -113,8 +100,6 @@ const VIEW_USAGE: string = `Usage:
   vt view clone <src-id-or-name> <dst-name> [--vault <path>] [--json]
   vt view delete <id-or-name> [--vault <path>] [--json]
   vt view set-folder <path> <expanded|collapsed|hidden> [--vault <path>] [--session <id>] [--json]
-  vt view collapse <folderId> [--vault <path>] [--session <id>] [--json]
-  vt view expand <folderId> [--vault <path>] [--session <id>] [--json]
   vt view selection set <nodeIds...> [--vault <path>] [--session <id>] [--json]
   vt view selection add <nodeIds...> [--vault <path>] [--session <id>] [--json]
   vt view selection remove <nodeIds...> [--vault <path>] [--session <id>] [--json]
@@ -302,26 +287,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
             branch: 'set-folder',
             folderPath: resolvePath(rest[0]),
             state: parseFolderState(rest[1]),
-            vaultFlag,
-            sessionFlag: session,
-            forceJson,
-        }
-    }
-
-    if (rawBranch === 'collapse') {
-        return {
-            branch: 'collapse',
-            folderId: requireSingleValue(rest, '<folderId>', 'collapse'),
-            vaultFlag,
-            sessionFlag: session,
-            forceJson,
-        }
-    }
-
-    if (rawBranch === 'expand') {
-        return {
-            branch: 'expand',
-            folderId: requireSingleValue(rest, '<folderId>', 'expand'),
             vaultFlag,
             sessionFlag: session,
             forceJson,
@@ -590,20 +555,6 @@ async function runSetFolderCommand(parsed: ParsedSetFolderCommand): Promise<void
     emitResult(row, formatFolderStateRow, parsed.forceJson)
 }
 
-async function runCollapseCommand(parsed: ParsedCollapseCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
-    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
-
-    emitResult(await client.collapse(sessionId, parsed.folderId), formatCollapseResult, parsed.forceJson)
-}
-
-async function runExpandCommand(parsed: ParsedExpandCommand): Promise<void> {
-    const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
-    const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
-
-    emitResult(await client.expand(sessionId, parsed.folderId), formatCollapseResult, parsed.forceJson)
-}
-
 async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void> {
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
@@ -647,12 +598,6 @@ export async function runViewCommand(argv: string[]): Promise<void> {
                 return
             case 'set-folder':
                 await runSetFolderCommand(parsed)
-                return
-            case 'collapse':
-                await runCollapseCommand(parsed)
-                return
-            case 'expand':
-                await runExpandCommand(parsed)
                 return
             case 'selection':
                 await runSelectionCommand(parsed)

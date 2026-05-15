@@ -28,7 +28,7 @@ Commands:
   graph     Graph operations (view, create, group, mv, rename, lint, ...)
   serve     Start headless daemon (graph-db + MCP server) for a vault
   search    Search nodes by query
-  vault     Manage vault read/write paths
+  vault     Manage vault state
   session   Manage sessions
   view      Folder visibility views
   debug     Run debug subcommands

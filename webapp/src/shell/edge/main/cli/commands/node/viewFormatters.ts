@@ -1,5 +1,4 @@
 import type {
-    CollapseStateResponse,
     FolderState,
     LayoutResponse,
     LiveStateSnapshot,
@@ -35,22 +34,6 @@ export function formatLayout(data: LayoutResponse): string {
         `Zoom: ${data.layout.zoom}`,
         positionEntries.length === 0 ? 'Positions:\n  (none)' : ['Positions:', ...positionEntries].join('\n'),
     ].join('\n')
-}
-
-function extractCollapseSet(data: unknown): string[] {
-    if (!data || typeof data !== 'object') return []
-    if ('collapseSet' in data) return (data as CollapseStateResponse).collapseSet
-    if ('nodes' in data) {
-        return (data as {nodes: readonly {kind?: string; id: string}[]}).nodes
-            .filter((n: {kind?: string}) => n.kind === 'folder-collapsed').map((n: {id: string}) => n.id)
-    }
-    return []
-}
-
-export function formatCollapseResult(data: unknown): string {
-    const set: string[] = extractCollapseSet(data).sort()
-    if (set.length === 0) return 'Collapse Set:\n  (none)'
-    return ['Collapse Set:', ...set.map((id: string) => `  - ${id}`)].join('\n')
 }
 
 export function formatSelection(data: SelectionResponse): string {

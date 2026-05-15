@@ -302,7 +302,7 @@ describe('runViewCommand', () => {
     })
 
     it('lists named vault views with the active view marked', async () => {
-        await createClient().views.clone('main', 'scratch')
+        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
 
         const views = await runViewJson(['list', '--vault', harness.vault])
 
@@ -323,7 +323,7 @@ describe('runViewCommand', () => {
     })
 
     it('switches views by name', async () => {
-        await createClient().views.clone('main', 'scratch')
+        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
 
         await expect(runViewJson(['switch', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
             name: 'scratch',
@@ -352,7 +352,7 @@ describe('runViewCommand', () => {
     })
 
     it('deletes a non-active view', async () => {
-        await createClient().views.clone('main', 'scratch')
+        await runViewJson(['clone', 'main', 'scratch', '--vault', harness.vault])
 
         await expect(runViewJson(['delete', 'scratch', '--vault', harness.vault])).resolves.toMatchObject({
             name: 'scratch',
@@ -389,23 +389,6 @@ describe('runViewCommand', () => {
         })
     })
 
-    it('collapses a folder and shows it in the pinned session snapshot', async () => {
-        const {sessionId}: {sessionId: string} = await createClient().createSession()
-
-        await expect(
-            runViewJson(['collapse', 'docs', '--vault', harness.vault, '--session', sessionId]),
-        ).resolves.toMatchObject({
-            collapseSet: expect.any(Array),
-        })
-
-        await expect(
-            runViewJson(['show', '--vault', harness.vault, '--session', sessionId]),
-        ).resolves.toMatchObject({
-            collapseSet: ['docs'],
-            selection: [],
-        })
-    })
-
     it('omits node markdown content from show JSON output', async () => {
         const nodePath: string = join(harness.vault, 'one.md')
         await writeFile(nodePath, '# one\n\nbody text that should not be printed\n', 'utf8')
@@ -425,21 +408,6 @@ describe('runViewCommand', () => {
 
         const nodes = (body as {graph: {nodes: Record<string, unknown>}}).graph.nodes
         expect(nodes[nodePath]).not.toHaveProperty('contentWithoutYamlOrLinks')
-    })
-
-    it('expands a folder by removing it from the collapse set', async () => {
-        const client: GraphDbClient = createClient()
-        const {sessionId}: {sessionId: string} = await client.createSession()
-        await client.collapse(sessionId, 'docs')
-
-        await expect(
-            runViewJson(['expand', 'docs', '--vault', harness.vault, '--session', sessionId]),
-        ).resolves.toMatchObject({
-            collapseSet: expect.any(Array),
-        })
-        await expect(client.getSessionState(sessionId)).resolves.toMatchObject({
-            collapseSet: [],
-        })
     })
 
     it('sets selection for a pinned session', async () => {
