@@ -1,7 +1,7 @@
 {
   "$schema": "graph-state/snapshot@1",
   "id": "051-two-roots-loaded",
-  "description": "Both roots loaded for LoadRoot / UnloadRoot sequences.",
+  "description": "Both roots available for folder-state sequences.",
   "state": {
     "graph": {
       "nodes": {
@@ -72,10 +72,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a",
-        "/tmp/graph-state-fixtures/root-b"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -118,7 +114,20 @@
         }
       ]
     },
-    "collapseSet": [],
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-b",
+        "expanded"
+      ]
+    ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [],
     "layout": {
       "positions": []

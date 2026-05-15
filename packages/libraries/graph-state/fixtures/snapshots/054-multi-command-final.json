@@ -1,7 +1,7 @@
 {
   "$schema": "graph-state/snapshot@1",
   "id": "054-multi-command-final",
-  "description": "Final state after LoadRoot → AddNode → Collapse → Select.",
+  "description": "Final state after folder-state expand → AddNode → folder-state collapse → Select.",
   "state": {
     "graph": {
       "nodes": {
@@ -92,10 +92,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a",
-        "/tmp/graph-state-fixtures/root-b"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -143,9 +139,24 @@
         }
       ]
     },
-    "collapseSet": [
-      "/tmp/graph-state-fixtures/root-a/tasks/"
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/tasks",
+        "collapsed"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-b",
+        "expanded"
+      ]
     ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [
       "/tmp/graph-state-fixtures/root-b/remote.md"
     ],

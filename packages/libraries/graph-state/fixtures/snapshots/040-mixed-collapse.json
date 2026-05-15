@@ -182,9 +182,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -258,10 +255,24 @@
         }
       ]
     },
-    "collapseSet": [
-      "/tmp/graph-state-fixtures/root-a/research/",
-      "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/research",
+        "collapsed"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/tasks/epics",
+        "collapsed"
+      ]
     ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [
       "/tmp/graph-state-fixtures/root-a/notes/inbox.md"
     ],

@@ -87,6 +87,12 @@ export interface RemoveEdge { readonly type: 'RemoveEdge'; readonly source: Node
 export interface Move       { readonly type: 'Move';       readonly id: NodeIdAndFilePath; readonly to: Position }
 export interface LoadRoot   { readonly type: 'LoadRoot';   readonly root: RootPath }
 export interface UnloadRoot { readonly type: 'UnloadRoot'; readonly root: RootPath }
+export interface SetFolderState {
+    readonly type: 'SetFolderState'
+    readonly viewId: string
+    readonly path: RootPath
+    readonly state: 'expanded' | 'collapsed' | 'hidden'
+}
 
 /**
  * BF-167 layout-state commands. Additive per decisions.md §7.
@@ -106,6 +112,7 @@ export type Command =
     | AddEdge | RemoveEdge
     | Move
     | LoadRoot | UnloadRoot
+    | SetFolderState
     | SetZoom | SetPan | SetPositions | RequestFit
 
 // ============================================================================

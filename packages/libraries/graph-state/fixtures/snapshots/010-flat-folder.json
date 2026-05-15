@@ -64,9 +64,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -96,7 +93,16 @@
         }
       ]
     },
-    "collapseSet": [],
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ]
+    ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [],
     "layout": {
       "positions": []

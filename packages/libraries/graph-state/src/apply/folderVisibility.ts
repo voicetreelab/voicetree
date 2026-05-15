@@ -1,16 +1,5 @@
-import type { State } from '../contract'
+import type { SetFolderState, State } from '../contract'
 import { setFolderState } from '../state/folderVisibilityStore'
-import type {
-    AbsolutePath,
-    FolderState,
-} from '../state/folderVisibility/types'
-
-export interface SetFolderState {
-    readonly type: 'SetFolderState'
-    readonly viewId: string
-    readonly path: AbsolutePath
-    readonly state: FolderState
-}
 
 export function applySetFolderState(
     state: State,

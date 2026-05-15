@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "113-multi-command-load-add-collapse-select",
-  "description": "LoadRoot → AddNode → Collapse → Select in one compound sequence.",
+  "description": "Folder-state expand → AddNode → folder-state collapse → Select in one compound sequence.",
   "initial": "050-two-roots-root-a-only",
   "commands": [
     {
-      "type": "LoadRoot",
-      "root": "/tmp/graph-state-fixtures/root-b"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-b",
+      "state": "expanded"
     },
     {
       "type": "AddNode",
@@ -26,8 +28,10 @@
       }
     },
     {
-      "type": "Collapse",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "collapsed"
     },
     {
       "type": "Select",

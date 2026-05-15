@@ -20,6 +20,7 @@ import type {
     RemoveEdge,
     RemoveNode,
     Select,
+    SetFolderState,
     State,
     UnloadRoot,
 } from './contract'
@@ -43,7 +44,6 @@ import { applySetPan } from './apply/setPan'
 import { applySetPositions } from './apply/setPositions'
 import { applyRequestFit } from './apply/requestFit'
 import { stripTrailingSlash } from './state/folderVisibility/path'
-import type { SetFolderState } from './apply/folderVisibility'
 
 const DEFAULT_VIEW_ID = 'main'
 
@@ -52,23 +52,65 @@ interface OutgoingEdgeRef {
     readonly label: string
 }
 
-function applyLegacyFolderStateCommand(
+function hasLoadedAncestor(loadedRoots: ReadonlySet<string>, path: string): boolean {
+    for (const root of loadedRoots) {
+        if (path === root || path.startsWith(`${root}/`)) {
+            return true
+        }
+    }
+    return false
+}
+
+function applyFolderStateCommand(
     state: State,
     command: SetFolderState,
-): State {
+): { readonly state: State; readonly delta: Delta } {
+    const folder = `${stripTrailingSlash(command.path)}/`
+    const wasCollapsed = state.collapseSet.has(folder)
+    const collapseSet = new Set(state.collapseSet)
+    const loaded = new Set(state.roots.loaded)
+
+    if (command.state === 'collapsed') {
+        collapseSet.add(folder)
+    } else {
+        collapseSet.delete(folder)
+    }
+
+    if (command.state === 'expanded' && !hasLoadedAncestor(state.roots.loaded, command.path)) {
+        loaded.add(stripTrailingSlash(command.path))
+    }
+    if (command.state === 'hidden') {
+        loaded.delete(stripTrailingSlash(command.path))
+    }
+
     try {
-        return applySetFolderState(state, command)
+        applySetFolderState(state, command)
     } catch (error) {
         if (!isUnconfiguredStoreError(error)) {
             throw error
         }
-        return {
+    }
+
+    const nextRevision = state.meta.revision + 1
+    return {
+        state: {
             ...state,
+            roots: {
+                ...state.roots,
+                loaded,
+            },
+            collapseSet,
             meta: {
                 ...state.meta,
-                revision: state.meta.revision + 1,
+                revision: nextRevision,
             },
-        }
+        },
+        delta: {
+            revision: nextRevision,
+            cause: command,
+            ...(command.state === 'collapsed' && !wasCollapsed ? { collapseAdded: [folder] } : {}),
+            ...(command.state !== 'collapsed' && wasCollapsed ? { collapseRemoved: [folder] } : {}),
+        },
     }
 }
 
@@ -249,7 +291,7 @@ function applyCollapse(
     state: State,
     command: Collapse,
 ): { readonly state: State; readonly delta: Delta } {
-    const visibilityState = applyLegacyFolderStateCommand(state, {
+    const { state: visibilityState } = applyFolderStateCommand(state, {
         type: 'SetFolderState',
         viewId: DEFAULT_VIEW_ID,
         path: stripTrailingSlash(command.folder),
@@ -282,7 +324,7 @@ function applyExpand(
     state: State,
     command: Expand,
 ): { readonly state: State; readonly delta: Delta } {
-    const visibilityState = applyLegacyFolderStateCommand(state, {
+    const { state: visibilityState } = applyFolderStateCommand(state, {
         type: 'SetFolderState',
         viewId: DEFAULT_VIEW_ID,
         path: stripTrailingSlash(command.folder),
@@ -447,6 +489,8 @@ export function applyCommandWithDelta(
             return applyMove(state, command)
         case 'UnloadRoot':
             return applyUnloadRoot(state, command)
+        case 'SetFolderState':
+            return applyFolderStateCommand(state, command)
         case 'SetZoom':
             return applySetZoom(state, command)
         case 'SetPan':
