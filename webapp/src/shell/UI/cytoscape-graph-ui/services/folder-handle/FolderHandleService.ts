@@ -125,16 +125,17 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
     });
 
     // Reposition on pan / zoom (canvas-relative move). Per-node moves are
-    // handled by the 'position bounds' listeners below. NEVER subscribe to
-    // 'render' — it fires every repaint frame and creates a runaway loop
-    // because each positionChip() writes style.left/top, which triggers
-    // layout, which triggers another render.
+    // handled by the 'position' listeners below. NEVER subscribe to 'bounds'
+    // or 'render' — both create runaway loops: cy's boundingBox() internally
+    // calls dirtyBoundingBoxCache() which emits 'bounds', and positionChip()
+    // calls renderedBoundingBox(), so listening to 'bounds' re-enters
+    // positionChip until the stack blows.
     cy.on('pan zoom', positionAllChips);
-    cy.on('position bounds', 'node[?isFolderNode]', (evt: EventObject): void => {
+    cy.on('position', 'node[?isFolderNode]', (evt: EventObject): void => {
         positionChip(evt.target.id());
     });
     // Compound bbox changes when children move — listen to children-of-folder positions too.
-    cy.on('position bounds', 'node', (evt: EventObject): void => {
+    cy.on('position', 'node', (evt: EventObject): void => {
         const parent: cytoscape.CollectionReturnValue = evt.target.parent();
         if (parent.length === 0) return;
         if (parent.data('isFolderNode') !== true) return;
