@@ -176,8 +176,12 @@ function toDaemonRouteMethod(method: string): DaemonRouteMethod {
   }
 }
 
-function createParityIntrospectionApp() {
-  return createDaemonApp({
+type DaemonAppFactory = typeof createDaemonApp
+
+function createParityIntrospectionApp(
+  createApp: DaemonAppFactory = createDaemonApp,
+) {
+  return createApp({
     registry: new SessionRegistry(),
     readHealth: () => ({
       version: CONTRACT_VERSION,

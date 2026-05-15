@@ -16,6 +16,11 @@ type DispatchResult<R> = {
   readonly response: R
 }
 
+type CommandRunner = <C extends Command>(
+  command: C,
+  registry?: WorkflowSessionRegistry,
+) => Promise<CommandOutput[C['type']]>
+
 export async function executeCommand<C extends Command>(
   command: C,
   registry?: WorkflowSessionRegistry,
@@ -26,9 +31,10 @@ export async function executeCommand<C extends Command>(
 export async function executeCommands(
   commands: readonly Command[],
   registry?: WorkflowSessionRegistry,
+  commandRunner: CommandRunner = executeCommand,
 ): Promise<void> {
   for (const command of commands) {
-    await executeCommand(command, registry)
+    await commandRunner(command, registry)
   }
 }
 
