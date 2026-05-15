@@ -38,8 +38,6 @@ import {
 // ─── State (functional edge pattern: module-level Maps) ──────────────────────
 
 const headlessProcesses: Map<TerminalId, ChildProcess> = new Map()
-const tmuxHeadlessSessions: Map<TerminalId, TmuxHeadlessSession> = new Map()
-const tmuxLogReadOffsets: Map<TerminalId, number> = new Map()
 /** Combined stdout+stderr ring buffer per agent. Persists after exit for hover tooltip / read_terminal_output. */
 const lastOutputByTerminal: Map<TerminalId, string> = new Map()
 const OUTPUT_RING_SIZE: number = 8000
@@ -54,6 +52,11 @@ type TmuxHeadlessSession = {
     readonly pollTimer: ReturnType<typeof setInterval> | null
 }
 
+type TmuxHeadlessState = {
+    readonly sessions: Map<TerminalId, TmuxHeadlessSession>
+    readonly logReadOffsets: Map<TerminalId, number>
+}
+
 type TmuxTerminalMetadata = {
     readonly name: string
     readonly status: 'running' | 'exited'
@@ -65,6 +68,22 @@ type TmuxTerminalMetadata = {
     readonly logFile: string
     readonly terminalData: TerminalData
 }
+
+function createTmuxHeadlessState(): TmuxHeadlessState {
+    const sessions: Map<TerminalId, TmuxHeadlessSession> = new Map()
+    const logReadOffsets: Map<TerminalId, number> = new Map()
+    const state: TmuxHeadlessState = {
+        sessions,
+        logReadOffsets,
+    }
+    const normalizedState: TmuxHeadlessState = {
+        ...state,
+    }
+
+    return normalizedState
+}
+
+const tmuxHeadlessState: TmuxHeadlessState = createTmuxHeadlessState()
 
 export type HeadlessLogEntry = {
     readonly level: 'info' | 'warn' | 'error'
@@ -165,15 +184,15 @@ function buildTmuxCommand(command: string, cwd: string | undefined): string {
 }
 
 function clearTmuxPoll(terminalId: TerminalId): void {
-    const session: TmuxHeadlessSession | undefined = tmuxHeadlessSessions.get(terminalId)
+    const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (session?.pollTimer) {
         clearInterval(session.pollTimer)
-        tmuxHeadlessSessions.set(terminalId, {...session, pollTimer: null})
+        tmuxHeadlessState.sessions.set(terminalId, {...session, pollTimer: null})
     }
 }
 
 function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null = null): void {
-    const session: TmuxHeadlessSession | undefined = tmuxHeadlessSessions.get(terminalId)
+    const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!session) return
     const existing: TmuxTerminalMetadata | null = readTmuxMetadata(session.metadataPath)
     if (!existing || existing.status === 'exited') return
@@ -247,24 +266,24 @@ export async function spawnTmuxBackedTerminal(
 
     clearTmuxPoll(terminalId)
     const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, deps)
-    tmuxHeadlessSessions.set(terminalId, {...paths, promptFilePath, pollTimer})
+    tmuxHeadlessState.sessions.set(terminalId, {...paths, promptFilePath, pollTimer})
     deps.recordTerminalSpawn(terminalId, terminalData)
     deps.writeLog({level: 'info', message: `[headlessAgentManager] ${sessionExists ? 'Rebound to existing' : 'Spawned'} tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
     return created
 }
 
 function readTmuxHeadlessOutput(terminalId: TerminalId): string {
-    const session: TmuxHeadlessSession | undefined = tmuxHeadlessSessions.get(terminalId)
+    const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!session || !existsSync(session.logPath)) return getOutput(terminalId) ?? ''
 
     const fileSize: number = statSync(session.logPath).size
-    const previousOffset: number = tmuxLogReadOffsets.get(terminalId) ?? 0
+    const previousOffset: number = tmuxHeadlessState.logReadOffsets.get(terminalId) ?? 0
     const offset: number = previousOffset > fileSize ? 0 : previousOffset
     const raw: string = readFileSync(session.logPath, 'utf8')
     const unread: string = raw.slice(offset)
     if (unread.length > 0) {
         captureOutput(terminalId, unread)
-        tmuxLogReadOffsets.set(terminalId, raw.length)
+        tmuxHeadlessState.logReadOffsets.set(terminalId, raw.length)
     }
     return getOutput(terminalId) ?? ''
 }
@@ -349,7 +368,7 @@ export function killHeadlessAgent(
     terminalId: TerminalId,
     deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps
 ): boolean {
-    const tmuxSession: TmuxHeadlessSession | undefined = tmuxHeadlessSessions.get(terminalId)
+    const tmuxSession: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (tmuxSession) {
         clearTmuxPoll(terminalId)
         void killSession(terminalId).catch(() => undefined)
@@ -391,16 +410,16 @@ export function closeHeadlessAgent(
 
     if (record?.terminalData.isHeadless && record.status === 'exited') {
         deps.removeTerminalFromRegistry(terminalId)
-        tmuxHeadlessSessions.delete(terminalId as TerminalId)
-        tmuxLogReadOffsets.delete(terminalId as TerminalId)
+        tmuxHeadlessState.sessions.delete(terminalId as TerminalId)
+        tmuxHeadlessState.logReadOffsets.delete(terminalId as TerminalId)
         return {closed: true, wasRunning: false}
     }
 
-    if (tmuxHeadlessSessions.has(terminalId)) {
+    if (tmuxHeadlessState.sessions.has(terminalId)) {
         killHeadlessAgent(terminalId, deps)
         deps.removeTerminalFromRegistry(terminalId)
-        tmuxHeadlessSessions.delete(terminalId)
-        tmuxLogReadOffsets.delete(terminalId)
+        tmuxHeadlessState.sessions.delete(terminalId)
+        tmuxHeadlessState.logReadOffsets.delete(terminalId)
         return {closed: true, wasRunning: true}
     }
 
@@ -411,11 +430,11 @@ export function closeHeadlessAgent(
  * Check if a terminal ID corresponds to a headless agent process.
  */
 export function isHeadlessAgent(terminalId: TerminalId | string): boolean {
-    return headlessProcesses.has(terminalId as TerminalId) || tmuxHeadlessSessions.has(terminalId as TerminalId)
+    return headlessProcesses.has(terminalId as TerminalId) || tmuxHeadlessState.sessions.has(terminalId as TerminalId)
 }
 
 export function isTmuxHeadlessAgent(terminalId: TerminalId | string): boolean {
-    return tmuxHeadlessSessions.has(terminalId as TerminalId)
+    return tmuxHeadlessState.sessions.has(terminalId as TerminalId)
 }
 
 export async function sendHeadlessAgentInput(terminalId: string, text: string): Promise<{success: boolean; error?: string}> {
@@ -446,7 +465,7 @@ export function getHeadlessAgentOutput(terminalId: string): string {
  * Check if we have output captured for a terminal (running or exited).
  */
 export function hasHeadlessAgentOutput(terminalId: string): boolean {
-    return lastOutputByTerminal.has(terminalId as TerminalId) || tmuxHeadlessSessions.has(terminalId as TerminalId)
+    return lastOutputByTerminal.has(terminalId as TerminalId) || tmuxHeadlessState.sessions.has(terminalId as TerminalId)
 }
 
 export async function reconcileTmuxHeadlessAgents(
@@ -462,8 +481,8 @@ export async function reconcileTmuxHeadlessAgents(
                 deps.writeLog({level: 'error', message: String(message), error: optionalParams.length > 0 ? optionalParams : undefined}),
         },
         onRunningSession: ({terminalId, metadataPath, metadata}) => {
-            if (tmuxHeadlessSessions.has(terminalId)) return
-            tmuxHeadlessSessions.set(terminalId, {
+            if (tmuxHeadlessState.sessions.has(terminalId)) return
+            tmuxHeadlessState.sessions.set(terminalId, {
                 logPath: metadata.logFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
                 promptFilePath: join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
@@ -486,12 +505,12 @@ export function cleanupHeadlessAgents(
             deps.writeLog({ level: 'error', message: `[headlessAgentManager] Error killing headless agent ${terminalId}:`, error: e })
         }
     }
-    for (const terminalId of tmuxHeadlessSessions.keys()) {
+    for (const terminalId of tmuxHeadlessState.sessions.keys()) {
         clearTmuxPoll(terminalId)
         void killSession(terminalId).catch(() => undefined)
     }
     headlessProcesses.clear()
-    tmuxHeadlessSessions.clear()
-    tmuxLogReadOffsets.clear()
+    tmuxHeadlessState.sessions.clear()
+    tmuxHeadlessState.logReadOffsets.clear()
     lastOutputByTerminal.clear()
 }

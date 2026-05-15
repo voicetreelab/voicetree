@@ -401,13 +401,67 @@ test.describe('Phase 6 prompt-file + crash resilience (M1-rerun-6)', () => {
             });
 
             await expect.poll(async () => {
-                const list = await mcpCallTool(mcpUrl2, 'list_agents', {});
-                const agents = (list.parsed as { agents: Array<{ terminalId: string }> }).agents;
-                return agents.some(a => a.terminalId === terminalId);
+                try {
+                    const watchResult = await win2.evaluate(async (vp) => {
+                        const api = (window as unknown as ExtendedWindow).electronAPI;
+                        if (!api) throw new Error('electronAPI not available');
+                        return await (api.main as unknown as { startFileWatching: (p: string) => Promise<{ success: boolean }> }).startFileWatching(vp);
+                    }, vaultPath);
+                    return watchResult.success;
+                } catch {
+                    return false;
+                }
             }, {
                 timeout: 30_000,
                 intervals: [1000, 2000, 3000],
-                message: `reconciled headless agent ${terminalId} not visible in list_agents post-relaunch`,
+                message: 'startFileWatching did not recover after relaunch',
+            }).toBe(true);
+
+            await expect.poll(async () => {
+                try {
+                    return await win2.evaluate(async () => {
+                        const api = (window as unknown as ExtendedWindow).electronAPI;
+                        const g = await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, unknown> }> }).getGraph();
+                        return Object.keys(g.nodes).length;
+                    });
+                } catch {
+                    return 0;
+                }
+            }, {
+                timeout: 30_000,
+                intervals: [1000, 2000, 3000],
+                message: 'daemon graph did not recover after relaunch',
+            }).toBeGreaterThan(0);
+
+            await expect.poll(async () => {
+                try {
+                    const graph = await win2.evaluate(async () => {
+                        const api = (window as unknown as ExtendedWindow).electronAPI;
+                        return await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, GraphNode> }> }).getGraph();
+                    });
+                    return graphIncludesTitle(graph, sentinelTitle);
+                } catch {
+                    return false;
+                }
+            }, {
+                timeout: 30_000,
+                intervals: [1000, 2000, 3000],
+                message: `sentinel node "${sentinelTitle}" not recovered after relaunch`,
+            }).toBe(true);
+
+            await expect.poll(async () => {
+                try {
+                    const list = await mcpCallTool(mcpUrl2, 'list_agents', {});
+                    const agents = (list.parsed as { agents: Array<{ terminalId: string; newNodes?: Array<{ title: string }> }> }).agents;
+                    const agent = agents.find(a => a.terminalId === terminalId);
+                    return agent?.newNodes?.some(node => node.title === sentinelTitle) ?? false;
+                } catch {
+                    return false;
+                }
+            }, {
+                timeout: 30_000,
+                intervals: [1000, 2000, 3000],
+                message: `reconciled headless agent ${terminalId} did not expose sentinel progress in list_agents post-relaunch`,
             }).toBe(true);
 
             // Pane PID still unchanged after reconciliation.
@@ -417,6 +471,7 @@ test.describe('Phase 6 prompt-file + crash resilience (M1-rerun-6)', () => {
             const closeRes = await mcpCallTool(mcpUrl2, 'close_agent', {
                 terminalId,
                 callerTerminalId: callerId,
+                forceWithReason: 'Phase 6 e2e cleanup after verifying crash-resilient tmux session rebind.',
             });
             // Some builds return success on the parsed body, others on raw — accept either.
             expect(closeRes.success || closeRes.parsed?.success === true, `close_agent failed: ${JSON.stringify(closeRes.parsed)}`).toBeTruthy();

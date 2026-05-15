@@ -35,6 +35,7 @@ import {
 import { writeCurrentPositionsThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import type { VaultState } from '@vt/graph-db-client'
+import { agentRuntime } from '@vt/agent-runtime'
 import {
     getSubfoldersWithModifiedAt,
     isValidSubdirectory,
@@ -62,6 +63,17 @@ export function setOnFolderSwitchCleanup(cleanup: (() => void) | null): void {
 
 function syncLoadedRoot(directory?: string): void {
     syncWatchedProjectRoot(directory ?? getProjectRootWatchedDirectory())
+}
+
+async function reconcileTmuxTerminalsForWritePath(writePath: string): Promise<void> {
+    try {
+        const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(writePath)
+        if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+            console.log('[loadFolder] Reconciled tmux terminals for write path', reconciliation)
+        }
+    } catch (error) {
+        console.warn('[loadFolder] Failed to reconcile tmux terminals for write path:', error)
+    }
 }
 
 export async function getAvailableFoldersForSelector(
@@ -285,6 +297,7 @@ async function doLoadFolder(
     })
     await connection.client.setWritePath(writePath)
     markLoadTiming('main:daemon-set-write-path-end')
+    await reconcileTmuxTerminalsForWritePath(writePath)
     await startDaemonSyncForLoadedDirectory(watchedFolderPath)
     markLoadTiming('main:daemon-graph-sync-started')
     await saveLastDirectory(watchedFolderPath)

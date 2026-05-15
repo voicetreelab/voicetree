@@ -66,15 +66,17 @@ function shellSingleQuote(value: string): string {
     return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
-const POSITIONAL_PROMPT_PATTERNS: ReadonlyArray<RegExp> = [
-    /\s*"\$AGENT_PROMPT"/g,
-    /\s*'\$AGENT_PROMPT'/g,
-    /\s*\$AGENT_PROMPT(?=\b|$)/g,
-]
+function positionalPromptPatterns(): readonly RegExp[] {
+    return [
+        /\s*"\$AGENT_PROMPT"/g,
+        /\s*'\$AGENT_PROMPT'/g,
+        /\s*\$AGENT_PROMPT(?=\b|$)/g,
+    ]
+}
 
 function stripPositionalPromptArg(command: string): string {
     let stripped: string = command
-    for (const pattern of POSITIONAL_PROMPT_PATTERNS) {
+    for (const pattern of positionalPromptPatterns()) {
         stripped = stripped.replace(pattern, '')
     }
     return stripped.replace(/\s+/g, ' ').trim()
