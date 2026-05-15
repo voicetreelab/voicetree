@@ -43,7 +43,10 @@ function launchPreparedTerminal(
     terminalData: TerminalData,
 ): void {
     if (params.headless) {
-        const headlessCommand: string = buildHeadlessCommand(params.command)
+        // Use the prepared initialCommand (which has VoiceTree's hook flags
+        // already injected by prepareTerminalDataInMain) rather than
+        // params.command which is the raw settings value.
+        const headlessCommand: string = buildHeadlessCommand(terminalData.initialCommand ?? params.command)
         const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
         if (params.inheritTerminalId) {
             killHeadlessAgent(params.inheritTerminalId as TerminalId)

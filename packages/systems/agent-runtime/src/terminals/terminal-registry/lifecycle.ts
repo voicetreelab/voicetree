@@ -2,7 +2,8 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeGraph} from '@vt/agent-runtime/runtime/graph-bridge'
 import {classifyExit} from '@vt/agent-runtime/lifecycle'
-import type {TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
+import {recordTierEvent} from '@vt/agent-runtime/lifecycle'
+import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/agent-runtime/lifecycle'
 import {runIdleStopGateAudit} from '../terminal-registry-audit'
 import {notifyAgentOfUnseenNodes} from '../terminal-registry-notifications'
 import {
@@ -184,44 +185,58 @@ export function markTerminalKillReason(terminalId: string, reason: TerminalKillR
     // No subscriber notify — this is a transient flag, not visible state.
 }
 
-function lifecycleFromPromptDetection(record: TerminalRecord, detected: boolean): TerminalLifecycle {
-    const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
+function lifecycleFromAgentEvent(
+    record: TerminalRecord,
+    kind: AgentEventKind,
+): TerminalLifecycle {
     const orchestratorWithChildren: boolean = hasActiveChildren(terminalRecords.values(), record.terminalId)
-
-    if (detected) {
-        return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+    switch (kind) {
+        case 'awaiting':
+            return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+        case 'working':
+            return 'active'
+        case 'done':
+            // Tier-1 done = agent self-reported task complete (e.g. Claude Code
+            // Stop hook fires at end of every turn). Treat as awaiting_input —
+            // a turn ending means the agent is now blocking on the user, not
+            // that the PTY has exited (that's markTerminalExited's job).
+            // Orchestrators with active children still go idle.
+            return orchestratorWithChildren ? 'idle' : 'awaiting_input'
     }
-    if (orchestratorWithChildren) {
-        return 'idle'
-    }
-    // Clearing: fall back to 'active'. We deliberately do NOT honour the
-    // heuristic `isDone` flag here — see updateTerminalIsDone for why time-
-    // based silence is not a reliable "idle" signal.
-    return currentLifecycle === 'active' ? currentLifecycle : 'active'
 }
 
 /**
- * Set or clear the prompt-detected flag for a terminal. Drives the
- * `awaiting_input` lifecycle state. Sticky terminal states (completed/errored)
- * are preserved — exit always wins.
+ * Apply a lifecycle event from an agent hook (Claude Code, Codex) or the
+ * SDK. Sole driver of `awaiting_input`. Sticky terminal states
+ * (completed/errored) are preserved — exit always wins.
  */
-export function updateTerminalPromptDetected(terminalId: string, detected: boolean): void {
+export function updateTerminalAgentEvent(terminalId: string, kind: AgentEventKind): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
+
+    // Telemetry: every hook firing recorded regardless of whether it
+    // changes the lifecycle (useful for spotting agents that fire hooks
+    // VoiceTree isn't auto-installing for, or hooks that mis-fire).
+    recordTierEvent({
+        ts: Date.now(),
+        terminalId,
+        agentTypeName: record.terminalData.agentTypeName ?? '',
+        kind,
+    })
 
     const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
     if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
         return
     }
 
-    const nextLifecycle: TerminalLifecycle = lifecycleFromPromptDetection(record, detected)
+    const nextLifecycle: TerminalLifecycle = lifecycleFromAgentEvent(record, kind)
     if (nextLifecycle === currentLifecycle) {
         return
     }
 
     terminalRecords.set(terminalId, {
         ...record,
-        terminalData: { ...record.terminalData, lifecycle: nextLifecycle },
+        terminalData: {...record.terminalData, lifecycle: nextLifecycle},
     })
     notifyRegistrySubscribers()
 }

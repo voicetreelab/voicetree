@@ -94,8 +94,8 @@
 }
 /* When a row is BOTH active and awaiting, awaiting wins (it's more urgent). */
 .terminal-tree-node.active.attn {
-    background: rgba(59, 130, 246, 0.18);
-    border-color: rgba(59, 130, 246, 0.6);
+    background: rgba(59, 130, 246, 0.32);
+    border-color: rgba(59, 130, 246, 0.75);
     box-shadow: inset 2px 0 0 rgba(59, 130, 246, 1);
 }
 

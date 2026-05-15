@@ -1,6 +1,16 @@
 import { refreshMainGraphFromDaemon } from './daemon-ipc-proxy'
 
 const DAEMON_GRAPH_POLL_INTERVAL_MS = 750
+const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 5_000
+const DAEMON_GRAPH_POLL_IDLE_INTERVAL_MS = 60_000
+
+export type AppActivityTier = 'active' | 'background' | 'idle'
+
+const TIER_INTERVALS: Record<AppActivityTier, number> = {
+  active: DAEMON_GRAPH_POLL_INTERVAL_MS,
+  background: DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS,
+  idle: DAEMON_GRAPH_POLL_IDLE_INTERVAL_MS,
+}
 const DEFAULT_FAILURE_THRESHOLD = 5
 
 export type DaemonGraphSyncFn = (vault: string) => Promise<void>
@@ -15,6 +25,9 @@ let activeVault: string | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let inflightSync: Promise<void> | null = null
 let consecutiveFailures: number = 0
+let activeSyncFn: DaemonGraphSyncFn | null = null
+let activeIntervalMs: number = DAEMON_GRAPH_POLL_INTERVAL_MS
+let activeFailureThreshold: number = DEFAULT_FAILURE_THRESHOLD
 
 async function syncOnce(vault: string, syncFn: DaemonGraphSyncFn): Promise<void> {
   if (inflightSync) {
@@ -34,29 +47,16 @@ async function syncOnce(vault: string, syncFn: DaemonGraphSyncFn): Promise<void>
   }
 }
 
-export async function startDaemonGraphSync(
-  vault: string,
-  options: DaemonGraphSyncOptions = {},
-): Promise<void> {
-  const syncFn: DaemonGraphSyncFn = options.syncFn ?? refreshMainGraphFromDaemon
-  const intervalMs: number = options.pollIntervalMs ?? DAEMON_GRAPH_POLL_INTERVAL_MS
-  const failureThreshold: number = options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD
+function startPollTimer(intervalMs: number): void {
+  if (pollTimer) clearInterval(pollTimer)
+  if (!activeVault || !activeSyncFn) return
 
-  if (activeVault === vault && pollTimer) {
-    await syncOnce(vault, syncFn)
-    return
-  }
-
-  await stopDaemonGraphSync()
-
-  activeVault = vault
-  consecutiveFailures = 0
-  await syncOnce(vault, syncFn)
+  const vault = activeVault
+  const syncFn = activeSyncFn
+  const failureThreshold = activeFailureThreshold
 
   pollTimer = setInterval(() => {
-    if (activeVault !== vault) {
-      return
-    }
+    if (activeVault !== vault) return
 
     void syncOnce(vault, syncFn)
       .then(() => {
@@ -76,6 +76,39 @@ export async function startDaemonGraphSync(
   }, intervalMs)
 }
 
+export async function startDaemonGraphSync(
+  vault: string,
+  options: DaemonGraphSyncOptions = {},
+): Promise<void> {
+  const syncFn: DaemonGraphSyncFn = options.syncFn ?? refreshMainGraphFromDaemon
+  const intervalMs: number = options.pollIntervalMs ?? DAEMON_GRAPH_POLL_INTERVAL_MS
+  const failureThreshold: number = options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD
+
+  if (activeVault === vault && pollTimer) {
+    await syncOnce(vault, syncFn)
+    return
+  }
+
+  await stopDaemonGraphSync()
+
+  activeVault = vault
+  activeSyncFn = syncFn
+  activeIntervalMs = intervalMs
+  activeFailureThreshold = failureThreshold
+  consecutiveFailures = 0
+  await syncOnce(vault, syncFn)
+
+  startPollTimer(intervalMs)
+}
+
+export function setDaemonGraphSyncTier(tier: AppActivityTier): void {
+  if (!activeVault || !activeSyncFn) return
+  startPollTimer(TIER_INTERVALS[tier])
+  if (tier === 'active') {
+    void syncOnce(activeVault, activeSyncFn).catch(() => {})
+  }
+}
+
 export async function stopDaemonGraphSync(): Promise<void> {
   if (pollTimer) {
     clearInterval(pollTimer)
@@ -83,6 +116,7 @@ export async function stopDaemonGraphSync(): Promise<void> {
   }
 
   activeVault = null
+  activeSyncFn = null
   consecutiveFailures = 0
 
   const pendingSync = inflightSync

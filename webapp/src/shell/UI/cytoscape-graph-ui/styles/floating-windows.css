@@ -289,6 +289,7 @@
 
 .headless-agent-badge.exited .headless-badge-dot {
   background: #22c55e;
+  animation: none;
 }
 
 @keyframes headless-badge-pulse {

@@ -102,16 +102,34 @@ export function useAgentMetrics(): UseAgentMetricsReturn {
     void fetchMetrics();
   }, [isElectron, fetchMetrics]);
 
-  // Auto-refresh metrics periodically
   useEffect(() => {
     if (!isElectron) return;
 
-    const intervalId: NodeJS.Timeout = setInterval(() => {
-      void fetchMetrics();
-    }, REFRESH_INTERVAL_MS);
+    let intervalId: NodeJS.Timeout | null = null;
+
+    function startPolling(): void {
+      if (intervalId !== null) clearInterval(intervalId);
+      intervalId = setInterval(() => void fetchMetrics(), REFRESH_INTERVAL_MS);
+    }
+
+    function handleVisibilityChange(): void {
+      if (document.hidden) {
+        if (intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      } else {
+        void fetchMetrics();
+        startPolling();
+      }
+    }
+
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(intervalId);
+      if (intervalId !== null) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isElectron, fetchMetrics]);
 

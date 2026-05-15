@@ -13,7 +13,6 @@ import {
   getWindowsShell,
   resolveTerminalCwd,
   resolveTerminalShell,
-  startPromptDetectionForTerminal,
   writeInitialCommand,
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
@@ -102,14 +101,12 @@ export class TerminalManager {
       this.terminals.set(terminalId, ptyProcess);
       recordTerminalSpawn(terminalId, terminalData);
 
-      startPromptDetectionForTerminal(terminalId, deps.logger);
       writeInitialCommand(terminalData, ptyProcess, deps.setTimeout);
       attachPtyProcessHandlers({
         terminalId,
         ptyProcess,
         onData,
         onExit,
-        logger: deps.logger,
         releaseTerminal: () => { this.terminals.delete(terminalId); },
       });
 

@@ -19,8 +19,8 @@ export {
     markTerminalExited,
     markTerminalKillReason,
     resetAuditRetryCount,
+    updateTerminalAgentEvent,
     updateTerminalIsDone,
-    updateTerminalPromptDetected,
 } from './lifecycle'
 
 export {

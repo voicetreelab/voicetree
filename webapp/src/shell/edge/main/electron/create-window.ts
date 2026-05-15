@@ -6,6 +6,8 @@ import {cleanupTerminalsForWindow} from '@/shell/edge/main/terminals/terminal-wi
 import {setMainWindow} from '@/shell/edge/main/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/ui-api-proxy';
 import {recordAppUsage} from './notification-scheduler';
+import {getTerminalRecords, subscribeToRegistry} from '@vt/agent-runtime';
+import {setDaemonGraphSyncTier, type AppActivityTier} from './daemon-watch-sync';
 import {registerDebugAutoSetup} from './debug-auto-setup';
 import {writeCurrentPositionsThroughDaemon} from './daemon-graph-queries';
 import {getActiveDaemonConnection} from './graph-daemon';
@@ -139,9 +141,28 @@ export function createWindow(deps: {
         })();
     });
 
-    // Track user activity for re-engagement notifications
+    let windowFocused = true;
+
+    function recomputeAndApplyTier(): void {
+        const tier: AppActivityTier = windowFocused
+            ? 'active'
+            : getTerminalRecords().some(r => r.status === 'running') ? 'background' : 'idle';
+        setDaemonGraphSyncTier(tier);
+    }
+
     mainWindow.on('focus', () => {
+        windowFocused = true;
         void recordAppUsage();
+        recomputeAndApplyTier();
+    });
+
+    mainWindow.on('blur', () => {
+        windowFocused = false;
+        recomputeAndApplyTier();
+    });
+
+    subscribeToRegistry(() => {
+        if (!windowFocused) recomputeAndApplyTier();
     });
 
     let persistedPositionsBeforeClose: boolean = false;

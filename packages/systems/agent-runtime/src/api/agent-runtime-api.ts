@@ -5,7 +5,9 @@ import { getUnseenNodesForTerminal } from '../inject/get-unseen-nodes-for-termin
 import { injectNodesIntoTerminal } from '../inject/inject-nodes-into-terminal'
 import { sendTextToTerminal } from '../inject/send-text-to-terminal'
 import { shouldFlipToActiveOnOutput } from '../lifecycle/output-transition'
-import { configureAgentRuntime, getRuntimeUI } from '../runtime/runtime-config'
+import { getTierTelemetrySnapshot } from '../lifecycle/tierTelemetry'
+import { installJsonlTelemetrySink } from '../lifecycle/tierTelemetryJsonlSink'
+import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../spawn/spawnTerminalWithContextNode'
 import { getTerminalManager } from '../terminals/terminal-manager-instance'
@@ -19,6 +21,7 @@ import {
     resetAuditRetryCount,
     subscribeToRegistry,
     updateTerminalActivityState,
+    updateTerminalAgentEvent,
     updateTerminalIsDone,
     updateTerminalMinimized,
     updateTerminalPinned,
@@ -37,10 +40,13 @@ export const agentRuntime = {
     getHeadlessAgentOutput,
     getIdleSince,
     getPendingTerminal,
+    getRuntimeEnv,
     getRuntimeUI,
     getTerminalManager,
     getTerminalRecords,
+    getTierTelemetrySnapshot,
     getUnseenNodesForTerminal,
+    installJsonlTelemetrySink,
     injectNodesIntoTerminal,
     registerChild,
     removeTerminalFromRegistry,
@@ -54,6 +60,7 @@ export const agentRuntime = {
     subscribeToRegistry,
     tryConsumeAndSplitBudget,
     updateTerminalActivityState,
+    updateTerminalAgentEvent,
     updateTerminalIsDone,
     updateTerminalMinimized,
     updateTerminalPinned,
