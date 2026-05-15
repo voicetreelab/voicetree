@@ -7,6 +7,7 @@ import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/sto
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@/shell/edge/UI-edge/graph/popups/taskInputPopup";
+import {showExtractIntoFolderPopup, type ExtractIntoFolderSelectedNode} from "@/shell/edge/UI-edge/graph/popups/extractIntoFolderPopup";
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
 import '@/shell/electron.d.ts';
@@ -157,12 +158,34 @@ export class VerticalMenuService {
             },
         });
 
+        const extractMenuText: string = !extractSupport.canExtract || extractSupport.selectionsShareParent
+            ? 'Extract Into Folder'
+            : `Extract into subfolder at common ancestor: ${formatAncestorForDisplay(extractSupport.commonParentPath)}`;
         menuItems.push({
-            text: 'Extract Into Folder',
+            text: extractMenuText,
             disabled: !extractSupport.canExtract,
             action: async () => {
                 if (!extractSupport.canExtract) return;
-                await extractIntoFolderFromUI(selectedGraphItemIds, this.cy!);
+                if (extractSupport.selectionsShareParent) {
+                    await extractIntoFolderFromUI(selectedGraphItemIds, this.cy!);
+                    return;
+                }
+                const selectedNodesForPopup: readonly ExtractIntoFolderSelectedNode[] = selectedGraphItemIds.map((nodeId) => {
+                    const cyNode = this.cy!.getElementById(nodeId);
+                    const title: string = (cyNode?.data('label') as string) ?? nodeId;
+                    return {
+                        id: nodeId,
+                        title,
+                        parentFolderDisplay: formatAncestorForDisplay(getImmediateParentFolderForDisplay(nodeId)),
+                    };
+                });
+                const result = await showExtractIntoFolderPopup({
+                    selectedNodes: selectedNodesForPopup,
+                    commonAncestorDisplay: formatAncestorForDisplay(extractSupport.commonParentPath),
+                    defaultFolderName: 'extracted',
+                });
+                if (!result) return;
+                await extractIntoFolderFromUI(selectedGraphItemIds, this.cy!, result.folderName);
             },
         });
 
@@ -235,4 +258,17 @@ export class VerticalMenuService {
         this.cy = null;
         this.deps = null;
     }
+}
+
+function formatAncestorForDisplay(folderPath: string | null): string {
+    if (folderPath === null || folderPath === '' || folderPath === '/') {
+        return '(root)';
+    }
+    return folderPath;
+}
+
+function getImmediateParentFolderForDisplay(nodeId: string): string | null {
+    const trimmed: string = nodeId.endsWith('/') ? nodeId.slice(0, -1) : nodeId;
+    const lastSlash: number = trimmed.lastIndexOf('/');
+    return lastSlash === -1 ? null : trimmed.slice(0, lastSlash + 1);
 }

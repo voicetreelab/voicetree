@@ -36,7 +36,8 @@ describe('computeExtractIntoFolderGraphDelta', () => {
         expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
             canExtract: true,
             commonParentPath: '/tmp/vault/',
-            supportedSelectionCount: 2
+            supportedSelectionCount: 2,
+            selectionsShareParent: true
         })
     })
 
@@ -117,16 +118,94 @@ describe('computeExtractIntoFolderGraphDelta', () => {
         expect(referencesUpsert!.contentWithoutYamlOrLinks).not.toContain('[docs]*')
     })
 
-    it('rejects selections that do not share the same parent folder', () => {
+    it('reports cross-parent selections as extractable with longest common ancestor', () => {
         const selectedItemIds = [
             '/tmp/vault/alpha.md',
             '/tmp/vault/nested/beta.md'
         ]
 
         expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
-            canExtract: false,
-            commonParentPath: null,
-            supportedSelectionCount: 0
+            canExtract: true,
+            commonParentPath: '/tmp/vault/',
+            supportedSelectionCount: 2,
+            selectionsShareParent: false
         })
+    })
+
+    it('reports common ancestor for deeper differing parents', () => {
+        const selectedItemIds = [
+            '/tmp/vault/foo/x.md',
+            '/tmp/vault/bar/y.md'
+        ]
+
+        expect(getExtractIntoFolderSelectionSupport(selectedItemIds)).toEqual({
+            canExtract: true,
+            commonParentPath: '/tmp/vault/',
+            supportedSelectionCount: 2,
+            selectionsShareParent: false
+        })
+    })
+
+    it('extracts cross-parent selections into a new folder at the common ancestor', () => {
+        const graph: Graph = createGraph({
+            '/tmp/vault/foo/alpha.md': createTestNode('/tmp/vault/foo/alpha.md', { position: { x: 100, y: 100 } }),
+            '/tmp/vault/bar/beta.md': createTestNode('/tmp/vault/bar/beta.md', { position: { x: 200, y: 100 } })
+        })
+
+        const { delta, newFolderId } = computeExtractIntoFolderGraphDelta(
+            ['/tmp/vault/foo/alpha.md', '/tmp/vault/bar/beta.md'],
+            graph,
+            '/tmp/vault'
+        )
+
+        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
+
+        const upsertIds = delta
+            .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
+            .map((nodeDelta) => nodeDelta.nodeToUpsert.absoluteFilePathIsID)
+
+        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}foo/alpha.md`)).toBe(true)
+        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}bar/beta.md`)).toBe(true)
+
+        const deletedIds = delta
+            .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'DeleteNode' }> => nodeDelta.type === 'DeleteNode')
+            .map((nodeDelta) => nodeDelta.nodeId)
+
+        expect(deletedIds).toEqual(expect.arrayContaining([
+            '/tmp/vault/foo/alpha.md',
+            '/tmp/vault/bar/beta.md'
+        ]))
+    })
+
+    it('honors the folderName override when provided', () => {
+        const graph: Graph = createGraph({
+            '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md'),
+            '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md')
+        })
+
+        const { newFolderId } = computeExtractIntoFolderGraphDelta(
+            ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
+            graph,
+            '/tmp/vault',
+            'my custom name'
+        )
+
+        expect(newFolderId).toBe('/tmp/vault/my custom name/')
+    })
+
+    it('falls back to generated name when override is blank', () => {
+        const graph: Graph = createGraph({
+            '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md'),
+            '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md')
+        })
+
+        const { newFolderId } = computeExtractIntoFolderGraphDelta(
+            ['/tmp/vault/alpha.md', '/tmp/vault/beta.md'],
+            graph,
+            '/tmp/vault',
+            '   '
+        )
+
+        expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
     })
 })
