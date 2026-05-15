@@ -6,9 +6,10 @@ import {fileURLToPath} from 'node:url'
 import {afterEach, describe, expect, it} from 'vitest'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_FILE_DIR, '@/')
+const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
 const TSX_LOADER: string = join(REPO_ROOT, 'node_modules/tsx/dist/loader.mjs')
+const WEBAPP_TSCONFIG: string = join(REPO_ROOT, 'webapp/tsconfig.json')
 const CLI_EXIT_TIMEOUT_MS: number = 20_000
 const HEADLESS_START_TIMEOUT_MS: number = 15_000
 
@@ -45,6 +46,7 @@ function buildChildEnv(
         NODE_OPTIONS: ['--disable-warning=ExperimentalWarning', process.env.NODE_OPTIONS]
             .filter((segment: string | undefined): segment is string => typeof segment === 'string' && segment.length > 0)
             .join(' '),
+        TSX_TSCONFIG_PATH: WEBAPP_TSCONFIG,
         ...overrides,
     }
 

@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-05-15T06:17:52.293Z",
+  "sourceFileCount": 734,
+  "scope": {
+    "requestedRoots": [
+      "webapp/src",
+      "packages/systems/*/src",
+      "packages/libraries/*/src",
+      "packages/systems/voicetree-mcp/bin"
+    ],
+    "scannedRoots": [
+      "webapp/src",
+      "packages/systems/agent-runtime/src",
+      "packages/systems/graph-db-client/src",
+      "packages/systems/graph-db-server/src",
+      "packages/systems/voicetree-mcp/src",
+      "packages/libraries/app-config/src",
+      "packages/libraries/graph-db-protocol/src",
+      "packages/libraries/graph-model/src",
+      "packages/libraries/graph-state/src",
+      "packages/libraries/graph-tools/src",
+      "packages/systems/voicetree-mcp/bin"
+    ],
+    "excluded": [
+      ".test.ts",
+      ".spec.ts",
+      ".d.ts",
+      "__tests__",
+      "integration-tests",
+      "node_modules",
+      "dist",
+      "build",
+      "*.config.ts"
+    ],
+    "note": "Scans non-import string + template-literal heads for paths matching /^\\.\\.\\/\\.\\.\\//. Import specifiers are covered by measure-relative-imports."
+  },
+  "totals": {
+    "relativePaths": 0,
+    "bannedRelativePaths": 0
+  },
+  "byDepth": {
+    "../../x": 0,
+    "../../../+x": 0
+  },
+  "byKind": {
+    "string-literal": 0,
+    "template-no-substitution": 0,
+    "template-head": 0
+  },
+  "perFile": [],
+  "bannedRelativePaths": []
+}

@@ -14,8 +14,8 @@ import {disposeSpeedDialMenu} from '@/shell/UI/views/ui-controls/SpeedDialMenu';
 import {disposeRecentNodeTabsBar} from '@/shell/UI/views/ui-controls/RecentNodeTabsBar';
 import {cleanupViewSubscriptions} from '@/shell/edge/UI-edge/graph/view/setupViewSubscriptions';
 import {disposeEditorManager} from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD';
-import {disposeTerminalTreeSidebar} from './treeStyleTerminalTabs/TerminalTreeSidebar';
-import {disposeFolderTreeSidebar} from './folderTree/FolderTreeSidebar';
+import {disposeTerminalTreeSidebar} from '@/shell/UI/views/treeStyleTerminalTabs/TerminalTreeSidebar';
+import {disposeFolderTreeSidebar} from '@/shell/UI/views/folderTree/FolderTreeSidebar';
 import {destroyHeadlessBadges} from '@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay';
 import {disposeGraphViewOverlays} from '@/shell/edge/UI-edge/state/stores/GraphViewUIStore';
 

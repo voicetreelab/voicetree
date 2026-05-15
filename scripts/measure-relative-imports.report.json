@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-15T02:54:32.201Z",
-  "sourceFileCount": 728,
+  "generatedAt": "2026-05-15T06:17:52.294Z",
+  "sourceFileCount": 734,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,16 +34,16 @@
     ]
   },
   "totals": {
-    "relativeImports": 1264,
-    "samePackageRelativeImports": 1264,
+    "relativeImports": 1280,
+    "samePackageRelativeImports": 1280,
     "crossPackageRelativeImports": 0,
-    "deepSamePackageRelativeImports": 99,
-    "bannedRelativeImports": 99
+    "deepSamePackageRelativeImports": 105,
+    "bannedRelativeImports": 105
   },
   "samePackageByDepth": {
-    "./x": 703,
-    "../x": 462,
-    "../../x": 99,
+    "./x": 686,
+    "../x": 489,
+    "../../x": 105,
     "../../../+x": 0
   },
   "perPackageTotals": [
@@ -63,25 +63,25 @@
     {
       "package": "@vt/graph-tools",
       "packageRoot": "packages/libraries/graph-tools",
-      "relativeImports": 205,
-      "samePackageRelativeImports": 205,
+      "relativeImports": 211,
+      "samePackageRelativeImports": 211,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 65,
         "../x": 41,
-        "../../x": 99,
+        "../../x": 105,
         "../../../+x": 0
       }
     },
     {
       "package": "voicetree-webapp",
       "packageRoot": "webapp",
-      "relativeImports": 194,
-      "samePackageRelativeImports": 194,
+      "relativeImports": 183,
+      "samePackageRelativeImports": 183,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 194,
-        "../x": 0,
+        "./x": 170,
+        "../x": 13,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -89,12 +89,12 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 155,
-      "samePackageRelativeImports": 155,
+      "relativeImports": 156,
+      "samePackageRelativeImports": 156,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 56,
-        "../x": 99,
+        "../x": 100,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -141,12 +141,12 @@
     {
       "package": "@vt/graph-db-client",
       "packageRoot": "packages/systems/graph-db-client",
-      "relativeImports": 28,
-      "samePackageRelativeImports": 28,
+      "relativeImports": 48,
+      "samePackageRelativeImports": 48,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 24,
-        "../x": 4,
+        "./x": 31,
+        "../x": 17,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -229,7 +229,7 @@
     {
       "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
       "package": "@vt/agent-runtime",
-      "relativeImports": 13,
+      "relativeImports": 14,
       "crossPackageRelativeImports": 0
     },
     {
@@ -830,7 +830,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/eval.ts",
-      "line": 4,
+      "line": 1,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -842,7 +842,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/eval.ts",
-      "line": 5,
+      "line": 2,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -854,7 +854,19 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/eval.ts",
-      "line": 6,
+      "line": 3,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/eval.ts",
+      "line": 4,
       "specifier": "../../debug/protocol/portResolution",
       "kind": "static",
       "classification": "relative-same-package",
@@ -866,7 +878,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/eval.ts",
-      "line": 7,
+      "line": 5,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -950,7 +962,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
-      "line": 4,
+      "line": 1,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -962,7 +974,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
-      "line": 5,
+      "line": 2,
       "specifier": "../../live/liveTransport",
       "kind": "static",
       "classification": "relative-same-package",
@@ -974,7 +986,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
-      "line": 6,
+      "line": 3,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -986,7 +998,19 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
-      "line": 7,
+      "line": 4,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
+      "line": 5,
       "specifier": "../../debug/protocol/portResolution",
       "kind": "static",
       "classification": "relative-same-package",
@@ -998,7 +1022,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/log.ts",
-      "line": 8,
+      "line": 6,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1046,7 +1070,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 4,
+      "line": 2,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1058,7 +1082,19 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 5,
+      "line": 3,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
+      "line": 4,
       "specifier": "../../debug/protocol/portResolution",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1070,7 +1106,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 6,
+      "line": 5,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1082,7 +1118,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 7,
+      "line": 6,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1094,7 +1130,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 8,
+      "line": 7,
       "specifier": "../../live/liveTransport",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1106,7 +1142,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/node.ts",
-      "line": 15,
+      "line": 14,
       "specifier": "../../debug/input/mergeButtons",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1190,7 +1226,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/pageAx.ts",
-      "line": 4,
+      "line": 2,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1202,7 +1238,19 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/pageAx.ts",
-      "line": 5,
+      "line": 3,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/pageAx.ts",
+      "line": 4,
       "specifier": "../../debug/protocol/portResolution",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1214,7 +1262,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/pageAx.ts",
-      "line": 6,
+      "line": 5,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1226,7 +1274,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/pageAx.ts",
-      "line": 7,
+      "line": 6,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1238,7 +1286,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/screenshot.ts",
-      "line": 5,
+      "line": 4,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1247,6 +1295,18 @@
       "targetPackage": "@vt/graph-tools",
       "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/discover.ts",
       "statement": "import { type DebugInstance } from '../../debug/protocol/discover'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/screenshot.ts",
+      "line": 5,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/screenshot.ts",
@@ -1346,7 +1406,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 5,
+      "line": 3,
       "specifier": "../../debug/protocol/discover",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1358,7 +1418,19 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 6,
+      "line": 4,
+      "specifier": "../../debug/protocol/playwrightSession",
+      "kind": "static",
+      "classification": "relative-same-package",
+      "depth": "../../x",
+      "importerPackage": "@vt/graph-tools",
+      "targetPackage": "@vt/graph-tools",
+      "resolvedPath": "packages/libraries/graph-tools/src/debug/protocol/playwrightSession.ts",
+      "statement": "import { resolveChromium } from '../../debug/protocol/playwrightSession'"
+    },
+    {
+      "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
+      "line": 5,
       "specifier": "../../debug/protocol/portResolution",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1370,7 +1442,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 7,
+      "line": 6,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1382,7 +1454,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 16,
+      "line": 15,
       "specifier": "../../debug/state/whyBlank",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1394,7 +1466,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 17,
+      "line": 16,
       "specifier": "../../live/liveTransport",
       "kind": "static",
       "classification": "relative-same-package",
@@ -1406,7 +1478,7 @@
     },
     {
       "importer": "packages/libraries/graph-tools/src/commands/session/whyBlank.ts",
-      "line": 18,
+      "line": 17,
       "specifier": "../../debug/protocol/Response",
       "kind": "static",
       "classification": "relative-same-package",

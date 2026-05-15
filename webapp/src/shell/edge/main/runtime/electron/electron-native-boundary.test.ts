@@ -5,7 +5,7 @@ import ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-const WEBAPP_ROOT: string = resolve(TEST_FILE_DIR, '@/index')
+const WEBAPP_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../..')
 const REPO_ROOT: string = resolve(WEBAPP_ROOT, '..')
 
 const ELECTRON_MAIN_ENTRYPOINTS: string[] = [

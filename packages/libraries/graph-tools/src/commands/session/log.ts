@@ -1,9 +1,7 @@
-import path from 'path'
-import { fileURLToPath, pathToFileURL } from 'url'
-
 import { err, ok } from '../../debug/protocol/Response'
 import { createLiveTransport } from '../../live/liveTransport'
 import { type DebugInstance } from '../../debug/protocol/discover'
+import { resolveChromium } from '../../debug/protocol/playwrightSession'
 import { resolveDebugInstance } from '../../debug/protocol/portResolution'
 import type { Response } from '../../debug/protocol/Response'
 import { registerCommand } from '../index'
@@ -130,36 +128,6 @@ function filterBySinceMs<T extends { atIso: string }>(items: readonly T[], since
     const ts = Date.parse(item.atIso)
     return Number.isNaN(ts) || ts >= cutoff
   })
-}
-
-function extractChromium(pw: unknown): ChromiumLike {
-  const direct = (pw as Record<string, unknown>).chromium
-  if (direct) return direct as ChromiumLike
-  const def = (pw as Record<string, unknown>).default
-  if (def && (def as Record<string, unknown>).chromium) {
-    return (def as Record<string, unknown>).chromium as ChromiumLike
-  }
-  throw new Error('playwright-core loaded but chromium export not found')
-}
-
-async function resolveChromium(): Promise<ChromiumLike> {
-  try {
-    const moduleName = 'playwright-core'
-    const pw = await import(moduleName)
-    return extractChromium(pw)
-  } catch {
-    const dir = path.dirname(fileURLToPath(import.meta.url))
-    const webappNm = path.resolve(dir, '../../../../../webapp/node_modules')
-    const pwPath = path.resolve(webappNm, 'playwright-core/index.js')
-    try {
-      const pw = await import(pathToFileURL(pwPath).href)
-      return extractChromium(pw)
-    } catch (e2) {
-      throw new Error(
-        `playwright-core not found. Install with: npm install playwright-core\nDetail: ${String(e2)}`,
-      )
-    }
-  }
 }
 
 function parseIntFlag(command: string, flag: string, rawValue: string | undefined): Response<never> | number {
@@ -363,7 +331,7 @@ async function logHandler(argv: string[]): Promise<Response<unknown>> {
 
   let chromium: ChromiumLike
   try {
-    chromium = await resolveChromium()
+    chromium = (await resolveChromium()) as unknown as ChromiumLike
   } catch (e) {
     return err('log', String(e), undefined, 3)
   }

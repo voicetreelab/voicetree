@@ -18,11 +18,10 @@ const CONSUMER_PACKAGE_DIRS: readonly string[] = [
 // Mirrors ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES in package-boundaries.test.ts.
 // Keep these in sync with the BF-271e ratchet.
 const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
-    'webapp/src/shell/edge/main/cli/commands/serve.ts',
-    'webapp/src/shell/edge/main/cli/commands/daemonRouteParity.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph-search.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/index-cmds.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/types.ts',
+    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ])
 

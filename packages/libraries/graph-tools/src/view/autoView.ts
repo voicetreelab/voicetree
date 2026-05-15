@@ -101,6 +101,16 @@ export interface RenderGraph {
     readonly arboricity: number
 }
 
+function normalizeRenderFolderPath(rootPath: string, folderPath: string): string {
+    const trimmedFolderPath = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath
+    if (trimmedFolderPath === rootPath) return ''
+    if (trimmedFolderPath.startsWith(`${rootPath}/`)) {
+        return trimmedFolderPath.slice(rootPath.length + 1)
+    }
+
+    return folderPath
+}
+
 export function deriveRenderGraph(graph: ProjectedGraph): RenderGraph {
     const rootName = path.basename(graph.rootPath)
 
@@ -117,7 +127,7 @@ export function deriveRenderGraph(graph: ProjectedGraph): RenderGraph {
         id: n.id,
         title: n.label,
         relPath: n.relPath,
-        folderPath: n.folderPath,
+        folderPath: normalizeRenderFolderPath(graph.rootPath, n.folderPath),
         basename: n.basename,
         outgoingIds: outgoingMap.get(n.id) ?? [],
         kind: n.kind === 'folder-collapsed' ? 'folder' as const : n.kind,
@@ -247,6 +257,7 @@ export interface RenderTreeCoverOptions {
     readonly selected?: ReadonlySet<string>
     readonly budget?: number
     readonly title?: string
+    readonly viewApplied?: boolean
     readonly focusNodeId?: string
     readonly pinnedFolderIds?: readonly string[]
     readonly warn?: (message: string) => void
@@ -260,7 +271,10 @@ export function renderTreeCover(graph: ProjectedGraph, opts?: RenderTreeCoverOpt
     const rg: RenderGraph = deriveRenderGraph(graph)
 
     const budget: number = Math.max(1, Math.trunc(opts?.budget ?? DEFAULT_BUDGET))
-    const requestedPinnedIds: readonly string[] = opts?.pinnedFolderIds ?? []
+    const requestedPinnedIds: readonly string[] = [
+        ...(opts?.collapsed ? [...opts.collapsed] : []),
+        ...(opts?.pinnedFolderIds ?? []),
+    ]
     const pinnedClusters: readonly CollapseCluster[] = buildPinnedClusters(rg, requestedPinnedIds, opts?.warn)
     const pinnedNodeIds = new Set<string>(pinnedClusters.flatMap(cluster => cluster.nodeIds))
     const remainingNodes: readonly RenderNode[] = rg.nodes.filter(node => !pinnedNodeIds.has(node.id))
@@ -289,8 +303,12 @@ export function renderTreeCover(graph: ProjectedGraph, opts?: RenderTreeCoverOpt
     }, displayLabelByClusterId, userCollapsedClusterIds)
     const footer: string = buildAutoFooter(clusters)
 
-    const folderName: string = path.basename(rg.rootPath)
-    const viewApplied: boolean = (opts?.collapsed !== undefined && opts.collapsed.size > 0) || (opts?.selected !== undefined && opts.selected.size > 0)
+    const fallbackFolderName: string = path.basename(rg.rootPath)
+    const folderName: string = opts?.title ?? fallbackFolderName
+    const viewApplied: boolean = opts?.viewApplied ?? (
+        (opts?.collapsed !== undefined && opts.collapsed.size > 0) ||
+        (opts?.selected !== undefined && opts.selected.size > 0)
+    )
     const structureHeader: string = `═══ STRUCTURE ${folderName}${viewApplied ? ' (view applied)' : ''} ═══`
 
     return footer.length > 0
