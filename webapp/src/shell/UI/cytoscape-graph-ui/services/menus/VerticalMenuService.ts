@@ -54,9 +54,9 @@ export class VerticalMenuService {
             return;
         }
 
-        // Handle right-click on background - show vertical menu
+        // Handle right-click on background or input-inert folder body - show vertical menu
         this.cy.on('cxttap', (event) => {
-            if (event.target === this.cy) {
+            if (shouldShowCanvasMenuForTarget(event.target, this.cy!)) {
                 this.showCanvasMenu(
                     event.position ?? { x: 0, y: 0 },
                     event.renderedPosition ?? event.position ?? { x: 0, y: 0 },
@@ -64,9 +64,9 @@ export class VerticalMenuService {
             }
         });
 
-        // Handle ctrl+click on background as right-click
+        // Handle ctrl+click on background or input-inert folder body as right-click
         this.ctrlClickHandler = (event: EventObject) => {
-            if (event.target === this.cy && event.originalEvent?.ctrlKey) {
+            if (shouldShowCanvasMenuForTarget(event.target, this.cy!) && event.originalEvent?.ctrlKey) {
                 this.showCanvasMenu(
                     event.position ?? { x: 0, y: 0 },
                     event.renderedPosition ?? event.position ?? { x: 0, y: 0 },
@@ -271,4 +271,9 @@ function getImmediateParentFolderForDisplay(nodeId: string): string | null {
     const trimmed: string = nodeId.endsWith('/') ? nodeId.slice(0, -1) : nodeId;
     const lastSlash: number = trimmed.lastIndexOf('/');
     return lastSlash === -1 ? null : trimmed.slice(0, lastSlash + 1);
+}
+
+function shouldShowCanvasMenuForTarget(target: EventObject['target'], cy: Core): boolean {
+    if (target === cy) return true;
+    return typeof target?.data === 'function' && target.data('isFolderNode') === true;
 }

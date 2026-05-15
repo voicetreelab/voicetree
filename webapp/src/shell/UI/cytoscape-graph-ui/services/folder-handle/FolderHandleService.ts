@@ -25,6 +25,8 @@
 import type {Core, EventObject, NodeSingular} from 'cytoscape';
 import type cytoscape from 'cytoscape';
 import {toggleFolderCollapse} from '@/shell/edge/UI-edge/graph/view/folderCollapse';
+import {signalViewportManipulationCached} from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
+import {dispatchSetPan, getLayout} from '@vt/graph-state/state/layoutStore';
 
 const CHIP_CLASS = 'vt-folder-handle';
 const CHEVRON_CLASS = 'vt-folder-handle__chevron';
@@ -45,6 +47,7 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
     container.appendChild(overlay);
 
     const chips: Map<string, ChipEntry> = new Map();
+    let folderBodyPan: {lastX: number; lastY: number} | null = null;
 
     function createChip(folderId: string): void {
         if (chips.has(folderId)) return;
@@ -71,6 +74,7 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
         overlay.appendChild(el);
         chips.set(folderId, {el, chevron});
         positionChip(folderId);
+        reorderChipsByRenderedPosition();
     }
 
     function destroyChip(folderId: string): void {
@@ -104,6 +108,22 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
 
     function positionAllChips(): void {
         for (const folderId of chips.keys()) positionChip(folderId);
+        reorderChipsByRenderedPosition();
+    }
+
+    function reorderChipsByRenderedPosition(): void {
+        const orderedEntries: [string, ChipEntry][] = Array.from(chips.entries()).sort(
+            ([aId], [bId]): number => {
+                const aNode: cytoscape.CollectionReturnValue = cy.getElementById(aId);
+                const bNode: cytoscape.CollectionReturnValue = cy.getElementById(bId);
+                if (aNode.length === 0 || bNode.length === 0) return 0;
+
+                const aBox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = aNode.renderedBoundingBox();
+                const bBox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = bNode.renderedBoundingBox();
+                return (aBox.y1 - bBox.y1) || (aBox.x1 - bBox.x1) || aId.localeCompare(bId);
+            },
+        );
+        for (const [, entry] of orderedEntries) overlay.appendChild(entry.el);
     }
 
     // Bootstrap: chip for every folder already in the graph
@@ -122,6 +142,7 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
     // Data change: collapse / expand toggle
     cy.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
         positionChip(evt.target.id());
+        reorderChipsByRenderedPosition();
     });
 
     // Reposition on pan / zoom (canvas-relative move). Per-node moves are
@@ -133,6 +154,7 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
     cy.on('pan zoom', positionAllChips);
     cy.on('position', 'node[?isFolderNode]', (evt: EventObject): void => {
         positionChip(evt.target.id());
+        reorderChipsByRenderedPosition();
     });
     // Compound bbox changes when children move — listen to children-of-folder positions too.
     cy.on('position', 'node', (evt: EventObject): void => {
@@ -140,7 +162,56 @@ export function setupFolderHandles(cy: Core, container: HTMLElement): void {
         if (parent.length === 0) return;
         if (parent.data('isFolderNode') !== true) return;
         positionChip(parent.id());
+        reorderChipsByRenderedPosition();
     });
+
+    cy.on('mousedown', 'node[?isFolderNode]', (evt: EventObject): void => {
+        const node: NodeSingular = evt.target;
+        if (node.data('collapsed') === true) return;
+
+        const start: MousePosition | null = mousePositionFromEvent(evt.originalEvent);
+        if (!start || start.button !== 0) return;
+
+        folderBodyPan = {lastX: start.clientX, lastY: start.clientY};
+        window.addEventListener('mousemove', handleFolderBodyPanMove, {capture: true});
+        window.addEventListener('mouseup', handleFolderBodyPanEnd, {capture: true, once: true});
+        evt.originalEvent?.preventDefault();
+    });
+
+    function handleFolderBodyPanMove(evt: MouseEvent): void {
+        if (!folderBodyPan) return;
+
+        const dx: number = evt.clientX - folderBodyPan.lastX;
+        const dy: number = evt.clientY - folderBodyPan.lastY;
+        if (dx === 0 && dy === 0) return;
+
+        signalViewportManipulationCached();
+        const pan: {x: number; y: number} = getLayout().pan ?? {x: 0, y: 0};
+        dispatchSetPan({x: pan.x + dx, y: pan.y + dy});
+        folderBodyPan = {lastX: evt.clientX, lastY: evt.clientY};
+        evt.preventDefault();
+        evt.stopPropagation();
+    }
+
+    function handleFolderBodyPanEnd(): void {
+        folderBodyPan = null;
+        window.removeEventListener('mousemove', handleFolderBodyPanMove, {capture: true});
+    }
+}
+
+interface MousePosition {
+    readonly clientX: number;
+    readonly clientY: number;
+    readonly button: number;
+}
+
+function mousePositionFromEvent(evt: Event | undefined): MousePosition | null {
+    if (!(evt instanceof MouseEvent)) return null;
+    return {
+        clientX: evt.clientX,
+        clientY: evt.clientY,
+        button: evt.button,
+    };
 }
 
 const STYLE_ELEMENT_ID = 'vt-folder-handle-styles';
