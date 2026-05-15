@@ -12,7 +12,7 @@ import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWritePath, openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { loadSettings } from '@vt/app-config/settings'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
@@ -25,7 +25,6 @@ import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/st
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { ensureDaemonProcess, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
-import { openVault } from '@/shell/edge/main/graph/watch_folder/openVault'
 
 async function loadGraphThroughDaemon(vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
     const activeClient = getActiveDaemonClient()
