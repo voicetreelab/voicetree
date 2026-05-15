@@ -16,12 +16,12 @@
  *                   ┌──────────┐ ◄────────── output | input | agent_event(working)
  *                   │  active  │
  *                   └──┬─────┬─┘
- *      tick (idle ms)  │     │  prompt_detected | agent_event(awaiting)
- *      AND not prompt  ▼     ▼
+ *      tick (idle ms)  │     │  agent_event(awaiting)
+ *                      ▼     ▼
  *               ┌──────────┐ ┌────────────────┐
  *               │   idle   │ │ awaiting_input │
  *               └──────┬───┘ └──────┬─────────┘
- *                      │            │ prompt_cleared (no recent output)
+ *                      │            │
  *                      └─────┬──────┘
  *                            │
  *                            │  exit | agent_event(done)
@@ -45,7 +45,6 @@ function activeFromOutput(state: TerminalSignalState, at: number): TerminalSigna
         ...state,
         lifecycle: 'active',
         lastOutputTime: at,
-        promptDetected: false,
     };
 }
 
@@ -58,54 +57,19 @@ function deriveInput(state: TerminalSignalState): TerminalSignalState {
     // User typing always means engagement, never "awaiting".
     // Don't touch lastOutputTime — input is not output.
     if (state.lifecycle !== 'awaiting_input') return state;
-    return { ...state, lifecycle: 'active', promptDetected: false };
+    return { ...state, lifecycle: 'active' };
 }
 
 function deriveAgentEvent(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'agent_event' }>): TerminalSignalState {
-    // Tier-1 hook events. Highest confidence — drive the state directly.
+    // Hook events from the agent. Drive the state directly.
     switch (event.kind) {
         case 'awaiting':
-            return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
+            return { ...state, lifecycle: 'awaiting_input' };
         case 'done':
             return { ...state, lifecycle: 'completed' };
         case 'working':
             return activeFromOutput(state, event.at);
     }
-}
-
-function derivePromptDetected(state: TerminalSignalState): TerminalSignalState {
-    // Tier-3 detector. Only meaningful when not already awaiting.
-    if (state.lifecycle === 'awaiting_input') {
-        return { ...state, promptDetected: true };
-    }
-    return { ...state, lifecycle: 'awaiting_input', promptDetected: true };
-}
-
-function lifecycleAfterClearedPrompt(
-    state: TerminalSignalState,
-    event: Extract<TerminalEvent, { readonly type: 'prompt_cleared' }>,
-    config: DeriveConfig,
-): TerminalLifecycle {
-    const elapsed: number = event.at - state.lastOutputTime;
-    return elapsed >= config.inactivityThresholdMs ? 'idle' : 'active';
-}
-
-function derivePromptCleared(
-    state: TerminalSignalState,
-    event: Extract<TerminalEvent, { readonly type: 'prompt_cleared' }>,
-    config: DeriveConfig,
-): TerminalSignalState {
-    if (!state.promptDetected) return state;
-
-    // If we were awaiting, decide where to fall back to:
-    //   - if recent output → active
-    //   - else → idle
-    if (state.lifecycle !== 'awaiting_input') {
-        return { ...state, promptDetected: false };
-    }
-
-    const lifecycle: TerminalLifecycle = lifecycleAfterClearedPrompt(state, event, config);
-    return { ...state, lifecycle, promptDetected: false };
 }
 
 function hasReachedInactivityThreshold(
@@ -125,9 +89,7 @@ function deriveTick(
     // Inactivity check. Only flips active → idle when:
     //   - lifecycle is currently active
     //   - elapsed since last output exceeds threshold
-    //   - no prompt is currently shown (else awaiting_input wins)
     if (state.lifecycle !== 'active') return state;
-    if (state.promptDetected) return state;
     if (!hasReachedInactivityThreshold(state, event, config)) return state;
     return { ...state, lifecycle: 'idle' };
 }
@@ -149,8 +111,6 @@ export function derive(
         }
 
         case 'output': {
-            // Output flowing → active. Output also clears any standing prompt:
-            // if Claude was awaiting and starts typing, it's working again.
             return activeFromOutput(state, event.at);
         }
 
@@ -160,14 +120,6 @@ export function derive(
 
         case 'agent_event': {
             return deriveAgentEvent(state, event);
-        }
-
-        case 'prompt_detected': {
-            return derivePromptDetected(state);
-        }
-
-        case 'prompt_cleared': {
-            return derivePromptCleared(state, event, config);
         }
 
         case 'tick': {

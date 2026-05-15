@@ -32,8 +32,11 @@ import {graphStructureTool} from '../graph/graphStructureTool'
 import {registerLiveTools} from '../live/registerLiveTools'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from '../system/triggerOvernight'
+import {handleHookEventRequest, resolveHookEventName} from './hookEventHandler'
+import {agentRuntime} from '@vt/agent-runtime'
 import {mountTmuxAttachRelay} from '@vt/agent-runtime/relay/tmux-attach-relay.ts'
+import * as path from 'node:path'
+import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from '../system/triggerOvernight'
 
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from '../toolResponse'
@@ -342,6 +345,43 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
         }
     })
 
+    // Read the in-memory tier-1 vs tier-3 telemetry snapshot. Optional query
+    // param `?windowMs=<n>` overrides the correlation window (default 5000ms).
+    app.get('/telemetry/lifecycle', (req, res) => {
+        const raw: unknown = req.query.windowMs
+        const parsed: number = typeof raw === 'string' ? parseInt(raw, 10) : NaN
+        const windowMs: number | undefined = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+        res.json(agentRuntime.getTierTelemetrySnapshot(windowMs))
+    })
+
+    // Agent lifecycle hook ingestion. Receives JSON-on-stdin payloads forwarded
+    // from per-agent hook subprocesses (Claude Code Notification/Stop/...,
+    // Codex Stop/...). The terminal-id arrives via query parameter (set from
+    // $VOICETREE_TERMINAL_ID in the hook command); the event name comes from
+    // the payload's hook_event_name field.
+    //
+    // Fail-quiet: any error returns 2xx with ok:false. We never want to
+    // block the parent agent because our endpoint hiccuped.
+    app.post('/hook/:source', (req, res) => {
+        try {
+            const response = handleHookEventRequest(
+                {
+                    source: req.params.source,
+                    terminalId: typeof req.query.terminal === 'string' ? req.query.terminal : undefined,
+                    hookEventName: resolveHookEventName(
+                        req.body as Record<string, unknown> | undefined,
+                        req.query as Record<string, unknown> | undefined,
+                    ),
+                },
+                {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
+            )
+            res.json(response)
+        } catch (error) {
+            logError('[hook] error processing payload:', error)
+            res.json({ok: false, reason: 'exception'})
+        }
+    })
+
     app.post('/mcp', async (req, res) => {
         log(`[MCP] arrived ${getNow()} method=${req.body?.params?.name ?? req.body?.method}`)
         // ⚠️  SUSPICIOUS PATTERN — reviewed 2026-03-21, user flagged for closer review.
@@ -391,6 +431,19 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
         await runEnableClientIntegrations()
     } catch (_e) {
         // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
+    }
+
+    // Start tier-1 vs tier-3 telemetry: stream every lifecycle event to a
+    // JSONL log under APP_SUPPORT. The in-memory ring is always populated;
+    // the file is for offline analysis when we want to decide whether the
+    // Tier-3 heuristic can be deleted.
+    try {
+        const appSupportPath: string = agentRuntime.getRuntimeEnv().getAppSupportPath()
+        if (appSupportPath) {
+            agentRuntime.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+        }
+    } catch (error) {
+        log(`[MCP] telemetry sink install skipped: ${error instanceof Error ? error.message : String(error)}`)
     }
 
     return {

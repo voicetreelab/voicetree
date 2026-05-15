@@ -31,6 +31,14 @@ function getNodesByAgentNameWithDiskFallback(graph: Graph, agentName: string): r
     )
 }
 
+function nodeWasCreatedAfterSpawn(node: GraphNode, spawnedAt: number): boolean {
+    try {
+        return statSync(node.absoluteFilePathIsID).birthtimeMs >= spawnedAt
+    } catch {
+        return true // file missing or race — include rather than silently drop
+    }
+}
+
 export function getNewNodesForAgent(
     graph: Graph,
     agentName: string | undefined,
@@ -40,13 +48,7 @@ export function getNewNodesForAgent(
 
     const nodes: readonly GraphNode[] = getNodesByAgentNameWithDiskFallback(graph, agentName)
     return nodes
-        .filter((node: GraphNode) => {
-            try {
-                return statSync(node.absoluteFilePathIsID).birthtimeMs >= spawnedAt
-            } catch {
-                return true // file missing or race — include rather than silently drop
-            }
-        })
+        .filter((node: GraphNode) => nodeWasCreatedAfterSpawn(node, spawnedAt))
         .map((node: GraphNode) => ({
             nodeId: node.absoluteFilePathIsID,
             title: getNodeTitle(node)

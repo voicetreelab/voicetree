@@ -87,6 +87,7 @@ import {
 } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
+import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -236,6 +237,8 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
         const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
         if (terminalElement) {
             terminalElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+        } else {
+            closeTerminalById(terminalId);
         }
     }, [terminalId, terminal.isHeadless]);
 

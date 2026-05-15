@@ -4,10 +4,9 @@ import type pty from 'node-pty'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {TerminalData} from './terminal-registry/types'
-import {feedPromptDetector, startPromptDetection, stopPromptDetection} from '../lifecycle/prompt-runner'
 import {getRuntimeProjectRoot} from '../runtime/graph-bridge'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {markTerminalExited, updateTerminalPromptDetected} from './terminal-registry'
+import {markTerminalExited} from './terminal-registry'
 import {captureOutput, clearBuffer} from './terminal-output-buffer'
 
 export type TerminalManagerLogger = {
@@ -117,37 +116,18 @@ export function writeInitialCommand(
     }, 200)
 }
 
-export function startPromptDetectionForTerminal(
-    terminalId: string,
-    logger: TerminalManagerLogger,
-): void {
-    try {
-        startPromptDetection(terminalId, {
-            onStateChange: (id: string, change): void => {
-                updateTerminalPromptDetected(id, change.kind === 'detected')
-            },
-        })
-    } catch (err: unknown) {
-        logger.error(`[TerminalManager] Failed to start prompt detection for ${terminalId}:`, err)
-    }
-}
-
 export function attachPtyProcessHandlers(args: {
     terminalId: string
     ptyProcess: pty.IPty
     onData: (terminalId: string, data: string) => void
     onExit: (terminalId: string, exitCode: number, signal?: string | null) => void
-    logger: TerminalManagerLogger
     releaseTerminal: () => void
 }): void {
-    const {terminalId, ptyProcess, onData, onExit, logger, releaseTerminal} = args
+    const {terminalId, ptyProcess, onData, onExit, releaseTerminal} = args
 
     ptyProcess.onData((data: string) => {
         captureOutput(terminalId, data)
         onData(terminalId, data)
-        feedPromptDetector(terminalId, data).catch((err: unknown) => {
-            logger.error(`[TerminalManager] Prompt-detector feed failed for ${terminalId}:`, err)
-        })
     })
 
     ptyProcess.onExit((exitInfo: { exitCode: number; signal?: number }) => {
@@ -156,7 +136,6 @@ export function attachPtyProcessHandlers(args: {
             : null
         onExit(terminalId, exitInfo.exitCode, signalName)
         markTerminalExited(terminalId, exitInfo.exitCode, signalName)
-        stopPromptDetection(terminalId)
         releaseTerminal()
         clearBuffer(terminalId)
     })

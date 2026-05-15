@@ -11,7 +11,9 @@ import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-node
 import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
 import { sendTextToTerminal } from '../application/inject/send-text-to-terminal'
 import { shouldFlipToActiveOnOutput } from '../application/lifecycle/output-transition'
-import { configureAgentRuntime, getRuntimeUI } from '../application/runtime/runtime-config'
+import { getTierTelemetrySnapshot } from '../application/lifecycle/tierTelemetry'
+import { installJsonlTelemetrySink } from '../application/lifecycle/tierTelemetryJsonlSink'
+import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../application/runtime/runtime-config'
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
@@ -26,6 +28,7 @@ import {
     resetAuditRetryCount,
     subscribeToRegistry,
     updateTerminalActivityState,
+    updateTerminalAgentEvent,
     updateTerminalIsDone,
     updateTerminalMinimized,
     updateTerminalPinned,
@@ -44,12 +47,15 @@ export const agentRuntime = {
     getHeadlessAgentOutput,
     isTmuxHeadlessAgent,
     getIdleSince,
-    getPendingTerminal,
     getOutput,
+    getPendingTerminal,
+    getRuntimeEnv,
     getRuntimeUI,
     getTerminalManager,
     getTerminalRecords,
+    getTierTelemetrySnapshot,
     getUnseenNodesForTerminal,
+    installJsonlTelemetrySink,
     injectNodesIntoTerminal,
     registerChild,
     reconcileTmuxHeadlessAgents,
@@ -65,6 +71,7 @@ export const agentRuntime = {
     subscribeToRegistry,
     tryConsumeAndSplitBudget,
     updateTerminalActivityState,
+    updateTerminalAgentEvent,
     updateTerminalIsDone,
     updateTerminalMinimized,
     updateTerminalPinned,

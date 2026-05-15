@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import {app, BrowserWindow, nativeImage} from 'electron';
-import path from 'path';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -21,6 +20,7 @@ import {
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
+import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
@@ -202,8 +202,10 @@ registerTerminalIpcHandlers(
 );
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
+const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
 agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
+    notifyOnCompletion(records);
 });
 
 // Register terminal cleanup for when folders are switched

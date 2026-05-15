@@ -20,7 +20,7 @@ import {
     updateTerminalIsDone,
     markTerminalExited,
     markTerminalKillReason,
-    updateTerminalPromptDetected,
+    updateTerminalAgentEvent,
 } from '../terminal-registry';
 
 const mockSendTextToTerminal: Mock = vi.fn().mockResolvedValue({ success: true });
@@ -137,67 +137,18 @@ describe('terminal-registry lifecycle wiring', () => {
         });
     });
 
-    describe('updateTerminalPromptDetected', () => {
-        it('detected=true → lifecycle "awaiting_input"', () => {
-            spawn('t1');
-            updateTerminalIsDone('t1', false);
-            updateTerminalPromptDetected('t1', true);
-            expect(lifecycleOf('t1')).toBe('awaiting_input');
-        });
-
-        it('detected=false (cleared) returns to active when isDone=false', () => {
-            spawn('t1');
-            updateTerminalIsDone('t1', false);
-            updateTerminalPromptDetected('t1', true);
-            updateTerminalPromptDetected('t1', false);
-            expect(lifecycleOf('t1')).toBe('active');
-        });
-
-        it('detected=false (cleared) returns to active even when poller says isDone=true', () => {
-            // Pre-fix this fell back to 'idle' via the heuristic isDone flag,
-            // which reintroduced the green-flicker false-positive after a real
-            // prompt was answered. Now we always fall back to 'active'.
-            spawn('t1');
-            updateTerminalIsDone('t1', true);
-            updateTerminalPromptDetected('t1', true);
-            updateTerminalPromptDetected('t1', false);
-            expect(lifecycleOf('t1')).toBe('active');
-        });
-
-        it('does not override completed lifecycle', () => {
-            spawn('t1');
-            markTerminalExited('t1', 0, null);
-            updateTerminalPromptDetected('t1', true);
-            expect(lifecycleOf('t1')).toBe('completed');
-        });
-
-        it('does not override errored lifecycle', () => {
-            spawn('t1');
-            markTerminalExited('t1', 1, null);
-            updateTerminalPromptDetected('t1', true);
-            expect(lifecycleOf('t1')).toBe('errored');
-        });
-    });
-
     // =========================================================================
     // Orchestrator standby — when a parent terminal has active children, the
     // parent is by definition waiting on those children, not on the user.
     // The lifecycle indicator must reflect that as 'idle' (orange standby),
     // not 'awaiting_input' (BLUE — reserved for genuine user-input prompts).
-    //
-    // Background: the Tier-3 prompt detector runs against the orchestrator's
-    // visible buffer. If a stale numbered-choice frame from a previous
-    // permission box is still in the trailing 8 lines during a quiescent
-    // wait_for_agents call, it matches numbered_choice_arrow (high confidence)
-    // and flips lifecycle to 'awaiting_input'. The orchestrator is not
-    // genuinely awaiting input — it's waiting on its children to finish.
     // =========================================================================
     describe('orchestrator standby — parent with active children does not go awaiting_input', () => {
-        it('parent with active child + prompt detected → "idle" (not "awaiting_input")', () => {
+        it('parent with active child + hook fires awaiting → "idle" (not "awaiting_input")', () => {
             spawn('parent-1');
             spawn('child-1', 'parent-1');
             updateTerminalIsDone('parent-1', false);
-            updateTerminalPromptDetected('parent-1', true);
+            updateTerminalAgentEvent('parent-1', 'awaiting');
             expect(lifecycleOf('parent-1')).toBe('idle');
         });
 
@@ -209,44 +160,95 @@ describe('terminal-registry lifecycle wiring', () => {
             expect(lifecycleOf('parent-1')).toBe('idle');
         });
 
-        it('parent with NO children + prompt detected → "awaiting_input" (regression — leaf agents still go blue)', () => {
+        it('parent with NO children + hook fires awaiting → "awaiting_input" (leaf agents still go blue)', () => {
             spawn('solo-1');
             updateTerminalIsDone('solo-1', false);
-            updateTerminalPromptDetected('solo-1', true);
+            updateTerminalAgentEvent('solo-1', 'awaiting');
             expect(lifecycleOf('solo-1')).toBe('awaiting_input');
         });
 
-        it('parent with all-exited children + prompt detected → "awaiting_input" (no longer orchestrating)', () => {
+        it('parent with all-exited children + hook fires awaiting → "awaiting_input" (no longer orchestrating)', () => {
             spawn('parent-1');
             spawn('child-1', 'parent-1');
             markTerminalExited('child-1', 0, null);
-            updateTerminalPromptDetected('parent-1', true);
+            updateTerminalAgentEvent('parent-1', 'awaiting');
             expect(lifecycleOf('parent-1')).toBe('awaiting_input');
         });
+    });
 
-        it('parent goes idle while children active, then child exits and prompt re-detected → "awaiting_input"', () => {
-            // The standby state is bound to the children-still-running condition.
-            // Once children finish, prompt detection should resolve as it does
-            // for any leaf agent — flipping to awaiting_input is correct.
+    // =========================================================================
+    // Agent hook events — sole driver of awaiting_input. Sourced from
+    // Claude Code (Notification/Stop/UserPromptSubmit) or Codex (Stop/
+    // PermissionRequest/UserPromptSubmit). Orchestrator-aware: parents with
+    // active children stay 'idle' rather than going blue.
+    // =========================================================================
+    describe('updateTerminalAgentEvent — agent hook events', () => {
+        it('kind="awaiting" → lifecycle "awaiting_input" for leaf agents', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', false);
+            updateTerminalAgentEvent('t1', 'awaiting');
+            expect(lifecycleOf('t1')).toBe('awaiting_input');
+        });
+
+        it('kind="working" → lifecycle "active"', () => {
+            spawn('t1');
+            updateTerminalAgentEvent('t1', 'awaiting');
+            updateTerminalAgentEvent('t1', 'working');
+            expect(lifecycleOf('t1')).toBe('active');
+        });
+
+        it('kind="done" → lifecycle "awaiting_input" (turn end blocks on user, not PTY exit)', () => {
+            // Claude Code's Stop hook fires at every turn end, not on shutdown.
+            // The PTY is still alive; the agent is now blocking on the user
+            // typing the next prompt. So 'done' should look identical to
+            // 'awaiting' for the lifecycle — exit lifecycle is markTerminalExited's job.
+            spawn('t1');
+            updateTerminalAgentEvent('t1', 'working');
+            updateTerminalAgentEvent('t1', 'done');
+            expect(lifecycleOf('t1')).toBe('awaiting_input');
+        });
+
+        it('kind="awaiting" on orchestrator with active child → "idle" (standby), not blue', () => {
             spawn('parent-1');
             spawn('child-1', 'parent-1');
-            updateTerminalPromptDetected('parent-1', true);
+            updateTerminalAgentEvent('parent-1', 'awaiting');
             expect(lifecycleOf('parent-1')).toBe('idle');
+        });
+
+        it('kind="done" on orchestrator with active child → "idle" (standby), not blue', () => {
+            spawn('parent-1');
+            spawn('child-1', 'parent-1');
+            updateTerminalAgentEvent('parent-1', 'done');
+            expect(lifecycleOf('parent-1')).toBe('idle');
+        });
+
+        it('kind="awaiting" on parent with all-exited children → "awaiting_input" (no longer orchestrating)', () => {
+            spawn('parent-1');
+            spawn('child-1', 'parent-1');
             markTerminalExited('child-1', 0, null);
-            updateTerminalPromptDetected('parent-1', false);
-            updateTerminalPromptDetected('parent-1', true);
+            updateTerminalAgentEvent('parent-1', 'awaiting');
             expect(lifecycleOf('parent-1')).toBe('awaiting_input');
         });
 
-        it('parent in idle (children active), prompt cleared → stays idle (not "active")', () => {
-            // While children are still running, clearing the prompt should
-            // fall back to idle (standby), not active (spinning amber).
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            updateTerminalPromptDetected('parent-1', true);
-            expect(lifecycleOf('parent-1')).toBe('idle');
-            updateTerminalPromptDetected('parent-1', false);
-            expect(lifecycleOf('parent-1')).toBe('idle');
+        it('does not override completed lifecycle', () => {
+            spawn('t1');
+            markTerminalExited('t1', 0, null);
+            updateTerminalAgentEvent('t1', 'working');
+            expect(lifecycleOf('t1')).toBe('completed');
+            updateTerminalAgentEvent('t1', 'awaiting');
+            expect(lifecycleOf('t1')).toBe('completed');
+        });
+
+        it('does not override errored lifecycle', () => {
+            spawn('t1');
+            markTerminalExited('t1', 1, null);
+            updateTerminalAgentEvent('t1', 'awaiting');
+            expect(lifecycleOf('t1')).toBe('errored');
+        });
+
+        it('no-op on unknown terminalId', () => {
+            updateTerminalAgentEvent('ghost', 'awaiting');
+            expect(lifecycleOf('ghost')).toBe('MISSING');
         });
     });
 

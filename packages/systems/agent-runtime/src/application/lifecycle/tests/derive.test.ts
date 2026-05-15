@@ -48,64 +48,7 @@ describe('derive — happy path transitions', () => {
     });
 });
 
-describe('derive — prompt detection (Tier 3)', () => {
-    it('active + prompt_detected → awaiting_input', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-        ])).toBe('awaiting_input');
-    });
-
-    it('idle + prompt_detected → awaiting_input', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'tick', at: T0 + 10_000 },
-            { type: 'prompt_detected', at: T0 + 10_500, pattern: 'shell-prompt' },
-        ])).toBe('awaiting_input');
-    });
-
-    it('output after awaiting_input clears prompt and returns to active', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-            { type: 'output', at: T0 + 300 },
-        ])).toBe('active');
-    });
-
-    it('user input while awaiting_input clears the awaiting state', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-            { type: 'input', at: T0 + 300 },
-        ])).toBe('active');
-    });
-
-    it('prompt_cleared while awaiting + recent output → active', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-            { type: 'prompt_cleared', at: T0 + 300 },
-        ])).toBe('active');
-    });
-
-    it('prompt_cleared while awaiting + stale output → idle', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-            { type: 'prompt_cleared', at: T0 + 100 + cfg.inactivityThresholdMs + 50 },
-        ])).toBe('idle');
-    });
-
-    it('tick does not flip awaiting_input → idle (prompt suppresses tick)', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'prompt_detected', at: T0 + 200, pattern: 'y/n' },
-            { type: 'tick', at: T0 + 100 + cfg.inactivityThresholdMs + 1000 },
-        ])).toBe('awaiting_input');
-    });
-});
-
-describe('derive — agent events (Tier 1)', () => {
+describe('derive — agent hook events', () => {
     it('agent_event awaiting → awaiting_input', () => {
         expect(lifecycleAfter([
             { type: 'output', at: T0 + 100 },
@@ -224,7 +167,7 @@ describe('derive — invariants', () => {
     it('full cycle: spawn → active → awaiting → respond → working → idle → completed', () => {
         const events: readonly TerminalEvent[] = [
             { type: 'output', at: T0 + 100 },                    // → active
-            { type: 'prompt_detected', at: T0 + 500, pattern: 'y/n' }, // → awaiting_input
+            { type: 'agent_event', at: T0 + 500, kind: 'awaiting' }, // → awaiting_input
             { type: 'input', at: T0 + 1000 },                    // → active
             { type: 'output', at: T0 + 1100 },                   // → active (refresh)
             { type: 'tick', at: T0 + 1100 + cfg.inactivityThresholdMs }, // → idle

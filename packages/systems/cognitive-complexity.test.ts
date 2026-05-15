@@ -44,6 +44,7 @@ function isProductionTypeScriptSource(path: string): boolean {
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.endsWith('.d.ts')
+        && !path.endsWith('/__audit_seed__.ts')
         && !path.includes('/__tests__/')
 }
 
