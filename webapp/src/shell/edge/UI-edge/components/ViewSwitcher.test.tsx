@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, fireEvent, screen, waitFor } from '@testing-library/react'
+import { render, fireEvent, screen, waitFor, cleanup } from '@testing-library/react'
 import { ViewSwitcher } from './ViewSwitcher'
 
 type ViewRecord = { viewId: string; name: string; isActive: boolean }
@@ -57,6 +58,7 @@ describe('ViewSwitcher', () => {
   })
 
   afterEach(() => {
+    cleanup()
     Object.defineProperty(window, 'electronAPI', {
       value: undefined,
       writable: true,
