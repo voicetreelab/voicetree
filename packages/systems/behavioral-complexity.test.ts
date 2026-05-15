@@ -92,13 +92,15 @@ async function scanSourceFiles(packages: readonly PackageInfo[]): Promise<Source
     return nested.flat().sort((a, b) => a.relativePath.localeCompare(b.relativePath))
 }
 
-// --- Community assignment at depth 1 (matches hierarchical-complexity.test.ts) ---
+// --- Community assignment at arbitrary depth (mirrors hierarchical-complexity.test.ts) ---
 
-function communityAtDepth1(pkg: string, relToSrc: string): string {
+function communityAtDepth(pkg: string, relToSrc: string, depth: number): string {
+    if (depth === 0) return pkg
     const dir = dirname(relToSrc)
-    if (dir === '.') return `${pkg}/__root__`
-    const top = dir.split('/')[0]
-    return `${pkg}/${top}`
+    const parts = dir === '.' ? [] : dir.split('/')
+    const segments = parts.slice(0, depth)
+    if (segments.length < depth) return [pkg, ...segments, '__root__'].join('/')
+    return [pkg, ...segments].join('/')
 }
 
 // --- Module-level state binding detection ---
@@ -169,10 +171,11 @@ function aggregatePerCommunity(
     files: readonly SourceFile[],
     bindingsByFile: ReadonlyMap<string, readonly StateBinding[]>,
     fnsByFile: ReadonlyMap<string, readonly FnEntry[]>,
+    depth: number,
 ): CommunityBehavioralReport[] {
     const byCommunity = new Map<string, CommunityAccumulator>()
     for (const file of files) {
-        const id = communityAtDepth1(file.packageName, file.relToSrc)
+        const id = communityAtDepth(file.packageName, file.relToSrc, depth)
         if (!byCommunity.has(id)) byCommunity.set(id, {files: [], bindings: [], fns: []})
         const acc = byCommunity.get(id)!
         acc.files.push(file)
@@ -226,7 +229,7 @@ function formatGlobalsBreakdown(globals: Readonly<Record<string, number>>): stri
     return items.map(([cat, n]) => `${cat}=${n}`).join(' ')
 }
 
-function formatReport(reports: readonly CommunityBehavioralReport[]): string {
+function formatReport(reports: readonly CommunityBehavioralReport[], topN = 10): string {
     const lines: string[] = ['']
     lines.push('='.repeat(80))
     lines.push('BEHAVIORAL COMPLEXITY — hidden mutable state + impure globals per community')
@@ -246,7 +249,7 @@ function formatReport(reports: readonly CommunityBehavioralReport[]): string {
     ].join(' ')
     lines.push(header)
     lines.push('  ' + '─'.repeat(80))
-    for (const [i, r] of reports.entries()) {
+    for (const [i, r] of reports.slice(0, topN).entries()) {
         lines.push('  ' + [
             String(i + 1).padStart(3),
             r.id.padEnd(42),
@@ -257,10 +260,13 @@ function formatReport(reports: readonly CommunityBehavioralReport[]): string {
             String(r.score).padStart(5),
         ].join(' '))
     }
+    if (reports.length > topN) {
+        lines.push(`  … +${reports.length - topN} more (set BEHAVIORAL_TOP_N env var to see more)`)
+    }
 
     lines.push('')
-    lines.push('Top 10 communities with mutable state — detail:')
-    for (const r of reports.filter(r => r.stateBindingCount > 0).slice(0, 10)) {
+    lines.push(`Top ${topN} communities with mutable state — detail:`)
+    for (const r of reports.filter(r => r.stateBindingCount > 0).slice(0, topN)) {
         lines.push(`\n  ${r.id}  (${r.stateBindingCount} bindings, globals: ${formatGlobalsBreakdown(r.globalsByCategory)})`)
         for (const b of r.stateBindings.slice(0, 12)) {
             lines.push(`    ${b.file}:${b.line}  [${b.kind}]  ${b.detail}`)
@@ -283,9 +289,16 @@ const ORANGE_BEHAVIORAL_BUDGET = 379
 const GRAPH_DB_SERVER_STATE_GOLD_STANDARD_SCORE_FLOOR = 6
 
 describe('behavioral complexity', () => {
-    it('reports hidden mutable state + impure globals per community at depth 1', async () => {
+    it('reports hidden mutable state + impure globals per community at all directory containment depths', async () => {
+        const topN = process.env.BEHAVIORAL_TOP_N ? parseInt(process.env.BEHAVIORAL_TOP_N, 10) : 10
+        const scope = process.env.BEHAVIORAL_SCOPE ? resolve(process.env.BEHAVIORAL_SCOPE) : null
+
         const packages = await discoverPackages()
-        const files = await scanSourceFiles(packages)
+        const allFiles = await scanSourceFiles(packages)
+        const files = scope
+            ? allFiles.filter(f => f.absolutePath.startsWith(scope + '/') || f.absolutePath === scope)
+            : allFiles
+        if (scope) console.info(`\nScoped to: ${scope}  (${files.length}/${allFiles.length} files)`)
 
         const bindingsByFile = new Map<string, readonly StateBinding[]>()
         const fnsByFile = new Map<string, FnEntry[]>()
@@ -301,25 +314,40 @@ describe('behavioral complexity', () => {
         }))
         propagateImpurity(allFns)
 
-        const reports = aggregatePerCommunity(files, bindingsByFile, fnsByFile)
-        console.info(formatReport(reports))
+        const maxDepth = Math.max(...files.map(f => {
+            const dir = dirname(f.relToSrc)
+            return dir === '.' ? 0 : dir.split('/').length
+        }))
 
-        const overBudget = reports.filter(r => r.score > ORANGE_BEHAVIORAL_BUDGET)
-        const stateReport = reports.find(r => r.id === 'graph-db-server/state')
+        let depth1Reports: CommunityBehavioralReport[] = []
+        const allReports: CommunityBehavioralReport[] = []
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            const reports = aggregatePerCommunity(files, bindingsByFile, fnsByFile, depth)
+            console.info(`\n${'='.repeat(60)}\nDEPTH ${depth}\n${'='.repeat(60)}`)
+            console.info(formatReport(reports, topN))
+            allReports.push(...reports)
+            if (depth === 1) depth1Reports = reports
+        }
+
+        // Gold-standard guard uses depth-1 community ID — must remain discoverable at depth 1
+        const stateReport = depth1Reports.find(r => r.id === 'graph-db-server/state')
+        const overBudget = allReports.filter(r => r.score > ORANGE_BEHAVIORAL_BUDGET)
+        const maxScore = allReports.reduce((max, r) => Math.max(max, r.score), 0)
 
         await recordHealthMetric({
             metricId: 'behavioral-complexity',
             metricName: 'Behavioral Complexity Orange Gate',
-            description: 'Per-community hidden mutable state + impure globals score (state × 3 + globals/4). Surfaces coupling invisible to the import-graph.',
+            description: 'Per-community hidden mutable state + impure globals score (state × 3 + globals/4). Fractal: evaluated at all directory containment depths.',
             category: 'Behavioral',
-            current: reports.reduce((max, r) => Math.max(max, r.score), 0),
+            current: maxScore,
             budget: ORANGE_BEHAVIORAL_BUDGET,
             comparison: 'lte',
             unit: 'score',
             details: {
                 overBudget: overBudget.slice(0, 20),
-                topScored: reports.slice(0, 20),
-                communityCount: reports.length,
+                topScored: [...allReports].sort((a, b) => b.score - a.score).slice(0, 20),
+                communityCount: allReports.length,
+                maxDepth,
                 graphDbServerState: stateReport ?? null,
             },
         })
