@@ -21,6 +21,7 @@ import {
 import {setupToolsDirectory, getToolsDirectory} from './tools-setup';
 import {setupOnboardingDirectory} from './onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from './notification-scheduler';
+import {createAgentCompletionNotifier} from './agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/metrics/otlp-receiver';
@@ -193,8 +194,10 @@ registerTerminalIpcHandlers(
 );
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
+const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
 agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
+    notifyOnCompletion(records);
 });
 
 // Register terminal cleanup for when folders are switched
