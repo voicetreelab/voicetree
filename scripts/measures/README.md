@@ -17,7 +17,9 @@ src/
 |-- correctness/
 |   |-- unit/
 |   |-- e2e/
-|   `-- lint/
+|   |-- lint/
+|   `-- slow/
+|       `-- fuzz/
 `-- health/
     |-- tier_1/
     |-- fast/
