@@ -61,6 +61,7 @@ import {createEmptyGraph} from '@vt/graph-model/graph';
 import {setupBasicCytoscapeEventListeners, setupCytoscape, initializeCytoscapeInstance, setupGraphViewDOM, initializeNavigatorMinimap, guardCytoscapeResize, type NavigatorMinimapResult} from './VoiceTreeGraphViewHelpers';
 import {setupViewSubscriptions, type ViewSubscriptionCleanups} from '@/shell/edge/UI-edge/graph/view/setupViewSubscriptions';
 import {subscribeToGraphUpdates} from '@/shell/edge/UI-edge/graph/view/subscribeToGraphUpdates';
+import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor";
 
 import {GraphNavigationService} from "@/shell/edge/UI-edge/graph/navigation/GraphNavigationService";
@@ -188,8 +189,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup event listeners
         this.setupEventListeners();
 
-        // Signal to main process that frontend is ready to receive graph data
-        void window.electronAPI?.main?.markFrontendReady();
+        if (this.options.initialProjectedGraph) {
+            applyGraphDeltaToUI(this.cy, this.options.initialProjectedGraph);
+            this.searchService.updateSearchData();
+            this.updateNavigatorVisibility();
+        }
 
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues

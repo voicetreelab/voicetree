@@ -2,8 +2,9 @@
  * BF-161/BF-L5-205 · live State store (main process).
  *
  * Holds only the main-owned mutable parts of `@vt/graph-state` State:
- * revision, roots, and layout. Renderer-owned `collapseSet` + `selection`
- * are read and mutated through the renderer live-state proxy.
+ * revision, roots, and layout. Renderer-owned `selection` is read and
+ * mutated through the renderer live-state proxy. Folder visibility is owned
+ * by the daemon and arrives through `folderState` + `activeView`.
  */
 import type {
     Command,
@@ -95,7 +96,7 @@ export async function getCurrentLiveState(): Promise<State> {
     return {
         graph: await readGraphFromDaemonSessionState(),
         roots: liveParts.roots,
-        collapseSet: new Set(rendererState.collapseSet),
+        collapseSet: new Set(),
         selection: new Set(rendererState.selection),
         layout: liveParts.layout,
         meta: {

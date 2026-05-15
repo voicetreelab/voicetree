@@ -40,7 +40,6 @@ export function subscribeToGraphUpdates(
     }
 
     const cy: Core = navigationService.getCy();
-    let disposed: boolean = false;
     let lastProjectedGraph: ProjectedGraph | null = null;
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
@@ -85,16 +84,7 @@ export function subscribeToGraphUpdates(
     const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
-    void (async () => {
-        const graph: ProjectedGraph | undefined = await electronAPI.main.getProjectedGraph?.();
-        if (disposed || !graph || graph.nodes.length === 0) return;
-        handleProjectedGraph(graph);
-    })().catch((error: unknown) => {
-        console.error('[subscribeToGraphUpdates] Failed to hydrate initial projected graph:', error);
-    });
-
     return (): void => {
-        disposed = true;
         cleanupProjected();
         cleanupClear();
     };

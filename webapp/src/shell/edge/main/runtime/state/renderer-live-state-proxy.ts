@@ -4,12 +4,10 @@ import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { getMainWindow } from './app-electron-state'
 
 interface RendererLiveStatePayload {
-    readonly collapseSet?: unknown
     readonly selection?: unknown
 }
 
 export interface RendererLiveStateSnapshot {
-    readonly collapseSet: ReadonlySet<string>
     readonly selection: ReadonlySet<NodeIdAndFilePath>
 }
 
@@ -38,7 +36,6 @@ function parseSnapshot(value: unknown): RendererLiveStateSnapshot {
         typeof value === 'object' && value !== null ? (value as RendererLiveStatePayload) : {}
 
     return {
-        collapseSet: new Set(parseStringArray(payload.collapseSet ?? [], 'collapseSet')),
         selection: new Set(
             parseStringArray(payload.selection ?? [], 'selection') as NodeIdAndFilePath[],
         ),

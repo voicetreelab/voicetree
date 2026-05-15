@@ -1,7 +1,7 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import type { GraphDbClient, VaultState } from '@vt/graph-db-client'
-import { hydrateState, type SerializedState, type State } from '@vt/graph-state'
+import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState } from '@vt/graph-db-client'
+import type { SerializedState, State } from '@vt/graph-state'
 
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
@@ -147,9 +147,7 @@ async function buildSerializedRoots(
   graph: Graph,
   vaultState: VaultState,
   loadedRoots: ReadonlySet<string>,
-): Promise<SerializedState['roots']> {
-  const loaded: string[] = sortStrings([...loadedRoots])
-
+): Promise<LiveStateSnapshot['roots']> {
   try {
     const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.vaultPath)
     const rootTree: FolderTreeNode = buildFolderTree(
@@ -159,12 +157,10 @@ async function buildSerializedRoots(
       new Set(Object.keys(graph.nodes)),
     )
     return {
-      loaded,
       folderTree: [rootTree] as SerializedState['roots']['folderTree'],
     }
   } catch {
     return {
-      loaded,
       folderTree: [],
     }
   }
@@ -238,18 +234,17 @@ export async function getNodeFromDaemon(
   return graph.nodes[nodeId]
 }
 
-export async function getLiveStateSnapshotFromDaemon(): Promise<SerializedState | null> {
+export async function getLiveStateSnapshotFromDaemon(): Promise<LiveStateSnapshot | null> {
   try {
     return await callDaemon(async (client) => {
       const localState: State = await getCurrentLiveState()
       const sessionId: string = await syncRendererSessionState(client, localState)
-      const snapshot: SerializedState = await client.getSessionState(sessionId)
-      const hydrated: State = hydrateState(snapshot)
+      const snapshot: LiveStateSnapshot = await client.getSessionState(sessionId)
       const vaultState: VaultState = await client.getVault()
 
       if (rootsWereExplicitlySet() || localState.roots.loaded.size > 0) {
         snapshot.roots = await buildSerializedRoots(
-          hydrated.graph,
+          await getNormalizedDaemonGraph(client),
           vaultState,
           localState.roots.loaded,
         )
@@ -285,6 +280,20 @@ export async function expandFolderThroughDaemon(folderId: string): Promise<unkno
   return await callDaemon(async (client) => {
     const sessionId: string = await createRendererSession(client)
     return await client.expand(sessionId, folderId)
+  })
+}
+
+export async function setFolderStateThroughDaemon(
+  folderId: string,
+  state: FolderState,
+): Promise<unknown> {
+  return await callDaemon(async (client) => {
+    const sessionId: string = await syncRendererSessionState(client, await getCurrentLiveState())
+    const folderPath: string = folderId.length > 1 && folderId.endsWith('/')
+      ? folderId.slice(0, -1)
+      : folderId
+    await client.setFolderState(sessionId, folderPath, state)
+    return await client.getProjectedGraph(sessionId)
   })
 }
 

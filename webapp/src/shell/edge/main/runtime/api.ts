@@ -50,6 +50,7 @@ import {
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
+  setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon/daemon-ipc-proxy';
@@ -95,6 +96,7 @@ export const mainAPI = {
   // Collapse/expand through daemon RPC
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
+  setFolderStateThroughDaemon,
 
   // Position saving through daemon persistence
   saveNodePositions,
