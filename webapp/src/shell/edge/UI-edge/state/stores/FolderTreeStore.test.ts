@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { FolderTreeNode } from '@vt/graph-model/folders'
-import type { SerializedState } from '@vt/graph-state/fixtures/serialization'
+import type { LiveStateSnapshot } from '@vt/graph-db-client'
 import {
     folderTreeReducer,
     subscribeFolderTree,
@@ -244,7 +244,7 @@ describe('FolderTreeStore dispatchers and persistence', () => {
         vi.resetModules()
 
         const tree: FolderTreeNode = makeFolderTreeNode('root')
-        const snapshot: SerializedState = {
+        const snapshot: LiveStateSnapshot = {
             graph: {
                 nodes: {},
                 incomingEdgesIndex: [],
@@ -252,10 +252,10 @@ describe('FolderTreeStore dispatchers and persistence', () => {
                 unresolvedLinksIndex: [],
             },
             roots: {
-                loaded: [tree.absolutePath],
                 folderTree: [tree],
             },
-            collapseSet: [],
+            folderState: [],
+            activeView: { viewId: 'main', name: 'main' },
             selection: [],
             layout: { positions: [] },
             meta: {

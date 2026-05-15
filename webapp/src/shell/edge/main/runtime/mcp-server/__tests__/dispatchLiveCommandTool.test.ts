@@ -110,7 +110,7 @@ beforeEach(() => {
 })
 
 describe('vt_dispatch_live_command', () => {
-    it('Collapse adds the folder to collapseSet and bumps revision', async () => {
+    it('Collapse emits a collapse delta without repopulating main-process collapseSet', async () => {
         const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Collapse', folder: '/tmp/vault/tasks/' },
         })
@@ -118,17 +118,17 @@ describe('vt_dispatch_live_command', () => {
         expect(result.revision).toBe(1)
         expect(result.delta.collapseAdded).toEqual(['/tmp/vault/tasks/'])
         const state: Awaited<ReturnType<typeof getCurrentLiveState>> = await getCurrentLiveState()
-        expect([...state.collapseSet]).toContain('/tmp/vault/tasks/')
+        expect([...state.collapseSet]).not.toContain('/tmp/vault/tasks/')
         expect(state.meta.revision).toBe(1)
     })
 
-    it('Expand removes the folder and emits collapseRemoved', async () => {
+    it('Expand leaves main-process collapseSet empty after renderer-owned collapse', async () => {
         await dispatchLiveCommand({ command: { type: 'Collapse', folder: '/tmp/vault/tasks/' } })
         const result: Awaited<ReturnType<typeof dispatchLiveCommand>> = await dispatchLiveCommand({
             command: { type: 'Expand', folder: '/tmp/vault/tasks/' },
         })
 
-        expect(result.delta.collapseRemoved).toEqual(['/tmp/vault/tasks/'])
+        expect(result.delta.collapseRemoved).toEqual([])
         expect([...(await getCurrentLiveState()).collapseSet]).not.toContain('/tmp/vault/tasks/')
     })
 
@@ -188,10 +188,10 @@ describe('vt_dispatch_live_command', () => {
         expect(delta.collapseAdded).toEqual(['/tmp/vault/x/'])
     })
 
-    it('dispatch → getCurrentLiveState round-trip: Collapse lands in collapseSet (spec verification)', async () => {
+    it('dispatch → getCurrentLiveState round-trip: Collapse does not land in main collapseSet', async () => {
         const folder: string = '/Users/bobbobby/repos/voicetree-public/brain/working-memory/tasks/'
         await dispatchLiveCommand({ command: { type: 'Collapse', folder } })
         const roundTrip: Awaited<ReturnType<typeof getCurrentLiveState>> = await getCurrentLiveState()
-        expect([...roundTrip.collapseSet]).toContain(folder)
+        expect([...roundTrip.collapseSet]).not.toContain(folder)
     })
 })

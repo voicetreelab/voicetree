@@ -151,7 +151,7 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for all 15 Command varian
     const CASES: Record<Command['type'], TestCase> = {
         Collapse: {
             cmd: { type: 'Collapse', folder },
-            check: (s) => expect(s.collapseSet.has(folder)).toBe(true),
+            check: (s) => expect(s.collapseSet.has(folder)).toBe(false),
         },
         Expand: {
             setup: async () => { await applyLiveCommandAsync({ type: 'Collapse', folder }) },
