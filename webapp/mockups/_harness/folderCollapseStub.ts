@@ -1,8 +1,9 @@
-// Mockup stub for `@/shell/edge/UI-edge/graph/view/folderCollapse`.
+// Browser-only stub of `@/shell/edge/UI-edge/graph/view/folderCollapse`.
+//
 // The real module routes through window.electronAPI → daemon → applyGraphDeltaToUI,
 // which drags in posthog + terminal stores + floating editors. None of that is
-// needed to demonstrate the FolderHandleService chip behaviour, so the mockup
-// vite config aliases this file in. We mutate cy directly: stash descendants on
+// needed to demonstrate cytoscape renderer behaviour, so each mockup's vite
+// config aliases this file in. We mutate cy directly: stash descendants on
 // collapse, restore them on expand.
 
 import type { Core, NodeSingular } from 'cytoscape'
@@ -64,8 +65,8 @@ export async function expandFolder(cy: Core, folderId: string): Promise<void> {
     // chip cleanly instead of flipping `collapsed` in-place.
     //
     // To keep the mockup interactive, expand delegates to a host-supplied
-    // rebuilder (registered by main.ts) which re-renders the cy instance from
-    // a clean expanded state. Same observable end-state, no re-entry.
+    // rebuilder (registered by mountHarness) which re-renders the cy instance
+    // from a clean expanded state. Same observable end-state, no re-entry.
     const rebuilder: ((folderId: string) => void) | undefined =
         (window as unknown as { __mockupExpandFolderRebuild?: (id: string) => void })
             .__mockupExpandFolderRebuild

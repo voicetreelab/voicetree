@@ -47,13 +47,17 @@ test.describe('SSE replay buffer', () => {
       intervals: [250, 500, 1000],
     }).toBeGreaterThan(0);
 
+    // Pick the fixture's Root.md node deterministically by file path, instead
+    // of relying on map iteration order. Node IDs are file paths in the
+    // graph-db domain, so the fixture's Root.md surfaces as a suffix match.
     const parentNodeId = await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const graph = await api.main.getGraph();
       const nodeIds = Object.keys(graph.nodes);
-      if (nodeIds.length === 0) throw new Error('No graph nodes loaded');
-      return nodeIds[0];
+      const rootId = nodeIds.find(id => id.endsWith('Root.md') || id.endsWith('/Root') || id === 'Root.md');
+      if (!rootId) throw new Error(`No Root.md node loaded; got: ${nodeIds.join(', ')}`);
+      return rootId;
     });
 
     const callerTerminalId = 'e2e-replay-caller';
@@ -140,16 +144,18 @@ test.describe('SSE replay buffer', () => {
       intervals: [250, 500, 1000],
     }).toBe(true);
 
-    // Confirm task node has NOT reached Cytoscape (file watching stopped + SSE locked)
-    const taskNodeInCyBeforeReconnect = await appWindow.evaluate((nodeId) => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      return (cy?.getElementById(nodeId).length ?? 0) > 0;
-    }, spawnPayload.taskNodeId);
-    expect(taskNodeInCyBeforeReconnect, 'Task node should not be in Cytoscape while SSE is locked').toBe(false);
+    // Capture the spawned terminal's pre-replay state as a baseline. The
+    // task node and anchor edge must NOT exist in Cytoscape yet (file
+    // watching stopped + SSE locked). The terminal's pre-replay position is
+    // recorded so the post-replay position-change assertion is robust to
+    // changes in the app's default un-anchored coordinates.
+    const preReplayState = await readAnchorState(appWindow, spawnPayload.terminalId, spawnPayload.taskNodeId);
+    expect(preReplayState.taskNodeInCy, 'Task node should not be in Cytoscape while SSE is locked').toBe(false);
+    expect(preReplayState.edgeExists, 'Anchor edge should not exist before SSE replay').toBe(false);
 
-    // Unlock SSE, then trigger reconnection via syncRendererSessionStateWithDaemon
-    // Post-fix: reconnection sends ?since=<lastSeenSeq> → replay buffer delivers missed delta
-    // Pre-fix: reconnection starts fresh → missed delta is lost
+    // Unlock SSE, then trigger reconnection. The user-observable outcome we
+    // are testing: a graph delta produced while SSE was disconnected becomes
+    // visible (terminal anchors to its task node) after reconnection.
     await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -157,17 +163,22 @@ test.describe('SSE replay buffer', () => {
       await api.main.syncRendererSessionStateWithDaemon();
     });
 
-    // Wait for terminal to anchor after replay delivers the missed projected graph
+    const expectedEdgeTarget = `${spawnPayload.terminalId}-anchor-shadowNode`;
+
+    // Wait for the terminal to anchor (task node visible, shadow + edge wired
+    // to the new task node, and the terminal has moved off its pre-replay
+    // coordinates) after replay delivers the missed projected graph.
     await expect.poll(async () => {
       const state = await readAnchorState(appWindow, spawnPayload.terminalId, spawnPayload.taskNodeId);
-      return state.taskNodeInCy &&
+      const positionChanged =
         state.terminalExists &&
-        state.left !== '100px' &&
-        state.top !== '100px' &&
+        (state.left !== preReplayState.left || state.top !== preReplayState.top);
+      return state.taskNodeInCy &&
+        positionChanged &&
         state.shadowExists &&
         state.edgeExists &&
         state.edgeSource === spawnPayload.taskNodeId &&
-        state.edgeTarget === `${spawnPayload.terminalId}-anchor-shadowNode`;
+        state.edgeTarget === expectedEdgeTarget;
     }, {
       message: 'Waiting for terminal to anchor after SSE replay delivers the missed delta',
       timeout: 30_000,
@@ -181,10 +192,14 @@ test.describe('SSE replay buffer', () => {
       shadowExists: true,
       edgeExists: true,
       edgeSource: spawnPayload.taskNodeId,
-      edgeTarget: `${spawnPayload.terminalId}-anchor-shadowNode`,
+      edgeTarget: expectedEdgeTarget,
     });
-    expect(anchorState.left).not.toBe('100px');
-    expect(anchorState.top).not.toBe('100px');
+    // The terminal's on-screen position must have changed from its pre-replay
+    // baseline - that is the user-visible result of anchoring to the new node.
+    expect(
+      anchorState.left !== preReplayState.left || anchorState.top !== preReplayState.top,
+      `Terminal position should change after anchoring; pre=(${preReplayState.left},${preReplayState.top}) post=(${anchorState.left},${anchorState.top})`,
+    ).toBe(true);
 
     expectNoCriticalElectronErrors(electronDiagnostics);
   });

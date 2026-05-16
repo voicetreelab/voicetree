@@ -1,6 +1,7 @@
 import { esc, fmtNum, relTime, isStale } from './format.js'
 import { renderChecksSection, bindChecksSection } from './checks.js'
 import { renderWallClock } from './wallClock.js'
+import { renderRollupBreakdown } from './rollupBreakdown.js'
 import { renderFileTreeSection } from './fileTree.js'
 import { renderTreemapSection, bindTreemapSection } from './treemap.js'
 import { renderGitSection, renderGitTally, renderGitFolders, renderGitCommits } from './git.js'
@@ -318,6 +319,7 @@ function renderDashboard(data, checksData, gitData) {
 
   const gitHtml    = renderGitSection(gitData)
   const wallClockHtml = renderWallClock(checksData?.reports ?? [])
+  const rollupBreakdownHtml = renderRollupBreakdown(checksData?.reports ?? [])
   const checksHtml = renderChecksSection(checksData)
   const gatesHtml  = renderGatesSection(gates, gatesShown())
   const axesHtml = renderAxes(data.reports)
@@ -342,7 +344,7 @@ function renderDashboard(data, checksData, gitData) {
     .join('')
 
   const main = document.getElementById('main')
-  main.innerHTML = gitHtml + wallClockHtml + checksHtml + gatesHtml + axesHtml + fileTreeHtml + treemapHtml + rankingHtml + categoriesHtml
+  main.innerHTML = gitHtml + wallClockHtml + rollupBreakdownHtml + checksHtml + gatesHtml + axesHtml + fileTreeHtml + treemapHtml + rankingHtml + categoriesHtml
   bindChecksSection(main, checksData)
   bindGatesToggle(main)
   bindTreemapSection(main, data.reports)

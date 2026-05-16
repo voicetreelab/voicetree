@@ -5,6 +5,64 @@ import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
+// Per-pipeline build timing. Pair plugins: a `pre`-enforced one starts a per-id
+// timer in transform(); a `post`-enforced one stops it. Sum of (post-pre) per id
+// approximates the time other plugins spent transforming that file in this
+// pipeline. Bucket by node_modules package to surface the heaviest deps.
+// Wall-clock per pipeline comes from buildStart/buildEnd. Opt-in via
+// VT_BUILD_TIMING=1 so normal builds stay quiet. Stderr-only output.
+type TimingState = { pipelineStart: bigint; perId: Map<string, bigint>; perPkg: Map<string, bigint> }
+const packageOf = (id: string): string => {
+  const idx = id.lastIndexOf('/node_modules/')
+  if (idx < 0) return '(app)'
+  const tail = id.slice(idx + '/node_modules/'.length)
+  const parts = tail.split('/')
+  return parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0]
+}
+const fmtMs = (ns: bigint) => `${(Number(ns) / 1e6).toFixed(0)}ms`
+const buildTimingPlugins = (label: string) => {
+  const enabled = process.env.VT_BUILD_TIMING === '1'
+  const state: TimingState = { pipelineStart: 0n, perId: new Map(), perPkg: new Map() }
+  const pre = {
+    name: `vt-build-timing-${label}-pre`,
+    enforce: 'pre' as const,
+    buildStart() {
+      if (!enabled) return
+      state.pipelineStart = process.hrtime.bigint()
+      state.perId.clear()
+      state.perPkg.clear()
+    },
+    transform(_code: string, id: string) {
+      if (!enabled) return null
+      state.perId.set(id, process.hrtime.bigint())
+      return null
+    },
+  }
+  const post = {
+    name: `vt-build-timing-${label}-post`,
+    enforce: 'post' as const,
+    transform(_code: string, id: string) {
+      if (!enabled) return null
+      const start = state.perId.get(id)
+      if (start === undefined) return null
+      const dt = process.hrtime.bigint() - start
+      state.perPkg.set(packageOf(id), (state.perPkg.get(packageOf(id)) ?? 0n) + dt)
+      return null
+    },
+    buildEnd() {
+      if (!enabled) return
+      const total = process.hrtime.bigint() - state.pipelineStart
+      const top = [...state.perPkg.entries()]
+        .sort((a, b) => Number(b[1] - a[1]))
+        .slice(0, 10)
+        .map(([pkg, ns]) => `    ${pkg.padEnd(40)} ${fmtMs(ns)}`)
+        .join('\n')
+      process.stderr.write(`\n[vt-build-timing] ${label} pipeline: ${fmtMs(total)}\n${top}\n`)
+    },
+  }
+  return [pre, post]
+}
+
 // Detect if building for tests (npm run test:*, build:test, etc.)
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
@@ -203,6 +261,7 @@ export default defineConfig({
   main: {
     // Configuration for electron main process
     plugins: [
+      ...buildTimingPlugins('main'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
       externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
@@ -234,6 +293,7 @@ export default defineConfig({
   preload: {
     // Configuration for preload script
     plugins: [
+      ...buildTimingPlugins('preload'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
       externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
@@ -270,6 +330,7 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      ...buildTimingPlugins('renderer'),
       rendererNodeShimPlugin,
       externalNativePlugin,
       // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)

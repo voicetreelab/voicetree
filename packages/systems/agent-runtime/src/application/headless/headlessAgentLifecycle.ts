@@ -3,7 +3,7 @@ import type {Graph} from '@vt/graph-model/graph'
 import type {SupportedHeadlessCli} from '../spawn/headlessCli'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {StopHookResult} from '../hooks/stopGateHookRunner'
-import type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentManager'
+import type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentDeps'
 import type {TerminalRecord} from '../terminals/terminal-registry'
 
 export type HeadlessLifecycleState = {

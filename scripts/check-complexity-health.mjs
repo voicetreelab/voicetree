@@ -4,6 +4,7 @@ import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
+import {recordHealthReport} from '../packages/systems/_health-report-writer.ts'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
@@ -682,6 +683,116 @@ function ratio(value, target) {
   return target === 0 ? 0 : value / target
 }
 
+const PRESSURE_AXIS_REPORTS = {
+  'max cognitive complexity': {
+    metricId: 'complexity-pressure-cognitive-max',
+    metricName: 'Pressure: Max Cognitive Complexity',
+    description: 'Highest per-function cognitive complexity score across systems packages.',
+    category: 'Complexity',
+    comparison: 'lte',
+    unit: 'score',
+  },
+  'max cyclomatic complexity': {
+    metricId: 'complexity-pressure-cyclomatic-max',
+    metricName: 'Pressure: Max Cyclomatic Complexity',
+    description: 'Highest per-function cyclomatic complexity score across systems packages.',
+    category: 'Complexity',
+    comparison: 'lte',
+    unit: 'score',
+  },
+  'min maintainability index': {
+    metricId: 'complexity-pressure-maintainability-min',
+    metricName: 'Pressure: Min Maintainability Index',
+    description: 'Lowest per-file Halstead-based maintainability index across systems packages.',
+    category: 'Complexity',
+    comparison: 'gte',
+    unit: 'index',
+  },
+  'max CRAP0 risk': {
+    metricId: 'complexity-pressure-crap0-max',
+    metricName: 'Pressure: Max CRAP0 Risk',
+    description: 'Worst CRAP0 (uncovered-CRAP) score; combines cyclomatic complexity with zero-coverage assumption.',
+    category: 'Complexity',
+    comparison: 'lte',
+    unit: 'score',
+  },
+  'max boundary ratio': {
+    metricId: 'complexity-pressure-boundary-ratio-max',
+    metricName: 'Pressure: Max Boundary File Ratio',
+    description: 'Highest share of a package\'s files participating in cross-package edges.',
+    category: 'Coupling',
+    comparison: 'lte',
+    unit: 'ratio',
+  },
+  'max subdirectory cross-edge ratio': {
+    metricId: 'complexity-pressure-subdir-cross-ratio-max',
+    metricName: 'Pressure: Max Subdir Cross-Edge Ratio',
+    description: 'Highest share of intra-package edges that cross subdirectory boundaries.',
+    category: 'Coupling',
+    comparison: 'lte',
+    unit: 'ratio',
+  },
+  'aggregate boundary complexity': {
+    metricId: 'complexity-pressure-boundary-complexity-aggregate',
+    metricName: 'Pressure: Aggregate Boundary Complexity',
+    description: 'Sum of BCI scores (tree-width × log edges) across every cross-package import pair.',
+    category: 'Coupling',
+    comparison: 'lte',
+    unit: 'bci',
+  },
+  'max runtime fan-in': {
+    metricId: 'complexity-pressure-runtime-fan-in-max',
+    metricName: 'Pressure: Max Runtime Fan-In',
+    description: 'Largest count of distinct runtime symbols imported from a single package across the systems graph.',
+    category: 'Coupling',
+    comparison: 'lte',
+    unit: 'symbols',
+  },
+  'max file turbulence': {
+    metricId: 'complexity-pressure-file-turbulence-max',
+    metricName: 'Pressure: Max File Turbulence',
+    description: '6-month churn × structural complexity for the most turbulent file.',
+    category: 'Churn',
+    comparison: 'lte',
+    unit: 'turbulence',
+  },
+  'max package avg turbulence': {
+    metricId: 'complexity-pressure-package-turbulence-avg-max',
+    metricName: 'Pressure: Max Package Avg Turbulence',
+    description: 'Highest per-package average turbulence (sum of file turbulence ÷ file count).',
+    category: 'Churn',
+    comparison: 'lte',
+    unit: 'turbulence',
+  },
+}
+
+async function recordPressureAxes(metrics) {
+  for (const metric of metrics) {
+    const config = PRESSURE_AXIS_REPORTS[metric.axis]
+    if (!config) continue
+    const passed = config.comparison === 'lte'
+      ? metric.value <= metric.target
+      : metric.value >= metric.target
+    await recordHealthReport({
+      metricId: config.metricId,
+      metricName: config.metricName,
+      description: config.description,
+      category: config.category,
+      current: metric.value,
+      budget: metric.target,
+      comparison: config.comparison,
+      passed,
+      unit: config.unit,
+      timestamp: new Date().toISOString(),
+      details: {
+        axis: metric.axis,
+        debtRatio: metric.ratio,
+        worstOffender: metric.offender,
+      },
+    })
+  }
+}
+
 function formatNumber(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(3)
 }
@@ -783,6 +894,8 @@ async function main() {
       offender: packageTurbulence[0]?.packageName ?? 'n/a',
     },
   ].sort((a, b) => b.ratio - a.ratio)
+
+  await recordPressureAxes(metrics)
 
   const topRatios = metrics.map(metric => metric.ratio).sort((a, b) => b - a).slice(0, 5)
   const rscd = (topRatios[0] ?? 0) + 0.25 * (topRatios.reduce((sum, value) => sum + value, 0) / Math.max(1, topRatios.length))
