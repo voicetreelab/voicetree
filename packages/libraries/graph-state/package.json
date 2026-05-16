@@ -13,6 +13,8 @@
     "./fixtures": "./src/fixtures.ts",
     "./fixtures/serialization": "./src/fixtures/serialization.ts",
     "./project": "./src/project.ts",
+    "./state/folderVisibility/implicitRoots": "./src/state/folderVisibility/implicitRoots.ts",
+    "./state/folderVisibilityStore": "./src/state/folderVisibilityStore.ts",
     "./state/selectionStore": "./src/state/selectionStore.ts",
     "./state/layoutStore": "./src/state/layoutStore.ts"
   },

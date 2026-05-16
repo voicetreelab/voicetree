@@ -33,7 +33,8 @@ import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/controllers/tra
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
-import { deriveImplicitRoots, getFolderVisibility } from '@vt/graph-state';
+import { deriveImplicitRoots } from '@vt/graph-state/state/folderVisibility/implicitRoots';
+import { getFolderVisibility } from '@vt/graph-state/state/folderVisibilityStore';
 
 function hasVisibleRoots(): boolean {
     try {
