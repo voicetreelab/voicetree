@@ -18,6 +18,14 @@ import {
   writeInitialCommand,
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
+import {
+  buildTmuxEnv,
+  resolveHeadfulPromptInjection,
+  resolvePromptFileWrite,
+  resolveTmuxVaultPath,
+  type HeadfulPromptInjectionRequest,
+  type PromptFileWriteRequest,
+} from './tmuxSpawnPlanning';
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -35,6 +43,11 @@ export interface TerminalSpawnOpts {
   getToolsDirectory: () => string;
   onData: (terminalId: string, data: string) => void;
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
+}
+
+function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
+  if (!request) return null;
+  return writePromptFile(request.vaultPath, request.terminalId, request.prompt);
 }
 
 /**
@@ -151,30 +164,19 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const vaultPath: string | undefined = deps.env.VOICETREE_VAULT_PATH ?? initial.VOICETREE_VAULT_PATH;
-      const agentPrompt: string | undefined = initial.AGENT_PROMPT;
-      const promptFile: string | null = agentPrompt && vaultPath
-        ? writePromptFile(vaultPath, terminalId, agentPrompt)
-        : null;
-      const tmuxEnv: Record<string, string> = {};
-      for (const key of Object.keys(initial)) {
-        if (key === 'AGENT_PROMPT') continue;
-        const value: string = initial[key];
-        if (typeof value === 'string') tmuxEnv[key] = value;
-      }
-      // Explicit '' override defeats OS env-inheritance leak from parent
-      // electron process: simply omitting AGENT_PROMPT from the tmux -e set
-      // doesn't unset values inherited via electron → tmux server → bash → node.
-      tmuxEnv.AGENT_PROMPT = '';
-      if (promptFile) tmuxEnv.AGENT_PROMPT_FILE = promptFile;
-      // spawnTmuxBackedTerminal demands VOICETREE_VAULT_PATH in tmuxEnv to
-      // resolve the log/metadata paths. IPC callers (Electron headful spawn)
-      // don't always set it in initialEnvVars — fall back to the main process
-      // env we already consulted above.
-      if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
+      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial);
+      const promptFile: string | null = writeResolvedPromptFile(
+        resolvePromptFileWrite(vaultPath, terminalId, initial.AGENT_PROMPT),
+      );
+      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, vaultPath, promptFile);
       await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv, undefined, promptFile);
-      if (promptFile && terminalData.initialCommand) {
-        await injectAgentCommandHeadful({terminalId, command: terminalData.initialCommand, promptFilePath: promptFile});
+      const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
+        terminalId,
+        terminalData.initialCommand,
+        promptFile,
+      );
+      if (promptInjection) {
+        await injectAgentCommandHeadful(promptInjection);
       }
       return {success: true, terminalId};
     } catch (error: unknown) {
