@@ -79,6 +79,50 @@ describe('applyGraphDeltaToGraph', () => {
 
             expect(result.nodes['folder/existing.md'].nodeUIMetadata.position).toEqual(O.some({ x: 100, y: 200 }))
         })
+
+        it('rebases stale edge additions over newer content', () => {
+            const nodeId: NodeIdAndFilePath = 'folder/parent.md'
+            const childId: NodeIdAndFilePath = 'folder/parent_0.md'
+            const staleParent: GraphNode = makeNode(nodeId, '# ')
+            const currentParent: GraphNode = makeNode(nodeId, '# My Important Title')
+            const graph: Graph = makeGraph([currentParent])
+            const staleEdgeAddedParent: GraphNode = makeNode(nodeId, '# ', [
+                { targetId: childId, label: '' },
+            ])
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: staleEdgeAddedParent, previousNode: O.some(staleParent) },
+            ]
+
+            const result: Graph = applyGraphDeltaToGraph(graph, delta)
+
+            expect(result.nodes[nodeId].contentWithoutYamlOrLinks).toBe('# My Important Title')
+            expect(result.nodes[nodeId].outgoingEdges).toEqual([{ targetId: childId, label: '' }])
+        })
+
+        it('keeps current edges when rebasing a stale edge addition', () => {
+            const nodeId: NodeIdAndFilePath = 'folder/parent.md'
+            const existingChildId: NodeIdAndFilePath = 'folder/existing.md'
+            const newChildId: NodeIdAndFilePath = 'folder/parent_0.md'
+            const staleParent: GraphNode = makeNode(nodeId, '# ')
+            const currentParent: GraphNode = makeNode(nodeId, '# My Important Title', [
+                { targetId: existingChildId, label: '' },
+            ])
+            const graph: Graph = makeGraph([currentParent])
+            const staleEdgeAddedParent: GraphNode = makeNode(nodeId, '# ', [
+                { targetId: newChildId, label: '' },
+            ])
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: staleEdgeAddedParent, previousNode: O.some(staleParent) },
+            ]
+
+            const result: Graph = applyGraphDeltaToGraph(graph, delta)
+
+            expect(result.nodes[nodeId].contentWithoutYamlOrLinks).toBe('# My Important Title')
+            expect(result.nodes[nodeId].outgoingEdges).toEqual([
+                { targetId: existingChildId, label: '' },
+                { targetId: newChildId, label: '' },
+            ])
+        })
     })
 
     describe('UpsertNode - rename detection', () => {

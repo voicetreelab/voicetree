@@ -16,6 +16,7 @@ const config: KnipConfig = {
                 'vt-website-quartz/**',
                 'voicetree-evals/**',
                 'old/**',
+                'spikes/**',
                 'tools/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',

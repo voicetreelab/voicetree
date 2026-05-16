@@ -10,6 +10,10 @@ import type {SpawnTerminalLogger} from './reloadNodeFromDisk'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 
+type SettingsWithPtyBackend = VTSettings & {
+    readonly ptyBackend?: 'node-pty' | 'tmux'
+}
+
 export type LaunchTerminalSpawnParams = {
     readonly contextNodeId: NodeIdAndFilePath
     readonly resolvedTaskNodeId: NodeIdAndFilePath
@@ -43,7 +47,10 @@ function launchPreparedTerminal(
     terminalData: TerminalData,
 ): void {
     if (params.headless) {
-        const headlessCommand: string = buildHeadlessCommand(params.command)
+        // Use the prepared initialCommand (which has VoiceTree's hook flags
+        // already injected by prepareTerminalDataInMain) rather than
+        // params.command which is the raw settings value.
+        const headlessCommand: string = buildHeadlessCommand(terminalData.initialCommand ?? params.command)
         const headlessEnv: Record<string, string> = terminalData.initialEnvVars ?? {}
         if (params.inheritTerminalId) {
             killHeadlessAgent(params.inheritTerminalId as TerminalId)
@@ -53,7 +60,9 @@ function launchPreparedTerminal(
             terminalData,
             headlessCommand,
             terminalData.initialSpawnDirectory,
-            headlessEnv
+            headlessEnv,
+            undefined,
+            (params.settings as SettingsWithPtyBackend).ptyBackend ?? 'node-pty',
         )
         return
     }

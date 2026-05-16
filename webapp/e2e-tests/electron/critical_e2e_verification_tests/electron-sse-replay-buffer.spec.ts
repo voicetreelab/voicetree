@@ -93,14 +93,13 @@ test.describe('SSE replay buffer', () => {
       intervals: [250, 500, 1000],
     }).toBe(true);
 
-    // Stop file watching so the ONLY graph delivery channel is SSE.
-    // Without this, the file watcher detects new .md files written by spawn_agent
-    // and pushes the projected graph directly via IPC (syncRendererFromDaemon),
-    // bypassing SSE entirely.
+    // Stop the main-process graph sync poller so the ONLY graph delivery
+    // channel is SSE. Do not call stopFileWatching() here: that unloads the
+    // active daemon/vault and leaves MCP spawn_agent without a write path.
     await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      await api.main.stopFileWatching();
+      await (api.main as Record<string, () => Promise<void>>).__debugStopDaemonGraphSync();
     });
 
     // Lock SSE — drops the connection AND prevents auto-resubscription

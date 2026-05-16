@@ -9,6 +9,7 @@ export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
     readonly commonParentPath: string | null
     readonly supportedSelectionCount: number
+    readonly selectionsShareParent: boolean
 }
 
 export interface ComputeExtractIntoFolderGraphDeltaResult {
@@ -22,6 +23,39 @@ function getSelectedItemParent(selectedItemId: NodeIdAndFilePath): string | null
         : getFolderParent(selectedItemId)
 }
 
+function longestCommonFolderPath(parentPaths: readonly (string | null)[]): string | null {
+    if (parentPaths.length === 0 || parentPaths.some((parentPath) => parentPath === null)) {
+        return null
+    }
+
+    const stringPaths: readonly string[] = parentPaths as readonly string[]
+    const allAbsolute: boolean = stringPaths.every((parentPath) => parentPath.startsWith('/'))
+    const segmentLists: readonly (readonly string[])[] = stringPaths.map((parentPath) =>
+        parentPath.split('/').filter((segment) => segment.length > 0)
+    )
+
+    const minSegmentCount: number = segmentLists.reduce<number>(
+        (acc: number, segments: readonly string[]) => Math.min(acc, segments.length),
+        Number.POSITIVE_INFINITY
+    )
+
+    const commonSegments: string[] = []
+    for (let segmentIndex = 0; segmentIndex < minSegmentCount; segmentIndex++) {
+        const segment: string = segmentLists[0][segmentIndex]
+        if (segmentLists.every((segments) => segments[segmentIndex] === segment)) {
+            commonSegments.push(segment)
+        } else {
+            break
+        }
+    }
+
+    if (commonSegments.length === 0) {
+        return null
+    }
+    const prefix: string = allAbsolute ? '/' : ''
+    return prefix + commonSegments.join('/') + '/'
+}
+
 export function getExtractIntoFolderSelectionSupport(
     selectedItemIds: readonly NodeIdAndFilePath[]
 ): ExtractIntoFolderSelectionSupport {
@@ -29,19 +63,24 @@ export function getExtractIntoFolderSelectionSupport(
         return {
             canExtract: false,
             commonParentPath: null,
-            supportedSelectionCount: 0
+            supportedSelectionCount: 0,
+            selectionsShareParent: false
         }
     }
 
     const parentPaths: readonly (string | null)[] = selectedItemIds.map(getSelectedItemParent)
     const firstParentPath: string | null = parentPaths[0] ?? null
-    const sharesSameParent: boolean = parentPaths.every((parentPath) => parentPath === firstParentPath)
-    const supportedSelectionCount: number = sharesSameParent ? selectedItemIds.length : 0
+    const selectionsShareParent: boolean = parentPaths.every((parentPath) => parentPath === firstParentPath)
+    const commonParentPath: string | null = selectionsShareParent
+        ? firstParentPath
+        : longestCommonFolderPath(parentPaths)
+    const supportedSelectionCount: number = selectedItemIds.length
 
     return {
         canExtract: supportedSelectionCount >= 2,
-        commonParentPath: sharesSameParent ? firstParentPath : null,
-        supportedSelectionCount
+        commonParentPath,
+        supportedSelectionCount,
+        selectionsShareParent
     }
 }
 
@@ -184,7 +223,8 @@ function createExtractionNames(
 export function computeExtractIntoFolderGraphDelta(
     selectedItemIds: readonly NodeIdAndFilePath[],
     graph: Graph,
-    writePath: string
+    writePath: string,
+    folderNameOverride?: string
 ): ComputeExtractIntoFolderGraphDeltaResult {
     const selectionSupport: ExtractIntoFolderSelectionSupport = getExtractIntoFolderSelectionSupport(selectedItemIds)
     if (!selectionSupport.canExtract) {
@@ -196,7 +236,11 @@ export function computeExtractIntoFolderGraphDelta(
         return { delta: [], newFolderId: null }
     }
 
-    const { folderName, hubNoteName } = createExtractionNames(writePath, selectedItemIds)
+    const generatedNames = createExtractionNames(writePath, selectedItemIds)
+    const folderName: string = folderNameOverride !== undefined && folderNameOverride.trim().length > 0
+        ? folderNameOverride.trim()
+        : generatedNames.folderName
+    const hubNoteName: string = generatedNames.hubNoteName
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
     const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 

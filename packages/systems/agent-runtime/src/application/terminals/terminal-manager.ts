@@ -2,9 +2,11 @@ import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import {getTerminalId} from './terminal-registry/types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
-import type {TerminalData} from './terminal-registry/types';
+import type {TerminalData, TerminalId} from './terminal-registry/types';
+import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
-import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
+import {closeHeadlessAgent, cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
+import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {getRuntimeTrace} from '../runtime/runtime-config';
 import {
   attachPtyProcessHandlers,
@@ -13,7 +15,6 @@ import {
   getWindowsShell,
   resolveTerminalCwd,
   resolveTerminalShell,
-  startPromptDetectionForTerminal,
   writeInitialCommand,
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
@@ -102,14 +103,12 @@ export class TerminalManager {
       this.terminals.set(terminalId, ptyProcess);
       recordTerminalSpawn(terminalId, terminalData);
 
-      startPromptDetectionForTerminal(terminalId, deps.logger);
       writeInitialCommand(terminalData, ptyProcess, deps.setTimeout);
       attachPtyProcessHandlers({
         terminalId,
         ptyProcess,
         onData,
         onExit,
-        logger: deps.logger,
         releaseTerminal: () => { this.terminals.delete(terminalId); },
       });
 
@@ -127,6 +126,61 @@ export class TerminalManager {
       return { success: true, terminalId }; // Return success with error terminal
     }
     });
+  }
+
+  // Tmux-backed interactive spawn. Creates a tmux session running the user
+  // shell (so the relay's WS attach has something to connect to) and
+  // registers in terminal-registry. The renderer panel speaks WS to the relay
+  // directly — no PTY is owned by this process for tmux-backed terminals.
+  //
+  // Phase 6 prompt delivery: the agent prompt is written to a disk file
+  // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
+  // time and never crosses tmux's argv. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` with a short reference to the
+  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
+  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
+  // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
+  // context; panes inherit from the server. Only AGENT_PROMPT itself is
+  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
+  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
+  async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
+    const {terminalData, getToolsDirectory} = opts;
+    const deps: TerminalManagerDeps = this.deps;
+    const terminalId: TerminalId = readTerminalId(terminalData);
+    try {
+      const shell: string = await resolveTerminalShell(deps);
+      const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
+      const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
+      const vaultPath: string | undefined = deps.env.VOICETREE_VAULT_PATH ?? initial.VOICETREE_VAULT_PATH;
+      const agentPrompt: string | undefined = initial.AGENT_PROMPT;
+      const promptFile: string | null = agentPrompt && vaultPath
+        ? writePromptFile(vaultPath, terminalId, agentPrompt)
+        : null;
+      const tmuxEnv: Record<string, string> = {};
+      for (const key of Object.keys(initial)) {
+        if (key === 'AGENT_PROMPT') continue;
+        const value: string = initial[key];
+        if (typeof value === 'string') tmuxEnv[key] = value;
+      }
+      // Explicit '' override defeats OS env-inheritance leak from parent
+      // electron process: simply omitting AGENT_PROMPT from the tmux -e set
+      // doesn't unset values inherited via electron → tmux server → bash → node.
+      tmuxEnv.AGENT_PROMPT = '';
+      if (promptFile) tmuxEnv.AGENT_PROMPT_FILE = promptFile;
+      // spawnTmuxBackedTerminal demands VOICETREE_VAULT_PATH in tmuxEnv to
+      // resolve the log/metadata paths. IPC callers (Electron headful spawn)
+      // don't always set it in initialEnvVars — fall back to the main process
+      // env we already consulted above.
+      if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
+      await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv, undefined, promptFile);
+      if (promptFile && terminalData.initialCommand) {
+        await injectAgentCommandHeadful({terminalId, command: terminalData.initialCommand, promptFilePath: promptFile});
+      }
+      return {success: true, terminalId};
+    } catch (error: unknown) {
+      deps.logger.error(`Failed to spawn tmux-backed terminal ${terminalId}:`, error);
+      return {success: false, terminalId, error: error instanceof Error ? error.message : String(error)};
+    }
   }
 
   /**

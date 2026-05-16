@@ -2,13 +2,14 @@
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
-import type {getTerminalManager} from '@vt/agent-runtime';
+import {agentRuntime, type getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup/debug-auto-setup';
 import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
+import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
@@ -151,9 +152,28 @@ export function createWindow(deps: {
         })();
     });
 
-    // Track user activity for re-engagement notifications
+    let windowFocused = true;
+
+    function recomputeAndApplyTier(): void {
+        const tier: AppActivityTier = windowFocused
+            ? 'active'
+            : agentRuntime.getTerminalRecords().some(r => r.status === 'running') ? 'background' : 'idle';
+        setDaemonGraphSyncTier(tier);
+    }
+
     mainWindow.on('focus', () => {
+        windowFocused = true;
         void recordAppUsage();
+        recomputeAndApplyTier();
+    });
+
+    mainWindow.on('blur', () => {
+        windowFocused = false;
+        recomputeAndApplyTier();
+    });
+
+    agentRuntime.subscribeToRegistry(() => {
+        if (!windowFocused) recomputeAndApplyTier();
     });
 
     let persistedPositionsBeforeClose: boolean = false;

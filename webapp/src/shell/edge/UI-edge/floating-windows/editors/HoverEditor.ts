@@ -3,7 +3,7 @@ import type cytoscape from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
-import {isImageNode} from '@vt/graph-model/graph';
+import {isImageNode, getFolderNotePath} from '@vt/graph-model/graph';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
 import type {Position} from '@/shell/UI/views/graph-view/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
@@ -241,27 +241,40 @@ export function setupCommandHover(cy: Core): void {
             //console.log('[HoverEditor-v2] GraphNode mouseover');
 
             const node: cytoscape.NodeSingular = event.target;
-            const nodeId: string = node.id();
+            const cyNodeId: string = node.id();
+            const isFolder: boolean = node.data('isFolderNode') === true;
+
+            // For folders, resolve to the folder note path (e.g. /vault/topic/ → /vault/topic/index.md).
+            // Folder cy nodes have no file extension, so without this they would fail the check below.
+            let editorNodeId: string = cyNodeId;
+            if (isFolder) {
+                const graph = await window.electronAPI?.main.getGraph();
+                const folderNoteId: NodeIdAndFilePath | undefined = graph
+                    ? getFolderNotePath(graph, cyNodeId)
+                    : undefined;
+                if (!folderNoteId) return;
+                editorNodeId = folderNoteId;
+            }
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions
-            const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
+            const hasFileExtension: boolean = /\.\w+$/.test(editorNodeId);
             if (!hasFileExtension) {
-                //console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
+                //console.log('[HoverEditor-v2] Skipping non-file node:', cyNodeId);
                 return;
             }
 
             // Check if this is an image node - open image viewer instead of editor
-            if (isImageNode(nodeId)) {
-                //console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
+            if (isImageNode(editorNodeId)) {
+                //console.log('[HoverEditor-v2] Opening image viewer for:', editorNodeId);
                 // Close any open hover editor first
                 closeHoverEditor(cy);
-                await openHoverImageViewer(cy, nodeId, node.position());
+                await openHoverImageViewer(cy, editorNodeId, node.position());
                 return;
             }
 
             // Open hover editor for markdown files (non-presentation nodes)
-            await openHoverEditor(cy, nodeId, node.position());
+            await openHoverEditor(cy, editorNodeId as NodeIdAndFilePath, node.position());
         })();
     });
 }

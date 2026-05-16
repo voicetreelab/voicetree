@@ -7,7 +7,6 @@ import type { AbsolutePath, AvailableFolderItem, FilePath } from '@vt/graph-mode
 import type { ParsedQuery } from '@vt/graph-model'
 import { createDatedSubfolder } from '@vt/app-config/project'
 import type { VaultState } from '@vt/graph-db-client'
-
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'

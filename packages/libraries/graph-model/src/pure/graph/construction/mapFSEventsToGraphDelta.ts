@@ -1,7 +1,18 @@
-import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '..'
+import type {
+  DeleteNode,
+  FSEvent,
+  FSUpdate,
+  Graph,
+  GraphDelta,
+  GraphNode,
+  NodeIdAndFilePath,
+  UpsertNodeDelta
+} from '..'
 import * as O from 'fp-ts/lib/Option.js'
 import { filenameToNodeId } from '../markdown-parsing/filename-utils'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '../graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
+import { getBaseName } from '../graph-operations/indexes/linkResolutionIndexes'
+import { setOutgoingEdges } from '../graph-operations/transforms/graph-edge-operations'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -37,13 +48,17 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, currentGraph: Graph): 
   if ('type' in fsEvent && fsEvent.type === 'Delete') {
     // This is FSDelete - node ID is the absolute path
     const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath)
+    const deletedNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[nodeId])
     // Capture the deleted node for potential undo
     const deleteAction: DeleteNode = {
       type: 'DeleteNode',
       nodeId,
-      deletedNode: O.fromNullable(currentGraph.nodes[nodeId])  // Include full node for undo support
+      deletedNode  // Include full node for undo support
     }
-    return [deleteAction]
+    return [
+      deleteAction,
+      ...healIncomingEdgesToSameBasenameReplacement(nodeId, deletedNode, currentGraph)
+    ]
   } else {
     // This is FSUpdate (Added or Changed)
     const fsUpdate: FSUpdate = fsEvent as FSUpdate
@@ -58,6 +73,66 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, currentGraph: Graph): 
 function handleUpsert(fsUpdate: FSUpdate, currentGraph: Graph): GraphDelta {
   // Use unified function - handles both outgoing and incoming edge validation
   return addNodeToGraphWithEdgeHealingFromFSEvent(fsUpdate, currentGraph)
+}
+
+function findSameBasenameMoveReplacement(
+  deletedNodeId: NodeIdAndFilePath,
+  deletedNode: GraphNode,
+  currentGraph: Graph
+): O.Option<NodeIdAndFilePath> {
+  const deletedBasename: string = getBaseName(deletedNodeId)
+  const candidateIds: readonly NodeIdAndFilePath[] = currentGraph.nodeByBaseName.get(deletedBasename) ?? []
+  const matchingCandidates: readonly NodeIdAndFilePath[] = candidateIds.filter((candidateId) => {
+    const candidate: GraphNode | undefined = currentGraph.nodes[candidateId]
+    if (!candidate) return false
+
+    return candidateId !== deletedNodeId
+      && candidate.kind === deletedNode.kind
+      && candidate.contentWithoutYamlOrLinks === deletedNode.contentWithoutYamlOrLinks
+  })
+
+  return matchingCandidates.length === 1 ? O.some(matchingCandidates[0]) : O.none
+}
+
+function redirectNodeEdges(
+  node: GraphNode,
+  fromNodeId: NodeIdAndFilePath,
+  toNodeId: NodeIdAndFilePath
+): GraphNode {
+  return setOutgoingEdges(
+    node,
+    node.outgoingEdges.map(edge => ({
+      ...edge,
+      targetId: edge.targetId === fromNodeId ? toNodeId : edge.targetId
+    }))
+  )
+}
+
+function healIncomingEdgesToSameBasenameReplacement(
+  deletedNodeId: NodeIdAndFilePath,
+  deletedNode: O.Option<GraphNode>,
+  currentGraph: Graph
+): readonly UpsertNodeDelta[] {
+  if (O.isNone(deletedNode)) return []
+
+  const replacementNodeId: O.Option<NodeIdAndFilePath> = findSameBasenameMoveReplacement(
+    deletedNodeId,
+    deletedNode.value,
+    currentGraph
+  )
+  if (O.isNone(replacementNodeId)) return []
+
+  const sourceNodeIds: readonly NodeIdAndFilePath[] = currentGraph.incomingEdgesIndex.get(deletedNodeId) ?? []
+  return sourceNodeIds.flatMap((sourceNodeId): readonly UpsertNodeDelta[] => {
+    const sourceNode: GraphNode | undefined = currentGraph.nodes[sourceNodeId]
+    if (!sourceNode) return []
+
+    return [{
+      type: 'UpsertNode',
+      nodeToUpsert: redirectNodeEdges(sourceNode, deletedNodeId, replacementNodeId.value),
+      previousNode: O.some(sourceNode)
+    }]
+  })
 }
 
 /**

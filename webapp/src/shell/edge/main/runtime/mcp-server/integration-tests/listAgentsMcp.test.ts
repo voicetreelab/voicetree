@@ -20,6 +20,7 @@ vi.mock('@vt/agent-runtime', () => {
         getIdleSince: vi.fn(),
         getOutput: vi.fn(),
         getPendingTerminal: vi.fn(),
+        getPendingTerminals: vi.fn(),
         getRuntimeUI: vi.fn(),
         getTerminalRecords: vi.fn(),
         registerChild: vi.fn(),
@@ -42,7 +43,7 @@ vi.mock('@vt/app-config/settings', () => ({
 import {configureMcpServer, listAgentsTool} from '@vt/voicetree-mcp'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
-import {getTerminalRecords} from '@vt/agent-runtime'
+import {agentRuntime, getTerminalRecords} from '@vt/agent-runtime'
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType"
 
 type McpToolResponse = {
@@ -71,6 +72,7 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
 describe('MCP list_agents tool', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(agentRuntime.getPendingTerminals).mockReturnValue([])
         configureMcpServer({
             graph: {
                 getGraph: async () => getGraph(),
@@ -159,6 +161,26 @@ describe('MCP list_agents tool', () => {
         const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
 
         expect(payload.agents).toEqual([])
+    })
+
+    it('includes pending headless terminals as running agents', async () => {
+        vi.mocked(getTerminalRecords).mockReturnValue([])
+        vi.mocked(agentRuntime.getPendingTerminals).mockReturnValue([
+            {terminalId: 'pending-headless-1', isHeadless: true}
+        ])
+        vi.mocked(getGraph).mockReturnValue({nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()})
+
+        const response: McpToolResponse = await listAgentsTool()
+        const payload: {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>} =
+            parsePayload(response) as {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>}
+
+        expect(payload.agents).toEqual([
+            expect.objectContaining({
+                terminalId: 'pending-headless-1',
+                status: 'running',
+                isHeadless: true,
+            })
+        ])
     })
 
     it('returns idle status when agent is inactive (isDone: true, PTY running)', async () => {

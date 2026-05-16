@@ -15,6 +15,8 @@ import { mountSessionRoutes } from './session-endpoints/sessions.ts'
 import { mountSessionEventsRoute } from './session-endpoints/sessionEvents.ts'
 import { mountViewRoutes } from './graph-endpoints/view.ts'
 import { type SessionRegistry } from '../application/session/registry.ts'
+import { mountDaemonRoute } from './mountRouteSpec.ts'
+import { daemonRouteSpecBySignature } from './routeSpecs.ts'
 
 export type CreateDaemonAppOptions = {
   onShutdown: () => void
@@ -34,11 +36,11 @@ export function mountDaemonRoutes(
   mountLayoutRoutes(app, opts.registry)
   mountViewRoutes(app, opts.registry)
 
-  app.get('/health', (c) => {
+  mountDaemonRoute(app, daemonRouteSpecBySignature('GET', '/health'), (c) => {
     return c.json(HealthResponseSchema.parse(opts.readHealth()))
   })
 
-  app.post('/shutdown', (c) => {
+  mountDaemonRoute(app, daemonRouteSpecBySignature('POST', '/shutdown'), (c) => {
     opts.onShutdown()
     return c.json(ShutdownResponseSchema.parse({ ok: true }))
   })

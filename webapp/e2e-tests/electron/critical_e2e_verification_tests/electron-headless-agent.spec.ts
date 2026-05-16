@@ -29,7 +29,7 @@ import * as os from 'os';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_SOURCE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
     cytoscapeInstance?: {
@@ -56,12 +56,14 @@ const test = base.extend<{
     electronApp: async ({}, use) => {
         // Create a temporary userData directory for this test
         const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-headless-e2e-'));
+        const fixtureVaultPath = path.join(tempUserDataPath, 'example_small');
+        await fs.cp(FIXTURE_SOURCE_VAULT_PATH, fixtureVaultPath, { recursive: true });
 
         // Create projects.json with the test vault (smoke test pattern)
         const projectsPath = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'headless-test-project',
-            path: FIXTURE_VAULT_PATH,
+            path: fixtureVaultPath,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
@@ -71,7 +73,7 @@ const test = base.extend<{
 
         // Also write legacy config for auto-load attempt
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2), 'utf8');
 
         // Write settings with a test agent command that follows the real pattern.
         // Headless spawn transforms: 'echo "$AGENT_PROMPT"' → 'echo -p "$AGENT_PROMPT"'
@@ -81,6 +83,7 @@ const test = base.extend<{
             agents: [
                 { name: 'Test Agent', command: 'echo "$AGENT_PROMPT"' }
             ],
+            ptyBackend: 'node-pty',
             terminalSpawnPathRelativeToWatchedDirectory: '/'
         }, null, 2), 'utf8');
 

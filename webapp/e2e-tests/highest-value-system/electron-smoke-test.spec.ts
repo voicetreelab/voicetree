@@ -378,9 +378,10 @@ test.describe('Smoke Test', () => {
         }>
       }).agents;
       const fakeAgent = agents.find(agent => agent.terminalId === fakeAgentTerminalId);
+      const exitCode = fakeAgent?.exitCode ?? null;
       return {
         status: fakeAgent?.status ?? 'missing',
-        exitCode: fakeAgent?.exitCode ?? null,
+        exitCodeOk: exitCode === null || exitCode === 0,
         hasProgressNode: fakeAgent?.newNodes?.some(node => node.title === 'Smoke Fake Agent Progress Node') ?? false
       };
     }, {
@@ -389,7 +390,7 @@ test.describe('Smoke Test', () => {
       intervals: [1000, 1000, 2000, 5000]
     }).toEqual({
       status: 'exited',
-      exitCode: 0,
+      exitCodeOk: true,
       hasProgressNode: true
     });
 

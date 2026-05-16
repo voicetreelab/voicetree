@@ -14,6 +14,8 @@ import {
   StructuredVaultError,
   structuredVaultErrorResult,
 } from '@vt/graph-db-server/application/errors/vaultNotOpen'
+import { mountDaemonRoute } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'
 import { errorResult, emptyResult } from '@vt/graph-db-server/application/workflows/httpResult'
 
@@ -23,7 +25,7 @@ export function mountVaultRoutes(app: Hono): void {
   // Same-backend-fn invariant: keep these daemon routes on the same
   // @vt/graph-model exports the IPC surface exposes via
   // webapp/src/shell/edge/main/api.ts:120-122.
-  app.get('/vault', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.show'), async (c) => {
     return sendHttpResult(c, await readVaultWorkflow())
   })
 
@@ -46,7 +48,7 @@ export function mountVaultRoutes(app: Hono): void {
     return sendHttpResult(c, emptyResult(204))
   })
 
-  app.put('/vault/write-path', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.set-write-path'), async (c) => {
     return sendHttpResult(c, await setWritePathWorkflow(await c.req.json()))
   })
 }

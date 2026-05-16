@@ -20,6 +20,7 @@ import {
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
+import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
@@ -51,6 +52,15 @@ import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
+
+// Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
+// don't become uncaughtException dialogs (which loop because SSE-driven
+// graph syncs keep writing load-timing lines after the dialog is dismissed).
+for (const stream of [process.stdout, process.stderr] as const) {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code !== 'EPIPE') throw err;
+    });
+}
 
 // Redirect all console.* to electron-log in production (handles EPIPE errors on Linux AppImage)
 // Writes asynchronously to ~/Library/Logs/Voicetree/ (macOS) or ~/.config/Voicetree/logs/ (Linux)
@@ -188,8 +198,10 @@ registerTerminalIpcHandlers(
 );
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
+const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
 agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
+    notifyOnCompletion(records);
 });
 
 // Register terminal cleanup for when folders are switched
@@ -207,6 +219,13 @@ void app.whenReady().then(async () => {
 
     // Start MCP server in-process (shares graph state with Electron)
     await startMcpServer();
+
+    if (process.env.VOICETREE_VAULT_PATH) {
+        const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
+        if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+            log.info('[Startup] Reconciled tmux terminals', reconciliation);
+        }
+    }
 
     // Register this instance for vt-debug discovery
     await registerInstance();

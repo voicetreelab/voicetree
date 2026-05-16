@@ -15,6 +15,7 @@
     "./api/*": "./src/api/*",
     "./terminals/*": "./src/application/terminals/*",
     "./headless/*": "./src/application/headless/*",
+    "./relay/*": "./src/application/relay/*",
     "./spawn/*": "./src/application/spawn/*",
     "./hooks/*": "./src/application/hooks/*",
     "./inject/*": "./src/application/inject/*",
@@ -29,9 +30,9 @@
     "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
-    "@xterm/headless": "^6.0.0",
     "fp-ts": "^2.16.9",
-    "node-pty": "^1.1.0"
+    "node-pty": "^1.1.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

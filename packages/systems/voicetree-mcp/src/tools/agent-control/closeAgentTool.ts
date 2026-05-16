@@ -8,7 +8,7 @@
  */
 
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
-import {getAgentNodes, getAgentStatus, getNewNodesForAgent} from '../agentDependencies'
+import {getAgentNodes, getAgentStatus, getNewNodesForAgentIdentities} from '../agentDependencies'
 import {getMcpGraph} from '../mcpConfigDependencies'
 import {
     closeHeadlessTerminal,
@@ -64,7 +64,11 @@ export async function closeAgentTool({terminalId, callerTerminalId, forceWithRea
 
         const agentName: string | undefined = targetRecord.terminalData.agentName
         const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(terminalId)
-        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(await getMcpGraph(), agentName, targetRecord.spawnedAt)
+        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgentIdentities(
+            await getMcpGraph(),
+            [agentName, terminalId],
+            targetRecord.spawnedAt
+        )
         const allNodesById: Map<string, {nodeId: string; title: string}> = new Map(
             [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
         )

@@ -23,6 +23,13 @@ export function getPendingTerminal(terminalId: string): { readonly isHeadless: b
     return pending ? { isHeadless: pending.isHeadless } : undefined
 }
 
+export function getPendingTerminals(): Array<{ readonly terminalId: string; readonly isHeadless: boolean }> {
+    return [...pendingTerminals.entries()].map(([terminalId, pending]: [string, PendingTerminal]) => ({
+        terminalId,
+        isHeadless: pending.isHeadless,
+    }))
+}
+
 /**
  * Queue a (pre-formatted) message for a pending terminal. Messages are sent
  * via sendTextToTerminal in arrival order during recordTerminalSpawn.

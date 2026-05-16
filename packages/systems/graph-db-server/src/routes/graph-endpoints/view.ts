@@ -6,50 +6,73 @@ import {
   readProjectedGraphWorkflow,
   renderSessionViewWorkflow,
 } from '@vt/graph-db-server/application/workflows/view'
+import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById, daemonRouteSpecBySignature } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountViewRoutes(
   app: Hono,
   registry: WorkflowSessionRegistry,
 ): void {
-  app.get('/sessions/:sessionId/view', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('graph.view'), async (c) => {
     return sendHttpResult(
       c,
       await renderSessionViewWorkflow(
         registry,
-        c.req.param('sessionId'),
+        routeParam(c, 'sessionId'),
         c.req.query('budget'),
         c.req.queries('expand') ?? [],
       ),
     )
   })
 
-  app.get('/sessions/:sessionId/projected-graph', async (c) => {
-    return sendHttpResult(
-      c,
-      await readProjectedGraphWorkflow(registry, c.req.param('sessionId')),
-    )
-  })
+  mountDaemonRoute(
+    app,
+    daemonRouteSpecBySignature(
+      'GET',
+      '/sessions/:sessionId/projected-graph',
+    ),
+    async (c) => {
+      return sendHttpResult(
+        c,
+        await readProjectedGraphWorkflow(registry, routeParam(c, 'sessionId')),
+      )
+    },
+  )
 
-  app.post('/sessions/:sessionId/expand/:folderId', async (c) => {
-    return sendHttpResult(
-      c,
-      await addExpandOverrideWorkflow(
-        registry,
-        c.req.param('sessionId'),
-        c.req.param('folderId'),
-      ),
-    )
-  })
+  mountDaemonRoute(
+    app,
+    daemonRouteSpecBySignature(
+      'POST',
+      '/sessions/:sessionId/expand/:folderId',
+    ),
+    async (c) => {
+      return sendHttpResult(
+        c,
+        await addExpandOverrideWorkflow(
+          registry,
+          routeParam(c, 'sessionId'),
+          routeParam(c, 'folderId'),
+        ),
+      )
+    },
+  )
 
-  app.delete('/sessions/:sessionId/expand/:folderId', async (c) => {
-    return sendHttpResult(
-      c,
-      await deleteExpandOverrideWorkflow(
-        registry,
-        c.req.param('sessionId'),
-        c.req.param('folderId'),
-      ),
-    )
-  })
+  mountDaemonRoute(
+    app,
+    daemonRouteSpecBySignature(
+      'DELETE',
+      '/sessions/:sessionId/expand/:folderId',
+    ),
+    async (c) => {
+      return sendHttpResult(
+        c,
+        await deleteExpandOverrideWorkflow(
+          registry,
+          routeParam(c, 'sessionId'),
+          routeParam(c, 'folderId'),
+        ),
+      )
+    },
+  )
 }

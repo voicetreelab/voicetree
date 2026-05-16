@@ -17,6 +17,8 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'onnxruntime-web',
   'chokidar',
   'fsevents',
+  'bufferutil',
+  'utf-8-validate',
 ]
 
 // externalizeDepsPlugin resolves bundled packages (@vt/graph-model, @vt/graph-tools) to absolute
@@ -33,10 +35,7 @@ const isMainExternal = (id: string): boolean => {
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
 // need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
-// `@xterm/headless` ships a `module` field pointing to a file that doesn't exist
-// in the published tarball; Vite/Rollup choke on it. The package is pure JS, so
-// we externalize it and let Node's require fall back to `main` at runtime.
-const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar', '@xterm/headless'])
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar', 'bufferutil', 'utf-8-validate'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,

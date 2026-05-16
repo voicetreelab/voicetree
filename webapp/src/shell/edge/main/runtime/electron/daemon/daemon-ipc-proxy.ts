@@ -91,20 +91,8 @@ async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<voi
   const timingActive: boolean = isLoadTimingActive()
   if (timingActive) markLoadTiming('main:daemon-get-graph-start')
   const nextGraph: Graph = await getNormalizedDaemonGraph(client)
-  if (timingActive) {
-    markLoadTiming('main:daemon-get-graph-end', {
-      nodeCount: Object.keys(nextGraph.nodes).length,
-    })
-  }
   const vaultState: VaultState = await client.getVault()
-
-  if (timingActive) {
-    markLoadTiming('main:graph-populated', {
-      nodeCount: Object.keys(nextGraph.nodes).length,
-    })
-  }
   await syncRendererFromDaemon(client, nextGraph, vaultState)
-  if (timingActive) markLoadTiming('main:render-broadcast-sent')
 }
 
 async function syncRendererSessionState(

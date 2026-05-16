@@ -16,6 +16,7 @@ import type {} from '@/shell/electron';
 
 // Module-level state (singleton)
 let currentDarkMode: boolean = false;
+let storedCallbacks: DarkModeCallbacks | null = null;
 
 /**
  * Callbacks that UI components provide to react to dark mode changes
@@ -71,6 +72,8 @@ export async function initializeDarkMode(
     initialValue: boolean | undefined,
     callbacks: DarkModeCallbacks
 ): Promise<boolean> {
+    storedCallbacks = callbacks;
+
     // Set initial value from options
     if (initialValue !== undefined) {
         currentDarkMode = initialValue;
@@ -114,6 +117,20 @@ export function toggleDarkMode(callbacks: DarkModeCallbacks): boolean {
     callbacks.updateSpeedDialMenu?.(currentDarkMode);
 
     return currentDarkMode;
+}
+
+/**
+ * Set dark mode to a specific value (no-op if already at that value).
+ * Uses callbacks stored during initializeDarkMode. Does not persist to settings
+ * — caller is responsible for saving if needed.
+ */
+export function setDarkMode(isDark: boolean): void {
+    if (isDark === currentDarkMode) return;
+    currentDarkMode = isDark;
+    applyDarkModeToDocument(isDark);
+    storedCallbacks?.updateGraphStyles();
+    storedCallbacks?.updateSearchTheme?.(isDark);
+    storedCallbacks?.updateSpeedDialMenu?.(isDark);
 }
 
 /**

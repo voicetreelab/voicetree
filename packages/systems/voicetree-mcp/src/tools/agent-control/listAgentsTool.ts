@@ -8,10 +8,20 @@ import type {Graph} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../types'
-import {getAgentNodes, getNewNodesForAgent} from '../agentDependencies'
+import {getAgentNodes, getNewNodesForAgentIdentities} from '../agentDependencies'
 import * as O from 'fp-ts/lib/Option.js'
 import {getMcpGraph} from '../mcpConfigDependencies'
-import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
+import {listPendingTerminalStates, listTerminalRecords, type PendingTerminalRecord, type TerminalRecord} from './agentControlRuntime'
+
+function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exited' {
+    return record.status === 'exited'
+        ? 'exited'
+        : record.terminalData.isHeadless
+            ? 'running'
+            : record.terminalData.isDone
+                ? 'idle'
+                : 'running'
+}
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
     const graph: Graph = await getMcpGraph()
@@ -30,6 +40,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
     }> = []
 
     const terminalRecords: TerminalRecord[] = listTerminalRecords()
+    const recordIds: Set<string> = new Set(terminalRecords.map((record: TerminalRecord) => record.terminalId))
     for (const record of terminalRecords) {
         if (record.terminalData.executeCommand !== true) {
             continue
@@ -40,7 +51,11 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
 
         // Find nodes created by this agent via agent_name matching (scoped to spawn time)
         const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)
-        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgent(graph, agentName, record.spawnedAt)
+        const graphMatchedNodes: Array<{nodeId: string; title: string}> = getNewNodesForAgentIdentities(
+            graph,
+            [agentName, record.terminalId],
+            record.spawnedAt
+        )
         const newNodesById: Map<string, {nodeId: string; title: string}> = new Map(
             [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
         )
@@ -49,13 +64,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
         // Determine status: exited > idle (isDone) > running
         // isDone reflects UI green indicator (no output for a period)
         // Headless agents have no PTY, so isDone is meaningless — use process status only
-        const status: 'running' | 'idle' | 'exited' = record.status === 'exited'
-            ? 'exited'
-            : record.terminalData.isHeadless
-                ? 'running'
-                : record.terminalData.isDone
-                    ? 'idle'
-                    : 'running'
+        const status: 'running' | 'idle' | 'exited' = terminalRecordStatus(record)
 
         agents.push({
             terminalId: record.terminalId,
@@ -69,6 +78,23 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             newNodes,
             parentTerminalId: record.terminalData.parentTerminalId,
             taskNodePath: O.isSome(record.terminalData.anchoredToNodeId) ? record.terminalData.anchoredToNodeId.value : null
+        })
+    }
+
+    for (const pending of listPendingTerminalStates()) {
+        if (recordIds.has(pending.terminalId)) continue
+        agents.push({
+            terminalId: pending.terminalId,
+            title: pending.terminalId,
+            contextNodeId: '',
+            status: 'running',
+            exitCode: null,
+            auditRetryCount: 0,
+            isHeadless: pending.isHeadless,
+            isMinimized: false,
+            newNodes: [],
+            parentTerminalId: null,
+            taskNodePath: null
         })
     }
 

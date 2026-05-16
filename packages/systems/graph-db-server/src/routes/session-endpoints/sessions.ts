@@ -5,21 +5,23 @@ import {
   readSessionWorkflow,
   type WorkflowSessionRegistry,
 } from '@vt/graph-db-server/application/workflows/sessionRoutes'
+import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'
 
 export function mountSessionRoutes(
   app: Hono,
   registry: WorkflowSessionRegistry,
 ): void {
-  app.post('/sessions', (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('session.create'), (c) => {
     return sendHttpResult(c, createSessionWorkflow(registry))
   })
 
-  app.delete('/sessions/:sessionId', (c) => {
-    return sendHttpResult(c, deleteSessionWorkflow(registry, c.req.param('sessionId')))
+  mountDaemonRoute(app, daemonRouteSpecById('session.delete'), (c) => {
+    return sendHttpResult(c, deleteSessionWorkflow(registry, routeParam(c, 'sessionId')))
   })
 
-  app.get('/sessions/:sessionId', (c) => {
-    return sendHttpResult(c, readSessionWorkflow(registry, c.req.param('sessionId')))
+  mountDaemonRoute(app, daemonRouteSpecById('session.show'), (c) => {
+    return sendHttpResult(c, readSessionWorkflow(registry, routeParam(c, 'sessionId')))
   })
 }

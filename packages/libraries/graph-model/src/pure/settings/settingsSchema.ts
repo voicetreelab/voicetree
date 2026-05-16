@@ -121,6 +121,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
     vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
     shiftEnterSendsOptionEnter:{ default: true,  section: 'general', label: 'Shift+Enter \u2192 Option+Enter' },
     autoNotifyUnseenNodes:     { default: false, section: 'general', label: 'Auto-notify Unseen Nodes' },
+    notifyOnAgentCompletion:   { default: true,  section: 'general', label: 'Notify on Agent Completion' },
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
     shell:                     { section: 'general', label: 'Shell Override' },
@@ -142,6 +143,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
         ] as readonly AgentConfig[],
         section: 'agents',
     },
+    ptyBackend: { default: 'tmux', section: 'agents', label: 'PTY Backend' },
     INJECT_ENV_VARS: {
         default: {
             AGENT_PROMPT_LIGHTWEIGHT: `First read and analyze the context of your task, which is stored at $CONTEXT_NODE_PATH

@@ -394,4 +394,14 @@ describe('buildHeadlessCommand', () => {
         const cmd: string = buildHeadlessCommand("claude --dangerously-skip-permissions '$AGENT_PROMPT'")
         expect(cmd).toBe('claude --dangerously-skip-permissions -p "$AGENT_PROMPT"')
     })
+
+    it('preserves Codex flags injected before the prompt placeholder', () => {
+        const cmd: string = buildHeadlessCommand(`codex -c 'hooks.Stop=[{type="command",command="curl foo"}]' "$AGENT_PROMPT"`)
+        expect(cmd).toBe(`codex -c 'hooks.Stop=[{type="command",command="curl foo"}]' exec --full-auto "$AGENT_PROMPT"`)
+    })
+
+    it('preserves Claude flags injected before the prompt placeholder', () => {
+        const cmd: string = buildHeadlessCommand(`claude --settings '/foo/bar.json' --dangerously-skip-permissions "$AGENT_PROMPT"`)
+        expect(cmd).toBe(`claude --settings '/foo/bar.json' --dangerously-skip-permissions -p "$AGENT_PROMPT"`)
+    })
 })

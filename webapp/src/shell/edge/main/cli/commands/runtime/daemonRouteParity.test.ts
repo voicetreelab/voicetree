@@ -41,15 +41,9 @@ describe('daemon CLI route parity', () => {
         expect(DAEMON_ROUTE_PARITY_EXEMPTIONS).toEqual([
             {
                 method: 'GET',
-                path: '/health',
+                path: '/sessions/:sessionId/projected-graph',
                 reason:
-                    '`/health` exists for readiness, port discovery, and test orchestration; it is not a user-facing `vt` command.',
-            },
-            {
-                method: 'POST',
-                path: '/shutdown',
-                reason:
-                    '`/shutdown` is daemon lifecycle control for teardown and tests; it is not a user-facing `vt` command.',
+                    '`/sessions/:sessionId/projected-graph` returns the full ProjectedGraph for renderer hydration; internal to the Electron IPC bridge, not a CLI command.',
             },
             {
                 method: 'POST',
@@ -65,9 +59,21 @@ describe('daemon CLI route parity', () => {
             },
             {
                 method: 'GET',
-                path: '/sessions/:sessionId/projected-graph',
+                path: '/health',
                 reason:
-                    '`/sessions/:sessionId/projected-graph` returns the full ProjectedGraph for renderer hydration; internal to the Electron IPC bridge, not a CLI command.',
+                    '`/health` exists for readiness, port discovery, and test orchestration; it is not a user-facing `vt` command.',
+            },
+            {
+                method: 'POST',
+                path: '/shutdown',
+                reason:
+                    '`/shutdown` is daemon lifecycle control for teardown and tests; it is not a user-facing `vt` command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/apply-delta',
+                reason:
+                    '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/MCP bridges; the user-facing CLI remains covered by `/graph/delta`.',
             },
             {
                 method: 'GET',
@@ -80,18 +86,6 @@ describe('daemon CLI route parity', () => {
                 path: '/graph/preview-contained-nodes/:nodeId',
                 reason:
                     '`/graph/preview-contained-nodes/:nodeId` computes context node preview highlights for the renderer; not a user-facing CLI command.',
-            },
-            {
-                method: 'POST',
-                path: '/graph/undo',
-                reason:
-                    '`/graph/undo` reverses the last graph mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
-            },
-            {
-                method: 'POST',
-                path: '/graph/redo',
-                reason:
-                    '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
             },
             {
                 method: 'POST',
@@ -118,12 +112,6 @@ describe('daemon CLI route parity', () => {
                     '`/graph/unseen-nodes-around-context-node` collects agent context for MCP orchestration; it is not a user-facing CLI command.',
             },
             {
-                method: 'POST',
-                path: '/graph/apply-delta',
-                reason:
-                    '`/graph/apply-delta` is the option-aware mutation endpoint used by Electron/MCP bridges; the user-facing CLI remains covered by `/graph/delta`.',
-            },
-            {
                 method: 'PATCH',
                 path: '/graph/context-node-contained-ids',
                 reason:
@@ -134,6 +122,18 @@ describe('daemon CLI route parity', () => {
                 path: '/graph/write-positions',
                 reason:
                     '`/graph/write-positions` persists renderer layout coordinates from Electron; it is not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/undo',
+                reason:
+                    '`/graph/undo` reverses the last graph mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
+            },
+            {
+                method: 'POST',
+                path: '/graph/redo',
+                reason:
+                    '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
             },
         ])
     })

@@ -13,6 +13,10 @@ import {getShadowNodeId, getTerminalId} from "@/shell/edge/UI-edge/floating-wind
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {hasActualContentChanged} from "@vt/graph-model/graph";
 import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import * as O from "fp-ts/lib/Option.js";
+import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
+import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
@@ -124,6 +128,23 @@ function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string
     }
 }
 
+function repairTerminalAnchorsForNode(cy: Core, nodeId: string): void {
+    for (const terminal of getTerminals().values()) {
+        if (!terminal.ui || !O.isSome(terminal.anchoredToNodeId)) continue
+        if (terminal.anchoredToNodeId.value !== nodeId) continue
+
+        const shadowNodeId: string = getShadowNodeId(getTerminalId(terminal))
+        const edgeId: string = `edge-${nodeId}-${shadowNodeId}`
+        const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId)
+        const hasAnchorEdge: boolean = cy.getElementById(edgeId).length > 0
+        if (shadowNode.length > 0 && hasAnchorEdge) continue
+
+        if (shadowNode.length > 0) shadowNode.remove()
+        anchorToNode(cy, terminal as TerminalData, getCurrentIndex(cy))
+        cy.getElementById(nodeId).data('hasRunningTerminal', true)
+    }
+}
+
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
     const specNodes: readonly ProjectedNode[] = graph.nodes
     const specEdges: readonly ProjectedEdge[] = graph.edges
@@ -174,7 +195,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
 
                 if (isFolder) {
                     const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                    cy.add({
+                    const addedFolder = cy.add({
                         group: 'nodes' as const,
                         data: {
                             ...baseData,
@@ -189,6 +210,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                                 : {}),
                         },
                     })
+                    // Folder body is input-inert. The corner chip (FolderHandleService)
+                    // carries drag + collapse. Collapsed folders stay grabbable so the
+                    // pill itself can be dragged like a regular node.
+                    if (!collapsed) addedFolder.ungrabify()
                     continue
                 }
 
@@ -229,9 +254,13 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 if (collapsed) {
                     existing.data('collapsed', true)
                     existing.data('childCount', specNode.childCount ?? 0)
+                    // Collapsed pill is a regular node — grabbable
+                    if (!existing.grabbable()) existing.grabify()
                 } else {
                     if (existing.data('collapsed')) existing.removeData('collapsed')
                     if (existing.data('childCount') !== undefined) existing.removeData('childCount')
+                    // Expanded folder body is input-inert; chip handles drag.
+                    if (existing.grabbable()) existing.ungrabify()
                 }
                 continue
             }
@@ -272,6 +301,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 target: specEdge.target,
                 label: truncatedEdgeLabel(specEdge.label),
                 kind: specEdge.kind,
+                ...(specEdge.kind === 'synthetic' ? { isSyntheticEdge: true } : {}),
                 ...(specEdge.edgeCount !== undefined ? { edgeCount: specEdge.edgeCount } : {}),
             }
             cy.add({
@@ -292,6 +322,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
     })
 
     // POST-RECONCILE SIDE-EFFECTS — preserved from the legacy delta path
+    for (const nodeId of newNodeIds) {
+        repairTerminalAnchorsForNode(cy, nodeId)
+    }
+
     // Terminal→node indicator edges driven by agent_name YAML on new nodes.
     for (const [nodeId, agentName] of agentNameByNewNodeId) {
         createTerminalIndicatorEdge(cy, nodeId, agentName)

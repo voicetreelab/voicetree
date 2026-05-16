@@ -6,7 +6,8 @@ import type {} from '@/shell/electron'
 
 export async function extractIntoFolderFromUI(
     selectedNodeIds: readonly NodeIdAndFilePath[],
-    _cy: Core
+    _cy: Core,
+    folderNameOverride?: string
 ): Promise<void> {
     if (selectedNodeIds.length < 2) {
         return
@@ -20,7 +21,7 @@ export async function extractIntoFolderFromUI(
 
     const writePathOption: O.Option<string> | undefined = await window.electronAPI?.main.getWritePath()
     const writePath: string = writePathOption ? O.getOrElse(() => '')(writePathOption) : ''
-    const { delta: graphDelta, newFolderId } = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writePath)
+    const { delta: graphDelta, newFolderId } = computeExtractIntoFolderGraphDelta(selectedNodeIds, currentGraph, writePath, folderNameOverride)
 
     if (graphDelta.length === 0 || newFolderId === null) {
         console.error('[extractIntoFolderFromUI] No valid extract delta generated')
