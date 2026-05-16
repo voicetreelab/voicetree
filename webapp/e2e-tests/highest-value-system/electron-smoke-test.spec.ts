@@ -11,6 +11,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
 import {
   WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
@@ -26,17 +27,50 @@ function delay(ms: number): Promise<void> {
 
 async function closeElectronAppForSmoke(
   electronApp: ElectronApplication,
-  electronProcess: ReturnType<ElectronApplication['process']> | null
+  electronProcess: ChildProcess | null
 ): Promise<void> {
-  let closeSettled = false;
-  const closePromise = electronApp.close()
-    .catch(() => undefined)
-    .finally(() => { closeSettled = true; });
+  try {
+    await Promise.race([
+      electronApp.evaluate(async ({ app }) => {
+        app.quit();
+      }),
+      delay(3000)
+    ]);
+  } catch {
+    // The app may already be exiting.
+  }
 
-  await Promise.race([closePromise, delay(5000)]);
-  if (closeSettled) return;
+  if (!electronProcess || electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
 
-  if (electronProcess?.pid) {
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
+
+  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  if (electronProcess.pid) {
+    try {
+      process.kill(electronProcess.pid, 'SIGTERM');
+    } catch {
+      // Electron already exited.
+    }
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
+
+  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  if (electronProcess.pid) {
     try {
       process.kill(electronProcess.pid, 'SIGKILL');
     } catch {
@@ -44,7 +78,10 @@ async function closeElectronAppForSmoke(
     }
   }
 
-  await Promise.race([closePromise, delay(5000)]);
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
 }
 
 // Extend test with Electron app
@@ -165,20 +202,24 @@ const test = base.extend<{
     });
 
     const electronProcess = electronApp.process();
-    electronProcess?.stdout?.on('data', (chunk: Buffer) => {
+    const stdoutHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.log(`[MAIN STDOUT] ${text.trim()}`);
-    });
-    electronProcess?.stderr?.on('data', (chunk: Buffer) => {
+    };
+    const stderrHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.error(`[MAIN STDERR] ${text.trim()}`);
-    });
+    };
+    electronProcess?.stdout?.on('data', stdoutHandler);
+    electronProcess?.stderr?.on('data', stderrHandler);
 
     await use(electronApp);
 
     await closeElectronAppForSmoke(electronApp, electronProcess);
+    electronProcess?.stdout?.off('data', stdoutHandler);
+    electronProcess?.stderr?.off('data', stderrHandler);
     stopSmokeGraphDaemonForVault(fixtureVaultPath);
     console.log('[Smoke Test] Electron app closed');
   },
