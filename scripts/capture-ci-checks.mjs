@@ -92,7 +92,9 @@ function printHelp(checks) {
         '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
         '  --folder=<path>   run only checks under scripts/measures/src/<path>.',
-        '  --fail-fast       still records every check that ran, but stops scheduling after the first fail.',
+        '  --fail-fast       run sequentially; stop scheduling after the first fail.',
+        '',
+        'Eligible checks run in parallel unless --fail-fast is set.',
         '',
         'Check ids:',
         ...checks.map(c => `  ${c.id.padEnd(32)} ${c.category.padEnd(11)} ${c.measurePath}`),
@@ -276,6 +278,53 @@ async function recordOutcome(check, outcome) {
     })
 }
 
+function shouldSkipCheck(check, opts, stopScheduling = false) {
+    return (opts.only && !opts.only.has(check.id)) || (opts.quick && check.slow === true) || stopScheduling
+}
+
+function skippedOutcome() {
+    return {status: 'skip', durationMs: 0}
+}
+
+function failedSpawnOutcome(err) {
+    return {
+        status: 'fail',
+        durationMs: 0,
+        exitCode: -1,
+        signal: null,
+        timedOut: false,
+        spawnError: String(err?.message ?? err),
+        stdoutTail: undefined,
+        stderrTail: undefined,
+    }
+}
+
+async function runCheck(check) {
+    try {
+        return await spawnCheck(check, process.env)
+    } catch (err) {
+        return failedSpawnOutcome(err)
+    }
+}
+
+async function runChecksInParallel(checks, opts) {
+    return Promise.all(checks.map(async check => ({
+        check,
+        outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
+    })))
+}
+
+async function runChecksSequentially(checks, opts) {
+    const results = []
+    let stopScheduling = false
+    for (const check of checks) {
+        const outcome = shouldSkipCheck(check, opts, stopScheduling) ? skippedOutcome() : await runCheck(check)
+        results.push({check, outcome})
+        if (outcome.status === 'fail') stopScheduling = true
+    }
+    return results
+}
+
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
     const checks = await loadChecks(opts.folder)
@@ -299,45 +348,22 @@ async function main() {
     const scope = opts.folder ? ` under scripts/measures/src/${opts.folder}` : ''
     console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
 
+    const results = opts.failFast
+        ? await runChecksSequentially(checks, opts)
+        : await runChecksInParallel(checks, opts)
+
     let failed = 0
-    let stopScheduling = false
-    for (const check of checks) {
-        const explicitOnly = opts.only && !opts.only.has(check.id)
-        const skipForQuick = opts.quick && check.slow === true
-        const skipForFailFast = stopScheduling
-
-        if (explicitOnly || skipForQuick || skipForFailFast) {
-            // Don't overwrite the persisted report — leave the prior pass/fail intact
-            // so dashboards reflect last-known status. Each check's own auto-record
-            // reporter (Playwright/Vitest) is the source of truth between full runs.
-            printRow(check, {status: 'skip', durationMs: 0})
-            continue
-        }
-
-        let outcome
-        try {
-            outcome = await spawnCheck(check, process.env)
-        } catch (err) {
-            outcome = {
-                status: 'fail',
-                durationMs: 0,
-                exitCode: -1,
-                signal: null,
-                timedOut: false,
-                spawnError: String(err?.message ?? err),
-                stdoutTail: undefined,
-                stderrTail: undefined,
+    for (const {check, outcome} of results) {
+        if (outcome.status !== 'skip') {
+            try {
+                await recordOutcome(check, outcome)
+            } catch (err) {
+                console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
             }
-        }
-        try {
-            await recordOutcome(check, outcome)
-        } catch (err) {
-            console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
         }
         printRow(check, outcome)
         if (outcome.status === 'fail') {
             failed++
-            if (opts.failFast) stopScheduling = true
         }
     }
 

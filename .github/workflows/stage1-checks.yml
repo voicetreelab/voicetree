@@ -63,6 +63,9 @@ jobs:
       - name: Codebase health gate
         run: npm run health
 
+      - name: Codebase health tier 2
+        run: npm run health:tier2
+
   unit-tests:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest

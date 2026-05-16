@@ -7,4 +7,5 @@ export const check: CheckDef = {
     display: 'npm run check:dead-code',
     args: () => npmRun('check:dead-code'),
     parser: 'none',
+    slow: true,
 }
