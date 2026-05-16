@@ -20,6 +20,7 @@ import {
   parseWritePositionsRequest,
 } from '../core/graph/index.ts'
 import { executeCommand } from './dispatch.ts'
+import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
 
 export async function readGraphWorkflow(): Promise<HttpResult> {
@@ -50,6 +51,9 @@ export async function applyGraphDeltaWorkflow(
     const graph = await executeCommand({ type: 'ReadGraph' })
     return jsonResult(composeApplyDeltaResponse(parsed.delta, graph))
   } catch (error) {
+    if (error instanceof VaultNotOpenError) {
+      return structuredVaultErrorResult(error)
+    }
     return errorResult((error as Error).message, 'GRAPH_DELTA_APPLY_FAILED', 500)
   }
 }
@@ -230,7 +234,7 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
 
   const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
   if (!projectRoot) {
-    return errorResult('No vault is currently open', 'NO_VAULT', 503)
+    return structuredVaultErrorResult(new VaultNotOpenError())
   }
 
   try {

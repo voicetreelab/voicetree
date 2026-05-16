@@ -19,6 +19,9 @@ import {
 } from '@vt/graph-model'
 
 import type { Command, State } from '../contract'
+import { deriveImplicitRoots } from '../state/folderVisibility/implicitRoots'
+import { stripTrailingSlash } from '../state/folderVisibility/path'
+import type { FolderState } from '../state/folderVisibility/types'
 
 // ============================================================================
 // SHAPES (JSON-serializable)
@@ -34,6 +37,7 @@ export interface SerializedEdge {
 }
 
 export interface SerializedGraphNode {
+    readonly kind?: GraphNode['kind']
     readonly outgoingEdges: readonly SerializedEdge[]
     readonly absoluteFilePathIsID: string
     readonly contentWithoutYamlOrLinks: string
@@ -70,10 +74,15 @@ export interface SerializedFileTreeNode {
 export interface SerializedState {
     readonly graph: SerializedGraph
     readonly roots: {
-        readonly loaded: readonly string[]
+        readonly loaded?: readonly string[]
         readonly folderTree: readonly SerializedFolderTreeNode[]
     }
-    readonly collapseSet: readonly string[]
+    readonly folderState?: readonly (readonly [string, FolderState])[]
+    readonly activeView?: {
+        readonly viewId: string
+        readonly name: string
+    }
+    readonly collapseSet?: readonly string[]
     readonly selection: readonly string[]
     readonly layout: {
         readonly positions: readonly (readonly [string, Position])[]
@@ -89,8 +98,6 @@ export interface SerializedState {
 }
 
 export type SerializedCommand =
-    | { readonly type: 'Collapse'; readonly folder: string }
-    | { readonly type: 'Expand'; readonly folder: string }
     | { readonly type: 'Select'; readonly ids: readonly string[]; readonly additive?: boolean }
     | { readonly type: 'Deselect'; readonly ids: readonly string[] }
     | { readonly type: 'AddNode'; readonly node: SerializedGraphNode }
@@ -98,8 +105,7 @@ export type SerializedCommand =
     | { readonly type: 'AddEdge'; readonly source: string; readonly edge: SerializedEdge }
     | { readonly type: 'RemoveEdge'; readonly source: string; readonly targetId: string }
     | { readonly type: 'Move'; readonly id: string; readonly to: Position }
-    | { readonly type: 'LoadRoot'; readonly root: string }
-    | { readonly type: 'UnloadRoot'; readonly root: string }
+    | { readonly type: 'SetFolderState'; readonly viewId: string; readonly path: string; readonly state: FolderState }
     | { readonly type: 'SetZoom'; readonly zoom: number }
     | { readonly type: 'SetPan'; readonly pan: Position }
     | { readonly type: 'SetPositions'; readonly positions: ReadonlyArray<readonly [string, Position]> }
@@ -142,12 +148,39 @@ function hydrateMap<V>(entries: readonly (readonly [string, V])[]): ReadonlyMap<
     return new Map(entries)
 }
 
+function toFolderId(path: string): string {
+    return path.endsWith('/') ? path : `${path}/`
+}
+
+function serializeFolderState(state: State): readonly (readonly [string, FolderState])[] {
+    const rows = new Map<string, FolderState>()
+    for (const root of state.roots.loaded) {
+        rows.set(stripTrailingSlash(root), 'expanded')
+    }
+    for (const folder of state.collapseSet) {
+        rows.set(stripTrailingSlash(folder), 'collapsed')
+    }
+    return [...rows.entries()].sort(([left], [right]) => left.localeCompare(right))
+}
+
+function legacyFolderState(state: SerializedState): readonly (readonly [string, FolderState])[] {
+    const rows = new Map<string, FolderState>()
+    for (const root of state.roots.loaded ?? []) {
+        rows.set(stripTrailingSlash(root), 'expanded')
+    }
+    for (const folder of state.collapseSet ?? []) {
+        rows.set(stripTrailingSlash(folder), 'collapsed')
+    }
+    return [...rows.entries()].sort(([left], [right]) => left.localeCompare(right))
+}
+
 // ============================================================================
 // GRAPH NODE
 // ============================================================================
 
 export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
     return {
+        kind: node.kind,
         outgoingEdges: [...node.outgoingEdges]
             .sort(
                 (left, right) =>
@@ -171,6 +204,7 @@ export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
 
 export function hydrateGraphNode(node: SerializedGraphNode): GraphNode {
     return {
+        kind: node.kind ?? 'leaf',
         outgoingEdges: node.outgoingEdges.map((edge) => ({
             targetId: edge.targetId,
             label: edge.label,
@@ -291,13 +325,14 @@ export function collectLayoutPositions(graph: Graph): ReadonlyMap<string, Positi
 }
 
 export function serializeState(state: State): SerializedState {
+    const folderState = serializeFolderState(state)
     return {
         graph: serializeGraph(state.graph),
         roots: {
-            loaded: sortStrings([...state.roots.loaded]),
             folderTree: state.roots.folderTree.map(serializeFolderTreeNode),
         },
-        collapseSet: sortStrings([...state.collapseSet]),
+        folderState,
+        activeView: { viewId: 'main', name: 'main' },
         selection: sortStrings([...state.selection]),
         layout: {
             positions: serializeMap(state.layout.positions),
@@ -314,13 +349,16 @@ export function serializeState(state: State): SerializedState {
 }
 
 export function hydrateState(state: SerializedState): State {
+    const folderState = state.folderState ?? legacyFolderState(state)
     return {
         graph: hydrateGraph(state.graph),
         roots: {
-            loaded: new Set(state.roots.loaded),
+            loaded: new Set(state.roots.loaded ?? deriveImplicitRoots(new Map(folderState))),
             folderTree: state.roots.folderTree.map(hydrateFolderTreeNode),
         },
-        collapseSet: new Set(state.collapseSet),
+        collapseSet: new Set(state.collapseSet ?? folderState
+            .filter(([, folderState]) => folderState === 'collapsed')
+            .map(([path]) => toFolderId(path))),
         selection: new Set(state.selection),
         layout: {
             positions: hydrateMap(state.layout.positions),
@@ -342,9 +380,6 @@ export function hydrateState(state: SerializedState): State {
 
 export function serializeCommand(command: Command): SerializedCommand {
     switch (command.type) {
-        case 'Collapse':
-        case 'Expand':
-            return command
         case 'Select':
             return {
                 type: 'Select',
@@ -363,8 +398,7 @@ export function serializeCommand(command: Command): SerializedCommand {
             return command
         case 'Move':
             return command
-        case 'LoadRoot':
-        case 'UnloadRoot':
+        case 'SetFolderState':
             return command
         case 'SetZoom':
             return command
@@ -384,13 +418,10 @@ export function serializeCommand(command: Command): SerializedCommand {
 
 export function hydrateCommand(command: SerializedCommand): Command {
     switch (command.type) {
-        case 'Collapse':
-        case 'Expand':
         case 'RemoveNode':
         case 'RemoveEdge':
         case 'Move':
-        case 'LoadRoot':
-        case 'UnloadRoot':
+        case 'SetFolderState':
             return command
         case 'Select':
             return {

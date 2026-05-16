@@ -49,14 +49,8 @@ function upsertDelta(node: GraphNode): GraphDelta {
 }
 
 async function addReadPath(baseUrl: string, p: string): Promise<void> {
-  const res = await fetch(`${baseUrl}/vault/read-paths`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: p }),
-  })
-  if (res.status !== 200) {
-    throw new Error(`addReadPath failed: ${res.status} ${await res.text()}`)
-  }
+  void baseUrl
+  void p
 }
 
 describe('@vt/graph-db-server system contract', () => {
@@ -106,10 +100,15 @@ describe('@vt/graph-db-server system contract', () => {
   })
 
   describe('vault endpoint', () => {
-    it('adds a read-path and reflects it in /vault', async () => {
-      await addReadPath(baseUrl, docs)
+    it('sets the write path and reflects it in /vault', async () => {
+      const res = await fetch(`${baseUrl}/vault/write-path`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: docs }),
+      })
+      expect(res.status).toBe(200)
       const vaultState = VaultStateSchema.parse(await (await fetch(`${baseUrl}/vault`)).json())
-      expect(vaultState).toMatchObject({ readPaths: [docs], vaultPath: vault, writePath: vault })
+      expect(vaultState).toMatchObject({ vaultPath: vault, writePath: docs })
     })
   })
 
@@ -183,7 +182,7 @@ describe('@vt/graph-db-server system contract', () => {
         await (await fetch(`${baseUrl}/sessions`, { method: 'POST' })).json(),
       )
       sessionId = created.sessionId
-      folderId = `${docs}/`
+      folderId = docs
     })
 
     it('creates a session via POST /sessions and returns a usable id', async () => {
@@ -191,10 +190,14 @@ describe('@vt/graph-db-server system contract', () => {
       expect(info).toMatchObject({ id: sessionId })
     })
 
-    it('collapses a folder via POST /sessions/:id/collapse/:folderId', async () => {
+    it('sets folder state via PATCH /sessions/:id/folder-state/:folderId', async () => {
       const res = await fetch(
-        `${baseUrl}/sessions/${sessionId}/collapse/${encodeURIComponent(folderId)}`,
-        { method: 'POST' },
+        `${baseUrl}/sessions/${sessionId}/folder-state/${encodeURIComponent(folderId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ state: 'collapsed' }),
+        },
       )
       expect(res.status).toBe(200)
     })
@@ -225,10 +228,14 @@ describe('@vt/graph-db-server system contract', () => {
       expect(layout.layout.positions[notePath]).toEqual({ x: 10, y: 20 })
     })
 
-    it('returns the live state snapshot composing collapse + selection + layout', async () => {
+    it('returns the live state snapshot composing folder state + selection + layout', async () => {
       await fetch(
-        `${baseUrl}/sessions/${sessionId}/collapse/${encodeURIComponent(folderId)}`,
-        { method: 'POST' },
+        `${baseUrl}/sessions/${sessionId}/folder-state/${encodeURIComponent(folderId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ state: 'collapsed' }),
+        },
       )
       await fetch(`${baseUrl}/sessions/${sessionId}/selection`, {
         method: 'POST',
@@ -249,7 +256,7 @@ describe('@vt/graph-db-server system contract', () => {
         await (await fetch(`${baseUrl}/sessions/${sessionId}/state`)).json(),
       )
       expect(sessionState.selection).toEqual([notePath])
-      expect(sessionState.collapseSet).toEqual([folderId])
+      expect(sessionState.folderState).toEqual([[folderId, 'collapsed']])
       expect(sessionState.layout.positions).toEqual([[notePath, { x: 10, y: 20 }]])
       expect(sessionState.layout.pan).toEqual({ x: 3, y: 4 })
       expect(sessionState.layout.zoom).toBe(1.5)
@@ -309,7 +316,7 @@ describe('@vt/graph-db-server system contract', () => {
       expect(zooms).toContain(state.layout.zoom)
     })
 
-    it('handles racing collapse/expand/selection/layout from multiple sessions on the same folder', async () => {
+    it('handles racing folder-state/selection/layout from multiple sessions on the same folder', async () => {
       const notePath = path.join(docs, 'multi.md')
       await writeFile(notePath, '# multi\n', 'utf8')
       await waitFor(async () => {
@@ -324,12 +331,20 @@ describe('@vt/graph-db-server system contract', () => {
         }),
       )
 
-      const folderId = `${docs}/`
+      const folderId = docs
       const ops: Array<Promise<Response>> = []
       for (const sid of sessionIds) {
         ops.push(
-          fetch(`${baseUrl}/sessions/${sid}/collapse/${encodeURIComponent(folderId)}`, { method: 'POST' }),
-          fetch(`${baseUrl}/sessions/${sid}/collapse/${encodeURIComponent(folderId)}`, { method: 'DELETE' }),
+          fetch(`${baseUrl}/sessions/${sid}/folder-state/${encodeURIComponent(folderId)}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ state: 'collapsed' }),
+          }),
+          fetch(`${baseUrl}/sessions/${sid}/folder-state/${encodeURIComponent(folderId)}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ state: 'expanded' }),
+          }),
           fetch(`${baseUrl}/sessions/${sid}/selection`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -425,11 +440,15 @@ describe('@vt/graph-db-server system contract', () => {
 
     it('returns 404 on session-scoped routes when the session does not exist', async () => {
       const folderId = `${vault}/`
-      const collapse = await fetch(
-        `${baseUrl}/sessions/unknown-id/collapse/${encodeURIComponent(folderId)}`,
-        { method: 'POST' },
+      const folderState = await fetch(
+        `${baseUrl}/sessions/unknown-id/folder-state/${encodeURIComponent(folderId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ state: 'collapsed' }),
+        },
       )
-      expect(collapse.status).toBe(404)
+      expect(folderState.status).toBe(404)
 
       const selection = await fetch(`${baseUrl}/sessions/unknown-id/selection`, {
         method: 'POST',
@@ -452,9 +471,9 @@ describe('@vt/graph-db-server system contract', () => {
       expect(info.status).toBe(404)
     })
 
-    it('returns 400 PATH_NOT_FOUND when adding a missing read-path', async () => {
-      const res = await fetch(`${baseUrl}/vault/read-paths`, {
-        method: 'POST',
+    it('returns 400 PATH_NOT_FOUND when setting a missing write path', async () => {
+      const res = await fetch(`${baseUrl}/vault/write-path`, {
+        method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ path: path.join(vault, 'never-existed') }),
       })

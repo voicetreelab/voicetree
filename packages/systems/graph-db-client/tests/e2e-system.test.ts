@@ -54,29 +54,25 @@ describe('@vt/graph-db-client system contract', () => {
     })
   })
 
-  describe('vault read-paths', () => {
-    it('rejects missing read-paths with a typed error', async () => {
-      await expect(client.addReadPath(path.join(vault, 'missing'))).rejects.toMatchObject({
+  describe('vault write path', () => {
+    it('rejects missing write paths with a typed error', async () => {
+      await expect(client.setWritePath(path.join(vault, 'missing'))).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
       })
     })
 
-    it('adds an existing read-path and returns the updated vault state', async () => {
-      await expect(client.addReadPath(docs)).resolves.toMatchObject({
-        readPaths: [docs],
+    it('sets an existing write path and returns the updated vault state', async () => {
+      await expect(client.setWritePath(docs)).resolves.toMatchObject({
+        writePath: docs,
         vaultPath: vault,
       })
     })
   })
 
-  describe('graph read paths', () => {
-    beforeEach(async () => {
-      await client.addReadPath(docs)
-    })
-
-    it('reflects files written into a read-path via the daemon watcher', async () => {
+  describe('graph watcher', () => {
+    it('reflects files written into the vault via the daemon watcher', async () => {
       const notePath = path.join(docs, 'alpha.md')
       await writeFile(notePath, '# Alpha\n\nClient watched content.\n', 'utf8')
       const graph = await waitFor(async () => {
@@ -92,7 +88,6 @@ describe('@vt/graph-db-client system contract', () => {
     let notePath: string
 
     beforeEach(async () => {
-      await client.addReadPath(docs)
       notePath = path.join(docs, 'alpha.md')
       await writeFile(notePath, '# Alpha\n', 'utf8')
       await waitFor(async () => {
@@ -107,7 +102,9 @@ describe('@vt/graph-db-client system contract', () => {
       const clientA = await GraphDbClient.connect({ vault, sessionId })
       const clientB = await GraphDbClient.connect({ vault, sessionId })
 
-      await expect(clientA.collapse(sessionId, `${docs}/`)).resolves.toHaveProperty('collapseSet')
+      await expect(clientA.setFolderState(sessionId, docs, 'collapsed')).resolves.toMatchObject({
+        folderState: [[docs, 'collapsed']],
+      })
       await expect(
         clientB.setSelection(sessionId, { nodeIds: [notePath], mode: 'replace' }),
       ).resolves.toEqual({ selection: [notePath] })
@@ -122,7 +119,7 @@ describe('@vt/graph-db-client system contract', () => {
       })
 
       await expect(clientB.getSessionState(sessionId)).resolves.toMatchObject({
-        collapseSet: [`${docs}/`],
+        folderState: [[docs, 'collapsed']],
         selection: [notePath],
       })
     })
@@ -151,10 +148,6 @@ describe('@vt/graph-db-client system contract', () => {
   })
 
   describe('concurrency stress', () => {
-    beforeEach(async () => {
-      await client.addReadPath(docs)
-    })
-
     it('serves 30 rapid concurrent layout updates from 5 clients on one session', async () => {
       const notePath = path.join(docs, 'race.md')
       await writeFile(notePath, '# race\n', 'utf8')

@@ -1,5 +1,5 @@
 import type {Core, NodeSingular, CollectionReturnValue} from "cytoscape";
-import type {NodeIdAndFilePath} from "@vt/graph-model/pure/graph";
+import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import type {ProjectedEdge, ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract'
 import posthog from "posthog-js";
 import {markTerminalActivityForContextNode} from "@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity";

@@ -4,18 +4,16 @@ import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { getMainWindow } from './app-electron-state'
 
 interface RendererLiveStatePayload {
-    readonly collapseSet?: unknown
     readonly selection?: unknown
 }
 
 export interface RendererLiveStateSnapshot {
-    readonly collapseSet: ReadonlySet<string>
     readonly selection: ReadonlySet<NodeIdAndFilePath>
 }
 
 export type RendererOwnedLiveCommand = Extract<
     Command,
-    { type: 'Collapse' | 'Expand' | 'Select' | 'Deselect' | 'SetZoom' | 'SetPan' | 'RequestFit' }
+    { type: 'Select' | 'Deselect' | 'SetZoom' | 'SetPan' | 'RequestFit' }
 >
 
 function getWebContents(): Electron.WebContents {
@@ -38,7 +36,6 @@ function parseSnapshot(value: unknown): RendererLiveStateSnapshot {
         typeof value === 'object' && value !== null ? (value as RendererLiveStatePayload) : {}
 
     return {
-        collapseSet: new Set(parseStringArray(payload.collapseSet ?? [], 'collapseSet')),
         selection: new Set(
             parseStringArray(payload.selection ?? [], 'selection') as NodeIdAndFilePath[],
         ),
@@ -73,9 +70,7 @@ export function isRendererOwnedLiveCommand(
     command: Command,
 ): command is RendererOwnedLiveCommand {
     return (
-        command.type === 'Collapse'
-        || command.type === 'Expand'
-        || command.type === 'Select'
+        command.type === 'Select'
         || command.type === 'Deselect'
         || command.type === 'SetZoom'
         || command.type === 'SetPan'

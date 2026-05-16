@@ -57,6 +57,18 @@ describe('startDaemon', () => {
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
   })
 
+  test('health works before any vault is opened', async () => {
+    const h = await startDaemon({ appSupportPath: join(vault, 'app-support') })
+    handles.push(h)
+
+    const res = await fetch(`http://127.0.0.1:${h.port}/health`)
+    expect(res.status).toBe(200)
+    const body = HealthResponseSchema.parse(await res.json())
+    expect(body.version).toBe(CONTRACT_VERSION)
+    expect(body.vault).toBe('')
+    expect(body.sessionCount).toBe(0)
+  })
+
   test('port file reflects the assigned port', async () => {
     const h = await start()
     expect(await readPortFile(vault)).toBe(h.port)

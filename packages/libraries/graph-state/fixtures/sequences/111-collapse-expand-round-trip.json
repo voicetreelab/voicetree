@@ -1,16 +1,20 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "111-collapse-expand-round-trip",
-  "description": "Collapsing then expanding a folder returns to the expanded snapshot.",
+  "description": "Setting a folder collapsed then expanded returns to the expanded snapshot.",
   "initial": "010-flat-folder",
   "commands": [
     {
-      "type": "Collapse",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "collapsed"
     },
     {
-      "type": "Expand",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "expanded"
     }
   ],
   "expected": {

@@ -20,8 +20,9 @@ export const DAEMON_ROUTE_SPECS = [
   { id: 'session.show', method: 'GET', path: '/sessions/:sessionId' },
   { id: 'session.events', method: 'GET', path: '/sessions/:sessionId/events' },
   { id: 'view.show', method: 'GET', path: '/sessions/:sessionId/state' },
-  { id: 'view.collapse', method: 'POST', path: '/sessions/:sessionId/collapse/:folderId' },
-  { id: 'view.expand', method: 'DELETE', path: '/sessions/:sessionId/collapse/:folderId' },
+  { id: 'session.folder-state.read', method: 'GET', path: '/sessions/:sessionId/folder-state' },
+  { id: 'session.folder-state.set', method: 'PATCH', path: '/sessions/:sessionId/folder-state/:encodedPath' },
+  { id: 'session.folder-state.batch', method: 'PATCH', path: '/sessions/:sessionId/folder-state' },
   { id: 'view.selection', method: 'POST', path: '/sessions/:sessionId/selection' },
   { id: 'view.layout', method: 'PUT', path: '/sessions/:sessionId/layout' },
   { id: 'graph.view', method: 'GET', path: '/sessions/:sessionId/view' },
@@ -125,9 +126,14 @@ export const DAEMON_ROUTE_SPECS = [
       '`/graph/redo` re-applies a previously undone mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',
   },
   { id: 'vault.show', method: 'GET', path: '/vault' },
-  { id: 'vault.add-read-path', method: 'POST', path: '/vault/read-paths' },
-  { id: 'vault.remove-read-path', method: 'DELETE', path: '/vault/read-paths/:encodedPath' },
+  { id: 'vault.open', method: 'POST', path: '/vault/open' },
+  { id: 'vault.close', method: 'POST', path: '/vault/close' },
   { id: 'vault.set-write-path', method: 'PUT', path: '/vault/write-path' },
+  { id: 'vault.views.list', method: 'GET', path: '/vault/views' },
+  { id: 'vault.views.create', method: 'POST', path: '/vault/views' },
+  { id: 'vault.views.activate', method: 'POST', path: '/vault/views/:viewId/activate' },
+  { id: 'vault.views.clone', method: 'POST', path: '/vault/views/:viewId/clone' },
+  { id: 'vault.views.delete', method: 'DELETE', path: '/vault/views/:viewId' },
 ] as const satisfies readonly DaemonRouteSpec[]
 
 export type DaemonRouteId = Extract<

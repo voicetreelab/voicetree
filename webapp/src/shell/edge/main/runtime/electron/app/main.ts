@@ -49,7 +49,7 @@ import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/gr
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import {
-    getActiveDaemonConnection,
+    getDaemonClient,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 
@@ -88,7 +88,7 @@ configureMcpServer({
         },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getProjectRootWatchedDirectory: () => null,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -111,7 +111,7 @@ agentRuntime.configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getProjectRootWatchedDirectory: () => null,
         getVaultPaths,
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
@@ -122,10 +122,10 @@ agentRuntime.configureAgentRuntime({
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
         getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory: () => getActiveDaemonConnection()?.vault ?? null,
+        getProjectRootWatchedDirectory: () => null,
         getWatchStatus: () => ({
-            isWatching: (getActiveDaemonConnection()?.vault ?? null) !== null,
-            directory: getActiveDaemonConnection()?.vault ?? undefined,
+            isWatching: false,
+            directory: undefined,
         }),
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
@@ -170,12 +170,8 @@ agentRuntime.configureAgentRuntime({
 
 const {autoUpdater} = electronUpdater;
 
-function getActiveGraphDbClient(): NonNullable<ReturnType<typeof getActiveDaemonConnection>>['client'] {
-    const activeConnection = getActiveDaemonConnection();
-    if (!activeConnection) {
-        throw new Error('Graph daemon client is not active. Open a vault before using graph operations.');
-    }
-    return activeConnection.client;
+function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
+    return getDaemonClient();
 }
 
 configureEnvironment();

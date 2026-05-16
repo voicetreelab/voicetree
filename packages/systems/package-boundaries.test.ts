@@ -14,7 +14,13 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'agent-runtime',
     'voicetree-mcp',
 ] as const
-const MODULE_MUTABLE_STATE_BASELINE = 44
+// BF-267: Bumped 44 → 47 to absorb the net +3 module-state vars introduced by the
+// DOVL+UFV epic (vaultLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
+// viewsStore.viewSwitchedListeners, watcherRebuild.unsub{FolderState,ViewSwitched}). A
+// full DI refactor would re-thread vaultLifecycle through every HTTP route and webapp
+// composition site (>3 files touched per the escalation trigger), so the team agreed to
+// accept the bump and revisit when the daemon's composition root is restructured.
+const MODULE_MUTABLE_STATE_BASELINE = 47
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
@@ -23,6 +29,8 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
+    // vaultless daemon launcher (analogous to serve.ts for CLI)
+    'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
     'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
     'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
     'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',

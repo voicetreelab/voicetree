@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
+import {fileURLToPath} from 'node:url';
 import {agentRuntime, type getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
@@ -8,19 +9,20 @@ import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup/debug-auto-setup';
 import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
-import {getActiveDaemonConnection} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
+const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
 
 /** Resolve a path relative to the webapp package root in both dev and packaged builds. */
 export function appResource(...segments: string[]): string {
     // Compiled main bundle lives at <webapp-root>/dist-electron/main/index.js, so
-    // __dirname is two levels below webapp-root in every launch mode (electron-vite
+    // appRuntimeDir is two levels below webapp-root in every launch mode (electron-vite
     // dev, e2e smoke via dist-electron, packaged asar). app.getAppPath() is not
     // reliable here — per build-config.ts:89-91 it returns dist-electron/main when
     // running the built version, which breaks loadFile/icon resolution.
-    return path.join(__dirname, '..', '..', ...segments);
+    // Use appRuntimeDir (from import.meta.url) — __dirname is undefined in ESM bundle.
+    return path.join(appRuntimeDir, '..', '..', ...segments);
 }
 
 async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): Promise<void> {
@@ -88,7 +90,7 @@ export function createWindow(deps: {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, '../preload/index.js')
+            preload: path.join(appRuntimeDir, '../preload/index.js')
         }
     });
 
@@ -186,8 +188,7 @@ export function createWindow(deps: {
             return;
         }
 
-        const projectRoot: string | null = getActiveDaemonConnection()?.vault ?? null;
-        if (deps.isQuitting() && projectRoot && !persistedPositionsBeforeClose) {
+        if (deps.isQuitting() && !persistedPositionsBeforeClose) {
             event.preventDefault();
             persistedPositionsBeforeClose = true;
             void writeCurrentPositionsThroughDaemon()
@@ -204,8 +205,7 @@ export function createWindow(deps: {
     mainWindow.on('closed', () => {
         cleanupTerminalsForWindow(deps.terminalManager, windowId);
         // Persist node positions to .voicetree/positions.json before exit
-        const projectRoot: string | null = getActiveDaemonConnection()?.vault ?? null;
-        if (projectRoot && !persistedPositionsBeforeClose) {
+        if (!persistedPositionsBeforeClose) {
             void writeCurrentPositionsThroughDaemon().catch((error: unknown) => {
                 console.warn('[Main] Failed to persist node positions on window close:', error);
             });

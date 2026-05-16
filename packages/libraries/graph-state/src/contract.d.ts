@@ -10,7 +10,7 @@
  *
  * Invariants (verified in L1, not typed here):
  *   • F6 aggregation (folder-nodes/design.md decision 3) — project() on a
- *     State with a non-empty collapseSet emits synthetic edges matching
+ *     State with collapsed folder-state rows emits synthetic edges matching
  *     computeSyntheticEdgeSpecs (@vt/graph-tools/folderCollapse).
  *   • Additive-friendly: L1 may extend State and Command without breaking
  *     existing consumers (see decisions.md §7).
@@ -76,8 +76,6 @@ export interface State {
 // COMMANDS
 // ============================================================================
 
-export interface Collapse   { readonly type: 'Collapse';   readonly folder: FolderId }
-export interface Expand     { readonly type: 'Expand';     readonly folder: FolderId }
 export interface Select     { readonly type: 'Select';     readonly ids: readonly NodeIdAndFilePath[]; readonly additive?: boolean }
 export interface Deselect   { readonly type: 'Deselect';   readonly ids: readonly NodeIdAndFilePath[] }
 export interface AddNode    { readonly type: 'AddNode';    readonly node: GraphNode }
@@ -85,8 +83,12 @@ export interface RemoveNode { readonly type: 'RemoveNode'; readonly id: NodeIdAn
 export interface AddEdge    { readonly type: 'AddEdge';    readonly source: NodeIdAndFilePath; readonly edge: Edge }
 export interface RemoveEdge { readonly type: 'RemoveEdge'; readonly source: NodeIdAndFilePath; readonly targetId: NodeIdAndFilePath }
 export interface Move       { readonly type: 'Move';       readonly id: NodeIdAndFilePath; readonly to: Position }
-export interface LoadRoot   { readonly type: 'LoadRoot';   readonly root: RootPath }
-export interface UnloadRoot { readonly type: 'UnloadRoot'; readonly root: RootPath }
+export interface SetFolderState {
+    readonly type: 'SetFolderState'
+    readonly viewId: string
+    readonly path: RootPath
+    readonly state: 'expanded' | 'collapsed' | 'hidden'
+}
 
 /**
  * BF-167 layout-state commands. Additive per decisions.md §7.
@@ -100,12 +102,11 @@ export interface SetPositions { readonly type: 'SetPositions'; readonly position
 export interface RequestFit   { readonly type: 'RequestFit';   readonly paddingPx?: number }
 
 export type Command =
-    | Collapse | Expand
     | Select | Deselect
     | AddNode | RemoveNode
     | AddEdge | RemoveEdge
     | Move
-    | LoadRoot | UnloadRoot
+    | SetFolderState
     | SetZoom | SetPan | SetPositions | RequestFit
 
 // ============================================================================

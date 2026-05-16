@@ -7,7 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/daemon-graph-queries'
@@ -50,8 +50,13 @@ import {
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
+  setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
+  listViewsThroughDaemon,
+  activateViewThroughDaemon,
+  cloneViewThroughDaemon,
+  deleteViewThroughDaemon,
 } from './electron/daemon/daemon-ipc-proxy';
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/daemon-sse-subscription';
 import { stopDaemonGraphSync } from './electron/daemon/daemon-watch-sync';
@@ -101,6 +106,7 @@ export const mainAPI = {
   // Collapse/expand through daemon RPC
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
+  setFolderStateThroughDaemon,
 
   // Position saving through daemon persistence
   saveNodePositions,
@@ -111,6 +117,10 @@ export const mainAPI = {
   saveSettings,
 
   // File watching operations - thin wrappers
+  openVault,
+
+  getStartupVaultHint,
+
   startFileWatching,
 
   stopFileWatching,
@@ -247,4 +257,12 @@ export const mainAPI = {
   listWorkflows,
   readSkillFile,
   readSkillFileSummary,
+
+  // View operations (folder-visibility per-project views)
+  views: {
+    list: listViewsThroughDaemon,
+    activate: activateViewThroughDaemon,
+    clone: cloneViewThroughDaemon,
+    delete: deleteViewThroughDaemon,
+  },
 }

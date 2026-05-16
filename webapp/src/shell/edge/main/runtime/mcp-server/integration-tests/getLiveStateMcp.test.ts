@@ -212,15 +212,18 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             fs.writeFileSync(outFile, JSON.stringify(payload, null, 2), 'utf8')
 
             expect(payload.meta).toMatchObject({schemaVersion: 1, revision: 7})
-            expect(payload.collapseSet).toEqual(['/tmp/vault/tasks/'])
+            expect(payload.folderState).toEqual([
+                ['/tmp/vault', 'expanded'],
+                ['/tmp/vault/tasks', 'collapsed'],
+            ])
             expect(payload.selection).toEqual(['/tmp/vault/sample.md'])
             const layout: {positions: Array<[string, {x: number; y: number}]>} =
                 payload.layout as {positions: Array<[string, {x: number; y: number}]>}
             expect(layout.positions).toContainEqual(['/tmp/vault/sample.md', {x: 1, y: 2}])
-            const roots: {loaded: string[]; folderTree: unknown[]} =
-                payload.roots as {loaded: string[]; folderTree: unknown[]}
-            expect(roots.loaded).toContain('/tmp/vault')
+            const roots: {folderTree: Array<{absolutePath: string}>} =
+                payload.roots as {folderTree: Array<{absolutePath: string}>}
             expect(roots.folderTree.length).toBe(1)
+            expect(roots.folderTree[0]?.absolutePath).toBe('/tmp/vault')
         } finally {
             await client.close()
         }

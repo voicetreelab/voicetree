@@ -10,9 +10,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-empty"
-      ],
       "folderTree": [
         {
           "name": "root-empty",
@@ -23,7 +20,16 @@
         }
       ]
     },
-    "collapseSet": [],
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-empty",
+        "expanded"
+      ]
+    ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [],
     "layout": {
       "positions": []

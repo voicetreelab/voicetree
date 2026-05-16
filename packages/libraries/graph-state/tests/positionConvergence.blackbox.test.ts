@@ -51,6 +51,15 @@ function applySequence(state: State, cmds: readonly Command[]): State {
     return cmds.reduce<State>((acc: State, c: Command): State => applyCommand(acc, c), state)
 }
 
+function setFolderState(state: 'expanded' | 'collapsed' | 'hidden'): Command {
+    return {
+        type: 'SetFolderState',
+        viewId: 'main',
+        path: TASKS_FOLDER.slice(0, -1),
+        state,
+    }
+}
+
 const EPSILON: number = 1e-9
 
 describe('Hot Zone C (a) — Position convergence under add/remove/expand', () => {
@@ -107,18 +116,18 @@ describe('Hot Zone C (a) — Position convergence under add/remove/expand', () =
         expect(afterPositions.has(BF118)).toBe(false)
     })
 
-    it('Collapse/Expand round-trip leaves visible-file positions identical to the starting projection', () => {
+    it('SetFolderState collapsed/expanded round-trip leaves visible-file positions identical to the starting projection', () => {
         const initial: State = seededState()
         const before: Map<string, Position> = projectedPositions(initial)
 
         // Collapsing the folder hides BF-117/BF-118 (they project under the folder).
-        const collapsed: State = applyCommand(initial, { type: 'Collapse', folder: TASKS_FOLDER })
+        const collapsed: State = applyCommand(initial, setFolderState('collapsed'))
         const collapsedPositions: Map<string, Position> = projectedPositions(collapsed)
         expect(collapsedPositions.has(BF117)).toBe(false)
         expect(collapsedPositions.has(BF118)).toBe(false)
 
         // Re-expand: positions of the previously hidden file nodes return to their stored values.
-        const reExpanded: State = applyCommand(collapsed, { type: 'Expand', folder: TASKS_FOLDER })
+        const reExpanded: State = applyCommand(collapsed, setFolderState('expanded'))
         const after: Map<string, Position> = projectedPositions(reExpanded)
         expect(after).toEqual(before)
     })
@@ -131,12 +140,12 @@ describe('Hot Zone C (a) — Position convergence under add/remove/expand', () =
             // Add-then-remove cycles — BF-117 must stay put through all of these.
             { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/A.md`, contentWithoutYamlOrLinks: 'A', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: new Map() } } as never } as Command,
             { type: 'AddNode', node: { outgoingEdges: [], absoluteFilePathIsID: `${ROOT}/tasks/B.md`, contentWithoutYamlOrLinks: 'B', nodeUIMetadata: { color: { _tag: 'None' }, position: { _tag: 'None' }, additionalYAMLProps: new Map() } } as never } as Command,
-            { type: 'Collapse', folder: TASKS_FOLDER },
-            { type: 'Expand', folder: TASKS_FOLDER },
+            setFolderState('collapsed'),
+            setFolderState('expanded'),
             { type: 'RemoveNode', id: `${ROOT}/tasks/A.md` },
             { type: 'RemoveNode', id: `${ROOT}/tasks/B.md` },
-            { type: 'Collapse', folder: TASKS_FOLDER },
-            { type: 'Expand', folder: TASKS_FOLDER },
+            setFolderState('collapsed'),
+            setFolderState('expanded'),
         ]
 
         const final: State = applySequence(initial, mutations)

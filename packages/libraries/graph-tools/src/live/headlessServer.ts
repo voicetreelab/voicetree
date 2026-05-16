@@ -17,7 +17,6 @@ import {
     serializeState,
     hydrateCommand,
     applyCommandWithDelta,
-    applyCommandAsyncWithDelta,
     type SerializedCommand,
 } from '@vt/graph-state'
 import type {State, Delta} from '@vt/graph-state/contract'
@@ -92,9 +91,7 @@ function registerHeadlessTools(
             try {
                 const serializedCommand = args.command as SerializedCommand
                 const cmd = hydrateCommand(serializedCommand)
-                const {state, delta} = cmd.type === 'LoadRoot'
-                    ? await applyCommandAsyncWithDelta(getState(), cmd)
-                    : applyCommandWithDelta(getState(), cmd)
+                const {state, delta} = applyCommandWithDelta(getState(), cmd)
                 setState(state)
                 return mcpResponse({
                     delta: toSerializableDelta(delta, serializedCommand),

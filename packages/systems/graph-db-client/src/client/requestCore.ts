@@ -1,4 +1,8 @@
-import { GraphDbClientError } from '../errors.ts'
+import {
+  GraphDbClientError,
+  VaultNotOpenError,
+  VaultOpenFailedError,
+} from '../errors.ts'
 import type { Schema } from '../responseSchemas.ts'
 
 export type RequestOptions<T> = {
@@ -16,7 +20,7 @@ export type RequestClient = <T>(
 
 type ErrorPayload = {
   code?: string
-  error?: string
+  error?: string | { code?: string; message?: string }
   message?: string
 }
 
@@ -36,7 +40,16 @@ export async function parseErrorPayload(response: Response): Promise<ErrorPayloa
     }
     return {
       code: typeof body.code === 'string' ? body.code : undefined,
-      error: typeof body.error === 'string' ? body.error : undefined,
+      error:
+        typeof body.error === 'string'
+          ? body.error
+          : isObject(body.error)
+            ? {
+                code: typeof body.error.code === 'string' ? body.error.code : undefined,
+                message:
+                  typeof body.error.message === 'string' ? body.error.message : undefined,
+              }
+            : undefined,
       message: typeof body.message === 'string' ? body.message : undefined,
     }
   } catch {
@@ -48,8 +61,19 @@ export async function toGraphDbClientError(
   response: Response,
 ): Promise<GraphDbClientError> {
   const payload = await parseErrorPayload(response)
-  const code = payload.code ?? `http_${response.status}`
-  const message = payload.message ?? payload.error ?? response.statusText
+  const nestedError = isObject(payload.error) ? payload.error : undefined
+  const code = payload.code ?? nestedError?.code ?? `http_${response.status}`
+  const message =
+    payload.message
+    ?? nestedError?.message
+    ?? (typeof payload.error === 'string' ? payload.error : undefined)
+    ?? response.statusText
+  if (response.status === 409 && code === 'vault_not_open') {
+    return new VaultNotOpenError(message)
+  }
+  if (response.status === 409 && code === 'vault_open_failed') {
+    return new VaultOpenFailedError(message)
+  }
   return new GraphDbClientError(response.status, code, message)
 }
 

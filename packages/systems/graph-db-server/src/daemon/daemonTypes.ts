@@ -14,7 +14,7 @@ export type DaemonLogger = {
 }
 
 export type StartDaemonOptions = {
-  vault: string
+  vault?: string | null
   port?: number
   logLevel?: 'info' | 'debug'
   appSupportPath?: string

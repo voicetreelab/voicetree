@@ -12,7 +12,9 @@ import type { mainAPI } from '@/shell/edge/main/runtime/api';
 export type Promisify<T> = {
   [K in keyof T]: T[K] extends (...args: infer A) => infer R
     ? (...args: A) => Promise<Awaited<R>>
-    : T[K];
+    : T[K] extends object
+      ? Promisify<T[K]>
+      : T[K];
 };
 
 export interface WatchStatus {
@@ -28,6 +30,10 @@ export interface ElectronAPI {
 
   // File system event listeners (returns cleanup function)
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => () => void;
+  onVaultSwitching: (callback: (data: { path: string }) => void) => () => void;
+  onVaultReady: (callback: (data: { path: string }) => void) => () => void;
+  onVaultLost: (callback: (data: { path?: string; error?: string; pid?: number | null }) => void) => () => void;
+  onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
   // Terminal operations

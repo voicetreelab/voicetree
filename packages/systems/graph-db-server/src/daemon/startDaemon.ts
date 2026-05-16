@@ -17,15 +17,25 @@ import {
 } from './daemonTypes.ts'
 import { acquireDaemonLock } from './daemonLockLifecycle.ts'
 import {
-  ensureDaemonFolderVisibility,
   initDaemonGraphModel,
-  loadDaemonWritePath,
   resetDaemonGraphState,
 } from './daemonGraphLifecycle.ts'
 import { startDaemonWatcher } from './daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
 import { deleteDaemonPortFile, writeDaemonPortFile } from './daemonPortLifecycle.ts'
+import {
+  closeVaultWorkflow,
+  configureVaultLifecycle,
+  openVaultWorkflow,
+  registerVaultResource,
+  resetVaultLifecycle,
+} from '../application/workflows/vaultLifecycle.ts'
+import {
+  closeFolderVisibilityForVault,
+  openFolderVisibilityForVault,
+} from '../data/views/folderVisibilityResource.ts'
+import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -33,7 +43,6 @@ const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
 type OwnedDaemonResources = {
   clearIdleSessionTimer: () => void
   httpServer: BoundDaemonHttpServer | null
-  watcher: DaemonWatcherController | null
 }
 
 type CleanupOptions = {
@@ -42,69 +51,108 @@ type CleanupOptions = {
 }
 
 async function cleanupOwnedDaemon(
-  vault: string,
-  lockHandle: LockHandle,
+  lockHandle: LockHandle | null,
   resources: OwnedDaemonResources,
   options: CleanupOptions,
 ): Promise<void> {
   try {
     resources.clearIdleSessionTimer()
     await resources.httpServer?.close()
-    await resources.watcher?.stop()
+    await closeVaultWorkflow()
   } finally {
-    await lockHandle.release()
-    await deleteDaemonPortFile(vault)
+    await lockHandle?.release()
     if (options.resetGraphState) {
       resetDaemonGraphState()
     }
+    resetVaultLifecycle()
     await options.onShutdownComplete?.()
   }
 }
 
 async function startOwnedDaemon(
   opts: StartDaemonOptions,
-  vault: string,
+  startupVault: string | null,
   startSpan: Span,
-  lockHandle: LockHandle,
+  lockHandle: LockHandle | null,
 ): Promise<DaemonHandle> {
   const clock = resolveDaemonClock(opts)
   const logger = resolveDaemonLogger(opts)
   const resources: OwnedDaemonResources = {
     clearIdleSessionTimer: () => {},
     httpServer: null,
-    watcher: null,
   }
+  let watcher: DaemonWatcherController | null = null
+  let portFileVault: string | null = null
+  let assignedPort = 0
   let shuttingDown = false
   let stopped = false
 
   try {
     resetDaemonGraphState()
+    resetVaultLifecycle()
     initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
-    await loadDaemonWritePath({
-      vault,
-      createStarterIfEmpty: opts.createStarterIfEmpty,
-    })
-    ensureDaemonFolderVisibility(vault)
 
     const startMs = clock()
     const registry = new SessionRegistry()
-    resources.watcher = await startDaemonWatcher(vault, logger)
     resources.clearIdleSessionTimer = createIdleSessionTimer(
       registry,
       opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
     )
+    configureVaultLifecycle({ activeVaultPath: null, registry })
+    registerVaultResource({
+      openForVault: openFolderVisibilityForVault,
+      closeForVault: closeFolderVisibilityForVault,
+    })
+    registerVaultResource({
+      async openForVault(vaultPath: string): Promise<void> {
+        await watcher?.stop()
+        watcher = await startDaemonWatcher(vaultPath, logger)
+      },
+      async closeForVault(): Promise<void> {
+        await watcher?.stop()
+        watcher = null
+      },
+    })
+    registerVaultResource({
+      async openForVault(): Promise<void> {},
+      async closeForVault(): Promise<void> {
+        registry.clear()
+      },
+    })
+    registerVaultResource({
+      async openForVault(vaultPath: string): Promise<void> {
+        if (portFileVault && portFileVault !== vaultPath) {
+          await deleteDaemonPortFile(portFileVault).catch(() => {})
+        }
+        await writeDaemonPortFile(vaultPath, assignedPort)
+        portFileVault = vaultPath
+      },
+      async closeForVault(): Promise<void> {
+        if (!portFileVault) {
+          return
+        }
+        await deleteDaemonPortFile(portFileVault).catch(() => {})
+        portFileVault = null
+      },
+    })
 
     const app = createDaemonApp({
       registry,
       readHealth: () =>
-        buildHealthResponse(CONTRACT_VERSION, vault, startMs, clock(), registry.size()),
+        buildHealthResponse(
+          CONTRACT_VERSION,
+          getProjectRootWatchedDirectory() ?? startupVault ?? '',
+          startMs,
+          clock(),
+          registry.size(),
+        ),
       onShutdown: () => {
         if (shuttingDown) {
           return
         }
         shuttingDown = true
         queueMicrotask(() => {
-          void cleanupOwnedDaemon(vault, lockHandle, resources, {
+          void cleanupOwnedDaemon(lockHandle, resources, {
             resetGraphState: false,
             onShutdownComplete: opts.onShutdownComplete,
           })
@@ -117,24 +165,32 @@ async function startOwnedDaemon(
       port: opts.port ?? 0,
       logger,
     })
-    await writeDaemonPortFile(vault, resources.httpServer.port)
-    startSpan.setAttribute('port', resources.httpServer.port)
+    assignedPort = resources.httpServer.port
+    startSpan.setAttribute('port', assignedPort)
+
+    if (startupVault) {
+      await openVaultWorkflow({
+        path: startupVault,
+        createStarterIfEmpty: opts.createStarterIfEmpty,
+      })
+      registry.clear()
+    }
 
     return {
-      port: resources.httpServer.port,
+      port: assignedPort,
       stop: async () => {
         if (stopped) {
           return
         }
         stopped = true
         shuttingDown = true
-        await cleanupOwnedDaemon(vault, lockHandle, resources, {
+        await cleanupOwnedDaemon(lockHandle, resources, {
           resetGraphState: true,
         })
       },
     }
   } catch (err) {
-    await cleanupOwnedDaemon(vault, lockHandle, resources, {
+    await cleanupOwnedDaemon(lockHandle, resources, {
       resetGraphState: false,
     }).catch(() => {})
     throw err
@@ -147,16 +203,23 @@ export async function startDaemon(
   return tracer.startActiveSpan('daemon.start', async (startSpan) => {
     try {
       const logger = resolveDaemonLogger(opts)
-      const vault = resolve(opts.vault)
-      startSpan.setAttribute('vault', vault)
-      await mkdir(join(vault, '.voicetree'), { recursive: true })
+      const startupVault = opts.vault ? resolve(opts.vault) : null
+      if (startupVault) {
+        startSpan.setAttribute('vault', startupVault)
+        await mkdir(join(startupVault, '.voicetree'), { recursive: true })
+      }
 
-      const lockResult = await acquireDaemonLock(vault, logger)
-      if (lockResult.kind === 'already-running') {
+      const lockResult = startupVault ? await acquireDaemonLock(startupVault, logger) : null
+      if (lockResult?.kind === 'already-running') {
         return lockResult.handle
       }
 
-      return await startOwnedDaemon(opts, vault, startSpan, lockResult.lockHandle)
+      return await startOwnedDaemon(
+        opts,
+        startupVault,
+        startSpan,
+        lockResult?.lockHandle ?? null,
+      )
     } catch (err) {
       startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
       throw err

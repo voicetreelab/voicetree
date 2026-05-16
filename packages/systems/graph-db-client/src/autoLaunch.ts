@@ -31,6 +31,11 @@ function ensureTracingInit(): void {
 
 export type { EnsureDaemonResult } from './autoLaunch/types.ts'
 export { resolveDaemonRuntimeCommand }
+export { spawnVaultlessDaemon } from './autoLaunch/vaultlessSpawn.ts'
+export type {
+  SpawnVaultlessDaemonOptions,
+  VaultlessDaemonHandle,
+} from './autoLaunch/vaultlessSpawn.ts'
 
 export async function ensureDaemon(
   vault: string,

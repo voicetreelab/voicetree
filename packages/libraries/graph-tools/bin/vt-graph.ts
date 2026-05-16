@@ -23,7 +23,7 @@ import {
   formatHygieneReportJson,
   type HygieneRuleId,
 } from '../src/lint/hygiene'
-import type {Delta, SerializedCommand} from '@vt/graph-state'
+import {hydrateState, type Delta, type SerializedCommand, type SerializedState} from '@vt/graph-state'
 import {linkMatchScore} from '@vt/graph-model'
 import {parseStateDumpArgs} from './cliArgs'
 import {runStructureCommand} from './structureCommand'
@@ -417,11 +417,14 @@ function findLoadedRootForFile(loadedRoots: readonly string[], filePath: string)
 }
 
 async function getLoadedRoots(port?: number): Promise<readonly string[]> {
+  // BF-266a: derive loaded roots via hydrateState. Post-UFV the wire shape no longer
+  // includes `roots.loaded` — that set is derived from `folderState` rows or the legacy
+  // `roots.loaded` fallback by hydrateState. Reading `parsed.roots.loaded` directly
+  // returned [] under the new wire shape, which made mv-node a no-op for positions.
   const result = await liveStateDump({pretty: false, ...(port !== undefined ? {port} : {})})
-  const parsed = JSON.parse(result.json) as {roots?: {loaded?: unknown}}
-  return Array.isArray(parsed.roots?.loaded)
-    ? parsed.roots.loaded.filter((root): root is string => typeof root === 'string')
-    : []
+  const serialized = JSON.parse(result.json) as SerializedState
+  const state = hydrateState(serialized)
+  return [...state.roots.loaded]
 }
 
 async function writePositionForFile(filePath: string, position: {readonly x: number; readonly y: number}, port?: number): Promise<void> {
