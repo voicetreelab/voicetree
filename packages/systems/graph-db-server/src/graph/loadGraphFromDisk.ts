@@ -223,6 +223,16 @@ export async function scanMarkdownFiles(vaultPath: string): Promise<readonly str
   return scanMarkdownFilesInDirectory(vaultPath)
 }
 
+// Directories skipped by the vault scanner. Mirrors folder-scanner's
+// IGNORED_DIRS so the graph load and the folder picker agree on what's
+// noise. Without this, opening a project repo as a vault counts every
+// .md file under node_modules / .git / build outputs against the file
+// limit and the scan never finishes on large monorepos.
+const SCANNER_IGNORED_DIRS: ReadonlySet<string> = new Set([
+    'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
+    '.tox', '.venv', 'venv', '.worktrees', 'build', '.turbo',
+])
+
 async function scanMarkdownFilesInDirectory(dirPath: string, relativePath = ''): Promise<readonly string[]> {
     const entries: Dirent<string>[] = await fs.readdir(dirPath, { withFileTypes: true })
 
@@ -235,6 +245,9 @@ async function scanMarkdownFilesInDirectory(dirPath: string, relativePath = ''):
         const relPath: string = relativePath ? path.join(relativePath, entry.name) : entry.name
 
         if (entry.isDirectory()) {
+          if (SCANNER_IGNORED_DIRS.has(entry.name)) {
+            return []
+          }
           return scanMarkdownFilesInDirectory(fullPath, relPath)
         } else if (entry.isFile() && isSupportedFile(entry.name)) {
           return [relPath]
