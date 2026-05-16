@@ -31,7 +31,8 @@ export type FolderTreeAction =
     | { readonly type: 'TOGGLE_SIDEBAR' }
     | { readonly type: 'SET_WIDTH'; readonly width: number }
     | { readonly type: 'ADD_COLLAPSED_FOLDER'; readonly folderId: string }
-    | { readonly type: 'REMOVE_COLLAPSED_FOLDER'; readonly folderId: string };
+    | { readonly type: 'REMOVE_COLLAPSED_FOLDER'; readonly folderId: string }
+    | { readonly type: 'SYNC_GRAPH_COLLAPSED_FOLDERS'; readonly folderIds: ReadonlySet<string> };
 
 /**
  * Pure reducer: (state, action) → state. No side effects.
@@ -69,6 +70,18 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             }
             const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders].filter((id: string) => id !== action.folderId));
             return { ...state, graphCollapsedFolders };
+        }
+        case 'SYNC_GRAPH_COLLAPSED_FOLDERS': {
+            const current: ReadonlySet<string> = state.graphCollapsedFolders;
+            const next: ReadonlySet<string> = action.folderIds;
+            if (current.size === next.size) {
+                let same: boolean = true;
+                for (const id of current) {
+                    if (!next.has(id)) { same = false; break; }
+                }
+                if (same) return state;
+            }
+            return { ...state, graphCollapsedFolders: new Set(next) };
         }
     }
 }
@@ -188,6 +201,15 @@ export function addCollapsedFolderLocally(folderId: string): void {
 
 export function removeCollapsedFolderLocally(folderId: string): void {
     dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
+}
+
+/**
+ * Replace the renderer's graph-collapsed-folders cache to match the projected
+ * graph. Called from the projection subscriber so the sidebar's collapse-icon
+ * class tracks the daemon's authoritative collapseSet without polling.
+ */
+export function syncGraphCollapsedFolders(folderIds: ReadonlySet<string>): void {
+    dispatch({ type: 'SYNC_GRAPH_COLLAPSED_FOLDERS', folderIds });
 }
 
 export function isGraphFolderCollapsed(folderId: string): boolean {
