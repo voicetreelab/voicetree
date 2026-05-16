@@ -77,6 +77,25 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'fsevents',
   'bufferutil',
   'utf-8-validate',
+  // Express + middleware tree. Reachable from main.ts via @vt/voicetree-mcp +
+  // @vt/graph-tools/node, both of which are in webapp devDependencies (not
+  // dependencies), so electron-vite's externalizeDepsPlugin doesn't externalize
+  // them and pulls express inline. Express is Node-only; main runs in Node so
+  // require()-ing it from node_modules at runtime is fine.
+  'express',
+  'body-parser',
+  'qs',
+  'iconv-lite',
+  'ws',
+  'serve-static',
+  'router',
+  'finalhandler',
+  'send',
+  'mime-types',
+  'mime-db',
+  'type-is',
+  'accepts',
+  'http-errors',
 ]
 
 // externalizeDepsPlugin resolves bundled packages (@vt/graph-model, @vt/graph-tools) to absolute
@@ -99,6 +118,77 @@ const externalNativePlugin = {
   enforce: 'pre' as const,
   resolveId(id: string) {
     if (id.endsWith('.node') || PRE_EXTERNAL_NATIVE_DEPS.has(id)) {
+      return { id, external: true }
+    }
+  }
+}
+
+// Express + middleware tree is reachable from main.ts via @vt/voicetree-mcp +
+// @vt/graph-tools/node. Both are in webapp devDependencies (not deps), so
+// electron-vite's externalizeDepsPlugin doesn't externalize them and pulls
+// express inline. Marking via rollupOptions.external is too late — @rollup/plugin-commonjs
+// has already converted the require()s. Intercept at pre-resolveId and
+// short-circuit to external. Main runs in Node so require()-ing from node_modules
+// at runtime is fine; express is in the root node_modules of the monorepo.
+const PRE_EXTERNAL_MAIN_DEPS = new Set([
+  'express',
+  'body-parser',
+  'qs',
+  'iconv-lite',
+  'ws',
+  'serve-static',
+  'router',
+  'finalhandler',
+  'send',
+  'mime-types',
+  'mime-db',
+  'type-is',
+  'accepts',
+  'http-errors',
+  'on-finished',
+  'parseurl',
+  'merge-descriptors',
+  'content-disposition',
+  'content-type',
+  'cookie',
+  'cookie-signature',
+  'depd',
+  'destroy',
+  'ee-first',
+  'encodeurl',
+  'escape-html',
+  'etag',
+  'fresh',
+  'forwarded',
+  'inherits',
+  'ipaddr.js',
+  'media-typer',
+  'methods',
+  'negotiator',
+  'object-inspect',
+  'path-to-regexp',
+  'proxy-addr',
+  'range-parser',
+  'raw-body',
+  'safe-buffer',
+  'safer-buffer',
+  'setprototypeof',
+  'statuses',
+  'toidentifier',
+  'unpipe',
+  'utils-merge',
+  'vary',
+])
+const externalMainDepsPlugin = {
+  name: 'externalize-main-deps',
+  enforce: 'pre' as const,
+  resolveId(id: string) {
+    if (PRE_EXTERNAL_MAIN_DEPS.has(id)) {
+      return { id, external: true }
+    }
+    // Subpath imports like 'body-parser/lib/types/json'
+    const firstSeg = id.split('/')[0]
+    if (PRE_EXTERNAL_MAIN_DEPS.has(firstSeg) && !id.startsWith('.') && !id.startsWith('/')) {
       return { id, external: true }
     }
   }
@@ -264,6 +354,7 @@ export default defineConfig({
       ...buildTimingPlugins('main'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
+      externalMainDepsPlugin,
       externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
