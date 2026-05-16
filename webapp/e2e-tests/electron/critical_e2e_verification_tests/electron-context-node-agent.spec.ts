@@ -24,98 +24,10 @@
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import * as os from 'os';
-import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
-
-// Use absolute paths for example_folder_fixtures
-const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
-
-// Type definitions
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
-}
-
-// Extend test with Electron app
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-}>({
-  electronApp: async ({}, use) => {
-    // Create a temporary userData directory for this test
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-ctx-agent-test-'));
-
-    // Write the config file to auto-load the test vault
-    // Set empty suffix to use directory directly (without /voicetree subfolder)
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: FIXTURE_VAULT_PATH,
-      suffixes: {
-        [FIXTURE_VAULT_PATH]: '' // Empty suffix means use directory directly
-      }
-    }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
-
-    const ciFlags = process.env.CI
-      ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
-      : [];
-    const electronApp = await electron.launch({
-      args: [
-        ...ciFlags,
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        ENABLE_PLAYWRIGHT_DEBUG: '0',
-        VOICETREE_PERSIST_STATE: '1',
-        VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-      },
-      timeout: 10000 // 10 second timeout for app launch
-    });
-
-    await use(electronApp);
-
-    // Graceful shutdown
-    await safeStopFileWatching(electronApp);
-    await robustElectronTeardown(electronApp);
-
-    // Cleanup temp directory
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
-  },
-
-  appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 15000 });
-
-    // Log console messages for debugging
-    window.on('console', msg => {
-      console.log(`BROWSER [${msg.type()}]:`, msg.text());
-    });
-
-    // Capture page errors
-    window.on('pageerror', error => {
-      console.error('PAGE ERROR:', error.message);
-    });
-
-    await window.waitForLoadState('domcontentloaded');
-
-    await pollForCytoscape(window, 30000);
-
-    await window.waitForTimeout(1000);
-
-    await use(window);
-  }
-});
+import { test, FIXTURE_VAULT_PATH, type ExtendedWindow } from './electron-context-node-agent-fixtures';
 
 test.describe('Context Node Agent Terminal E2E', () => {
   test.describe.configure({ timeout: 90000 });
@@ -209,7 +121,9 @@ test.describe('Context Node Agent Terminal E2E', () => {
       ? contextNodeId
       : path.join(watchDir, contextNodeId);
     const contextNodeRelativePath = path.relative(watchDir, contextNodePath);
-    expect(contextNodeRelativePath.split(path.sep)).toContain('ctx-nodes');
+    // Parent of root-level context nodes must be the top-level `ctx-nodes/` folder.
+    // (Nested ctx-nodes/ for non-root parents is a separate contract not exercised here.)
+    expect(path.dirname(contextNodeRelativePath)).toBe('ctx-nodes');
 
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
     // This verifies the context aggregation logic works - Node 3 content should be included
