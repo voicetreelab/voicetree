@@ -126,12 +126,12 @@ describe('rewriteCommandForPromptFile (CLI-aware)', () => {
 describe('wrapForHeadlessTmux', () => {
     it("wraps in bash -c 'exec ...' so stdin redirection survives tmux's argv", () => {
         const out: string = wrapForHeadlessTmux(`claude --print < '/v/p.txt'`)
-        expect(out).toBe(`bash -c 'exec claude --print < '\\''/v/p.txt'\\'''`)
+        expect(out).toBe(`bash -c 'unset AGENT_PROMPT; exec claude --print < '\\''/v/p.txt'\\'''`)
     })
 })
 
 describe('applyPromptFileToHeadlessSpawn', () => {
-    it('writes the prompt, rewrites the command, and swaps AGENT_PROMPT for AGENT_PROMPT_FILE in env', () => {
+    it('writes the prompt, rewrites the command, and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
         const plan = applyPromptFileToHeadlessSpawn({
             vaultPath: vault,
             terminalId: tid('Aki'),
@@ -140,8 +140,8 @@ describe('applyPromptFileToHeadlessSpawn', () => {
         })
         expect(plan.promptFilePath).toBe(promptFilePath(vault, tid('Aki')))
         expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
-        expect(plan.command).toContain(`bash -c 'exec claude < `)
-        expect(plan.env.AGENT_PROMPT).toBeUndefined()
+        expect(plan.command).toContain(`bash -c 'unset AGENT_PROMPT; exec claude < `)
+        expect(plan.env.AGENT_PROMPT).toBe('')
         expect(plan.env.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
         expect(plan.env.VOICETREE_TERMINAL_ID).toBe('Aki')
     })
