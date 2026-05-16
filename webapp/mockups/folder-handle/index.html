@@ -4,46 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Folder handle — interactive mockup (real code)</title>
-    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="dark">
-    <div class="page">
-      <header class="header">
-        <h1>Folder handle — interactive mockup</h1>
-        <p class="intro">
-          This page wires the <strong>real</strong>
-          <code>FolderHandleService</code> from
-          <code>webapp/src/shell/UI/cytoscape-graph-ui/services/folder-handle/</code>
-          into a stand-alone cytoscape canvas. The only stubs are
-          <code>window.electronAPI</code> (so the chevron's collapse/expand
-          IPC has somewhere to land) and the sample graph.
-        </p>
-        <ul class="legend">
-          <li><b>Chevron click</b> → real <code>toggleFolderCollapse</code> path → stub IPC → cy mutation.</li>
-          <li><b>Folder body</b> is <code>ungrabify()</code>'d: pan + right-click pass through to the canvas.</li>
-          <li><b>Hover the folder body</b> → no grab cursor (matches the shipped mouseover early-return).</li>
-          <li><b>Collapsed folder</b> = 40×40 pill, grabbable, no DOM chip (the cy node IS the chip).</li>
-          <li><b>Click a collapsed pill</b> → expand. The stub rebuilds cy (see note); production routes via daemon IPC.</li>
-        </ul>
-        <p class="note">
-          Heads-up: in-place expand stresses a compound-bounds re-entrancy in the
-          shipped chip listener (positionChip reads bbox synchronously inside
-          its own <code>bounds</code> event handler). Production hides this via
-          daemon-async IPC + <code>applyGraphDeltaToUI</code>'s remove/re-add cycle;
-          the stub here rebuilds the cy instance instead — same end state.
-        </p>
-      </header>
-      <div class="canvas-host">
-        <div id="cy" class="cy"></div>
-        <div id="cursor-readout" class="cursor-readout">cursor: default</div>
-        <div id="event-log" class="event-log" aria-live="polite"></div>
-      </div>
-      <footer class="footer">
-        <button class="primary" id="reset-graph">Reset graph</button>
-        <button class="secondary" id="toggle-theme">Toggle light/dark</button>
-        <span class="hint">Right-click anywhere inside the dashed folder body — it should pass through. Drag the chevron-less area to pan.</span>
-      </footer>
-    </div>
+    <div id="root"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
