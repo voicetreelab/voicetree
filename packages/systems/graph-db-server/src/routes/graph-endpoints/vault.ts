@@ -29,7 +29,7 @@ export function mountVaultRoutes(app: Hono): void {
     return sendHttpResult(c, await readVaultWorkflow())
   })
 
-  app.post('/vault/open', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.open'), async (c) => {
     try {
       return c.json(await openVaultWorkflow(parseOpenVaultBody(await c.req.json())))
     } catch (error) {
@@ -43,7 +43,7 @@ export function mountVaultRoutes(app: Hono): void {
     }
   })
 
-  app.post('/vault/close', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.close'), async (c) => {
     await closeVaultWorkflow()
     return sendHttpResult(c, emptyResult(204))
   })

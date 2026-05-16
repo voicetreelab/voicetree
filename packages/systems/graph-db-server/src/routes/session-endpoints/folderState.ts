@@ -13,6 +13,8 @@ import {
 } from '@vt/graph-db-server/views/folderVisibilityResource'
 import { errorResult, jsonResult, notFoundResult } from '@vt/graph-db-server/application/workflows/httpResult'
 import { sendHttpResult } from '../httpResult.ts'
+import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById } from '../routeSpecs.ts'
 
 function decodePath(raw: string): string | null {
   try {
@@ -32,8 +34,8 @@ export function mountFolderStateRoutes(
   app: Hono,
   registry: WorkflowSessionRegistry,
 ): void {
-  app.get('/sessions/:sessionId/folder-state', (c) => {
-    if (!registry.get(c.req.param('sessionId'))) {
+  mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.read'), (c) => {
+    if (!registry.get(routeParam(c, 'sessionId'))) {
       return sendHttpResult(c, notFoundResult())
     }
     const vaultError = vaultMustBeOpen()
@@ -45,14 +47,14 @@ export function mountFolderStateRoutes(
     )
   })
 
-  app.patch('/sessions/:sessionId/folder-state/:encodedPath', async (c) => {
-    if (!registry.get(c.req.param('sessionId'))) {
+  mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.set'), async (c) => {
+    if (!registry.get(routeParam(c, 'sessionId'))) {
       return sendHttpResult(c, notFoundResult())
     }
     const vaultError = vaultMustBeOpen()
     if (vaultError) return sendHttpResult(c, vaultError)
 
-    const path = decodePath(c.req.param('encodedPath'))
+    const path = decodePath(routeParam(c, 'encodedPath'))
     if (!path) {
       return sendHttpResult(c, errorResult('Invalid encoded path', 'INVALID_PATH_ENCODING'))
     }
@@ -69,8 +71,8 @@ export function mountFolderStateRoutes(
     )
   })
 
-  app.patch('/sessions/:sessionId/folder-state', async (c) => {
-    if (!registry.get(c.req.param('sessionId'))) {
+  mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.batch'), async (c) => {
+    if (!registry.get(routeParam(c, 'sessionId'))) {
       return sendHttpResult(c, notFoundResult())
     }
     const vaultError = vaultMustBeOpen()

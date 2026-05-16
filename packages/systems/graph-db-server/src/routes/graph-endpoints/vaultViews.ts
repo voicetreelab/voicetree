@@ -14,6 +14,8 @@ import {
 } from '@vt/graph-db-server/views/viewsRepository'
 import { emptyResult, errorResult } from '@vt/graph-db-server/application/workflows/httpResult'
 import { sendHttpResult } from '../httpResult.ts'
+import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import { daemonRouteSpecById } from '../routeSpecs.ts'
 
 function viewStore() {
   return createViewsStore(getCurrentFolderVisibilityDb())
@@ -34,7 +36,7 @@ function toHttpError(error: unknown) {
 }
 
 export function mountVaultViewsRoutes(app: Hono): void {
-  app.get('/vault/views', (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.views.list'), (c) => {
     try {
       return c.json(ListViewsResponseSchema.parse(viewStore().listViews()))
     } catch (error) {
@@ -42,7 +44,7 @@ export function mountVaultViewsRoutes(app: Hono): void {
     }
   })
 
-  app.post('/vault/views', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.views.create'), async (c) => {
     const body = CreateViewRequestSchema.safeParse(await c.req.json())
     if (!body.success) {
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
@@ -56,11 +58,11 @@ export function mountVaultViewsRoutes(app: Hono): void {
     }
   })
 
-  app.post('/vault/views/:viewId/activate', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.views.activate'), async (c) => {
     try {
       const view = await withVaultMutex(async () => {
         const store = viewStore()
-        store.switchActiveView(c.req.param('viewId'))
+        store.switchActiveView(routeParam(c, 'viewId'))
         return store.listViews().find((record) => record.isActive)
       })
       return c.json(ViewRecordSchema.parse(view))
@@ -69,23 +71,23 @@ export function mountVaultViewsRoutes(app: Hono): void {
     }
   })
 
-  app.post('/vault/views/:viewId/clone', async (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.views.clone'), async (c) => {
     const body = CloneViewRequestSchema.safeParse(await c.req.json())
     if (!body.success) {
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
     try {
-      const cloned = viewStore().cloneView(c.req.param('viewId'), body.data.name)
+      const cloned = viewStore().cloneView(routeParam(c, 'viewId'), body.data.name)
       return c.json(ViewRecordSchema.parse({ ...cloned, isActive: false }))
     } catch (error) {
       return sendHttpResult(c, toHttpError(error))
     }
   })
 
-  app.delete('/vault/views/:viewId', (c) => {
+  mountDaemonRoute(app, daemonRouteSpecById('vault.views.delete'), (c) => {
     try {
-      viewStore().deleteView(c.req.param('viewId'))
+      viewStore().deleteView(routeParam(c, 'viewId'))
       return sendHttpResult(c, emptyResult(200))
     } catch (error) {
       return sendHttpResult(c, toHttpError(error))
