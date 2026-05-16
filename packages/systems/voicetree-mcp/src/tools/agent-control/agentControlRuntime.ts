@@ -11,6 +11,10 @@ export type PendingTerminalState = {
     readonly isHeadless: boolean
 }
 
+export type PendingTerminalRecord = PendingTerminalState & {
+    readonly terminalId: string
+}
+
 type TmuxHeadlessRuntime = {
     readonly isTmuxHeadlessAgent?: (terminalId: string) => boolean
     readonly sendHeadlessAgentInput?: (terminalId: string, message: string) => Promise<{success: boolean; error?: string}>
@@ -34,6 +38,13 @@ export function terminalExists(terminalId: string, records: readonly TerminalRec
 
 export function getPendingTerminalState(terminalId: string): PendingTerminalState | undefined {
     return agentRuntime.getPendingTerminal(terminalId)
+}
+
+export function listPendingTerminalStates(): PendingTerminalRecord[] {
+    const runtime = agentRuntime as typeof agentRuntime & {
+        readonly getPendingTerminals?: () => PendingTerminalRecord[]
+    }
+    return runtime.getPendingTerminals?.() ?? []
 }
 
 export function enqueuePendingTerminalMessage(terminalId: string, message: string): void {

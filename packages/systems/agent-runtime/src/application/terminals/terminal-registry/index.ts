@@ -9,6 +9,7 @@ export {
     clearPendingTerminal,
     enqueuePendingMessage,
     getPendingTerminal,
+    getPendingTerminals,
     recordTerminalPending,
 } from './pending'
 

@@ -28,7 +28,22 @@ import {
 
 const SCREENSHOT_DIR = path.join(WEBAPP_ROOT, 'test-results', 'real-agent-spawn');
 
-const TASK_NODE_CONTENT = `# please spawn one sonnet and one codex headfull agents each to make a hello world node, and do nothing else
+const TASK_NODE_CONTENT = `# E2E real sub-agent orchestration task
+
+Use the VoiceTree MCP spawn_agent tool exactly twice, then stop.
+
+For both spawn_agent calls:
+- Use your VOICETREE_TERMINAL_ID value as callerTerminalId.
+- Use your TASK_NODE_PATH value as parentNodeId.
+- Set headless to false.
+- Set depthBudget to 0.
+- Do not create the hello-world nodes yourself.
+
+Spawn one child with agentName "Claude Sonnet" and task:
+"Create one markdown node titled hello-world using the VoiceTree MCP create_graph tool, with summary and content exactly 'hello world from Claude Sonnet', then exit."
+
+Spawn one child with agentName "Codex" and task:
+"Create one markdown node titled hello-world using the VoiceTree MCP create_graph tool, with summary and content exactly 'hello world from Codex', then exit."
 `;
 
 const test = base.extend<{
@@ -66,12 +81,13 @@ const test = base.extend<{
     await fs.writeFile(path.join(tempUserDataPath, 'settings.json'), JSON.stringify({
       agents: [
         { name: 'Claude Sonnet', command: '/Users/bobbobby/.local/bin/claude --dangerously-skip-permissions --model sonnet -p "$AGENT_PROMPT"; exit' },
-        { name: 'Codex', command: '/opt/homebrew/bin/codex --yolo "$AGENT_PROMPT"; exit' },
+        { name: 'Codex', command: '/opt/homebrew/bin/codex exec --dangerously-bypass-approvals-and-sandbox "$AGENT_PROMPT"; exit' },
       ],
       defaultAgent: 'Claude Sonnet',
+      ptyBackend: 'node-pty',
       terminalSpawnPathRelativeToWatchedDirectory: '/',
       INJECT_ENV_VARS: {
-        AGENT_PROMPT: 'Read the task at $CONTEXT_NODE_PATH and execute it. You have VoiceTree MCP tools available (spawn_agent, create_graph, list_agents, read_terminal_output). Your terminal ID is $VOICETREE_TERMINAL_ID. MCP port: $VOICETREE_MCP_PORT. DEPTH_BUDGET = $DEPTH_BUDGET. Create nodes using the create_graph tool.',
+        AGENT_PROMPT: 'Read the task at $CONTEXT_NODE_PATH and execute it exactly. You have VoiceTree MCP tools available as mcp__voicetree__spawn_agent, mcp__voicetree__create_graph, mcp__voicetree__list_agents, and mcp__voicetree__read_terminal_output. When calling spawn_agent, use callerTerminalId=$VOICETREE_TERMINAL_ID and parentNodeId=$TASK_NODE_PATH unless the task says otherwise. MCP port: $VOICETREE_MCP_PORT. DEPTH_BUDGET=$DEPTH_BUDGET. Do not ask for clarification.',
       },
     }, null, 2), 'utf8');
 

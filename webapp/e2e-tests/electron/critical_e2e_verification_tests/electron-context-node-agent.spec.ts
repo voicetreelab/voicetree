@@ -77,6 +77,7 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
+        ENABLE_PLAYWRIGHT_DEBUG: '0',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
       },
@@ -117,6 +118,8 @@ const test = base.extend<{
 });
 
 test.describe('Context Node Agent Terminal E2E', () => {
+  test.describe.configure({ timeout: 90000 });
+
   test('should spawn agent terminal with context node and retrieve needle from ancestor', async ({ appWindow }) => {
     test.setTimeout(90000); // 90 second timeout for Claude API call
 
@@ -124,7 +127,9 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // Define the agent command - uses -p flag to output to stdout
     const agentCommand = 'claude --dangerously-skip-permissions -p --append-system-prompt-file "$CONTEXT_NODE_PATH" "Search your context for \'SECRET_E2E_NEEDLE:\'. Return ONLY the value after the colon, nothing else."';
 
-    await appWindow.evaluate(async () => {
+    const terminalShell = process.env.SHELL ?? (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash');
+
+    await appWindow.evaluate(async (shell) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
@@ -132,10 +137,12 @@ test.describe('Context Node Agent Terminal E2E', () => {
       const currentSettings = await api.main.loadSettings();
       const updatedSettings = {
         ...currentSettings,
-        terminalSpawnPathRelativeToWatchedDirectory: '../' // Launch from parent of watched directory
+        terminalSpawnPathRelativeToWatchedDirectory: '../', // Launch from parent of watched directory
+        ptyBackend: 'node-pty' as const,
+        shell
       };
       await api.main.saveSettings(updatedSettings);
-    });
+    }, terminalShell);
     console.log('✓ Agent command configured:', agentCommand);
 
     console.log('=== STEP 2: Wait for auto-load to complete (test vault: example_small) ===');
@@ -200,9 +207,9 @@ test.describe('Context Node Agent Terminal E2E', () => {
     expect(contextNodeId).toBeTruthy();
     const contextNodePath = path.isAbsolute(contextNodeId)
       ? contextNodeId
-      : path.join(vaultPath!, contextNodeId);
-    const contextNodeRelativePath = path.relative(vaultPath!, contextNodePath);
-    expect(contextNodeRelativePath).toMatch(/^ctx-nodes\//);
+      : path.join(watchDir, contextNodeId);
+    const contextNodeRelativePath = path.relative(watchDir, contextNodePath);
+    expect(contextNodeRelativePath.split(path.sep)).toContain('ctx-nodes');
 
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
     // This verifies the context aggregation logic works - Node 3 content should be included
@@ -305,9 +312,11 @@ test.describe('Context Node Agent Terminal E2E', () => {
             console.log(`[Test] Context node absolute path: ${ctxNodePath}`);
 
             // TerminalData requires the full type structure per types.ts
+            const terminalId = 'context-node-agent-e2e-terminal';
             const spawnResult = await api.terminal.spawn({
               type: 'Terminal' as const,
-              attachedToNodeId: ctxNodeId,
+              terminalId,
+              attachedToContextNodeId: ctxNodeId,
               terminalCount: 0,
               title: 'Agent Terminal',
               anchoredToNodeId: { _tag: 'None' } as { _tag: 'None' }, // fp-ts Option.none
@@ -324,7 +333,18 @@ test.describe('Context Node Agent Terminal E2E', () => {
                 OTEL_EXPORTER_OTLP_PROTOCOL: 'http/json',
                 OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
                 OTEL_METRIC_EXPORT_INTERVAL: '1000'  // 1 second - must be shorter than Claude -p runtime
-              }
+              },
+              isPinned: true,
+              isDone: false,
+              lifecycle: 'spawning' as const,
+              lastOutputTime: Date.now(),
+              activityCount: 0,
+              parentTerminalId: null,
+              agentName: terminalId,
+              isHeadless: false,
+              isMinimized: false,
+              contextContent: '',
+              agentTypeName: 'Claude'
             });
 
             console.log('[Test] Terminal spawn result:', spawnResult);

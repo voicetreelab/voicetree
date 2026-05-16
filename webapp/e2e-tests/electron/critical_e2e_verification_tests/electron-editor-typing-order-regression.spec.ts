@@ -116,12 +116,14 @@ const test = base.extend<{
     const electronApp = await electron.launch({
       args: [
         ...ciFlags,
+        '--remote-debugging-port=0',
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${userDataPath}`,
       ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        ENABLE_PLAYWRIGHT_DEBUG: '0',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
@@ -142,21 +144,24 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
     await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
     await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
+    const watchResult = await window.evaluate(async (dir) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.startFileWatching(dir);
+    }, projectPath);
+    expect(watchResult.success, 'startFileWatching failed').toBe(true);
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await pollForCondition(window, async () => {
       return await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-        const watchStatus = await api?.main.getWatchStatus();
         const bodyText = document.body.textContent ?? '';
         return Boolean(
-          watchStatus?.isWatching
-            && (cy?.nodes().length ?? 0) >= 1
+          (cy?.nodes().length ?? 0) >= 1
             && !bodyText.includes('Loading Voicetree'),
         );
       });
-    }, 'Waiting for file watching to start', 10_000);
+    }, 'Waiting for graph view to settle after file watching start', 10_000);
     await window.waitForTimeout(1_000);
     await use(window);
   },

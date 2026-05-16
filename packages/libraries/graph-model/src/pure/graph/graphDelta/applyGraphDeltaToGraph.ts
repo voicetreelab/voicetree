@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, GraphNode} from '..'
+import type {Edge, Graph, GraphDelta, GraphNode, UpsertNodeDelta} from '..'
 import { updateIndexForUpsert, updateIndexForDelete } from '../graph-operations/indexes/incomingEdgesIndex'
 import type { IncomingEdgesIndex } from '../graph-operations/indexes/incomingEdgesIndex'
 import {
@@ -9,6 +9,73 @@ import {
 } from '../graph-operations/indexes/linkResolutionIndexes'
 import type { NodeByBaseNameIndex, UnresolvedLinksIndex } from '../graph-operations/indexes/linkResolutionIndexes'
 import * as O from 'fp-ts/lib/Option.js'
+
+function sameEdge(left: Edge, right: Edge): boolean {
+    return left.targetId === right.targetId && left.label === right.label
+}
+
+function containsEdge(edges: readonly Edge[], edge: Edge): boolean {
+    return edges.some(candidate => sameEdge(candidate, edge))
+}
+
+function isEdgeAdditionOnly(previousEdges: readonly Edge[], nextEdges: readonly Edge[]): boolean {
+    return previousEdges.every(edge => containsEdge(nextEdges, edge))
+        && nextEdges.some(edge => !containsEdge(previousEdges, edge))
+}
+
+function mergeAddedEdges(
+    currentEdges: readonly Edge[],
+    previousEdges: readonly Edge[],
+    nextEdges: readonly Edge[],
+): readonly Edge[] {
+    const addedEdges: readonly Edge[] = nextEdges.filter(edge => !containsEdge(previousEdges, edge))
+    return [
+        ...currentEdges,
+        ...addedEdges.filter(edge => !containsEdge(currentEdges, edge)),
+    ]
+}
+
+function rebaseStaleEdgeAdditionDelta(graph: Graph, nodeDelta: UpsertNodeDelta): UpsertNodeDelta {
+    if (O.isNone(nodeDelta.previousNode)) {
+        return nodeDelta
+    }
+
+    const previousNode: GraphNode = nodeDelta.previousNode.value
+    const nextNode: GraphNode = nodeDelta.nodeToUpsert
+    const existingNode: GraphNode | undefined = graph.nodes[nextNode.absoluteFilePathIsID]
+
+    if (!existingNode || previousNode.absoluteFilePathIsID !== nextNode.absoluteFilePathIsID) {
+        return nodeDelta
+    }
+
+    const deltaContentUnchanged: boolean =
+        nextNode.contentWithoutYamlOrLinks === previousNode.contentWithoutYamlOrLinks
+    const currentContentChanged: boolean =
+        existingNode.contentWithoutYamlOrLinks !== previousNode.contentWithoutYamlOrLinks
+    const onlyAddsEdges: boolean = isEdgeAdditionOnly(previousNode.outgoingEdges, nextNode.outgoingEdges)
+
+    if (!deltaContentUnchanged || !currentContentChanged || !onlyAddsEdges) {
+        return nodeDelta
+    }
+
+    return {
+        ...nodeDelta,
+        nodeToUpsert: {
+            ...nextNode,
+            contentWithoutYamlOrLinks: existingNode.contentWithoutYamlOrLinks,
+            outgoingEdges: mergeAddedEdges(existingNode.outgoingEdges, previousNode.outgoingEdges, nextNode.outgoingEdges),
+            nodeUIMetadata: existingNode.nodeUIMetadata,
+        },
+    }
+}
+
+export function rebaseStaleEdgeAdditionDeltas(graph: Graph, delta: GraphDelta): GraphDelta {
+    return delta.map(nodeDelta => (
+        nodeDelta.type === 'UpsertNode'
+            ? rebaseStaleEdgeAdditionDelta(graph, nodeDelta)
+            : nodeDelta
+    ))
+}
 
 /**
  * Apply a GraphDelta to a Graph, producing a new Graph.
@@ -39,7 +106,8 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
         if (nodeDelta.type === 'UpsertNode') {
             // Upsert node: add new or update existing
             const existingNode: GraphNode | undefined = currentGraph.nodes[nodeDelta.nodeToUpsert.absoluteFilePathIsID]
-            const newNode: GraphNode = nodeDelta.nodeToUpsert
+            const rebasedDelta: UpsertNodeDelta = rebaseStaleEdgeAdditionDelta(currentGraph, nodeDelta)
+            const newNode: GraphNode = rebasedDelta.nodeToUpsert
 
             // Position preservation: positions are stored in .voicetree/positions.json, not YAML. //human
             // When FS events re-parse a node, the parsed node has no position (O.none).

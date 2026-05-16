@@ -156,6 +156,7 @@ async function launchElectronApp(userDataDir: string, vaultPath: string): Promis
     const app = await electron.launch({
         args: [
             ...getCiElectronFlags(),
+            '--remote-debugging-port=0',
             path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
             `--user-data-dir=${userDataDir}`,
             '--open-folder',
@@ -164,6 +165,7 @@ async function launchElectronApp(userDataDir: string, vaultPath: string): Promis
         env: {
             ...process.env,
             NODE_ENV: 'test',
+            ENABLE_PLAYWRIGHT_DEBUG: '0',
             VOICETREE_VAULT_PATH: vaultPath, // required for reconcileTmuxHeadlessAgents on startup
             VOICETREE_PERSIST_STATE: '1',
             VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),

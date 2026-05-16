@@ -17,6 +17,7 @@ import {
     recordTerminalSpawn,
     recordTerminalPending,
     getPendingTerminal,
+    getPendingTerminals,
     enqueuePendingMessage,
     clearPendingTerminal,
     clearTerminalRecords
@@ -43,6 +44,16 @@ describe('Terminal Registry - Pending state (Phase 3a)', () => {
     it('recordTerminalPending records the headless flag', () => {
         recordTerminalPending('pending-headless', true)
         expect(getPendingTerminal('pending-headless')?.isHeadless).toBe(true)
+    })
+
+    it('getPendingTerminals returns all pending terminal ids with headless flags', () => {
+        recordTerminalPending('pending-interactive', false)
+        recordTerminalPending('pending-headless', true)
+
+        expect(getPendingTerminals()).toEqual([
+            {terminalId: 'pending-interactive', isHeadless: false},
+            {terminalId: 'pending-headless', isHeadless: true},
+        ])
     })
 
     it('recordTerminalPending is a no-op when an entry already exists', () => {

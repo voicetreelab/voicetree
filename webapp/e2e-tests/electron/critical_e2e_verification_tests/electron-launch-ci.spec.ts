@@ -27,6 +27,7 @@ test.describe('Electron CI Launch Fallback', () => {
       electronApp = await electron.launch({
         args: [
           ...ciFlags,
+          '--remote-debugging-port=0',
           path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
           `--user-data-dir=${tempUserDataPath}`
         ],
@@ -35,6 +36,8 @@ test.describe('Electron CI Launch Fallback', () => {
           NODE_ENV: 'test',
           HEADLESS_TEST: '1',
           MINIMIZE_TEST: '1',
+          VOICETREE_PERSIST_STATE: '1',
+          ENABLE_PLAYWRIGHT_DEBUG: '0',
           VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
         },
         timeout: 30000
@@ -48,6 +51,7 @@ test.describe('Electron CI Launch Fallback', () => {
         console.error('PAGE ERROR:', error.message);
       });
 
+      await appWindow.waitForURL(/index\.html$/, { timeout: 15000 });
       await appWindow.waitForLoadState('domcontentloaded');
       await expect(appWindow.locator('body')).toContainText(/Voicetree|Select a project|No projects yet/, {
         timeout: 15000

@@ -11,7 +11,7 @@ import {type McpToolResponse, buildJsonResponse} from '../types'
 import {getAgentNodes, getNewNodesForAgentIdentities} from '../agentDependencies'
 import * as O from 'fp-ts/lib/Option.js'
 import {getMcpGraph} from '../mcpConfigDependencies'
-import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
+import {listPendingTerminalStates, listTerminalRecords, type PendingTerminalRecord, type TerminalRecord} from './agentControlRuntime'
 
 function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exited' {
     return record.status === 'exited'
@@ -40,6 +40,7 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
     }> = []
 
     const terminalRecords: TerminalRecord[] = listTerminalRecords()
+    const recordIds: Set<string> = new Set(terminalRecords.map((record: TerminalRecord) => record.terminalId))
     for (const record of terminalRecords) {
         if (record.terminalData.executeCommand !== true) {
             continue
@@ -77,6 +78,23 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             newNodes,
             parentTerminalId: record.terminalData.parentTerminalId,
             taskNodePath: O.isSome(record.terminalData.anchoredToNodeId) ? record.terminalData.anchoredToNodeId.value : null
+        })
+    }
+
+    for (const pending of listPendingTerminalStates()) {
+        if (recordIds.has(pending.terminalId)) continue
+        agents.push({
+            terminalId: pending.terminalId,
+            title: pending.terminalId,
+            contextNodeId: '',
+            status: 'running',
+            exitCode: null,
+            auditRetryCount: 0,
+            isHeadless: pending.isHeadless,
+            isMinimized: false,
+            newNodes: [],
+            parentTerminalId: null,
+            taskNodePath: null
         })
     }
 

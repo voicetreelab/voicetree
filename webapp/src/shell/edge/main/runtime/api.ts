@@ -54,8 +54,14 @@ import {
   syncRendererSessionStateWithDaemon,
 } from './electron/daemon/daemon-ipc-proxy';
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/daemon-sse-subscription';
+import { stopDaemonGraphSync } from './electron/daemon/daemon-watch-sync';
 import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/graph-daemon';
 import path from 'path';
+
+async function __debugStopDaemonGraphSync(): Promise<void> {
+  if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API');
+  await stopDaemonGraphSync();
+}
 
 /**
  * Wrapper for initializeProject that provides the onboarding source directory.
@@ -216,6 +222,7 @@ export const mainAPI = {
   syncRendererSessionStateWithDaemon,
   __debugLockSSE,
   __debugUnlockSSE,
+  __debugStopDaemonGraphSync,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,
