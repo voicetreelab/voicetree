@@ -5,6 +5,7 @@ import {
     resolveHeadfulPromptInjection,
     resolvePromptFileWrite,
     resolveTmuxVaultPath,
+    withResolvedTmuxVaultPath,
 } from '../tmuxSpawnPlanning';
 
 const terminalId = 'Aki' as TerminalId;
@@ -20,6 +21,20 @@ describe('tmux spawn planning', () => {
     it('falls back to the initial env vault path', () => {
         expect(resolveTmuxVaultPath({}, {VOICETREE_VAULT_PATH: '/initial-vault'}))
             .toBe('/initial-vault');
+    });
+
+    it('falls back to the runtime write path when no env vault path exists', () => {
+        expect(resolveTmuxVaultPath({}, {}, '/runtime-write-path'))
+            .toBe('/runtime-write-path');
+    });
+
+    it('records the resolved vault path on terminal data env vars only when missing', () => {
+        expect(withResolvedTmuxVaultPath({}, '/runtime-write-path')).toEqual({
+            VOICETREE_VAULT_PATH: '/runtime-write-path',
+        });
+        expect(withResolvedTmuxVaultPath({VOICETREE_VAULT_PATH: '/initial-vault'}, '/runtime-write-path'))
+            .toEqual({VOICETREE_VAULT_PATH: '/initial-vault'});
+        expect(withResolvedTmuxVaultPath({}, undefined)).toBeUndefined();
     });
 
     it('plans a prompt file write only when both vault path and prompt exist', () => {

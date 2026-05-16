@@ -13,10 +13,20 @@ export type HeadfulPromptInjectionRequest = {
 };
 
 export function resolveTmuxVaultPath(
-    env: Pick<NodeJS.ProcessEnv, 'VOICETREE_VAULT_PATH'>,
+    env: {readonly VOICETREE_VAULT_PATH?: string},
     initialEnvVars: Record<string, string>,
+    runtimeWritePath?: string | null,
 ): string | undefined {
-    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH;
+    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWritePath ?? undefined;
+}
+
+export function withResolvedTmuxVaultPath(
+    initialEnvVars: Record<string, string>,
+    vaultPath: string | undefined,
+): Record<string, string> | undefined {
+    if (!vaultPath && Object.keys(initialEnvVars).length === 0) return undefined;
+    if (!vaultPath || initialEnvVars.VOICETREE_VAULT_PATH) return initialEnvVars;
+    return {...initialEnvVars, VOICETREE_VAULT_PATH: vaultPath};
 }
 
 export function resolvePromptFileWrite(

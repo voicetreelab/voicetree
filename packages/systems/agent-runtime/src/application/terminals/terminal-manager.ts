@@ -23,9 +23,11 @@ import {
   resolveHeadfulPromptInjection,
   resolvePromptFileWrite,
   resolveTmuxVaultPath,
+  withResolvedTmuxVaultPath,
   type HeadfulPromptInjectionRequest,
   type PromptFileWriteRequest,
 } from './tmuxSpawnPlanning';
+import {getRuntimeEnv} from '../runtime/runtime-config';
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -48,6 +50,14 @@ export interface TerminalSpawnOpts {
 function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
   if (!request) return null;
   return writePromptFile(request.vaultPath, request.terminalId, request.prompt);
+}
+
+async function resolveRuntimeWritePath(): Promise<string | null> {
+  try {
+    return await (getRuntimeEnv().getWritePath?.() ?? Promise.resolve(null));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -164,12 +174,16 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial);
+      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWritePath());
       const promptFile: string | null = writeResolvedPromptFile(
         resolvePromptFileWrite(vaultPath, terminalId, initial.AGENT_PROMPT),
       );
       const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, vaultPath, promptFile);
-      await spawnTmuxBackedTerminal(terminalId, terminalData, shell, cwd, tmuxEnv, undefined, promptFile);
+      const terminalDataWithVaultPath: TerminalData = {
+        ...terminalData,
+        initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
+      };
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
         terminalData.initialCommand,
