@@ -308,10 +308,23 @@ async function runCheck(check) {
 }
 
 async function runChecksInParallel(checks, opts) {
-    return Promise.all(checks.map(async check => ({
+    const parallelChecks = checks.filter(check => check.category !== 'Integration')
+    const integrationChecks = checks.filter(check => check.category === 'Integration')
+    const parallelResults = await Promise.all(parallelChecks.map(async check => ({
         check,
         outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
     })))
+    const integrationResults = []
+    for (const check of integrationChecks) {
+        integrationResults.push({
+            check,
+            outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
+        })
+    }
+    return checks.map(check =>
+        parallelResults.find(result => result.check === check)
+        ?? integrationResults.find(result => result.check === check),
+    )
 }
 
 async function runChecksSequentially(checks, opts) {
