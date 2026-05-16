@@ -191,13 +191,15 @@ function App(): JSX.Element {
     // Recover programmatic loads even if they happened before React attached IPC listeners.
     useEffect(() => {
         if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
+        const getStartupVaultHint = window.electronAPI.main.getStartupVaultHint;
+        if (typeof getStartupVaultHint !== 'function') return;
 
         hasBootstrappedStartupProjectRef.current = true;
         let cancelled = false;
 
         void (async () => {
             try {
-                const startupHint = await window.electronAPI!.main.getStartupVaultHint();
+                const startupHint = await getStartupVaultHint();
 
                 if (cancelled) return;
                 if (startupHint.kind === 'open-folder' || startupHint.kind === 'last-directory') {
@@ -218,22 +220,22 @@ function App(): JSX.Element {
     useEffect(() => {
         if (!electronReady || !window.electronAPI) return;
 
-        const cleanupSwitching = window.electronAPI.onVaultSwitching((data: { path: string }) => {
+        const cleanupSwitching = window.electronAPI.onVaultSwitching?.((data: { path: string }) => {
             lastKnownVaultPathRef.current = data.path;
             setVaultSwitching(true);
             setVaultError(null);
-        });
-        const cleanupReady = window.electronAPI.onVaultReady((data: { path: string }) => {
+        }) ?? (() => {});
+        const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
             lastKnownVaultPathRef.current = data.path;
             setVaultSwitching(false);
             setVaultError(null);
             void syncProjectFromDirectory(data.path);
-        });
-        const cleanupLost = window.electronAPI.onVaultLost((data: { path?: string; error?: string }) => {
+        }) ?? (() => {});
+        const cleanupLost = window.electronAPI.onVaultLost?.((data: { path?: string; error?: string }) => {
             if (data.path) lastKnownVaultPathRef.current = data.path;
             setVaultSwitching(false);
             setVaultError(data.error ?? 'Vault unavailable');
-        });
+        }) ?? (() => {});
 
         return () => {
             cleanupSwitching();

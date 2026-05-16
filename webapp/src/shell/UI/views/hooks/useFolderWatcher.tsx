@@ -50,19 +50,19 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
   useEffect(() => {
     if (!isElectron || !window.electronAPI) return;
 
-    const cleanupReady = window.electronAPI.onVaultReady((data: { path: string }) => {
+    const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
       setWatchStatus({ isWatching: true, directory: data.path });
       setIsLoading(false);
       setError(null);
-    });
-    const cleanupSwitching = window.electronAPI.onVaultSwitching(() => {
+    }) ?? (() => {});
+    const cleanupSwitching = window.electronAPI.onVaultSwitching?.(() => {
       setIsLoading(true);
       setError(null);
-    });
-    const cleanupLost = window.electronAPI.onVaultLost((data: { error?: string }) => {
+    }) ?? (() => {});
+    const cleanupLost = window.electronAPI.onVaultLost?.((data: { error?: string }) => {
       setIsLoading(false);
       setError(data.error ?? 'Vault unavailable');
-    });
+    }) ?? (() => {});
 
     return () => {
       cleanupReady();
