@@ -44,13 +44,9 @@ function isDefaultExpandedFolder(
 function pruneFolderTree(
   node: FolderTreeNode,
   expandedTargets: ReadonlySet<string>,
-  manualCollapsedFolders: ReadonlySet<string>,
 ): FolderTreeNode {
   const folderPath = normalizeFolderPath(node.absolutePath)
-  if (
-    manualCollapsedFolders.has(folderPath)
-    || !isDefaultExpandedFolder(folderPath, expandedTargets)
-  ) {
+  if (!isDefaultExpandedFolder(folderPath, expandedTargets)) {
     return {
       ...node,
       children: [],
@@ -61,7 +57,7 @@ function pruneFolderTree(
     ...node,
     children: node.children.map((child) =>
       'children' in child
-        ? pruneFolderTree(child, expandedTargets, manualCollapsedFolders)
+        ? pruneFolderTree(child, expandedTargets)
         : child,
     ),
   }
@@ -70,7 +66,6 @@ function pruneFolderTree(
 function projectFolderTree(
   folderTree: FolderTreeNode | null,
   vault: VaultState,
-  session: Session,
 ): readonly FolderTreeNode[] {
   if (!folderTree) {
     return []
@@ -81,11 +76,8 @@ function projectFolderTree(
       .filter((path) => path.length > 0)
       .map(normalizeFolderPath),
   )
-  const manualCollapsedFolders = new Set(
-    [...session.collapseSet].map(normalizeFolderPath),
-  )
 
-  return [pruneFolderTree(folderTree, expandedTargets, manualCollapsedFolders)]
+  return [pruneFolderTree(folderTree, expandedTargets)]
 }
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
@@ -94,7 +86,7 @@ export function projectSessionState(args: ProjectSessionStateArgs): State {
     graph,
     roots: {
       loaded: new Set<string>([vault.writePath, ...vault.readPaths].filter((path) => path.length > 0)),
-      folderTree: projectFolderTree(folderTree, vault, session),
+      folderTree: projectFolderTree(folderTree, vault),
     },
     collapseSet: new Set(session.collapseSet),
     selection: new Set(session.selection),

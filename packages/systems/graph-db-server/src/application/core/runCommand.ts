@@ -30,6 +30,15 @@ type RunCommandDeps = {
   registry?: SessionRegistry
 }
 
+type CommandHandler<T extends Command['type']> = (
+  command: Extract<Command, { type: T }>,
+  deps: RunCommandDeps,
+) => Promise<CommandOutput[T]> | CommandOutput[T]
+
+type CommandHandlers = {
+  [T in Command['type']]: CommandHandler<T>
+}
+
 function requireRegistry(deps: RunCommandDeps): SessionRegistry {
   if (!deps.registry) {
     throw new Error('Command requires a session registry')
@@ -52,92 +61,83 @@ async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
   return VaultStateSchema.parse({ vaultPath, readPaths, writePath })
 }
 
-export async function runCommand<C extends Command>(
+const commandHandlers = {
+  AddVaultReadPath: command => addReadPath(command.path),
+  ApplyGraphDeltaToDB: async command => {
+    await applyGraphDeltaToDBThroughMemAndUI(
+      command.delta,
+      command.recordForUndo ?? true,
+    )
+  },
+  CreateContextNode: command => createContextNode(
+    command.parentNodeId,
+    command.semanticNodeIds,
+  ),
+  CreateContextNodeFromQuestion: command => createContextNodeFromQuestion(
+    command.nodeIds,
+    command.question,
+    command.semanticNodeIds,
+  ),
+  CreateContextNodeFromSelectedNodes: command => createContextNodeFromSelectedNodes(
+    command.taskNodeId,
+    command.selectedNodeIds,
+  ),
+  FindFileByName: command => findFileByName(
+    command.name,
+    command.searchPath,
+  ),
+  GetPreviewContainedNodeIds: command => getPreviewContainedNodeIds(command.nodeId),
+  GetUnseenNodesAroundContextNode: command => getUnseenNodesAroundContextNode(
+    command.contextNodeId,
+    command.searchFromNode,
+  ),
+  GetWatchedDirectory: () => getProjectRootWatchedDirectory(),
+  InitializeGraphModel: command => {
+    initGraphModel({ appSupportPath: command.appSupportPath })
+  },
+  PerformRedo: () => performRedo(),
+  PerformUndo: () => performUndo(),
+  ProjectAndBroadcast: async command => {
+    await projectAndBroadcast(command.session)
+  },
+  PublishDelta: command => {
+    publish({ delta: command.delta, source: command.source })
+  },
+  ReadGraph: () => getGraph(),
+  ReadGraphNode: command => getNode(command.nodeId),
+  ReadVaultState: () => readVaultState(),
+  RegistryTouch: (command, deps) => {
+    requireRegistry(deps).touch(command.sessionId)
+  },
+  RemoveVaultReadPath: command => removeReadPath(command.path),
+  SetGraph: command => {
+    setGraph(command.graph)
+  },
+  SetVaultWritePath: command => setWritePath(command.path),
+  UpdateContextNodeContainedIds: async command => {
+    await updateContextNodeContainedIds(
+      command.contextNodeId,
+      command.newNodeIds,
+    )
+  },
+  WriteAllPositions: command => {
+    writeAllPositionsSync(command.graph, command.projectRoot)
+  },
+} satisfies CommandHandlers
+
+export function runCommand<C extends Command>(
   command: C,
+  deps?: RunCommandDeps,
+): Promise<CommandOutput[C['type']]>
+
+export async function runCommand(
+  command: Command,
   deps: RunCommandDeps = {},
-): Promise<CommandOutput[C['type']]> {
-  switch (command.type) {
-    case 'AddVaultReadPath':
-      return await addReadPath(command.path) as CommandOutput[C['type']]
-    case 'ApplyGraphDeltaToDB':
-      await applyGraphDeltaToDBThroughMemAndUI(
-        command.delta,
-        command.recordForUndo ?? true,
-      )
-      return undefined as CommandOutput[C['type']]
-    case 'CreateContextNode':
-      return await createContextNode(
-        command.parentNodeId,
-        command.semanticNodeIds,
-      ) as CommandOutput[C['type']]
-    case 'CreateContextNodeFromQuestion':
-      return await createContextNodeFromQuestion(
-        command.nodeIds,
-        command.question,
-        command.semanticNodeIds,
-      ) as CommandOutput[C['type']]
-    case 'CreateContextNodeFromSelectedNodes':
-      return await createContextNodeFromSelectedNodes(
-        command.taskNodeId,
-        command.selectedNodeIds,
-      ) as CommandOutput[C['type']]
-    case 'FindFileByName':
-      return await findFileByName(
-        command.name,
-        command.searchPath,
-      ) as CommandOutput[C['type']]
-    case 'GetPreviewContainedNodeIds':
-      return await getPreviewContainedNodeIds(
-        command.nodeId,
-      ) as CommandOutput[C['type']]
-    case 'GetUnseenNodesAroundContextNode':
-      return await getUnseenNodesAroundContextNode(
-        command.contextNodeId,
-        command.searchFromNode,
-      ) as CommandOutput[C['type']]
-    case 'GetWatchedDirectory':
-      return getProjectRootWatchedDirectory() as CommandOutput[C['type']]
-    case 'InitializeGraphModel':
-      initGraphModel({ appSupportPath: command.appSupportPath })
-      return undefined as CommandOutput[C['type']]
-    case 'PerformRedo':
-      return await performRedo() as CommandOutput[C['type']]
-    case 'PerformUndo':
-      return await performUndo() as CommandOutput[C['type']]
-    case 'ProjectAndBroadcast':
-      await projectAndBroadcast(command.session)
-      return undefined as CommandOutput[C['type']]
-    case 'PublishDelta':
-      publish({ delta: command.delta, source: command.source })
-      return undefined as CommandOutput[C['type']]
-    case 'ReadGraph':
-      return getGraph() as CommandOutput[C['type']]
-    case 'ReadGraphNode':
-      return getNode(command.nodeId) as CommandOutput[C['type']]
-    case 'ReadVaultState':
-      return await readVaultState() as CommandOutput[C['type']]
-    case 'RegistryTouch':
-      requireRegistry(deps).touch(command.sessionId)
-      return undefined as CommandOutput[C['type']]
-    case 'RemoveVaultReadPath':
-      return await removeReadPath(command.path) as CommandOutput[C['type']]
-    case 'SetGraph':
-      setGraph(command.graph)
-      return undefined as CommandOutput[C['type']]
-    case 'SetVaultWritePath':
-      return await setWritePath(command.path) as CommandOutput[C['type']]
-    case 'UpdateContextNodeContainedIds':
-      await updateContextNodeContainedIds(
-        command.contextNodeId,
-        command.newNodeIds,
-      )
-      return undefined as CommandOutput[C['type']]
-    case 'WriteAllPositions':
-      writeAllPositionsSync(command.graph, command.projectRoot)
-      return undefined as CommandOutput[C['type']]
-    default: {
-      const _exhaustive: never = command
-      return _exhaustive
-    }
-  }
+): Promise<CommandOutput[Command['type']]> {
+  const handler = commandHandlers[command.type] as unknown as (
+    command: Command,
+    deps: RunCommandDeps,
+  ) => Promise<CommandOutput[Command['type']]> | CommandOutput[Command['type']]
+
+  return await handler(command, deps)
 }
