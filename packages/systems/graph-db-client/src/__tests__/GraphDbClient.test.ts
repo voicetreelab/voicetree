@@ -118,13 +118,11 @@ describe('GraphDbClient', () => {
   })
 
   describe('vault endpoints', () => {
-    test('reads and mutates vault state through typed helpers', async () => {
+    test('reads and mutates vault write path through typed helpers', async () => {
       await start()
       const client = await connect()
-      const docsPath = join(harness.vault, 'docs')
       const outPath = join(harness.vault, 'out')
 
-      await mkdir(docsPath, { recursive: true })
       await mkdir(outPath, { recursive: true })
 
       await expect(client.getVault()).resolves.toEqual({
@@ -133,25 +131,12 @@ describe('GraphDbClient', () => {
         writePath: harness.vault,
       })
 
-      await expect(client.addReadPath(docsPath)).resolves.toEqual({
-        vaultPath: harness.vault,
-        readPaths: [docsPath],
-        writePath: harness.vault,
-      })
-
       const afterWritePath = await client.setWritePath(outPath)
       expect(afterWritePath).toMatchObject({
         vaultPath: harness.vault,
         writePath: outPath,
       })
-      expect(afterWritePath.readPaths).toEqual(expect.arrayContaining([docsPath]))
-
-      const afterRemoveReadPath = await client.removeReadPath(docsPath)
-      expect(afterRemoveReadPath).toMatchObject({
-        vaultPath: harness.vault,
-        writePath: outPath,
-      })
-      expect(afterRemoveReadPath.readPaths).not.toContain(docsPath)
+      expect(afterWritePath.readPaths).toEqual([harness.vault])
     })
 
     test('surfaces daemon 4xx responses as GraphDbClientError', async () => {
@@ -159,7 +144,7 @@ describe('GraphDbClient', () => {
       const client = await connect()
       const missingPath = join(harness.vault, 'missing')
 
-      await expect(client.addReadPath(missingPath)).rejects.toMatchObject({
+      await expect(client.setWritePath(missingPath)).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
@@ -249,7 +234,6 @@ describe('GraphDbClient', () => {
       const filePath = join(docsPath, 'hello.md')
 
       await mkdir(docsPath, { recursive: true })
-      await client.addReadPath(docsPath)
       await writeFile(filePath, '# Hello\n\nwatch me\n', 'utf8')
 
       const graph = await waitFor(async () => {
@@ -292,9 +276,10 @@ describe('GraphDbClient', () => {
   })
 
   describe('session endpoints', () => {
-    test('round-trips create, read, state, collapse, selection, layout, expand, and delete', async () => {
+    test('round-trips create, read, folder state, selection, layout, views, and delete', async () => {
       await start()
       const client = await connect()
+      const docsPath = join(harness.vault, 'docs')
 
       const created = await client.createSession()
       expect(created.sessionId).toMatch(
@@ -303,18 +288,47 @@ describe('GraphDbClient', () => {
 
       await expect(client.getSession(created.sessionId)).resolves.toMatchObject({
         id: created.sessionId,
-        collapseSetSize: 0,
+        folderStateSize: 0,
         selectionSize: 0,
       })
 
       await expect(client.getSessionState(created.sessionId)).resolves.toMatchObject(
         {
-          collapseSet: [],
+          folderState: [],
+          activeView: { name: 'main' },
           selection: [],
         },
       )
 
-      await expect(client.collapse(created.sessionId, 'docs')).resolves.toHaveProperty('collapseSet')
+      await expect(
+        client.setFolderState(created.sessionId, docsPath, 'collapsed'),
+      ).resolves.toMatchObject({
+        folderState: [[docsPath, 'collapsed']],
+      })
+      await expect(client.getFolderState(created.sessionId)).resolves.toMatchObject({
+        folderState: [[docsPath, 'collapsed']],
+      })
+      await expect(
+        client.setFolderStateBatch(created.sessionId, [
+          { path: join(harness.vault, 'src'), state: 'expanded' },
+          { path: join(harness.vault, 'tmp'), state: 'hidden' },
+        ]),
+      ).resolves.toMatchObject({
+        folderState: [
+          [docsPath, 'collapsed'],
+          [join(harness.vault, 'src'), 'expanded'],
+          [join(harness.vault, 'tmp'), 'hidden'],
+        ],
+      })
+
+      const alt = await client.views.create('alt')
+      await expect(client.views.list()).resolves.toContainEqual(alt)
+      const clone = await client.views.clone(alt.viewId, 'copy')
+      await expect(client.views.delete(clone.viewId)).resolves.toBeUndefined()
+      await expect(client.views.activate(alt.viewId)).resolves.toMatchObject({
+        viewId: alt.viewId,
+        isActive: true,
+      })
 
       await expect(
         client.setSelection(created.sessionId, {
@@ -343,8 +357,6 @@ describe('GraphDbClient', () => {
         },
       })
 
-      await expect(client.expand(created.sessionId, 'docs')).resolves.toHaveProperty('collapseSet')
-
       await expect(client.deleteSession(created.sessionId)).resolves.toBeUndefined()
 
       await expect(client.getSession(created.sessionId)).rejects.toBeInstanceOf(
@@ -360,10 +372,11 @@ describe('GraphDbClient', () => {
       const { sessionId } = await bootstrap.createSession()
       const clientA = await connect(sessionId)
       const clientB = await connect(sessionId)
+      const docsPath = join(harness.vault, 'docs')
 
-      await clientA.collapse(sessionId, 'docs')
+      await clientA.setFolderState(sessionId, docsPath, 'collapsed')
       await expect(clientB.getSessionState(sessionId)).resolves.toMatchObject({
-        collapseSet: ['docs'],
+        folderState: [[docsPath, 'collapsed']],
       })
 
       await clientB.setSelection(sessionId, {

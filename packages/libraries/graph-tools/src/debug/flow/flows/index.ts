@@ -7,7 +7,7 @@ import type { State } from '@vt/graph-state'
 
 import { validateStepSpec, type StepSpec } from '../stepShape'
 
-export const FLOW_IDS = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'] as const
+export const FLOW_IDS = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F9', 'F10'] as const
 
 export type FlowId = (typeof FLOW_IDS)[number]
 
@@ -26,6 +26,7 @@ export interface FlowRuntimeContext {
   readonly primaryNodeId: string
   readonly secondaryNodeId: string
   readonly primaryFolderId: string
+  readonly primaryFolderPath: string
 }
 
 interface RawFlowDefinition {
@@ -169,11 +170,14 @@ export function deriveFlowRuntimeContext(state: State): FlowRuntimeContext {
 
   const folderIds = collectFolderIds(state.roots.folderTree)
 
+  const primaryFolderId = folderIds[0] ?? withTrailingSlash(loadedRoots[0])
+
   return {
     rootPath: loadedRoots[0],
     primaryNodeId: graphNodeIds[0],
     secondaryNodeId: graphNodeIds[1] ?? graphNodeIds[0],
-    primaryFolderId: folderIds[0] ?? withTrailingSlash(loadedRoots[0]),
+    primaryFolderId,
+    primaryFolderPath: primaryFolderId.replace(/\/$/, ''),
   }
 }
 

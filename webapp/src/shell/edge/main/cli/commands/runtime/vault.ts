@@ -4,7 +4,7 @@ import {isJsonMode} from '@/shell/edge/main/cli/output'
 import {resolveVault} from '@/shell/edge/main/cli/util/detectVault'
 import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes'
 
-type VaultSubcommand = 'show' | 'add-read-path' | 'remove-read-path' | 'set-write-path'
+type VaultSubcommand = 'show' | 'set-write-path'
 
 type ParsedVaultCommand = {
     forceJson: boolean
@@ -13,18 +13,12 @@ type ParsedVaultCommand = {
     vaultFlag?: string
 }
 
-type ReadPathsResult = {
-    readPaths: string[]
-}
-
 type WritePathResult = {
     writePath: string
 }
 
 const VAULT_USAGE: string = `Usage:
   vt vault show [--vault <path>] [--session <id>] [--json]
-  vt vault add-read-path <path> [--vault <path>] [--session <id>] [--json]
-  vt vault remove-read-path <path> [--vault <path>] [--session <id>] [--json]
   vt vault set-write-path <path> [--vault <path>] [--session <id>] [--json]`
 
 function validationError(message: string): never {
@@ -115,8 +109,6 @@ function parseVaultCommand(argv: string[]): ParsedVaultCommand {
             }
 
             return {subcommand: 'show', vaultFlag, forceJson}
-        case 'add-read-path':
-        case 'remove-read-path':
         case 'set-write-path': {
             if (rest.length === 0) {
                 validationError(`Missing required <path> for \`${rawSubcommand}\`.`)
@@ -146,7 +138,7 @@ function emitResult<T>(result: T, formatHuman: (data: T) => string, forceJson: b
     console.log(formatHuman(result))
 }
 
-function formatReadPaths(data: ReadPathsResult): string {
+function formatReadPaths(data: {readPaths: string[]}): string {
     if (data.readPaths.length === 0) {
         return 'Read Paths:\n  (none)'
     }
@@ -178,16 +170,6 @@ export async function runVaultCommand(argv: string[]): Promise<void> {
         switch (parsed.subcommand) {
             case 'show': {
                 emitResult(await client.getVault(), formatVaultState, parsed.forceJson)
-                return
-            }
-            case 'add-read-path': {
-                const vaultState: VaultState = await client.addReadPath(parsed.pathArg)
-                emitResult({readPaths: vaultState.readPaths}, formatReadPaths, parsed.forceJson)
-                return
-            }
-            case 'remove-read-path': {
-                const vaultState: VaultState = await client.removeReadPath(parsed.pathArg)
-                emitResult({readPaths: vaultState.readPaths}, formatReadPaths, parsed.forceJson)
                 return
             }
             case 'set-write-path': {

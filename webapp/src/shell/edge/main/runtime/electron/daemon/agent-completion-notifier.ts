@@ -41,6 +41,15 @@ function isAppFocused(): boolean {
     return BrowserWindow.getAllWindows().some(w => w.isFocused());
 }
 
+function focusFirstWindow(): void {
+    const windows: BrowserWindow[] = BrowserWindow.getAllWindows();
+    if (windows.length === 0) return;
+
+    const mainWindow: BrowserWindow = windows[0];
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+}
+
 function showCompletionNotification(events: readonly CompletionEvent[]): void {
     if (!Notification.isSupported()) return;
 
@@ -71,49 +80,60 @@ function showCompletionNotification(events: readonly CompletionEvent[]): void {
         silent: true,
     });
 
-    notification.on('click', () => {
-        const windows: BrowserWindow[] = BrowserWindow.getAllWindows();
-        if (windows.length > 0) {
-            const mainWindow: BrowserWindow = windows[0];
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.focus();
-        }
-    });
-
+    notification.on('click', focusFirstWindow);
     notification.show();
 }
 
+type NotifierState = {
+    previousRecords: readonly TerminalRecord[];
+    pendingEvents: CompletionEvent[];
+    batchTimeout: ReturnType<typeof setTimeout> | null;
+};
+
+function shouldSkipNotifications(): boolean {
+    return process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1';
+}
+
+function showBatchWhenEnabled(batch: readonly CompletionEvent[]): void {
+    if (isAppFocused()) return;
+
+    void loadSettings()
+        .then(settings => {
+            if (settings.notifyOnAgentCompletion !== false) {
+                showCompletionNotification(batch);
+            }
+        })
+        .catch(() => {});
+}
+
+function scheduleNotificationBatch(state: NotifierState): void {
+    if (state.batchTimeout !== null) return;
+
+    state.batchTimeout = setTimeout(() => {
+        state.batchTimeout = null;
+        const batch: readonly CompletionEvent[] = state.pendingEvents;
+        state.pendingEvents = [];
+        showBatchWhenEnabled(batch);
+    }, BATCH_WINDOW_MS);
+}
+
+function updateNotifierState(state: NotifierState, records: readonly TerminalRecord[]): void {
+    if (shouldSkipNotifications()) return;
+
+    const events: readonly CompletionEvent[] = detectCompletions(state.previousRecords, records);
+    state.previousRecords = records;
+    if (events.length === 0) return;
+
+    state.pendingEvents.push(...events);
+    scheduleNotificationBatch(state);
+}
+
 export function createAgentCompletionNotifier(): (records: readonly TerminalRecord[]) => void {
-    let previousRecords: readonly TerminalRecord[] = [];
-    let pendingEvents: CompletionEvent[] = [];
-    let batchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    return (records: readonly TerminalRecord[]): void => {
-        if (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') return;
-
-        const events: readonly CompletionEvent[] = detectCompletions(previousRecords, records);
-        previousRecords = records;
-
-        if (events.length === 0) return;
-
-        pendingEvents.push(...events);
-
-        if (batchTimeout !== null) return;
-
-        batchTimeout = setTimeout(() => {
-            batchTimeout = null;
-            const batch: readonly CompletionEvent[] = pendingEvents;
-            pendingEvents = [];
-
-            if (isAppFocused()) return;
-
-            void loadSettings()
-                .then(settings => {
-                    if (settings.notifyOnAgentCompletion !== false) {
-                        showCompletionNotification(batch);
-                    }
-                })
-                .catch(() => {});
-        }, BATCH_WINDOW_MS);
+    const state: NotifierState = {
+        previousRecords: [],
+        pendingEvents: [],
+        batchTimeout: null,
     };
+
+    return (records: readonly TerminalRecord[]): void => updateNotifierState(state, records);
 }

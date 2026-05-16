@@ -7,7 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/daemon-graph-queries'
@@ -50,12 +50,23 @@ import {
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
   removeReadPathThroughDaemon as removeReadPath,
+  setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
   syncRendererSessionStateWithDaemon,
+  listViewsThroughDaemon,
+  activateViewThroughDaemon,
+  cloneViewThroughDaemon,
+  deleteViewThroughDaemon,
 } from './electron/daemon/daemon-ipc-proxy';
 import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/daemon-sse-subscription';
+import { stopDaemonGraphSync } from './electron/daemon/daemon-watch-sync';
 import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/graph-daemon';
 import path from 'path';
+
+async function __debugStopDaemonGraphSync(): Promise<void> {
+  if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API');
+  await stopDaemonGraphSync();
+}
 
 /**
  * Wrapper for initializeProject that provides the onboarding source directory.
@@ -95,6 +106,7 @@ export const mainAPI = {
   // Collapse/expand through daemon RPC
   collapseFolderThroughDaemon,
   expandFolderThroughDaemon,
+  setFolderStateThroughDaemon,
 
   // Position saving through daemon persistence
   saveNodePositions,
@@ -105,6 +117,10 @@ export const mainAPI = {
   saveSettings,
 
   // File watching operations - thin wrappers
+  openVault,
+
+  getStartupVaultHint,
+
   startFileWatching,
 
   stopFileWatching,
@@ -216,6 +232,7 @@ export const mainAPI = {
   syncRendererSessionStateWithDaemon,
   __debugLockSSE,
   __debugUnlockSSE,
+  __debugStopDaemonGraphSync,
 
   // Microphone permissions (macOS)
   checkMicrophonePermission,
@@ -240,4 +257,12 @@ export const mainAPI = {
   listWorkflows,
   readSkillFile,
   readSkillFileSummary,
+
+  // View operations (folder-visibility per-project views)
+  views: {
+    list: listViewsThroughDaemon,
+    activate: activateViewThroughDaemon,
+    clone: cloneViewThroughDaemon,
+    delete: deleteViewThroughDaemon,
+  },
 }

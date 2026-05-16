@@ -1,11 +1,12 @@
 {
   "$schema": "graph-state/snapshot@1",
   "id": "054-multi-command-final",
-  "description": "Final state after LoadRoot → AddNode → Collapse → Select.",
+  "description": "Final state after folder-state expand → AddNode → folder-state collapse → Select.",
   "state": {
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/overview.md",
           "contentWithoutYamlOrLinks": "# overview\n\nTop-level summary.\n",
@@ -20,6 +21,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/delta.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/delta.md",
           "contentWithoutYamlOrLinks": "# delta\n\nAdded during the multi-command sequence.\n",
@@ -34,6 +36,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/seed.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
           "contentWithoutYamlOrLinks": "# seed\n\nCore task file.\n",
@@ -48,6 +51,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-b/remote.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-b/remote.md",
           "contentWithoutYamlOrLinks": "# remote\n\nSecondary root note.\n",
@@ -92,10 +96,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a",
-        "/tmp/graph-state-fixtures/root-b"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -143,9 +143,24 @@
         }
       ]
     },
-    "collapseSet": [
-      "/tmp/graph-state-fixtures/root-a/tasks/"
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/tasks",
+        "collapsed"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-b",
+        "expanded"
+      ]
     ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [
       "/tmp/graph-state-fixtures/root-b/remote.md"
     ],

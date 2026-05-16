@@ -23,17 +23,24 @@ type ImportEdge = {
 // Missing pairs default to 0 — any new cross-package coupling breaks CI.
 // Initial values captured 2026-05-14 after widening discovery to the whole repo
 // (webapp + packages/libraries/* + packages/systems/*). Ratchet down over time.
+//
+// 2026-05-15 [BF-270]: DOVL+UFV epic structural baseline bump. Three pairs grew
+// from new daemon vault lifecycle + folder-state/view wire shapes added across
+// JOINT-001 / UFV-2 / BF-245:
+//   graph-db-client -> graph-db-protocol: 17 -> 25 (+8)
+//   graph-db-server -> graph-state:        7 -> 10 (+3)
+//   graph-db-server -> graph-db-protocol:  1 -> 4  (+3)
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
     'agent-runtime -> graph-model': 13,
     'app-config -> graph-model': 4,
-    'graph-db-client -> graph-db-protocol': 17,
+    'graph-db-client -> graph-db-protocol': 25,
     'graph-db-client -> graph-db-server': 17,
     'graph-db-server -> app-config': 13,
-    'graph-db-server -> graph-db-protocol': 1,
+    'graph-db-server -> graph-db-protocol': 4,
     'graph-db-server -> graph-model': 38,
-    'graph-db-server -> graph-state': 7,
+    'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,

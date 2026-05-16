@@ -1,10 +1,20 @@
 import type {
-    CollapseStateResponse,
+    FolderState,
     LayoutResponse,
     LiveStateSnapshot,
     SelectionResponse,
+    ViewRecord,
 } from '@vt/graph-db-client'
 import {isJsonMode} from '@/shell/edge/main/cli/output'
+
+export type CliViewRecord = ViewRecord & {
+    is_active: boolean
+}
+
+export type CliFolderStateRow = {
+    path: string
+    state: FolderState
+}
 
 export function emitResult<T>(result: T, formatHuman: (data: T) => string, forceJson: boolean): void {
     if (forceJson || isJsonMode()) {
@@ -26,22 +36,6 @@ export function formatLayout(data: LayoutResponse): string {
     ].join('\n')
 }
 
-function extractCollapseSet(data: unknown): string[] {
-    if (!data || typeof data !== 'object') return []
-    if ('collapseSet' in data) return (data as CollapseStateResponse).collapseSet
-    if ('nodes' in data) {
-        return (data as {nodes: readonly {kind?: string; id: string}[]}).nodes
-            .filter((n: {kind?: string}) => n.kind === 'folder-collapsed').map((n: {id: string}) => n.id)
-    }
-    return []
-}
-
-export function formatCollapseResult(data: unknown): string {
-    const set: string[] = extractCollapseSet(data).sort()
-    if (set.length === 0) return 'Collapse Set:\n  (none)'
-    return ['Collapse Set:', ...set.map((id: string) => `  - ${id}`)].join('\n')
-}
-
 export function formatSelection(data: SelectionResponse): string {
     if (data.selection.length === 0) {
         return 'Selection:\n  (none)'
@@ -49,11 +43,45 @@ export function formatSelection(data: SelectionResponse): string {
     return ['Selection:', ...data.selection.map((nodeId: string): string => `  - ${nodeId}`)].join('\n')
 }
 
+export function formatViewList(data: readonly CliViewRecord[]): string {
+    if (data.length === 0) {
+        return 'Views:\n  (none)'
+    }
+
+    return [
+        'Views:',
+        ...data.map((view: CliViewRecord): string =>
+            `  ${view.isActive ? '*' : '-'} ${view.name} (${view.viewId})`,
+        ),
+    ].join('\n')
+}
+
+export function formatViewActivated(data: CliViewRecord): string {
+    return `Active View: ${data.name} (${data.viewId})`
+}
+
+export function formatViewCloned(data: CliViewRecord): string {
+    return `Cloned View: ${data.name} (${data.viewId})`
+}
+
+export function formatViewDeleted(data: CliViewRecord): string {
+    return `Deleted View: ${data.name} (${data.viewId})`
+}
+
+export function formatFolderStateRow(data: CliFolderStateRow): string {
+    return `Folder State: ${data.path} -> ${data.state}`
+}
+
 export function formatViewState(data: LiveStateSnapshot): string {
-    const collapseEntries: string[] =
-        data.collapseSet.length === 0
-            ? ['Collapse Set:', '  (none)']
-            : ['Collapse Set:', ...[...data.collapseSet].sort().map((folderId: string): string => `  - ${folderId}`)]
+    const folderStateEntries: string[] =
+        data.folderState.length === 0
+            ? ['Folder State:', '  (none)']
+            : [
+                  'Folder State:',
+                  ...[...data.folderState]
+                      .sort(([left], [right]): number => left.localeCompare(right))
+                      .map(([folderPath, state]): string => `  - ${folderPath}: ${state}`),
+              ]
     const selectionEntries: string[] =
         data.selection.length === 0
             ? ['Selection:', '  (none)']
@@ -73,9 +101,9 @@ export function formatViewState(data: LiveStateSnapshot): string {
 
     return [
         `Graph Nodes: ${Object.keys(data.graph.nodes).length}`,
-        `Loaded Roots: ${data.roots.loaded.length}`,
         `Folder Roots: ${data.roots.folderTree.length}`,
-        ...collapseEntries,
+        `Active View: ${data.activeView.name} (${data.activeView.viewId})`,
+        ...folderStateEntries,
         ...selectionEntries,
         `Pan: ${
             data.layout.pan ? `(${data.layout.pan.x}, ${data.layout.pan.y})` : '(unset)'

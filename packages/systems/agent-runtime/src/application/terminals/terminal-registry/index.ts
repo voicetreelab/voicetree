@@ -9,6 +9,7 @@ export {
     clearPendingTerminal,
     enqueuePendingMessage,
     getPendingTerminal,
+    getPendingTerminals,
     recordTerminalPending,
 } from './pending'
 
@@ -37,3 +38,8 @@ export {
     getNextTerminalCountForNode,
     removeTerminalFromRegistry,
 } from './queries'
+
+export {
+    reconcileTmuxTerminalRegistry,
+    type TmuxReconciliationResult,
+} from './reconciliation'

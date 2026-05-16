@@ -3,6 +3,7 @@ import {
   SetWritePathRequestSchema,
 } from '@vt/graph-db-server/contract'
 import { validateAbsolutePath } from '../core/validatePath.ts'
+import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
@@ -26,6 +27,9 @@ export async function readVaultWorkflow(): Promise<HttpResult> {
   try {
     return jsonResult(await executeCommand({ type: 'ReadVaultState' }))
   } catch (error) {
+    if (error instanceof VaultNotOpenError) {
+      return structuredVaultErrorResult(error)
+    }
     return errorResult(
       (error as Error).message,
       'VAULT_STATE_READ_FAILED',

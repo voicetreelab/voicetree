@@ -106,13 +106,20 @@ describe('@vt/graph-state public API contract', () => {
     ])
   })
 
-  describe('Collapse / Expand', () => {
+  const setFolderState = (state: 'expanded' | 'collapsed' | 'hidden') => ({
+    type: 'SetFolderState' as const,
+    viewId: 'main',
+    path: folder,
+    state,
+  })
+
+  describe('SetFolderState folder visibility', () => {
     beforeEach(() => {
       apply({ type: 'AddNode', node: beta })
     })
 
-    it('Collapse hides children and presents folder as folder-collapsed', () => {
-      expect(apply({ type: 'Collapse', folder: folderId }).collapseAdded).toEqual([folderId])
+    it('collapsed hides children and presents folder as folder-collapsed', () => {
+      expect(apply(setFolderState('collapsed')).collapseAdded).toEqual([folderId])
 
       const projection = project(state)
       expect(projection.revision).toBe(state.meta.revision)
@@ -126,9 +133,9 @@ describe('@vt/graph-state public API contract', () => {
       }))
     })
 
-    it('Expand restores the previously collapsed folder', () => {
-      apply({ type: 'Collapse', folder: folderId })
-      expect(apply({ type: 'Expand', folder: folderId }).collapseRemoved).toEqual([folderId])
+    it('expanded restores the previously collapsed folder', () => {
+      apply(setFolderState('collapsed'))
+      expect(apply(setFolderState('expanded')).collapseRemoved).toEqual([folderId])
       expect(project(state).nodes).toContainEqual(expect.objectContaining({
         id: betaId,
         kind: 'file',

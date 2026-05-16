@@ -148,6 +148,14 @@ async function main(): Promise<void> {
         die(`failed to start MCP server: ${(err as Error).message}`)
     }
 
+    const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
+    if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+        process.stderr.write(
+            `vt-mcpd: reconciled tmux terminals imported=${reconciliation.imported.length} `
+            + `markedExited=${reconciliation.markedExited.length}\n`,
+        )
+    }
+
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
         + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, vault=${args.vault}\n`,

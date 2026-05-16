@@ -11,6 +11,19 @@ export type PendingTerminalState = {
     readonly isHeadless: boolean
 }
 
+export type PendingTerminalRecord = PendingTerminalState & {
+    readonly terminalId: string
+}
+
+type TmuxHeadlessRuntime = {
+    readonly isTmuxHeadlessAgent?: (terminalId: string) => boolean
+    readonly sendHeadlessAgentInput?: (terminalId: string, message: string) => Promise<{success: boolean; error?: string}>
+}
+
+function tmuxHeadlessRuntime(): TmuxHeadlessRuntime {
+    return agentRuntime as unknown as TmuxHeadlessRuntime
+}
+
 export function listTerminalRecords(): TerminalRecord[] {
     return agentRuntime.getTerminalRecords()
 }
@@ -27,12 +40,31 @@ export function getPendingTerminalState(terminalId: string): PendingTerminalStat
     return agentRuntime.getPendingTerminal(terminalId)
 }
 
+export function listPendingTerminalStates(): PendingTerminalRecord[] {
+    const runtime = agentRuntime as typeof agentRuntime & {
+        readonly getPendingTerminals?: () => PendingTerminalRecord[]
+    }
+    return runtime.getPendingTerminals?.() ?? []
+}
+
 export function enqueuePendingTerminalMessage(terminalId: string, message: string): void {
     agentRuntime.enqueuePendingMessage(terminalId, message)
 }
 
 export function readHeadlessTerminalOutput(terminalId: string): string {
     return agentRuntime.getHeadlessAgentOutput(terminalId)
+}
+
+export function isTmuxHeadlessTerminal(terminalId: string): boolean {
+    return tmuxHeadlessRuntime().isTmuxHeadlessAgent?.(terminalId) ?? false
+}
+
+export function sendHeadlessTerminalText(terminalId: string, message: string): Promise<{success: boolean; error?: string}> {
+    const send: TmuxHeadlessRuntime['sendHeadlessAgentInput'] = tmuxHeadlessRuntime().sendHeadlessAgentInput
+    if (!send) {
+        return Promise.resolve({success: false, error: 'Tmux headless input is unavailable in this runtime'})
+    }
+    return send(terminalId, message)
 }
 
 export function readInteractiveTerminalOutput(terminalId: string, nChars: number): string | undefined {

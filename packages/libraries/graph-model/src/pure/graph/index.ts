@@ -196,7 +196,7 @@ export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 
 // === CORE GRAPH DELTA OPERATIONS ===
 
-export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
+export { applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas } from './graphDelta/applyGraphDeltaToGraph'
 void (applyGraphDeltaToGraph satisfies ApplyGraphDeltaToGraph)
 
 export { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'

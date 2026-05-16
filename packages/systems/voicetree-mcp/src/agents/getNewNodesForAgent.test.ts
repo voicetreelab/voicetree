@@ -4,9 +4,14 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import type {Graph, GraphNode} from '@vt/graph-model/graph'
-import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getNewNodesForAgent, getNewNodesForAgentIdentities} from './getNewNodesForAgent'
 
-function buildNode(filePath: string, agentName: string): GraphNode {
+function buildNode(filePath: string, agentName: string | undefined): GraphNode {
+    const additionalYAMLProps: Map<string, string> = new Map()
+    if (agentName !== undefined) {
+        additionalYAMLProps.set('agent_name', agentName)
+    }
+
     return {
         outgoingEdges: [],
         absoluteFilePathIsID: filePath,
@@ -14,7 +19,7 @@ function buildNode(filePath: string, agentName: string): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map([['agent_name', agentName]]),
+            additionalYAMLProps,
             isContextNode: false
         }
     }
@@ -106,6 +111,68 @@ describe('getNewNodesForAgent — spawnedAt birthtime filter', () => {
         const result = getNewNodesForAgent(graph, 'Ama', 0)
         expect(result).toHaveLength(1)
         expect(result[0].nodeId).toBe(amaFile)
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('matches multiple identities and de-duplicates node ids', () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+        const configuredNameFile: string = path.join(tmpDir, 'configured-node.md')
+        const duplicateFile: string = path.join(tmpDir, 'duplicate-node.md')
+
+        fs.writeFileSync(terminalFile, '# Terminal id work')
+        fs.writeFileSync(configuredNameFile, '# Configured name work')
+        fs.writeFileSync(duplicateFile, '# Duplicate work')
+
+        const graph: Graph = buildGraph([
+            buildNode(terminalFile, 'Aki'),
+            buildNode(configuredNameFile, 'Fake Agent'),
+            buildNode(duplicateFile, 'Aki'),
+            buildNode(duplicateFile, 'Fake Agent')
+        ])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Fake Agent', 'Aki', 'Aki'], 0)
+
+        expect(result.map(node => node.nodeId).sort()).toEqual([
+            configuredNameFile,
+            duplicateFile,
+            terminalFile
+        ].sort())
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('falls back to tagged nodes when spawnedAt would exclude all matches', async () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+
+        fs.writeFileSync(terminalFile, '# Terminal id work')
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
+        const spawnedAtAfterNode: number = Date.now()
+
+        const graph: Graph = buildGraph([buildNode(terminalFile, 'Aki')])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Aki'], spawnedAtAfterNode)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(terminalFile)
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('recovers agent_name from node frontmatter when graph metadata lost YAML props', () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+
+        fs.writeFileSync(terminalFile, '---\nagent_name: Aki\n---\n# Terminal id work\n')
+
+        const graph: Graph = buildGraph([buildNode(terminalFile, undefined)])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Aki'], 0)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(terminalFile)
 
         fs.rmSync(tmpDir, {recursive: true})
     })

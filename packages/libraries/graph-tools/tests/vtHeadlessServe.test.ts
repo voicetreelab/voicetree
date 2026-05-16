@@ -28,13 +28,18 @@ describe('vt-headless serve', () => {
         }
     })
 
-    it('dispatchLiveCommand(Collapse) returns Delta with collapseAdded + bumped revision', async () => {
+    it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded + bumped revision', async () => {
         const server: HeadlessServer = await createHeadlessServer()
         try {
             const transport = createLiveTransport(server.port)
             const FOLDER = '/tmp/test-headless/tasks/'
 
-            const delta = await transport.dispatchLiveCommand({type: 'Collapse', folder: FOLDER})
+            const delta = await transport.dispatchLiveCommand({
+                type: 'SetFolderState',
+                viewId: 'main',
+                path: FOLDER.slice(0, -1),
+                state: 'collapsed',
+            })
 
             expect(delta.revision).toBe(1)
             expect(delta.collapseAdded).toContain(FOLDER)
@@ -43,7 +48,7 @@ describe('vt-headless serve', () => {
         }
     })
 
-    it('round-trip: Collapse → getLiveState reflects collapse and bumped revision', async () => {
+    it('round-trip: SetFolderState → getLiveState reflects collapse and bumped revision', async () => {
         const server: HeadlessServer = await createHeadlessServer()
         try {
             const transport = createLiveTransport(server.port)
@@ -53,7 +58,12 @@ describe('vt-headless serve', () => {
             expect(stateBefore.collapseSet.size).toBe(0)
             const revBefore = stateBefore.meta.revision
 
-            await transport.dispatchLiveCommand({type: 'Collapse', folder: FOLDER})
+            await transport.dispatchLiveCommand({
+                type: 'SetFolderState',
+                viewId: 'main',
+                path: FOLDER.slice(0, -1),
+                state: 'collapsed',
+            })
 
             const stateAfter = await transport.getLiveState()
             expect(stateAfter.collapseSet.has(FOLDER)).toBe(true)
@@ -83,8 +93,10 @@ describe('vt-headless serve', () => {
 
             // Mutations are isolated
             await createLiveTransport(srv1.port).dispatchLiveCommand({
-                type: 'Collapse',
-                folder: '/tmp/test-headless/tasks/',
+                type: 'SetFolderState',
+                viewId: 'main',
+                path: '/tmp/test-headless/tasks',
+                state: 'collapsed',
             })
             const s1After = await createLiveTransport(srv1.port).getLiveState()
             const s2After = await createLiveTransport(srv2.port).getLiveState()

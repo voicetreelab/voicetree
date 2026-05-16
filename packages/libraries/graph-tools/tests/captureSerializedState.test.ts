@@ -61,7 +61,7 @@ describe('captureSerializedState helpers', () => {
     let overlay = createStateCaptureOverlay(state)
     overlay = applyDeltaToStateCaptureOverlay(overlay, {
       revision: 1,
-      cause: { type: 'Collapse', folder: FOLDER },
+      cause: { type: 'SetFolderState', viewId: 'main', path: FOLDER.slice(0, -1), state: 'collapsed' },
       collapseAdded: [FOLDER],
     })
     overlay = applyDeltaToStateCaptureOverlay(overlay, {
@@ -71,7 +71,7 @@ describe('captureSerializedState helpers', () => {
     })
     overlay = applyDeltaToStateCaptureOverlay(overlay, {
       revision: 3,
-      cause: { type: 'UnloadRoot', root: ROOT_A },
+      cause: { type: 'SetFolderState', viewId: 'main', path: ROOT_A, state: 'hidden' },
       rootsUnloaded: [ROOT_A],
     })
     overlay = applyDeltaToStateCaptureOverlay(overlay, {

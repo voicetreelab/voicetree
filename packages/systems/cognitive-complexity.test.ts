@@ -46,6 +46,8 @@ function isProductionTypeScriptSource(path: string): boolean {
         && !path.endsWith('.d.ts')
         && !path.endsWith('/__audit_seed__.ts')
         && !path.includes('/__tests__/')
+        && !path.includes('/__fixtures__/')
+        && !path.includes('/__generated__/')
 }
 
 async function listProductionSources(root: string): Promise<string[]> {
@@ -113,10 +115,19 @@ function findFunctionComplexities(packageName: string, file: string, text: strin
 async function scanPackage(packageInfo: PackageInfo): Promise<FunctionComplexity[]> {
     const files = await listProductionSources(packageInfo.srcRoot)
     const nested = await Promise.all(files.map(async file => {
-        const text = await readFile(file, 'utf8')
-        return findFunctionComplexities(packageInfo.dirName, file, text)
+        try {
+            const text = await readFile(file, 'utf8')
+            return findFunctionComplexities(packageInfo.dirName, file, text)
+        } catch (error) {
+            if (isErrnoException(error) && error.code === 'ENOENT') return []
+            throw error
+        }
     }))
     return nested.flat()
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+    return error instanceof Error && 'code' in error
 }
 
 async function scanAllFunctions(): Promise<FunctionComplexity[]> {

@@ -28,6 +28,15 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
     ];
     let mockWritePath = '/mock/write-vault';
     let mockShowAllPaths: string[] = [];
+    const createEmptyProjectedGraph = () => ({
+      nodes: [],
+      edges: [],
+      rootPath: '',
+      revision: 0,
+      forests: [],
+      arboricity: 0,
+      recentNodeIds: []
+    });
 
     // Broadcast vault state to VaultPathStore via IPC (simulates main process push)
     const broadcastVaultState = (): void => {
@@ -47,6 +56,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMem: async () => ({ success: true }),
         getGraph: async () => ({ nodes: {}, edges: [] }),
+        getProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         getNode: async () => null,
 
         // Settings operations
@@ -68,6 +78,30 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/write-vault' }),
         loadPreviousFolder: async () => ({ success: false }),
+        getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock/write-vault' }),
+        openVault: async (dir: string) => {
+          const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
+          setTimeout(() => {
+            broadcastVaultState();
+            mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
+          }, 10);
+
+          return {
+            sessionId: 'mock-session',
+            writePath: mockWritePath,
+            vaultState: {
+              vaultPath: dir,
+              readPaths: [...mockVaultPaths],
+              writePath: mockWritePath,
+            },
+            initialProjectedGraph: projectedGraph,
+            folderState: [],
+            activeView: {
+              viewId: 'main',
+              name: 'Main',
+            },
+          };
+        },
 
         // Backend server configuration
         getBackendPort: async () => 5001,
@@ -83,13 +117,35 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
         markFrontendReady: async () => { setTimeout(broadcastVaultState, 10); },
         getLiveStateSnapshot: async () => ({
-          graph: { nodes: [], edges: [] },
-          roots: { loaded: [], folderTree: [] },
+          graph: {
+            nodes: {},
+            incomingEdgesIndex: [],
+            nodeByBaseName: [],
+            unresolvedLinksIndex: [],
+          },
+          roots: {
+            loaded: [],
+            folderTree: [{
+              name: 'write-vault',
+              absolutePath: '/mock/write-vault',
+              children: [],
+              loadState: 'loaded',
+              isWriteTarget: true,
+            }],
+          },
+          folderState: [],
+          activeView: { viewId: 'main', name: 'Main' },
           collapseSet: [],
           selection: [],
           layout: { positions: [] },
-          meta: { schemaVersion: 1 },
+          meta: { schemaVersion: 1, revision: 0 },
         }),
+        views: {
+          list: async () => [{ viewId: 'main', name: 'Main', isActive: true }],
+          activate: async () => ({ success: true }),
+          clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
+          delete: async () => ({ success: true }),
+        },
         createDatedVoiceTreeFolder: async () => {},
 
         // UI-edge graph delta operations
@@ -106,7 +162,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
         setWritePath: async (path: string) => {
           mockWritePath = path;
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
 
@@ -114,7 +170,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
           if (!mockVaultPaths.includes(path)) {
             mockVaultPaths.push(path);
           }
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
 
@@ -123,7 +179,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
           if (index >= 0) {
             mockVaultPaths.splice(index, 1);
           }
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
 
@@ -190,6 +246,10 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       // File watching event listeners
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},
+      onVaultSwitching: () => () => {},
+      onVaultReady: () => () => {},
+      onVaultLost: () => () => {},
+      onViewSwitched: () => () => {},
       removeAllListeners: () => {},
 
       // Terminal API
@@ -215,6 +275,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       graph: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         _graphState: { nodes: {}, edges: [] } as any,
+        _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

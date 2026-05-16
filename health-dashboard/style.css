@@ -16,6 +16,7 @@
 @import './styles/cards.css';
 @import './styles/checks.css';
 @import './styles/checks-wallclock.css';
+@import './styles/rollup-breakdown.css';
 @import './styles/checks-heatmap.css';
 @import './styles/filetree.css';
 @import './styles/treemap.css';

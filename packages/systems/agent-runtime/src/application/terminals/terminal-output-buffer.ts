@@ -45,7 +45,12 @@ function sanitizeOutput(data: string): string {
     cleaned = cleaned.replace(C1_PATTERN, '')
 
     // 6. Process carriage returns
-    //    First normalize CRLF (\r\n) to LF — standard Windows line endings
+    //    Collapse pipe-pane's `\r\r\n` terminators to `\r\n` first; without this the
+    //    `\r` overwrite heuristic below discards everything before the trailing `\r`
+    //    and the buffer collapses to ~0 readable chars on raw tmux pipe-pane streams
+    //    (BF-208 Q3; verified no-op on node-pty/CRLF streams per BF-301 Check 6).
+    cleaned = cleaned.replace(/\r+\n/g, '\n')
+    //    Then normalize remaining CRLF (\r\n) to LF — standard Windows line endings
     cleaned = cleaned.replace(/\r\n/g, '\n')
     //    Then process remaining \r as line-overwrite (TUI apps use \r to rewrite in-place)
     //    Keep only the content after the last \r on each line

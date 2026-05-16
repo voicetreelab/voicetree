@@ -13,6 +13,8 @@ const RUNTIME_THRESHOLD = 15;
 const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0;
 const root = join(import.meta.dirname, '..');
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES = new Set([
+  // vaultless daemon launcher (analogous to serve.ts for CLI)
+  'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
   'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
   'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
   'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',

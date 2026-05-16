@@ -14,6 +14,64 @@ export function getConfiguredCdpPort(): string | null {
     return _configuredCdpPort;
 }
 
+export function parseRemoteDebuggingPortArg(argv: readonly string[]): string | null {
+    for (let index: number = 0; index < argv.length; index++) {
+        const arg: string = argv[index];
+        if (arg.startsWith('--remote-debugging-port=')) {
+            const port: string = arg.slice('--remote-debugging-port='.length);
+            return /^\d+$/.test(port) ? port : null;
+        }
+        if (arg === '--remote-debugging-port') {
+            const port: string | undefined = argv[index + 1];
+            return port && /^\d+$/.test(port) ? port : null;
+        }
+    }
+    return null;
+}
+
+function validPortOrNull(port: string | undefined): string | null {
+    return port && /^\d+$/.test(port) ? port : null;
+}
+
+function getExistingRemoteDebuggingPort(): string | null {
+    const argvPort: string | null = parseRemoteDebuggingPortArg(process.argv);
+    if (argvPort !== null) return argvPort;
+    if (!app.commandLine.hasSwitch('remote-debugging-port')) return null;
+    return validPortOrNull(app.commandLine.getSwitchValue('remote-debugging-port'));
+}
+
+export function chooseCdpPort(
+    argvPort: string | null,
+    endpoint: string | undefined,
+    filePort: string | null,
+): string {
+    if (argvPort !== null) return argvPort;
+    if (endpoint) {
+        try {
+            const port: string = new URL(endpoint).port;
+            if (/^\d+$/.test(port)) return port;
+        } catch {
+            // Invalid endpoint: fall through to the next source.
+        }
+    }
+    return filePort && /^\d+$/.test(filePort) ? filePort : '0';
+}
+
+export function shouldAutoEnablePlaywrightDebug(env: NodeJS.ProcessEnv, appIsPackaged: boolean): boolean {
+    return !appIsPackaged
+        && env.NODE_ENV !== 'test'
+        && env.HEADLESS_TEST !== '1'
+        && env.ENABLE_PLAYWRIGHT_DEBUG === undefined;
+}
+
+function readCdpPortFile(cwd: string): string | null {
+    try {
+        return fs.readFileSync(path.join(cwd, '.cdp-port'), 'utf-8').trim();
+    } catch {
+        return null;
+    }
+}
+
 function ensureUserDataDirectory(): void {
     fs.mkdirSync(app.getPath('userData'), { recursive: true });
 }
@@ -72,7 +130,7 @@ export function configureEnvironment(): void {
     // Auto-enable CDP for all unpackaged builds so vt-debug can attach without manual setup.
     // Uses app.isPackaged instead of NODE_ENV because electron:prod (electron-vite build && electron .)
     // runs unpackaged but with NODE_ENV !== 'development', leaving CDP disabled and cdpPort=0.
-    if (!app.isPackaged && process.env.ENABLE_PLAYWRIGHT_DEBUG === undefined) {
+    if (shouldAutoEnablePlaywrightDebug(process.env, app.isPackaged)) {
         process.env.ENABLE_PLAYWRIGHT_DEBUG = '1';
     }
 
@@ -81,21 +139,17 @@ export function configureEnvironment(): void {
     // Port configurable via PLAYWRIGHT_MCP_CDP_ENDPOINT (e.g. http://localhost:9223) to avoid collisions between worktrees
     if (process.env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
         // Default '0' = ephemeral; OS picks a port and writes it to DevToolsActivePort post-launch.
-        // Explicit overrides (PLAYWRIGHT_MCP_CDP_ENDPOINT or .cdp-port file) take precedence.
-        let cdpPort: string = '0';
-        const cdpEndpoint: string | undefined = process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT;
-        if (cdpEndpoint) {
-            try { cdpPort = new URL(cdpEndpoint).port || '0'; } catch { /* keep ephemeral */ }
-        } else {
-            // Fallback: read .cdp-port file written by on-worktree-created.sh hook
-            try {
-                const filePort: string = fs.readFileSync(path.join(process.cwd(), '.cdp-port'), 'utf-8').trim();
-                if (/^\d+$/.test(filePort)) {
-                    cdpPort = filePort;
-                }
-            } catch { /* file doesn't exist, use ephemeral */ }
-        }
+        // Playwright owns its launch args, so an existing --remote-debugging-port must take precedence
+        // over the local .cdp-port helper used by vt-debug.
+        const existingCdpPort: string | null = getExistingRemoteDebuggingPort();
+        const cdpPort: string = chooseCdpPort(
+            existingCdpPort,
+            process.env.PLAYWRIGHT_MCP_CDP_ENDPOINT,
+            readCdpPortFile(process.cwd()),
+        );
         _configuredCdpPort = cdpPort;
-        app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
+        if (existingCdpPort === null) {
+            app.commandLine.appendSwitch('remote-debugging-port', cdpPort);
+        }
     }
 }

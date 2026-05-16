@@ -99,16 +99,12 @@ describe('projectSessionState', () => {
     const graph = makeGraph()
     const folderTree = makeFolderTree()
     // Under expand-descendants-of-target semantics: /vault writePath expands
-    // every folder under it (docs, node_modules, node_modules/dep). docs is
-    // forced collapsed by session.collapseSet so its children prune to [].
-    const expectedFolderTree: FolderTreeNode = {
-      ...folderTree,
-      children: folderTree.children.map((child) => {
-        if (!('children' in child)) return child
-        if (child.name === 'docs') return { ...child, children: [] }
-        return child
-      }),
-    }
+    // every folder under it (docs, node_modules, node_modules/dep). Manual
+    // collapse (collapseSet) is now conveyed through state.collapseSet alone —
+    // the serialized folder tree keeps full children so downstream consumers
+    // (graph-state projection, sidebar) can compute child counts and render
+    // independently of the graph collapse state.
+    const expectedFolderTree: FolderTreeNode = folderTree
     const vault = makeVault()
     const session = makeSession({
       collapseSet: new Set(['/vault/docs/']),
@@ -155,9 +151,11 @@ describe('projectSessionState', () => {
     expect([...snapA.collapseSet]).toEqual(['/vault/docs/'])
     expect([...snapB.collapseSet]).toEqual([])
     expect(snapA.collapseSet).not.toEqual(snapB.collapseSet)
-    // Session collapse overlays the default-expanded read/write paths.
+    // Collapse state is conveyed through state.collapseSet alone — the
+    // serialized folder tree itself doesn't change between collapsed and
+    // expanded sessions (only the graph projection downstream reacts).
     expect(snapA.graph).toEqual(snapB.graph)
-    expect(snapA.roots).not.toEqual(snapB.roots)
+    expect(snapA.roots).toEqual(snapB.roots)
   })
 
   test('null folderTree produces an empty roots.folderTree', () => {
@@ -192,7 +190,12 @@ describe('projectSessionState', () => {
     expect(dep.children.map((child) => child.name)).toEqual(['index.js'])
   })
 
-  test('manual collapse prunes a read/write path from the serialized folder tree', () => {
+  test('manual collapse does not prune children from the serialized folder tree', () => {
+    // Regression: previously, collapsing a folder pruned its children to [],
+    // which caused downstream graph-state projection to drop the folder
+    // entirely (countRecursiveProjectableFileDescendants → 0 short-circuit).
+    // Collapse is now conveyed via state.collapseSet alone so the projector
+    // can emit a `folder-collapsed` node with a correct childCount.
     const snapshot = projectSessionState({
       graph: makeGraph(),
       vault: makeVault(),
@@ -203,7 +206,8 @@ describe('projectSessionState', () => {
     const root = snapshot.roots.folderTree[0]
     const docs = root.children.find((child) => child.name === 'docs') as FolderTreeNode
 
-    expect(docs.children).toEqual([])
+    expect(docs.children.map((child) => child.name)).toEqual(['a.md', 'b.md'])
+    expect([...snapshot.collapseSet]).toEqual(['/vault/docs/'])
   })
 
   test('layout.positions is sourced from graph, not from session.layout.positions', () => {

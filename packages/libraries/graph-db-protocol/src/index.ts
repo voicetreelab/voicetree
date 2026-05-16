@@ -32,7 +32,7 @@ export type SessionCreateResponse = z.infer<typeof SessionCreateResponseSchema>
 export const SessionInfoSchema = z.object({
   id: SessionIdSchema,
   lastAccessedAt: z.number().int().nonnegative(),
-  collapseSetSize: z.number().int().nonnegative(),
+  folderStateSize: z.number().int().nonnegative(),
   selectionSize: z.number().int().nonnegative(),
 })
 export type SessionInfo = z.infer<typeof SessionInfoSchema>
@@ -166,7 +166,6 @@ export const LiveStateSnapshotSchema = z.object({
   roots: z.object({
     folderTree: z.array(z.unknown()),
   }),
-  collapseSet: z.array(z.string()),
   folderState: z.array(FolderStateEntrySchema),
   activeView: ActiveViewSchema,
   selection: z.array(z.string()),
@@ -192,6 +191,22 @@ export const VaultStateSchema = z.object({
   writePath: z.string(),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
+
+export const OpenVaultRequestSchema = z.object({
+  path: z.string(),
+  writePath: z.string().optional(),
+})
+export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
+
+export const OpenVaultResponseSchema = z.object({
+  sessionId: SessionIdSchema,
+  writePath: z.string(),
+  vaultState: VaultStateSchema,
+  initialProjectedGraph: z.unknown(),
+  folderState: z.array(FolderStateEntrySchema),
+  activeView: ActiveViewSchema,
+})
+export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
 
 export const SetWritePathRequestSchema = z.object({
   path: z.string(),

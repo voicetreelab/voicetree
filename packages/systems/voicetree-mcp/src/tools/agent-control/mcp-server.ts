@@ -32,10 +32,11 @@ import {graphStructureTool} from '../graph/graphStructureTool'
 import {registerLiveTools} from '../live/registerLiveTools'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from '../system/triggerOvernight'
 import {handleHookEventRequest, resolveHookEventName} from './hookEventHandler'
 import {agentRuntime} from '@vt/agent-runtime'
+import {mountTmuxAttachRelay} from '@vt/agent-runtime/relay/tmux-attach-relay.ts'
 import * as path from 'node:path'
+import {triggerOvernight, type TriggerOvernightParams, type TriggerOvernightResult} from '../system/triggerOvernight'
 
 // Re-export types and tool functions for external use
 export type {McpToolResponse} from '../toolResponse'
@@ -422,6 +423,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     const httpServer: Server = app.listen(mcpPort, '127.0.0.1', () => {
         log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
     })
+    const tmuxAttachRelay = mountTmuxAttachRelay(httpServer)
 
     // Auto-write MCP client configs so external agents can discover this server.
     // Silently skips if no project folder is open yet (loadFolder will write it later).
@@ -452,6 +454,7 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
                     if (err) reject(err)
                     else resolve()
                 })
+                tmuxAttachRelay.close()
                 ;(httpServer as unknown as { closeIdleConnections?: () => void }).closeIdleConnections?.()
             }),
     }

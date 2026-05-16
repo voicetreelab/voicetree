@@ -21,11 +21,6 @@ const daemonMutationFixturePattern =
   /(^|[/\\])(?:__fixtures__|fixtures)[/\\]allowed-daemon-mutation-imports[/\\]/
 const daemonMutationSpecifiersByModule = {
   '@vt/graph-model': new Set(['setWritePath', 'addReadPath', 'removeReadPath']),
-  '@vt/graph-state': new Set(['dispatchCollapse', 'dispatchExpand']),
-  '@vt/graph-state/state/collapseSetStore': new Set([
-    'dispatchCollapse',
-    'dispatchExpand',
-  ]),
 }
 
 function normalizeFilePath(filename) {

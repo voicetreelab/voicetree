@@ -5,12 +5,11 @@
  * the live store) and mirrors the mutation onto cytoscape + folder/selection
  * stores so the UI reflects MCP-originated commands in real time.
  *
- * Scope: renderer-owned selection/collapse commands plus viewport layout
+ * Scope: renderer-owned selection commands plus viewport layout
  * commands that must be mirrored into the layoutStore so layoutProjection can
  * drive cy synchronously before the harness snapshots the step.
  */
 import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state'
-import { collapseFolder, expandFolder } from '@/shell/edge/UI-edge/graph/view/folderCollapse'
 import { applyNodeSelectionSideEffects } from '@/shell/edge/UI-edge/graph/actions/applyNodeSelectionSideEffects'
 import {
     dispatchRequestFit,
@@ -34,16 +33,6 @@ export async function applyLiveCommandToRenderer(command: unknown): Promise<void
     const cmd: SerializedCommandShape = command as SerializedCommandShape
     try {
         switch (cmd.type) {
-            case 'Collapse':
-                if (typeof cmd.folder === 'string') {
-                    await collapseFolder(getCyInstance(), cmd.folder, 'local')
-                }
-                return
-            case 'Expand':
-                if (typeof cmd.folder === 'string') {
-                    await expandFolder(getCyInstance(), cmd.folder, 'local')
-                }
-                return
             case 'Select': {
                 if (!Array.isArray(cmd.ids)) return
                 const cy: ReturnType<typeof getCyInstance> = getCyInstance()

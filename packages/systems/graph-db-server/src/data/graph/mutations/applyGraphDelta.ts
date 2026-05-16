@@ -1,7 +1,7 @@
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
-import {applyGraphDeltaToGraph, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
+import {applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
@@ -10,6 +10,7 @@ import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
 import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
+import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
 
 /**
  * Applies a delta to the in-memory graph state and resolves any new wikilinks.
@@ -23,6 +24,7 @@ import {getCallbacks} from '@vt/graph-model'
  */
 export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<GraphDelta> {
     const currentGraph: Graph = getGraph();
+    delta = rebaseStaleEdgeAdditionDeltas(currentGraph, delta);
     let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
 
     // Only resolve wikilinks when delta contains UpsertNode (which might introduce new links)
@@ -74,26 +76,30 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
     delta: GraphDelta,
     recordForUndo: boolean = true
 ): Promise<void> {
+    const deltaToApply: GraphDelta = rebaseStaleEdgeAdditionDeltas(getGraph(), delta)
+
     // Extract watched directory (fail fast at edge)
     const watchedDirectory: string = pipe(
         O.fromNullable(getProjectRootWatchedDirectory()),
         O.getOrElseW(() => {
-            throw new Error('Watched directory not initialized')
+            throw new VaultNotOpenError()
         })
     )
 
     // Record for undo BEFORE applying (so we can reverse from current state)
     if (recordForUndo) {
-        recordUserActionAndSetDeltaHistoryState(delta)
+        recordUserActionAndSetDeltaHistoryState(deltaToApply)
     }
 
-    await applyGraphDeltaToMemState(delta)
+    const appliedDelta: GraphDelta = await applyGraphDeltaToMemState(deltaToApply)
+    const dbDelta: GraphDelta = appliedDelta.slice(0, deltaToApply.length)
 
     refreshGraphChangeSideEffects()
 
-    // Construct env and execute effect (only original delta goes to DB)
+    // Construct env and execute effect (only caller delta goes to DB; linked-node
+    // resolution deltas are memory-only projections).
     const env: Env = {projectRootWatchedDirectory: watchedDirectory}
-    const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)(env)()
+    const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(dbDelta)(env)()
 
     // Handle errors (fail fast)
     if (E.isLeft(result)) {

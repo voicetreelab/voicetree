@@ -5,6 +5,64 @@ import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
+// Per-pipeline build timing. Pair plugins: a `pre`-enforced one starts a per-id
+// timer in transform(); a `post`-enforced one stops it. Sum of (post-pre) per id
+// approximates the time other plugins spent transforming that file in this
+// pipeline. Bucket by node_modules package to surface the heaviest deps.
+// Wall-clock per pipeline comes from buildStart/buildEnd. Opt-in via
+// VT_BUILD_TIMING=1 so normal builds stay quiet. Stderr-only output.
+type TimingState = { pipelineStart: bigint; perId: Map<string, bigint>; perPkg: Map<string, bigint> }
+const packageOf = (id: string): string => {
+  const idx = id.lastIndexOf('/node_modules/')
+  if (idx < 0) return '(app)'
+  const tail = id.slice(idx + '/node_modules/'.length)
+  const parts = tail.split('/')
+  return parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0]
+}
+const fmtMs = (ns: bigint) => `${(Number(ns) / 1e6).toFixed(0)}ms`
+const buildTimingPlugins = (label: string) => {
+  const enabled = process.env.VT_BUILD_TIMING === '1'
+  const state: TimingState = { pipelineStart: 0n, perId: new Map(), perPkg: new Map() }
+  const pre = {
+    name: `vt-build-timing-${label}-pre`,
+    enforce: 'pre' as const,
+    buildStart() {
+      if (!enabled) return
+      state.pipelineStart = process.hrtime.bigint()
+      state.perId.clear()
+      state.perPkg.clear()
+    },
+    transform(_code: string, id: string) {
+      if (!enabled) return null
+      state.perId.set(id, process.hrtime.bigint())
+      return null
+    },
+  }
+  const post = {
+    name: `vt-build-timing-${label}-post`,
+    enforce: 'post' as const,
+    transform(_code: string, id: string) {
+      if (!enabled) return null
+      const start = state.perId.get(id)
+      if (start === undefined) return null
+      const dt = process.hrtime.bigint() - start
+      state.perPkg.set(packageOf(id), (state.perPkg.get(packageOf(id)) ?? 0n) + dt)
+      return null
+    },
+    buildEnd() {
+      if (!enabled) return
+      const total = process.hrtime.bigint() - state.pipelineStart
+      const top = [...state.perPkg.entries()]
+        .sort((a, b) => Number(b[1] - a[1]))
+        .slice(0, 10)
+        .map(([pkg, ns]) => `    ${pkg.padEnd(40)} ${fmtMs(ns)}`)
+        .join('\n')
+      process.stderr.write(`\n[vt-build-timing] ${label} pipeline: ${fmtMs(total)}\n${top}\n`)
+    },
+  }
+  return [pre, post]
+}
+
 // Detect if building for tests (npm run test:*, build:test, etc.)
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
@@ -17,6 +75,27 @@ const MAIN_RUNTIME_EXTERNALS: string[] = [
   'onnxruntime-web',
   'chokidar',
   'fsevents',
+  'bufferutil',
+  'utf-8-validate',
+  // Express + middleware tree. Reachable from main.ts via @vt/voicetree-mcp +
+  // @vt/graph-tools/node, both of which are in webapp devDependencies (not
+  // dependencies), so electron-vite's externalizeDepsPlugin doesn't externalize
+  // them and pulls express inline. Express is Node-only; main runs in Node so
+  // require()-ing it from node_modules at runtime is fine.
+  'express',
+  'body-parser',
+  'qs',
+  'iconv-lite',
+  'ws',
+  'serve-static',
+  'router',
+  'finalhandler',
+  'send',
+  'mime-types',
+  'mime-db',
+  'type-is',
+  'accepts',
+  'http-errors',
 ]
 
 // externalizeDepsPlugin resolves bundled packages (@vt/graph-model, @vt/graph-tools) to absolute
@@ -33,12 +112,83 @@ const isMainExternal = (id: string): boolean => {
 // @vt/graph-model (bundled inline) depends on chokidar v3, which requires fsevents natively.
 // The @rollup/plugin-commonjs resolver runs before rollupOptions.external is consulted, so we
 // need a pre-enforce resolveId hook to intercept native .node files before commonjs touches them.
-const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar'])
+const PRE_EXTERNAL_NATIVE_DEPS = new Set(['fsevents', 'chokidar', 'bufferutil', 'utf-8-validate'])
 const externalNativePlugin = {
   name: 'externalize-native-modules',
   enforce: 'pre' as const,
   resolveId(id: string) {
     if (id.endsWith('.node') || PRE_EXTERNAL_NATIVE_DEPS.has(id)) {
+      return { id, external: true }
+    }
+  }
+}
+
+// Express + middleware tree is reachable from main.ts via @vt/voicetree-mcp +
+// @vt/graph-tools/node. Both are in webapp devDependencies (not deps), so
+// electron-vite's externalizeDepsPlugin doesn't externalize them and pulls
+// express inline. Marking via rollupOptions.external is too late — @rollup/plugin-commonjs
+// has already converted the require()s. Intercept at pre-resolveId and
+// short-circuit to external. Main runs in Node so require()-ing from node_modules
+// at runtime is fine; express is in the root node_modules of the monorepo.
+const PRE_EXTERNAL_MAIN_DEPS = new Set([
+  'express',
+  'body-parser',
+  'qs',
+  'iconv-lite',
+  'ws',
+  'serve-static',
+  'router',
+  'finalhandler',
+  'send',
+  'mime-types',
+  'mime-db',
+  'type-is',
+  'accepts',
+  'http-errors',
+  'on-finished',
+  'parseurl',
+  'merge-descriptors',
+  'content-disposition',
+  'content-type',
+  'cookie',
+  'cookie-signature',
+  'depd',
+  'destroy',
+  'ee-first',
+  'encodeurl',
+  'escape-html',
+  'etag',
+  'fresh',
+  'forwarded',
+  'inherits',
+  'ipaddr.js',
+  'media-typer',
+  'methods',
+  'negotiator',
+  'object-inspect',
+  'path-to-regexp',
+  'proxy-addr',
+  'range-parser',
+  'raw-body',
+  'safe-buffer',
+  'safer-buffer',
+  'setprototypeof',
+  'statuses',
+  'toidentifier',
+  'unpipe',
+  'utils-merge',
+  'vary',
+])
+const externalMainDepsPlugin = {
+  name: 'externalize-main-deps',
+  enforce: 'pre' as const,
+  resolveId(id: string) {
+    if (PRE_EXTERNAL_MAIN_DEPS.has(id)) {
+      return { id, external: true }
+    }
+    // Subpath imports like 'body-parser/lib/types/json'
+    const firstSeg = id.split('/')[0]
+    if (PRE_EXTERNAL_MAIN_DEPS.has(firstSeg) && !id.startsWith('.') && !id.startsWith('/')) {
       return { id, external: true }
     }
   }
@@ -201,8 +351,10 @@ export default defineConfig({
   main: {
     // Configuration for electron main process
     plugins: [
+      ...buildTimingPlugins('main'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
+      externalMainDepsPlugin,
       externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
@@ -232,6 +384,7 @@ export default defineConfig({
   preload: {
     // Configuration for preload script
     plugins: [
+      ...buildTimingPlugins('preload'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
       externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
@@ -268,6 +421,7 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      ...buildTimingPlugins('renderer'),
       rendererNodeShimPlugin,
       externalNativePlugin,
       // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)

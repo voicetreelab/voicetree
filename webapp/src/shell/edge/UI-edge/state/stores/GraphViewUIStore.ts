@@ -34,6 +34,9 @@ export function setLoadingState(isLoading: boolean, message?: string): void {
         loadingOverlay.style.display = 'flex';
     } else {
         loadingOverlay.style.display = 'none';
+        if (loadingMessageElement) {
+            loadingMessageElement.textContent = '';
+        }
     }
 }
 

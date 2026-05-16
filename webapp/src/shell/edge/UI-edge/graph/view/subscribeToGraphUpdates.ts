@@ -19,6 +19,7 @@ import {
     updateRecentNodeHistoryFromProjectedGraph,
     clearRecentNodeHistory
 } from '@/shell/edge/UI-edge/state/stores/RecentNodeHistoryStore';
+import {syncGraphCollapsedFolders} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import type {SearchService} from '@/shell/UI/views/graph-view/SearchService';
 import {scheduleIdleWork} from '@/utils/scheduleIdleWork';
@@ -40,7 +41,6 @@ export function subscribeToGraphUpdates(
     }
 
     const cy: Core = navigationService.getCy();
-    let disposed: boolean = false;
     let lastProjectedGraph: ProjectedGraph | null = null;
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
@@ -50,6 +50,11 @@ export function subscribeToGraphUpdates(
         markRendererLoadTiming('renderer:loading-cleared');
 
         applyGraphDeltaToUI(cy, graph);
+        const collapsedFolderIds: Set<string> = new Set<string>();
+        for (const node of graph.nodes) {
+            if (node.kind === 'folder-collapsed') collapsedFolderIds.add(node.id);
+        }
+        syncGraphCollapsedFolders(collapsedFolderIds);
         searchService.updateSearchData();
 
         // Floating editors don't ride applyGraphDeltaToUI — that path only
@@ -85,16 +90,7 @@ export function subscribeToGraphUpdates(
     const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
 
-    void (async () => {
-        const graph: ProjectedGraph | undefined = await electronAPI.main.getProjectedGraph?.();
-        if (disposed || !graph || graph.nodes.length === 0) return;
-        handleProjectedGraph(graph);
-    })().catch((error: unknown) => {
-        console.error('[subscribeToGraphUpdates] Failed to hydrate initial projected graph:', error);
-    });
-
     return (): void => {
-        disposed = true;
         cleanupProjected();
         cleanupClear();
     };

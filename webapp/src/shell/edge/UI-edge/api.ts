@@ -33,7 +33,16 @@ import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/controllers/tra
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
 import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
-import { getLoadedRoots } from '@vt/graph-state/state/loadedRootsStore';
+import { deriveImplicitRoots } from '@vt/graph-state/state/folderVisibility/implicitRoots';
+import { getFolderVisibility } from '@vt/graph-state/state/folderVisibilityStore';
+
+function hasVisibleRoots(): boolean {
+    try {
+        return deriveImplicitRoots(getFolderVisibility('main')).size > 0;
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Update floating editors from external FS changes
@@ -76,7 +85,7 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
  * Called from main process when a vault path is removed from the allowlist.
  */
 function fitViewport(): void {
-    if (getLoadedRoots().size > 0) {
+    if (hasVisibleRoots()) {
         const cy: Core = getCyInstance();
         cyFitIntoVisibleViewport(cy, undefined, getResponsivePadding(cy, 10));
     }

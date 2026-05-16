@@ -7,7 +7,6 @@
  */
 
 import type { Graph, GraphDelta, NodeIdAndFilePath, GraphNode } from '@vt/graph-model/graph'
-import { CONTEXT_NODES_FOLDER } from '@vt/graph-model/graph'
 import { getNodeTitle, parseMarkdownToGraphNode } from '@vt/graph-model/markdown'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import * as O from 'fp-ts/lib/Option.js'
@@ -17,6 +16,7 @@ import {
 } from '../graph/mutations/applyGraphDelta'
 import { ensureUniqueNodeId } from '@vt/graph-model/graph'
 import { resolveContextWritePath } from './contextWritePath'
+import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeFromSelectedNodesClock = {
   readonly now: () => number

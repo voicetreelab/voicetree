@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-15T07:59:45.901Z",
-  "sourceFileCount": 742,
+  "generatedAt": "2026-05-16T01:53:01.084Z",
+  "sourceFileCount": 783,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1180,
-    "samePackageRelativeImports": 1180,
+    "relativeImports": 1280,
+    "samePackageRelativeImports": 1280,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 685,
-    "../x": 495,
+    "./x": 741,
+    "../x": 539,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -50,38 +50,12 @@
     {
       "package": "@vt/graph-model",
       "packageRoot": "packages/libraries/graph-model",
-      "relativeImports": 317,
-      "samePackageRelativeImports": 317,
+      "relativeImports": 319,
+      "samePackageRelativeImports": 319,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 172,
-        "../x": 145,
-        "../../x": 0,
-        "../../../+x": 0
-      }
-    },
-    {
-      "package": "voicetree-webapp",
-      "packageRoot": "webapp",
-      "relativeImports": 183,
-      "samePackageRelativeImports": 183,
-      "crossPackageRelativeImports": 0,
-      "samePackageByDepth": {
-        "./x": 170,
-        "../x": 13,
-        "../../x": 0,
-        "../../../+x": 0
-      }
-    },
-    {
-      "package": "@vt/agent-runtime",
-      "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 161,
-      "samePackageRelativeImports": 161,
-      "crossPackageRelativeImports": 0,
-      "samePackageByDepth": {
-        "./x": 55,
-        "../x": 106,
+        "../x": 147,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -89,12 +63,38 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 142,
-      "samePackageRelativeImports": 142,
+      "relativeImports": 221,
+      "samePackageRelativeImports": 221,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 69,
-        "../x": 73,
+        "./x": 113,
+        "../x": 108,
+        "../../x": 0,
+        "../../../+x": 0
+      }
+    },
+    {
+      "package": "@vt/agent-runtime",
+      "packageRoot": "packages/systems/agent-runtime",
+      "relativeImports": 194,
+      "samePackageRelativeImports": 194,
+      "crossPackageRelativeImports": 0,
+      "samePackageByDepth": {
+        "./x": 71,
+        "../x": 123,
+        "../../x": 0,
+        "../../../+x": 0
+      }
+    },
+    {
+      "package": "voicetree-webapp",
+      "packageRoot": "webapp",
+      "relativeImports": 181,
+      "samePackageRelativeImports": 181,
+      "crossPackageRelativeImports": 0,
+      "samePackageByDepth": {
+        "./x": 173,
+        "../x": 8,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -102,11 +102,11 @@
     {
       "package": "@vt/voicetree-mcp",
       "packageRoot": "packages/systems/voicetree-mcp",
-      "relativeImports": 138,
-      "samePackageRelativeImports": 138,
+      "relativeImports": 140,
+      "samePackageRelativeImports": 140,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 60,
+        "./x": 62,
         "../x": 78,
         "../../x": 0,
         "../../../+x": 0
@@ -128,12 +128,12 @@
     {
       "package": "@vt/graph-state",
       "packageRoot": "packages/libraries/graph-state",
-      "relativeImports": 75,
-      "samePackageRelativeImports": 75,
+      "relativeImports": 57,
+      "samePackageRelativeImports": 57,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 53,
-        "../x": 22,
+        "./x": 41,
+        "../x": 16,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -141,12 +141,12 @@
     {
       "package": "@vt/graph-db-client",
       "packageRoot": "packages/systems/graph-db-client",
-      "relativeImports": 48,
-      "samePackageRelativeImports": 48,
+      "relativeImports": 52,
+      "samePackageRelativeImports": 52,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 31,
-        "../x": 17,
+        "./x": 34,
+        "../x": 18,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -169,7 +169,7 @@
     {
       "file": "packages/systems/voicetree-mcp/src/tools/agent-control/mcp-server.ts",
       "package": "@vt/voicetree-mcp",
-      "relativeImports": 37,
+      "relativeImports": 38,
       "crossPackageRelativeImports": 0
     },
     {
@@ -197,15 +197,27 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-state/src/index.ts",
-      "package": "@vt/graph-state",
-      "relativeImports": 19,
-      "crossPackageRelativeImports": 0
-    },
-    {
       "file": "packages/libraries/graph-model/src/graph.ts",
       "package": "@vt/graph-model",
       "relativeImports": 17,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/libraries/graph-state/src/index.ts",
+      "package": "@vt/graph-state",
+      "relativeImports": 16,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
+      "package": "@vt/agent-runtime",
+      "relativeImports": 16,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
+      "package": "@vt/graph-db-server",
+      "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },
     {
@@ -215,32 +227,14 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "webapp/src/shell/edge/main/runtime/api.ts",
-      "package": "voicetree-webapp",
-      "relativeImports": 15,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
-      "package": "@vt/agent-runtime",
+      "file": "packages/systems/graph-db-server/src/routes/daemonApp.ts",
+      "package": "@vt/graph-db-server",
       "relativeImports": 14,
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-state/src/applyCommand.ts",
-      "package": "@vt/graph-state",
-      "relativeImports": 12,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/graph-db-server/src/daemon/server.ts",
-      "package": "@vt/graph-db-server",
-      "relativeImports": 12,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/graph-db-server/src/routes/daemonApp.ts",
-      "package": "@vt/graph-db-server",
+      "file": "packages/systems/agent-runtime/src/application/terminals/terminal-manager.ts",
+      "package": "@vt/agent-runtime",
       "relativeImports": 11,
       "crossPackageRelativeImports": 0
     },
@@ -251,8 +245,20 @@
       "crossPackageRelativeImports": 0
     },
     {
+      "file": "webapp/src/shell/edge/main/runtime/api.ts",
+      "package": "voicetree-webapp",
+      "relativeImports": 11,
+      "crossPackageRelativeImports": 0
+    },
+    {
       "file": "packages/libraries/graph-model/src/pure/graph/markdown-parsing/index.ts",
       "package": "@vt/graph-model",
+      "relativeImports": 10,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/libraries/graph-state/src/applyCommand.ts",
+      "package": "@vt/graph-state",
       "relativeImports": 10,
       "crossPackageRelativeImports": 0
     },
@@ -277,12 +283,6 @@
     {
       "file": "packages/libraries/graph-model/src/spatial.ts",
       "package": "@vt/graph-model",
-      "relativeImports": 9,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/agent-runtime/src/application/spawn/launchTerminalSpawn.ts",
-      "package": "@vt/agent-runtime",
       "relativeImports": 9,
       "crossPackageRelativeImports": 0
     }

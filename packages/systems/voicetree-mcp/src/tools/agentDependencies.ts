@@ -3,5 +3,5 @@ export {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
 } from '../agents/agent-completion-monitor'
-export {getNewNodesForAgent} from '../agents/getNewNodesForAgent'
+export {getNewNodesForAgent, getNewNodesForAgentIdentities} from '../agents/getNewNodesForAgent'
 export {getAgentStatus} from '../agents/isAgentComplete'

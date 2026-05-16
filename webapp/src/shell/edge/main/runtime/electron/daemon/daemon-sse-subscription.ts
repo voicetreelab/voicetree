@@ -152,10 +152,6 @@ export function unsubscribeFromDaemonSSE(): void {
     currentController = null
 }
 
-export function isDaemonSSEActive(): boolean {
-    return currentController !== null && !currentController.signal.aborted
-}
-
 export function __debugLockSSE(): void {
     if (process.env.NODE_ENV !== 'test') throw new Error('Test-only API')
     unsubscribeFromDaemonSSE()

@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/notes/inbox.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/notes/inbox.md",
           "contentWithoutYamlOrLinks": "# inbox\n\nSelected note for visibility tests.\n",
@@ -24,6 +25,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/notes/roadmap.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/tasks/summary.md",
@@ -43,6 +45,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/research/idea.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/research/idea.md",
           "contentWithoutYamlOrLinks": "# idea\n\nCollapsed sibling folder payload.\n",
@@ -57,6 +60,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
@@ -80,6 +84,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-b.md",
           "contentWithoutYamlOrLinks": "# epic-b\n\nLeaf note.\n",
@@ -98,6 +103,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/summary.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/tasks/epics/epic-a.md",
@@ -182,9 +188,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -258,10 +261,24 @@
         }
       ]
     },
-    "collapseSet": [
-      "/tmp/graph-state-fixtures/root-a/research/",
-      "/tmp/graph-state-fixtures/root-a/tasks/epics/"
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/research",
+        "collapsed"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-a/tasks/epics",
+        "collapsed"
+      ]
     ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [
       "/tmp/graph-state-fixtures/root-a/notes/inbox.md"
     ],

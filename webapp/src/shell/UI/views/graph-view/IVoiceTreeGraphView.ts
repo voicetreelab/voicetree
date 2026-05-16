@@ -53,6 +53,8 @@ export interface VoiceTreeGraphViewOptions {
   onError?: (error: string) => void;
   /** Callback for loading state changes */
   onLoading?: (isLoading: boolean) => void;
+  /** Initial daemon-projected graph returned by openVault */
+  initialProjectedGraph?: import('@vt/graph-state/contract').ProjectedGraph;
   /** Initial dark mode state (default: false) */
   initialDarkMode?: boolean;
   /** Show FPS counter overlay on WebGL renderer (default: false) */

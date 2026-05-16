@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "110-unload-root-command",
-  "description": "UnloadRoot removes the second loaded root.",
+  "description": "SetFolderState(hidden) removes the second implicit root.",
   "initial": "051-two-roots-loaded",
   "commands": [
     {
-      "type": "UnloadRoot",
-      "root": "/tmp/graph-state-fixtures/root-b"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-b",
+      "state": "hidden"
     }
   ],
   "expected": {

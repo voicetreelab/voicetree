@@ -1,26 +1,19 @@
-import { stat } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import {
-  DaemonLockHeldError,
-  ensureDaemon,
   GraphDbClient,
-  terminateUnresponsiveDaemon,
+  spawnVaultlessDaemon,
+  type VaultlessDaemonHandle,
 } from '@vt/graph-db-client'
 
-export interface CachedDaemonConnection {
-  client: GraphDbClient
-  launched: boolean
-  pid: number | null
-  port: number
-  vault: string
-}
+import { getAppSupportPath, getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
-let cachedConnection: CachedDaemonConnection | null = null
-let inflightConnection: Promise<CachedDaemonConnection> | null = null
-let inflightVault: string | null = null
+export type DaemonHandle = VaultlessDaemonHandle & { launched: true }
 
 const DAEMON_EXIT_GRACE_MS = 1000
 const DAEMON_SIGTERM_GRACE_MS = 500
+
+let activeDaemon: DaemonHandle | null = null
+let inflightDaemon: Promise<DaemonHandle> | null = null
+let shuttingDown = false
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -57,153 +50,129 @@ async function terminateDaemonPidIfAlive(pid: number | null): Promise<void> {
   }
 }
 
-async function shutdownConnection(connection: CachedDaemonConnection): Promise<void> {
-  await connection.client.shutdown().catch(() => undefined)
-  await terminateDaemonPidIfAlive(connection.pid)
+function pushToRenderer(channel: 'vault:lost', payload: unknown): void {
+  const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send(channel, payload)
 }
 
-async function assertVaultDirectory(vault: string): Promise<string> {
-  const resolvedVault = resolve(vault)
+function isConnectionFailure(error: unknown): boolean {
+  const err = error as { cause?: unknown; code?: string; message?: string }
+  const cause = err.cause as { code?: string; message?: string } | undefined
+  const message = err.message ?? cause?.message ?? String(error)
+  return (
+    err.code === 'ECONNREFUSED'
+    || cause?.code === 'ECONNREFUSED'
+    || message.includes('ECONNREFUSED')
+    || message.includes('fetch failed')
+  )
+}
 
-  let info
-  try {
-    info = await stat(resolvedVault)
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT') {
-      throw new Error(`Vault does not exist: ${resolvedVault}`)
+function markDaemonLost(error: unknown): void {
+  const previous = activeDaemon
+  activeDaemon = null
+  inflightDaemon = null
+
+  if (shuttingDown) return
+  pushToRenderer('vault:lost', {
+    error: error instanceof Error ? error.message : String(error),
+    pid: previous?.pid ?? null,
+  })
+}
+
+async function spawnDaemonForWebapp(): Promise<DaemonHandle> {
+  const handle = await spawnVaultlessDaemon({ appSupportPath: getAppSupportPath() })
+
+  handle.process.on('exit', (code, signal) => {
+    if (activeDaemon?.process === handle.process) {
+      markDaemonLost(new Error(`vt-graphd exited code=${code ?? 'null'} signal=${signal ?? 'null'}`))
     }
-    throw error
-  }
-
-  if (!info.isDirectory()) {
-    throw new Error(`Vault path is not a directory: ${resolvedVault}`)
-  }
-
-  return resolvedVault
-}
-
-async function isHealthyForVault(
-  connection: CachedDaemonConnection,
-  vault: string,
-): Promise<boolean> {
-  try {
-    const health = await connection.client.health()
-    return health.vault === vault
-  } catch {
-    return false
-  }
-}
-
-async function ensureDaemonWithOrphanRecovery(
-  vault: string,
-  opts?: { timeoutMs?: number },
-): Promise<Awaited<ReturnType<typeof ensureDaemon>>> {
-  try {
-    return await ensureDaemon(vault, opts)
-  } catch (err) {
-    if (!(err instanceof DaemonLockHeldError)) throw err
-    const terminated = await terminateUnresponsiveDaemon(vault, err.pid)
-    if (!terminated) throw err
-    return await ensureDaemon(vault, opts)
-  }
-}
-
-async function buildConnection(
-  vault: string,
-  opts?: { timeoutMs?: number },
-): Promise<CachedDaemonConnection> {
-  let bootstrap = await ensureDaemonWithOrphanRecovery(vault, opts)
-  let client = new GraphDbClient({
-    baseUrl: `http://127.0.0.1:${bootstrap.port}`,
   })
 
-  if (!bootstrap.launched) {
-    await client.shutdown().catch(() => {})
-    bootstrap = await ensureDaemonWithOrphanRecovery(vault, opts)
-    client = new GraphDbClient({
-      baseUrl: `http://127.0.0.1:${bootstrap.port}`,
-    })
-  }
-
-  const health = await client.health()
-  if (health.vault !== vault) {
-    throw new Error(
-      `vt-graphd health reported vault ${health.vault}, expected ${vault}`,
-    )
-  }
+  handle.process.on('error', (error) => {
+    if (activeDaemon?.process === handle.process || inflightDaemon !== null) {
+      markDaemonLost(error)
+    }
+  })
 
   return {
-    client,
+    ...handle,
     launched: true,
-    pid: bootstrap.pid,
-    port: bootstrap.port,
-    vault,
   }
 }
 
-export async function ensureDaemonClientForVault(
-  vault: string,
-  opts?: { timeoutMs?: number },
-): Promise<CachedDaemonConnection> {
-  const resolvedVault = await assertVaultDirectory(vault)
-
-  if (
-    cachedConnection?.vault === resolvedVault &&
-    (await isHealthyForVault(cachedConnection, resolvedVault))
-  ) {
-    return cachedConnection
+export async function ensureDaemonProcess(): Promise<DaemonHandle> {
+  if (activeDaemon) {
+    try {
+      await activeDaemon.client.health()
+      return activeDaemon
+    } catch (error) {
+      if (isConnectionFailure(error)) {
+        markDaemonLost(error)
+      } else {
+        throw error
+      }
+    }
   }
 
-  if (cachedConnection && cachedConnection.vault !== resolvedVault) {
-    const staleConnection = cachedConnection
-    cachedConnection = null
-    await shutdownConnection(staleConnection)
+  if (inflightDaemon) {
+    return await inflightDaemon
   }
 
-  if (
-    inflightConnection !== null &&
-    inflightVault === resolvedVault
-  ) {
-    return await inflightConnection
-  }
-
-  const pending = buildConnection(resolvedVault, opts)
-  inflightConnection = pending
-  inflightVault = resolvedVault
-
+  const pending = spawnDaemonForWebapp()
+  inflightDaemon = pending
   try {
-    const connection = await pending
-    cachedConnection = connection
-    return connection
+    const handle = await pending
+    activeDaemon = handle
+    return handle
   } finally {
-    if (inflightConnection === pending) {
-      inflightConnection = null
-      inflightVault = null
+    if (inflightDaemon === pending) {
+      inflightDaemon = null
     }
   }
 }
 
-export function getActiveDaemonConnection(): CachedDaemonConnection | null {
-  return cachedConnection
+export function getDaemonClient(): GraphDbClient {
+  if (!activeDaemon) {
+    throw new Error('Graph daemon process is not running')
+  }
+  return activeDaemon.client
 }
 
 export function getActiveDaemonClient(): GraphDbClient | null {
-  return cachedConnection?.client ?? null
+  return activeDaemon?.client ?? null
 }
 
-export async function shutdownActiveDaemonConnection(): Promise<void> {
-  const connection = cachedConnection
-    ?? (inflightConnection ? await inflightConnection.catch(() => null) : null)
-
-  clearDaemonClientCache()
-  if (connection) {
-    await shutdownConnection(connection)
+export async function callDaemon<T>(
+  fn: (client: GraphDbClient) => Promise<T>,
+): Promise<T> {
+  await ensureDaemonProcess()
+  try {
+    return await fn(getDaemonClient())
+  } catch (error) {
+    if (isConnectionFailure(error)) {
+      markDaemonLost(error)
+    }
+    throw error
   }
 }
 
+export async function shutdownActiveDaemonConnection(): Promise<void> {
+  shuttingDown = true
+  const daemon = activeDaemon ?? (inflightDaemon ? await inflightDaemon.catch(() => null) : null)
+  clearDaemonClientCache()
+
+  if (!daemon) {
+    shuttingDown = false
+    return
+  }
+
+  await daemon.client.shutdown().catch(() => undefined)
+  await terminateDaemonPidIfAlive(daemon.pid)
+  shuttingDown = false
+}
+
 export function clearDaemonClientCache(): void {
-  cachedConnection = null
-  inflightConnection = null
-  inflightVault = null
+  activeDaemon = null
+  inflightDaemon = null
 }

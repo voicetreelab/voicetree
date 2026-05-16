@@ -2,9 +2,11 @@ import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import {getTerminalId} from './terminal-registry/types';
 import {recordTerminalSpawn, markTerminalExited, clearTerminalRecords} from './terminal-registry';
-import type {TerminalData} from './terminal-registry/types';
+import type {TerminalData, TerminalId} from './terminal-registry/types';
+import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
-import {closeHeadlessAgent, cleanupHeadlessAgents} from '../headless/headlessAgentManager';
+import {closeHeadlessAgent, cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
+import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {getRuntimeTrace} from '../runtime/runtime-config';
 import {
   attachPtyProcessHandlers,
@@ -16,6 +18,16 @@ import {
   writeInitialCommand,
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
+import {
+  buildTmuxEnv,
+  resolveHeadfulPromptInjection,
+  resolvePromptFileWrite,
+  resolveTmuxVaultPath,
+  withResolvedTmuxVaultPath,
+  type HeadfulPromptInjectionRequest,
+  type PromptFileWriteRequest,
+} from './tmuxSpawnPlanning';
+import {getRuntimeEnv} from '../runtime/runtime-config';
 
 export interface TerminalSpawnResult {
   success: boolean;
@@ -33,6 +45,19 @@ export interface TerminalSpawnOpts {
   getToolsDirectory: () => string;
   onData: (terminalId: string, data: string) => void;
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
+}
+
+function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
+  if (!request) return null;
+  return writePromptFile(request.vaultPath, request.terminalId, request.prompt);
+}
+
+async function resolveRuntimeWritePath(): Promise<string | null> {
+  try {
+    return await (getRuntimeEnv().getWritePath?.() ?? Promise.resolve(null));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -124,6 +149,54 @@ export class TerminalManager {
       return { success: true, terminalId }; // Return success with error terminal
     }
     });
+  }
+
+  // Tmux-backed interactive spawn. Creates a tmux session running the user
+  // shell (so the relay's WS attach has something to connect to) and
+  // registers in terminal-registry. The renderer panel speaks WS to the relay
+  // directly — no PTY is owned by this process for tmux-backed terminals.
+  //
+  // Phase 6 prompt delivery: the agent prompt is written to a disk file
+  // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
+  // time and never crosses tmux's argv. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` with a short reference to the
+  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
+  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
+  // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
+  // context; panes inherit from the server. Only AGENT_PROMPT itself is
+  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
+  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
+  async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
+    const {terminalData, getToolsDirectory} = opts;
+    const deps: TerminalManagerDeps = this.deps;
+    const terminalId: TerminalId = readTerminalId(terminalData);
+    try {
+      const shell: string = await resolveTerminalShell(deps);
+      const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
+      const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
+      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWritePath());
+      const promptFile: string | null = writeResolvedPromptFile(
+        resolvePromptFileWrite(vaultPath, terminalId, initial.AGENT_PROMPT),
+      );
+      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, vaultPath, promptFile);
+      const terminalDataWithVaultPath: TerminalData = {
+        ...terminalData,
+        initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
+      };
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
+      const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
+        terminalId,
+        terminalData.initialCommand,
+        promptFile,
+      );
+      if (promptInjection) {
+        await injectAgentCommandHeadful(promptInjection);
+      }
+      return {success: true, terminalId};
+    } catch (error: unknown) {
+      deps.logger.error(`Failed to spawn tmux-backed terminal ${terminalId}:`, error);
+      return {success: false, terminalId, error: error instanceof Error ? error.message : String(error)};
+    }
   }
 
   /**

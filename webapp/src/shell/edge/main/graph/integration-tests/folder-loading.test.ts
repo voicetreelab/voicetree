@@ -493,16 +493,16 @@ describe.skip('Folder Loading - Integration Tests', () => {
       expect(isWatching()).toBe(true)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
-    it('should not throw when switching vaults while pendingLoadedDirectory is set but daemon not connected', async () => {
-      // Regression: simulate the race where doLoadFolder was called with pendingLoadedDirectory
-      // set from a concurrent/failed first load, causing writeCurrentPositionsThroughDaemon to
+    it('should not throw when switching vaults while a previous load is not connected to the daemon', async () => {
+      // Regression: simulate the old race where a concurrent/failed first load
+      // left stale main-process state, causing writeCurrentPositionsThroughDaemon to
       // throw "No vault is currently open" and blocking the vault switch entirely.
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
-      // second load seeing pendingLoadedDirectory from the first (daemon not yet connected).
+      // second load seeing stale state from the first (daemon not yet connected).
       setVaultPath(exampleSmallPath)
-      // getActiveDaemonConnection() is null → getProjectRootWatchedDirectory() returns exampleSmallPath
-      // doLoadFolder will attempt writeCurrentPositionsThroughDaemon → must not propagate the error
+      // The old load implementation attempted writeCurrentPositionsThroughDaemon and
+      // had to avoid propagating that error.
 
       const result = await loadFolder(exampleLargePath)
       expect(result.success).toBe(true)

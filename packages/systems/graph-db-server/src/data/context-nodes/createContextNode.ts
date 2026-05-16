@@ -1,5 +1,5 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
-import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
+import {getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, makeBidirectionalEdges} from '@vt/graph-model/graph'
 import {getNodeTitle, parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
@@ -12,6 +12,7 @@ import {
 } from "../graph/mutations/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWritePath } from './contextWritePath'
+import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeClock = {
     readonly now: () => number

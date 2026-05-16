@@ -109,12 +109,14 @@ const test = base.extend<{
     const electronApp = await electron.launch({
       args: [
         ...ciFlags,
+        '--remote-debugging-port=0',
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`
       ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        ENABLE_PLAYWRIGHT_DEBUG: '0',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',

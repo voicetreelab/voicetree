@@ -22,7 +22,7 @@ export function aggregateSessionsByDay(sessions: readonly SessionMetric[]): read
 
   // Group by date (YYYY-MM-DD) using reduce
   const byDay: ReadonlyMap<string, readonly number[]> = sessionsWithDuration.reduce(
-    (acc: ReadonlyMap<string, readonly number[]>, session) => {
+    (acc: Map<string, readonly number[]>, session) => {
       const date: string = session.startTime.slice(0, 10);
       const existing: readonly number[] = acc.get(date) ?? [];
       acc.set(date, [...existing, session.durationMs]);

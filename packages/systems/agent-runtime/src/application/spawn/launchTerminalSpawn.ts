@@ -10,6 +10,10 @@ import type {SpawnTerminalLogger} from './reloadNodeFromDisk'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 
+type SettingsWithPtyBackend = VTSettings & {
+    readonly ptyBackend?: 'node-pty' | 'tmux'
+}
+
 export type LaunchTerminalSpawnParams = {
     readonly contextNodeId: NodeIdAndFilePath
     readonly resolvedTaskNodeId: NodeIdAndFilePath
@@ -56,7 +60,9 @@ function launchPreparedTerminal(
             terminalData,
             headlessCommand,
             terminalData.initialSpawnDirectory,
-            headlessEnv
+            headlessEnv,
+            undefined,
+            (params.settings as SettingsWithPtyBackend).ptyBackend ?? 'node-pty',
         )
         return
     }

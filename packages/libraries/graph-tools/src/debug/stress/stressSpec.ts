@@ -38,6 +38,7 @@ export interface StressRuntimeContext {
   readonly primaryNodeId: string
   readonly secondaryNodeId: string
   readonly primaryFolderId: string
+  readonly primaryFolderPath: string
 }
 
 type RandomSource = () => number
@@ -121,9 +122,9 @@ const STRESS_TEMPLATES: readonly StressTemplate[] = [
     { wait: randomWait(rng, 90, 170) },
   ],
   (rng) => [
-    { dispatch: { type: 'Collapse', folder: '{{primaryFolderId}}' } },
+    { dispatch: { type: 'SetFolderState', viewId: 'main', path: '{{primaryFolderPath}}', state: 'collapsed' } },
     { wait: randomWait(rng, 120, 220) },
-    { dispatch: { type: 'Expand', folder: '{{primaryFolderId}}' } },
+    { dispatch: { type: 'SetFolderState', viewId: 'main', path: '{{primaryFolderPath}}', state: 'expanded' } },
     { wait: randomWait(rng, 120, 220) },
   ],
   (rng) => [
@@ -133,14 +134,6 @@ const STRESS_TEMPLATES: readonly StressTemplate[] = [
     { wait: randomWait(rng, 80, 160) },
     { dispatch: { type: 'Deselect', ids: ['{{primaryNodeId}}'] } },
     { wait: randomWait(rng, 80, 160) },
-  ],
-  (rng) => [
-    { dispatch: { type: 'UnloadRoot', root: '{{rootPath}}' } },
-    { wait: randomWait(rng, 110, 220) },
-    { dispatch: { type: 'LoadRoot', root: '{{rootPath}}' } },
-    { wait: randomWait(rng, 150, 260) },
-    { dispatch: { type: 'RequestFit', paddingPx: randomInt(rng, 20, 36) } },
-    { wait: randomWait(rng, 90, 180) },
   ],
 ] as const
 
@@ -184,6 +177,7 @@ export function deriveStressRuntimeContext(state: State): StressRuntimeContext {
     primaryNodeId: graphNodeIds[0],
     secondaryNodeId: graphNodeIds[1] ?? graphNodeIds[0],
     primaryFolderId: folderIds[0] ?? withTrailingSlash(loadedRoots[0]),
+    primaryFolderPath: (folderIds[0] ?? withTrailingSlash(loadedRoots[0])).replace(/\/$/, ''),
   }
 }
 

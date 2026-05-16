@@ -2,10 +2,15 @@ import type { Core } from 'cytoscape'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type {} from '@/shell/electron'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
+import {
+    addCollapsedFolderLocally,
+    removeCollapsedFolderLocally,
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 
 export async function collapseFolder(cy: Core, folderId: string, syncMode: 'daemon' | 'local' = 'daemon'): Promise<void> {
     if (syncMode === 'local') return
-    const graph: unknown = await window.electronAPI?.main.collapseFolderThroughDaemon(folderId)
+    const graph: unknown = await window.electronAPI?.main.setFolderStateThroughDaemon(folderId, 'collapsed')
+    addCollapsedFolderLocally(folderId)
     if (graph && typeof graph === 'object' && 'nodes' in graph) {
         applyGraphDeltaToUI(cy, graph as ProjectedGraph)
     }
@@ -13,7 +18,16 @@ export async function collapseFolder(cy: Core, folderId: string, syncMode: 'daem
 
 export async function expandFolder(cy: Core, folderId: string, syncMode: 'daemon' | 'local' = 'daemon'): Promise<void> {
     if (syncMode === 'local') return
-    const graph: unknown = await window.electronAPI?.main.expandFolderThroughDaemon(folderId)
+    const graph: unknown = await window.electronAPI?.main.setFolderStateThroughDaemon(folderId, 'expanded')
+    removeCollapsedFolderLocally(folderId)
+    if (graph && typeof graph === 'object' && 'nodes' in graph) {
+        applyGraphDeltaToUI(cy, graph as ProjectedGraph)
+    }
+}
+
+export async function hideFolder(cy: Core, folderId: string): Promise<void> {
+    const graph: unknown = await window.electronAPI?.main.setFolderStateThroughDaemon(folderId, 'hidden')
+    removeCollapsedFolderLocally(folderId)
     if (graph && typeof graph === 'object' && 'nodes' in graph) {
         applyGraphDeltaToUI(cy, graph as ProjectedGraph)
     }

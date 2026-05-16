@@ -2,8 +2,9 @@
  * BF-161/BF-L5-205 · live State store (main process).
  *
  * Holds only the main-owned mutable parts of `@vt/graph-state` State:
- * revision, roots, and layout. Renderer-owned `collapseSet` + `selection`
- * are read and mutated through the renderer live-state proxy.
+ * revision, roots, and layout. Renderer-owned `selection` is read and
+ * mutated through the renderer live-state proxy. Folder visibility is owned
+ * by the daemon and arrives through `folderState` + `activeView`.
  */
 import type {
     Command,
@@ -12,11 +13,11 @@ import type {
     StateLayout,
     StateRoots,
 } from '@vt/graph-state'
-import { applyCommandWithDelta, applyCommandAsyncWithDelta } from '@vt/graph-state'
+import { applyCommandWithDelta } from '@vt/graph-state'
 import { createEmptyGraph, type Graph } from '@vt/graph-model'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
-import { getActiveDaemonClient, getActiveDaemonConnection } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
 
 import {
@@ -68,7 +69,7 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    if (!getActiveDaemonConnection()) {
+    if (!getActiveDaemonClient()) {
         return
     }
 
@@ -95,7 +96,7 @@ export async function getCurrentLiveState(): Promise<State> {
     return {
         graph: await readGraphFromDaemonSessionState(),
         roots: liveParts.roots,
-        collapseSet: new Set(rendererState.collapseSet),
+        collapseSet: new Set(),
         selection: new Set(rendererState.selection),
         layout: liveParts.layout,
         meta: {
@@ -128,17 +129,10 @@ export function syncWatchedProjectRoot(root: string | null): void {
 
 export async function applyLiveCommand(cmd: Command): Promise<Delta> {
     const before: State = await getCurrentLiveState()
-    const { state, delta }: { state: State; delta: Delta } =
-        cmd.type === 'LoadRoot'
-            ? await applyCommandAsyncWithDelta(before, cmd)
-            : applyCommandWithDelta(before, cmd)
+    const { state, delta }: { state: State; delta: Delta } = applyCommandWithDelta(before, cmd)
 
     if (isRendererOwnedLiveCommand(cmd)) {
         await applyRendererLiveCommand(cmd)
-    }
-
-    if (cmd.type === 'LoadRoot' || cmd.type === 'UnloadRoot') {
-        hasExplicitRootState = true
     }
 
     commitMainOwnedState(state)

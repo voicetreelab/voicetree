@@ -134,10 +134,10 @@ describe('@vt/graph-tools system contract', () => {
 
       const result = runCli(['live', 'state', 'dump', '--port', String(server.port)])
       expect(result.status).toBe(0)
-      expect(JSON.parse(result.stdout).roots.loaded).toEqual([vault])
+      expect(JSON.parse(result.stdout).folderState).toEqual([[vault, 'expanded']])
     })
 
-    it('live apply Collapse mutates session state', { timeout: 30_000 }, async () => {
+    it('live apply SetFolderState mutates session state', { timeout: 30_000 }, async () => {
       const server = await startHeadless(vault)
       servers.push(server)
       const collapseFolder = `${vault}/work/`
@@ -145,7 +145,12 @@ describe('@vt/graph-tools system contract', () => {
       const result = runCli([
         'live',
         'apply',
-        JSON.stringify({ type: 'Collapse', folder: collapseFolder }),
+        JSON.stringify({
+          type: 'SetFolderState',
+          viewId: 'main',
+          path: collapseFolder.slice(0, -1),
+          state: 'collapsed',
+        }),
         '--port',
         String(server.port),
       ])

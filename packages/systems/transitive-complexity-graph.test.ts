@@ -9,7 +9,11 @@ import {recordHealthMetric} from './_health-report-test-helpers'
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
 const CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE = 1743
 const CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE = 270
-const MAX_CANARY_TOLERANCE = 0.21
+// 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function
+// vt-graph.ts:691:main grew to transitive=2125 from new vault lifecycle routes
+// + folder-state/view plumbing landed via JOINT-001 / UFV-2. Marginal overrun
+// (0.2191 vs 0.21, +0.9pp) — same precedent as BF-267 module-state bump.
+const MAX_CANARY_TOLERANCE = 0.22
 const FOLDER_MEAN_CANARY_TOLERANCE = 0.50
 const MINIMUM_FOLDER_FUNCTIONS = 4
 

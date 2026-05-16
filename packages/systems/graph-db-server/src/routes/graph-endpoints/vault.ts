@@ -1,14 +1,23 @@
 import type { Hono } from 'hono'
 import {
-  addReadPathWorkflow,
   ensureVaultWorkflowInitialized,
   readVaultWorkflow,
-  removeReadPathWorkflow,
   setWritePathWorkflow,
 } from '@vt/graph-db-server/application/workflows/vault'
-import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
+import {
+  closeVaultWorkflow,
+  isRequestValidationError,
+  openVaultWorkflow,
+  parseOpenVaultBody,
+} from '@vt/graph-db-server/application/workflows/vaultLifecycle'
+import {
+  StructuredVaultError,
+  structuredVaultErrorResult,
+} from '@vt/graph-db-server/application/errors/vaultNotOpen'
+import { mountDaemonRoute } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
 import { sendHttpResult } from '../httpResult.ts'
+import { errorResult, emptyResult } from '@vt/graph-db-server/application/workflows/httpResult'
 
 export function mountVaultRoutes(app: Hono): void {
   ensureVaultWorkflowInitialized()
@@ -20,15 +29,23 @@ export function mountVaultRoutes(app: Hono): void {
     return sendHttpResult(c, await readVaultWorkflow())
   })
 
-  mountDaemonRoute(app, daemonRouteSpecById('vault.add-read-path'), async (c) => {
-    return sendHttpResult(c, await addReadPathWorkflow(await c.req.json()))
+  mountDaemonRoute(app, daemonRouteSpecById('vault.open'), async (c) => {
+    try {
+      return c.json(await openVaultWorkflow(parseOpenVaultBody(await c.req.json())))
+    } catch (error) {
+      if (error instanceof StructuredVaultError) {
+        return sendHttpResult(c, structuredVaultErrorResult(error))
+      }
+      if (isRequestValidationError(error)) {
+        return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
+      }
+      throw error
+    }
   })
 
-  mountDaemonRoute(app, daemonRouteSpecById('vault.remove-read-path'), async (c) => {
-    return sendHttpResult(
-      c,
-      await removeReadPathWorkflow(routeParam(c, 'encodedPath')),
-    )
+  mountDaemonRoute(app, daemonRouteSpecById('vault.close'), async (c) => {
+    await closeVaultWorkflow()
+    return sendHttpResult(c, emptyResult(204))
   })
 
   mountDaemonRoute(app, daemonRouteSpecById('vault.set-write-path'), async (c) => {

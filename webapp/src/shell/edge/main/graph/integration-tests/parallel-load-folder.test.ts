@@ -42,6 +42,7 @@ const MIN_SMALL_NODE_COUNT: 10 = 10 as const
 const TIMEOUT_MS: 60000 = 60000 as const
 
 vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
+    getAppSupportPath: vi.fn(() => '/tmp/parallel-load-folder-app-support'),
     getMainWindow: vi.fn(() => ({
         webContents: { send: vi.fn(), isDestroyed: vi.fn(() => false) },
         isDestroyed: vi.fn(() => false),

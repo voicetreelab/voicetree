@@ -1,4 +1,7 @@
 import {
+  FolderStateBatchRequestSchema,
+  FolderStatePatchRequestSchema,
+  FolderStateResponseSchema,
   LayoutPartialSchema,
   LayoutResponseSchema,
   LiveStateSnapshotSchema,
@@ -7,6 +10,9 @@ import {
   SessionCreateResponseSchema,
   SessionInfoSchema,
   ViewResponseSchema,
+  type FolderState,
+  type FolderStateBatchUpdate,
+  type FolderStateResponse,
   type LayoutPartial,
   type LayoutResponse,
   type LiveStateSnapshot,
@@ -56,28 +62,40 @@ export function createSessionClient(request: RequestClient) {
       })
     },
 
-    async collapse(
-      sessionId: string,
-      folderId: string,
-    ): Promise<unknown> {
+    async getFolderState(sessionId: string): Promise<FolderStateResponse> {
       return await request(
-        `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
+        `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
         {
-          method: 'POST',
-          responseSchema: UnknownResponseSchema,
+          responseSchema: FolderStateResponseSchema,
         },
       )
     },
 
-    async expand(
+    async setFolderState(
       sessionId: string,
-      folderId: string,
-    ): Promise<unknown> {
+      path: string,
+      state: FolderState,
+    ): Promise<FolderStateResponse> {
       return await request(
-        `/sessions/${encodeURIComponent(sessionId)}/collapse/${encodeURIComponent(folderId)}`,
+        `/sessions/${encodeURIComponent(sessionId)}/folder-state/${encodeURIComponent(path)}`,
         {
-          method: 'DELETE',
-          responseSchema: UnknownResponseSchema,
+          body: FolderStatePatchRequestSchema.parse({ state }),
+          method: 'PATCH',
+          responseSchema: FolderStateResponseSchema,
+        },
+      )
+    },
+
+    async setFolderStateBatch(
+      sessionId: string,
+      updates: readonly FolderStateBatchUpdate[],
+    ): Promise<FolderStateResponse> {
+      return await request(
+        `/sessions/${encodeURIComponent(sessionId)}/folder-state`,
+        {
+          body: FolderStateBatchRequestSchema.parse({ updates }),
+          method: 'PATCH',
+          responseSchema: FolderStateResponseSchema,
         },
       )
     },

@@ -1,5 +1,5 @@
 import type {Graph, GraphDelta, NodeIdAndFilePath, GraphNode} from '@vt/graph-model/graph'
-import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, CONTEXT_NODES_FOLDER} from '@vt/graph-model/graph'
+import {getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder} from '@vt/graph-model/graph'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import { loadSettings } from '@vt/app-config/settings'
 import {type VTSettings} from '@vt/graph-model/settings'
@@ -11,6 +11,7 @@ import {
 } from "../graph/mutations/applyGraphDelta";
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWritePath } from './contextWritePath'
+import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
 
 type ContextNodeFromQuestionClock = {
     readonly now: () => number

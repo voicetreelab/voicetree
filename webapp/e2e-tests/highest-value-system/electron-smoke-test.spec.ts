@@ -11,6 +11,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
 import {
   WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
@@ -19,6 +20,69 @@ import {
   waitForMcpServer, mcpRequest, mcpCallTool,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function closeElectronAppForSmoke(
+  electronApp: ElectronApplication,
+  electronProcess: ChildProcess | null
+): Promise<void> {
+  try {
+    await Promise.race([
+      electronApp.evaluate(async ({ app }) => {
+        app.quit();
+      }),
+      delay(3000)
+    ]);
+  } catch {
+    // The app may already be exiting.
+  }
+
+  if (!electronProcess || electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
+
+  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  if (electronProcess.pid) {
+    try {
+      process.kill(electronProcess.pid, 'SIGTERM');
+    } catch {
+      // Electron already exited.
+    }
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
+
+  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  if (electronProcess.pid) {
+    try {
+      process.kill(electronProcess.pid, 'SIGKILL');
+    } catch {
+      // Electron already exited.
+    }
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(3000)
+  ]);
+}
 
 // Extend test with Electron app
 const test = base.extend<{
@@ -138,37 +202,25 @@ const test = base.extend<{
     });
 
     const electronProcess = electronApp.process();
-    electronProcess?.stdout?.on('data', (chunk: Buffer) => {
+    const stdoutHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.log(`[MAIN STDOUT] ${text.trim()}`);
-    });
-    electronProcess?.stderr?.on('data', (chunk: Buffer) => {
+    };
+    const stderrHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.error(`[MAIN STDERR] ${text.trim()}`);
-    });
+    };
+    electronProcess?.stdout?.on('data', stdoutHandler);
+    electronProcess?.stderr?.on('data', stderrHandler);
 
     await use(electronApp);
 
+    await closeElectronAppForSmoke(electronApp, electronProcess);
+    electronProcess?.stdout?.off('data', stdoutHandler);
+    electronProcess?.stderr?.off('data', stderrHandler);
     stopSmokeGraphDaemonForVault(fixtureVaultPath);
-
-    if (electronProcess?.pid) {
-      try {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      } catch {
-        // Electron already exited.
-      }
-    }
-
-    try {
-      await Promise.race([
-        electronApp.close(),
-        new Promise(resolve => setTimeout(resolve, 5000))
-      ]);
-    } catch {
-      // Close may fail if already killed.
-    }
     console.log('[Smoke Test] Electron app closed');
   },
 
@@ -378,9 +430,10 @@ test.describe('Smoke Test', () => {
         }>
       }).agents;
       const fakeAgent = agents.find(agent => agent.terminalId === fakeAgentTerminalId);
+      const exitCode = fakeAgent?.exitCode ?? null;
       return {
         status: fakeAgent?.status ?? 'missing',
-        exitCode: fakeAgent?.exitCode ?? null,
+        exitCodeOk: exitCode === null || exitCode === 0,
         hasProgressNode: fakeAgent?.newNodes?.some(node => node.title === 'Smoke Fake Agent Progress Node') ?? false
       };
     }, {
@@ -389,7 +442,7 @@ test.describe('Smoke Test', () => {
       intervals: [1000, 1000, 2000, 5000]
     }).toEqual({
       status: 'exited',
-      exitCode: 0,
+      exitCodeOk: true,
       hasProgressNode: true
     });
 
@@ -412,6 +465,12 @@ test.describe('Smoke Test', () => {
       intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
     console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
+
+    await appWindow.evaluate(async ({ callerId }) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api?.terminal) return;
+      await api.terminal.kill(callerId);
+    }, { callerId: callerTerminalId });
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');

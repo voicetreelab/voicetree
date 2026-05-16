@@ -107,6 +107,95 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(currentGraph.nodes['/vault/index.md'].outgoingEdges[0].targetId).toBe(movedPath)
     })
 
+    it('heals incoming edges when a same-basename move is observed as add before delete', () => {
+      let currentGraph: Graph = createEmptyGraph()
+
+      const oldPath = '/vault/topic.md'
+      const movedPath = '/vault/archive/topic.md'
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: oldPath,
+          content: '# Topic',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: '/vault/index.md',
+          content: '# Index\n\n[[topic]]',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: movedPath,
+          content: '# Topic',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+      expect(currentGraph.nodes['/vault/index.md'].outgoingEdges[0].targetId).toBe(oldPath)
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          type: 'Delete',
+          absolutePath: oldPath
+        }, currentGraph)
+      )
+
+      expect(currentGraph.nodes['/vault/index.md'].outgoingEdges[0].targetId).toBe(movedPath)
+    })
+
+    it('does not redirect deleted links to a same-basename file with different content', () => {
+      let currentGraph: Graph = createEmptyGraph()
+
+      const oldPath = '/vault/topic.md'
+      const otherPath = '/vault/archive/topic.md'
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: oldPath,
+          content: '# Topic',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: '/vault/index.md',
+          content: '# Index\n\n[[topic]]',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          absolutePath: otherPath,
+          content: '# Different Topic',
+          eventType: 'Added'
+        }, currentGraph)
+      )
+
+      currentGraph = applyGraphDeltaToGraph(
+        currentGraph,
+        mapFSEventsToGraphDelta({
+          type: 'Delete',
+          absolutePath: oldPath
+        }, currentGraph)
+      )
+
+      expect(currentGraph.nodes['/vault/index.md'].outgoingEdges[0].targetId).toBe(oldPath)
+    })
+
     it('does not infer a reference-preserving rename when the basename changes', () => {
       let currentGraph: Graph = createEmptyGraph()
 

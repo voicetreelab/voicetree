@@ -4,7 +4,6 @@ import fs from 'fs';
 import { app } from 'electron';
 import { getMcpPort } from '@vt/voicetree-mcp';
 import { getConfiguredCdpPort } from './environment-config';
-import { getActiveDaemonConnection } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override';
 
 function getInstancesDir(): string {
@@ -96,7 +95,6 @@ export async function registerInstance(): Promise<void> {
     const vaultPath: string =
         process.env.VOICETREE_VAULT_PATH ??
         getStartupFolderOverride() ??
-        getActiveDaemonConnection()?.vault ??
         '';
     const mcpPort: number = getMcpPort();
     const instance: InstanceRecord = {

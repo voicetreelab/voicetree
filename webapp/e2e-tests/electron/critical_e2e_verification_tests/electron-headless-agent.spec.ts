@@ -1,24 +1,18 @@
 /**
  * E2E Test: Headless Agent Mode
  *
- * Tests that headless agents:
- * 1. Can be spawned via MCP spawn_agent with headless:true
- * 2. Appear in list_agents with isHeadless flag
- * 3. Reject send_message (no stdin — headless agents have no PTY)
- * 4. Reject read_terminal_output (no terminal output — output is graph nodes)
- * 5. Exit and get marked as 'exited' in the registry
+ * User-observable contract verified through MCP:
+ * 1. spawn_agent with headless:true returns a terminalId
+ * 2. list_agents reports the agent with isHeadless:true
+ * 3. send_message is rejected for headless agents (no terminal input)
+ * 4. read_terminal_output returns the captured stdout/stderr ring buffer
+ *    (with isHeadless:true), and that buffer reflects what the spawned
+ *    process actually wrote — proving a real process ran, not just a stub
+ * 5. The agent transitions to status 'exited' with exitCode 0
  *
- * FLOW:
- * 1. Launch Electron app with projects.json pointing to example_small
- * 2. Click project to load vault, wait for graph
- * 3. Query MCP port from running process via electronAPI.main.getMcpPort()
- * 4. Wait for MCP server on that port
- * 5. Bootstrap a caller terminal via electronAPI (registers in terminal-registry)
- * 6. Call MCP spawn_agent with headless:true
- * 7. Verify headless lifecycle via MCP tools
- *
- * Pattern follows existing electron-smoke-test.spec.ts for project loading
- * and electron-mcp-server.spec.ts for MCP interaction.
+ * Bootstrap: launch Electron, load the vault fixture, register a caller
+ * terminal via electronAPI (so we have a valid callerTerminalId for MCP),
+ * then drive the headless lifecycle entirely through MCP.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -29,7 +23,8 @@ import * as os from 'os';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_SOURCE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const HEADLESS_OUTPUT_MARKER = 'VT_HEADLESS_E2E_OUTPUT_MARKER';
 
 interface ExtendedWindow {
     cytoscapeInstance?: {
@@ -56,12 +51,14 @@ const test = base.extend<{
     electronApp: async ({}, use) => {
         // Create a temporary userData directory for this test
         const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-headless-e2e-'));
+        const fixtureVaultPath = path.join(tempUserDataPath, 'example_small');
+        await fs.cp(FIXTURE_SOURCE_VAULT_PATH, fixtureVaultPath, { recursive: true });
 
         // Create projects.json with the test vault (smoke test pattern)
         const projectsPath = path.join(tempUserDataPath, 'projects.json');
         const savedProject = {
             id: 'headless-test-project',
-            path: FIXTURE_VAULT_PATH,
+            path: fixtureVaultPath,
             name: 'example_small',
             type: 'folder',
             lastOpened: Date.now(),
@@ -71,16 +68,18 @@ const test = base.extend<{
 
         // Also write legacy config for auto-load attempt
         const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+        await fs.writeFile(configPath, JSON.stringify({ lastDirectory: fixtureVaultPath }, null, 2), 'utf8');
 
-        // Write settings with a test agent command that follows the real pattern.
-        // Headless spawn transforms: 'echo "$AGENT_PROMPT"' → 'echo -p "$AGENT_PROMPT"'
-        // This prints the prompt text and exits 0 — perfect for testing the lifecycle.
+        // Test agent command emits a distinctive marker on stdout and exits 0.
+        // The marker lets read_terminal_output prove a real process ran and its
+        // captured output reached the headless ring buffer — independent of how
+        // the headless command transformation rewrites the trailing prompt arg.
         const settingsPath = path.join(tempUserDataPath, 'settings.json');
         await fs.writeFile(settingsPath, JSON.stringify({
             agents: [
-                { name: 'Test Agent', command: 'echo "$AGENT_PROMPT"' }
+                { name: 'Test Agent', command: `echo "${HEADLESS_OUTPUT_MARKER}" "$AGENT_PROMPT"` }
             ],
+            ptyBackend: 'node-pty',
             terminalSpawnPathRelativeToWatchedDirectory: '/'
         }, null, 2), 'utf8');
 
@@ -412,23 +411,43 @@ test.describe('Headless Agent E2E', () => {
         console.log(`✓ send_message rejected: "${sendError.slice(0, 80)}..."`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 9: Verify read_terminal_output returns headless output
+        // STEP 9: Verify read_terminal_output returns the captured output
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 9: Verify read_terminal_output returns headless output ===');
-        const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
-            terminalId: headlessTerminalId,
-            callerTerminalId: callerTerminalId
+        console.log('=== STEP 9: Verify read_terminal_output returns captured output ===');
+        // Headless agents return the captured stdout/stderr ring buffer rather
+        // than a rejection. Polling absorbs the small async gap between the
+        // child process writing and the buffer being readable through MCP.
+        // Asserting the marker appears proves the spawned process actually ran
+        // and that read_terminal_output exposes its real output (not an empty
+        // pending stub).
+        await expect.poll(async () => {
+            const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+                terminalId: headlessTerminalId,
+                callerTerminalId: callerTerminalId
+            });
+            const parsed = readResult.parsed as { success?: boolean; isHeadless?: boolean; output?: string };
+            return {
+                success: parsed.success ?? false,
+                isHeadless: parsed.isHeadless ?? false,
+                output: parsed.output ?? ''
+            };
+        }, {
+            message: 'Waiting for headless agent stdout marker to appear in read_terminal_output',
+            timeout: 15000,
+            intervals: [500, 1000, 1000, 2000]
+        }).toMatchObject({
+            success: true,
+            isHeadless: true,
+            output: expect.stringContaining(HEADLESS_OUTPUT_MARKER)
         });
-        // Headless agents return captured stderr ring buffer (not a rejection)
-        expect(readResult.success).toBe(true);
-        expect((readResult.parsed as { isHeadless: boolean }).isHeadless).toBe(true);
-        console.log(`✓ read_terminal_output returned headless output (isHeadless=true)`);
+        console.log(`✓ read_terminal_output returned captured output containing marker (isHeadless=true)`);
 
         // ═══════════════════════════════════════════════════════════════════
         // STEP 10: Wait for headless agent to exit
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 10: Wait for headless agent to exit ===');
-        // The headless agent runs 'sleep 5' (from test settings), should exit in ~5-6 seconds
+        // The headless command echoes the marker and exits — only enough time
+        // for the child process to be reaped and the registry to flip status.
         await expect.poll(async () => {
             const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
             const currentAgents = (listResult.parsed as {
@@ -466,7 +485,7 @@ test.describe('Headless Agent E2E', () => {
         console.log('✓ Headless agent spawned via MCP spawn_agent (headless: true)');
         console.log('✓ list_agents shows isHeadless: true');
         console.log('✓ send_message rejected for headless agent');
-        console.log('✓ read_terminal_output returns captured output for headless agent');
+        console.log('✓ read_terminal_output returns captured output containing the marker');
         console.log('✓ Headless agent process exited cleanly');
         console.log('✓ Headless agent exit code is 0');
         console.log('');

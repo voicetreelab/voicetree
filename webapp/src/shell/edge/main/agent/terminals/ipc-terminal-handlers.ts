@@ -1,6 +1,9 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@vt/agent-runtime'
 import type { TerminalSpawnResult } from '@vt/agent-runtime'
+import type { VTSettings } from '@vt/graph-model/settings'
+import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
+import { shouldBypassElectronNodePtySpawn } from '@/shell/edge/main/agent/terminals/terminal-backend-gate'
 import {
     trackTerminalForWindow,
     untrackTerminal,
@@ -16,6 +19,23 @@ export function registerTerminalIpcHandlers(
     ipcMain.handle('terminal:spawn', async (event, terminalData) => {
         const sender: Electron.WebContents = event.sender
         const senderId: number = sender.id
+        const settings: VTSettings = await loadSettings()
+
+        if (shouldBypassElectronNodePtySpawn(settings)) {
+            // Phase 4 + M1-fix: under ptyBackend='tmux', the renderer panel speaks
+            // WebSocket to the relay directly. The session it attaches to must
+            // already exist — without this call the panel hangs in "tmux reconnecting".
+            const tmuxResult: TerminalSpawnResult = await terminalManager.spawnTmuxBacked({
+                terminalData,
+                getToolsDirectory,
+                onData: (): void => {},
+                onExit: (terminalId: string): void => { untrackTerminal(terminalId) },
+            })
+            if (tmuxResult.success && !tmuxResult.terminalId.startsWith('error-')) {
+                trackTerminalForWindow(tmuxResult.terminalId, senderId)
+            }
+            return tmuxResult
+        }
 
         const result: TerminalSpawnResult = await terminalManager.spawn({
             terminalData,
