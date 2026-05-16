@@ -47,13 +47,17 @@ test.describe('SSE replay buffer', () => {
       intervals: [250, 500, 1000],
     }).toBeGreaterThan(0);
 
+    // Pick the fixture's Root.md node deterministically by file path, instead
+    // of relying on map iteration order. Node IDs are file paths in the
+    // graph-db domain, so the fixture's Root.md surfaces as a suffix match.
     const parentNodeId = await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       const graph = await api.main.getGraph();
       const nodeIds = Object.keys(graph.nodes);
-      if (nodeIds.length === 0) throw new Error('No graph nodes loaded');
-      return nodeIds[0];
+      const rootId = nodeIds.find(id => id.endsWith('Root.md') || id.endsWith('/Root') || id === 'Root.md');
+      if (!rootId) throw new Error(`No Root.md node loaded; got: ${nodeIds.join(', ')}`);
+      return rootId;
     });
 
     const callerTerminalId = 'e2e-replay-caller';
