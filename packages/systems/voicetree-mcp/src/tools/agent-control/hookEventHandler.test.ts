@@ -73,15 +73,15 @@ describe('handleHookEventRequest — end-to-end against the real registry', () =
         expect(lifecycleOf('cc-1')).toBe('active')
     })
 
-    it('Claude Code PreToolUse is ignored (still mid-work)', () => {
+    it('Claude Code PreToolUse flips to awaiting_input for AskUserQuestion', () => {
         spawn('cc-1')
         handleHookEventRequest({source: 'claude-code', terminalId: 'cc-1', hookEventName: 'UserPromptSubmit'}, deps)
         const result = handleHookEventRequest(
             {source: 'claude-code', terminalId: 'cc-1', hookEventName: 'PreToolUse'},
             deps,
         )
-        expect(result).toEqual({ok: true, ignored: true, eventName: 'PreToolUse'})
-        expect(lifecycleOf('cc-1')).toBe('active')
+        expect(result).toEqual({ok: true, kind: 'awaiting'})
+        expect(lifecycleOf('cc-1')).toBe('awaiting_input')
     })
 
     it('Codex Stop also flips to awaiting_input', () => {
