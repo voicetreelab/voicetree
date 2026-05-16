@@ -20,6 +20,33 @@ import {
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
 
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function closeElectronAppForSmoke(
+  electronApp: ElectronApplication,
+  electronProcess: ReturnType<ElectronApplication['process']> | null
+): Promise<void> {
+  let closeSettled = false;
+  const closePromise = electronApp.close()
+    .catch(() => undefined)
+    .finally(() => { closeSettled = true; });
+
+  await Promise.race([closePromise, delay(5000)]);
+  if (closeSettled) return;
+
+  if (electronProcess?.pid) {
+    try {
+      process.kill(electronProcess.pid, 'SIGKILL');
+    } catch {
+      // Electron already exited.
+    }
+  }
+
+  await Promise.race([closePromise, delay(5000)]);
+}
+
 // Extend test with Electron app
 const test = base.extend<{
   fixtureVaultPath: string;
@@ -151,24 +178,8 @@ const test = base.extend<{
 
     await use(electronApp);
 
+    await closeElectronAppForSmoke(electronApp, electronProcess);
     stopSmokeGraphDaemonForVault(fixtureVaultPath);
-
-    if (electronProcess?.pid) {
-      try {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      } catch {
-        // Electron already exited.
-      }
-    }
-
-    try {
-      await Promise.race([
-        electronApp.close(),
-        new Promise(resolve => setTimeout(resolve, 5000))
-      ]);
-    } catch {
-      // Close may fail if already killed.
-    }
     console.log('[Smoke Test] Electron app closed');
   },
 
@@ -413,6 +424,12 @@ test.describe('Smoke Test', () => {
       intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
     console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
+
+    await appWindow.evaluate(async ({ callerId }) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api?.terminal) return;
+      await api.terminal.kill(callerId);
+    }, { callerId: callerTerminalId });
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');
