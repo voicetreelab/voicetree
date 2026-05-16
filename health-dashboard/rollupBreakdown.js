@@ -14,14 +14,14 @@ const ROLLUPS = [
   {
     id: 'npm-test',
     name: 'npm run test',
-    note: 'npm run health  +  vitest  +  electron-vite build  +  native rebuild  +  tier1 e2e  +  tier2 browser e2e',
+    note: 'npm run health  +  vitest  +  electron-vite build  +  native rebuild  +  playwright tier1  +  playwright tier2 browser',
     components: [
-      { id: 'npm-health',         label: 'npm run health',                kind: 'rollup' },
-      { id: 'webapp-unit',        label: 'Webapp Unit (vitest)',          kind: 'leaf' },
-      { id: 'webapp-vite-build',  label: 'Webapp electron-vite build',    kind: 'leaf' },
-      { id: 'native-rebuild',     label: 'Native module rebuild',         kind: 'leaf' },
-      { id: 'e2e-tier1',          label: 'E2E Tier 1 (Electron Smoke)',   kind: 'leaf' },
-      { id: 'e2e-tier2-browser',  label: 'E2E Tier 2 (Browser)',          kind: 'leaf' },
+      { id: 'npm-health',         label: 'npm run health',                  kind: 'rollup' },
+      { id: 'webapp-unit',        label: 'Webapp Unit (vitest)',            kind: 'leaf' },
+      { id: 'webapp-vite-build',  label: 'Webapp electron-vite build',      kind: 'leaf' },
+      { id: 'native-rebuild',     label: 'Native module rebuild',           kind: 'leaf' },
+      { id: 'playwright-tier1',   label: 'Playwright Tier 1 (no rebuild)',  kind: 'leaf' },
+      { id: 'e2e-tier2-browser',  label: 'E2E Tier 2 (Browser)',            kind: 'leaf' },
     ],
   },
   {
@@ -72,38 +72,58 @@ function findReport(reports, id) {
   return reports.find(r => r.checkId === id) ?? null
 }
 
+// If components were measured in a different run than the rollup (different
+// cache state, machine load, day), their durations don't reflect what happened
+// inside this rollup invocation. We flag any component whose timestamp differs
+// from the rollup's by more than this — that's the gap explanation, not "hidden
+// work". 5 minutes is generous: a single capture run finishes in <5 min.
+const STALE_WINDOW_MS = 5 * 60 * 1000
+
+function ageGapMs(rollupTs, componentTs) {
+  if (!rollupTs || !componentTs) return 0
+  const a = Date.parse(rollupTs)
+  const b = Date.parse(componentTs)
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0
+  return Math.abs(a - b)
+}
+
 function buildBreakdown(rollupDef, reports) {
   const rollup = findReport(reports, rollupDef.id)
   if (!rollup || !Number.isFinite(rollup.durationMs) || rollup.durationMs <= 0) return null
 
   const measured = []
   let measuredSum = 0
+  let staleCount = 0
+  let maxStaleMs = 0
   for (const c of rollupDef.components) {
     const r = findReport(reports, c.id)
     if (r && Number.isFinite(r.durationMs) && r.durationMs > 0) {
-      measured.push({ ...c, durationMs: r.durationMs, status: r.status })
+      const gap = ageGapMs(rollup.timestamp, r.timestamp)
+      const isStale = gap > STALE_WINDOW_MS
+      if (isStale) { staleCount++; maxStaleMs = Math.max(maxStaleMs, gap) }
+      measured.push({ ...c, durationMs: r.durationMs, status: r.status, timestamp: r.timestamp, isStale })
       measuredSum += r.durationMs
     } else {
-      measured.push({ ...c, durationMs: 0, status: r?.status ?? 'missing' })
+      measured.push({ ...c, durationMs: 0, status: r?.status ?? 'missing', isStale: false })
     }
   }
   // Sort by duration desc — biggest contributors read left-to-right.
   measured.sort((a, b) => b.durationMs - a.durationMs)
 
-  // Component reports come from the dashboard's own capture run, NOT from the
-  // rollup invocation. Two failure modes for the gap:
-  //  - measuredSum < rollup.durationMs: the rollup spent extra wall-clock on
-  //    npm spawn, sub-steps with no captured check (e.g. tsc --noEmit), etc.
-  //    Render that as an "uncaptured" sliver inside the bar.
-  //  - measuredSum > rollup.durationMs: the standalone captures were slower
-  //    than running the same scripts inside the rollup (cold cache, no
-  //    parallelism, more verbose flags). Bar is normalized to measuredSum so
-  //    segments stay legible; the rollup's own time becomes a tick mark.
+  // Three cases for the rollup-vs-components gap:
+  //  A) staleCount > 0  →  components measured in a different run than the
+  //     rollup. Gap is mostly measurement timing, not hidden work. Surface
+  //     this as the explanation instead of "Uncaptured npm spawn ...".
+  //  B) measuredSum < rollup.durationMs (fresh): real uncaptured work — npm
+  //     spawn between &&-chained sub-steps, untracked commands, shell time.
+  //  C) measuredSum > rollup.durationMs: standalone captures slower than in
+  //     rollup (cold cache, no parallelism). Bar normalizes to measuredSum;
+  //     rollup's own time becomes a tick mark.
   const overflow = Math.max(measuredSum - rollup.durationMs, 0)
   const uncapturedMs = Math.max(rollup.durationMs - measuredSum, 0)
   const denom = Math.max(rollup.durationMs, measuredSum)
 
-  return { rollupDef, rollup, measured, measuredSum, uncapturedMs, overflow, denom }
+  return { rollupDef, rollup, measured, measuredSum, uncapturedMs, overflow, denom, staleCount, maxStaleMs }
 }
 
 function renderSegment(seg, denom) {
@@ -115,35 +135,44 @@ function renderSegment(seg, denom) {
   return `<span class="rb-seg rb-${tier} ${klass}" style="width:${pct.toFixed(2)}%" data-id="${esc(seg.id)}" title="${esc(title)}"></span>`
 }
 
-function renderUncaptured(uncapturedMs, denom) {
-  if (uncapturedMs <= 0 || denom <= 0) return ''
-  const pct = (uncapturedMs / denom) * 100
+function renderUncaptured(b) {
+  if (b.uncapturedMs <= 0 || b.denom <= 0) return ''
+  const pct = (b.uncapturedMs / b.denom) * 100
   if (pct < 0.5) return ''
-  return `<span class="rb-seg rb-uncaptured" style="width:${pct.toFixed(2)}%" title="Uncaptured — ${fmtDuration(uncapturedMs)} (${pct.toFixed(0)}%) · npm spawn overhead, untracked sub-steps, or measurement skew between runs"></span>`
+  const tooltip = b.staleCount > 0
+    ? `${fmtDuration(b.uncapturedMs)} unaccounted — ${b.staleCount} of ${b.measured.length} component${b.measured.length === 1 ? '' : 's'} measured in a different run (max ${fmtDuration(b.maxStaleMs)} apart from rollup). Re-run npm test to refresh.`
+    : `${fmtDuration(b.uncapturedMs)} unaccounted — npm spawn between &&-chained sub-steps, untracked commands, or shell time inside the rollup`
+  return `<span class="rb-seg rb-uncaptured" style="width:${pct.toFixed(2)}%" title="${esc(tooltip)}"></span>`
 }
 
 function renderLegendRow(seg, denom) {
   const pct = denom > 0 ? (seg.durationMs / denom) * 100 : 0
   const tier = seg.durationMs <= 0 ? 'missing' : tierForShare(pct)
   const dotKlass = seg.durationMs <= 0 ? 'rb-dot-missing' : `rb-${tier}`
-  const subTag = seg.kind === 'rollup' ? '<span class="rb-leg-tag">rollup</span>' : ''
+  const tags = []
+  if (seg.kind === 'rollup') tags.push('<span class="rb-leg-tag">rollup</span>')
+  if (seg.isStale) tags.push('<span class="rb-leg-tag rb-leg-tag-stale" title="measured in a different run than the rollup">stale</span>')
   const dur = seg.durationMs > 0 ? fmtDuration(seg.durationMs) : '—'
   const share = seg.durationMs > 0 ? `${pct.toFixed(0)}%` : 'no recent run'
   return `<li class="rb-leg-row" data-id="${esc(seg.id)}">
     <span class="rb-leg-dot ${dotKlass}"></span>
-    <span class="rb-leg-name">${esc(seg.label)}${subTag}</span>
+    <span class="rb-leg-name">${esc(seg.label)}${tags.join('')}</span>
     <span class="rb-leg-time">${dur}</span>
     <span class="rb-leg-share">${share}</span>
   </li>`
 }
 
-function renderUncapturedLegendRow(uncapturedMs, denom) {
-  if (uncapturedMs <= 0) return ''
-  const pct = denom > 0 ? (uncapturedMs / denom) * 100 : 0
+function renderUncapturedLegendRow(b) {
+  if (b.uncapturedMs <= 0) return ''
+  const pct = b.denom > 0 ? (b.uncapturedMs / b.denom) * 100 : 0
+  const tag = b.staleCount > 0
+    ? `${b.staleCount}/${b.measured.length} components measured in different run · max ${fmtDuration(b.maxStaleMs)} apart`
+    : 'npm spawn between sub-steps, shell overhead'
+  const name = b.staleCount > 0 ? 'Likely measurement skew' : 'Uncaptured (genuinely)'
   return `<li class="rb-leg-row rb-leg-uncaptured">
     <span class="rb-leg-dot rb-uncaptured"></span>
-    <span class="rb-leg-name">Uncaptured <span class="rb-leg-tag">npm spawn, untracked sub-steps, shell time</span></span>
-    <span class="rb-leg-time">${fmtDuration(uncapturedMs)}</span>
+    <span class="rb-leg-name">${name} <span class="rb-leg-tag">${esc(tag)}</span></span>
+    <span class="rb-leg-time">${fmtDuration(b.uncapturedMs)}</span>
     <span class="rb-leg-share">${pct.toFixed(0)}%</span>
   </li>`
 }
@@ -164,26 +193,33 @@ function renderBreakdown(b) {
   const missingCount = b.measured.length - measuredCount
 
   const segments = b.measured.map(s => renderSegment(s, denom)).join('')
-  const uncapturedSeg = renderUncaptured(b.uncapturedMs, denom)
+  const uncapturedSeg = renderUncaptured(b)
   const tick = renderRollupTick(b)
 
   const legendRows = b.measured.map(s => renderLegendRow(s, denom)).join('')
-  const uncapturedRow = renderUncapturedLegendRow(b.uncapturedMs, denom)
+  const uncapturedRow = renderUncapturedLegendRow(b)
 
   const ranAt = b.rollup.timestamp ? `<span class="rb-meta-ran" title="${esc(b.rollup.timestamp)}">ran ${esc(relTime(b.rollup.timestamp))}</span>` : ''
   const missingNote = missingCount > 0
     ? `<span class="rb-meta-warn">${missingCount} component${missingCount === 1 ? '' : 's'} not yet captured</span>`
     : ''
 
-  // Honest meta line:
-  //  - undermeasured: components covered X% of rollup wall-clock
-  //  - overmeasured: standalone captures were SLOWER than the rollup itself
-  //    (cold cache / no parallelism); we surface that explicitly
+  // Honest meta line. Three cases:
+  //  - overmeasured (overflow > 0): standalone captures SLOWER than rollup
+  //    itself (cold cache / no parallelism)
+  //  - stale: rollup and components from different runs — gap is timing skew
+  //  - fresh + undermeasured: real npm spawn / shell / untracked sub-step time
   const measurePct = total > 0 ? Math.round((b.measuredSum / total) * 100) : 0
-  const measureLine = b.overflow > 0
-    ? `<span class="rb-meta-sum">components captured separately: <strong>${fmtDuration(b.measuredSum)}</strong> · rollup ran in <strong>${fmtDuration(total)}</strong></span>
+  let measureLine
+  if (b.overflow > 0) {
+    measureLine = `<span class="rb-meta-sum">components captured separately: <strong>${fmtDuration(b.measuredSum)}</strong> · rollup ran in <strong>${fmtDuration(total)}</strong></span>
        <span class="rb-meta-warn">standalone captures slower by ${fmtDuration(b.overflow)} — likely cold cache or no parallelism</span>`
-    : `<span class="rb-meta-sum">measured <strong>${fmtDuration(b.measuredSum)}</strong> of ${fmtDuration(total)} (${measurePct}%)</span>`
+  } else if (b.staleCount > 0) {
+    measureLine = `<span class="rb-meta-sum">measured <strong>${fmtDuration(b.measuredSum)}</strong> of ${fmtDuration(total)} (${measurePct}%)</span>
+       <span class="rb-meta-warn">${b.staleCount} of ${b.measured.length} components from a different run (max ${fmtDuration(b.maxStaleMs)} apart) — re-run for coherent breakdown</span>`
+  } else {
+    measureLine = `<span class="rb-meta-sum">measured <strong>${fmtDuration(b.measuredSum)}</strong> of ${fmtDuration(total)} (${measurePct}%)</span>`
+  }
 
   return `<article class="rb-row ${statusCls}" data-id="${esc(b.rollup.checkId)}">
     <header class="rb-head">

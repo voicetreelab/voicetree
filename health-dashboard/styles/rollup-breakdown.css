@@ -252,6 +252,11 @@
   border: 1px solid var(--rule);
   vertical-align: 1px;
 }
+.rb-leg-tag-stale {
+  color: var(--caution);
+  border-color: var(--caution);
+  cursor: help;
+}
 .rb-leg-time {
   color: var(--paper);
   font-feature-settings: 'tnum' 1, 'lnum' 1;
