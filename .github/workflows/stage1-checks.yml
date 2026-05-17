@@ -10,7 +10,6 @@ on:
       - 'webapp/**'
       - 'scripts/**'
       - 'brain'
-      - 'vitest.config.brain.ts'
       - '.github/workflows/stage1-checks.yml'
       - '.github/workflows/stage3-deep-tests.yml'
   pull_request:
@@ -22,7 +21,6 @@ on:
       - 'webapp/**'
       - 'scripts/**'
       - 'brain'
-      - 'vitest.config.brain.ts'
       - '.github/workflows/stage1-checks.yml'
       - '.github/workflows/stage3-deep-tests.yml'
   workflow_dispatch:
@@ -108,6 +106,15 @@ jobs:
         run: |
           git config --local submodule.brain.url "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/voicetreelab/brain.git"
           git submodule update --init brain
+
+      - name: Prepare brain test environment
+        run: |
+          rm -rf "$HOME/brain"
+          ln -s "$GITHUB_WORKSPACE/brain" "$HOME/brain"
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ripgrep
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
