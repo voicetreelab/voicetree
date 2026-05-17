@@ -8,6 +8,7 @@ import path from 'path'
 import type {Server} from 'http'
 
 import {
+    agentRuntime,
     getTerminalRecords,
     updateTerminalActivityState,
     updateTerminalIsDone,
@@ -79,6 +80,7 @@ export function makeInteractiveTerminalData(
     parentTerminalId: string,
     script: object,
     mcpPort: number,
+    vaultPath: string,
 ): TerminalData {
     return createTerminalData({
         terminalId: terminalId as TerminalId,
@@ -93,6 +95,7 @@ export function makeInteractiveTerminalData(
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_MCP_PORT: String(mcpPort),
+            VOICETREE_VAULT_PATH: vaultPath,
             TASK_NODE_PATH: `/tmp/vt-test-vault/${terminalId}-task.md`,
             AGENT_PROMPT: buildAgentPrompt(script),
         }
@@ -168,9 +171,10 @@ export async function spawnInteractiveFakeAgent(
     script: object,
     mcpPort: number,
     harness: ActivityHarness,
+    vaultPath: string,
 ): Promise<void> {
-    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort)
-    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawn({
+    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort, vaultPath)
+    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawnTmuxBacked({
         terminalData,
         getToolsDirectory: () => FAKE_AGENT_DIR,
         onData: harness.onData,
@@ -187,7 +191,7 @@ export async function waitForAgentOutput(
     timeoutMs: number,
 ): Promise<void> {
     await waitForCondition(
-        () => (harness.outputs.get(terminalId) ?? '').includes(needle),
+        () => `${harness.outputs.get(terminalId) ?? ''}${agentRuntime.getHeadlessAgentOutput(terminalId)}`.includes(needle),
         timeoutMs,
         `Timed out waiting for ${terminalId} output to contain "${needle}"`,
     )
@@ -340,7 +344,7 @@ export async function startStubMcpServer(port: number): Promise<Server> {
                     }
                 })
 
-                await getTerminalManager().spawn({
+                await getTerminalManager().spawnTmuxBacked({
                     terminalData: childData,
                     getToolsDirectory: () => FAKE_AGENT_DIR,
                     onData: stubCtx.harness.onData,

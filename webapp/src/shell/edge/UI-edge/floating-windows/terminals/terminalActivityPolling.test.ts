@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+    notifyTerminalOutput,
     startTerminalActivityPolling,
     stopTerminalActivityPolling,
 } from './terminalActivityPolling';
@@ -24,45 +25,23 @@ import type { NodeIdAndFilePath } from '@vt/graph-model/pure/graph';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalLifecycle } from '@vt/agent-runtime';
 
-type DataCallback = (terminalId: string, data: string) => void;
-
 interface TestHarness {
-    fireOutput: (terminalId: string, data: string) => void;
     isDoneCalls: ReadonlyArray<{ readonly id: string; readonly isDone: boolean }>;
-    activityStateCalls: ReadonlyArray<{ readonly id: string; readonly updates: unknown }>;
 }
 
 function installElectronAPI(): TestHarness {
-    let onDataCb: DataCallback | null = null;
     const isDoneCalls: Array<{ id: string; isDone: boolean }> = [];
-    const activityStateCalls: Array<{ id: string; updates: unknown }> = [];
 
     // @ts-expect-error - test stub fills only the surface terminalActivityPolling touches
     window.electronAPI = {
-        terminal: {
-            onData: (cb: DataCallback): (() => void) => {
-                onDataCb = cb;
-                return (): void => { onDataCb = null; };
-            },
-        },
         main: {
             updateTerminalIsDone: (id: string, isDone: boolean): void => {
                 isDoneCalls.push({ id, isDone });
             },
-            updateTerminalActivityState: (id: string, updates: unknown): void => {
-                activityStateCalls.push({ id, updates });
-            },
         },
     };
 
-    return {
-        fireOutput: (terminalId: string, data: string): void => {
-            if (!onDataCb) throw new Error('startTerminalActivityPolling did not subscribe');
-            onDataCb(terminalId, data);
-        },
-        isDoneCalls,
-        activityStateCalls,
-    };
+    return { isDoneCalls };
 }
 
 function recordWithLifecycle(
@@ -114,7 +93,7 @@ describe('terminalActivityPolling onData → flip-to-active', () => {
         syncFromMain([recordWithLifecycle('t-spawn', 'spawning', false)]);
         startTerminalActivityPolling();
 
-        harness.fireOutput('t-spawn', 'hello from claude');
+        notifyTerminalOutput('t-spawn' as TerminalId);
 
         expect(harness.isDoneCalls).toEqual([{ id: 't-spawn', isDone: false }]);
     });
@@ -124,7 +103,7 @@ describe('terminalActivityPolling onData → flip-to-active', () => {
         syncFromMain([recordWithLifecycle('t-idle', 'idle', true)]);
         startTerminalActivityPolling();
 
-        harness.fireOutput('t-idle', 'resumed work');
+        notifyTerminalOutput('t-idle' as TerminalId);
 
         expect(harness.isDoneCalls).toEqual([{ id: 't-idle', isDone: false }]);
     });
@@ -133,7 +112,7 @@ describe('terminalActivityPolling onData → flip-to-active', () => {
         syncFromMain([recordWithLifecycle('t-active', 'active', false)]);
         startTerminalActivityPolling();
 
-        harness.fireOutput('t-active', 'more output');
+        notifyTerminalOutput('t-active' as TerminalId);
 
         expect(harness.isDoneCalls).toEqual([]);
     });
@@ -145,7 +124,7 @@ describe('terminalActivityPolling onData → flip-to-active', () => {
         syncFromMain([recordWithLifecycle('t-done', 'completed', true)]);
         startTerminalActivityPolling();
 
-        harness.fireOutput('t-done', 'tail bytes');
+        notifyTerminalOutput('t-done' as TerminalId);
 
         expect(harness.isDoneCalls).toEqual([]);
     });

@@ -5,13 +5,11 @@
  *  - stubs send_message as a no-op (fakeAgentE2E.helpers.ts pre-patch), or
  *  - only asserts the headless-rejection branch (electron-headless-agent).
  *
- * Wires two real fake-agent PTYs through the real production sendMessageTool
+ * Wires two real tmux-backed fake-agent terminals through the real production sendMessageTool
  * (helpers' stub now proxies to @vt/voicetree-mcp's sendMessageTool) and
  * asserts an action sent from A actually reaches B's stdin and is processed.
  *
- * Coverage: branch 3 of sendMessageTool (PTY-backed interactive). The new
- * tmux-backed branch 2c is not covered here — tmux-backed terminals require
- * ptyBackend=tmux + a tmux session, which is a separate test setup.
+ * Coverage: sendMessageTool's tmux-backed interactive path.
  */
 
 import * as fs from 'fs'
@@ -104,13 +102,13 @@ describe('fake-agent send_message: A → B', () => {
             ],
         }
 
-        await spawnInteractiveFakeAgent(agentB, agentA, scriptB, mcpPort, harness)
+        await spawnInteractiveFakeAgent(agentB, agentA, scriptB, mcpPort, harness, tempAppSupportPath)
         await waitForAgentOutput(harness, agentB, 'Entering REPL mode', SETUP_WAIT_MS)
 
         // Spawn A. A's executor invokes the stub MCP server's send_message,
         // which now proxies to the real sendMessageTool → agentRuntime.sendTextToTerminal
-        // → B's PTY stdin → readline → executor → create_graph on the stub server.
-        await spawnInteractiveFakeAgent(agentA, agentB, scriptA, mcpPort, harness)
+        // → tmux send-keys → B's stdin → readline → executor → create_graph on the stub server.
+        await spawnInteractiveFakeAgent(agentA, agentB, scriptA, mcpPort, harness, tempAppSupportPath)
 
         // Observe B receiving the message at the PTY level.
         await waitForAgentOutput(harness, agentB, '[fake-agent] Received message:', TEST_TIMEOUT_MS)
