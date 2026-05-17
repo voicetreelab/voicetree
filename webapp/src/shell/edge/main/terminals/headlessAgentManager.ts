@@ -25,8 +25,27 @@ const OUTPUT_RING_SIZE: number = 8000
 // ─── Public API (3 functions) ────────────────────────────────────────────────
 
 /**
+ * Strip shell-variable prompt references from command string.
+ * Returns the command without -p "$AGENT_PROMPT" (claude/gemini) or
+ * positional "$AGENT_PROMPT" (codex), so the prompt can be delivered via stdin.
+ */
+function stripPromptVarFromCommand(command: string): string {
+    return command
+        .replace(/\s+-p\s+"\$AGENT_PROMPT"/g, '')
+        .replace(/\s+-p\s+'\$AGENT_PROMPT'/g, '')
+        .replace(/\s+"\$AGENT_PROMPT"/g, '')
+        .replace(/\s+'\$AGENT_PROMPT'/g, '')
+        .trim()
+}
+
+/**
  * Spawn a headless agent as a background child_process.
  * Registers in terminal-registry for status tracking, then spawns the process.
+ *
+ * Prompt delivery: instead of relying on shell variable expansion (which fails
+ * on Windows/PowerShell where $VAR is a PS variable, not an env var), the
+ * prompt is piped to stdin. Claude Code reads from stdin when no -p flag is
+ * given and stdin is not a TTY.
  *
  * @param terminalId  - Unique terminal identifier (same as agentName)
  * @param terminalData - Full terminal data (for registry tracking)
@@ -45,13 +64,21 @@ export function spawnHeadlessAgent(
         ? 'powershell.exe'
         : (process.env.SHELL ?? '/bin/bash')
 
+    const prompt: string | undefined = env.AGENT_PROMPT
+    const spawnCommand: string = prompt ? stripPromptVarFromCommand(command) : command
+
     const {CLAUDECODE: _cc, ...parentEnv} = process.env
-    const child: ChildProcess = spawn(shell, ['-c', command], {
+    const child: ChildProcess = spawn(shell, ['-c', spawnCommand], {
         cwd: cwd ?? process.env.HOME ?? process.cwd(),
         env: {...parentEnv, ...env},
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [prompt ? 'pipe' : 'ignore', 'pipe', 'pipe'],
         detached: false
     })
+
+    if (prompt && child.stdin) {
+        child.stdin.write(prompt)
+        child.stdin.end()
+    }
 
     headlessProcesses.set(terminalId, child)
     recordTerminalSpawn(terminalId, terminalData)
@@ -136,8 +163,19 @@ export function buildResumeCommand(cliType: 'claude' | 'codex' | 'gemini'): stri
 }
 
 /**
+ * Strip $RESUME_PROMPT shell variable reference from resume command.
+ */
+function stripResumePromptVar(command: string): string {
+    return command
+        .replace(/\s+-p\s+"\$RESUME_PROMPT"/g, '')
+        .replace(/\s+-p\s+'\$RESUME_PROMPT'/g, '')
+        .trim()
+}
+
+/**
  * Resume an agent with a deficiency prompt after failed stop gate audit.
  * Derives cliType from initialCommand and sessionId from spawn convention (BF-042).
+ * Uses stdin piping for prompt delivery (same as spawnHeadlessAgent).
  */
 function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, deficiency: string): void {
     const baseCommand: string = (record.terminalData.initialCommand ?? '').replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
@@ -146,7 +184,7 @@ function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, de
         console.warn(`[headlessAgentManager] Cannot resume agent ${terminalId}: unknown CLI type from command "${baseCommand}"`)
         return
     }
-    const resumeCommand: string = buildResumeCommand(cliType)
+    const resumeCommand: string = stripResumePromptVar(buildResumeCommand(cliType))
 
     incrementAuditRetryCount(terminalId)
 
@@ -160,9 +198,14 @@ function resumeWithDeficiency(terminalId: TerminalId, record: TerminalRecord, de
     const child: ChildProcess = spawn(shell, ['-c', resumeCommand], {
         cwd: record.terminalData.initialSpawnDirectory ?? process.env.HOME ?? process.cwd(),
         env: { ...parentEnvResume, ...(record.terminalData.initialEnvVars ?? {}), RESUME_PROMPT: deficiency },
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],
         detached: false
     })
+
+    if (child.stdin) {
+        child.stdin.write(deficiency)
+        child.stdin.end()
+    }
 
     headlessProcesses.set(terminalId, child)
 
