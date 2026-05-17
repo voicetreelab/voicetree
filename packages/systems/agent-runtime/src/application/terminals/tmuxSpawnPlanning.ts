@@ -9,7 +9,6 @@ export type PromptFileWriteRequest = {
 export type HeadfulPromptInjectionRequest = {
     readonly terminalId: TerminalId;
     readonly command: string;
-    readonly promptFilePath: string;
 };
 
 export function resolveTmuxVaultPath(
@@ -45,11 +44,9 @@ export function buildTmuxEnv(
 ): Record<string, string> {
     const tmuxEnv: Record<string, string> = {};
     for (const key of Object.keys(initialEnvVars)) {
-        if (key === 'AGENT_PROMPT') continue;
         const value: string = initialEnvVars[key];
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
-    tmuxEnv.AGENT_PROMPT = '';
     if (promptFilePath) tmuxEnv.AGENT_PROMPT_FILE = promptFilePath;
     if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
     return tmuxEnv;
@@ -58,8 +55,7 @@ export function buildTmuxEnv(
 export function resolveHeadfulPromptInjection(
     terminalId: TerminalId,
     initialCommand: string | undefined,
-    promptFilePath: string | null,
 ): HeadfulPromptInjectionRequest | null {
-    if (!promptFilePath || !initialCommand) return null;
-    return {terminalId, command: initialCommand, promptFilePath};
+    if (!initialCommand) return null;
+    return {terminalId, command: initialCommand};
 }

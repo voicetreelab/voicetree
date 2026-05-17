@@ -41,8 +41,8 @@ export class TerminalRelayClient {
 
   constructor(private readonly config: TerminalRelayClientConfig) {
     this.createWebSocket = config.createWebSocket ?? ((url: string): WebSocket => new WebSocket(url));
-    this.setTimeoutFn = config.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = config.clearTimeoutFn ?? clearTimeout;
+    this.setTimeoutFn = config.setTimeoutFn ?? (setTimeout.bind(globalThis) as typeof setTimeout);
+    this.clearTimeoutFn = config.clearTimeoutFn ?? (clearTimeout.bind(globalThis) as typeof clearTimeout);
   }
 
   connect(): void {

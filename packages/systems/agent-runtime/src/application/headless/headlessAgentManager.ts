@@ -1,21 +1,13 @@
 /**
- * Headless Agent Manager — public facade for background child_process agents
- * and tmux-backed terminals.
+ * Headless Agent Manager — public facade for tmux-backed background agents
+ * and tmux-backed interactive terminals.
  *
  * Functional edge module: exported functions coordinate cohesive runtime
- * modules; impure process, tmux, and registry details stay at the shell.
+ * modules; impure tmux and registry details stay at the shell.
  */
 
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TerminalRecord} from '../terminals/terminal-registry'
-import {
-    cleanupNodeBackedHeadlessAgents,
-    getNodeBackedHeadlessAgentOutput,
-    hasNodeBackedHeadlessAgentOutput,
-    isNodeBackedHeadlessAgent,
-    killNodeBackedHeadlessAgent,
-    spawnNodeBackedHeadlessAgent,
-} from './nodeHeadlessRuntime'
 import {
     cleanupTmuxHeadlessAgents,
     getTmuxHeadlessAgentOutput,
@@ -32,15 +24,13 @@ import {
     type HeadlessAgentDeps,
 } from './headlessAgentDeps'
 
-type PtyBackend = 'node-pty' | 'tmux'
-
 export type {HeadlessAgentDeps, HeadlessLogEntry} from './headlessAgentDeps'
 export {buildResumeCommand} from './headlessAgentLifecycle'
 export {reconcileTmuxHeadlessAgents, spawnTmuxBackedTerminal}
 
 /**
- * Spawn a headless agent as a background process.
- * Registers in terminal-registry for status tracking, then spawns the process.
+ * Spawn a headless agent as a tmux session.
+ * Registers in terminal-registry for status tracking, then spawns the session.
  */
 export function spawnHeadlessAgent(
     terminalId: TerminalId,
@@ -49,30 +39,23 @@ export function spawnHeadlessAgent(
     cwd: string | undefined,
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
-    ptyBackend: PtyBackend = 'node-pty',
 ): void {
-    if (ptyBackend === 'tmux') {
-        spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
-        return
-    }
-
-    spawnNodeBackedHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
+    spawnTmuxHeadlessAgent(terminalId, terminalData, command, cwd, env, deps)
 }
 
 /**
- * Kill a headless agent process (SIGTERM).
- * Returns true if the process existed and was signalled, false otherwise.
+ * Kill a headless agent (SIGTERM via tmux).
+ * Returns true if the session existed and was signalled, false otherwise.
  */
 export function killHeadlessAgent(
     terminalId: TerminalId,
     deps: Pick<HeadlessAgentDeps, 'markTerminalExited'> = defaultHeadlessAgentDeps,
 ): boolean {
-    if (killTmuxHeadlessAgent(terminalId, deps)) return true
-    return killNodeBackedHeadlessAgent(terminalId, deps)
+    return killTmuxHeadlessAgent(terminalId, deps)
 }
 
 /**
- * Close a headless agent: kill process (if running) + remove from registry.
+ * Close a headless agent: kill session (if running) + remove from registry.
  * Handles both running and already-exited agents.
  */
 export function closeHeadlessAgent(
@@ -82,12 +65,6 @@ export function closeHeadlessAgent(
     const record: TerminalRecord | undefined = deps.getTerminalRecords().find(
         (r: TerminalRecord) => r.terminalId === terminalId
     )
-
-    if (isNodeBackedHeadlessAgent(terminalId)) {
-        killNodeBackedHeadlessAgent(terminalId, deps)
-        deps.removeTerminalFromRegistry(terminalId)
-        return {closed: true, wasRunning: true}
-    }
 
     if (record?.terminalData.isHeadless && record.status === 'exited') {
         deps.removeTerminalFromRegistry(terminalId)
@@ -106,10 +83,10 @@ export function closeHeadlessAgent(
 }
 
 /**
- * Check if a terminal ID corresponds to a headless agent process.
+ * Check if a terminal ID corresponds to a headless agent session.
  */
 export function isHeadlessAgent(terminalId: TerminalId | string): boolean {
-    return isNodeBackedHeadlessAgent(terminalId) || hasTmuxHeadlessRuntime(terminalId)
+    return hasTmuxHeadlessRuntime(terminalId)
 }
 
 export function isTmuxHeadlessAgent(terminalId: TerminalId | string): boolean {
@@ -128,25 +105,21 @@ export async function sendHeadlessAgentInput(terminalId: string, text: string): 
  * Returns the ring buffer contents. Works for both running and exited agents.
  */
 export function getHeadlessAgentOutput(terminalId: string): string {
-    if (isTmuxHeadlessAgent(terminalId)) {
-        return getTmuxHeadlessAgentOutput(terminalId as TerminalId)
-    }
-    return getNodeBackedHeadlessAgentOutput(terminalId)
+    return getTmuxHeadlessAgentOutput(terminalId as TerminalId)
 }
 
 /**
  * Check if we have output captured for a terminal (running or exited).
  */
 export function hasHeadlessAgentOutput(terminalId: string): boolean {
-    return hasNodeBackedHeadlessAgentOutput(terminalId) || isTmuxHeadlessAgent(terminalId)
+    return isTmuxHeadlessAgent(terminalId)
 }
 
 /**
  * Kill all headless agents. Called on app shutdown / folder switch.
  */
 export function cleanupHeadlessAgents(
-    deps: Pick<HeadlessAgentDeps, 'writeLog'> = defaultHeadlessAgentDeps,
+    _deps: Pick<HeadlessAgentDeps, 'writeLog'> = defaultHeadlessAgentDeps,
 ): void {
-    cleanupNodeBackedHeadlessAgents(deps)
     cleanupTmuxHeadlessAgents()
 }

@@ -165,20 +165,17 @@ export async function waitForTmuxShellReady(terminalId: TerminalId): Promise<voi
 
 /**
  * Headful tmux: the pane already runs `bash`; inject the agent command via
- * send-keys after a readiness gate. Returns the command line that was sent
- * (useful for diagnostics).
+ * send-keys after a readiness gate. The command is sent literally — the
+ * pane's bash already has `AGENT_PROMPT` in its env (passed via tmux `-e`
+ * at session create), so the user-facing template (e.g.
+ * `claude "$AGENT_PROMPT"`) just works. Returns the command line that was
+ * sent (useful for diagnostics).
  */
 export async function injectAgentCommandHeadful(args: {
     readonly terminalId: TerminalId
     readonly command: string
-    readonly promptFilePath: string
 }): Promise<string> {
-    const rewritten: string = rewriteCommandForPromptFile(args.command, args.promptFilePath)
-    // `unset AGENT_PROMPT` defeats OS env-inheritance: the parent shell's
-    // value would otherwise leak through electron → tmux server → pane → bash
-    // and mask the AGENT_PROMPT_FILE fallback path.
-    const command: string = `unset AGENT_PROMPT; ${rewritten}`
     await waitForTmuxShellReady(args.terminalId)
-    await sendKeys(args.terminalId, command)
-    return command
+    await sendKeys(args.terminalId, args.command)
+    return args.command
 }

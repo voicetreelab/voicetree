@@ -182,6 +182,9 @@ export const mainAPI = {
   getUnseenNodesForTerminal: agentRuntime.getUnseenNodesForTerminal,
   injectNodesIntoTerminal: agentRuntime.injectNodesIntoTerminal,
 
+  // Inject text into a tmux-backed terminal (speech-to-terminal, etc.)
+  sendTextToTerminal: agentRuntime.sendTextToTerminal,
+
   // Ask mode operations
   askQuery,
 
@@ -225,6 +228,9 @@ export const mainAPI = {
 
   // Headless agent output (ring buffer) for hover tooltip
   getHeadlessAgentOutput: agentRuntime.getHeadlessAgentOutput,
+
+  // Close (kill + deregister) a tmux-backed headless agent
+  closeHeadlessAgent: agentRuntime.closeHeadlessAgent,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,

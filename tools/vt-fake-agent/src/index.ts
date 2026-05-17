@@ -19,10 +19,9 @@ function resolveAgentPrompt(env: NodeJS.ProcessEnv): string {
   return ''
 }
 
-/** Strip ANSI escape sequences that sendTextToTerminal may inject via PTY */
+/** Strip ANSI escape sequences from terminal input (defensive sanitization). */
 function stripAnsi(s: string): string {
-  // Covers CSI sequences like bracketed paste (\x1b[200~ / \x1b[201~),
-  // 2-char ESC sequences, and the control bytes sendTextToTerminal uses.
+  // Covers CSI sequences, 2-char ESC sequences, and stray control bytes.
   // eslint-disable-next-line no-control-regex
   return s.replace(/\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|\x00|\x15/g, '')
 }

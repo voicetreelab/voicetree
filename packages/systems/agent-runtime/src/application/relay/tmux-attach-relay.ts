@@ -3,6 +3,7 @@ import type {IncomingMessage, Server} from 'node:http'
 import type {Duplex} from 'node:stream'
 import pty, {type IPty} from 'node-pty'
 import {WebSocket, WebSocketServer} from 'ws'
+import {resolveTmuxSessionName} from '../terminals/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
@@ -109,9 +110,10 @@ export function attachTmuxSessionToWebSocket(
         ws.close()
         return
     }
+    const sessionName: string = resolveTmuxSessionName(parsed.sessionName)
 
     try {
-        configureTmuxSession(parsed.sessionName)
+        configureTmuxSession(sessionName)
     } catch (error) {
         sendData(ws, `tmux session configuration failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
         sendExit(ws, 1)
@@ -131,7 +133,7 @@ export function attachTmuxSessionToWebSocket(
 
     let term: IPty
     try {
-        term = pty.spawn('tmux', ['attach', '-t', parsed.sessionName], {
+        term = pty.spawn('tmux', ['attach', '-t', sessionName], {
             name: 'xterm-256color',
             cols: parsed.cols,
             rows: parsed.rows,
@@ -169,7 +171,7 @@ export function attachTmuxSessionToWebSocket(
             const rows: number = Number(record.rows)
             if (Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0) {
                 term.resize(cols, rows)
-                resizeTmuxPane(parsed.sessionName, cols, rows)
+                resizeTmuxPane(sessionName, cols, rows)
             }
         }
     })

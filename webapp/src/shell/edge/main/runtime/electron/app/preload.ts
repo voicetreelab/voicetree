@@ -107,21 +107,12 @@ async function exposeElectronAPI(): Promise<void> {
         },
 
         // Terminal API
+        // Tmux-backed terminals: only spawn (session creation) needs an IPC
+        // bridge. Input/output flow through the renderer-side WebSocket relay.
+        // Text injection from non-TerminalVanilla callers (e.g. speech-to-
+        // focused) goes through `main.sendTextToTerminal` in mainAPI.
         terminal: {
             spawn: (terminalData) => ipcRenderer.invoke('terminal:spawn', terminalData),
-            write: (terminalId, data) => ipcRenderer.invoke('terminal:write', terminalId, data),
-            resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
-            kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),
-            onData: (callback) => {
-                const handler: (_event: Electron.IpcRendererEvent, terminalId: string, data: string) => void = (_event, terminalId, data) => callback(terminalId, data);
-                ipcRenderer.on('terminal:data', handler);
-                return () => ipcRenderer.off('terminal:data', handler);
-            },
-            onExit: (callback) => {
-                const handler: (_event: Electron.IpcRendererEvent, terminalId: string, code: number) => void = (_event, terminalId, code) => callback(terminalId, code);
-                ipcRenderer.on('terminal:exit', handler);
-                return () => ipcRenderer.off('terminal:exit', handler);
-            }
         },
 
 
@@ -155,9 +146,6 @@ async function exposeElectronAPI(): Promise<void> {
                 'rpc:call',
                 'rpc:getApiKeys',
                 'terminal:spawn',
-                'terminal:write',
-                'terminal:resize',
-                'terminal:kill',
             ]);
             if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {
                 console.error(`[Preload] SECURITY: Blocked invoke to unauthorized channel: ${channel}`);
@@ -168,8 +156,6 @@ async function exposeElectronAPI(): Promise<void> {
         on: (channel: string, listener: (...args: unknown[]) => void) => {
             // Security: Only allow subscribing to specific event channels
             const ALLOWED_ON_CHANNELS: Set<string> = new Set([
-                'terminal:data',
-                'terminal:exit',
                 'backend-log',
                 'graph:projectedGraphUpdate',
                 'graph:clear',
@@ -189,8 +175,6 @@ async function exposeElectronAPI(): Promise<void> {
         off: (channel: string, listener: (...args: unknown[]) => void) => {
             // Security: Match the same allowlist as 'on'
             const ALLOWED_OFF_CHANNELS: Set<string> = new Set([
-                'terminal:data',
-                'terminal:exit',
                 'backend-log',
                 'graph:projectedGraphUpdate',
                 'graph:clear',
