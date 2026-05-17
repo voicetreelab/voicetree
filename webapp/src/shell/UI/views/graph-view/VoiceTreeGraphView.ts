@@ -201,9 +201,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // TEMP: Disabled to test if this is causing editor tap issues
         setupCommandHover(this.cy);
 
-        // Folder corner-chip overlays (collapse/expand affordance, drag/right-click
-        // moved off the folder body)
-        setupFolderHandles(this.cy, this.container);
+        // Folder TL chevron tap + body-drag pan wiring. Chevron itself is
+        // painted as a cytoscape background-image (see defaultNodeStyles.ts).
+        setupFolderHandles(this.cy);
 
         // Initial graph hydration races against daemon startup. markFrontendReady()
         // triggers main-side initialLoad() → ensureDaemonClientForVault(); the
