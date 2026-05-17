@@ -44,7 +44,6 @@ export function subscribeToGraphUpdates(
     let lastProjectedGraph: ProjectedGraph | null = null;
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
-        markRendererLoadTiming('renderer:projected-graph-received', {nodeCount: graph.nodes.length});
         setLoadingState(false);
         setEmptyStateVisible(false);
         markRendererLoadTiming('renderer:loading-cleared');

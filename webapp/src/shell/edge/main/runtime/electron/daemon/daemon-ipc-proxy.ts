@@ -8,7 +8,6 @@ import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import { isLoadTimingActive, markLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { subscribeToDaemonSSE } from './daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
@@ -88,8 +87,6 @@ async function syncRendererFromDaemon(
 }
 
 async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<void> {
-  const timingActive: boolean = isLoadTimingActive()
-  if (timingActive) markLoadTiming('main:daemon-get-graph-start')
   const nextGraph: Graph = await getNormalizedDaemonGraph(client)
   const vaultState: VaultState = await client.getVault()
   await syncRendererFromDaemon(client, nextGraph, vaultState)

@@ -13,6 +13,8 @@ import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/g
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import {TerminalRelayClient, type RelayConnectionStatus} from './terminalRelayClient';
+import {notifyTerminalOutput} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
+import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 // Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
 // cytoscape minimap, extensions, etc. Terminals beyond this cap use the DOM renderer.
@@ -45,11 +47,8 @@ export class TerminalVanilla {
   private webglAddon: WebglAddon | null = null;
   private webglIdleTimer: ReturnType<typeof setTimeout> | null = null;
   private onVisibilityChange: (() => void) | null = null;
-  private cleanupOnData: (() => void) | null = null;
-  private cleanupOnExit: (() => void) | null = null;
   private relayClient: TerminalRelayClient | null = null;
   private relayStatusEl: HTMLDivElement | null = null;
-  private terminalBackend: 'node-pty' | 'tmux' = 'node-pty';
   private readonly settingsPromise: Promise<VTSettings | null>;
 
   constructor(config: TerminalVanillaConfig) {
@@ -245,55 +244,16 @@ export class TerminalVanilla {
       return;
     }
 
-    const settings: VTSettings | null = await this.settingsPromise;
-    this.terminalBackend = settings?.ptyBackend ?? 'node-pty';
-    if (this.terminalBackend === 'tmux') {
-      await this.initRelayTerminal();
-      return;
-    }
-
-    await this.initNodePtyTerminal();
-  }
-
-  private async initNodePtyTerminal(): Promise<void> {
-    const result: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
-
-    if (result.success && result.terminalId) {
-      this.terminalId = result.terminalId;
-
-      // Sync initial size
-      if (this.term) {
-        void window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
-      }
-
-      // Handle terminal output
-      this.cleanupOnData = window.electronAPI.terminal.onData((id, data) => {
-        if (id === result.terminalId && this.term) {
-          this.resetWebGLIdleTimer();
-          this.term.write(data);
-        }
-      });
-
-      // Handle terminal exit
-      this.cleanupOnExit = window.electronAPI.terminal.onExit((id, code) => {
-        if (id === result.terminalId && this.term) {
-          this.term.writeln(`\r\nProcess exited with code ${code}`);
-          this.terminalId = null;
-        }
-      });
-    } else {
-      this.term?.writeln('Failed to spawn terminal: ' + (result.error ?? 'Unknown error'));
-    }
+    await this.initRelayTerminal();
   }
 
   private async initRelayTerminal(): Promise<void> {
     if (!this.term) return;
 
-    // M1-fix follow-up (Yan finding): the relay endpoint runs `pty.spawn('tmux attach -t {name}')`
-    // which fails if the session doesn't exist. The IPC handler under ptyBackend='tmux'
-    // calls terminalManager.spawnTmuxBacked() to create the session — so we must trigger
-    // IPC spawn here BEFORE the WebSocket attach, otherwise the panel hangs in
-    // "tmux reconnecting" forever (Wei + Yan FAILs).
+    // The relay endpoint runs `tmux attach -t {name}`, which fails if the
+    // session doesn't exist. The IPC handler calls spawnTmuxBacked() to create
+    // the session — trigger IPC spawn BEFORE the WebSocket attach, otherwise
+    // the panel hangs in "tmux reconnecting" forever.
     const spawnResult: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
     if (!spawnResult.success) {
       this.term.writeln('Failed to spawn tmux-backed terminal: ' + (spawnResult.error ?? 'Unknown error'));
@@ -306,10 +266,12 @@ export class TerminalVanilla {
     const encodedTerminalId: string = encodeURIComponent(this.terminalId);
     const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
 
+    const activityTerminalId: TerminalId = this.terminalId as TerminalId;
     this.relayClient = new TerminalRelayClient({
       url,
       onData: (data: string): void => {
         this.term?.write(data);
+        notifyTerminalOutput(activityTerminalId);
       },
       onStatus: (status: RelayConnectionStatus): void => {
         this.setRelayStatus(status);
@@ -321,27 +283,14 @@ export class TerminalVanilla {
     this.relayClient.connect();
   }
 
-  private async writeToBackend(data: string): Promise<void> {
+  private writeToBackend(data: string): void {
     if (!this.terminalId) return;
-    if (this.terminalBackend === 'tmux') {
-      this.relayClient?.sendData(data);
-      return;
-    }
-    if (!window.electronAPI?.terminal) return;
-    window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
-      console.error('Terminal write error:', err);
-    });
+    this.relayClient?.sendData(data);
   }
 
-  private async resizeBackend(cols: number, rows: number): Promise<void> {
+  private resizeBackend(cols: number, rows: number): void {
     if (!this.terminalId) return;
-    if (this.terminalBackend === 'tmux') {
-      this.relayClient?.sendResize(cols, rows);
-      return;
-    }
-    if (window.electronAPI?.terminal) {
-      void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
-    }
+    this.relayClient?.sendResize(cols, rows);
   }
 
   private createRelayStatusIndicator(): void {
@@ -434,11 +383,6 @@ export class TerminalVanilla {
       this.resizeObserver.disconnect();
     }
 
-    // Unsubscribe from IPC terminal listeners
-    this.cleanupOnData?.();
-    this.cleanupOnData = null;
-    this.cleanupOnExit?.();
-    this.cleanupOnExit = null;
     this.relayClient?.dispose();
     this.relayClient = null;
     this.relayStatusEl?.remove();
@@ -447,11 +391,6 @@ export class TerminalVanilla {
     // Unsubscribe from zoom-end callbacks
     this.zoomEndUnsubscribe?.();
     this.zoomEndUnsubscribe = null;
-
-    // Kill terminal process
-    if (this.terminalBackend === 'node-pty' && this.terminalId && window.electronAPI?.terminal) {
-      void window.electronAPI.terminal.kill(this.terminalId);
-    }
 
     // Release WebGL context slot so new terminals can use it
     this.detachWebGL();

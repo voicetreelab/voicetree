@@ -201,11 +201,11 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       await loadFolder(testVaultPath1)
       const initialPaths: readonly string[] = [...await getVaultPaths()]
 
-      // WHEN: Attempt to add path in non-existent root location (will fail on permissions)
-      const invalidPath: string = '/nonexistent/root/path/that/cannot/be/created'
-      const result: { success: boolean; error?: string } = await addReadPath(invalidPath)
+      // WHEN: Directory creation fails for a path Node rejects on every platform
+      const unreadablePath: string = path.join(testWatchedDir, 'invalid\0path')
+      const result: { success: boolean; error?: string } = await addReadPath(unreadablePath)
 
-      // ASSERT: Function returns error (can't create directory without permissions)
+      // ASSERT: Function returns error
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
       expect(result.error).toContain('Failed to create directory')

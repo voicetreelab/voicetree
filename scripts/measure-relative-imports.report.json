@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-16T01:53:01.084Z",
-  "sourceFileCount": 783,
+  "generatedAt": "2026-05-17T10:47:41.096Z",
+  "sourceFileCount": 782,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1280,
-    "samePackageRelativeImports": 1280,
+    "relativeImports": 1270,
+    "samePackageRelativeImports": 1270,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 741,
-    "../x": 539,
+    "./x": 735,
+    "../x": 535,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +63,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 221,
-      "samePackageRelativeImports": 221,
+      "relativeImports": 219,
+      "samePackageRelativeImports": 219,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 113,
-        "../x": 108,
+        "../x": 106,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -76,12 +76,12 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 194,
-      "samePackageRelativeImports": 194,
+      "relativeImports": 186,
+      "samePackageRelativeImports": 186,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 71,
-        "../x": 123,
+        "./x": 65,
+        "../x": 121,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -233,12 +233,6 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/systems/agent-runtime/src/application/terminals/terminal-manager.ts",
-      "package": "@vt/agent-runtime",
-      "relativeImports": 11,
-      "crossPackageRelativeImports": 0
-    },
-    {
       "file": "packages/systems/graph-db-server/src/state/watchFolder.ts",
       "package": "@vt/graph-db-server",
       "relativeImports": 11,
@@ -283,6 +277,12 @@
     {
       "file": "packages/libraries/graph-model/src/spatial.ts",
       "package": "@vt/graph-model",
+      "relativeImports": 9,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/systems/agent-runtime/src/application/spawn/launchTerminalSpawn.ts",
+      "package": "@vt/agent-runtime",
       "relativeImports": 9,
       "crossPackageRelativeImports": 0
     }

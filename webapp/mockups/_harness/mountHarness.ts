@@ -243,7 +243,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
         })
 
         // Wire the REAL FolderHandleService.
-        setupFolderHandles(created, container)
+        setupFolderHandles(created)
 
         // Stubbed hover + anchored editors. Mount onto the canvas-host so the
         // editor sits in the same coordinate space as the rendered bbox.

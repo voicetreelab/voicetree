@@ -1,33 +1,20 @@
 /**
- * Sends text to a terminal as simulated keyboard input.
- * Uses escape codes to enter insert mode, writes the sanitized message body,
- * and submits with a dual escape sequence.
+ * Send text to a tmux-backed terminal as agent input.
+ *
+ * Delegates to `tmux send-keys` (via `sendTmuxHeadlessAgentInput`), which
+ * operates at the key-event level and submits with a separate Enter. There
+ * is no need for the vi/emacs-mode escape dance, bracketed-paste batching,
+ * or dual-submit ceremony that the legacy node-pty byte-stream path used.
+ *
+ * A per-terminal FIFO mutex ensures concurrent calls to the same terminal
+ * don't interleave — important when multiple effects (unseen-node injection,
+ * idle-gate notification, send_message) target the same agent.
  */
 
-import {getTerminalManager} from '../terminals/terminal-manager-instance'
+import {sendTmuxHeadlessAgentInput} from '../headless/tmuxHeadlessRuntime'
 import type {TerminalOperationResult} from '../terminals/terminal-manager'
 
-const CHAR_DELAY_MS: number = 200
-const ESC_DELAY_MS: number = 100
-const INSERT_MODE_DELAY_MS: number = 50
-const PREAMBLE_DUMMY: string = ' '
-const BATCH_CHAR_LIMIT: number = 150
-const BATCH_DELAY_MS: number = 40
-
 const terminalWriteQueues: Map<string, Promise<void>> = new Map()
-
-export type SendTextToTerminalDeps = {
-    readonly getTerminalManager: () => ReturnType<typeof getTerminalManager>
-    readonly sleep: (delayMs: number) => Promise<void>
-}
-
-const sleepWithTimer = (delayMs: number): Promise<void> =>
-    new Promise(resolve => setTimeout(resolve, delayMs))
-
-const defaultSendTextToTerminalDeps: SendTextToTerminalDeps = {
-    getTerminalManager,
-    sleep: sleepWithTimer
-}
 
 export function sanitizeTerminalInput(text: string): string {
     return text
@@ -60,57 +47,9 @@ function enqueueTerminalWrite<T>(
     })
 }
 
-export async function sendTextToTerminal(
+export function sendTextToTerminal(
     terminalId: string,
     text: string,
-    deps: SendTextToTerminalDeps = defaultSendTextToTerminalDeps
 ): Promise<TerminalOperationResult> {
-    return enqueueTerminalWrite(terminalId, async () => {
-    const terminalManager: ReturnType<typeof getTerminalManager> = deps.getTerminalManager()
-
-    // Universal preamble that works for both vi-mode (Claude) and emacs-mode (Codex, Gemini):
-    // Dummy no-op character before ESC to mitigate first-byte timing misses on some PTY paths.
-    terminalManager.write(terminalId, PREAMBLE_DUMMY)
-    await deps.sleep(ESC_DELAY_MS)
-
-    //   ESC      → vi: enters normal mode; emacs: harmless meta-key noise.
-    //   i        → vi: enters insert mode.  emacs: types stray 'i'.
-    //   Ctrl-U   → both: kill-line clears input buffer (removes stray 'i' in emacs, no-op in vi).
-    // Must happen BEFORE the message — sending ESC after \r cancels generation.
-    terminalManager.write(terminalId, '\x1b')
-    await deps.sleep(ESC_DELAY_MS)
-    terminalManager.write(terminalId, 'i')
-    await deps.sleep(INSERT_MODE_DELAY_MS)
-    terminalManager.write(terminalId, '\x15') // Ctrl-U: kill line
-    await deps.sleep(CHAR_DELAY_MS)
-
-    // Write message body in bracketed paste mode to prevent readline from
-    // interpreting \n as Enter (autocomplete trigger). Content is written
-    // in batches to avoid Claude Code's "[N lines pasted]" collapse.
-    const sanitized: string = sanitizeTerminalInput(text)
-    terminalManager.write(terminalId, '\x1b[200~')
-    for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
-        const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
-        const writeResult: TerminalOperationResult = terminalManager.write(terminalId, batchText)
-        if (!writeResult.success) {
-            terminalManager.write(terminalId, '\x1b[201~')
-            return writeResult
-        }
-        if (i + BATCH_CHAR_LIMIT < sanitized.length) {
-            await deps.sleep(BATCH_DELAY_MS)
-        }
-    }
-    terminalManager.write(terminalId, '\x1b[201~')
-
-    // Dual submit for cross-agent compatibility:
-    //   1. ESC+CR as single write → Option/Alt+Enter for Codex/OpenCode
-    //   2. Plain CR after delay   → Enter for Claude Code (vi-mode readline)
-    // Both must be single writes — splitting ESC+CR after bulk body is unreliable for Gemini.
-    await deps.sleep(CHAR_DELAY_MS)
-    terminalManager.write(terminalId, '\x1b\r')
-    await deps.sleep(ESC_DELAY_MS)
-    terminalManager.write(terminalId, '\r')
-
-    return {success: true}
-    })
+    return enqueueTerminalWrite(terminalId, () => sendTmuxHeadlessAgentInput(terminalId, text))
 }

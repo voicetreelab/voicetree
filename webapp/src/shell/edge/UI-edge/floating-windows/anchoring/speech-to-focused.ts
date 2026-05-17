@@ -207,7 +207,7 @@ export function confirmTranscriptionPreview(): boolean {
   } else {
     const electronAPI: ElectronAPI | undefined = window.electronAPI;
     if (electronAPI) {
-      void electronAPI.terminal.write(preview.target.id, preview.currentText);
+      void electronAPI.main.sendTextToTerminal(preview.target.id, preview.currentText);
     }
   }
 

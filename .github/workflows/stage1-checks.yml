@@ -9,6 +9,7 @@ on:
       - 'packages/**'
       - 'webapp/**'
       - 'scripts/**'
+      - 'brain'
       - '.github/workflows/stage1-checks.yml'
       - '.github/workflows/stage3-deep-tests.yml'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'packages/**'
       - 'webapp/**'
       - 'scripts/**'
+      - 'brain'
       - '.github/workflows/stage1-checks.yml'
       - '.github/workflows/stage3-deep-tests.yml'
   workflow_dispatch:
@@ -89,6 +91,45 @@ jobs:
       - name: Run unit/integration tests
         continue-on-error: true
         run: npx vitest run --reporter=verbose
+
+  brain-tests:
+    name: Brain Workflow Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Checkout brain submodule
+        run: |
+          git config --local submodule.brain.url "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/voicetreelab/brain.git"
+          git submodule update --init brain
+
+      - name: Prepare brain test environment
+        run: |
+          rm -rf "$HOME/brain"
+          ln -s "$GITHUB_WORKSPACE/brain" "$HOME/brain"
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ripgrep
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run brain tests
+        run: npm run test:brain
 
   # ── Stage 2: Tier 1 E2E (gated on Stage 1) ──────────────────────────
 

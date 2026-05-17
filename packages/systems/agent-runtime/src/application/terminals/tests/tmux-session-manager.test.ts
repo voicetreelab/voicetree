@@ -4,6 +4,7 @@ import {join} from 'node:path'
 import {randomUUID} from 'node:crypto'
 import {afterAll, afterEach, describe, expect, it} from 'vitest'
 import {
+    buildTmuxSessionName,
     createSession,
     getPanePid,
     hasSession,
@@ -105,6 +106,33 @@ describe('tmux-session-manager', () => {
         )
 
         await waitFor(async () => (await readIfExists(envPath)) === 'BF310_TEST_VAL')
+    })
+
+    it('scopes tmux session names by vault so parallel runtimes can reuse terminal IDs', async () => {
+        const name: string = 'bf310-shared-terminal'
+        const firstDir: string = await makeTempDir()
+        const secondDir: string = await makeTempDir()
+        const firstSession: string = buildTmuxSessionName(name, {VOICETREE_VAULT_PATH: firstDir})
+        const secondSession: string = buildTmuxSessionName(name, {VOICETREE_VAULT_PATH: secondDir})
+        sessions.add(firstSession)
+        sessions.add(secondSession)
+
+        await createSession(
+            name,
+            `sh -c 'printf first > ${join(firstDir, 'session.out')}; sleep 5'`,
+            {VOICETREE_VAULT_PATH: firstDir},
+        )
+        await createSession(
+            name,
+            `sh -c 'printf second > ${join(secondDir, 'session.out')}; sleep 5'`,
+            {VOICETREE_VAULT_PATH: secondDir},
+        )
+
+        expect(firstSession).not.toBe(secondSession)
+        expect(await hasSession(firstSession)).toBe(true)
+        expect(await hasSession(secondSession)).toBe(true)
+        await waitFor(async () => (await readIfExists(join(firstDir, 'session.out'))) === 'first')
+        await waitFor(async () => (await readIfExists(join(secondDir, 'session.out'))) === 'second')
     })
 
     it('treats killing an already-dead session as success', async () => {

@@ -8,13 +8,14 @@ import path from 'path'
 import type {Server} from 'http'
 
 import {
+    agentRuntime,
     getTerminalRecords,
     updateTerminalActivityState,
     updateTerminalIsDone,
     clearTerminalRecords,
     type TerminalRecord
 } from '@vt/agent-runtime'
-import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from '@vt/voicetree-mcp'
+import {registerAgentNodes, getAgentNodes, clearAgentNodes, sendMessageTool, type AgentNodeEntry, type McpToolResponse} from '@vt/voicetree-mcp'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalManager} from '@vt/agent-runtime'
@@ -31,7 +32,7 @@ import {expect} from 'vitest'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-export const FAKE_AGENT_DIR: string = path.resolve(__dirname, '../../../../../../../tools/vt-fake-agent')
+export const FAKE_AGENT_DIR: string = path.resolve(__dirname, '../../../../../../../../tools/vt-fake-agent')
 export const FAKE_AGENT_ENTRYPOINT: string = path.join(FAKE_AGENT_DIR, 'dist/index.js')
 export const CALLER_TERMINAL_ID: string = 'test-caller'
 export const SILENCE_POLL_MS: number = 100
@@ -79,6 +80,7 @@ export function makeInteractiveTerminalData(
     parentTerminalId: string,
     script: object,
     mcpPort: number,
+    vaultPath: string,
 ): TerminalData {
     return createTerminalData({
         terminalId: terminalId as TerminalId,
@@ -93,6 +95,7 @@ export function makeInteractiveTerminalData(
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_MCP_PORT: String(mcpPort),
+            VOICETREE_VAULT_PATH: vaultPath,
             TASK_NODE_PATH: `/tmp/vt-test-vault/${terminalId}-task.md`,
             AGENT_PROMPT: buildAgentPrompt(script),
         }
@@ -168,9 +171,10 @@ export async function spawnInteractiveFakeAgent(
     script: object,
     mcpPort: number,
     harness: ActivityHarness,
+    vaultPath: string,
 ): Promise<void> {
-    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort)
-    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawn({
+    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort, vaultPath)
+    const result: {success: boolean; terminalId: string} = await getTerminalManager().spawnTmuxBacked({
         terminalData,
         getToolsDirectory: () => FAKE_AGENT_DIR,
         onData: harness.onData,
@@ -187,7 +191,7 @@ export async function waitForAgentOutput(
     timeoutMs: number,
 ): Promise<void> {
     await waitForCondition(
-        () => (harness.outputs.get(terminalId) ?? '').includes(needle),
+        () => `${harness.outputs.get(terminalId) ?? ''}${agentRuntime.getHeadlessAgentOutput(terminalId)}`.includes(needle),
         timeoutMs,
         `Timed out waiting for ${terminalId} output to contain "${needle}"`,
     )
@@ -278,9 +282,17 @@ export async function startStubMcpServer(port: number): Promise<Server> {
             return {content: [{type: 'text' as const, text: JSON.stringify(agents)}]}
         })
 
+        // Proxy to the real production sendMessageTool so tests exercise the
+        // actual injection path (agentRuntime.sendTextToTerminal → PTY stdin)
+        // instead of a no-op stub. Faking this here is exactly the
+        // DOVL-3-class blind spot that hides bugs like send_message returning
+        // success while no text reaches the target terminal.
         mcpServer.registerTool('send_message', {
             inputSchema: {terminalId: z.string(), message: z.string(), callerTerminalId: z.string()}
-        }, async () => ({content: [{type: 'text' as const, text: JSON.stringify({success: true})}]}))
+        }, async ({terminalId, message, callerTerminalId}) => {
+            const response: McpToolResponse = await sendMessageTool({terminalId, message, callerTerminalId})
+            return {content: response.content, isError: response.isError}
+        })
 
         mcpServer.registerTool('close_agent', {
             inputSchema: {terminalId: z.string(), callerTerminalId: z.string(), forceWithReason: z.string().optional()}
@@ -332,7 +344,7 @@ export async function startStubMcpServer(port: number): Promise<Server> {
                     }
                 })
 
-                await getTerminalManager().spawn({
+                await getTerminalManager().spawnTmuxBacked({
                     terminalData: childData,
                     getToolsDirectory: () => FAKE_AGENT_DIR,
                     onData: stubCtx.harness.onData,

@@ -76,7 +76,12 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')) {
             return [path]
         }
         return []

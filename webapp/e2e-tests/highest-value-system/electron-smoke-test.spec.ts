@@ -25,6 +25,9 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const GRACEFUL_QUIT_MS = 3000;
+const FORCE_KILL_WAIT_MS = 3000;
+
 async function closeElectronAppForSmoke(
   electronApp: ElectronApplication,
   electronProcess: ChildProcess | null
@@ -34,7 +37,7 @@ async function closeElectronAppForSmoke(
       electronApp.evaluate(async ({ app }) => {
         app.quit();
       }),
-      delay(3000)
+      delay(GRACEFUL_QUIT_MS)
     ]);
   } catch {
     // The app may already be exiting.
@@ -46,24 +49,7 @@ async function closeElectronAppForSmoke(
 
   await Promise.race([
     new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
-    delay(3000)
-  ]);
-
-  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
-    return;
-  }
-
-  if (electronProcess.pid) {
-    try {
-      process.kill(electronProcess.pid, 'SIGTERM');
-    } catch {
-      // Electron already exited.
-    }
-  }
-
-  await Promise.race([
-    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
-    delay(3000)
+    delay(GRACEFUL_QUIT_MS)
   ]);
 
   if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
@@ -80,7 +66,7 @@ async function closeElectronAppForSmoke(
 
   await Promise.race([
     new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
-    delay(3000)
+    delay(FORCE_KILL_WAIT_MS)
   ]);
 }
 
@@ -466,11 +452,9 @@ test.describe('Smoke Test', () => {
     }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
     console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
 
-    await appWindow.evaluate(async ({ callerId }) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api?.terminal) return;
-      await api.terminal.kill(callerId);
-    }, { callerId: callerTerminalId });
+    // Caller terminal cleanup: the legacy `terminal.kill` IPC bridge was
+    // deleted (was a no-op under tmux). The tmux session running `sleep 120`
+    // is torn down when the Electron app teardown kills its process tree.
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');

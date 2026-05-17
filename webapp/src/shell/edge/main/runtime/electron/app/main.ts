@@ -53,6 +53,8 @@ import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
+import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
+import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -326,14 +328,13 @@ app.on('before-quit', () => {
     // Clean up server process
     textToTreeServerManager.stop();
 
-    // Clean up graph daemon process
-    void shutdownActiveDaemonConnection();
-
     // Clean up all terminals
     terminalManager.cleanup();
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
-    void cleanupOrphanedContextNodes();
+    void cleanupOrphanedContextNodes().catch((error: unknown) => {
+        console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
+    });
 
     // Remove stale .mcp.json so external agents don't connect to a dead port
     void disableMcpJsonIntegration();
@@ -346,6 +347,14 @@ app.on('before-quit', () => {
 
     // Stop trackpad monitoring
     stopTrackpadMonitoring();
+});
+
+app.on('will-quit', () => {
+    // Stop daemon clients after windows have closed so position persistence can
+    // finish while the daemon is still available.
+    unsubscribeFromDaemonSSE();
+    void stopDaemonGraphSync();
+    void shutdownActiveDaemonConnection();
 });
 
 app.on('window-all-closed', () => {

@@ -1,168 +1,55 @@
 /**
- * FolderHandleService — DOM-overlay chip at the top-left corner of every
- * expanded folder compound. The chip carries the collapse/expand affordance
- * (chevron click) so the folder body can stay input-inert (ungrabified) and
- * still expose pan + right-click + hover-editor on the canvas underneath.
+ * FolderHandleService — native-canvas affordances for folder compound nodes.
  *
- * The collapsed folder (40x40 cy pill) does NOT get a DOM chip — the cy node
- * itself is the visual chip in that state.
+ * The expanded folder's TL chevron is now rendered as a cytoscape
+ * background-image (see `defaultNodeStyles.ts`), so this module only owns the
+ * input wiring:
  *
- * Lifecycle:
- *   - `setupFolderHandles(cy, container)` is the only export. Call once after
- *     cy + container are initialized. Returns void; cleanup is implicit via
- *     cy event handlers (no explicit destroy needed today).
+ *   1. A single `tap` hit-test on the TL 22×22 px region of expanded folders
+ *      → toggles collapse. Matches the prior DOM chip's clickable area
+ *      (offset −1px, −1px from the rendered bbox TL).
  *
- *   - On folder `add`: create chip and append to overlay container.
- *   - On folder `remove`: destroy chip.
- *   - On folder data change (`collapsed` toggle): hide chip if collapsed.
- *   - On pan / zoom / position: reposition all chips via `renderedBoundingBox`.
+ *   2. The pre-existing folder-body mousedown → manual pan loop (from
+ *      e7324661) — preserved verbatim since the folder body is ungrabified
+ *      and cytoscape otherwise wouldn't translate body-drag into pan.
  *
- * Pointer events:
- *   - Chip body has `pointer-events: none` so cy mouseover still reaches the
- *     folder underneath (preserves setupCommandHover → hover editor for free).
- *   - Chevron has `pointer-events: auto` for the click handler only.
+ * Pulled out:
+ *   - DOM overlay container + chip elements
+ *   - `pan zoom`, `position`, `add`, `remove`, `data` listeners (these were
+ *     calling `renderedBoundingBox()` per folder per frame, which froze
+ *     trackpad pan on graphs with many folders).
  */
 import type {Core, EventObject, NodeSingular} from 'cytoscape';
-import type cytoscape from 'cytoscape';
 import {toggleFolderCollapse} from '@/shell/edge/UI-edge/graph/view/folderCollapse';
+import {FOLDER_CHEVRON_HIT_SIZE_PX} from '@/shell/UI/cytoscape-graph-ui/services/styles/defaultNodeStyles';
 import {signalViewportManipulationCached} from '@/shell/UI/cytoscape-graph-ui/services/animation/largegraphPerformance';
 import {dispatchSetPan, getLayout} from '@vt/graph-state/state/layoutStore';
 
-const CHIP_CLASS = 'vt-folder-handle';
-const CHEVRON_CLASS = 'vt-folder-handle__chevron';
-
-interface ChipEntry {
-    el: HTMLDivElement;
-    chevron: HTMLDivElement;
-}
-
-export function setupFolderHandles(cy: Core, container: HTMLElement): void {
-    injectStylesheet();
-
-    const overlay: HTMLDivElement = document.createElement('div');
-    overlay.className = 'vt-folder-handle-overlay';
-    overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:5;';
-    // Container is the cy canvas host; appending makes overlay a positioned
-    // sibling so absolute children align to its 0,0.
-    container.appendChild(overlay);
-
-    const chips: Map<string, ChipEntry> = new Map();
+export function setupFolderHandles(cy: Core): void {
     let folderBodyPan: {lastX: number; lastY: number} | null = null;
 
-    function createChip(folderId: string): void {
-        if (chips.has(folderId)) return;
+    cy.on('tap', 'node[?isFolderNode][!collapsed]', (evt: EventObject): void => {
+        const node: NodeSingular = evt.target;
+        // Convert rendered click position into model coords. The chevron is
+        // painted at cytoscape's compound TL = (position.x − totalWidth/2,
+        // position.y − totalHeight/2). Match that exactly so the hit-test
+        // tracks the rendered chevron regardless of label extents,
+        // bounds-expansion, or other bbox-padding factors.
+        const zoom: number = cy.zoom();
+        const pan: {x: number; y: number} = cy.pan();
+        const modelX: number = (evt.renderedPosition.x - pan.x) / zoom;
+        const modelY: number = (evt.renderedPosition.y - pan.y) / zoom;
+        const pos = node.position();
+        const padding: number = node.padding();
+        const halfTotalW: number = node.width() / 2 + padding;
+        const halfTotalH: number = node.height() / 2 + padding;
+        const dx: number = modelX - (pos.x - halfTotalW);
+        const dy: number = modelY - (pos.y - halfTotalH);
+        if (dx < 0 || dx > FOLDER_CHEVRON_HIT_SIZE_PX || dy < 0 || dy > FOLDER_CHEVRON_HIT_SIZE_PX) return;
 
-        const el: HTMLDivElement = document.createElement('div');
-        el.className = CHIP_CLASS;
-        el.dataset.folderId = folderId;
-
-        const chevron: HTMLDivElement = document.createElement('div');
-        chevron.className = CHEVRON_CLASS;
-        chevron.setAttribute('aria-label', 'Collapse folder');
-        chevron.setAttribute('role', 'button');
-        chevron.innerHTML =
-            '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">' +
-            '<path d="M2 3 L5 7 L8 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-            '</svg>';
-        chevron.addEventListener('click', (evt: MouseEvent): void => {
-            evt.stopPropagation();
-            evt.preventDefault();
-            void toggleFolderCollapse(cy, folderId);
-        });
-
-        el.appendChild(chevron);
-        overlay.appendChild(el);
-        chips.set(folderId, {el, chevron});
-        positionChip(folderId);
-        reorderChipsByRenderedPosition();
-    }
-
-    function destroyChip(folderId: string): void {
-        const entry: ChipEntry | undefined = chips.get(folderId);
-        if (!entry) return;
-        entry.el.remove();
-        chips.delete(folderId);
-    }
-
-    function positionChip(folderId: string): void {
-        const entry: ChipEntry | undefined = chips.get(folderId);
-        if (!entry) return;
-        const node: cytoscape.CollectionReturnValue = cy.getElementById(folderId);
-        if (node.length === 0) return;
-
-        const isCollapsed: boolean = node.data('collapsed') === true;
-        // Hide chip when collapsed — cy pill is the visual chip in that state.
-        if (isCollapsed) {
-            entry.el.style.display = 'none';
-            return;
-        }
-        entry.el.style.display = '';
-
-        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = node.renderedBoundingBox();
-        // Anchor to top-left of the rendered bbox. Cy returns coords relative to
-        // the canvas — overlay is a sibling positioned at 0,0 of the same
-        // container, so direct coords align.
-        entry.el.style.left = `${bbox.x1}px`;
-        entry.el.style.top = `${bbox.y1}px`;
-    }
-
-    function positionAllChips(): void {
-        for (const folderId of chips.keys()) positionChip(folderId);
-        reorderChipsByRenderedPosition();
-    }
-
-    function reorderChipsByRenderedPosition(): void {
-        const orderedEntries: [string, ChipEntry][] = Array.from(chips.entries()).sort(
-            ([aId], [bId]): number => {
-                const aNode: cytoscape.CollectionReturnValue = cy.getElementById(aId);
-                const bNode: cytoscape.CollectionReturnValue = cy.getElementById(bId);
-                if (aNode.length === 0 || bNode.length === 0) return 0;
-
-                const aBox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = aNode.renderedBoundingBox();
-                const bBox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = bNode.renderedBoundingBox();
-                return (aBox.y1 - bBox.y1) || (aBox.x1 - bBox.x1) || aId.localeCompare(bId);
-            },
-        );
-        for (const [, entry] of orderedEntries) overlay.appendChild(entry.el);
-    }
-
-    // Bootstrap: chip for every folder already in the graph
-    cy.nodes('node[?isFolderNode]').forEach((n: NodeSingular): void => {
-        createChip(n.id());
-    });
-
-    // Lifecycle: add / remove folder nodes
-    cy.on('add', 'node[?isFolderNode]', (evt: EventObject): void => {
-        createChip(evt.target.id());
-    });
-    cy.on('remove', 'node[?isFolderNode]', (evt: EventObject): void => {
-        destroyChip(evt.target.id());
-    });
-
-    // Data change: collapse / expand toggle
-    cy.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
-        positionChip(evt.target.id());
-        reorderChipsByRenderedPosition();
-    });
-
-    // Reposition on pan / zoom (canvas-relative move). Per-node moves are
-    // handled by the 'position' listeners below. NEVER subscribe to 'bounds'
-    // or 'render' — both create runaway loops: cy's boundingBox() internally
-    // calls dirtyBoundingBoxCache() which emits 'bounds', and positionChip()
-    // calls renderedBoundingBox(), so listening to 'bounds' re-enters
-    // positionChip until the stack blows.
-    cy.on('pan zoom', positionAllChips);
-    cy.on('position', 'node[?isFolderNode]', (evt: EventObject): void => {
-        positionChip(evt.target.id());
-        reorderChipsByRenderedPosition();
-    });
-    // Compound bbox changes when children move — listen to children-of-folder positions too.
-    cy.on('position', 'node', (evt: EventObject): void => {
-        const parent: cytoscape.CollectionReturnValue = evt.target.parent();
-        if (parent.length === 0) return;
-        if (parent.data('isFolderNode') !== true) return;
-        positionChip(parent.id());
-        reorderChipsByRenderedPosition();
+        evt.originalEvent?.stopPropagation();
+        evt.originalEvent?.preventDefault();
+        void toggleFolderCollapse(cy, node.id());
     });
 
     cy.on('mousedown', 'node[?isFolderNode]', (evt: EventObject): void => {
@@ -212,45 +99,4 @@ function mousePositionFromEvent(evt: Event | undefined): MousePosition | null {
         clientY: evt.clientY,
         button: evt.button,
     };
-}
-
-const STYLE_ELEMENT_ID = 'vt-folder-handle-styles';
-function injectStylesheet(): void {
-    if (document.getElementById(STYLE_ELEMENT_ID)) return;
-    const style: HTMLStyleElement = document.createElement('style');
-    style.id = STYLE_ELEMENT_ID;
-    style.textContent = `
-.vt-folder-handle {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  pointer-events: none;
-  user-select: none;
-  z-index: 1;
-  transform: translate(-1px, -1px);
-}
-.vt-folder-handle__chevron {
-  pointer-events: auto;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  background: rgba(45, 45, 48, 0.92);
-  border: 1.5px solid #888;
-  border-radius: 12px 0 8px 0;
-  color: #d4d4d4;
-  cursor: pointer;
-  transition: background-color 120ms;
-}
-.vt-folder-handle__chevron:hover {
-  background: rgba(56, 56, 56, 0.96);
-}
-.vt-folder-handle__chevron svg {
-  display: block;
-}
-`;
-    document.head.appendChild(style);
 }

@@ -79,7 +79,6 @@ const test = base.extend<{
             agents: [
                 { name: 'Test Agent', command: `echo "${HEADLESS_OUTPUT_MARKER}" "$AGENT_PROMPT"` }
             ],
-            ptyBackend: 'node-pty',
             terminalSpawnPathRelativeToWatchedDirectory: '/'
         }, null, 2), 'utf8');
 

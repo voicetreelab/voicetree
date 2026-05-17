@@ -47,15 +47,15 @@ describe('tmux spawn planning', () => {
         expect(resolvePromptFileWrite('/vault', terminalId, undefined)).toBeNull();
     });
 
-    it('filters AGENT_PROMPT, sets the empty override, adds prompt file, and backfills vault path', () => {
+    it('passes AGENT_PROMPT through, adds AGENT_PROMPT_FILE alongside, and backfills vault path', () => {
         const env = buildTmuxEnv({
             AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
         }, '/vault', '/vault/.voicetree/terminals/Aki-prompt.txt');
 
         expect(env).toEqual({
+            AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
-            AGENT_PROMPT: '',
             AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
             VOICETREE_VAULT_PATH: '/vault',
         });
@@ -69,14 +69,12 @@ describe('tmux spawn planning', () => {
 
         expect(env).toEqual({
             VOICETREE_VAULT_PATH: '/initial-vault',
-            AGENT_PROMPT: '',
         });
     });
 
-    it('plans headful prompt injection only when there is a prompt file and command', () => {
-        expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"', '/prompt.txt'))
-            .toEqual({terminalId, command: 'codex "$AGENT_PROMPT"', promptFilePath: '/prompt.txt'});
-        expect(resolveHeadfulPromptInjection(terminalId, undefined, '/prompt.txt')).toBeNull();
-        expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"', null)).toBeNull();
+    it('plans headful prompt injection whenever there is an initial command', () => {
+        expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"'))
+            .toEqual({terminalId, command: 'codex "$AGENT_PROMPT"'});
+        expect(resolveHeadfulPromptInjection(terminalId, undefined)).toBeNull();
     });
 });

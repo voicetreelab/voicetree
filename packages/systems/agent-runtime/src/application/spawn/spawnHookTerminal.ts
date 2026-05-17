@@ -1,7 +1,7 @@
 /**
  * Lazy-spawns a dedicated "hook" terminal for dispatching onNewNode hooks.
  * Fixed terminal ID 'hook'. Re-spawns if terminal exited or was removed.
- * Commands are written directly via terminalManager.write() for speed.
+ * Commands are written via tmux send-keys (sendTextToTerminal).
  */
 
 import * as O from 'fp-ts/lib/Option.js'
@@ -14,7 +14,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import type {TerminalData} from '../terminals/terminal-registry/types'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
-import {getTerminalManager} from '../terminals/terminal-manager-instance'
+import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../runtime/graph-bridge'
@@ -165,10 +165,9 @@ export async function ensureHookTerminal(): Promise<void> {
 }
 
 /**
- * Write a command directly to the hook terminal PTY.
- * Uses terminalManager.write() — no char-by-char delay since
- * we know the terminal is at a shell prompt.
+ * Send a command to the hook terminal via tmux send-keys.
+ * Submission Enter is handled by sendTextToTerminal.
  */
 export function writeToHookTerminal(command: string): void {
-    getTerminalManager().write(HOOK_TERMINAL_ID, command + '\r')
+    void sendTextToTerminal(HOOK_TERMINAL_ID, command)
 }

@@ -118,13 +118,11 @@ function graphIncludesTitle(
 }
 
 async function writeSettings(userDataDir: string, vaultPath: string, agentPrompt: string): Promise<void> {
-    // Phase 6: default is ptyBackend='tmux'. Explicit here for clarity / lock-in.
     // spawn_agent does NOT accept an inline `agentPrompt`; production resolves the
     // prompt from `INJECT_ENV_VARS.AGENT_PROMPT` (the same path electron-real-agent
     // tests use). The headless tmux spawn then writes that value to disk via
     // applyPromptFileToHeadlessSpawn and exposes it as AGENT_PROMPT_FILE.
     await fs.writeFile(path.join(userDataDir, 'settings.json'), JSON.stringify({
-        ptyBackend: 'tmux',
         agents: [
             {
                 name: 'Fake Agent',

@@ -84,7 +84,6 @@ const test = base.extend<{
         { name: 'Codex', command: '/opt/homebrew/bin/codex exec --dangerously-bypass-approvals-and-sandbox "$AGENT_PROMPT"; exit' },
       ],
       defaultAgent: 'Claude Sonnet',
-      ptyBackend: 'node-pty',
       terminalSpawnPathRelativeToWatchedDirectory: '/',
       INJECT_ENV_VARS: {
         AGENT_PROMPT: 'Read the task at $CONTEXT_NODE_PATH and execute it exactly. You have VoiceTree MCP tools available as mcp__voicetree__spawn_agent, mcp__voicetree__create_graph, mcp__voicetree__list_agents, and mcp__voicetree__read_terminal_output. When calling spawn_agent, use callerTerminalId=$VOICETREE_TERMINAL_ID and parentNodeId=$TASK_NODE_PATH unless the task says otherwise. MCP port: $VOICETREE_MCP_PORT. DEPTH_BUDGET=$DEPTH_BUDGET. Do not ask for clarification.',

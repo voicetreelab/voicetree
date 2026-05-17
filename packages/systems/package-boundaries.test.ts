@@ -75,6 +75,7 @@ async function pathExists(path: string): Promise<boolean> {
 
 function isProductionTypeScriptSource(path: string): boolean {
     return path.endsWith('.ts')
+        && !path.endsWith('/__audit_seed__.ts')
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.includes('/__tests__/')

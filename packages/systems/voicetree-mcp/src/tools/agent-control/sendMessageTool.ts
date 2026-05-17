@@ -1,6 +1,11 @@
 /**
  * MCP Tool: send_message
  * Sends a message directly to an agent terminal.
+ *
+ * Under tmux-only, every routable terminal (headless or interactive) receives
+ * input through the same `tmux send-keys` mechanism. Pending terminals queue
+ * the message until spawn completes; headless agents that aren't tmux-backed
+ * have no input channel and are rejected.
  */
 
 import {
@@ -8,7 +13,6 @@ import {
     findTerminalRecord,
     getPendingTerminalState,
     isTmuxHeadlessTerminal,
-    sendHeadlessTerminalText,
     sendTerminalText,
     terminalExists,
     type TerminalRecord,
@@ -51,63 +55,26 @@ function handleMissingTerminal(terminalId: string, callerTerminalId: string, mes
     return queuePendingTerminalMessage(terminalId, callerTerminalId, message)
 }
 
-async function sendPrefixedText(
+async function sendToTmuxTerminal(
     terminalId: string,
     callerTerminalId: string,
     message: string,
-    sendText: (terminalId: string, message: string) => Promise<{success: boolean; error?: string}>,
     successMessage: string,
 ): Promise<McpToolResponse> {
     try {
         const prefixedMessage: string = buildPrefixedMessage(callerTerminalId, message)
-        const result: Awaited<ReturnType<typeof sendText>> = await sendText(terminalId, prefixedMessage)
+        const result: {success: boolean; error?: string} = await sendTerminalText(terminalId, prefixedMessage)
         if (!result.success) {
             return buildErrorResponse(result.error ?? 'Failed to send message')
         }
         return buildJsonResponse({
             success: true,
             terminalId,
-            message: successMessage
+            message: successMessage,
         })
     } catch (error) {
-        const errorMessage: string = error instanceof Error ? error.message : String(error)
-        return buildErrorResponse(errorMessage)
+        return buildErrorResponse(error instanceof Error ? error.message : String(error))
     }
-}
-
-function sendInteractiveText(terminalId: string, message: string): Promise<{success: boolean; error?: string}> {
-    return Promise.resolve(sendTerminalText(terminalId, message))
-}
-
-function sendMessageToInteractiveTerminal(
-    terminalId: string,
-    callerTerminalId: string,
-    message: string,
-): Promise<McpToolResponse> {
-    return sendPrefixedText(
-        terminalId,
-        callerTerminalId,
-        message,
-        sendInteractiveText,
-        `Successfully sent message to terminal: ${terminalId}`,
-    )
-}
-
-function sendMessageToHeadlessTerminal(
-    terminalId: string,
-    callerTerminalId: string,
-    message: string,
-): Promise<McpToolResponse> | McpToolResponse {
-    if (!isTmuxHeadlessTerminal(terminalId)) {
-        return buildHeadlessInputError(terminalId)
-    }
-    return sendPrefixedText(
-        terminalId,
-        callerTerminalId,
-        message,
-        sendHeadlessTerminalText,
-        `Successfully sent message to tmux-backed headless terminal: ${terminalId}`,
-    )
 }
 
 export interface SendMessageParams {
@@ -121,25 +88,24 @@ export async function sendMessageTool({
     message,
     callerTerminalId
 }: SendMessageParams): Promise<McpToolResponse> {
-    // 1. Validate caller terminal exists
     if (!terminalExists(callerTerminalId)) {
         return buildErrorResponse(`Unknown caller terminal: ${callerTerminalId}`)
     }
 
-    // 2. Find the target terminal
     const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId)
 
+    // Pending terminal: spawn returned but the tmux session isn't registered
+    // yet. Queue interactive messages; reject headless (same contract as a
+    // running headless that's not tmux-backed).
     if (!targetRecord) {
-        // 2a. Pending terminal: spawn returned, but the PTY/process isn't registered yet.
-        // Queue interactive messages; reject headless (same contract as a running headless).
         return handleMissingTerminal(terminalId, callerTerminalId, message)
     }
 
-    // 2b. Tmux-backed headless agents receive input via tmux send-keys.
-    if (targetRecord.terminalData.isHeadless) {
-        return sendMessageToHeadlessTerminal(terminalId, callerTerminalId, message)
+    // Headless agents that aren't tmux-backed have no input channel.
+    if (targetRecord.terminalData.isHeadless && !isTmuxHeadlessTerminal(terminalId)) {
+        return buildHeadlessInputError(terminalId)
     }
 
-    // 3. Send message to terminal with sender prefix
-    return sendMessageToInteractiveTerminal(terminalId, callerTerminalId, message)
+    const kind: string = targetRecord.terminalData.isHeadless ? 'tmux-backed headless terminal' : 'terminal'
+    return sendToTmuxTerminal(terminalId, callerTerminalId, message, `Successfully sent message to ${kind}: ${terminalId}`)
 }

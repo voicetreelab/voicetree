@@ -9,7 +9,7 @@ import {
     type TerminalRegistryLogger,
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
-import {hasSession as defaultHasSession} from '../tmux-session-manager'
+import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux-session-manager'
 
 type TmuxTerminalMetadata = {
     readonly name: string
@@ -128,6 +128,7 @@ export async function reconcileTmuxTerminalRegistry(
         }
 
         if (alive) {
+            registerTmuxSessionAlias(metadata.name, metadata.session ?? metadata.name)
             const terminalId: TerminalId = importRunningRecord(metadata, vaultPath, now())
             deps.onRunningSession?.({terminalId, metadataPath, metadata})
             result.imported.push(metadata.name)
@@ -149,4 +150,3 @@ export async function reconcileTmuxTerminalRegistry(
 
     return result
 }
-

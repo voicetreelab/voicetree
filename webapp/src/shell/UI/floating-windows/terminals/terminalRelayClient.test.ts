@@ -124,4 +124,39 @@ describe('TerminalRelayClient', () => {
 
     client.dispose();
   });
+
+  it('default setTimeoutFn fallback survives browser-style host-binding check on setTimeout', () => {
+    // Browsers throw "Illegal invocation" when setTimeout is invoked with a `this`
+    // other than `window`/`globalThis`. Node's setTimeout has no such check, so we
+    // simulate it here to lock in the fix against regression.
+    vi.useRealTimers();
+    const realSetTimeout = globalThis.setTimeout;
+    const strictSetTimeout = function (this: unknown, ...args: Parameters<typeof setTimeout>): ReturnType<typeof setTimeout> {
+      if (this !== undefined && this !== globalThis) {
+        throw new TypeError('Illegal invocation');
+      }
+      return (realSetTimeout as (...a: Parameters<typeof setTimeout>) => ReturnType<typeof setTimeout>)(...args);
+    } as unknown as typeof setTimeout;
+    globalThis.setTimeout = strictSetTimeout;
+
+    try {
+      const sockets: FakeWebSocket[] = [];
+      const client = new TerminalRelayClient({
+        url: 'ws://localhost:3002/terminals/Timi/attach',
+        createWebSocket: (url: string): WebSocket => {
+          const socket = new FakeWebSocket(url);
+          sockets.push(socket);
+          return socket as unknown as WebSocket;
+        },
+        onData: (): void => {},
+        onStatus: (): void => {},
+      });
+
+      client.connect();
+      expect(() => sockets[0].emit('close')).not.toThrow();
+      client.dispose();
+    } finally {
+      globalThis.setTimeout = realSetTimeout;
+    }
+  });
 });
