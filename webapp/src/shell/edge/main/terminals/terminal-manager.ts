@@ -1,5 +1,7 @@
-import { promises as fs } from 'fs';
+import { promises as fs, writeFileSync, mkdirSync } from 'fs';
 import { execFileSync } from 'child_process';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
@@ -12,6 +14,49 @@ import {captureOutput, clearBuffer, clearAllBuffers} from '@/shell/edge/main/ter
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import type {VTSettings} from '@vt/graph-model/pure/settings/types';
 import {closeHeadlessAgent, cleanupHeadlessAgents} from '@/shell/edge/main/terminals/headlessAgentManager';
+
+/**
+ * Write agent prompt to a temp file for shell-agnostic delivery.
+ * Avoids reliance on $AGENT_PROMPT shell expansion (fails on PowerShell/WSL).
+ */
+function writePromptFile(terminalId: string, prompt: string): string {
+    const dir: string = join(tmpdir(), 'voicetree-prompts');
+    mkdirSync(dir, {recursive: true});
+    const filePath: string = join(dir, `${terminalId}-prompt.txt`);
+    writeFileSync(filePath, prompt, {encoding: 'utf8'});
+    return filePath;
+}
+
+function toWslPath(windowsPath: string): string {
+    const drive: string = windowsPath[0].toLowerCase();
+    const rest: string = windowsPath.slice(2).replace(/\\/g, '/');
+    return `/mnt/${drive}${rest}`;
+}
+
+/**
+ * Rewrite command to consume prompt from a file instead of $AGENT_PROMPT.
+ * Handles PowerShell, WSL, and bash with appropriate syntax.
+ */
+function rewriteCommandForPromptFile(command: string, promptFilePath: string, shell: string): string {
+    const stripped: string = command
+        .replace(/\s*"\$AGENT_PROMPT"/g, '')
+        .replace(/\s*'\$AGENT_PROMPT'/g, '')
+        .replace(/\s*\$AGENT_PROMPT/g, '')
+        .trim();
+
+    const shellLower: string = shell.toLowerCase();
+    const isWsl: boolean = shellLower.includes('wsl');
+    const isPowerShell: boolean = shellLower.includes('powershell') || shellLower.includes('pwsh');
+
+    if (isWsl) {
+        const wslPath: string = toWslPath(promptFilePath);
+        return `${stripped} < '${wslPath}'`;
+    }
+    if (isPowerShell) {
+        return `Get-Content -Raw '${promptFilePath}' | ${stripped}`;
+    }
+    return `${stripped} < '${promptFilePath}'`;
+}
 
 /** Cached Windows shell path. Prefer pwsh.exe (PS7+) over powershell.exe (PS5) */
 let cachedWindowsShell: string | undefined;
@@ -118,10 +163,21 @@ export default class TerminalManager {
 
       // Write initial command if provided (without newline, so it's not executed)
       if (terminalData.initialCommand) {
-        //console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
+        let commandToWrite: string = terminalData.initialCommand;
+
+        // On Windows, $AGENT_PROMPT shell expansion fails (PowerShell treats
+        // it as a PS variable; WSL doesn't inherit env vars from Windows).
+        // Write prompt to a file and rewrite the command to consume it via
+        // stdin redirect — same approach the tmux backend uses on macOS.
+        const prompt: string | undefined = terminalData.initialEnvVars?.AGENT_PROMPT;
+        if (prompt && commandToWrite.includes('$AGENT_PROMPT') && process.platform === 'win32') {
+          const promptFilePath: string = writePromptFile(terminalId, prompt);
+          commandToWrite = rewriteCommandForPromptFile(commandToWrite, promptFilePath, shell);
+        }
+
         const command: string = terminalData.executeCommand
-          ? terminalData.initialCommand + '\r'
-          : terminalData.initialCommand;
+          ? commandToWrite + '\r'
+          : commandToWrite;
         // Wait a bit for shell prompt to appear before writing
         setTimeout(() => {
           ptyProcess.write(command);
