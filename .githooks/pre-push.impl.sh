@@ -9,12 +9,23 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 WEBAPP="$REPO_ROOT/webapp"
+LOG_DIR="$REPO_ROOT/health-dashboard/reports"
+LOG_FILE="$LOG_DIR/pre-push.log"
+mkdir -p "$LOG_DIR"
+: > "$LOG_FILE"
+
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 bold() { printf "\033[1m%s\033[0m\n" "$1"; }
-fail() { printf "\033[1;31m✗ %s\033[0m\n" "$1"; exit 1; }
+fail() {
+  printf "\033[1;31m✗ %s\033[0m\n" "$1"
+  printf "\033[1;31m  Full output: %s\033[0m\n" "$LOG_FILE"
+  exit 1
+}
 pass() { printf "\033[1;32m✓ %s\033[0m\n" "$1"; }
 
 bold "═══ Pre-push: Stage 1 + Stage 2 local verification ═══"
+echo "Log file: $LOG_FILE"
 echo ""
 
 # ── Stage 1a: Lint ─────────────────────────────────────────────────────
