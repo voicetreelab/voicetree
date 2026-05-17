@@ -14,7 +14,7 @@ import {
     clearTerminalRecords,
     type TerminalRecord
 } from '@vt/agent-runtime'
-import {registerAgentNodes, getAgentNodes, clearAgentNodes, type AgentNodeEntry} from '@vt/voicetree-mcp'
+import {registerAgentNodes, getAgentNodes, clearAgentNodes, sendMessageTool, type AgentNodeEntry, type McpToolResponse} from '@vt/voicetree-mcp'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
 import {getTerminalManager} from '@vt/agent-runtime'
@@ -31,7 +31,7 @@ import {expect} from 'vitest'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-export const FAKE_AGENT_DIR: string = path.resolve(__dirname, '../../../../../../../tools/vt-fake-agent')
+export const FAKE_AGENT_DIR: string = path.resolve(__dirname, '../../../../../../../../tools/vt-fake-agent')
 export const FAKE_AGENT_ENTRYPOINT: string = path.join(FAKE_AGENT_DIR, 'dist/index.js')
 export const CALLER_TERMINAL_ID: string = 'test-caller'
 export const SILENCE_POLL_MS: number = 100
@@ -278,9 +278,17 @@ export async function startStubMcpServer(port: number): Promise<Server> {
             return {content: [{type: 'text' as const, text: JSON.stringify(agents)}]}
         })
 
+        // Proxy to the real production sendMessageTool so tests exercise the
+        // actual injection path (agentRuntime.sendTextToTerminal → PTY stdin)
+        // instead of a no-op stub. Faking this here is exactly the
+        // DOVL-3-class blind spot that hides bugs like send_message returning
+        // success while no text reaches the target terminal.
         mcpServer.registerTool('send_message', {
             inputSchema: {terminalId: z.string(), message: z.string(), callerTerminalId: z.string()}
-        }, async () => ({content: [{type: 'text' as const, text: JSON.stringify({success: true})}]}))
+        }, async ({terminalId, message, callerTerminalId}) => {
+            const response: McpToolResponse = await sendMessageTool({terminalId, message, callerTerminalId})
+            return {content: response.content, isError: response.isError}
+        })
 
         mcpServer.registerTool('close_agent', {
             inputSchema: {terminalId: z.string(), callerTerminalId: z.string(), forceWithReason: z.string().optional()}
