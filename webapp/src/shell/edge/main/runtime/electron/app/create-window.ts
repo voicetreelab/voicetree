@@ -2,6 +2,7 @@
 import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
 import {agentRuntime, type getTerminalManager} from '@vt/agent-runtime';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
@@ -38,12 +39,15 @@ async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): P
     ]);
 }
 
-// Conditionally load trackpad detection (macOS only, optional dependency)
+// Conditionally load trackpad detection (macOS only, optional dependency).
+// The main bundle is ESM (webapp package "type": "module"), so the bare
+// `require()` left in by rollup for externalized modules throws
+// ReferenceError at runtime. Use createRequire to get a real CJS require.
+const nativeRequire = createRequire(import.meta.url);
 let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
 if (process.platform === 'darwin') {
     try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        trackpadDetect = require('electron-trackpad-detect');
+        trackpadDetect = nativeRequire('electron-trackpad-detect');
     } catch {
         console.warn('[Main] electron-trackpad-detect not available');
     }
