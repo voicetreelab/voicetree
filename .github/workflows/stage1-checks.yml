@@ -103,7 +103,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
-          submodules: recursive
+
+      - name: Checkout brain submodule
+        run: |
+          git config --local url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth=1 brain
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
