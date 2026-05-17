@@ -11,7 +11,7 @@ const sharedExclude = [
   '**/voicetree-evals/**',
   '**/.node_modules-*/**',
   '**/tools/**',
-  '**/brain/automation/**',
+  '**/brain/**',
   '**/native-modules/**',
   '**/workers/share-worker/**',
   'tests/system/**',
