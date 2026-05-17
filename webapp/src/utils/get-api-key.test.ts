@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Must mock before importing the module
 const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
 
 // Dynamic import to reset module state between tests
 async function getModule(): Promise<typeof import('./get-api-key')> {
@@ -13,6 +11,7 @@ async function getModule(): Promise<typeof import('./get-api-key')> {
 
 describe('get-api-key', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
     mockFetch.mockResolvedValue({
       ok: true,
@@ -22,6 +21,7 @@ describe('get-api-key', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it('fetches API key from server and caches it', async () => {
