@@ -27,9 +27,9 @@ export async function getMcpVaultPaths(): Promise<readonly string[]> {
     return await requireGraphBridge('getMcpVaultPaths').getVaultPaths()
 }
 
-export function getMcpProjectRootWatchedDirectory(): string | null {
+export async function getMcpProjectRootWatchedDirectory(): Promise<string | null> {
     const bridge: GraphBridge = requireGraphBridge('getMcpProjectRootWatchedDirectory')
-    return bridge.getProjectRootWatchedDirectory ? bridge.getProjectRootWatchedDirectory() : null
+    return bridge.getProjectRootWatchedDirectory ? await bridge.getProjectRootWatchedDirectory() : null
 }
 
 export async function getMcpUnseenNodesAroundContextNode(

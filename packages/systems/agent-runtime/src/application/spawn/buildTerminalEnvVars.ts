@@ -44,8 +44,8 @@ export async function buildTerminalEnvVars(params: {
         : O.getOrElse(() => '')(await getRuntimeWritePath())
 
     const projectRoot: string | null = env.getProjectRootWatchedDirectory
-        ? env.getProjectRootWatchedDirectory()
-        : getRuntimeProjectRoot()
+        ? await env.getProjectRootWatchedDirectory()
+        : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
 
     const unexpandedEnvVars: Record<string, string> = {

@@ -110,7 +110,7 @@ async function spawnHookTerminal(
 
     // Spawn in project root (watched directory), not the terminal-relative path —
     // hook scripts use absolute node paths and expect project root as CWD
-    const watchStatus: {readonly isWatching: boolean; readonly directory: string | undefined} = getRuntimeWatchStatus()
+    const watchStatus: {readonly isWatching: boolean; readonly directory: string | undefined} = await getRuntimeWatchStatus()
     const initialSpawnDirectory: string | undefined = watchStatus.directory
 
     const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({

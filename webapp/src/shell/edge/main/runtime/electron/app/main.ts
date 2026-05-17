@@ -35,6 +35,7 @@ import {
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
 import {
+    getWatchStatus,
     getVaultPaths,
     getWritePath,
     setOnFolderSwitchCleanup,
@@ -88,7 +89,7 @@ configureMcpServer({
         },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRootWatchedDirectory: () => null,
+        getProjectRootWatchedDirectory,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -111,7 +112,7 @@ agentRuntime.configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory: () => null,
+        getProjectRootWatchedDirectory,
         getVaultPaths,
         getWritePath: async () => {
             const writePath: O.Option<string> = await getWritePath();
@@ -122,11 +123,8 @@ agentRuntime.configureAgentRuntime({
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
         getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory: () => null,
-        getWatchStatus: () => ({
-            isWatching: false,
-            directory: undefined,
-        }),
+        getProjectRootWatchedDirectory,
+        getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
         createContextNode: async (parentNodeId, semanticNodeIds) => {
@@ -172,6 +170,12 @@ const {autoUpdater} = electronUpdater;
 
 function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
+}
+
+async function getProjectRootWatchedDirectory(): Promise<string | null> {
+    const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
+        await getWatchStatus();
+    return status.directory ?? null;
 }
 
 configureEnvironment();

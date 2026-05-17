@@ -158,27 +158,41 @@ test.describe('Real agent spawn E2E', () => {
     test.setTimeout(600_000); // 10 min — real agents need time
 
     // --- MCP setup ---
+    // The production `setMcpIntegration` / `openVault` path is responsible for writing
+    // `.mcp.json` into the vault so spawned external agents (Claude, Codex) discover MCP.
+    // This test depends on that path: if the writer is broken (DOVL-3 class regression),
+    // the file won't exist or its URL won't match the live MCP server and the test fails.
     const mcpPort: number = await appWindow.evaluate(async () => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.getMcpPort();
     });
-    const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-    expect(await waitForMcpServer(mcpUrl)).toBe(true);
+    const expectedMcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
 
+    const mcpJsonPath = path.join(fixtureVaultPath, '.mcp.json');
+    await expect.poll(async () => {
+      try { await fs.access(mcpJsonPath); return true; } catch { return false; }
+    }, {
+      message: `Waiting for production writer to emit ${mcpJsonPath}`,
+      timeout: 30_000,
+      intervals: [500, 1000, 2000],
+    }).toBe(true);
+
+    const mcpJsonText = await fs.readFile(mcpJsonPath, 'utf8');
+    const mcpJson = JSON.parse(mcpJsonText) as { mcpServers?: { voicetree?: { url?: string } } };
+    const urlFromMcpJson = mcpJson.mcpServers?.voicetree?.url;
+    expect(urlFromMcpJson, `.mcp.json missing mcpServers.voicetree.url:\n${mcpJsonText}`).toBe(expectedMcpUrl);
+    console.log(`.mcp.json verified at ${mcpJsonPath}: ${urlFromMcpJson}`);
+
+    // Use the URL FROM .mcp.json for all subsequent HTTP MCP calls. If the file's
+    // URL doesn't actually serve MCP, the test fails here, not 10 minutes later.
+    const mcpUrl: string = expectedMcpUrl;
+    expect(await waitForMcpServer(mcpUrl)).toBe(true);
     await mcpRequest(mcpUrl, 'initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
       clientInfo: { name: 'real-agent-e2e', version: '1.0.0' },
     });
-
-    // Write .mcp.json so spawned Claude agents discover this test's MCP server
-    await fs.writeFile(path.join(fixtureVaultPath, '.mcp.json'), JSON.stringify({
-      mcpServers: {
-        voicetree: { type: 'http', url: `http://127.0.0.1:${mcpPort}/mcp` },
-      },
-    }, null, 2), 'utf8');
-    console.log(`.mcp.json written for port ${mcpPort}`);
 
     // --- Start file watching explicitly ---
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
@@ -243,6 +257,26 @@ test.describe('Real agent spawn E2E', () => {
       const agents = (result.parsed as { agents: Array<{ terminalId: string }> }).agents;
       return agents.some(a => a.terminalId === callerTerminalId);
     }, { message: 'Waiting for caller terminal', timeout: 10_000, intervals: [500, 1000] }).toBe(true);
+
+    // --- Verify HTTP MCP via the production-written .mcp.json URL by writing one
+    //     real progress node ourselves. This is the same call path the spawned
+    //     external agents will take, exercised explicitly before we burn API credits. ---
+    const probeNodeFilename = `e2e-mcp-http-probe-${Date.now()}`;
+    const probeResult = await mcpCallTool(mcpUrl, 'create_graph', {
+      callerTerminalId,
+      nodes: [{
+        filename: probeNodeFilename,
+        title: 'E2E MCP HTTP probe',
+        summary: 'Written by electron-real-agent-spawn via the URL from .mcp.json to prove the production writer + HTTP MCP path round-trip works.',
+      }],
+    });
+    expect(probeResult.parsed, `create_graph via .mcp.json URL failed: ${JSON.stringify(probeResult.parsed)}`).toMatchObject({ success: true });
+    const probeNodePath = path.join(fixtureVaultPath, `${probeNodeFilename}.md`);
+    expect(
+      await fs.access(probeNodePath).then(() => true).catch(() => false),
+      `progress node ${probeNodePath} was not written by create_graph`,
+    ).toBe(true);
+    console.log(`✓ Progress node written via .mcp.json HTTP MCP path: ${probeNodePath}`);
 
     // --- Screenshot: initial state ---
     const screenshots: string[] = [];

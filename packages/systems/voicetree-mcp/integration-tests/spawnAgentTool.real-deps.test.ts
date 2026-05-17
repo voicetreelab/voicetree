@@ -79,7 +79,7 @@ function configureGraphBridge(writePath: string): void {
         getGraph: vi.fn(async () => buildGraphWithParent()),
         getVaultPaths: vi.fn(async () => [writePath]),
         getWritePath: vi.fn(async () => writePath),
-        getProjectRootWatchedDirectory: vi.fn(() => writePath),
+        getProjectRootWatchedDirectory: vi.fn(async () => writePath),
         getUnseenNodesAroundContextNode: vi.fn(async () => []),
         applyGraphDelta: vi.fn(async () => undefined),
     }

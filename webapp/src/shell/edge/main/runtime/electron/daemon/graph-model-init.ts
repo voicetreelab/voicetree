@@ -20,7 +20,7 @@ import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject
 import { agentRuntime, type TerminalRecord } from '@vt/agent-runtime'
 import { registerAgentNodes } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
-import { enableMcpJsonIntegration } from '@vt/voicetree-mcp'
+import { enableMcpClientIntegrations } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { ensureDaemonProcess, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
@@ -154,7 +154,7 @@ export function initializeGraphModel(): void {
 
         // App-specific setup
         enableMcpIntegration(): Promise<void> {
-            return enableMcpJsonIntegration()
+            return enableMcpClientIntegrations()
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

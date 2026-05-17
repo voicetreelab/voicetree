@@ -30,12 +30,12 @@ export async function applyRuntimeGraphDelta(
     await requireGraphBridge().applyGraphDelta(delta, recordForUndo)
 }
 
-export function getRuntimeProjectRoot(): FilePath | null {
-    return requireGraphBridge().getProjectRootWatchedDirectory()
+export async function getRuntimeProjectRoot(): Promise<FilePath | null> {
+    return await requireGraphBridge().getProjectRootWatchedDirectory()
 }
 
-export function getRuntimeWatchStatus(): WatchStatus {
-    return requireGraphBridge().getWatchStatus()
+export async function getRuntimeWatchStatus(): Promise<WatchStatus> {
+    return await requireGraphBridge().getWatchStatus()
 }
 
 export async function runtimeCreateContextNode(

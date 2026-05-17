@@ -82,7 +82,7 @@ export async function prepareTerminalDataInMain(
     const watchStatus: {
         readonly isWatching: boolean
         readonly directory: string | undefined
-    } = getRuntimeWatchStatus()
+    } = await getRuntimeWatchStatus()
     const initialSpawnDirectory: string | undefined = resolveInitialSpawnDirectory(
         watchStatus.directory,
         settings.terminalSpawnPathRelativeToWatchedDirectory,

@@ -74,10 +74,10 @@ export async function resolveTerminalCwd(
     }
 }
 
-export function buildTerminalEnvironment(
+export async function buildTerminalEnvironment(
     terminalData: TerminalData,
     deps: Pick<TerminalManagerDeps, 'env'>,
-): NodeJS.ProcessEnv {
+): Promise<NodeJS.ProcessEnv> {
     const customEnv: { [key: string]: string | undefined; TZ?: string; } = {...deps.env}
 
     if (terminalData.initialEnvVars) {
@@ -86,8 +86,8 @@ export function buildTerminalEnvironment(
 
     const runtimeEnv = getRuntimeEnv()
     const vaultPath: string | null = runtimeEnv.getProjectRootWatchedDirectory
-        ? runtimeEnv.getProjectRootWatchedDirectory()
-        : getRuntimeProjectRoot()
+        ? await runtimeEnv.getProjectRootWatchedDirectory()
+        : await getRuntimeProjectRoot()
     customEnv.OBSIDIAN_VAULT_PATH = vaultPath ?? ''
     customEnv.WATCHED_FOLDER = vaultPath ?? undefined
 

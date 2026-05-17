@@ -19,7 +19,7 @@ vi.mock('@vt/graph-model', async () => {
     return {
         ...actual,
         getGraph: vi.fn(),
-        getProjectRootWatchedDirectory: vi.fn(() => null),
+        getProjectRootWatchedDirectory: vi.fn(async () => null),
         getVaultPaths: vi.fn(async () => []),
         getReadPaths: vi.fn(async () => []),
     }
