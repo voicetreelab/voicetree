@@ -94,7 +94,13 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/') && !path.includes('/__generated__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')
+            && !path.includes('/__generated__/')) {
             return [path]
         }
         return []
@@ -130,6 +136,7 @@ function importSpecifiers(filePath: string, text: string): string[] {
 }
 
 function resolutionCandidates(basePath: string): string[] {
+    if (basePath.endsWith('/__audit_seed__.ts')) return []
     if (basePath.endsWith('.ts')) return [basePath]
     return [basePath, `${basePath}.ts`, join(basePath, 'index.ts')]
 }

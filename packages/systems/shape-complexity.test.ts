@@ -47,6 +47,7 @@ async function listProductionSources(root: string): Promise<string[]> {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
         if (entry.isFile() && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
             && !path.endsWith('.test.ts')
             && !path.endsWith('.spec.ts')
             && !path.endsWith('.d.ts')
