@@ -6,8 +6,9 @@ import {WebSocket, WebSocketServer} from 'ws'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
-const PASTE_CHUNK_BYTES: 32 = 32
-const PASTE_CHUNK_DELAY_MS: 50 = 50
+const PASTE_CHUNK_BYTES: 1024 = 1024
+const PASTE_CHUNK_DELAY_MS: 25 = 25
+const INTERACTIVE_INPUT_BYTES: 64 = 64
 const ATTACH_ROUTE: RegExp = /^\/terminals\/([^/]+)\/attach\/?$/
 
 export interface TmuxAttachRelayOptions {
@@ -46,6 +47,8 @@ function parseAttachRequest(request: IncomingMessage): ParsedAttachRequest {
 function configureTmuxSession(sessionName: string): void {
     execFileSync('tmux', ['set', '-t', sessionName, 'escape-time', '0'], {stdio: 'ignore'})
     execFileSync('tmux', ['set', '-t', sessionName, 'status', 'off'], {stdio: 'ignore'})
+    execFileSync('tmux', ['set', '-t', sessionName, 'mouse', 'on'], {stdio: 'ignore'})
+    execFileSync('tmux', ['set', '-t', sessionName, 'history-limit', '50000'], {stdio: 'ignore'})
 }
 
 function resizeTmuxPane(sessionName: string, cols: number, rows: number): void {
@@ -65,6 +68,10 @@ function sendExit(ws: WebSocket, code: number | null): void {
 }
 
 function enqueuePacedInput(term: IPty, queue: string[], state: {flushing: boolean}, payload: string): void {
+    if (payload.length <= INTERACTIVE_INPUT_BYTES && !state.flushing) {
+        term.write(payload)
+        return
+    }
     for (let offset = 0; offset < payload.length; offset += PASTE_CHUNK_BYTES) {
         queue.push(payload.slice(offset, offset + PASTE_CHUNK_BYTES))
     }
