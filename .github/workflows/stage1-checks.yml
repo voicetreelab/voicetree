@@ -102,6 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GH_TOKEN }}
           submodules: recursive
 
       - name: Setup Node.js
