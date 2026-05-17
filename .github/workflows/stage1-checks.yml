@@ -106,8 +106,8 @@ jobs:
 
       - name: Checkout brain submodule
         run: |
-          git config --local url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "git@github.com:"
-          git submodule update --init --depth=1 brain
+          git config --local submodule.brain.url "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/voicetreelab/brain.git"
+          git submodule update --init brain
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
