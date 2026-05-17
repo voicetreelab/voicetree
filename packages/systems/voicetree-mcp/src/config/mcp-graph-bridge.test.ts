@@ -18,7 +18,7 @@ function makeBridge(overrides: Partial<GraphBridge> = {}): GraphBridge {
         getGraph: vi.fn(async () => graph),
         getVaultPaths: vi.fn(async () => ['/vault']),
         getWritePath: vi.fn(async () => '/vault'),
-        getProjectRootWatchedDirectory: vi.fn(() => '/vault'),
+        getProjectRootWatchedDirectory: vi.fn(async () => '/vault'),
         getUnseenNodesAroundContextNode: vi.fn(async () => [{nodeId: 'n.md', content: 'body'}]),
         applyGraphDelta: vi.fn(async () => undefined),
         ...overrides,
@@ -34,7 +34,7 @@ describe('mcp-graph-bridge', () => {
         await expect(getMcpGraph()).rejects.toThrow(
             'MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before getMcpGraph.',
         )
-        expect(() => getMcpProjectRootWatchedDirectory()).toThrow(
+        await expect(getMcpProjectRootWatchedDirectory()).rejects.toThrow(
             'MCP graph bridge not configured. Call configureMcpServer({ graph: ... }) at boot before getMcpProjectRootWatchedDirectory.',
         )
     })
@@ -46,7 +46,7 @@ describe('mcp-graph-bridge', () => {
         await expect(getMcpGraph()).resolves.toBe(await bridge.getGraph())
         await expect(getMcpVaultPaths()).resolves.toEqual(['/vault'])
         await expect(getMcpWritePath()).resolves.toEqual(O.some('/vault'))
-        expect(getMcpProjectRootWatchedDirectory()).toBe('/vault')
+        await expect(getMcpProjectRootWatchedDirectory()).resolves.toBe('/vault')
         await expect(getMcpUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
             {nodeId: 'n.md', content: 'body'},
         ])

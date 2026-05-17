@@ -18,6 +18,7 @@ export {findAvailablePort, isPortAvailable} from '../tools/findAvailablePort'
 
 export {
     enableMcpJsonIntegration,
+    enableMcpClientIntegrations,
     disableMcpJsonIntegration,
     isMcpIntegrationEnabled,
     enableOpencodeMcpIntegration,

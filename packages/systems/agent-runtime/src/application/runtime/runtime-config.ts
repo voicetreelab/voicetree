@@ -20,7 +20,7 @@ export type RuntimeEnvProvider = {
     readonly getAppSupportPath: () => string;
     readonly getMcpPort: () => number;
     readonly getOTLPReceiverPort?: () => number | null;
-    readonly getProjectRootWatchedDirectory?: () => string | null;
+    readonly getProjectRootWatchedDirectory?: () => Promise<string | null>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
     readonly getWritePath?: () => Promise<string | null>;
 };
@@ -34,8 +34,8 @@ export type GraphStateBridge = {
     readonly getGraph: () => Promise<Graph>;
     readonly getVaultPaths: () => Promise<readonly FilePath[]>;
     readonly getWritePath: () => Promise<O.Option<FilePath>>;
-    readonly getProjectRootWatchedDirectory: () => FilePath | null;
-    readonly getWatchStatus: () => WatchStatus;
+    readonly getProjectRootWatchedDirectory: () => Promise<FilePath | null>;
+    readonly getWatchStatus: () => Promise<WatchStatus>;
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>;
     readonly createContextNode: (
         parentNodeId: NodeIdAndFilePath,

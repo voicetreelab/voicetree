@@ -25,7 +25,7 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   const node: GraphNode | undefined = graph.nodes[nodeId];
   const title: string = node ? getNodeTitle(node) : 'Terminal';
 
-  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = getRuntimeWatchStatus();
+  const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } = await getRuntimeWatchStatus();
   let initialSpawnDirectory: string | undefined = watchStatus.directory;
 
   if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {

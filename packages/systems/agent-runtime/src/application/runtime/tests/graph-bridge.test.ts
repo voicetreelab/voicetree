@@ -29,8 +29,8 @@ describe('graph bridge runtime accessors', () => {
         await expect(getRuntimeWritePath()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(getRuntimeVaultPaths()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(applyRuntimeGraphDelta({} as GraphDelta)).rejects.toThrow(MISSING_BRIDGE_ERROR)
-        expect(() => getRuntimeProjectRoot()).toThrow(MISSING_BRIDGE_ERROR)
-        expect(() => getRuntimeWatchStatus()).toThrow(MISSING_BRIDGE_ERROR)
+        await expect(getRuntimeProjectRoot()).rejects.toThrow(MISSING_BRIDGE_ERROR)
+        await expect(getRuntimeWatchStatus()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(runtimeCreateContextNode('parent.md' as NodeIdAndFilePath)).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(runtimeCreateContextNodeFromSelectedNodes(
             'task.md' as NodeIdAndFilePath,

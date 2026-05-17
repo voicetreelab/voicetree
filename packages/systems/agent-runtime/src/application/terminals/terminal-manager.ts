@@ -107,7 +107,7 @@ export class TerminalManager {
 
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
 
-      const customEnv: NodeJS.ProcessEnv = buildTerminalEnvironment(terminalData, deps);
+      const customEnv: NodeJS.ProcessEnv = await buildTerminalEnvironment(terminalData, deps);
 
       // Create PTY instance
       // PATH is already fixed by fix-absolutePath in main.ts
