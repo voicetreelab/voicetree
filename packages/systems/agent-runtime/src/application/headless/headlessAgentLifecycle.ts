@@ -130,11 +130,11 @@ export async function handleAgentExit(
 export function buildResumeCommand(cliType: SupportedHeadlessCli): string {
     switch (cliType) {
         case 'claude':
-            return `claude --continue -p "$RESUME_PROMPT" --dangerously-skip-permissions`
+            return `claude --continue --dangerously-skip-permissions`
         case 'codex':
-            return `codex exec resume --last -p "$RESUME_PROMPT" --full-auto`
+            return `codex exec resume --last --full-auto`
         case 'gemini':
-            return `gemini --resume latest -p "$RESUME_PROMPT" --yolo`
+            return `gemini --resume latest --yolo`
     }
 }
 
@@ -168,9 +168,14 @@ function resumeWithDeficiency(
     const child: ChildProcess = deps.spawnProcess(shell, ['-c', resumeCommand], {
         cwd: terminalData.initialSpawnDirectory ?? deps.getHomeDir() ?? deps.getCurrentDirectory(),
         env: { ...parentEnvResume, ...(terminalData.initialEnvVars ?? {}), RESUME_PROMPT: deficiency },
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],
         detached: false
     })
+
+    if (child.stdin) {
+        child.stdin.write(deficiency)
+        child.stdin.end()
+    }
 
     state.headlessProcesses.set(terminalId, child)
     const appendOutput: (d: Buffer) => void = appendChildOutput(terminalId, state)
