@@ -10,7 +10,7 @@
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import type { ElectronApplication, Locator, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -21,6 +21,9 @@ import {
 } from '@e2e/electron/for_feature_development_not_LT_verification/graph/folder-test-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
+const SCREENSHOT_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');
+const SCREENSHOT_DIR = path.join(PROJECT_ROOT, 'test-results', 'folder-spec-screenshots', SCREENSHOT_RUN_ID);
+const LINUX_RENDERING_FLAGS = ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 
 interface FolderGraphSnapshot {
     readonly folderId: string;
@@ -57,6 +60,45 @@ function sortIds(ids: readonly string[]): string[] {
 function sortSyntheticEdges(edges: readonly SyntheticEdgeSnapshot[]): SyntheticEdgeSnapshot[] {
     return [...edges].sort((left: SyntheticEdgeSnapshot, right: SyntheticEdgeSnapshot) =>
         `${left.source}->${left.target}`.localeCompare(`${right.source}->${right.target}`));
+}
+
+function getStableElectronRenderingFlags(): string[] {
+    const isHeadlessLinux = process.platform === 'linux' && process.env.HEADLESS_TEST !== '0';
+    return process.env.CI || process.env.VT_E2E_HEADLESS_LINUX || isHeadlessLinux
+        ? LINUX_RENDERING_FLAGS
+        : [];
+}
+
+async function captureStateScreenshot(
+    appWindow: Page,
+    fileName: string
+): Promise<void> {
+    await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
+    const screenshotPath = path.join(SCREENSHOT_DIR, fileName);
+    const dataUrl = await appWindow.evaluate(() => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        return cy.png({
+            output: 'base64uri',
+            bg: '#ffffff',
+            full: false,
+        });
+    });
+    await fs.writeFile(screenshotPath, Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'));
+    console.log(`Folder spec screenshot: ${screenshotPath}`);
+}
+
+function cssString(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+async function clickVisibleElementCenter(appWindow: Page, locator: Locator): Promise<void> {
+    await expect(locator).toBeVisible({ timeout: 5000 });
+    const box = await locator.boundingBox();
+    if (!box) {
+        throw new Error('Expected visible element to have a bounding box');
+    }
+    await appWindow.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
 function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
@@ -151,6 +193,7 @@ const test = base.extend<{
 
         const electronApp = await electron.launch({
             args: [
+                ...getStableElectronRenderingFlags(),
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserData}`
             ],
@@ -181,7 +224,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp }, use) => {
+    appWindow: async ({ electronApp, vaultPath }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
 
         window.on('console', msg => {
@@ -204,12 +247,24 @@ const test = base.extend<{
 
         await window.waitForLoadState('domcontentloaded');
         await window.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await window.locator('button:has-text("folder-spec-test-vault")').first().click();
+        await clickVisibleElementCenter(window, window.locator('button:has-text("folder-spec-test-vault")').first());
 
-        await window.waitForFunction(
+        const hasCytoscape = await window.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 30000 }
-        );
+            { timeout: 10000 }
+        ).then(() => true).catch(() => false);
+        if (!hasCytoscape) {
+            const watchResult = await window.evaluate(async (folderPath: string) => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                if (!api) throw new Error('electronAPI not available');
+                return api.main.startFileWatching(folderPath);
+            }, vaultPath);
+            expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
+            await window.waitForFunction(
+                () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
+                { timeout: 30000 }
+            );
+        }
         await window.waitForTimeout(3000);
 
         await use(window);
@@ -244,15 +299,14 @@ async function openFolderTreeSidebar(appWindow: Page): Promise<void> {
     ).toBeGreaterThan(0);
 }
 
-async function ensureSidebarFolderVisible(appWindow: Page, folderName: string) {
+async function ensureSidebarFolderVisible(appWindow: Page, folderName: string, vaultPath: string) {
     const row = appWindow.locator('.folder-tree-folder', {
         has: appWindow.locator('.folder-tree-folder-name', { hasText: folderName })
     }).first();
 
     if (!await row.isVisible().catch(() => false)) {
-        const projectRootRow = appWindow.locator('.folder-tree-container .folder-tree-folder').first();
-        await expect(projectRootRow).toBeVisible({ timeout: 5000 });
-        await projectRootRow.click();
+        const projectRootRow = appWindow.locator(`.folder-tree-container .folder-tree-folder[title="${cssString(vaultPath)}"]`).first();
+        await clickVisibleElementCenter(appWindow, projectRootRow);
         await expect(row).toBeVisible({ timeout: 5000 });
     }
 
@@ -344,7 +398,7 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
 
-        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth');
+        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', vaultPath);
         const authToggle = authRow.locator('.folder-tree-graph-collapse-icon');
         await expect(authToggle).toHaveClass(/expanded/);
 
@@ -355,8 +409,9 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         expect(before.visibleRegularDescendants).toEqual(fixture.beforeCollapseVisibleRegularDescendants);
         expect(before.syntheticEdges).toBe(0);
         expect(before.nonSyntheticEdges).toBeGreaterThan(0);
+        await captureStateScreenshot(appWindow, 'before-collapse.png');
 
-        await authToggle.click();
+        await clickVisibleElementCenter(appWindow, authToggle);
 
         await expect.poll(
             () => getFolderGraphSnapshot(appWindow, 'auth/'),
@@ -379,6 +434,7 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         expect(afterCollapse.childCount).toBe(4);
         expect(afterCollapse.syntheticEdges).toBe(fixture.collapsedSyntheticEdges.length);
         expect(await getSyntheticEdgesForFolder(appWindow, 'auth/')).toEqual(fixture.collapsedSyntheticEdges);
+        await captureStateScreenshot(appWindow, 'after-collapse.png');
     });
 
     test('sidebar graph toggle expands a collapsed folder and restores descendants', async ({ appWindow, vaultPath }) => {
@@ -388,7 +444,7 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
 
-        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth');
+        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', vaultPath);
         const authToggle = authRow.locator('.folder-tree-graph-collapse-icon');
 
         const before = await getFolderGraphSnapshot(appWindow, 'auth/');
@@ -396,7 +452,7 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         expect(before.visibleRegularDescendants).toEqual(fixture.beforeCollapseVisibleRegularDescendants);
         expect(before.syntheticEdges).toBe(0);
 
-        await authToggle.click();
+        await clickVisibleElementCenter(appWindow, authToggle);
         await expect(authToggle).toHaveClass(/collapsed/);
 
         await expect.poll(
@@ -407,8 +463,9 @@ test.describe('Folder Nodes - Spec Behavior', () => {
                 intervals: [250, 500, 1000]
             }
         ).toBeGreaterThan(0);
+        await captureStateScreenshot(appWindow, 'before-expand-collapsed.png');
 
-        await authToggle.click();
+        await clickVisibleElementCenter(appWindow, authToggle);
 
         await expect.poll(
             () => getFolderGraphSnapshot(appWindow, 'auth/'),
@@ -428,6 +485,7 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         expect(afterExpand.visibleFolderDescendants).toEqual(fixture.afterExpandVisibleFolderDescendants);
         expect(afterExpand.visibleRegularDescendants).toEqual(fixture.afterExpandVisibleRegularDescendants);
         expect(afterExpand.nonSyntheticEdges).toBeGreaterThan(0);
+        await captureStateScreenshot(appWindow, 'after-expand.png');
     });
 });
 
