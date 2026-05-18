@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readCurrentFolderState } from '@vt/graph-db-server/views/folderVisibilityResource'
+import type { FolderState } from '@vt/graph-db-protocol'
 import type { Session } from './types.ts'
 export type { Session } from './types.ts'
 
@@ -18,24 +19,29 @@ function normalizeFolderId(path: string): string {
   return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
 }
 
-function readCollapsedFolderIds(): readonly string[] {
+function readFolderStateRows(): readonly (readonly [string, FolderState])[] {
   try {
-    return readCurrentFolderState()
-      .folderState
-      .filter(([, state]) => state === 'collapsed')
-      .map(([path]) => normalizeFolderId(path))
+    return readCurrentFolderState().folderState
   } catch {
     return []
   }
+}
+
+function deriveCollapsedFolderIds(folderState: ReadonlyMap<string, FolderState>): readonly string[] {
+  return [...folderState]
+    .filter(([, state]) => state === 'collapsed')
+    .map(([path]) => normalizeFolderId(path))
 }
 
 function createSession(
   dependencies: SessionRegistryDependencies,
   id?: string,
 ): Session {
+  const folderState = new Map<string, FolderState>(readFolderStateRows())
   return {
     id: id ?? dependencies.createId(),
-    collapseSet: new Set<string>(readCollapsedFolderIds()),
+    folderState,
+    collapseSet: new Set<string>(deriveCollapsedFolderIds(folderState)),
     selection: new Set<string>(),
     expandOverrides: new Set<string>(),
     layout: {

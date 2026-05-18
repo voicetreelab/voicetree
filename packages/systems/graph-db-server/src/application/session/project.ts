@@ -5,9 +5,24 @@
 // webapp/main `buildLiveStateSnapshot` emits — UI + CLI share this function in P7.
 import { collectLayoutPositions } from '@vt/graph-state'
 import type { State } from '@vt/graph-state'
-import type { FolderTreeNode, Graph } from '@vt/graph-model'
+import type { FolderTreeNode, Graph, GraphNode } from '@vt/graph-model'
 import type { VaultState } from '@vt/graph-db-server/contract'
 import type { Session } from './types.ts'
+
+type FolderState = 'expanded' | 'collapsed' | 'hidden'
+type FileTreeNode = FolderTreeNode['children'][number] extends infer Child
+  ? Child extends { readonly isInGraph: boolean }
+    ? Child
+    : never
+  : never
+
+type FolderRecord = {
+  readonly node: FolderTreeNode
+  readonly path: string
+  readonly parentPath: string | null
+  readonly childFolderPaths: readonly string[]
+  readonly directFiles: readonly FileTreeNode[]
+}
 
 export interface ProjectSessionStateArgs {
   readonly graph: Graph
@@ -20,75 +35,230 @@ function normalizeFolderPath(path: string): string {
   return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
 }
 
-function isSameOrDescendantPath(path: string, maybeDescendant: string): boolean {
-  const normalizedPath = normalizeFolderPath(path)
-  const normalizedDescendant = normalizeFolderPath(maybeDescendant)
-  return normalizedDescendant === normalizedPath
-    || normalizedDescendant.startsWith(`${normalizedPath}/`)
+function parentFolderPath(path: string): string | null {
+  const normalized = normalizeFolderPath(path)
+  if (normalized === '' || normalized === '/') return null
+  const lastSlash = normalized.lastIndexOf('/')
+  if (lastSlash <= 0) return null
+  return normalized.slice(0, lastSlash)
 }
 
-function isDefaultExpandedFolder(
-  folderPath: string,
-  expandedTargets: ReadonlySet<string>,
+function parentFolderPathForFile(path: string): string | null {
+  const lastSlash = path.lastIndexOf('/')
+  if (lastSlash <= 0) return null
+  return path.slice(0, lastSlash)
+}
+
+function folderId(path: string): string {
+  return `${normalizeFolderPath(path)}/`
+}
+
+function ownFolderState(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
+): FolderState {
+  return folderState.get(normalizeFolderPath(path)) ?? 'hidden'
+}
+
+function isFolderRendered(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
 ): boolean {
-  for (const target of expandedTargets) {
-    // A folder is expanded by default when it IS or is a DESCENDANT of any
-    // loaded target. writePath=/vault → /vault/auth/, /vault/api/, etc. expand.
-    if (isSameOrDescendantPath(target, folderPath)) {
-      return true
+  if (ownFolderState(folderState, path) !== 'hidden') return true
+  const parentPath = parentFolderPath(path)
+  return parentPath !== null && ownFolderState(folderState, parentPath) === 'expanded'
+}
+
+function collectFolderRecords(
+  node: FolderTreeNode,
+  parentPath: string | null,
+  out: Map<string, FolderRecord>,
+): void {
+  const path = normalizeFolderPath(node.absolutePath)
+  const childFolderPaths: string[] = []
+  const directFiles: FileTreeNode[] = []
+
+  for (const child of node.children) {
+    if ('children' in child) {
+      const childPath = normalizeFolderPath(child.absolutePath)
+      childFolderPaths.push(childPath)
+      collectFolderRecords(child, path, out)
+      continue
     }
+    directFiles.push(child as FileTreeNode)
+  }
+
+  out.set(path, { node, path, parentPath, childFolderPaths, directFiles })
+}
+
+function isRootLevelFile(parentPath: string | null, vault: VaultState): boolean {
+  if (!parentPath) return true
+  const normalizedParent = normalizeFolderPath(parentPath)
+  return normalizedParent === normalizeFolderPath(vault.writePath)
+    || normalizedParent === normalizeFolderPath(vault.vaultPath)
+}
+
+function shouldProjectGraphNode(
+  nodeId: string,
+  folderState: ReadonlyMap<string, FolderState>,
+  renderedFolderPaths: ReadonlySet<string>,
+  vault: VaultState,
+): boolean {
+  const parentPath = parentFolderPathForFile(nodeId)
+  if (isRootLevelFile(parentPath, vault)) return true
+  if (!parentPath) return true
+
+  let current: string | null = normalizeFolderPath(parentPath)
+  let isDirectParent = true
+  while (current) {
+    const state = ownFolderState(folderState, current)
+    if (state === 'collapsed') {
+      return renderedFolderPaths.has(current)
+    }
+    if (state === 'expanded') {
+      return isDirectParent && renderedFolderPaths.has(current)
+    }
+    current = parentFolderPath(current)
+    isDirectParent = false
   }
   return false
 }
 
-function pruneFolderTree(
-  node: FolderTreeNode,
-  expandedTargets: ReadonlySet<string>,
-): FolderTreeNode {
-  const folderPath = normalizeFolderPath(node.absolutePath)
-  if (!isDefaultExpandedFolder(folderPath, expandedTargets)) {
-    return {
-      ...node,
-      children: [],
-    }
+function cloneFileForProjection(file: FileTreeNode, graphNodes: Readonly<Record<string, GraphNode>>): FileTreeNode {
+  return {
+    ...file,
+    isInGraph: graphNodes[file.absolutePath] !== undefined,
   }
+}
 
+function cloneRawFolderForCollapsedProjection(
+  node: FolderTreeNode,
+  graphNodes: Readonly<Record<string, GraphNode>>,
+): FolderTreeNode {
   return {
     ...node,
-    children: node.children.map((child) =>
-      'children' in child
-        ? pruneFolderTree(child, expandedTargets)
-        : child,
-    ),
+    children: node.children.map((child) => {
+      if ('children' in child) {
+        return cloneRawFolderForCollapsedProjection(child, graphNodes)
+      }
+      return cloneFileForProjection(child as FileTreeNode, graphNodes)
+    }),
+  }
+}
+
+function projectGraph(
+  graph: Graph,
+  folderState: ReadonlyMap<string, FolderState>,
+  renderedFolderPaths: ReadonlySet<string>,
+  vault: VaultState,
+): Graph {
+  const nodes = Object.fromEntries(
+    Object.entries(graph.nodes)
+      .filter(([nodeId]) => shouldProjectGraphNode(nodeId, folderState, renderedFolderPaths, vault)),
+  )
+  const visibleNodeIds = new Set(Object.keys(nodes))
+  const filteredNodes = Object.fromEntries(
+    Object.entries(nodes).map(([nodeId, node]) => [
+      nodeId,
+      {
+        ...node,
+        outgoingEdges: node.outgoingEdges.filter((edge) => visibleNodeIds.has(edge.targetId)),
+      },
+    ]),
+  )
+
+  return {
+    ...graph,
+    nodes: filteredNodes,
   }
 }
 
 function projectFolderTree(
   folderTree: FolderTreeNode | null,
-  vault: VaultState,
+  folderState: ReadonlyMap<string, FolderState>,
+  graphNodes: Readonly<Record<string, GraphNode>>,
 ): readonly FolderTreeNode[] {
   if (!folderTree) {
     return []
   }
 
-  const expandedTargets = new Set(
-    [vault.writePath, ...vault.readPaths]
-      .filter((path) => path.length > 0)
-      .map(normalizeFolderPath),
-  )
+  const records = new Map<string, FolderRecord>()
+  collectFolderRecords(folderTree, null, records)
+  const rootPath = normalizeFolderPath(folderTree.absolutePath)
 
-  return [pruneFolderTree(folderTree, expandedTargets)]
+  const includedPaths = new Set(
+    [...records.keys()].filter((path) => path !== rootPath && isFolderRendered(folderState, path)),
+  )
+  const outputParentByPath = new Map<string, string | null>()
+  for (const path of includedPaths) {
+    const parentPath = records.get(path)?.parentPath ?? null
+    outputParentByPath.set(
+      path,
+      parentPath && includedPaths.has(parentPath) && ownFolderState(folderState, parentPath) !== 'hidden'
+        ? parentPath
+        : null,
+    )
+  }
+
+  const cloneIncludedFolder = (path: string): FolderTreeNode => {
+    const record = records.get(path)
+    if (!record) {
+      throw new Error(`Cannot project unknown folder path ${path}`)
+    }
+    const state = ownFolderState(folderState, path)
+    if (state === 'collapsed') {
+      return cloneRawFolderForCollapsedProjection(record.node, graphNodes)
+    }
+
+    const children: FolderTreeNode['children'] = [
+      ...record.childFolderPaths
+        .filter((childPath) => outputParentByPath.get(childPath) === path)
+        .map(cloneIncludedFolder),
+      ...record.directFiles
+        .filter((file) => graphNodes[file.absolutePath] !== undefined)
+        .map((file) => cloneFileForProjection(file, graphNodes)),
+    ]
+
+    return {
+      ...record.node,
+      children,
+    }
+  }
+
+  const rootChildren: FolderTreeNode['children'] = [
+    ...[...includedPaths]
+      .filter((path) => outputParentByPath.get(path) === null)
+      .sort((left, right) => left.localeCompare(right))
+      .map(cloneIncludedFolder),
+    ...(records.get(rootPath)?.directFiles
+      .filter((file) => graphNodes[file.absolutePath] !== undefined)
+      .map((file) => cloneFileForProjection(file, graphNodes)) ?? []),
+  ]
+
+  return [{
+    ...folderTree,
+    children: rootChildren,
+  }]
 }
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
   const { graph, vault, folderTree, session } = args
+  const folderState = session.folderState
+  const renderedFolderPaths = new Set(
+    [...folderState]
+      .filter(([, state]) => state !== 'hidden')
+      .map(([path]) => normalizeFolderPath(path)),
+  )
+  const projectedGraph = projectGraph(graph, folderState, renderedFolderPaths, vault)
   return {
-    graph,
+    graph: projectedGraph,
     roots: {
       loaded: new Set<string>([vault.writePath, ...vault.readPaths].filter((path) => path.length > 0)),
-      folderTree: projectFolderTree(folderTree, vault),
+      folderTree: projectFolderTree(folderTree, folderState, projectedGraph.nodes),
     },
-    collapseSet: new Set(session.collapseSet),
+    collapseSet: new Set([...folderState]
+      .filter(([, state]) => state === 'collapsed')
+      .map(([path]) => folderId(path))),
     selection: new Set(session.selection),
     layout: {
       positions: collectLayoutPositions(graph),
