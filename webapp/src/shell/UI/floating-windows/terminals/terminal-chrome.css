@@ -234,6 +234,38 @@
   scrollbar-gutter: stable;
 }
 
+.terminal-relay-container {
+  position: relative;
+}
+
+.terminal-relay-status {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 2;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--muted-foreground);
+  font: 10px/1.4 monospace;
+  pointer-events: none;
+}
+
+.terminal-relay-status.connected {
+  color: #9ae6b4;
+}
+
+.terminal-relay-status.reconnecting,
+.terminal-relay-status.connecting {
+  color: #f6d365;
+}
+
+.terminal-relay-status.error,
+.terminal-relay-status.closed {
+  color: #feb2b2;
+}
+
 /* =============================================================================
  * InjectBadge - Inline badge in terminal title bar
  * Small pill button after the agent name, triggers popover on click.

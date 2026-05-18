@@ -46,10 +46,10 @@ describe('GET /sessions/:sessionId/state', () => {
     const body = LiveStateSnapshotSchema.parse(await res.json())
 
     expect(body.meta.schemaVersion).toBe(1)
-    expect(body.collapseSet).toEqual([])
+    expect(body.folderState).toEqual([])
+    expect(body.activeView.name).toBe('main')
     expect(body.selection).toEqual([])
     expect(Array.isArray(body.roots.folderTree)).toBe(true)
-    expect(Array.isArray(body.roots.loaded)).toBe(true)
     expect(typeof body.graph.nodes).toBe('object')
   })
 

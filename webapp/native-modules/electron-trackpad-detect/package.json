@@ -23,6 +23,7 @@
   },
   "files": [
     "binding.gyp",
+    "bin/",
     "src/",
     "index.js",
     "index.d.ts"

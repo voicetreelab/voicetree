@@ -1,19 +1,14 @@
 import {gzipSync} from 'node:zlib'
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 const MAX_COMPRESSED_TO_ORIGINAL_RATIO = 0.8873
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type ImportEdge = {
     readonly fromPackage: string
@@ -43,25 +38,6 @@ type LayeringViolation = {
     readonly toIndex: number
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
 async function pathExists(p: string): Promise<boolean> {
     try {
         await stat(p)
@@ -77,7 +53,12 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')) {
             return [path]
         }
         return []
@@ -280,6 +261,33 @@ describe('DSM compression and layering', () => {
         const formattedReport = formatReport(alphabeticalDsm, layeredDsm, report, violations)
 
         console.info(formattedReport)
+
+        await recordHealthMetric({
+            metricId: 'dsm-compression-ratio',
+            metricName: 'DSM Compression Ratio',
+            description: 'Compressed-to-original size ratio for the systems package dependency matrix.',
+            category: 'Structure',
+            current: report.compressedToOriginalRatio,
+            budget: MAX_COMPRESSED_TO_ORIGINAL_RATIO,
+            comparison: 'lte',
+            unit: 'ratio',
+            details: {
+                originalSize: report.originalSize,
+                compressedSize: report.compressedSize,
+                packageOrder: layeredDsm.packages,
+            },
+        })
+        await recordHealthMetric({
+            metricId: 'dsm-layering',
+            metricName: 'DSM Layering Violations',
+            description: 'Count of package dependency entries below the dependency-depth diagonal.',
+            category: 'Structure',
+            current: violations.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'violations',
+            details: {violations},
+        })
 
         expect(report.compressedToOriginalRatio, formattedReport).toBeLessThanOrEqual(MAX_COMPRESSED_TO_ORIGINAL_RATIO)
         expect(violations, formattedReport).toEqual([])

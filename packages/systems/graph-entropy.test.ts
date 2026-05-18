@@ -1,19 +1,14 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
 const NORMALIZED_ENTROPY_BUDGET = 0.953
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type ImportEdge = {
     readonly fromPackage: string
@@ -38,25 +33,6 @@ type GraphEntropy = {
     readonly packageDegrees: readonly PackageDegree[]
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
 async function pathExists(p: string): Promise<boolean> {
     try {
         await stat(p)
@@ -72,7 +48,12 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')) {
             return [path]
         }
         return []
@@ -205,6 +186,18 @@ describe('graph entropy coupling metric', () => {
         const report = formatReport(entropy)
 
         console.info(report)
+
+        await recordHealthMetric({
+            metricId: 'graph-entropy',
+            metricName: 'Graph Entropy',
+            description: 'Normalized entropy of package import degree distribution.',
+            category: 'Structure',
+            current: entropy.normalizedEntropy,
+            budget: NORMALIZED_ENTROPY_BUDGET,
+            comparison: 'lte',
+            unit: 'ratio',
+            details: entropy,
+        })
 
         expect(entropy.normalizedEntropy, report).toBeLessThanOrEqual(NORMALIZED_ENTROPY_BUDGET)
     })

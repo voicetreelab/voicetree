@@ -5,7 +5,7 @@
 
 import type { Command, Delta, SerializedState } from '@vt/graph-state'
 import type { Graph, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import type { UnseenNode } from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
+import type { UnseenNode } from '@vt/graph-db-protocol'
 
 export type LiveStateBridge = {
     readonly applyLiveCommand: (cmd: Command) => Promise<Delta>
@@ -30,7 +30,7 @@ export type GraphBridge = {
     readonly getGraph: () => Promise<Graph>
     readonly getVaultPaths: () => Promise<readonly string[]>
     readonly getWritePath: () => Promise<string | null>
-    readonly getProjectRootWatchedDirectory?: () => string | null
+    readonly getProjectRootWatchedDirectory?: () => Promise<string | null>
     readonly getUnseenNodesAroundContextNode?: (
         contextNodeId: NodeIdAndFilePath,
         searchFromNode?: NodeIdAndFilePath,

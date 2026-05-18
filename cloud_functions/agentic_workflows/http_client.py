@@ -7,7 +7,7 @@ Used for testing the Cloud Functions locally or calling deployed instances.
 
 import httpx
 import logging
-from typing import Union
+from typing import Any, Union
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
     AppendAgentResult,
@@ -22,6 +22,28 @@ from cloud_functions.agentic_workflows.get_uuid import get_user_uuid
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _post_cloud_function_json(
+    base_url: str,
+    payload: dict[str, Any],
+    call_label: str,
+    error_label: str,
+) -> dict[str, Any]:
+    # Create a fresh client for this request to avoid event loop lifecycle issues
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        try:
+            logger.info(f"Calling {call_label} at {base_url}")
+            response = await client.post(
+                base_url,
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error calling {error_label}: {e}")
+            raise
 
 
 class AppendToRelevantNodeAgentHTTPClient:
@@ -53,56 +75,41 @@ class AppendToRelevantNodeAgentHTTPClient:
         Returns:
             AppendAgentResult containing actions and segment information
         """
-        # Create a fresh client for this request to avoid event loop lifecycle issues
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            try:
-                # Prepare request payload
-                payload = {
-                    "user_uuid": get_user_uuid(),
-                    "transcript_text": transcript_text,
-                    "existing_nodes_formatted": existing_nodes_formatted,
-                    "transcript_history": transcript_history
-                }
+        try:
+            payload = {
+                "user_uuid": get_user_uuid(),
+                "transcript_text": transcript_text,
+                "existing_nodes_formatted": existing_nodes_formatted,
+                "transcript_history": transcript_history
+            }
+            result_data = await _post_cloud_function_json(
+                self.base_url,
+                payload,
+                "Cloud Function",
+                "Cloud Function",
+            )
 
-                logger.info(f"Calling Cloud Function at {self.base_url}")
+            actions: list[Union[AppendAction, CreateAction]] = []
+            for action_dict in result_data.get("actions", []):
+                if action_dict["action"] == "APPEND":
+                    actions.append(AppendAction(**action_dict))
+                elif action_dict["action"] == "CREATE":
+                    actions.append(CreateAction(**action_dict))
 
-                # Make HTTP request
-                response = await client.post(
-                    self.base_url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
+            segments = [
+                SegmentModel(**seg_dict)
+                for seg_dict in result_data.get("segments", [])
+            ]
 
-                # Check for HTTP errors
-                response.raise_for_status()
+            logger.info(f"Received {len(actions)} actions and {len(segments)} segments from Cloud Function")
 
-                # Parse response
-                result_data = response.json()
+            return AppendAgentResult(actions=actions, segments=segments)
 
-                # Deserialize actions
-                actions: list[Union[AppendAction, CreateAction]] = []
-                for action_dict in result_data.get("actions", []):
-                    if action_dict["action"] == "APPEND":
-                        actions.append(AppendAction(**action_dict))
-                    elif action_dict["action"] == "CREATE":
-                        actions.append(CreateAction(**action_dict))
-
-                # Deserialize segments
-                segments = [
-                    SegmentModel(**seg_dict)
-                    for seg_dict in result_data.get("segments", [])
-                ]
-
-                logger.info(f"Received {len(actions)} actions and {len(segments)} segments from Cloud Function")
-
-                return AppendAgentResult(actions=actions, segments=segments)
-
-            except httpx.HTTPError as e:
-                logger.error(f"HTTP error calling Cloud Function: {e}")
-                raise
-            except Exception as e:
-                logger.error(f"Error deserializing response: {e}")
-                raise
+        except httpx.HTTPError:
+            raise
+        except Exception as e:
+            logger.error(f"Error deserializing response: {e}")
+            raise
 
 
 class SingleAbstractionOptimizerAgentHTTPClient:
@@ -132,57 +139,43 @@ class SingleAbstractionOptimizerAgentHTTPClient:
         Returns:
             List of tree actions (CreateAction, UpdateAction, or AppendAction)
         """
-        # Create a fresh client for this request to avoid event loop lifecycle issues
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            try:
-                # Prepare request payload
-                payload = {
-                    "user_uuid": get_user_uuid(),
-                    "node_dict": {
-                        "id": node.id,
-                        "title": node.title,
-                        "content": node.content,
-                        "summary": node.summary
-                    },
-                    "neighbours_context": neighbours_context
-                }
+        try:
+            payload = {
+                "user_uuid": get_user_uuid(),
+                "node_dict": {
+                    "id": node.id,
+                    "title": node.title,
+                    "content": node.content,
+                    "summary": node.summary
+                },
+                "neighbours_context": neighbours_context
+            }
+            result_data = await _post_cloud_function_json(
+                self.base_url,
+                payload,
+                "Optimizer Cloud Function",
+                "Optimizer Cloud Function",
+            )
 
-                logger.info(f"Calling Optimizer Cloud Function at {self.base_url}")
+            actions: list[BaseTreeAction] = []
+            for action_dict in result_data.get("actions", []):
+                action_type = action_dict.get("action")
+                if action_type == "CREATE":
+                    actions.append(CreateAction(**action_dict))
+                elif action_type == "UPDATE":
+                    actions.append(UpdateAction(**action_dict))
+                elif action_type == "APPEND":
+                    actions.append(AppendAction(**action_dict))
 
-                # Make HTTP request
-                response = await client.post(
-                    self.base_url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
+            logger.info(f"Received {len(actions)} actions from Optimizer Cloud Function")
 
-                # Check for HTTP errors
-                response.raise_for_status()
+            return actions
 
-                # Parse response
-                result_data = response.json()
-
-                # Deserialize actions
-                actions: list[BaseTreeAction] = []
-                for action_dict in result_data.get("actions", []):
-                    action_type = action_dict.get("action")
-                    if action_type == "CREATE":
-                        actions.append(CreateAction(**action_dict))
-                    elif action_type == "UPDATE":
-                        actions.append(UpdateAction(**action_dict))
-                    elif action_type == "APPEND":
-                        actions.append(AppendAction(**action_dict))
-
-                logger.info(f"Received {len(actions)} actions from Optimizer Cloud Function")
-
-                return actions
-
-            except httpx.HTTPError as e:
-                logger.error(f"HTTP error calling Optimizer Cloud Function: {e}")
-                raise
-            except Exception as e:
-                logger.error(f"Error deserializing optimizer response: {e}")
-                raise
+        except httpx.HTTPError:
+            raise
+        except Exception as e:
+            logger.error(f"Error deserializing optimizer response: {e}")
+            raise
 
 
 class ConnectOrphansAgentHTTPClient:
@@ -214,47 +207,31 @@ class ConnectOrphansAgentHTTPClient:
         Returns:
             List of CreateActions
         """
-        # Create a fresh client for this request to avoid event loop lifecycle issues
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            try:
-                # Serialize tree to dict
-                tree_dict = tree.to_dict()
+        try:
+            tree_dict = tree.to_dict()
+            payload = {
+                "user_uuid": get_user_uuid(),
+                "tree_dict": tree_dict,
+                "max_roots_to_process": max_roots_to_process,
+                "include_full_content": include_full_content
+            }
+            result_data = await _post_cloud_function_json(
+                self.base_url,
+                payload,
+                "Orphan Connection Cloud Function",
+                "Orphan Connection Cloud Function",
+            )
 
-                # Prepare request payload
-                payload = {
-                    "user_uuid": get_user_uuid(),
-                    "tree_dict": tree_dict,
-                    "max_roots_to_process": max_roots_to_process,
-                    "include_full_content": include_full_content
-                }
+            actions: list[CreateAction] = []
+            for action_dict in result_data.get("actions", []):
+                actions.append(CreateAction(**action_dict))
 
-                logger.info(f"Calling Orphan Connection Cloud Function at {self.base_url}")
+            logger.info(f"Received {len(actions)} actions from Orphan Connection Cloud Function")
 
-                # Make HTTP request
-                response = await client.post(
-                    self.base_url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
+            return actions
 
-                # Check for HTTP errors
-                response.raise_for_status()
-
-                # Parse response
-                result_data = response.json()
-
-                # Deserialize actions
-                actions: list[CreateAction] = []
-                for action_dict in result_data.get("actions", []):
-                    actions.append(CreateAction(**action_dict))
-
-                logger.info(f"Received {len(actions)} actions from Orphan Connection Cloud Function")
-
-                return actions
-
-            except httpx.HTTPError as e:
-                logger.error(f"HTTP error calling Orphan Connection Cloud Function: {e}")
-                raise
-            except Exception as e:
-                logger.error(f"Error deserializing orphan connection response: {e}")
-                raise
+        except httpx.HTTPError:
+            raise
+        except Exception as e:
+            logger.error(f"Error deserializing orphan connection response: {e}")
+            raise

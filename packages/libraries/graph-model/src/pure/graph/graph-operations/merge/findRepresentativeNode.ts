@@ -14,8 +14,8 @@ function countReachableNodesInSubgraph(
     if (!node) return 0
 
     // BFS to find all reachable nodes within the subgraph
-    const visited: ReadonlySet<NodeIdAndFilePath> = new Set()
-    const queue: readonly NodeIdAndFilePath[] = [nodeId]
+    const visited: Set<NodeIdAndFilePath> = new Set()
+    const queue: NodeIdAndFilePath[] = [nodeId]
     visited.add(nodeId)
 
     // eslint-disable-next-line functional/no-loop-statements -- BFS requires iterative traversal
@@ -84,4 +84,3 @@ export function findRepresentativeNode(
 
     return sorted[0].nodeId
 }
-

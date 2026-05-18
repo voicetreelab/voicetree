@@ -1,34 +1,9 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
-import * as ts from 'typescript'
+import {dirname} from 'node:path'
 import {describe, it} from 'vitest'
-
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
-
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
-
-type SourceFile = {
-    readonly absolutePath: string
-    readonly relativePath: string
-    readonly relToSrc: string
-    readonly packageName: string
-}
-
-type Edge = {
-    readonly from: SourceFile
-    readonly to: SourceFile
-}
-
-type ImportGraph = {
-    readonly files: readonly SourceFile[]
-    readonly edges: readonly Edge[]
-}
+import {discoverPackages} from './discover-packages'
+import {computeDsm, computeModularityQ, computeNormalizedEntropy, computeTreeWidth} from './hierarchical-complexity-measures'
+import {type Edge, type SourceFile, buildImportGraph} from './import-graph'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 type CommunityReport = {
     readonly id: string
@@ -51,113 +26,8 @@ type SiblingGroupReport = {
     readonly crossEdgeCount: number
     readonly treeWidth: number
     readonly normalizedEntropy: number
+    readonly modularityQ: number
     readonly dsm: { readonly names: readonly string[]; readonly matrix: readonly (readonly number[])[] }
-}
-
-// --- Discovery (duplicated from existing tests) ---
-
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {name: pkgJson.name as string, dirName: entry.name, srcRoot: join(SYSTEMS_ROOT, entry.name, 'src')}
-        } catch { return null }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/'))
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
-}
-
-async function scanSourceFiles(packages: readonly PackageInfo[]): Promise<SourceFile[]> {
-    const nested = await Promise.all(packages.map(async pkg => {
-        const files = await listProductionSources(pkg.srcRoot)
-        return files.map(file => ({
-            absolutePath: resolve(file),
-            relativePath: relative(REPO_ROOT, file),
-            relToSrc: relative(pkg.srcRoot, file),
-            packageName: pkg.dirName,
-        }))
-    }))
-    return nested.flat().sort((a, b) => a.relativePath.localeCompare(b.relativePath))
-}
-
-// --- Import Resolution ---
-
-function importSpecifiers(filePath: string, text: string): string[] {
-    const sourceFile = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
-    const specifiers: string[] = []
-    for (const statement of sourceFile.statements) {
-        if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier))
-            specifiers.push(statement.moduleSpecifier.text)
-        else if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier))
-            specifiers.push(statement.moduleSpecifier.text)
-    }
-    return specifiers
-}
-
-function resolveFileCandidate(basePath: string, knownPaths: ReadonlySet<string>): string | null {
-    const candidates = basePath.endsWith('.ts') ? [basePath] : [basePath, `${basePath}.ts`, join(basePath, 'index.ts')]
-    return candidates.map(c => resolve(c)).find(c => knownPaths.has(c)) ?? null
-}
-
-function resolvePackageImport(
-    specifier: string,
-    packagesByNpmName: ReadonlyMap<string, PackageInfo>,
-    knownPaths: ReadonlySet<string>,
-): string | null {
-    for (const [npmName, pkg] of packagesByNpmName) {
-        if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-        const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-        return resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
-    }
-    return null
-}
-
-async function buildImportGraph(packages: readonly PackageInfo[]): Promise<ImportGraph> {
-    const files = await scanSourceFiles(packages)
-    const filesByPath = new Map(files.map(f => [f.absolutePath, f]))
-    const knownPaths = new Set(filesByPath.keys())
-    const packagesByNpmName = new Map(packages.map(pkg => [pkg.name, pkg]))
-    const dedupedEdges = new Set<string>()
-
-    for (const file of files) {
-        const text = await readFile(file.absolutePath, 'utf8')
-        for (const specifier of importSpecifiers(file.absolutePath, text)) {
-            let toPath: string | null = null
-            if (specifier.startsWith('.')) {
-                toPath = resolveFileCandidate(join(dirname(file.absolutePath), specifier), knownPaths)
-            } else {
-                toPath = resolvePackageImport(specifier, packagesByNpmName, knownPaths)
-            }
-            if (!toPath || toPath === file.absolutePath) continue
-            dedupedEdges.add(`${file.absolutePath}\0${toPath}`)
-        }
-    }
-
-    const edges = [...dedupedEdges].sort().map(key => {
-        const [fromPath, toPath] = key.split('\0')
-        return {from: filesByPath.get(fromPath)!, to: filesByPath.get(toPath)!}
-    })
-
-    return {files, edges}
 }
 
 // --- Hierarchical Community Assignment ---
@@ -205,13 +75,17 @@ function formSiblingGroups(
     for (const [parentId, communityMap] of [...communitiesByParent].sort(([a], [b]) => a.localeCompare(b))) {
         if (communityMap.size < 2) continue
 
-        const crossEdges = edges.filter(e => {
+        const intraParentEdges = edges.filter(e => {
             const fromC = fileCommunities.get(e.from.absolutePath)!
             const toC = fileCommunities.get(e.to.absolutePath)!
-            if (fromC === toC) return false
             const fromP = siblingGroupParent(fromC, depth)
             const toP = siblingGroupParent(toC, depth)
             return fromP === parentId && toP === parentId
+        })
+        const crossEdges = intraParentEdges.filter(e => {
+            const fromC = fileCommunities.get(e.from.absolutePath)!
+            const toC = fileCommunities.get(e.to.absolutePath)!
+            return fromC !== toC
         })
 
         const communityNames = [...communityMap.keys()].sort()
@@ -262,6 +136,7 @@ function formSiblingGroups(
 
         const treeWidth = computeTreeWidth(crossEdges, boundaryFiles)
         const entropy = computeNormalizedEntropy(crossEdges, communityNames, fileCommunities)
+        const modularityQ = computeModularityQ(intraParentEdges, fileCommunities, communityNames)
         const dsm = computeDsm(crossEdges, communityNames, shortNames, fileCommunities)
 
         const totalFiles = [...communityMap.values()].reduce((sum, f) => sum + f.length, 0)
@@ -275,92 +150,12 @@ function formSiblingGroups(
             crossEdgeCount: crossEdges.length,
             treeWidth,
             normalizedEntropy: entropy,
+            modularityQ,
             dsm,
         })
     }
 
     return reports
-}
-
-// --- Measures ---
-
-function computeTreeWidth(crossEdges: readonly Edge[], boundaryFiles: ReadonlySet<string>): number {
-    if (boundaryFiles.size === 0) return 0
-    const adjacency = new Map<string, Set<string>>()
-    for (const f of boundaryFiles) adjacency.set(f, new Set())
-    for (const e of crossEdges) {
-        adjacency.get(e.from.absolutePath)?.add(e.to.absolutePath)
-        adjacency.get(e.to.absolutePath)?.add(e.from.absolutePath)
-    }
-
-    const unnumbered = new Set(adjacency.keys())
-    const numbered = new Set<string>()
-    let maxBag = 0
-
-    while (unnumbered.size > 0) {
-        let best = ''
-        let bestCount = -1
-        for (const f of unnumbered) {
-            const count = [...(adjacency.get(f) ?? [])].filter(n => numbered.has(n)).length
-            if (count > bestCount || (count === bestCount && f < best)) {
-                best = f
-                bestCount = count
-            }
-        }
-        maxBag = Math.max(maxBag, bestCount + 1)
-        numbered.add(best)
-        unnumbered.delete(best)
-    }
-
-    return Math.max(0, maxBag - 1)
-}
-
-function computeNormalizedEntropy(
-    crossEdges: readonly Edge[],
-    communityNames: readonly string[],
-    fileCommunities: ReadonlyMap<string, string>,
-): number {
-    if (communityNames.length < 2) return 0
-    const degrees = new Map<string, number>()
-    for (const name of communityNames) degrees.set(name, 0)
-
-    for (const e of crossEdges) {
-        const fromC = fileCommunities.get(e.from.absolutePath)!
-        const toC = fileCommunities.get(e.to.absolutePath)!
-        degrees.set(fromC, (degrees.get(fromC) ?? 0) + 1)
-        degrees.set(toC, (degrees.get(toC) ?? 0) + 1)
-    }
-
-    const totalDegree = [...degrees.values()].reduce((a, b) => a + b, 0)
-    if (totalDegree === 0) return 0
-
-    let entropy = 0
-    for (const d of degrees.values()) {
-        if (d === 0) continue
-        const p = d / totalDegree
-        entropy -= p * Math.log2(p)
-    }
-
-    return entropy / Math.log2(communityNames.length)
-}
-
-function computeDsm(
-    crossEdges: readonly Edge[],
-    communityNames: readonly string[],
-    shortNames: readonly string[],
-    fileCommunities: ReadonlyMap<string, string>,
-): { names: readonly string[]; matrix: readonly (readonly number[])[] } {
-    const idx = new Map(communityNames.map((n, i) => [n, i]))
-    const n = communityNames.length
-    const matrix: number[][] = Array.from({length: n}, () => Array(n).fill(0))
-
-    for (const e of crossEdges) {
-        const fromIdx = idx.get(fileCommunities.get(e.from.absolutePath)!)!
-        const toIdx = idx.get(fileCommunities.get(e.to.absolutePath)!)!
-        matrix[fromIdx][toIdx]++
-    }
-
-    return {names: shortNames, matrix}
 }
 
 // --- Report Formatting ---
@@ -378,6 +173,7 @@ function formatGroupReport(group: SiblingGroupReport): string {
 
     lines.push(`    Tree-Width (MCS): ${group.treeWidth}`)
     lines.push(`    Normalized Entropy: ${group.normalizedEntropy.toFixed(3)}`)
+    lines.push(`    Modularity Q: ${group.modularityQ.toFixed(3)}`)
 
     const maxNameLen = Math.max(...group.dsm.names.map(n => n.length), 3)
     const colWidth = Math.max(maxNameLen, 4)
@@ -422,11 +218,13 @@ describe('hierarchical complexity', () => {
             const worstBW = Math.max(...groups.map(g => Math.max(...g.communities.map(c => c.boundaryWidth))))
             const worstTW = Math.max(...groups.map(g => g.treeWidth))
             const meanEntropy = groups.reduce((s, g) => s + g.normalizedEntropy, 0) / groups.length
+            const meanModularityQ = groups.reduce((s, g) => s + g.modularityQ, 0) / groups.length
 
             output.push(`\n  --- Depth ${depth} Summary ---`)
             output.push(`  Worst boundary width: ${worstBW.toFixed(3)}`)
             output.push(`  Worst tree-width:     ${worstTW}`)
             output.push(`  Mean norm. entropy:   ${meanEntropy.toFixed(3)}`)
+            output.push(`  Mean Modularity Q:    ${meanModularityQ.toFixed(3)}`)
         }
 
         output.push(`\n${'='.repeat(80)}`)
@@ -476,6 +274,70 @@ describe('hierarchical complexity', () => {
             ].join(' '))
         }
 
+        // Priority ranking — BW critique fix: outgoing coupling × spread.
+        // Stable cores (outEdges=0) are healthy and excluded by design.
+        type Priority = { community: CommunityReport; parentId: string; depth: number; score: number }
+        const priorityRanked: Priority[] = allCommunities
+            .filter(e => e.community.outEdges > 0)
+            .map(e => ({...e, score: e.community.outEdges * Math.max(1, e.community.fanOut)}))
+            .sort((a, b) => b.score - a.score)
+
+        output.push('')
+        output.push('='.repeat(80))
+        output.push('PRIORITY TO IMPROVE — top communities by outgoing coupling × spread')
+        output.push('='.repeat(80))
+        output.push('  score = outEdges × fanOut  (stable cores excluded — they are healthy)\n')
+
+        for (const [i, entry] of priorityRanked.slice(0, 10).entries()) {
+            const c = entry.community
+            const shortId = c.id.replace(/^[^/]+\//, '')
+            output.push('  ' + [
+                String(i + 1).padStart(2) + '.',
+                `${entry.parentId}/${shortId}`.padEnd(42),
+                `score=${String(entry.score).padStart(4)}`,
+                `outEdges=${String(c.outEdges).padStart(3)}`,
+                `reaches=${String(c.fanOut).padStart(2)}`,
+                `BW=${c.boundaryWidth.toFixed(2)}`,
+            ].join('  '))
+        }
+
         console.info(output.join('\n'))
+
+        // Orange gate: fail when any community exceeds the priority budget.
+        // Lower this number as you address top offenders to ratchet quality up.
+        // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+        const ORANGE_PRIORITY_BUDGET = 258
+
+        const overBudget = priorityRanked.filter(p => p.score > ORANGE_PRIORITY_BUDGET)
+        await recordHealthMetric({
+            metricId: 'hierarchical-complexity',
+            metricName: 'Hierarchical Complexity Orange Gate',
+            description: 'Highest outgoing-coupling priority score across directory containment communities.',
+            category: 'Complexity',
+            current: priorityRanked.reduce((max, p) => Math.max(max, p.score), 0),
+            budget: ORANGE_PRIORITY_BUDGET,
+            comparison: 'lte',
+            unit: 'score',
+            details: {
+                overBudget: overBudget.slice(0, 20),
+                topPriority: priorityRanked.slice(0, 20),
+                communityCount: allCommunities.length,
+                maxDepth,
+            },
+        })
+        if (overBudget.length > 0) {
+            const lines: string[] = [
+                '',
+                `Orange complexity gate: ${overBudget.length} communities exceed priority budget (score > ${ORANGE_PRIORITY_BUDGET}).`,
+                'Highest priority to improve (outgoing coupling × spread):',
+            ]
+            for (const [i, p] of overBudget.slice(0, 5).entries()) {
+                const shortId = p.community.id.replace(/^[^/]+\//, '')
+                lines.push(`  ${i + 1}. ${p.parentId}/${shortId}  score=${p.score}  outEdges=${p.community.outEdges}  reaches=${p.community.fanOut} siblings`)
+            }
+            lines.push('')
+            lines.push('Lower ORANGE_PRIORITY_BUDGET as you address top offenders.')
+            throw new Error(lines.join('\n'))
+        }
     })
 })

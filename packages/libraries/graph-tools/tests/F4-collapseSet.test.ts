@@ -11,9 +11,9 @@ import {
   applyDeltaToStateCaptureOverlay,
   buildCapturedSerializedState,
   createStateCaptureOverlay,
-} from '../src/commands/run'
-import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../src/debug/flows/index'
-import type { CyDump } from '../src/debug/cyStateShape'
+} from '../src/commands/capture/run'
+import { deriveFlowRuntimeContext, loadFlowDefinition, resolveFlowDefinition } from '../src/debug/flow/flows/index'
+import type { CyDump } from '../src/debug/state/cyStateShape'
 
 function renderProjectedElements(): CyDump
 function renderProjectedElements(elements: readonly (NodeElement | EdgeElement)[]): CyDump
@@ -57,13 +57,15 @@ describe('F4 collapseSet capture', () => {
 
     expect(firstStep).toEqual({
       dispatch: {
-        type: 'Collapse',
-        folder: '/tmp/graph-state-fixtures/root-a/tasks/',
+        type: 'SetFolderState',
+        viewId: 'main',
+        path: '/tmp/graph-state-fixtures/root-a/tasks',
+        state: 'collapsed',
       },
     })
 
     if (!('dispatch' in firstStep)) {
-      throw new Error('expected F4 step 1 to dispatch Collapse')
+      throw new Error('expected F4 step 1 to dispatch SetFolderState')
     }
 
     const overlayBeforeStep = createStateCaptureOverlay(initialState)
@@ -78,8 +80,9 @@ describe('F4 collapseSet capture', () => {
       rendered,
     )
 
-    expect(collapseResult.state.collapseSet.has(firstStep.dispatch.folder)).toBe(true)
-    expect(rendered.nodes.some(node => node.id === firstStep.dispatch.folder)).toBe(true)
-    expect(captured.collapseSet).toEqual([firstStep.dispatch.folder])
+    const folderId = `${firstStep.dispatch.path}/`
+    expect(collapseResult.state.collapseSet.has(folderId)).toBe(true)
+    expect(rendered.nodes.some(node => node.id === folderId)).toBe(true)
+    expect(captured.collapseSet).toEqual([folderId])
   })
 })

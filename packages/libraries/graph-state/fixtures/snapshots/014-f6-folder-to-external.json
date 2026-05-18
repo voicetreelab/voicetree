@@ -6,6 +6,7 @@
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/overview.md",
           "contentWithoutYamlOrLinks": "# Overview\n\nExternal node outside the folder.\n",
@@ -20,6 +21,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/BF-117.md": {
+          "kind": "leaf",
           "outgoingEdges": [
             {
               "targetId": "/tmp/graph-state-fixtures/root-a/overview.md",
@@ -39,6 +41,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/BF-118.md",
           "contentWithoutYamlOrLinks": "# BF-118\n\nReady for execution.\n",
@@ -84,9 +87,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -121,7 +121,16 @@
         }
       ]
     },
-    "collapseSet": [],
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ]
+    ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [],
     "layout": {
       "positions": []

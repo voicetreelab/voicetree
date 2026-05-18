@@ -51,6 +51,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 coverage.json
+stryker-*.json
 *.cover
 *.py,cover
 .hypothesis/
@@ -188,9 +189,8 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-state/**/*.md
 !docker/**/*.md
 
-# MCP config
+# MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
-!/.mcp.json
 
 # Wrangler
 **/.wrangler/**
@@ -218,6 +218,14 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+
+# Codebase health dashboard report state
+/health-dashboard/reports/*.json
+/health-dashboard/reports/*.json.tmp.*
+/health-dashboard/reports/checks/*.json
+!/health-dashboard/reports/SCHEMA.md
+!/health-dashboard/reports/.gitkeep
 **/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/
+.codeql/

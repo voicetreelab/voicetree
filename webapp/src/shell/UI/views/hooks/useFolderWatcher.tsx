@@ -46,23 +46,28 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     void checkStatus();
   }, [isElectron]);
 
-  // Listen to watching-started events to stay in sync
+  // Listen to vault lifecycle events to stay in sync
   useEffect(() => {
-    if (!isElectron || !window.electronAPI?.onWatchingStarted) return;
+    if (!isElectron || !window.electronAPI) return;
 
-    const handleWatchingStarted: (data: { directory: string; timestamp: string }) => void = (data: { directory: string; timestamp: string }) => {
-      //console.log('[useFolderWatcher] watching-started event received:', data.directory);
-      setWatchStatus({ isWatching: true, directory: data.directory });
+    const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
+      setWatchStatus({ isWatching: true, directory: data.path });
       setIsLoading(false);
       setError(null);
-    };
+    }) ?? (() => {});
+    const cleanupSwitching = window.electronAPI.onVaultSwitching?.(() => {
+      setIsLoading(true);
+      setError(null);
+    }) ?? (() => {});
+    const cleanupLost = window.electronAPI.onVaultLost?.((data: { error?: string }) => {
+      setIsLoading(false);
+      setError(data.error ?? 'Vault unavailable');
+    }) ?? (() => {});
 
-    // Register event listener (returns cleanup function)
-    const cleanupWatchingStarted: (() => void) | undefined = window.electronAPI.onWatchingStarted(handleWatchingStarted);
-
-    // Cleanup - only removes THIS listener, not all listeners
     return () => {
-      cleanupWatchingStarted?.();
+      cleanupReady();
+      cleanupSwitching();
+      cleanupLost();
     };
   }, [isElectron]);
 
@@ -78,26 +83,20 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     setError(null);
 
     try {
-      //console.log('[useFolderWatcher] Calling window.electronAPI.startFileWatching()...');
-      const result: { readonly success: boolean; readonly directory?: string; readonly error?: string; } = await window.electronAPI!.main.startFileWatching();
-      //console.log('[useFolderWatcher] startFileWatching IPC result:', result);
-      if (result.success) {
-        // Reset state immediately after successful IPC call
-        // Event will also sync state with directory info, but we do it here for UI-edge responsiveness
-        if (result.directory) {
-          setWatchStatus({ isWatching: true, directory: result.directory });
-        }
+      if (!watchStatus.directory) {
+        setError('No vault selected');
         setIsLoading(false);
-      } else {
-        setError(result.error ?? 'Failed to start watching');
-        setIsLoading(false);
+        return;
       }
+      await window.electronAPI!.main.openVault(watchStatus.directory);
+      setWatchStatus({ isWatching: true, directory: watchStatus.directory });
+      setIsLoading(false);
     } catch (_err) {
       //console.log('[DEBUG] startWatching error:', _err);
-      setError('Failed to start file watching');
+      setError('Failed to open vault');
       setIsLoading(false);
     }
-  }, [isElectron]);
+  }, [isElectron, watchStatus.directory]);
 
   // Stop watching function
   const stopWatching: () => Promise<void> = useCallback(async () => {

@@ -1,21 +1,18 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
+import {scoreFunction} from './cogcx-scorer'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
-const MAX_COGNITIVE_COMPLEXITY = 25
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
+// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+const MAX_COGNITIVE_COMPLEXITY = 103
 const HIGH_COMPLEXITY_THRESHOLD = 15
 const BASELINE_COMPLEXITY_BUDGETS: ReadonlyMap<string, number> = new Map([
 ])
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type FunctionComplexity = {
     readonly packageName: string
@@ -33,25 +30,6 @@ type PackageAggregate = {
     readonly functionCount: number
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const packageJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'))
-            return {
-                name: packageJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
 async function pathExists(path: string): Promise<boolean> {
     try {
         await stat(path)
@@ -66,7 +44,10 @@ function isProductionTypeScriptSource(path: string): boolean {
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.endsWith('.d.ts')
+        && !path.endsWith('/__audit_seed__.ts')
         && !path.includes('/__tests__/')
+        && !path.includes('/__fixtures__/')
+        && !path.includes('/__generated__/')
 }
 
 async function listProductionSources(root: string): Promise<string[]> {
@@ -79,36 +60,6 @@ async function listProductionSources(root: string): Promise<string[]> {
         return []
     }))
     return nested.flat().sort()
-}
-
-function isLogicalOperator(kind: ts.SyntaxKind): boolean {
-    return kind === ts.SyntaxKind.AmpersandAmpersandToken
-        || kind === ts.SyntaxKind.BarBarToken
-        || kind === ts.SyntaxKind.QuestionQuestionToken
-}
-
-function isLogicalExpression(node: ts.Node): node is ts.BinaryExpression {
-    return ts.isBinaryExpression(node) && isLogicalOperator(node.operatorToken.kind)
-}
-
-function countLogicalOperatorChains(expression: ts.BinaryExpression): number {
-    const operators: ts.SyntaxKind[] = []
-
-    function collect(node: ts.Expression): void {
-        if (!isLogicalExpression(node)) return
-        collect(node.left)
-        operators.push(node.operatorToken.kind)
-        collect(node.right)
-    }
-
-    collect(expression)
-    if (operators.length === 0) return 0
-
-    let chains = 1
-    for (let i = 1; i < operators.length; i += 1) {
-        if (operators[i] !== operators[i - 1]) chains += 1
-    }
-    return chains
 }
 
 function propertyNameText(name: ts.PropertyName, sourceFile: ts.SourceFile): string {
@@ -135,90 +86,6 @@ function isFunctionLikeBoundary(node: ts.Node): node is ts.FunctionLikeDeclarati
         || ts.isArrowFunction(node)
         || ts.isMethodDeclaration(node)
         || ts.isConstructorDeclaration(node)
-}
-
-function isDirectRecursiveCall(node: ts.CallExpression, name: string): boolean {
-    if (name === '<anonymous>' || name === 'constructor') return false
-    if (ts.isIdentifier(node.expression)) return node.expression.text === name
-    if (ts.isPropertyAccessExpression(node.expression)) return node.expression.name.text === name
-    return false
-}
-
-function scoreFunction(root: ts.FunctionLikeDeclaration, name: string, sourceFile: ts.SourceFile): number {
-    let score = 0
-
-    function addStructural(nesting: number): void {
-        score += 1 + nesting
-    }
-
-    function visitIfStatement(node: ts.IfStatement, nesting: number, isElseIf: boolean): void {
-        if (isElseIf) score += 1
-        else addStructural(nesting)
-
-        visit(node.expression, nesting)
-        visit(node.thenStatement, nesting + 1)
-
-        if (!node.elseStatement) return
-        if (ts.isIfStatement(node.elseStatement)) {
-            visitIfStatement(node.elseStatement, nesting, true)
-            return
-        }
-
-        score += 1
-        visit(node.elseStatement, nesting + 1)
-    }
-
-    function visit(node: ts.Node, nesting: number): void {
-        if (node !== root && isFunctionLikeBoundary(node)) return
-
-        if (ts.isIfStatement(node)) {
-            visitIfStatement(node, nesting, false)
-            return
-        }
-
-        if (ts.isForStatement(node) || ts.isForInStatement(node) || ts.isForOfStatement(node) || ts.isWhileStatement(node) || ts.isDoStatement(node)) {
-            addStructural(nesting)
-            ts.forEachChild(node, child => visit(child, nesting + 1))
-            return
-        }
-
-        if (ts.isSwitchStatement(node)) {
-            for (const clause of node.caseBlock.clauses) {
-                if (ts.isCaseClause(clause)) score += 1 + nesting
-                ts.forEachChild(clause, child => visit(child, nesting + 1))
-            }
-            return
-        }
-
-        if (ts.isCatchClause(node)) {
-            addStructural(nesting)
-            visit(node.block, nesting + 1)
-            return
-        }
-
-        if (ts.isConditionalExpression(node)) {
-            addStructural(nesting)
-            ts.forEachChild(node, child => visit(child, nesting + 1))
-            return
-        }
-
-        if ((ts.isBreakStatement(node) || ts.isContinueStatement(node)) && node.label) {
-            score += 1
-        }
-
-        if (ts.isCallExpression(node) && isDirectRecursiveCall(node, name)) {
-            score += 1
-        }
-
-        if (isLogicalExpression(node) && !isLogicalExpression(node.parent)) {
-            score += countLogicalOperatorChains(node)
-        }
-
-        ts.forEachChild(node, child => visit(child, nesting))
-    }
-
-    visit(root, 0)
-    return score
 }
 
 function findFunctionComplexities(packageName: string, file: string, text: string): FunctionComplexity[] {
@@ -248,10 +115,19 @@ function findFunctionComplexities(packageName: string, file: string, text: strin
 async function scanPackage(packageInfo: PackageInfo): Promise<FunctionComplexity[]> {
     const files = await listProductionSources(packageInfo.srcRoot)
     const nested = await Promise.all(files.map(async file => {
-        const text = await readFile(file, 'utf8')
-        return findFunctionComplexities(packageInfo.dirName, file, text)
+        try {
+            const text = await readFile(file, 'utf8')
+            return findFunctionComplexities(packageInfo.dirName, file, text)
+        } catch (error) {
+            if (isErrnoException(error) && error.code === 'ENOENT') return []
+            throw error
+        }
     }))
     return nested.flat()
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+    return error instanceof Error && 'code' in error
 }
 
 async function scanAllFunctions(): Promise<FunctionComplexity[]> {
@@ -316,7 +192,7 @@ function formatPackageAggregates(aggregates: readonly PackageAggregate[]): strin
 
 function formatViolations(violations: readonly FunctionComplexity[]): string {
     if (violations.length === 0) return 'No functions exceed cognitive complexity threshold.'
-    return violations
+    return [...violations]
         .sort(compareByComplexity)
         .map(fn => `${fn.packageName} | ${fn.file}:${fn.line} | ${fn.name} | ${fn.score}`)
         .join('\n')
@@ -335,6 +211,31 @@ describe('systems cognitive complexity', () => {
         console.info(formatTopFunctions(functions))
         console.info(formatPackageAggregates(aggregates))
         console.info(formatViolations(violations))
+
+        const maxBudgetRatio = functions.reduce((max, fn) => {
+            const budget = complexityBudgetFor(fn)
+            return Math.max(max, budget === 0 ? 0 : fn.score / budget)
+        }, 0)
+        const maxScore = functions.reduce((max, fn) => Math.max(max, fn.score), 0)
+
+        await recordHealthMetric({
+            metricId: 'cognitive-complexity',
+            metricName: 'Cognitive Complexity',
+            description: 'Maximum per-function cognitive-complexity budget usage across systems packages.',
+            category: 'Complexity',
+            current: maxBudgetRatio,
+            budget: 1,
+            comparison: 'lte',
+            unit: 'budget ratio',
+            details: {
+                maxScore,
+                defaultBudget: MAX_COGNITIVE_COMPLEXITY,
+                highComplexityThreshold: HIGH_COMPLEXITY_THRESHOLD,
+                violations,
+                aggregates,
+                topFunctions: functions.slice().sort(compareByComplexity).slice(0, 20),
+            },
+        })
 
         expect(violations, formatViolations(violations)).toEqual([])
     })

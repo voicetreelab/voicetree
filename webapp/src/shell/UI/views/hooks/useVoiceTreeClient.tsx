@@ -16,7 +16,7 @@ import {
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_DELAY_MS,
 } from "./reconnectionManager";
-import { forceRefreshAPIKey } from "../../../../utils/get-api-key";
+import { forceRefreshAPIKey } from "@/utils/get-api-key";
 
 interface UseVoiceTreeClientOptions {
   apiKey: string | (() => Promise<string>);

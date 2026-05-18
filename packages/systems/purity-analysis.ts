@@ -2,20 +2,16 @@ import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
+import { discoverPackages } from './discover-packages'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT: string = resolve(TEST_DIR, '../..')
-
-export const SOURCE_ROOTS: readonly string[] = [
-    join(REPO_ROOT, 'packages/libraries'),
-    join(REPO_ROOT, 'packages/systems'),
-    join(REPO_ROOT, 'webapp/src'),
-]
 
 function isProductionSource(p: string): boolean {
     return (p.endsWith('.ts') || p.endsWith('.tsx'))
         && !p.endsWith('.test.ts') && !p.endsWith('.test.tsx')
         && !p.endsWith('.spec.ts') && !p.endsWith('.d.ts') && !p.endsWith('.config.ts')
+        && !p.endsWith('/__audit_seed__.ts')
         && !p.includes('__tests__') && !p.includes('integration-tests')
         && !p.includes('node_modules') && !p.includes('/dist/') && !p.includes('/build/')
 }
@@ -61,6 +57,12 @@ export const IMPURE_IDENTIFIERS: ReadonlyMap<string, string> = new Map([
     ['useState', 'react-hook'], ['useEffect', 'react-hook'], ['useRef', 'react-hook'],
     ['useMemo', 'react-hook'], ['useCallback', 'react-hook'], ['useLayoutEffect', 'react-hook'],
 ])
+
+export const GLOBAL_SIDE_EFFECT_CATEGORIES: readonly string[] = [...new Set([
+    ...[...IMPURE_OBJ_METHODS.values()].map(entry => entry.category),
+    ...IMPURE_CHAIN.map(entry => entry.category),
+    ...IMPURE_IDENTIFIERS.values(),
+])].sort()
 
 const IMPURE_GLOBALS: ReadonlySet<string> = new Set([...IMPURE_OBJ_METHODS.keys()])
 
@@ -288,10 +290,17 @@ export type Stats = { totalLoc: number; pureLoc: number; impureLoc: number; fnCo
 function emptyStats(): Stats { return { totalLoc: 0, pureLoc: 0, impureLoc: 0, fnCount: 0, breakdown: {} } }
 
 export async function analyze(): Promise<{ fns: FnEntry[]; byLayer: Record<ArchLayer, Stats>; totals: Stats }> {
-    const files = (await Promise.all(SOURCE_ROOTS.map(listSourceFiles))).flat()
+    const packages = await discoverPackages()
+    const files = (await Promise.all(packages.map(pkg => listSourceFiles(pkg.srcRoot)))).flat()
     const allFns: FnEntry[] = []
     await Promise.all(files.map(async fp => {
-        const text = await readFile(fp, 'utf8')
+        // Skip files that vanish between discovery and read (auditCytoscapeCoupling
+        // briefly creates and removes __audit_seed__.ts and can race this scan).
+        const text = await readFile(fp, 'utf8').catch((err: NodeJS.ErrnoException) => {
+            if (err.code === 'ENOENT') return null
+            throw err
+        })
+        if (text === null) return
         const sf = ts.createSourceFile(fp, text, ts.ScriptTarget.Latest, true)
         allFns.push(...extractFunctions(fp, sf))
     }))

@@ -3,7 +3,7 @@ import {
     countVisibleEntities,
     findCollapseBoundary,
     type CollapseBoundaryGraph,
-} from '../src/collapseBoundary'
+} from '../src/view/collapseBoundary'
 
 function makeGraph(nodes: readonly {
     readonly id: string

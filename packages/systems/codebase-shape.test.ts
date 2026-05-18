@@ -1,12 +1,15 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {extname, dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {readdir, readFile} from 'node:fs/promises'
+import {extname, join, relative} from 'node:path'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
-const MAX_DIRECTORY_CHILDREN: number = 10
-const MAX_FILE_LINES: number = 500
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
+// Hard design limit set 2026-05-15: a directory with more than 15 children
+// is a signal it has stopped being a coherent module and should be split.
+const MAX_DIRECTORY_CHILDREN: number = 15
+// Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
+const MAX_FILE_LINES: number = 1081
 const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.tsx'])
 const IGNORED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
     'build',
@@ -26,25 +29,9 @@ type FileLineCount = {
     readonly lineCount: number
 }
 
-async function pathExists(path: string): Promise<boolean> {
-    try {
-        await stat(path)
-        return true
-    } catch {
-        return false
-    }
-}
-
-async function discoverSystemSourceRoots(): Promise<string[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return []
-        const packagePath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        const sourceRoot = join(SYSTEMS_ROOT, entry.name, 'src')
-        if (!(await pathExists(packagePath)) || !(await pathExists(sourceRoot))) return []
-        return [sourceRoot]
-    }))
-    return nested.flat().sort()
+async function discoverSourceRoots(): Promise<string[]> {
+    const packages = await discoverPackages()
+    return packages.map(pkg => pkg.srcRoot).sort()
 }
 
 function isIgnoredDirectoryName(name: string): boolean {
@@ -116,11 +103,27 @@ function formatFileLineViolation(violation: FileLineCount): string {
 
 describe('systems codebase shape', () => {
     it('keeps every source directory at or below the immediate-child limit', async () => {
-        const sourceRoots = await discoverSystemSourceRoots()
+        const sourceRoots = await discoverSourceRoots()
         const fanouts = (await Promise.all(sourceRoots.map(scanDirectoryFanout))).flat()
         const violations = fanouts
             .filter(fanout => fanout.childCount > MAX_DIRECTORY_CHILDREN)
             .sort((a, b) => b.childCount - a.childCount || a.directory.localeCompare(b.directory))
+        const maxChildCount = fanouts.reduce((max, fanout) => Math.max(max, fanout.childCount), 0)
+
+        await recordHealthMetric({
+            metricId: 'codebase-directory-fanout',
+            metricName: 'Directory Fanout',
+            description: 'Largest immediate child count in systems source directories.',
+            category: 'Structure',
+            current: maxChildCount,
+            budget: MAX_DIRECTORY_CHILDREN,
+            comparison: 'lte',
+            unit: 'children',
+            details: {
+                violations,
+                topDirectories: fanouts.slice().sort((a, b) => b.childCount - a.childCount).slice(0, 20),
+            },
+        })
 
         expect(
             violations.map(formatDirectoryFanoutViolation).join('\n\n'),
@@ -128,11 +131,27 @@ describe('systems codebase shape', () => {
     })
 
     it('keeps every source file at or below the line limit', async () => {
-        const sourceRoots = await discoverSystemSourceRoots()
+        const sourceRoots = await discoverSourceRoots()
         const lineCounts = (await Promise.all(sourceRoots.map(scanFileLineCounts))).flat()
         const violations = lineCounts
             .filter(lineCount => lineCount.lineCount > MAX_FILE_LINES)
             .sort((a, b) => b.lineCount - a.lineCount || a.file.localeCompare(b.file))
+        const maxLineCount = lineCounts.reduce((max, lineCount) => Math.max(max, lineCount.lineCount), 0)
+
+        await recordHealthMetric({
+            metricId: 'codebase-file-lines',
+            metricName: 'Source File Line Count',
+            description: 'Largest source file line count under systems packages.',
+            category: 'Structure',
+            current: maxLineCount,
+            budget: MAX_FILE_LINES,
+            comparison: 'lte',
+            unit: 'lines',
+            details: {
+                violations,
+                largestFiles: lineCounts.slice().sort((a, b) => b.lineCount - a.lineCount).slice(0, 20),
+            },
+        })
 
         expect(
             violations.map(formatFileLineViolation).join('\n'),

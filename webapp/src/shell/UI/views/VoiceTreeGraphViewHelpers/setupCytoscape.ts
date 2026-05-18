@@ -3,10 +3,10 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@vt/graph-model/graph';
-import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService';
-import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout';
-import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
-import {applyNodeSelectionSideEffects} from '@/shell/edge/UI-edge/graph/applyNodeSelectionSideEffects';
+import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/menus/VerticalMenuService';
+import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/auto/autoLayout';
+import {enableSpatialIndex} from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
+import {applyNodeSelectionSideEffects} from '@/shell/edge/UI-edge/graph/actions/applyNodeSelectionSideEffects';
 import {handleAddNodeAtPosition} from "@/shell/edge/UI-edge/floating-windows/editors/OpenHoverEditor";
 
 export interface SetupCytoscapeParams {

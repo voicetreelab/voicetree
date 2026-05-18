@@ -16,7 +16,7 @@ import {
 } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import type { Core, NodeSingular, NodeCollection } from 'cytoscape';
-import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
+import { getRecentlyVisited } from '@/shell/edge/UI-edge/state/stores/RecentlyVisitedStore';
 import { toRelativePath } from '@vt/graph-model/paths';
 
 /**

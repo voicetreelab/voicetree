@@ -22,6 +22,11 @@ const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
 const TSX_BIN: string = join(REPO_ROOT, 'node_modules/.bin/tsx')
+const WEBAPP_TSCONFIG: string = join(REPO_ROOT, 'webapp/tsconfig.json')
+// Force ensureDaemon to spawn from source rather than the (often stale)
+// dist/vt-graphd.mjs bundle, so the test always exercises current daemon code.
+const GRAPHD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/graph-db-server/bin/vt-graphd.ts')
+const VT_GRAPHD_BIN_OVERRIDE: string = `${TSX_BIN} ${GRAPHD_SOURCE_BIN}`
 
 const SCENARIO_TIMEOUT_MS: number = 30_000
 const DAEMON_READY_TIMEOUT_MS: number = 10_000
@@ -48,6 +53,8 @@ function buildChildEnv(appSupport: string, overrides?: Record<string, string | u
     const merged: Record<string, string | undefined> = {
         ...process.env,
         VOICETREE_APP_SUPPORT: appSupport,
+        TSX_TSCONFIG_PATH: WEBAPP_TSCONFIG,
+        VT_GRAPHD_BIN: VT_GRAPHD_BIN_OVERRIDE,
         ...overrides,
     }
 
@@ -221,20 +228,20 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         }, DAEMON_CLEANUP_HOOK_TIMEOUT_MS)
 
         it(
-            'Scenario A — cold start: auto-launches vt-graphd and persists a new read path',
+            'Scenario A — cold start: auto-launches vt-graphd and persists folder state',
             async () => {
                 const portFile: string = join(vault, '.voicetree', 'graphd.port')
                 // Pre-check: no daemon running.
                 await expect(stat(portFile)).rejects.toMatchObject({code: 'ENOENT'})
 
-                const addResult: SpawnResult = await spawnCli(
-                    ['vault', 'add-read-path', readDir, '--vault', vault, '--json'],
+                const setFolderResult: SpawnResult = await spawnCli(
+                    ['view', 'set-folder', readDir, 'expanded', '--vault', vault, '--json'],
                     appSupport,
                 )
-                expect(addResult.code, `add-read-path stderr: ${addResult.stderr}`).toBe(0)
+                expect(setFolderResult.code, `set-folder stderr: ${setFolderResult.stderr}`).toBe(0)
 
-                const addPayload: {readPaths: string[]} = parseJsonStdout(addResult)
-                expect(addPayload.readPaths).toContain(readDir)
+                const folderPayload: {path: string; state: string} = parseJsonStdout(setFolderResult)
+                expect(folderPayload).toEqual({path: readDir, state: 'expanded'})
 
                 // Port file now exists; daemon PID is alive.
                 const portAfterAdd: number = await waitForPortFile(vault, DAEMON_READY_TIMEOUT_MS)
@@ -253,7 +260,6 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
 
                 const showPayload: {readPaths: string[]; vaultPath: string} = parseJsonStdout(showResult)
                 expect(showPayload.vaultPath).toBe(vault)
-                expect(showPayload.readPaths).toContain(readDir)
 
                 const portAfterShow: number = await waitForPortFile(vault, 1_000)
                 expect(portAfterShow).toBe(portAfterAdd)
@@ -263,7 +269,7 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
         )
 
         it(
-            'Scenario B — session isolation: two sessions hold disjoint collapse sets',
+            'Scenario B — active-view folder state is visible to sessions',
             async () => {
                 const create1: SpawnResult = await spawnCli(
                     ['session', 'create', '--vault', vault, '--json'],
@@ -282,26 +288,35 @@ describe.skipIf(process.env.CI_SANDBOX === '1')(
                 expect(sid1).not.toEqual(sid2)
 
                 const folderId: string = '/some/folder'
-                const collapse: SpawnResult = await spawnCli(
-                    ['view', 'collapse', folderId, '--vault', vault, '--session', sid1, '--json'],
+                const setFolder: SpawnResult = await spawnCli(
+                    ['view', 'set-folder', folderId, 'collapsed', '--vault', vault, '--session', sid1, '--json'],
                     appSupport,
                 )
-                expect(collapse.code, `view collapse stderr: ${collapse.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(collapse).collapseSet).toBeInstanceOf(Array)
+                expect(setFolder.code, `view set-folder stderr: ${setFolder.stderr}`).toBe(0)
+                expect(parseJsonStdout<{path: string; state: string}>(setFolder)).toEqual({
+                    path: folderId,
+                    state: 'collapsed',
+                })
 
                 const showSid2: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid2, '--json'],
                     appSupport,
                 )
                 expect(showSid2.code, `view show sid2 stderr: ${showSid2.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(showSid2).collapseSet).not.toContain(folderId)
+                expect(parseJsonStdout<{folderState: [string, string][]}>(showSid2).folderState).toContainEqual([
+                    folderId,
+                    'collapsed',
+                ])
 
                 const showSid1: SpawnResult = await spawnCli(
                     ['view', 'show', '--vault', vault, '--session', sid1, '--json'],
                     appSupport,
                 )
                 expect(showSid1.code, `view show sid1 stderr: ${showSid1.stderr}`).toBe(0)
-                expect(parseJsonStdout<{collapseSet: string[]}>(showSid1).collapseSet).toContain(folderId)
+                expect(parseJsonStdout<{folderState: [string, string][]}>(showSid1).folderState).toContainEqual([
+                    folderId,
+                    'collapsed',
+                ])
             },
             SCENARIO_TIMEOUT_MS,
         )

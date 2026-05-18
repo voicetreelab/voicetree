@@ -12,8 +12,8 @@ describe('filterDiscoveredProjects', () => {
 
     it('should return all discovered projects when saved list is empty', () => {
         const discovered: readonly DiscoveredProject[] = [
-            { path: '/test/project1', name: 'project1', type: 'git' },
-            { path: '/test/project2', name: 'project2', type: 'obsidian' },
+            { path: '/test/project1', name: 'project1', type: 'git', lastActivity: 0 },
+            { path: '/test/project2', name: 'project2', type: 'obsidian', lastActivity: 0 },
         ];
         const saved: readonly SavedProject[] = [];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
@@ -22,9 +22,9 @@ describe('filterDiscoveredProjects', () => {
 
     it('should filter out discovered projects that match saved paths', () => {
         const discovered: readonly DiscoveredProject[] = [
-            { path: '/test/project1', name: 'project1', type: 'git' },
-            { path: '/test/project2', name: 'project2', type: 'obsidian' },
-            { path: '/test/project3', name: 'project3', type: 'git' },
+            { path: '/test/project1', name: 'project1', type: 'git', lastActivity: 0 },
+            { path: '/test/project2', name: 'project2', type: 'obsidian', lastActivity: 0 },
+            { path: '/test/project3', name: 'project3', type: 'git', lastActivity: 0 },
         ];
         const saved: readonly SavedProject[] = [
             {
@@ -45,12 +45,12 @@ describe('filterDiscoveredProjects', () => {
             },
         ];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
-        expect(result).toEqual([{ path: '/test/project2', name: 'project2', type: 'obsidian' }]);
+        expect(result).toEqual([{ path: '/test/project2', name: 'project2', type: 'obsidian', lastActivity: 0 }]);
     });
 
     it('should return empty array when all discovered projects are already saved', () => {
         const discovered: readonly DiscoveredProject[] = [
-            { path: '/test/project1', name: 'project1', type: 'git' },
+            { path: '/test/project1', name: 'project1', type: 'git', lastActivity: 0 },
         ];
         const saved: readonly SavedProject[] = [
             {
@@ -68,7 +68,7 @@ describe('filterDiscoveredProjects', () => {
 
     it('should match paths exactly (case-sensitive)', () => {
         const discovered: readonly DiscoveredProject[] = [
-            { path: '/test/Project1', name: 'Project1', type: 'git' },
+            { path: '/test/Project1', name: 'Project1', type: 'git', lastActivity: 0 },
         ];
         const saved: readonly SavedProject[] = [
             {
@@ -81,12 +81,12 @@ describe('filterDiscoveredProjects', () => {
             },
         ];
         const result: readonly DiscoveredProject[] = filterDiscoveredProjects(discovered, saved);
-        expect(result).toEqual([{ path: '/test/Project1', name: 'Project1', type: 'git' }]);
+        expect(result).toEqual([{ path: '/test/Project1', name: 'Project1', type: 'git', lastActivity: 0 }]);
     });
 
     it('should not mutate the original arrays', () => {
         const discovered: readonly DiscoveredProject[] = [
-            { path: '/test/project1', name: 'project1', type: 'git' },
+            { path: '/test/project1', name: 'project1', type: 'git', lastActivity: 0 },
         ];
         const saved: readonly SavedProject[] = [
             {

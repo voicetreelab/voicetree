@@ -1,6 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
 import { resolve } from 'node:path'
-import { performance } from 'node:perf_hooks'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 import {
   DaemonLaunchTimeout,
@@ -8,31 +6,18 @@ import {
   DaemonUnreachableError,
 } from './errors.ts'
 import {
-  createSpawnPollTimings,
-  recordLastSpawnPollSleep,
-  recordSpawnPollIteration,
-  setSpawnPollTimingAttributes,
-} from './autoLaunch/pollTimings.ts'
-import {
   REUSE_PROBE_AFTER_LOCK_HELD_MS,
-  probeHealth,
   readAliveLockHolder,
-  sleep,
   traceReuseDiscoverPort,
   traceReuseProbeHealth,
-  unrefIfSupported,
   waitForHealthyPort,
 } from './autoLaunch/probes.ts'
 import {
   resolveCommand,
   resolveDaemonRuntimeCommand,
 } from './autoLaunch/runtime.ts'
-import {
-  boundedAppend,
-  launchTimeoutMessage,
-  parseAlreadyRunningPid,
-} from './autoLaunch/spawnOutput.ts'
-import { readPortFile } from './portDiscovery.ts'
+import { type EnsureDaemonResult } from './autoLaunch/types.ts'
+import { waitForSpawnedDaemon } from './autoLaunch/spawnWait.ts'
 import { initTracing } from './tracing.ts'
 
 const tracer = trace.getTracer('vt-daemon-client')
@@ -44,13 +29,13 @@ function ensureTracingInit(): void {
   initTracing('vt-daemon-client')
 }
 
-export interface EnsureDaemonResult {
-  port: number
-  pid: number | null
-  launched: boolean
-}
-
+export type { EnsureDaemonResult } from './autoLaunch/types.ts'
 export { resolveDaemonRuntimeCommand }
+export { spawnVaultlessDaemon } from './autoLaunch/vaultlessSpawn.ts'
+export type {
+  SpawnVaultlessDaemonOptions,
+  VaultlessDaemonHandle,
+} from './autoLaunch/vaultlessSpawn.ts'
 
 export async function ensureDaemon(
   vault: string,
@@ -129,7 +114,7 @@ export async function ensureDaemon(
       }
 
       // 2. Resolve the runtime command.
-      const { cmd, args, env } = tracer.startActiveSpan(
+      const command = tracer.startActiveSpan(
         'daemon.resolve-command',
         (resolveSpan) => {
           try {
@@ -154,168 +139,8 @@ export async function ensureDaemon(
       // 3. Spawn detached + unref'd and poll for readiness.
       return await tracer.startActiveSpan(
         'daemon.spawn-and-wait',
-        async (spawnSpan) => {
-          let child: ChildProcess = spawn(cmd, args, {
-            detached: true,
-            env,
-            stdio: ['ignore', 'ignore', 'pipe'],
-          })
-          child.unref()
-          unrefIfSupported(child.stderr)
-          const spawnedPid = child.pid ?? null
-          spawnSpan.setAttribute('pid', spawnedPid ?? 0)
-
-          const spawnState: { error: NodeJS.ErrnoException | null } = {
-            error: null,
-          }
-          let stderr = ''
-          let alreadyRunningPid: number | null = null
-          child.on('error', (err) => {
-            spawnState.error = err as NodeJS.ErrnoException
-          })
-          child.stderr?.on('data', (chunk: Buffer | string) => {
-            stderr = boundedAppend(stderr, chunk, 4000)
-            if (alreadyRunningPid === null) {
-              alreadyRunningPid = parseAlreadyRunningPid(stderr)
-            }
-          })
-
-          // Poll for port file + /health (lock-coalesces: whoever's port file lands first wins).
-          const deadline = Date.now() + timeoutMs
-          const pollTimings = createSpawnPollTimings()
-          let backoff = 100
-          spawnSpan.setAttribute('poll.backoff.initialMs', backoff)
-          while (Date.now() < deadline) {
-            if (spawnState.error) {
-              setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-              spawnSpan.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: spawnState.error.message,
-              })
-              spawnSpan.end()
-              throw spawnState.error
-            }
-
-            let port: number | null = null
-            let healthy = false
-            let readPortFileMs = 0
-            let probeHealthMs = 0
-            try {
-              const readPortFileStartMs = performance.now()
-              port = await readPortFile(resolvedVault)
-              readPortFileMs = performance.now() - readPortFileStartMs
-
-              if (port !== null) {
-                const probeHealthStartMs = performance.now()
-                healthy = await probeHealth(resolvedVault, port)
-                probeHealthMs = performance.now() - probeHealthStartMs
-              }
-            } catch (err) {
-              setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-              spawnSpan.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: String(err),
-              })
-              spawnSpan.end()
-              throw err
-            }
-
-            recordSpawnPollIteration(pollTimings, {
-              readPortFileMs,
-              probeHealthMs,
-              sleepMs: 0,
-              portFound: port !== null,
-              healthy,
-            })
-
-            if (port !== null && healthy) {
-              spawnSpan.setAttribute('port', port)
-              setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-              spawnSpan.end()
-              return { port, pid: spawnedPid, launched: true }
-            }
-
-            // The spawned child detected the lock was already held and exited via
-            // process.exit(0). Continuing to wait timeoutMs for a port file from a
-            // dead child is pointless. Give the lock-holder one more reuse probe
-            // (in case it's slow rather than dead), then surface a typed error so
-            // the caller can recover by killing the orphan.
-            if (alreadyRunningPid !== null) {
-              let port: number | null
-              try {
-                port = await waitForHealthyPort(resolvedVault, {
-                  initialBackoffMs: 100,
-                  maxBackoffMs: 100,
-                  timeoutMs: REUSE_PROBE_AFTER_LOCK_HELD_MS,
-                })
-              } catch (err) {
-                setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-                spawnSpan.setStatus({
-                  code: SpanStatusCode.ERROR,
-                  message: String(err),
-                })
-                spawnSpan.end()
-                throw err
-              }
-              if (port !== null) {
-                spawnSpan.setAttribute('port', port)
-                spawnSpan.setAttribute(
-                  'alreadyRunningPid',
-                  alreadyRunningPid,
-                )
-                setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-                spawnSpan.end()
-                return {
-                  port,
-                  pid: alreadyRunningPid,
-                  launched: false,
-                }
-              }
-              const err = new DaemonLockHeldError(
-                resolvedVault,
-                alreadyRunningPid,
-              )
-              spawnSpan.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: err.message,
-              })
-              setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-              spawnSpan.end()
-              throw err
-            }
-
-            const remaining = deadline - Date.now()
-            if (remaining <= 0) {
-              break
-            }
-            const sleepMs = Math.min(backoff, remaining)
-            const sleepStartMs = performance.now()
-            await sleep(sleepMs)
-            const actualSleepMs = performance.now() - sleepStartMs
-            recordLastSpawnPollSleep(pollTimings, actualSleepMs)
-            backoff = Math.min(backoff * 2, 100)
-          }
-
-          if (spawnState.error) {
-            setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-            spawnSpan.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: spawnState.error.message,
-            })
-            spawnSpan.end()
-            throw spawnState.error
-          }
-          const err = new DaemonLaunchTimeout(
-            launchTimeoutMessage(timeoutMs, resolvedVault, stderr),
-          )
-          spawnSpan.setStatus({
-            code: SpanStatusCode.ERROR,
-            message: err.message,
-          })
-          setSpawnPollTimingAttributes(spawnSpan, pollTimings)
-          spawnSpan.end()
-          throw err
-        },
+        async (spawnSpan) =>
+          waitForSpawnedDaemon(command, resolvedVault, timeoutMs, spawnSpan),
       )
     } catch (err) {
       ensureSpan.setStatus({

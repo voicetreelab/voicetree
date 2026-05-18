@@ -4,16 +4,18 @@
   "private": true,
   "type": "module",
   "description": "Voicetree MCP server. Hosts the MCP tool catalog (spawn_agent, create_graph, list_agents, …) over HTTP. Embedded in Electron and consumed by the vt-mcpd headless binary.",
-  "main": "src/index.ts",
+  "main": "src/agents/index.ts",
   "bin": {
     "vt-mcpd": "bin/vt-mcpd.ts"
   },
   "exports": {
-    ".": "./src/index.ts",
+    ".": "./src/agents/index.ts",
+    "./tools/mcp-server": "./src/tools/agent-control/mcp-server.ts",
     "./tools/*": "./src/tools/*",
+    "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
-    "./mcp-config": "./src/mcp-config.ts",
-    "./mcp-client-config": "./src/mcp-client-config.ts"
+    "./mcp-config": "./src/config/mcp-config-public.ts",
+    "./mcp-client-config": "./src/config/mcp-client-config-public.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -24,6 +26,7 @@
     "@modelcontextprotocol/sdk": "^1.22.0",
     "@vt/agent-runtime": "*",
     "@vt/app-config": "*",
+    "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",

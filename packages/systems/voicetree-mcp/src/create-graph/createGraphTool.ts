@@ -9,8 +9,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {getTerminalRecords, resetAuditRetryCount, type TerminalRecord} from '@vt/agent-runtime'
-import {type McpToolResponse, buildJsonResponse} from '../core/types'
+import {type McpToolResponse, buildJsonResponse} from '../tools/toolResponse'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {
@@ -37,6 +36,7 @@ import type {
     ParentRef,
     Result,
 } from './createGraphTypes'
+import {listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
 
 export type {ParentRef}
 export type {CreateGraphNodeInput}
@@ -84,7 +84,7 @@ function resolveOutputDirectory(
 }
 
 function findCallerRecord(callerTerminalId: string): Result<TerminalRecord> {
-    const callerRecord: TerminalRecord | undefined = getTerminalRecords().find(
+    const callerRecord: TerminalRecord | undefined = listTerminalRecords().find(
         (record: TerminalRecord) => record.terminalId === callerTerminalId
     )
     if (!callerRecord) return {ok: false, error: `Unknown caller terminal: ${callerTerminalId}`}
@@ -290,7 +290,7 @@ export async function createGraphTool({
     registerAgentNodes(callerTerminalId, createdAgentNodeRecords(sortedNodes, batchResult.createdNodes))
     await appendNodesToCallerContext(callerRecord, batchResult.allNewNodeIds)
 
-    resetAuditRetryCount(callerTerminalId)
+    resetTerminalAuditRetryCount(callerTerminalId)
 
     return buildJsonResponse({
         success: true,

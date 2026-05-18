@@ -11,8 +11,8 @@ import {
     extractLinks,
     buildUniqueBasenameMap,
     resolveLinkTarget,
-} from '../src/primitives'
-import {renderAutoView} from '../src/autoView'
+} from '../src/core/primitives'
+import {renderAutoView} from '../src/view/autoView'
 import {
     computeArboricity,
     deriveTitle,

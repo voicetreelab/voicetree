@@ -3,6 +3,7 @@ import {
     type ArchLayer, type FnEntry,
     analyze, classifyLayer, median, percentile,
 } from './purity-analysis'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 type FunctionHealthStats = {
     allLocs: number[]
@@ -187,5 +188,26 @@ describe('function-level health diagnostics', () => {
             }
         }
         console.info(reportFunctionHealth(fns, byLayer as Record<ArchLayer, FunctionHealthStats>))
+
+        const totalPureCount = Object.values(byLayer).reduce((sum, stats) => sum + stats.pureCount, 0)
+        const totalFnCount = Object.values(byLayer).reduce((sum, stats) => sum + stats.fnCount, 0)
+        const pureFunctionRatio = totalFnCount === 0 ? 0 : totalPureCount / totalFnCount
+
+        await recordHealthMetric({
+            metricId: 'function-health',
+            metricName: 'Function Health',
+            description: 'Pure-function share from size and impurity diagnostics.',
+            category: 'Complexity',
+            current: pureFunctionRatio,
+            budget: 0.5,
+            comparison: 'gte',
+            unit: 'ratio',
+            details: {
+                byLayer,
+                totalFnCount,
+                topLongestFunctions: fns.slice().sort((a, b) => b.loc - a.loc).slice(0, 20),
+                hotspotReport: reportHotspotFiles(fns),
+            },
+        })
     }, 30000)
 })

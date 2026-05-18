@@ -22,13 +22,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
+import { createNewChildNodeFromUI, deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/actions/handleUIActions'
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
     projectDelta,
@@ -132,7 +132,7 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
 let handlersImported: boolean = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/terminals/ipc-terminal-handlers')
+        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
         registerTerminalIpcHandlers(
             {} as any, // terminalManager
             () => '' // getToolsDirectory

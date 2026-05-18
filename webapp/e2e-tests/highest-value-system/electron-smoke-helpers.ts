@@ -24,6 +24,7 @@ export type McpToolResult = {
 export type SmokeElectronAPI = Omit<ElectronAPI, 'terminal'> & {
   terminal: {
     spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
+    kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
   };
 };
 

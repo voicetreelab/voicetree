@@ -1,5 +1,5 @@
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
-import type {FloatingWindowFields} from "@/shell/edge/UI-edge/floating-windows/types";
+import type {FloatingWindowFields} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 
 export type ImageViewerData = FloatingWindowFields & {
     readonly type: 'ImageViewer';

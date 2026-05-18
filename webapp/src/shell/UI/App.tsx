@@ -1,18 +1,26 @@
 import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe";
 import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher";
-import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView";
-import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/dotGridBackground";
-import {AgentStatsPanel} from "@/shell/UI/views/AgentStatsPanel";
+import {VoiceTreeGraphView} from "@/shell/UI/views/graph-view/VoiceTreeGraphView";
+import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBackground";
+import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
 import {VaultPathSelector} from "@/shell/UI/views/components/VaultPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
+import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
 import type {} from "@/shell/electron";
 import type { SavedProject } from "@vt/graph-model/project";
 import type { VTSettings } from "@vt/graph-model/settings";
+import type { ProjectedGraph } from "@vt/graph-state/contract";
 
 type AppView = 'project-selection' | 'graph-view';
+
+interface OpenedVaultState {
+    readonly path: string;
+    readonly sessionId: string;
+    readonly initialProjectedGraph?: ProjectedGraph;
+}
 
 function getProjectNameFromPath(projectPath: string): string {
     const parts: string[] = projectPath.split(/[/\\]/);
@@ -30,13 +38,23 @@ function createFallbackProject(projectPath: string): SavedProject {
     };
 }
 
+function isProjectedGraph(value: unknown): value is ProjectedGraph {
+    return typeof value === 'object'
+        && value !== null
+        && Array.isArray((value as Partial<ProjectedGraph>).nodes)
+        && Array.isArray((value as Partial<ProjectedGraph>).edges);
+}
+
 function App(): JSX.Element {
     const [electronReady, setElectronReady] = useState<boolean>(() => window.electronAPI !== undefined);
     // App navigation state
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
+    const [openedVault, setOpenedVault] = useState<OpenedVaultState | null>(null);
+    const [vaultSwitching, setVaultSwitching] = useState<boolean>(false);
+    const [vaultError, setVaultError] = useState<string | null>(null);
     const hasBootstrappedStartupProjectRef = useRef(false);
-    const skipNextStartWatchingRef = useRef<string | null>(null);
+    const lastKnownVaultPathRef = useRef<string | null>(null);
 
     // Use the folder watcher hook for file watching
     const {
@@ -56,20 +74,43 @@ function App(): JSX.Element {
     // State for agent stats panel visibility
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
 
-    const openProjectFromDirectory: (directory: string) => Promise<void> = useCallback(async (directory: string): Promise<void> => {
-        if (!window.electronAPI) return;
+    const loadProjectForDirectory: (directory: string) => Promise<SavedProject> = useCallback(async (directory: string): Promise<SavedProject> => {
+        if (!window.electronAPI) throw new Error('Electron API unavailable');
 
         const projects: SavedProject[] = await window.electronAPI.main.loadProjects();
         const matchingProject: SavedProject | undefined = projects.find((project) => project.path === directory);
 
-        skipNextStartWatchingRef.current = directory;
-        setCurrentProject(matchingProject ?? createFallbackProject(directory));
+        return matchingProject ?? createFallbackProject(directory);
+    }, []);
+
+    const syncProjectFromDirectory: (directory: string) => Promise<void> = useCallback(async (directory: string): Promise<void> => {
+        const project: SavedProject = await loadProjectForDirectory(directory);
+        setCurrentProject(project);
+        setCurrentView('graph-view');
+    }, [loadProjectForDirectory]);
+
+    const openVaultForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
+        if (!window.electronAPI) return;
+
+        const response = await window.electronAPI.main.openVault(project.path);
+        lastKnownVaultPathRef.current = project.path;
+        setOpenedVault({
+            path: project.path,
+            sessionId: response.sessionId,
+            ...(isProjectedGraph(response.initialProjectedGraph)
+                ? { initialProjectedGraph: response.initialProjectedGraph }
+                : {}),
+        });
+        setVaultError(null);
+        setCurrentProject(project);
         setCurrentView('graph-view');
     }, []);
 
     // Handle project selection
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
         if (!window.electronAPI) return;
+
+        let selectedProject: SavedProject = project;
 
         // Initialize project if needed (creates /voicetree-{date} folder)
         if (!project.voicetreeInitialized) {
@@ -79,23 +120,32 @@ function App(): JSX.Element {
                 // Mark as initialized regardless of whether we created it or it existed
                 const updatedProject: SavedProject = { ...project, voicetreeInitialized: true };
                 await window.electronAPI.main.saveProject(updatedProject);
-                setCurrentProject(updatedProject);
+                selectedProject = updatedProject;
             } catch (err) {
                 console.error('[App] Failed to initialize project:', err);
-                setCurrentProject(project);
             }
-        } else {
-            setCurrentProject(project);
         }
 
-        setCurrentView('graph-view');
-    }, []);
+        try {
+            await openVaultForProject(selectedProject);
+        } catch (err) {
+            console.error('[App] Failed to open vault:', err);
+            setVaultError(err instanceof Error ? err.message : String(err));
+        }
+    }, [openVaultForProject]);
+
+    const retryLastKnownVault: () => Promise<void> = useCallback(async (): Promise<void> => {
+        if (!lastKnownVaultPathRef.current) return;
+        const project: SavedProject = await loadProjectForDirectory(lastKnownVaultPathRef.current);
+        await openVaultForProject(project);
+    }, [loadProjectForDirectory, openVaultForProject]);
 
     // Handle returning to project selection
     const handleBackToProjects: () => Promise<void> = useCallback(async (): Promise<void> => {
         // Stop watching the current folder
         await stopWatching();
         setCurrentProject(null);
+        setOpenedVault(null);
         setCurrentView('project-selection');
     }, [stopWatching]);
 
@@ -141,91 +191,90 @@ function App(): JSX.Element {
     // Recover programmatic loads even if they happened before React attached IPC listeners.
     useEffect(() => {
         if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
+        const getStartupVaultHint = window.electronAPI.main.getStartupVaultHint;
+        if (typeof getStartupVaultHint !== 'function') return;
 
         hasBootstrappedStartupProjectRef.current = true;
         let cancelled = false;
 
         void (async () => {
             try {
-                const watchStatus: { readonly isWatching: boolean; readonly directory: string | undefined } =
-                    await window.electronAPI!.main.getWatchStatus();
+                const startupHint = await getStartupVaultHint();
 
                 if (cancelled) return;
-                if (watchStatus.isWatching && watchStatus.directory) {
-                    await openProjectFromDirectory(watchStatus.directory);
-                    return;
-                }
-
-                const previousFolderResult: { readonly success: boolean; readonly directory?: string } =
-                    await window.electronAPI!.main.loadPreviousFolder();
-
-                if (cancelled) return;
-                if (previousFolderResult.success && previousFolderResult.directory) {
-                    await openProjectFromDirectory(previousFolderResult.directory);
+                if (startupHint.kind === 'open-folder' || startupHint.kind === 'last-directory') {
+                    const project: SavedProject = await loadProjectForDirectory(startupHint.path);
+                    if (!cancelled) await openVaultForProject(project);
                 }
             } catch (err) {
                 console.error('[App] Failed to bootstrap startup project:', err);
+                setVaultError(err instanceof Error ? err.message : String(err));
             }
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [electronReady, openProjectFromDirectory]);
+    }, [electronReady, loadProjectForDirectory, openVaultForProject]);
 
-    // Listen for watching-started event from main process (e.g., when prettySetupAppForElectronDebugging loads a project)
-    // This switches the UI to graph view when a project is loaded programmatically
     useEffect(() => {
-        if (!electronReady || !window.electronAPI?.onWatchingStarted) return;
+        if (!electronReady || !window.electronAPI) return;
 
-        const cleanup: (() => void) = window.electronAPI.onWatchingStarted((data: { directory: string; timestamp: string }) => {
-            void openProjectFromDirectory(data.directory);
-        });
+        const cleanupSwitching = window.electronAPI.onVaultSwitching?.((data: { path: string }) => {
+            lastKnownVaultPathRef.current = data.path;
+            setVaultSwitching(true);
+            setVaultError(null);
+        }) ?? (() => {});
+        const cleanupReady = window.electronAPI.onVaultReady?.((data: { path: string }) => {
+            lastKnownVaultPathRef.current = data.path;
+            setVaultSwitching(false);
+            setVaultError(null);
+            void syncProjectFromDirectory(data.path);
+        }) ?? (() => {});
+        const cleanupLost = window.electronAPI.onVaultLost?.((data: { path?: string; error?: string }) => {
+            if (data.path) lastKnownVaultPathRef.current = data.path;
+            setVaultSwitching(false);
+            setVaultError(data.error ?? 'Vault unavailable');
+        }) ?? (() => {});
 
-        return cleanup;
-    }, [electronReady, openProjectFromDirectory]);
-
-    // Start watching the project folder when entering graph view
-    // Always call startFileWatching - loadFolder handles the reload case (e.g., after cmd-r)
-    useEffect(() => {
-        if (currentView === 'graph-view' && currentProject && window.electronAPI) {
-            if (skipNextStartWatchingRef.current === currentProject.path) {
-                skipNextStartWatchingRef.current = null;
-                return;
-            }
-
-            // Start file watching for the selected project
-            void window.electronAPI.main.startFileWatching(currentProject.path);
-        }
-    }, [currentView, currentProject]);
+        return () => {
+            cleanupSwitching();
+            cleanupReady();
+            cleanupLost();
+        };
+    }, [electronReady, syncProjectFromDirectory]);
 
     // File Watching Control Panel Component - compact inline style matching activity panel
-    const FileWatchingPanel: () => JSX.Element = () => (
-        <div className="flex items-center gap-1 font-mono text-xs shrink-0">
-            {/* Back button */}
-            <button
-                onClick={() => void handleBackToProjects()}
-                className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
-                title="Back to project selection"
-            >
-                ←
-            </button>
-            {watchDirectory && (
-                <>
-                    <button
-                        onClick={() => void startWatching()}
-                        className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
-                        title="Project root – agents spawn here by default"
-                    >
-                        {watchDirectory.split(/[/\\]/).pop()}
-                        <span className="text-[10px] ml-1">▼</span>
-                    </button>
-                    <span className="text-muted-foreground">/</span>
-                    <VaultPathSelector />
-                </>
-            )}
-        </div>
-    );
+    const FileWatchingPanel: () => JSX.Element = () => {
+        const displayedDirectory: string | undefined = watchDirectory ?? currentProject?.path;
+
+        return (
+            <div className="flex items-center gap-1 font-mono text-xs shrink-0">
+                {/* Back button */}
+                <button
+                    onClick={() => void handleBackToProjects()}
+                    className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
+                    title="Back to project selection"
+                >
+                    ←
+                </button>
+                {displayedDirectory && (
+                    <>
+                        <button
+                            onClick={() => void startWatching()}
+                            className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors flex items-center gap-1"
+                            title="Project root – agents spawn here by default"
+                        >
+                            {displayedDirectory.split(/[/\\]/).pop()}
+                            <span className="text-[10px] ml-1">▼</span>
+                        </button>
+                        <span className="text-muted-foreground">/</span>
+                        <VaultPathSelector />
+                    </>
+                )}
+            </div>
+        );
+    };
 
     // Listen for backend logs and display in dev console
     useEffect(() => {
@@ -254,7 +303,11 @@ function App(): JSX.Element {
             graphView = new VoiceTreeGraphView(
                 graphContainerRef.current!,
                 uiContainerRef.current!,
-                { initialDarkMode: false, showFps: settings?.showFps ?? false }
+                {
+                    initialDarkMode: false,
+                    showFps: settings?.showFps ?? false,
+                    initialProjectedGraph: openedVault?.initialProjectedGraph,
+                }
             );
         })();
 
@@ -264,7 +317,7 @@ function App(): JSX.Element {
             disposed = true;
             graphView?.dispose();
         };
-    }, [currentView]); // Reinitialize when view changes
+    }, [currentView, openedVault?.sessionId]); // Reinitialize when the active vault session changes
 
     // Attach dot-grid background subscriber when in graph view
     useEffect(() => {
@@ -287,11 +340,31 @@ function App(): JSX.Element {
             {/* Layer 2: UI overlay - sidebar, overlays, title bar, tabs */}
             <div ref={uiContainerRef} className="absolute inset-0 pb-14 pointer-events-none [&>*]:pointer-events-auto"/>
 
+            {(vaultSwitching || vaultError) && (
+                <div className="fixed top-3 left-1/2 z-[1300] -translate-x-1/2 rounded border border-border bg-background px-3 py-2 text-sm shadow-lg">
+                    {vaultSwitching ? (
+                        <span className="text-foreground">Opening vault...</span>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <span className="text-destructive">{vaultError}</span>
+                            <button
+                                onClick={() => void retryLastKnownVault()}
+                                className="rounded bg-muted px-2 py-1 text-xs text-foreground hover:bg-accent"
+                                type="button"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Bottom bar: Fixed to viewport bottom to prevent dropdown-induced layout shifts */}
             <div className="fixed bottom-0 left-0 right-0 z-[1050] py-1 bg-background">
-                {/* File watching panel - anchored bottom left, vertically centered */}
-                <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                {/* File watching panel + view switcher - anchored bottom left, vertically centered */}
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     <FileWatchingPanel/>
+                    <ViewSwitcher/>
                 </div>
                 {/* Transcription panel - centered, with right margin? for minimap */}
                 <div className="flex justify-center">

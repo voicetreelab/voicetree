@@ -2,7 +2,7 @@ export function isJsonMode(): boolean {
     return process.argv.includes('--json') || !process.stdout.isTTY
 }
 
-export function output(data: unknown, humanFormat?: (data: any) => string): void {
+export function output<T>(data: T, humanFormat?: (data: T) => string): void {
     if (isJsonMode()) {
         console.log(JSON.stringify(data, null, 2))
         return

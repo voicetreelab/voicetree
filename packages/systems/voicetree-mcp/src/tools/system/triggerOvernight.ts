@@ -9,8 +9,8 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../../config/mcp-graph-bridge'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../mcpConfigDependencies'
+import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
 
 export interface TriggerOvernightParams {
     maxTasks?: number
@@ -117,7 +117,7 @@ export async function triggerOvernight(
     ].join('\n')
 
     // Spawn agent — not headless (meta-observer needs wait_for_agents)
-    const {terminalId}: {terminalId: string} = await spawnTerminalWithContextNode(
+    const {terminalId}: {terminalId: string} = await spawnContextTerminal(
         taskNodeId,
         agentCommand,
         undefined,    // terminalCount

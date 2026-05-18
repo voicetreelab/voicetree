@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "115-collapse-across-folder-boundary-f6",
-  "description": "Collapse across an F6 boundary using an external → folder edge.",
+  "description": "SetFolderState(collapsed) across an F6 boundary using an external → folder edge.",
   "initial": "012-f6-external-into-folder",
   "commands": [
     {
-      "type": "Collapse",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "collapsed"
     }
   ],
   "expected": {

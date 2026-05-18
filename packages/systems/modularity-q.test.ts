@@ -1,18 +1,13 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 const MODULARITY_Q_BUDGET = 0.525
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type SourceFileInfo = {
     readonly absolutePath: string
@@ -43,25 +38,6 @@ type ModularityReport = {
     readonly packageStats: ReadonlyMap<string, PackageEdgeStats>
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
 async function pathExists(p: string): Promise<boolean> {
     try {
         await stat(p)
@@ -77,7 +53,12 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')) {
             return [path]
         }
         return []
@@ -113,6 +94,7 @@ function importSpecifiers(filePath: string, text: string): string[] {
 }
 
 function resolutionCandidates(basePath: string): string[] {
+    if (basePath.endsWith('/__audit_seed__.ts')) return []
     if (basePath.endsWith('.ts')) return [basePath]
     return [basePath, `${basePath}.ts`, join(basePath, 'index.ts')]
 }
@@ -259,6 +241,18 @@ describe('systems package modularity', () => {
         const report = computeModularityQ(graph, packages.map(pkg => pkg.dirName))
 
         console.info(formatReport(report))
+
+        await recordHealthMetric({
+            metricId: 'modularity-q',
+            metricName: 'Modularity Q',
+            description: 'How strongly file-level imports cluster inside current package boundaries.',
+            category: 'Structure',
+            current: report.q,
+            budget: MODULARITY_Q_BUDGET,
+            comparison: 'gte',
+            unit: 'score',
+            details: report,
+        })
 
         expect(report.q).toBeGreaterThanOrEqual(MODULARITY_Q_BUDGET)
     })

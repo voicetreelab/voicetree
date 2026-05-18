@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { serializeEvalValue } from '../src/commands/eval'
+import { serializeEvalValue } from '../src/commands/session/eval'
 
 describe('serializeEvalValue', () => {
   it('preserves plain JSON-like data', () => {

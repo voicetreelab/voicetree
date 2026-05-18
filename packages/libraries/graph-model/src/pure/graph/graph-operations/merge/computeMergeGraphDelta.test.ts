@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeMergeGraphDelta } from './computeMergeGraphDelta'
 import type { Graph, GraphNode, Edge, GraphDelta } from '../..'
-import { createGraph } from '../../createGraph'
+import { createGraph } from '../../construction/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 // Helper to create a minimal GraphNode

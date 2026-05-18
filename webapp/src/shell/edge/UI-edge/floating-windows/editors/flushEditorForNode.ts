@@ -1,9 +1,9 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
-import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/EditorStore'
-import { getEditorId } from '@/shell/edge/UI-edge/floating-windows/types'
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
+import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/stores/EditorStore'
+import { getEditorId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView'
 import { modifyNodeContentFromUI } from './modifyNodeContentFromFloatingEditor'
 import type {EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";

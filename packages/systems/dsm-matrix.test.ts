@@ -1,17 +1,12 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type ImportEdge = {
     readonly fromPackage: string
@@ -39,25 +34,6 @@ type LayeringViolation = {
     readonly toIndex: number
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot: join(SYSTEMS_ROOT, entry.name, 'src'),
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
 async function pathExists(p: string): Promise<boolean> {
     try {
         await stat(p)
@@ -73,7 +49,12 @@ async function listProductionSources(root: string): Promise<string[]> {
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(root, entry.name)
         if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts') && !path.endsWith('.test.ts') && !path.endsWith('.spec.ts') && !path.includes('/__tests__/')) {
+        if (entry.isFile()
+            && path.endsWith('.ts')
+            && !path.endsWith('/__audit_seed__.ts')
+            && !path.endsWith('.test.ts')
+            && !path.endsWith('.spec.ts')
+            && !path.includes('/__tests__/')) {
             return [path]
         }
         return []
@@ -263,6 +244,23 @@ describe('Dependency Structure Matrix', () => {
         const report = formatReport(packageNames, matrix, cycles, layeringViolations, topologicalOrder)
 
         console.info(report)
+
+        await recordHealthMetric({
+            metricId: 'dsm-symmetric-cycles',
+            metricName: 'DSM Symmetric Cycles',
+            description: 'Symmetric package dependency cycles visible in the dependency structure matrix.',
+            category: 'Structure',
+            current: cycles.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'cycles',
+            details: {
+                cycles,
+                layeringViolations,
+                topologicalOrder,
+                packageNames,
+            },
+        })
 
         expect(cycles, report).toEqual([])
     })

@@ -32,6 +32,23 @@ export interface ExtendedWindow {
   electronAPI?: SmokeElectronAPI;
 }
 
+export function resolveTmuxSessionNameForTest(terminalId: string): string {
+  const matches = resolveTmuxSessionNamesForTest(terminalId);
+  return matches.at(-1) ?? terminalId;
+}
+
+export function resolveTmuxSessionNamesForTest(terminalId: string): string[] {
+  try {
+    const sessions = execFileSync('tmux', ['list-sessions', '-F', '#S'], { encoding: 'utf8' })
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+    return sessions.filter(session => session === terminalId || session.endsWith(`-${terminalId}`));
+  } catch {
+    return [];
+  }
+}
+
 function canLoadNativeGraphDbModules(nodeBin: string): boolean {
   try {
     execFileSync(nodeBin, ['-e', "const { DatabaseSync } = require('node:sqlite'); new DatabaseSync(':memory:').close()"], {

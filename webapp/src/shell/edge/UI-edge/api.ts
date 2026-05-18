@@ -11,29 +11,38 @@
  */
 
 import {launchTerminalOntoUI} from "@/shell/edge/UI-edge/floating-windows/terminals/launchTerminalOntoUI";
-import {applyLiveCommandToRenderer} from "@/shell/edge/UI-edge/graph/applyLiveCommandToRenderer";
+import {applyLiveCommandToRenderer} from "@/shell/edge/UI-edge/graph/actions/applyLiveCommandToRenderer";
 import {
     updateFloatingEditors
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import {createAnchoredFloatingEditor} from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import {getCyInstance} from "@/shell/edge/UI-edge/state/cytoscape-state";
+import {getCyInstance} from "@/shell/edge/UI-edge/state/controllers/cytoscape-state";
 import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsivePadding";
 import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {isImageNode} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
 import type {TerminalRecord} from '@vt/agent-runtime';
-import {syncFromMain} from "@/shell/edge/UI-edge/state/TerminalStore";
-import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/headless-badge-overlay";
-import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/VaultPathStore";
-import type {VaultPathState} from "@/shell/edge/UI-edge/state/VaultPathStore";
-import {syncFolderTreeFromMain, syncStarredTreesFromMain, syncExternalTreesFromMain} from "@/shell/edge/UI-edge/state/FolderTreeStore";
+import {syncFromMain} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
+import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay";
+import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
+import type {VaultPathState} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
+import {syncFolderTreeFromMain, syncStarredTreesFromMain, syncExternalTreesFromMain} from "@/shell/edge/UI-edge/state/stores/FolderTreeStore";
 import type {FolderTreeNode} from "@vt/graph-model/folders";
 
-import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/trackpad-state";
+import {setIsTrackpadScrolling} from "@/shell/edge/UI-edge/state/controllers/trackpad-state";
 import {closeTerminalById} from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById";
 import {getInjectBarHandle} from "@/shell/UI/floating-windows/terminals/InjectBar";
-import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/types";
-import { getLoadedRoots } from '@vt/graph-state/state/loadedRootsStore';
+import type {TerminalId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
+import { deriveImplicitRoots } from '@vt/graph-state/state/folderVisibility/implicitRoots';
+import { getFolderVisibility } from '@vt/graph-state/state/folderVisibilityStore';
+
+function hasVisibleRoots(): boolean {
+    try {
+        return deriveImplicitRoots(getFolderVisibility('main')).size > 0;
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Update floating editors from external FS changes
@@ -76,7 +85,7 @@ function createEditorForExternalNode(nodeId: NodeIdAndFilePath, _isAgentNode: bo
  * Called from main process when a vault path is removed from the allowlist.
  */
 function fitViewport(): void {
-    if (getLoadedRoots().size > 0) {
+    if (hasVisibleRoots()) {
         const cy: Core = getCyInstance();
         cyFitIntoVisibleViewport(cy, undefined, getResponsivePadding(cy, 10));
     }
@@ -147,7 +156,6 @@ export function onSettingsChange(cb: SettingsChangeCallback): () => void {
 }
 
 // Export as object (like mainAPI)
-// eslint-disable-next-line @typescript-eslint/typedef
 export const uiAPIHandler = {
     launchTerminalOntoUI,
     updateFloatingEditorsFromExternal,

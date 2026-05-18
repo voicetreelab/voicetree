@@ -1,5 +1,5 @@
 import type { NodeIdAndFilePath } from '..'
-import { ensureUniqueNodeId } from '../ensureUniqueNodeId'
+import { ensureUniqueNodeId } from '../nodes/ensureUniqueNodeId'
 
 /**
  * Extracts the folder prefix from a node ID (everything before the last slash).

@@ -1,11 +1,11 @@
 import type { NodeIdAndFilePath } from "@vt/graph-model/graph";
 import type { Core, CollectionReturnValue } from "cytoscape";
-import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/handleUIActions";
-import { disposeFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows";
+import { deleteNodesFromUI } from "@/shell/edge/UI-edge/graph/actions/handleUIActions";
+import { disposeFloatingWindow } from "@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows";
 import posthog from "posthog-js";
-import { getTerminalId, type TerminalId } from "@/shell/edge/UI-edge/floating-windows/types";
-import { vanillaFloatingWindowInstances } from "@/shell/edge/UI-edge/state/UIAppState";
-import { getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
+import { getTerminalId, type TerminalId } from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
+import { vanillaFloatingWindowInstances } from "@/shell/edge/UI-edge/state/stores/UIAppState";
+import { getTerminals } from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import type { GraphNode } from "@vt/graph-model/graph";

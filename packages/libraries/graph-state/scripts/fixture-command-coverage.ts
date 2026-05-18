@@ -1,8 +1,7 @@
 import { listSequenceDocuments } from '../src/fixtures'
 
 const REQUIRED_COMMANDS = [
-    'Collapse',
-    'Expand',
+    'SetFolderState',
     'Select',
     'Deselect',
     'AddNode',
@@ -10,8 +9,6 @@ const REQUIRED_COMMANDS = [
     'AddEdge',
     'RemoveEdge',
     'Move',
-    'LoadRoot',
-    'UnloadRoot',
 ] as const
 
 function main(): void {

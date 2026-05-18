@@ -13,7 +13,7 @@ import {
     closeFolderVisibilityDb,
     openFolderVisibilityDb,
     type FolderVisibilityDatabase,
-} from '../../src/views/folderVisibilitySqlite'
+} from '../../src/data/views/folderVisibilitySqlite'
 import {
     ActiveViewDeleteError,
     cloneView,
@@ -23,8 +23,8 @@ import {
     getActiveViewId,
     listViews,
     switchActiveView,
-} from '../../src/views/viewsRepository'
-import { createViewsStore, type ViewSwitchedEvent } from '../../src/views/viewsStore'
+} from '../../src/data/views/viewsRepository'
+import { createViewsStore, type ViewSwitchedEvent } from '../../src/data/views/viewsStore'
 
 const tmpVaults: string[] = []
 const openDbs: FolderVisibilityDatabase[] = []

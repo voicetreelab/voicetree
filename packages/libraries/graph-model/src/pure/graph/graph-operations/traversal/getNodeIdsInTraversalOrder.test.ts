@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getNodeIdsInTraversalOrder } from './getNodeIdsInTraversalOrder'
 import type { Graph, GraphNode } from '../..'
-import { createGraph, createEmptyGraph } from '../../createGraph'
+import { createGraph, createEmptyGraph } from '../../construction/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('getNodeIdsInTraversalOrder', () => {

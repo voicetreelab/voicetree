@@ -11,9 +11,9 @@ import {
 import { test, readAnchorState } from './electron-anchor-test-fixtures';
 
 test.describe('spawn_agent terminal anchoring', () => {
-  test('anchors the spawned interactive terminal to the new task node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
-    test.setTimeout(process.env.CI ? 120_000 : 90_000);
+  test.describe.configure({ timeout: process.env.CI ? 120_000 : 90_000 });
 
+  test('anchors the spawned interactive terminal to the new task node', async ({ appWindow, fixtureVaultPath, electronDiagnostics }) => {
     const mcpPort = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');

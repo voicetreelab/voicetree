@@ -1,6 +1,5 @@
 ---
 isContextNode: false
-status: claimed
 ---
 ### Ongoing development for the VoiceTree website.
 

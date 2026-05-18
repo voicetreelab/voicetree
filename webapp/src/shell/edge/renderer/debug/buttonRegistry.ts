@@ -1,5 +1,4 @@
 // Pure snapshot store for the agent-debugger button registry.
-// Components call registerDebugButton (opt-in; no-op in prod builds).
 // Agents read via window.__vtDebug__.buttons() which always reflects the live store.
 
 export interface ButtonEntry {
@@ -20,13 +19,4 @@ export const _register: (entry: ButtonEntry) => void = (entry) => {
 }
 export const _unregister: (nodeId: string, label: string) => void = (nodeId, label) => {
   _store.delete(_key(nodeId, label))
-}
-
-// Opt-in React component API — no-op in prod so prod bundles have no overhead.
-// Usage: const cleanup = registerDebugButton({ nodeId, label, selector })
-//        return cleanup  // inside useEffect
-const registerDebugButton: (entry: ButtonEntry) => () => void = (entry) => {
-  if (import.meta.env.PROD) return () => {}
-  _register(entry)
-  return () => _unregister(entry.nodeId, entry.label)
 }

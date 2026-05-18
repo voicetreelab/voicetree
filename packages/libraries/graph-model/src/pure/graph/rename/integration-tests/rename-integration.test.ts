@@ -21,7 +21,7 @@ import { describe, it, expect } from 'vitest'
 import { computeRenameNodeDelta } from '../computeRenameNodeDelta'
 import { applyGraphDeltaToGraph } from '../..'
 import type { Graph, GraphNode, Edge, GraphDelta, NodeIdAndFilePath } from '../..'
-import { createGraph } from '../../createGraph'
+import { createGraph } from '../../construction/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 // Helper to create a minimal GraphNode
@@ -282,7 +282,8 @@ describe('Rename Node - Integration Tests', () => {
 
             const initialGraph: Graph = createGraph({
                 [oldId]: {
-                    relativeFilePathIsID: oldId,
+                    kind: 'leaf',
+                    absoluteFilePathIsID: oldId,
                     outgoingEdges: [],
                     contentWithoutYamlOrLinks: '# Colored Node',
                     nodeUIMetadata: {

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { parseMarkdownToGraphNode, getNodeTitle } from './'
+import { parseMarkdownToGraphNode, getNodeTitle } from '.'
 import type { Graph, GraphNode } from '..'
-import { createGraph } from '../createGraph'
+import { createGraph } from '../construction/createGraph'
 
 // Helper to create an empty graph for testing
 const emptyGraph: Graph = createGraph({})

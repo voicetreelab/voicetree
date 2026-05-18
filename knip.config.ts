@@ -6,7 +6,9 @@ const config: KnipConfig = {
             entry: [
                 'scripts/*.mjs',
                 'scripts/*.cjs',
-                'vitest.config.ts',
+                'scripts/measures/**/*.ts',
+                'scripts/measures/invariants/coupling/**/*.mjs',
+                'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
                 'packages/systems/*.test.ts',
             ],
@@ -15,8 +17,10 @@ const config: KnipConfig = {
                 'vt-website-quartz/**',
                 'voicetree-evals/**',
                 'old/**',
+                'spikes/**',
                 'tools/**',
                 '.venv-server/**',
+                'health-dashboard/mockups/**',
             ],
         },
         'webapp': {
@@ -25,10 +29,10 @@ const config: KnipConfig = {
                 'src/utils/empty-node-module.ts',
                 'src/utils/types/*.d.ts',
                 'src/web-main.tsx',
-                'src/shell/edge/main/electron/main.ts',
-                'src/shell/edge/main/electron/preload.ts',
+                'src/shell/edge/main/runtime/electron/app/main.ts',
+                'src/shell/edge/main/runtime/electron/app/preload.ts',
                 'src/shell/edge/main/cli/**/*.ts',
-                'src/shell/edge/main/mcp-server/**/*.ts',
+                'src/shell/edge/main/runtime/mcp-server/**/*.ts',
                 'src/**/*.test.{ts,tsx}',
             ],
             project: ['src/**/*.{ts,tsx}'],
@@ -47,9 +51,7 @@ const config: KnipConfig = {
     },
     exclude: ['duplicates'],
     ignoreExportsUsedInFile: true,
-    ignoreDependencies: [
-        '@electron/rebuild',
-    ],
+    tags: ['-knipignore'],
 }
 
 export default config

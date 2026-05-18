@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { useUsageData } from '@/shell/UI/views/hooks/useUsageData';
-import type { ClaudeUsageWindow, CodexRateLimit } from '@/shell/edge/main/usage/types';
+import type { ClaudeUsageWindow, CodexRateLimit } from '@/shell/edge/main/observability/usage/types';
 
 const STALE_THRESHOLD_MS: number = 15 * 60_000;
 

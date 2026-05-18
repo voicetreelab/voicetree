@@ -1,18 +1,13 @@
 import {execSync} from 'node:child_process'
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 
-type PackageInfo = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
 
 type FileTurbulence = {
     readonly packageName: string
@@ -30,25 +25,10 @@ type PackageAggregate = {
     readonly maxFile: FileTurbulence | null
 }
 
-async function discoverPackages(): Promise<PackageInfo[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const results = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const pkgJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        const srcRoot = join(SYSTEMS_ROOT, entry.name, 'src')
-        try {
-            const pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf8'))
-            if (!(await pathExists(srcRoot))) return null
-            return {
-                name: pkgJson.name as string,
-                dirName: entry.name,
-                srcRoot,
-            }
-        } catch {
-            return null
-        }
-    }))
-    return results.filter((p): p is PackageInfo => p !== null)
+function isNotFoundError(error: unknown): boolean {
+    return error instanceof Error
+        && 'code' in error
+        && (error as {readonly code?: string}).code === 'ENOENT'
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -62,6 +42,7 @@ async function pathExists(p: string): Promise<boolean> {
 
 function isProductionSource(path: string): boolean {
     return path.endsWith('.ts')
+        && !path.endsWith('/__audit_seed__.ts')
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.endsWith('.d.ts')
@@ -82,14 +63,14 @@ async function listProductionSources(root: string): Promise<string[]> {
 
 function collectGitChurn(): ReadonlyMap<string, number> {
     const output = execSync(
-        "git log --since='6 months ago' --format=%H --name-only -- packages/systems",
-        {cwd: REPO_ROOT, encoding: 'utf8'},
+        "git log --since='6 months ago' --format= --name-only",
+        {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024},
     )
     const churn = new Map<string, number>()
 
     for (const line of output.split('\n')) {
         const file = line.trim()
-        if (!file || !file.startsWith('packages/systems/')) continue
+        if (!file) continue
         churn.set(file, (churn.get(file) ?? 0) + 1)
     }
 
@@ -123,8 +104,15 @@ async function measureFile(
     pkg: PackageInfo,
     filePath: string,
     churnByFile: ReadonlyMap<string, number>,
-): Promise<FileTurbulence> {
-    const text = await readFile(filePath, 'utf8')
+): Promise<FileTurbulence | null> {
+    let text: string
+    try {
+        text = await readFile(filePath, 'utf8')
+    } catch (error) {
+        if (isNotFoundError(error)) return null
+        throw error
+    }
+
     const file = relative(REPO_ROOT, filePath)
     const churn = churnByFile.get(file) ?? 0
     const complexity = countComplexity(filePath, text)
@@ -143,7 +131,7 @@ async function measureTurbulence(packages: readonly PackageInfo[]): Promise<File
         const files = await listProductionSources(pkg.srcRoot)
         return Promise.all(files.map(file => measureFile(pkg, file, churnByFile)))
     }))
-    return nested.flat().sort((a, b) =>
+    return nested.flat().filter((row): row is FileTurbulence => row !== null).sort((a, b) =>
         b.turbulence - a.turbulence
         || b.churn - a.churn
         || b.complexity - a.complexity
@@ -233,6 +221,21 @@ describe('systems turbulence diagnostics', () => {
             formatTopFiles(rows),
             formatPackageAggregates(aggregates),
         ].join('\n'))
+
+        await recordHealthMetric({
+            metricId: 'turbulence',
+            metricName: 'Turbulence Coverage',
+            description: 'Number of production source files scored by churn multiplied by complexity.',
+            category: 'Churn',
+            current: rows.length,
+            budget: 1,
+            comparison: 'gte',
+            unit: 'files',
+            details: {
+                topFiles: rows.slice(0, 20),
+                aggregates,
+            },
+        })
 
         expect(rows.length).toBeGreaterThan(0)
     })

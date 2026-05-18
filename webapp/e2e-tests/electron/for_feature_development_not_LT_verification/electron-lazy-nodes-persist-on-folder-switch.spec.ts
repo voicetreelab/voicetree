@@ -204,7 +204,7 @@ This is the only node in project 2.
     await electronApp.close();
   },
 
-  appWindow: async ({ electronApp, project1Path }, use) => {
+  appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15000 });
 
     // Log console messages for debugging

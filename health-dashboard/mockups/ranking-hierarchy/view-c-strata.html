@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ranking · C · Strata Bar Chart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --ink-0:#0c0a06; --ink-1:#15110b; --ink-2:#1d1810; --ink-3:#251d12;
+  --rule:#2c2418; --rule-soft:#1f1810; --rule-strong:#3d3220;
+  --paper:#f4ecda; --paper-muted:#c2b690; --paper-faint:#857a5d; --paper-ghost:#4d4430;
+  --sig:#ff4438; --sig-soft:rgba(255,68,56,.10); --sig-edge:rgba(255,68,56,.34);
+  --vital:#9ce363; --vital-soft:rgba(156,227,99,.10); --vital-edge:rgba(156,227,99,.32);
+  --caution:#f5b04a; --caution-soft:rgba(245,176,74,.10); --caution-edge:rgba(245,176,74,.34);
+  --accent:#f7e3a6;
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);color:var(--paper);background:var(--ink-0);min-height:100vh;
+  background-image:radial-gradient(at 12% 8%,rgba(247,227,166,.025),transparent 40%),radial-gradient(at 88% 92%,rgba(255,68,56,.018),transparent 42%);
+  background-attachment:fixed;line-height:1.5;padding:2.2rem clamp(1.1rem,3vw,2rem) 4rem}
+.wrap{max-width:1380px;margin:0 auto}
+
+/* ── Bulletin header ─────────────────────────────────────── */
+.bulletin{display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:1.4rem;padding-bottom:.9rem;border-bottom:1px solid var(--rule-strong);margin-bottom:1.8rem}
+.bulletin-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-faint)}
+.bulletin h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3vw,2.25rem);line-height:1;color:var(--paper);font-variation-settings:"opsz" 96,"SOFT" 30}
+.bulletin h1 em{font-style:italic;color:var(--accent);font-weight:300}
+.bulletin .right{font-family:var(--mono);font-size:.7rem;color:var(--paper-muted);text-align:right;letter-spacing:.04em}
+.bulletin .right b{color:var(--paper);font-weight:500}
+.bulletin .right .fail-tally{color:var(--sig)}
+
+/* ── Section head ────────────────────────────────────────── */
+.section-head{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:.9rem;margin-bottom:1.2rem}
+.section-name{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.05rem;color:var(--paper)}
+.section-rule{height:1px;background:var(--rule);align-self:center;margin-top:.2em}
+.section-tally{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;color:var(--paper-faint);text-transform:uppercase}
+
+/* ── Strata chart ────────────────────────────────────────── */
+.chart-frame{border:1px solid var(--rule-strong);background:var(--ink-1);padding:1.5rem 1rem 1rem;position:relative;overflow:hidden}
+.chart-frame::before,.chart-frame::after{
+  content:"";position:absolute;background:var(--rule);
+}
+.chart-frame::before{top:0;left:0;width:100%;height:1px}
+.chart-frame::after{bottom:0;left:0;width:100%;height:1px}
+
+.chart-eyebrow{font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;color:var(--paper-faint);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:.8rem;padding:0 .25rem}
+.chart-eyebrow em{font-family:var(--serif);font-style:italic;letter-spacing:.01em;color:var(--paper)}
+
+.chart-wrap{position:relative;width:100%;overflow-x:auto;overflow-y:visible}
+svg.chart{display:block;font-family:var(--mono)}
+
+/* SVG text classes */
+.svg-cat-label{font-family:var(--serif);font-style:italic;font-weight:400;font-size:13px;fill:var(--paper);letter-spacing:.01em}
+.svg-cat-num{font-family:var(--mono);font-size:9px;fill:var(--paper-faint);letter-spacing:.18em;text-transform:uppercase}
+.svg-sub-label{font-family:var(--mono);font-size:9px;fill:var(--paper-muted);letter-spacing:.06em;text-transform:uppercase}
+.svg-axis-label{font-family:var(--mono);font-size:10px;fill:var(--paper-faint);letter-spacing:.02em}
+.svg-axis-title{font-family:var(--mono);font-size:9px;fill:var(--paper-ghost);letter-spacing:.18em;text-transform:uppercase}
+.svg-budget-label{font-family:var(--mono);font-size:9px;fill:var(--sig);letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+
+/* Leaf rect classes */
+rect.leaf{stroke:var(--rule-strong);stroke-width:.5}
+rect.leaf[data-status="pass"]{fill:var(--vital)}
+rect.leaf[data-status="fail"]{fill:var(--sig)}
+rect.leaf[data-status="caution"]{fill:var(--caution)}
+rect.leaf[data-status="gate-pass"]{fill:var(--paper-ghost)}
+
+rect.bg-track{fill:var(--ink-0);stroke:var(--rule-soft);stroke-width:.5}
+
+/* Brackets */
+.bracket{fill:none;stroke:var(--paper-muted);stroke-width:1}
+.bracket-sub{stroke:var(--paper-ghost);stroke-width:.75}
+.budget-line{stroke:var(--sig);stroke-width:1;stroke-dasharray:none;opacity:.65}
+.zero-line{stroke:var(--rule-strong);stroke-width:1}
+.gridline{stroke:var(--rule);stroke-width:.5;stroke-dasharray:2 3}
+
+.leaf-tick{stroke:var(--rule-strong);stroke-width:.5}
+.leaf-name{font-family:var(--mono);font-size:8.5px;fill:var(--paper-muted);letter-spacing:.01em;text-anchor:end;dominant-baseline:middle}
+.leaf-name.is-fail{fill:var(--sig);font-weight:500}
+.leaf-name.is-caution{fill:var(--caution)}
+.leaf-name.is-gate-pass{fill:var(--paper-ghost)}
+
+/* Hoverable */
+rect.leaf:hover{stroke:var(--paper);stroke-width:1}
+.leaf-group{cursor:default}
+.leaf-tooltip{display:none;pointer-events:none}
+.leaf-group:hover .leaf-tooltip{display:block}
+.leaf-tooltip rect{fill:var(--ink-0);stroke:var(--paper-muted);stroke-width:.5}
+.leaf-tooltip text{font-family:var(--mono);font-size:10px;fill:var(--paper)}
+
+.legend{margin-top:1.2rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.7rem 0;border-top:1px solid var(--rule);font-family:var(--mono);font-size:.6rem;color:var(--paper-ghost);letter-spacing:.04em}
+.legend em{font-family:var(--serif);font-style:italic;color:var(--paper-faint);letter-spacing:0}
+.legend .key{display:inline-flex;gap:.35rem;align-items:center;margin-right:1rem}
+.legend .key::before{content:"";display:inline-block;width:12px;height:6px;background:currentColor}
+.legend .k-pass{color:var(--vital)} .legend .k-fail{color:var(--sig)}
+.legend .k-caution{color:var(--caution)} .legend .k-gate{color:var(--paper-ghost)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bulletin">
+    <div>
+      <div class="bulletin-eyebrow">View C · Mockup</div>
+      <h1>The <em>Strata</em> Survey</h1>
+    </div>
+    <div></div>
+    <div class="right">
+      <div>icicle bar with bracketed hierarchy</div>
+      <div><b>49</b> metrics · <span class="fail-tally"><b id="fail-count">…</b> failing</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-name">Metric Ranking — Plotted by Stratum</span>
+    <span class="section-rule"></span>
+    <span class="section-tally" id="tally">…</span>
+  </div>
+
+  <div class="chart-frame">
+    <div class="chart-eyebrow">
+      <span>Plate I &nbsp;·&nbsp; <em>budget multiplier across every metric, bracketed by structure</em></span>
+      <span>Y: 0 → 2× cap &nbsp;·&nbsp; X: 49 metrics &nbsp;·&nbsp; brackets: scripts/measures/&lt;cat&gt;/&lt;sub&gt;</span>
+    </div>
+    <div class="chart-wrap" id="chart-wrap"></div>
+  </div>
+
+  <div class="legend">
+    <div>
+      <span class="key k-pass">pass</span>
+      <span class="key k-caution">approaching (≥ .85×)</span>
+      <span class="key k-fail">fail</span>
+      <span class="key k-gate">gate · budget = 0</span>
+    </div>
+    <div><em>brackets float up</em> · category bracket terminates at the worst leaf within it (worst-first aggregation)</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { buildTree, fmtUtil, METRICS } from './_data.js'
+
+const tree = buildTree(METRICS)
+
+// ── Layout constants ───────────────────────────────────────────────
+const LEAF_W     = 24        // px per leaf column
+const LEAF_GAP   = 2         // gap between leaves
+const SUB_GAP    = 6         // extra gap between subgroups
+const CAT_GAP    = 14        // extra gap between categories
+const PAD_LEFT   = 78        // axis label area
+const PAD_RIGHT  = 22
+const PAD_TOP    = 56        // category brackets area
+const SUB_BAND   = 18        // subgroup bracket band height
+const PLOT_H     = 280       // bar area height (0 → 2× util)
+const PAD_BOTTOM = 130       // for rotated leaf names
+
+const isCaution = (n) => n.kind === 'leaf' && n.passed && n.util >= .85 && n.metric.budget !== 0
+const leafStatus = (n) => isCaution(n) ? 'caution' : n.status
+
+// ── Compute leaf positions ─────────────────────────────────────────
+const leafPositions = []      // [{x, leaf, parent: {cat, sub|null}}]
+const subgroupSpans = []      // {x0, x1, name, util, passed}
+const categorySpans = []      // {x0, x1, name, util, passed, num}
+
+let cursor = PAD_LEFT
+tree.forEach((cat, ci) => {
+  const catStart = cursor
+  cat.children.forEach((child, si) => {
+    if (child.kind === 'subgroup') {
+      const subStart = cursor
+      // sort leaves worst-first within subgroup so the chart reads worst→best left-to-right
+      const ordered = [...child.children].sort((a,b) => b.util - a.util)
+      ordered.forEach((leaf, li) => {
+        leafPositions.push({ x: cursor, leaf, cat, sub: child })
+        cursor += LEAF_W + LEAF_GAP
+      })
+      const subEnd = cursor - LEAF_GAP
+      subgroupSpans.push({ x0: subStart, x1: subEnd, name: child.name, util: child.util, passed: child.passed, catIdx: ci })
+      cursor += SUB_GAP
+    } else {
+      // direct leaf at category level
+      leafPositions.push({ x: cursor, leaf: child, cat, sub: null })
+      cursor += LEAF_W + LEAF_GAP
+    }
+  })
+  const catEnd = cursor - LEAF_GAP
+  categorySpans.push({ x0: catStart, x1: catEnd, name: cat.name, util: cat.util, passed: cat.passed, num: ci + 1, count: cat.count })
+  cursor += CAT_GAP
+})
+
+const TOTAL_W = cursor + PAD_RIGHT
+const TOTAL_H = PAD_TOP + SUB_BAND + PLOT_H + PAD_BOTTOM
+
+// Y scale: 0 → 2× cap, plot area = PLOT_H
+const yBase    = PAD_TOP + SUB_BAND + PLOT_H
+const yFor     = (u) => yBase - (Math.min(u, 2) / 2) * PLOT_H
+const Y_BUDGET = yFor(1)
+const Y_TOP    = yFor(2)
+
+// ── Render SVG ─────────────────────────────────────────────────────
+const svgNS = 'http://www.w3.org/2000/svg'
+const parts = []
+
+// Background plot frame + gridlines
+parts.push(`<rect x="${PAD_LEFT - 8}" y="${PAD_TOP + SUB_BAND}" width="${TOTAL_W - PAD_LEFT - PAD_RIGHT + 10}" height="${PLOT_H}" fill="#0c0a06" stroke="#1f1810" stroke-width=".5" />`)
+
+// Gridlines at 0.5×, 1.5× and budget at 1.0×
+for (const v of [0.5, 1.5]) {
+  const y = yFor(v)
+  parts.push(`<line class="gridline" x1="${PAD_LEFT - 8}" y1="${y}" x2="${TOTAL_W - PAD_RIGHT + 2}" y2="${y}" />`)
+  parts.push(`<text class="svg-axis-label" x="${PAD_LEFT - 14}" y="${y + 3}" text-anchor="end">${v.toFixed(1)}×</text>`)
+}
+// Budget line
+parts.push(`<line class="budget-line" x1="${PAD_LEFT - 8}" y1="${Y_BUDGET}" x2="${TOTAL_W - PAD_RIGHT + 2}" y2="${Y_BUDGET}" />`)
+parts.push(`<text class="svg-budget-label" x="${PAD_LEFT - 14}" y="${Y_BUDGET + 3}" text-anchor="end">1.0× BUDGET</text>`)
+// Cap line
+parts.push(`<line class="zero-line" x1="${PAD_LEFT - 8}" y1="${Y_TOP}" x2="${TOTAL_W - PAD_RIGHT + 2}" y2="${Y_TOP}" />`)
+parts.push(`<text class="svg-axis-label" x="${PAD_LEFT - 14}" y="${Y_TOP + 3}" text-anchor="end">2.0× cap</text>`)
+// Zero line
+parts.push(`<line class="zero-line" x1="${PAD_LEFT - 8}" y1="${yBase}" x2="${TOTAL_W - PAD_RIGHT + 2}" y2="${yBase}" />`)
+parts.push(`<text class="svg-axis-label" x="${PAD_LEFT - 14}" y="${yBase + 3}" text-anchor="end">0×</text>`)
+parts.push(`<text class="svg-axis-title" transform="translate(20,${PAD_TOP + SUB_BAND + PLOT_H/2 + 90}) rotate(-90)">budget · utilization</text>`)
+
+// Category brackets (top)
+for (const c of categorySpans) {
+  const stat = c.passed ? 'pass' : 'fail'
+  const color = c.passed ? '#c2b690' : '#ff4438'
+  const yTop = 28
+  // bracket: from x0..x1, dropping down 8px
+  parts.push(`<path class="bracket" d="M ${c.x0} ${yTop + 8} L ${c.x0} ${yTop} L ${c.x1} ${yTop} L ${c.x1} ${yTop + 8}" stroke="${color}" />`)
+  // category aggregate bar — vertical line dropping from yTop down to yFor(util)
+  parts.push(`<line x1="${(c.x0+c.x1)/2}" y1="${yTop}" x2="${(c.x0+c.x1)/2}" y2="${yFor(c.util)}" stroke="${color}" stroke-width=".75" stroke-dasharray="1 2" opacity=".5" />`)
+  // label
+  const mid = (c.x0 + c.x1) / 2
+  parts.push(`<text class="svg-cat-num" x="${mid}" y="${yTop - 18}" text-anchor="middle">§${String(c.num).padStart(2,'0')} · n=${c.count}</text>`)
+  parts.push(`<text class="svg-cat-label" x="${mid}" y="${yTop - 4}" text-anchor="middle">${c.name}</text>`)
+}
+
+// Subgroup brackets (between cat and plot)
+for (const s of subgroupSpans) {
+  const stat = s.passed ? 'pass' : 'fail'
+  const color = s.passed ? '#857a5d' : '#ff4438'
+  const y = PAD_TOP + 6
+  parts.push(`<path class="bracket-sub" d="M ${s.x0} ${y + 6} L ${s.x0} ${y} L ${s.x1} ${y} L ${s.x1} ${y + 6}" stroke="${color}" />`)
+  const mid = (s.x0 + s.x1) / 2
+  parts.push(`<text class="svg-sub-label" x="${mid}" y="${y - 3}" text-anchor="middle">${s.name}</text>`)
+}
+
+// Leaf bars + labels
+for (const lp of leafPositions) {
+  const { x, leaf } = lp
+  const stat = leafStatus(leaf)
+  const yT = yFor(leaf.util)
+  const barH = yBase - yT
+  // background track
+  parts.push(`<rect class="bg-track" x="${x}" y="${Y_TOP}" width="${LEAF_W}" height="${yBase - Y_TOP}" />`)
+  // the leaf bar
+  parts.push(`<g class="leaf-group">`)
+  parts.push(`<rect class="leaf" data-status="${stat}" x="${x}" y="${yT}" width="${LEAF_W}" height="${Math.max(barH, .5)}" />`)
+  // rotated label below
+  const cls = stat === 'fail' ? 'leaf-name is-fail' : stat === 'caution' ? 'leaf-name is-caution' : stat === 'gate-pass' ? 'leaf-name is-gate-pass' : 'leaf-name'
+  parts.push(`<text class="${cls}" transform="translate(${x + LEAF_W/2 - 3} ${yBase + 6}) rotate(-50)">${leaf.name}</text>`)
+  // tick
+  parts.push(`<line class="leaf-tick" x1="${x + LEAF_W/2}" y1="${yBase}" x2="${x + LEAF_W/2}" y2="${yBase + 3}" />`)
+
+  // tooltip
+  const u = leaf.util === Infinity ? '∞×' : `${leaf.util.toFixed(2)}×`
+  const cmp = leaf.metric.comparison === 'lte' ? '≤' : '≥'
+  parts.push(`
+    <g class="leaf-tooltip" transform="translate(${x + LEAF_W/2}, ${yT - 8})">
+      <rect x="-100" y="-30" width="200" height="28" />
+      <text x="0" y="-15" text-anchor="middle">${leaf.name}</text>
+      <text x="0" y="-4" text-anchor="middle" fill="#857a5d">${u} · ${cmp} ${leaf.metric.budget} · ${stat.toUpperCase()}</text>
+    </g>`)
+  parts.push(`</g>`)
+}
+
+document.getElementById('chart-wrap').innerHTML =
+  `<svg class="chart" viewBox="0 0 ${TOTAL_W} ${TOTAL_H}" width="${TOTAL_W}" height="${TOTAL_H}" xmlns="${svgNS}">${parts.join('')}</svg>`
+
+// Tally
+let total = 0, fail = 0
+for (const c of tree) for (const x of c.children) {
+  if (x.kind === 'leaf') { total++; if (!x.passed) fail++ }
+  else for (const l of x.children) { total++; if (!l.passed) fail++ }
+}
+document.getElementById('tally').textContent = `${tree.length} categories · ${subgroupSpans.length} subgroups · ${total} metrics · ${fail} failing`
+document.getElementById('fail-count').textContent = String(fail)
+</script>
+</body>
+</html>

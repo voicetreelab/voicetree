@@ -1,11 +1,12 @@
 {
   "$schema": "graph-state/snapshot@1",
   "id": "051-two-roots-loaded",
-  "description": "Both roots loaded for LoadRoot / UnloadRoot sequences.",
+  "description": "Both roots available for folder-state sequences.",
   "state": {
     "graph": {
       "nodes": {
         "/tmp/graph-state-fixtures/root-a/overview.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/overview.md",
           "contentWithoutYamlOrLinks": "# overview\n\nTop-level summary.\n",
@@ -20,6 +21,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-a/tasks/seed.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-a/tasks/seed.md",
           "contentWithoutYamlOrLinks": "# seed\n\nCore task file.\n",
@@ -34,6 +36,7 @@
           }
         },
         "/tmp/graph-state-fixtures/root-b/remote.md": {
+          "kind": "leaf",
           "outgoingEdges": [],
           "absoluteFilePathIsID": "/tmp/graph-state-fixtures/root-b/remote.md",
           "contentWithoutYamlOrLinks": "# remote\n\nSecondary root note.\n",
@@ -72,10 +75,6 @@
       "unresolvedLinksIndex": []
     },
     "roots": {
-      "loaded": [
-        "/tmp/graph-state-fixtures/root-a",
-        "/tmp/graph-state-fixtures/root-b"
-      ],
       "folderTree": [
         {
           "name": "root-a",
@@ -118,7 +117,20 @@
         }
       ]
     },
-    "collapseSet": [],
+    "folderState": [
+      [
+        "/tmp/graph-state-fixtures/root-a",
+        "expanded"
+      ],
+      [
+        "/tmp/graph-state-fixtures/root-b",
+        "expanded"
+      ]
+    ],
+    "activeView": {
+      "viewId": "main",
+      "name": "main"
+    },
     "selection": [],
     "layout": {
       "positions": []

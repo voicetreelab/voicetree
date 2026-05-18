@@ -1,4 +1,11 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
+
+const CI_CHECK_REPORTER = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../health-dashboard/reporters/playwright-ci-check-reporter.mjs',
+);
 
 /**
  * Tier 1: the single highest-value system test.
@@ -16,7 +23,12 @@ export default defineConfig({
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [
     ['list', { printSteps: false }],
-    ['html', { outputFolder: 'playwright-report-tier1-system', open: 'never' }]
+    ['html', { outputFolder: 'playwright-report-tier1-system', open: 'never' }],
+    [CI_CHECK_REPORTER, {
+      checkId: 'e2e-tier1',
+      checkName: 'E2E Tier 1 (Electron Smoke)',
+      command: 'npm run test:e2e:tier1',
+    }],
   ],
   use: {
     trace: 'on-first-retry',

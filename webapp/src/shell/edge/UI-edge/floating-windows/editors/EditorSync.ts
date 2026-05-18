@@ -1,10 +1,11 @@
 import type {Core} from 'cytoscape';
 import * as O from 'fp-ts/lib/Option.js';
 
-import type {GraphDelta} from '@vt/graph-model/graph';
-import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/EditorStore";
+import type {Edge, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph';
+import type {ProjectedEdge, ProjectedGraph, ProjectedNode} from '@vt/graph-state/contract';
+import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
 import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/graph";
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
@@ -60,7 +61,11 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                             }
                             const suffix: string = getAppendedSuffix(prevContent, newContent);
                             if (!currentEditorContent.endsWith(suffix)) {
-                                cmEditor.setValue(currentEditorContent + suffix);
+                                // appendAtEnd inserts the suffix at the doc tail
+                                // without moving the cursor. Using setValue here
+                                // would reset the cursor to end-of-doc, splitting
+                                // the user's in-flight typing across the suffix.
+                                cmEditor.appendAtEnd(suffix);
                             }
                             continue;
                         }
@@ -95,5 +100,85 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                 closeEditor(cy, editorOption.value);
             }
         }
+    }
+}
+
+/**
+ * Build a synthetic GraphNode from a ProjectedNode + that node's outgoing edges
+ * so the existing `fromNodeToContentWithWikilinks` and append-only diff logic
+ * can compute editor content. ProjectedGraph is the only form available on the
+ * SSE path post-7831f39c, so we adapt at this seam rather than threading
+ * GraphNodes through the daemon→renderer wire.
+ */
+function projectedNodeToSyntheticGraphNode(
+    node: ProjectedNode,
+    edges: readonly ProjectedEdge[],
+): GraphNode {
+    const outgoingEdges: readonly Edge[] = edges
+        .filter((edge: ProjectedEdge) => edge.source === node.id && edge.kind === 'real')
+        .map((edge: ProjectedEdge) => ({
+            targetId: edge.target as NodeIdAndFilePath,
+            label: edge.label ?? '',
+        }));
+
+    return {
+        kind: 'leaf',
+        outgoingEdges,
+        absoluteFilePathIsID: node.id as NodeIdAndFilePath,
+        contentWithoutYamlOrLinks: node.content,
+        nodeUIMetadata: {
+            color: O.none,
+            position: O.none,
+            additionalYAMLProps: new Map<string, string>(),
+            ...(node.isContextNode === true ? { isContextNode: true } : {}),
+        },
+    };
+}
+
+/**
+ * Update floating editors from a ProjectedGraph snapshot delivered by the
+ * daemon SSE channel. Diffs the new projection against the previous one to
+ * synthesize the per-node UpsertNode deltas that `updateFloatingEditors` needs,
+ * then defers to the existing append-only / focus-aware merge pipeline.
+ *
+ * @param cy            Cytoscape core (for delete-side editor close)
+ * @param graph         The new projected graph snapshot
+ * @param previousGraph The prior snapshot (or null on first delivery)
+ */
+export function updateFloatingEditorsFromProjectedGraph(
+    cy: Core,
+    graph: ProjectedGraph,
+    previousGraph: ProjectedGraph | null,
+): void {
+    const previousNodeById: Map<string, ProjectedNode> = new Map();
+    if (previousGraph) {
+        for (const prev of previousGraph.nodes) {
+            if (prev.kind === 'file') previousNodeById.set(prev.id, prev);
+        }
+    }
+
+    const delta: GraphDelta = [];
+    for (const node of graph.nodes) {
+        if (node.kind !== 'file') continue;
+
+        // Skip nodes without an open editor — keeps this hot-path proportional
+        // to the number of pinned editors, not the size of the graph.
+        if (O.isNone(getEditorByNodeId(node.id))) continue;
+
+        const newGraphNode: GraphNode = projectedNodeToSyntheticGraphNode(node, graph.edges);
+        const prevProjected: ProjectedNode | undefined = previousNodeById.get(node.id);
+        const previousNode: O.Option<GraphNode> = prevProjected
+            ? O.some(projectedNodeToSyntheticGraphNode(prevProjected, previousGraph?.edges ?? []))
+            : O.none;
+
+        delta.push({
+            type: 'UpsertNode',
+            nodeToUpsert: newGraphNode,
+            previousNode,
+        });
+    }
+
+    if (delta.length > 0) {
+        updateFloatingEditors(cy, delta);
     }
 }

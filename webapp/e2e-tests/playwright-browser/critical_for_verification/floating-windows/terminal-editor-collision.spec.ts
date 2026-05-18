@@ -71,13 +71,13 @@ async function exposeFloatingWindowAPI(page: import('@playwright/test').Page): P
   await page.evaluate(async () => {
     // Import the actual modules now that Vite has loaded them
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const floatingWindowsModule = await import('/src/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows.ts' as any);
+    const floatingWindowsModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const createWindowChromeModule = await import('/src/shell/edge/UI-edge/floating-windows/create-window-chrome.ts' as any);
+    const createWindowChromeModule = await import('/src/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anchorModule = await import('/src/shell/edge/UI-edge/floating-windows/anchor-to-node.ts' as any);
+    const anchorModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const types = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
+    const types = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/types.ts' as any);
 
     (window as unknown as {
       floatingWindowAPI: {

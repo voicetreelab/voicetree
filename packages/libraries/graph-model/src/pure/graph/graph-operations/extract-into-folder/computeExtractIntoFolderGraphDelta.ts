@@ -1,16 +1,15 @@
 import normalizePath from 'normalize-path'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '../..'
-import { linkMatchScore } from '../../markdown-parsing/extract-edges'
-import { getFolderDescendantNodeIds, getFolderParent } from '../../folderCollapse'
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
-import { stableIdSuffix } from '../../stableIdSuffix'
+import { getFolderDescendantNodeIds, getFolderParent, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
     readonly commonParentPath: string | null
     readonly supportedSelectionCount: number
+    readonly selectionsShareParent: boolean
 }
 
 export interface ComputeExtractIntoFolderGraphDeltaResult {
@@ -24,6 +23,39 @@ function getSelectedItemParent(selectedItemId: NodeIdAndFilePath): string | null
         : getFolderParent(selectedItemId)
 }
 
+function longestCommonFolderPath(parentPaths: readonly (string | null)[]): string | null {
+    if (parentPaths.length === 0 || parentPaths.some((parentPath) => parentPath === null)) {
+        return null
+    }
+
+    const stringPaths: readonly string[] = parentPaths as readonly string[]
+    const allAbsolute: boolean = stringPaths.every((parentPath) => parentPath.startsWith('/'))
+    const segmentLists: readonly (readonly string[])[] = stringPaths.map((parentPath) =>
+        parentPath.split('/').filter((segment) => segment.length > 0)
+    )
+
+    const minSegmentCount: number = segmentLists.reduce<number>(
+        (acc: number, segments: readonly string[]) => Math.min(acc, segments.length),
+        Number.POSITIVE_INFINITY
+    )
+
+    const commonSegments: string[] = []
+    for (let segmentIndex = 0; segmentIndex < minSegmentCount; segmentIndex++) {
+        const segment: string = segmentLists[0][segmentIndex]
+        if (segmentLists.every((segments) => segments[segmentIndex] === segment)) {
+            commonSegments.push(segment)
+        } else {
+            break
+        }
+    }
+
+    if (commonSegments.length === 0) {
+        return null
+    }
+    const prefix: string = allAbsolute ? '/' : ''
+    return prefix + commonSegments.join('/') + '/'
+}
+
 export function getExtractIntoFolderSelectionSupport(
     selectedItemIds: readonly NodeIdAndFilePath[]
 ): ExtractIntoFolderSelectionSupport {
@@ -31,19 +63,24 @@ export function getExtractIntoFolderSelectionSupport(
         return {
             canExtract: false,
             commonParentPath: null,
-            supportedSelectionCount: 0
+            supportedSelectionCount: 0,
+            selectionsShareParent: false
         }
     }
 
     const parentPaths: readonly (string | null)[] = selectedItemIds.map(getSelectedItemParent)
     const firstParentPath: string | null = parentPaths[0] ?? null
-    const sharesSameParent: boolean = parentPaths.every((parentPath) => parentPath === firstParentPath)
-    const supportedSelectionCount: number = sharesSameParent ? selectedItemIds.length : 0
+    const selectionsShareParent: boolean = parentPaths.every((parentPath) => parentPath === firstParentPath)
+    const commonParentPath: string | null = selectionsShareParent
+        ? firstParentPath
+        : longestCommonFolderPath(parentPaths)
+    const supportedSelectionCount: number = selectedItemIds.length
 
     return {
         canExtract: supportedSelectionCount >= 2,
-        commonParentPath: sharesSameParent ? firstParentPath : null,
-        supportedSelectionCount
+        commonParentPath,
+        supportedSelectionCount,
+        selectionsShareParent
     }
 }
 
@@ -146,7 +183,9 @@ function applyTargetRedirects(
     }
 }
 
-function computeHubPosition(nodesToMove: readonly GraphNode[]): O.Option<Position> {
+const FOLDER_INDEX_NOTE_NAME: string = 'index.md'
+
+function computeFolderIndexPosition(nodesToMove: readonly GraphNode[]): O.Option<Position> {
     const positionedNodes: readonly Position[] = nodesToMove.flatMap((node) => {
         return O.isSome(node.nodeUIMetadata.position)
             ? [node.nodeUIMetadata.position.value]
@@ -168,25 +207,15 @@ function computeHubPosition(nodesToMove: readonly GraphNode[]): O.Option<Positio
     })
 }
 
-function createExtractionNames(
-    writePath: string,
-    selectedItemIds: readonly NodeIdAndFilePath[]
-): {
-    readonly folderName: string
-    readonly hubNoteName: string
-} {
-    const suffix: string = stableIdSuffix([writePath, ...selectedItemIds])
-
-    return {
-        folderName: `extract_${suffix}`,
-        hubNoteName: `hub_${suffix}.md`
-    }
+function generatedFolderName(writePath: string, selectedItemIds: readonly NodeIdAndFilePath[]): string {
+    return `extract_${stableIdSuffix([writePath, ...selectedItemIds])}`
 }
 
 export function computeExtractIntoFolderGraphDelta(
     selectedItemIds: readonly NodeIdAndFilePath[],
     graph: Graph,
-    writePath: string
+    writePath: string,
+    folderNameOverride?: string
 ): ComputeExtractIntoFolderGraphDeltaResult {
     const selectionSupport: ExtractIntoFolderSelectionSupport = getExtractIntoFolderSelectionSupport(selectedItemIds)
     if (!selectionSupport.canExtract) {
@@ -198,7 +227,9 @@ export function computeExtractIntoFolderGraphDelta(
         return { delta: [], newFolderId: null }
     }
 
-    const { folderName, hubNoteName } = createExtractionNames(writePath, selectedItemIds)
+    const folderName: string = folderNameOverride !== undefined && folderNameOverride.trim().length > 0
+        ? folderNameOverride.trim()
+        : generatedFolderName(writePath, selectedItemIds)
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
     const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 
@@ -316,18 +347,16 @@ export function computeExtractIntoFolderGraphDelta(
         }]
     })
 
-    const hubNoteId: NodeIdAndFilePath = joinNodePath(newFolderPath, hubNoteName)
-    const hubNote: GraphNode = {
+    const folderIndexNoteId: NodeIdAndFilePath = joinNodePath(newFolderPath, FOLDER_INDEX_NOTE_NAME)
+    const containedNodeCount: number = selectedItemTargetIds.size
+    const folderIndexNote: GraphNode = {
         kind: 'leaf',
-        absoluteFilePathIsID: hubNoteId,
-        outgoingEdges: Array.from(selectedItemTargetIds.values()).map((targetId) => ({
-            targetId,
-            label: ''
-        })),
-        contentWithoutYamlOrLinks: '# Hub',
+        absoluteFilePathIsID: folderIndexNoteId,
+        outgoingEdges: [],
+        contentWithoutYamlOrLinks: `Contains ${containedNodeCount} nodes.`,
         nodeUIMetadata: {
             color: O.none,
-            position: computeHubPosition(movedNodes.map(({ oldNode }) => oldNode)),
+            position: computeFolderIndexPosition(movedNodes.map(({ oldNode }) => oldNode)),
             additionalYAMLProps: new Map(),
             isContextNode: false
         }
@@ -351,7 +380,7 @@ export function computeExtractIntoFolderGraphDelta(
             ...externalNodeUpserts,
             {
                 type: 'UpsertNode' as const,
-                nodeToUpsert: hubNote,
+                nodeToUpsert: folderIndexNote,
                 previousNode: O.none
             },
             ...movedNodeDeletes

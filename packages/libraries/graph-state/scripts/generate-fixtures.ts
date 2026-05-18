@@ -1,7 +1,8 @@
-import { promises as fs } from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 
 import normalizePath from 'normalize-path'
+import * as E from 'fp-ts/lib/Either.js'
 
 import {
     buildGraphFromFiles,
@@ -25,9 +26,13 @@ import {
     serializeState,
     snapshotStateFromVault,
     toFixtureJson,
+    hydrateState,
+    type ProjectionDocument,
     type SequenceDocument,
     type SnapshotDocument,
 } from '../src/fixtures'
+import { configureRootIO } from '../src/rootIO'
+import { project } from '../src/project'
 
 interface MarkdownFile {
     readonly relativePath: string
@@ -67,6 +72,93 @@ function abs(rootPath: string, relativePath: string = ''): string {
 
 function folderId(rootPath: string, relativePath: string): string {
     return `${abs(rootPath, relativePath)}/`
+}
+
+function folderPath(folderId: string): string {
+    return folderId.endsWith('/') ? folderId.slice(0, -1) : folderId
+}
+
+function setFolderState(
+    path: string,
+    state: 'expanded' | 'collapsed' | 'hidden',
+): Command {
+    return {
+        type: 'SetFolderState',
+        viewId: 'main',
+        path: folderPath(path),
+        state,
+    }
+}
+
+function resolveFolderNodesVault(): string {
+    const candidates = [
+        path.resolve('brain/working-memory/tasks/folder-nodes'),
+        path.resolve('brain/mem/tasks/folder-nodes'),
+        path.resolve('../brain/mem/tasks/folder-nodes'),
+        path.resolve('../../brain/mem/tasks/folder-nodes'),
+        path.resolve('../../../brain/mem/tasks/folder-nodes'),
+    ]
+    const match = candidates.find((candidate) => existsSync(candidate))
+    if (!match) {
+        throw new Error(`folder-nodes vault fixture source not found. Checked: ${candidates.join(', ')}`)
+    }
+    return match
+}
+
+async function getDirectoryTreeFromDisk(rootPath: string): Promise<DirectoryEntry> {
+    const absolutePath = normalizePath(rootPath)
+    const stat = await fs.stat(absolutePath)
+    if (!stat.isDirectory()) {
+        return {
+            absolutePath: toAbsolutePath(absolutePath),
+            name: path.basename(absolutePath),
+            isDirectory: false,
+        }
+    }
+
+    const entries = await fs.readdir(absolutePath, { withFileTypes: true })
+    const children = await Promise.all(entries
+        .filter((entry) => !entry.name.startsWith('.'))
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((entry) => getDirectoryTreeFromDisk(path.join(absolutePath, entry.name))))
+
+    return {
+        absolutePath: toAbsolutePath(absolutePath),
+        name: path.basename(absolutePath),
+        isDirectory: true,
+        children,
+    }
+}
+
+async function collectMarkdownFiles(rootPath: string): Promise<Array<{ absolutePath: string; content: string }>> {
+    const absolutePath = normalizePath(rootPath)
+    const stat = await fs.stat(absolutePath)
+    if (stat.isDirectory()) {
+        const entries = await fs.readdir(absolutePath, { withFileTypes: true })
+        const nested = await Promise.all(entries
+            .filter((entry) => !entry.name.startsWith('.'))
+            .map((entry) => collectMarkdownFiles(path.join(absolutePath, entry.name))))
+        return nested.flat()
+    }
+
+    if (!absolutePath.endsWith('.md')) {
+        return []
+    }
+
+    return [{
+        absolutePath,
+        content: await fs.readFile(absolutePath, 'utf8'),
+    }]
+}
+
+function configureFixtureRootIO(): void {
+    configureRootIO({
+        getDirectoryTree: getDirectoryTreeFromDisk,
+        loadGraphFromDisk: async (vaultPaths) => {
+            const files = (await Promise.all(vaultPaths.map(collectMarkdownFiles))).flat()
+            return E.right(buildGraphFromFiles(files))
+        },
+    })
 }
 
 function renderScalar(value: string | number | boolean): string {
@@ -507,6 +599,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    configureFixtureRootIO()
     await fs.mkdir(FIXTURES_DIR, { recursive: true })
     await fs.rm(SNAPSHOTS_DIR, { recursive: true, force: true })
     await fs.rm(SEQUENCES_DIR, { recursive: true, force: true })
@@ -518,7 +611,7 @@ async function main(): Promise<void> {
     const movedPositions = {
         'alpha.md': { x: 80, y: 100 },
         'beta.md': { x: 360, y: 240 },
-        'gamma.md': { x: 280, y: 100 },
+        'gamma.md': { x: 360, y: 100 },
     } satisfies Record<string, Position>
     const baselinePositions = {
         'alpha.md': { x: 80, y: 100 },
@@ -624,14 +717,14 @@ async function main(): Promise<void> {
             ],
             loadedRoots: [ROOT_A],
         }),
-        snapshot('051-two-roots-loaded', 'Both roots loaded for LoadRoot / UnloadRoot sequences.', {
+        snapshot('051-two-roots-loaded', 'Both roots available for folder-state sequences.', {
             roots: [
                 { rootPath: ROOT_A, files: multiRootFilesRootA() },
                 { rootPath: ROOT_B, files: multiRootFilesRootB() },
             ],
             loadedRoots: [ROOT_A, ROOT_B],
         }),
-        snapshot('054-multi-command-final', 'Final state after LoadRoot → AddNode → Collapse → Select.', {
+        snapshot('054-multi-command-final', 'Final state after folder-state expand → AddNode → folder-state collapse → Select.', {
             roots: [
                 { rootPath: ROOT_A, files: multiRootFilesRootAWithNewNode() },
                 { rootPath: ROOT_B, files: multiRootFilesRootB() },
@@ -673,9 +766,9 @@ async function main(): Promise<void> {
     const sequences: SequenceDocument[] = [
         sequence(
             '100-collapse-command',
-            'Single Collapse command against a flat folder fixture.',
+            'Single SetFolderState(collapsed) command against a flat folder fixture.',
             '010-flat-folder',
-            [{ type: 'Collapse', folder: rootATasksFolder }],
+            [setFolderState(rootATasksFolder, 'collapsed')],
             {
                 finalSnapshot: '011-flat-folder-collapsed',
                 revisionDelta: 1,
@@ -684,9 +777,9 @@ async function main(): Promise<void> {
         ),
         sequence(
             '101-expand-command',
-            'Single Expand command that restores the flat folder fixture.',
+            'Single SetFolderState(expanded) command that restores the flat folder fixture.',
             '011-flat-folder-collapsed',
-            [{ type: 'Expand', folder: rootATasksFolder }],
+            [setFolderState(rootATasksFolder, 'expanded')],
             {
                 finalSnapshot: '010-flat-folder',
                 revisionDelta: 1,
@@ -752,9 +845,9 @@ async function main(): Promise<void> {
         ),
         sequence(
             '109-load-root-command',
-            'LoadRoot adds the second loaded root.',
+            'SetFolderState(expanded) adds the second implicit root.',
             '050-two-roots-root-a-only',
-            [{ type: 'LoadRoot', root: ROOT_B }],
+            [setFolderState(ROOT_B, 'expanded')],
             {
                 finalSnapshot: '051-two-roots-loaded',
                 revisionDelta: 1,
@@ -763,9 +856,9 @@ async function main(): Promise<void> {
         ),
         sequence(
             '110-unload-root-command',
-            'UnloadRoot removes the second loaded root.',
+            'SetFolderState(hidden) removes the second implicit root.',
             '051-two-roots-loaded',
-            [{ type: 'UnloadRoot', root: ROOT_B }],
+            [setFolderState(ROOT_B, 'hidden')],
             {
                 finalSnapshot: '050-two-roots-root-a-only',
                 revisionDelta: 1,
@@ -774,11 +867,11 @@ async function main(): Promise<void> {
         ),
         sequence(
             '111-collapse-expand-round-trip',
-            'Collapsing then expanding a folder returns to the expanded snapshot.',
+            'Setting a folder collapsed then expanded returns to the expanded snapshot.',
             '010-flat-folder',
             [
-                { type: 'Collapse', folder: rootATasksFolder },
-                { type: 'Expand', folder: rootATasksFolder },
+                setFolderState(rootATasksFolder, 'collapsed'),
+                setFolderState(rootATasksFolder, 'expanded'),
             ],
             { finalSnapshot: '010-flat-folder', revisionDelta: 2 },
         ),
@@ -794,12 +887,12 @@ async function main(): Promise<void> {
         ),
         sequence(
             '113-multi-command-load-add-collapse-select',
-            'LoadRoot → AddNode → Collapse → Select in one compound sequence.',
+            'Folder-state expand → AddNode → folder-state collapse → Select in one compound sequence.',
             '050-two-roots-root-a-only',
             [
-                { type: 'LoadRoot', root: ROOT_B },
+                setFolderState(ROOT_B, 'expanded'),
                 addNodeInsideTasksCommand,
-                { type: 'Collapse', folder: rootATasksFolder },
+                setFolderState(rootATasksFolder, 'collapsed'),
                 { type: 'Select', ids: [rootBRemote] },
             ],
             { finalSnapshot: '054-multi-command-final', revisionDelta: 4 },
@@ -813,25 +906,25 @@ async function main(): Promise<void> {
         ),
         sequence(
             '115-collapse-across-folder-boundary-f6',
-            'Collapse across an F6 boundary using an external → folder edge.',
+            'SetFolderState(collapsed) across an F6 boundary using an external → folder edge.',
             '012-f6-external-into-folder',
-            [{ type: 'Collapse', folder: rootATasksFolder }],
+            [setFolderState(rootATasksFolder, 'collapsed')],
             { finalSnapshot: '013-f6-external-into-folder-collapsed', revisionDelta: 1 },
         ),
         sequence(
             '116-nested-collapse',
-            'Collapse parent then child so both folders remain in collapseSet.',
+            'Set parent then child to collapsed so both folder-state rows remain collapsed.',
             '021-nested-folder',
             [
-                { type: 'Collapse', folder: nestedTasksFolder },
-                { type: 'Collapse', folder: nestedEpicsFolder },
+                setFolderState(nestedTasksFolder, 'collapsed'),
+                setFolderState(nestedEpicsFolder, 'collapsed'),
             ],
             { finalSnapshot: '023-all-collapsed', revisionDelta: 2 },
         ),
     ]
 
     const realVaultSnapshot = await snapshotStateFromVault(
-        'brain/working-memory/tasks/folder-nodes',
+        resolveFolderNodesVault(),
         {
             id: REAL_VAULT_FIXTURE_ID,
             description: 'Canonicalized real-vault snapshot sourced from brain/working-memory/tasks/folder-nodes.',
@@ -839,12 +932,24 @@ async function main(): Promise<void> {
         },
     )
 
-    for (const doc of [...snapshots, realVaultSnapshot]) {
+    const allSnapshots = [...snapshots, realVaultSnapshot]
+
+    for (const doc of allSnapshots) {
         await writeJson(path.join(SNAPSHOTS_DIR, `${doc.id}.json`), doc)
     }
 
     for (const doc of sequences) {
         await writeJson(path.join(SEQUENCES_DIR, `${doc.id}.json`), doc)
+    }
+
+    for (const doc of allSnapshots) {
+        const projectionDocument: ProjectionDocument = {
+            $schema: 'graph-state/projection@1',
+            id: doc.id,
+            sourceSnapshot: doc.id,
+            elementSpec: project(hydrateState(doc.state)),
+        }
+        await writeJson(path.join(PROJECTIONS_DIR, `${doc.id}.json`), projectionDocument)
     }
 
     console.log(

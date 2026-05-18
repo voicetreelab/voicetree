@@ -14,13 +14,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
+import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/actions/handleUIActions'
 import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { mapNewGraphToDelta } from '@vt/graph-model/graph'
 import { getNodeTitle } from '@vt/graph-model/markdown'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
     projectDelta,

@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
 import {
     IMPURE_IDENTIFIERS,
-    SOURCE_ROOTS,
     listSourceFiles,
     detectSideEffectsAST,
 } from './purity-analysis'
+import {discoverPackages} from './discover-packages'
 import { readFile } from 'node:fs/promises'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
 // ---------------------------------------------------------------------------
 // Known impure object.method pairs (mirrors IMPURE_OBJ_METHODS in purity-analysis)
@@ -261,12 +262,11 @@ function clean(x = 5) { return x + 1 }
 
     it('scans codebase source roots (informational)', async () => {
         const allFindings: GamingFinding[] = []
-        for (const root of SOURCE_ROOTS) {
-            const files = await listSourceFiles(root)
-            for (const file of files) {
-                const findings = await scanForDefaultValueGaming(file)
-                allFindings.push(...findings.map(f => ({ ...f, functionName: `${file}::${f.functionName}` })))
-            }
+        const packages = await discoverPackages()
+        const files = (await Promise.all(packages.map(pkg => listSourceFiles(pkg.srcRoot)))).flat()
+        for (const file of files) {
+            const findings = await scanForDefaultValueGaming(file)
+            allFindings.push(...findings.map(f => ({ ...f, functionName: `${file}::${f.functionName}` })))
         }
         // Informational: print what we find, don't gate
         if (allFindings.length > 0) {
@@ -278,6 +278,18 @@ function clean(x = 5) { return x + 1 }
             console.log('\n[default-value-gaming] No gaming patterns detected in codebase.')
         }
         // Always passes — this is a diagnostic scan
+        await recordHealthMetric({
+            metricId: 'default-value-detection',
+            metricName: 'Default Value Impurity Detection',
+            description: 'Functions whose bodies look pure while impure defaults hide side effects.',
+            category: 'Purity',
+            current: allFindings.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'findings',
+            details: {findings: allFindings},
+        })
+
         expect(true).toBe(true)
     }, 30_000)
 })

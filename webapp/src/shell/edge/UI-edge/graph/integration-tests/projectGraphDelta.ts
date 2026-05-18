@@ -12,7 +12,7 @@ import {
     getGraphCollapseSet,
     getFolderTreeState,
     subscribeFolderTree,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 
 interface TestProjectionState {
     graph: Graph

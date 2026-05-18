@@ -7,8 +7,8 @@
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 import {mkdirSync, writeFileSync, rmSync} from 'fs'
-import {createHeadlessServer, type HeadlessServer} from '../src/headlessServer'
-import {liveFocus, liveNeighbors, livePath} from '../src/live'
+import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
+import {liveFocus, liveNeighbors, livePath} from '../src/live/live'
 
 const VAULT = '/tmp/vt-bf200-obs-test'
 const A = `${VAULT}/a.md`

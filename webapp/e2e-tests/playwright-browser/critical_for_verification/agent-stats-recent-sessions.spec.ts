@@ -65,12 +65,23 @@ function generateWeekOfSessions(): SessionMetric[] {
  */
 async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMetric[]): Promise<void> {
   await page.addInitScript((sessionsData) => {
+    const createEmptyProjectedGraph = () => ({
+      nodes: [],
+      edges: [],
+      rootPath: '',
+      revision: 0,
+      forests: [],
+      arboricity: 0,
+      recentNodeIds: []
+    });
+
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
       main: {
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMem: async () => ({ success: true }),
         getGraph: async () => ({ nodes: {}, edges: [] }),
+        getProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         getNode: async () => null,
         loadSettings: async () => ({
           terminalSpawnPathRelativeToWatchedDirectory: '../',
@@ -83,10 +94,39 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock' }),
         loadPreviousFolder: async () => ({ success: false }),
+        getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock' }),
+        openVault: async (dir: string) => {
+          const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
+          setTimeout(() => {
+            mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
+          }, 10);
+
+          return {
+            sessionId: 'mock-session',
+            writePath: dir,
+            vaultState: {
+              vaultPath: dir,
+              readPaths: [dir],
+              writePath: dir,
+            },
+            initialProjectedGraph: projectedGraph,
+            folderState: [],
+            activeView: {
+              viewId: 'main',
+              name: 'Main',
+            },
+          };
+        },
         getBackendPort: async () => 5001,
         getMetrics: async () => ({ sessions: sessionsData }),
         // Frontend ready signal (no-op for tests)
         markFrontendReady: async () => {},
+        views: {
+          list: async () => [{ viewId: 'main', name: 'Main', isActive: true }],
+          activate: async () => ({ success: true }),
+          clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
+          delete: async () => ({ success: true }),
+        },
         applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
 
@@ -124,6 +164,10 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
       },
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},
+      onVaultSwitching: () => () => {},
+      onVaultReady: () => () => {},
+      onVaultLost: () => () => {},
+      onViewSwitched: () => () => {},
       removeAllListeners: () => {},
       terminal: {
         spawn: async () => ({ success: false }),
@@ -140,6 +184,7 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
       onBackendLog: () => {},
       graph: {
         _graphState: { nodes: {}, edges: [] },
+        _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
         onProjectedGraphUpdate: (callback: (graph: unknown) => void) => {

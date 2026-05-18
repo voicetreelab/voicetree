@@ -1,55 +1,13 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import {recordHealthMetric} from './_health-report-test-helpers'
+import { discoverPackages, DEFAULT_REPO_ROOT } from './discover-packages'
+import { listSourceFiles } from './purity-analysis'
 
-const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../..')
-
-const SOURCE_ROOTS: readonly string[] = [
-    join(REPO_ROOT, 'packages/libraries'),
-    join(REPO_ROOT, 'packages/systems'),
-    join(REPO_ROOT, 'webapp/src'),
-]
-
-function isProductionSource(filePath: string): boolean {
-    return (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
-        && !filePath.endsWith('.test.ts')
-        && !filePath.endsWith('.test.tsx')
-        && !filePath.endsWith('.spec.ts')
-        && !filePath.endsWith('.d.ts')
-        && !filePath.endsWith('.config.ts')
-        && !filePath.includes('__tests__')
-        && !filePath.includes('integration-tests')
-        && !filePath.includes('node_modules')
-        && !filePath.includes('/dist/')
-        && !filePath.includes('/build/')
-}
-
-async function listSourceFiles(root: string): Promise<string[]> {
-    const results: string[] = []
-
-    async function walk(dir: string): Promise<void> {
-        let entries
-        try {
-            entries = await readdir(dir, { withFileTypes: true })
-        } catch {
-            return
-        }
-        await Promise.all(entries.map(async entry => {
-            const fullPath: string = join(dir, entry.name)
-            if (entry.isDirectory()) {
-                await walk(fullPath)
-            } else if (entry.isFile() && isProductionSource(fullPath)) {
-                results.push(fullPath)
-            }
-        }))
-    }
-
-    await walk(root)
-    return results.sort()
-}
+const REPO_ROOT: string = resolve(DEFAULT_REPO_ROOT)
 
 type MutableFunctionInfo = {
     readonly name: string
@@ -339,7 +297,8 @@ async function analyzeAllFunctions(): Promise<{
     byLayer: Record<ArchLayer, LayerStats>
     totals: LayerStats
 }> {
-    const allFiles: string[] = (await Promise.all(SOURCE_ROOTS.map(listSourceFiles))).flat()
+    const packages = await discoverPackages()
+    const allFiles: string[] = (await Promise.all(packages.map(pkg => listSourceFiles(pkg.srcRoot)))).flat()
     const allMutable: MutableFunctionInfo[] = []
 
     await Promise.all(allFiles.map(async filePath => {
@@ -438,6 +397,18 @@ describe('function purity ratio (LOC)', () => {
         const purityRatio: number = totals.pureLoc / totals.totalLoc
         console.info(`Overall purity ratio: ${(purityRatio * 100).toFixed(1)}% (${totals.pureLoc} / ${totals.totalLoc} LOC)`)
 
+        await recordHealthMetric({
+            metricId: 'purity-ratio',
+            metricName: 'Purity Ratio',
+            description: 'Share of function LOC classified as pure by lexical side-effect detection.',
+            category: 'Purity',
+            current: purityRatio,
+            budget: MINIMUM_PURITY_RATIO,
+            comparison: 'gte',
+            unit: 'ratio',
+            details: {totals, byLayer},
+        })
+
         expect(
             purityRatio,
             `Purity ratio ${(purityRatio * 100).toFixed(1)}% is below the ${(MINIMUM_PURITY_RATIO * 100).toFixed(0)}% threshold. `
@@ -463,6 +434,20 @@ describe('function purity ratio (LOC)', () => {
         console.info(
             `pure/ directory: ${totalPureDirLoc} LOC across ${pureDirFunctions.length} functions, ${violationLoc} LOC with side-effect indicators`,
         )
-        expect(violationLoc).toBeLessThanOrEqual(totalPureDirLoc * 0.14)
+        await recordHealthMetric({
+            metricId: 'purity-ratio-pure-dir-side-effects',
+            metricName: 'Purity Ratio Pure Directory Side Effects',
+            description: 'Impure LOC detected inside pure/ directories by lexical side-effect detection.',
+            category: 'Purity',
+            current: violationLoc,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'LOC',
+            details: {
+                totalPureDirLoc,
+                violations,
+            },
+        })
+        expect(violationLoc).toBe(0)
     }, 30000)
 })

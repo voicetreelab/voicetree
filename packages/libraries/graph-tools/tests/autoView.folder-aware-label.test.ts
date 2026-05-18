@@ -2,8 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
-import type {CollapseCluster} from '../src/collapseBoundary'
-import {buildClusterDisplayLabelMap, renderAutoView} from '../src/autoView'
+import type {CollapseCluster} from '../src/view/collapseBoundary'
+import {buildClusterDisplayLabelMap, renderAutoView} from '../src/view/autoView'
 
 const tempDirs = new Set<string>()
 

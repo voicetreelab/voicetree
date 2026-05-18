@@ -26,7 +26,7 @@ import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
-import { clearDaemonClientCache, getActiveDaemonClient } from '@/shell/edge/main/electron/graph-daemon'
+import { clearDaemonClientCache, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 
 function hasEdgeToBasename(node: GraphNode | undefined, basename: string): boolean {
   if (!node?.outgoingEdges) return false
@@ -48,7 +48,7 @@ async function waitForGraphCondition(
   })
 }
 
-vi.mock('@/shell/edge/main/state/app-electron-state', () => ({
+vi.mock('@/shell/edge/main/runtime/state/app-electron-state', () => ({
   getMainWindow: vi.fn(() => ({
     webContents: {
       send: vi.fn(),

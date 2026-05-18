@@ -6,8 +6,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import {ensureSyntheticFixtures} from '../scripts/L3-BF-193-generate-fixtures'
-import {selectFormat, buildAutoHeader, type FormatDecision} from '../src/selectFormat'
-import {computeMetricsFromVault, type GraphMetrics} from '../src/graphMetrics'
+import {selectFormat, buildAutoHeader, type FormatDecision} from '../src/view/selectFormat'
+import {computeMetricsFromVault, type GraphMetrics} from '../src/view/graphMetrics'
 
 const VAULTS_ROOT = new URL('fixtures/roundtrip-vaults', import.meta.url).pathname
 

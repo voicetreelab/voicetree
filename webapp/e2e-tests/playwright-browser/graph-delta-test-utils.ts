@@ -62,6 +62,16 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
       return { success: true };
     };
 
+    const createEmptyProjectedGraph = (): ProjectedGraph => ({
+      nodes: [],
+      edges: [],
+      rootPath: '',
+      revision: 0,
+      forests: [],
+      arboricity: 0,
+      recentNodeIds: []
+    });
+
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
       // Main API (RPC-based, matches mainAPI from functional/shell/main/api.ts)
@@ -104,6 +114,29 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         },
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
+        getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock/watched/directory' }),
+        openVault: async (dir: string) => {
+          const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
+          setTimeout(() => {
+            mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
+          }, 10);
+
+          return {
+            sessionId: 'mock-session',
+            writePath: dir,
+            vaultState: {
+              vaultPath: dir,
+              readPaths: [dir],
+              writePath: dir,
+            },
+            initialProjectedGraph: projectedGraph,
+            folderState: [],
+            activeView: {
+              viewId: 'main',
+              name: 'Main',
+            },
+          };
+        },
 
         // Backend server configuration
         getBackendPort: async () => null,
@@ -113,6 +146,12 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
         // Frontend ready signal (no-op for tests)
         markFrontendReady: async () => {},
+        views: {
+          list: async () => [{ viewId: 'main', name: 'Main', isActive: true }],
+          activate: async () => ({ success: true }),
+          clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
+          delete: async () => ({ success: true }),
+        },
 
         // App support path (used by VaultPathSelector to derive home directory)
         getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
@@ -169,6 +208,10 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
       // File watching event listeners (no-op callbacks)
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},
+      onVaultSwitching: () => () => {},
+      onVaultReady: () => () => {},
+      onVaultLost: () => () => {},
+      onViewSwitched: () => () => {},
 
       // Remove event listeners
       removeAllListeners: () => {},
@@ -216,7 +259,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
           };
         },
         onGraphClear: () => () => {},
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         _projectedGraphCallback: undefined as ((graph: ProjectedGraph) => void) | undefined,
       },
 
@@ -313,9 +356,9 @@ export async function exposeTerminalStoreAPI(page: Page): Promise<void> {
   await page.evaluate(async () => {
     // Import the actual modules now that Vite has loaded them
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const terminalStore = await import('/src/shell/edge/UI-edge/state/TerminalStore.ts' as any);
+    const terminalStore = await import('/src/shell/edge/UI-edge/state/stores/TerminalStore.ts' as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const types = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
+    const types = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/types.ts' as any);
 
     (window as unknown as {
       terminalStoreAPI: {

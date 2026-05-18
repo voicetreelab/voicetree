@@ -1,0 +1,67 @@
+/* axes — axis banner, section, header, name, note, tally */
+/* =============================================================================
+   AXES
+   ========================================================================== */
+.axis-banner {
+  margin-bottom: 1.6rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  background: var(--ink-1);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--paper);
+  position: relative;
+}
+
+.axis-section { margin-bottom: 1.8rem; }
+.axis-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.axis-name {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 72, 'wght' 500;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  color: var(--paper);
+  margin-bottom: 0.1rem;
+}
+.axis-name::before {
+  content: 'axis';
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+  margin-bottom: 0.35rem;
+  font-style: normal;
+}
+.axis-note {
+  margin-top: 0.4rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--paper-muted);
+  max-width: 56ch;
+  line-height: 1.5;
+}
+.axis-tally {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--paper-muted);
+  white-space: nowrap;
+  text-align: right;
+}
+.axis-tally .t-pass { color: var(--vital); }
+.axis-tally .t-fail { color: var(--sig); font-weight: 600; }
+

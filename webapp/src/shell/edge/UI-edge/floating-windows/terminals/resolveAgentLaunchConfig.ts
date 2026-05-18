@@ -1,5 +1,5 @@
 import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
-import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
+import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 
 export interface AgentLaunchConfig {
     finalCommand: string;

@@ -167,14 +167,14 @@
       },
       "semantic": {
         "pass": false,
-        "reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after Collapse; folder id absent after Expand) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window Collapse/Expand dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL.",
+        "reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after SetFolderState collapsed; folder id absent after SetFolderState expanded) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window SetFolderState dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL.",
         "judgeVerdict": {
           "pass": false,
           "per_step": [
             {
               "step": 1,
               "pass": false,
-              "reason": "dispatch Collapse: no collapseSet field in any state snapshot across all 3 runs. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged on every run. First focus point (folder id lands in collapseSet) not observable."
+              "reason": "dispatch SetFolderState collapsed: no collapseSet field in any state snapshot across all 3 runs. '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' logged on every run. First focus point (folder id lands in collapseSet) not observable."
             },
             {
               "step": 2,
@@ -184,7 +184,7 @@
             {
               "step": 3,
               "pass": false,
-              "reason": "dispatch Expand: no collapseSet field in any state snapshot to confirm folder removed from set. Same renderer-pipeline error on all 3 runs. Second focus point (folder disappears from collapseSet after expand) not observable."
+              "reason": "dispatch SetFolderState expanded: no collapseSet field in any state snapshot to confirm folder removed from set. Same renderer-pipeline error on all 3 runs. Second focus point (folder disappears from collapseSet after expand) not observable."
             },
             {
               "step": 4,
@@ -192,7 +192,7 @@
               "reason": "wait 250ms: state counts stable; viewport model not torn down."
             }
           ],
-          "overall_reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after Collapse; folder id absent after Expand) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window Collapse/Expand dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL."
+          "overall_reason": "State snapshots capture only roots.loaded count=1 and graph.nodes count=24 — no collapseSet field present in any run, so both judge focus points (folder id in collapseSet after SetFolderState collapsed; folder id absent after SetFolderState expanded) are not directly observable. Additionally, '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' fires in every dispatch step of every run, indicating the live-command pipeline is broken during the window SetFolderState dispatches take effect. Mechanical 3/3 PASS downgraded to semantic FAIL."
         }
       }
     },
@@ -353,14 +353,14 @@
       },
       "semantic": {
         "pass": false,
-        "reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after UnloadRoot (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet.",
+        "reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after root-hide command (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet.",
         "judgeVerdict": {
           "pass": false,
           "per_step": [
             {
               "step": 1,
               "pass": false,
-              "reason": "dispatch UnloadRoot: roots.loaded count=1 and graph.nodes count=24 persist identically after dispatch — no state change observed. First focus point (active root disappears from roots.loaded after unload) violated in all 3 runs."
+              "reason": "dispatch root-hide command: roots.loaded count=1 and graph.nodes count=24 persist identically after dispatch — no state change observed. First focus point (active root disappears from roots.loaded after unload) violated in all 3 runs."
             },
             {
               "step": 2,
@@ -370,7 +370,7 @@
             {
               "step": 3,
               "pass": false,
-              "reason": "dispatch LoadRoot: cannot validate as reload because prior UnloadRoot had no observable effect; roots.loaded still pinned at 1. Recovery path not exercised — cannot confirm root returns after reload."
+              "reason": "dispatch root-expand command: cannot validate as reload because prior root-hide command had no observable effect; roots.loaded still pinned at 1. Recovery path not exercised — cannot confirm root returns after reload."
             },
             {
               "step": 4,
@@ -388,7 +388,7 @@
               "reason": "wait 250ms: benign passive wait; state counts stable."
             }
           ],
-          "overall_reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after UnloadRoot (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet."
+          "overall_reason": "State evidence contradicts mechanical PASS: roots.loaded count=1 and graph.nodes count=24 persist identically across ALL 6 steps in ALL 3 runs, including immediately after root-hide command (Step 1). Dispatch APIs returned ok but state transitions never happened — this is exactly the 'works mechanically, not semantically' case INT-1 was designed to catch. Persistent console warnings '[applyLiveCommandToRenderer] failed: Select {\"name\":\"Error\"}' confirm renderer is in a degraded command-application state throughout. RequestFit (Step 5) has no viewport evidence to confirm fit occurred. Both focus points unmet."
         }
       }
     }

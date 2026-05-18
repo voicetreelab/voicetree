@@ -9,7 +9,7 @@ import type {Core, Position} from 'cytoscape';
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
-import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions";
+import {deleteNodesFromUI} from "@/shell/edge/UI-edge/graph/actions/handleUIActions";
 import { getVisibleViewportCenterInGraph } from '@/utils/visibleViewport';
 import { getSelection } from '@vt/graph-state/state/selectionStore';
 
@@ -35,14 +35,14 @@ export const createNewNodeAction: (cy: Core) => () => void = (
     // Create child node from first selected node
     const parentNodeId: string = selectedNodes[0];
     void (async () => {
-      const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
-      const {getCurrentIndex} = await import('@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync');
+      const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/actions/handleUIActions');
+      const {getCurrentIndex} = await import('@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync');
       await createNewChildNodeFromUI(parentNodeId, cy, getCurrentIndex(cy));
     })();
   } else {
     // Create orphan node at center of viewport
     void (async () => {
-      const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions');
+      const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/actions/handleUIActions');
       const center: Position = getVisibleViewportCenterInGraph(cy);
       await createNewEmptyOrphanNodeFromUI(center);
     })();

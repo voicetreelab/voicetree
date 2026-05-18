@@ -3,4 +3,4 @@ export {
     computeSyntheticEdgeSpecs,
     type OriginalEdgeRef,
     type SyntheticEdgeSpec,
-} from './folderCollapse'
+} from './view/folderCollapse'

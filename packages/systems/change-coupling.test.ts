@@ -1,11 +1,10 @@
 import {execSync} from 'node:child_process'
-import {readdirSync, statSync} from 'node:fs'
-import {dirname, join, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {relative} from 'node:path'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from './discover-packages'
+import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = DEFAULT_REPO_ROOT
 const HIGH_TEMPORAL_COUPLING_THRESHOLD = 0.5
 
 type PackagePairStats = {
@@ -17,20 +16,7 @@ type PackagePairStats = {
     readonly eitherCommits: number
     readonly sharedCommits: number
     readonly ratio: number
-}
-
-function discoverPackageDirs(): string[] {
-    return readdirSync(SYSTEMS_ROOT, {withFileTypes: true})
-        .filter(entry => entry.isDirectory())
-        .filter(entry => {
-            try {
-                return statSync(join(SYSTEMS_ROOT, entry.name, 'package.json')).isFile()
-            } catch {
-                return false
-            }
-        })
-        .map(entry => entry.name)
-        .sort()
+    readonly containmentRatio: number
 }
 
 function getGitLog(): string {
@@ -41,16 +27,17 @@ function getGitLog(): string {
     })
 }
 
-function packageForPath(filePath: string, packages: readonly string[]): string | null {
-    for (const packageName of packages) {
-        if (filePath === `packages/systems/${packageName}` || filePath.startsWith(`packages/systems/${packageName}/`)) {
-            return packageName
+function packageForPath(filePath: string, packages: readonly PackageInfo[]): string | null {
+    for (const pkg of packages) {
+        const packageDir = relative(REPO_ROOT, pkg.absDir)
+        if (filePath === packageDir || filePath.startsWith(`${packageDir}/`)) {
+            return pkg.dirName
         }
     }
     return null
 }
 
-function parseTouchedPackagesByCommit(gitLog: string, packages: readonly string[]): Set<string>[] {
+function parseTouchedPackagesByCommit(gitLog: string, packages: readonly PackageInfo[]): Set<string>[] {
     return gitLog
         .split('COMMIT_SEP')
         .map(commitText => new Set(
@@ -82,7 +69,7 @@ function buildPackagePairStats(packages: readonly string[], commits: readonly Re
             const eitherCommits = commits.filter(touchedPackages => touchedPackages.has(packageA) || touchedPackages.has(packageB)).length
             const commitsA = packageCommitCounts.get(packageA) ?? 0
             const commitsB = packageCommitCounts.get(packageB) ?? 0
-            const denominator = Math.min(commitsA, commitsB)
+            const minPackageCommits = Math.min(commitsA, commitsB)
 
             stats.push({
                 pair: `${packageA} <-> ${packageB}`,
@@ -92,7 +79,8 @@ function buildPackagePairStats(packages: readonly string[], commits: readonly Re
                 commitsB,
                 eitherCommits,
                 sharedCommits,
-                ratio: denominator === 0 ? 0 : sharedCommits / denominator,
+                ratio: eitherCommits === 0 ? 0 : sharedCommits / eitherCommits,
+                containmentRatio: minPackageCommits === 0 ? 0 : sharedCommits / minPackageCommits,
             })
         }
     }
@@ -107,24 +95,24 @@ function formatPercent(value: number): string {
 function formatReport(stats: readonly PackagePairStats[]): string {
     const lines: string[] = [
         '',
-        '┌───────────────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┬────────┐',
-        '│ Pair                                          │ Comm A │ Comm B │ Either │ Shared │ Ratio  │ Status │',
-        '├───────────────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┼────────┤',
+        '┌───────────────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┐',
+        '│ Pair                                          │ Comm A │ Comm B │ Either │ Shared │ Jaccrd │ Contn  │ Status │',
+        '├───────────────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┼────────┼────────┤',
     ]
 
     for (const stat of stats) {
         const status = stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD ? 'WARN' : 'OK'
-        lines.push(`│ ${stat.pair.padEnd(45)} │ ${String(stat.commitsA).padStart(6)} │ ${String(stat.commitsB).padStart(6)} │ ${String(stat.eitherCommits).padStart(6)} │ ${String(stat.sharedCommits).padStart(6)} │ ${formatPercent(stat.ratio).padStart(6)} │ ${status.padStart(6)} │`)
+        lines.push(`│ ${stat.pair.padEnd(45)} │ ${String(stat.commitsA).padStart(6)} │ ${String(stat.commitsB).padStart(6)} │ ${String(stat.eitherCommits).padStart(6)} │ ${String(stat.sharedCommits).padStart(6)} │ ${formatPercent(stat.ratio).padStart(6)} │ ${formatPercent(stat.containmentRatio).padStart(6)} │ ${status.padStart(6)} │`)
     }
 
-    lines.push('└───────────────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┴────────┘')
+    lines.push('└───────────────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘')
 
     const highCouplingPairs = stats.filter(stat => stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD)
     if (highCouplingPairs.length > 0) {
         lines.push('')
         lines.push(`High temporal coupling warnings (ratio > ${formatPercent(HIGH_TEMPORAL_COUPLING_THRESHOLD)}):`)
         for (const stat of highCouplingPairs) {
-            lines.push(`  ${stat.pair}: ${stat.sharedCommits} shared commits, ratio ${formatPercent(stat.ratio)}`)
+            lines.push(`  ${stat.pair}: ${stat.sharedCommits} shared commits, Jaccard ratio ${formatPercent(stat.ratio)}`)
         }
     }
 
@@ -132,13 +120,32 @@ function formatReport(stats: readonly PackagePairStats[]): string {
 }
 
 describe('package temporal change coupling', () => {
-    it('reports six-month package co-change diagnostics without gating CI', () => {
-        const packages = discoverPackageDirs()
+    it('reports six-month package co-change diagnostics without gating CI', async () => {
+        const packages = await discoverPackages()
+        const packageNames = packages.map(pkg => pkg.dirName).sort()
         const commits = parseTouchedPackagesByCommit(getGitLog(), packages)
-        const stats = buildPackagePairStats(packages, commits)
+        const stats = buildPackagePairStats(packageNames, commits)
         const report = formatReport(stats)
+        const maxRatio = stats.reduce((max, stat) => Math.max(max, stat.ratio), 0)
+        const highCouplingPairs = stats.filter(stat => stat.ratio > HIGH_TEMPORAL_COUPLING_THRESHOLD)
+        const topPairs = [...stats].sort((a, b) => b.ratio - a.ratio).slice(0, 20)
 
         console.info(report)
+
+        await recordHealthMetric({
+            metricId: 'change-coupling',
+            metricName: 'Change Coupling',
+            description: 'Highest six-month package pair Jaccard co-change ratio from git history.',
+            category: 'Coupling',
+            current: maxRatio,
+            budget: HIGH_TEMPORAL_COUPLING_THRESHOLD,
+            comparison: 'lte',
+            unit: 'ratio',
+            details: {
+                highCouplingPairs,
+                topPairs,
+            },
+        })
 
         expect(report).toContain('Pair')
     })

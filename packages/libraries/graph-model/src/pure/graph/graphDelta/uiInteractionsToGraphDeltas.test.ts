@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import type { Graph, GraphNode } from '..'
-import { createGraph } from '../createGraph'
+import type { Graph, GraphDelta, GraphNode } from '..'
+import { createGraph } from '../construction/createGraph'
 import { fromCreateChildToUpsertNode, generateChildNodeId } from './uiInteractionsToGraphDeltas'
 
 /**
@@ -112,7 +112,7 @@ describe('fromCreateChildToUpsertNode', () => {
     it('should generate child ID in same folder for regular nodes', () => {
         const parentNode: GraphNode = createTestNode('tuesday/some_node.md', 0)
 
-        const delta: readonly import('..').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode)
+        const delta: GraphDelta = fromCreateChildToUpsertNode(emptyGraph, parentNode)
 
         expect(delta).toHaveLength(2) // child + updated parent
         expect(delta[0].type).toBe('UpsertNode')
@@ -124,7 +124,7 @@ describe('fromCreateChildToUpsertNode', () => {
     it('should strip ctx-nodes/ from child ID when parent is in ctx-nodes/', () => {
         const parentNode: GraphNode = createTestNode('tuesday/ctx-nodes/parent_context_123.md', 0)
 
-        const delta: readonly import('..').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode)
+        const delta: GraphDelta = fromCreateChildToUpsertNode(emptyGraph, parentNode)
 
         expect(delta).toHaveLength(2)
         expect(delta[0].type).toBe('UpsertNode')
@@ -139,7 +139,7 @@ describe('fromCreateChildToUpsertNode', () => {
         const parentNode: GraphNode = createTestNode('ctx-nodes/context.md', 0)
         const explicitChildId: string = 'custom/path/child.md'
 
-        const delta: readonly import('..').GraphDeltaItem[] = fromCreateChildToUpsertNode(emptyGraph, parentNode, '# Custom', explicitChildId)
+        const delta: GraphDelta = fromCreateChildToUpsertNode(emptyGraph, parentNode, '# Custom', explicitChildId)
 
         expect(delta[0].type).toBe('UpsertNode')
         if (delta[0].type === 'UpsertNode') {

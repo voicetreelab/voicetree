@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { JudgeVerdict } from '../src/debug/judge'
-import { createScoreboard, type ScoreboardRow } from '../src/debug/scoreboard'
+import type { JudgeVerdict } from '../src/debug/flow/judge'
+import { createScoreboard, type ScoreboardRow } from '../src/debug/flow/scoreboard'
 
 function makeRows(): { rows: ScoreboardRow[]; bundleDirs: Record<string, string> } {
   const rows: ScoreboardRow[] = []

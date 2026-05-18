@@ -21,16 +21,16 @@ import {
     toggleFolderTreeSidebar,
     setSidebarWidth,
     type FolderTreeState,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore';
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {
     subscribeToVaultPaths,
     getVaultState,
     type VaultPathState,
-} from '@/shell/edge/UI-edge/state/VaultPathStore';
+} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import { StarredSection } from './StarredSection';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
-import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse';
 import type {} from '@/shell/electron';
 
 import './folder-tree.css';

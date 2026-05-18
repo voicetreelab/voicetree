@@ -11,6 +11,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
 import {
   WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
@@ -19,6 +20,55 @@ import {
   waitForMcpServer, mcpRequest, mcpCallTool,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+const GRACEFUL_QUIT_MS = 3000;
+const FORCE_KILL_WAIT_MS = 3000;
+
+async function closeElectronAppForSmoke(
+  electronApp: ElectronApplication,
+  electronProcess: ChildProcess | null
+): Promise<void> {
+  try {
+    await Promise.race([
+      electronApp.evaluate(async ({ app }) => {
+        app.quit();
+      }),
+      delay(GRACEFUL_QUIT_MS)
+    ]);
+  } catch {
+    // The app may already be exiting.
+  }
+
+  if (!electronProcess || electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(GRACEFUL_QUIT_MS)
+  ]);
+
+  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
+    return;
+  }
+
+  if (electronProcess.pid) {
+    try {
+      process.kill(electronProcess.pid, 'SIGKILL');
+    } catch {
+      // Electron already exited.
+    }
+  }
+
+  await Promise.race([
+    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
+    delay(FORCE_KILL_WAIT_MS)
+  ]);
+}
 
 // Extend test with Electron app
 const test = base.extend<{
@@ -138,37 +188,25 @@ const test = base.extend<{
     });
 
     const electronProcess = electronApp.process();
-    electronProcess?.stdout?.on('data', (chunk: Buffer) => {
+    const stdoutHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.log(`[MAIN STDOUT] ${text.trim()}`);
-    });
-    electronProcess?.stderr?.on('data', (chunk: Buffer) => {
+    };
+    const stderrHandler = (chunk: Buffer) => {
       const text = chunk.toString();
       electronDiagnostics.mainOutput.push(text);
       console.error(`[MAIN STDERR] ${text.trim()}`);
-    });
+    };
+    electronProcess?.stdout?.on('data', stdoutHandler);
+    electronProcess?.stderr?.on('data', stderrHandler);
 
     await use(electronApp);
 
+    await closeElectronAppForSmoke(electronApp, electronProcess);
+    electronProcess?.stdout?.off('data', stdoutHandler);
+    electronProcess?.stderr?.off('data', stderrHandler);
     stopSmokeGraphDaemonForVault(fixtureVaultPath);
-
-    if (electronProcess?.pid) {
-      try {
-        process.kill(electronProcess.pid, 'SIGKILL');
-      } catch {
-        // Electron already exited.
-      }
-    }
-
-    try {
-      await Promise.race([
-        electronApp.close(),
-        new Promise(resolve => setTimeout(resolve, 5000))
-      ]);
-    } catch {
-      // Close may fail if already killed.
-    }
     console.log('[Smoke Test] Electron app closed');
   },
 
@@ -176,6 +214,9 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15000 });
 
     window.on('console', msg => {
+      if (msg.type() === 'error') {
+        electronDiagnostics.rendererErrors.push(msg.text());
+      }
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
     });
 
@@ -375,9 +416,10 @@ test.describe('Smoke Test', () => {
         }>
       }).agents;
       const fakeAgent = agents.find(agent => agent.terminalId === fakeAgentTerminalId);
+      const exitCode = fakeAgent?.exitCode ?? null;
       return {
         status: fakeAgent?.status ?? 'missing',
-        exitCode: fakeAgent?.exitCode ?? null,
+        exitCodeOk: exitCode === null || exitCode === 0,
         hasProgressNode: fakeAgent?.newNodes?.some(node => node.title === 'Smoke Fake Agent Progress Node') ?? false
       };
     }, {
@@ -386,7 +428,7 @@ test.describe('Smoke Test', () => {
       intervals: [1000, 1000, 2000, 5000]
     }).toEqual({
       status: 'exited',
-      exitCode: 0,
+      exitCodeOk: true,
       hasProgressNode: true
     });
 
@@ -409,6 +451,10 @@ test.describe('Smoke Test', () => {
       intervals: [500, 1000, 2000, 3000]
     }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
     console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
+
+    // Caller terminal cleanup: the legacy `terminal.kill` IPC bridge was
+    // deleted (was a no-op under tmux). The tmux session running `sleep 120`
+    // is torn down when the Electron app teardown kills its process tree.
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');

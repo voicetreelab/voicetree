@@ -8,11 +8,11 @@ import StatusDisplay from "@/shell/UI/views/components/status-display";
 import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey, { prefetchAPIKey } from "@/utils/get-api-key";
-import { TranscriptionDisplay } from "@/shell/UI/views/TranscriptionDisplay.tsx";
-import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/TranscriptionStore";
+import { TranscriptionDisplay } from "@/shell/UI/views/ui-controls/TranscriptionDisplay.tsx";
+import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/stores/TranscriptionStore";
 import type {} from "@/shell/electron";
 import { ChevronDown } from "lucide-react";
-import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/VoiceRecordingController";
+import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/controllers/VoiceRecordingController";
 import { SseStatusPanel } from "@/shell/UI/sse-status-panel";
 
 type InputMode = 'add' | 'ask' | null;
@@ -500,7 +500,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             error={error}
             isMacPlatform={navigator.platform.includes('Mac')}
             micPermissionDenied={micPermissionDenied}
-            onOpenMicrophoneSettings={() => window.electronAPI?.main.openMicrophoneSettings()}
+            onOpenMicrophoneSettings={() => { void window.electronAPI?.main.openMicrophoneSettings() }}
           />
         </div>
       </div>
