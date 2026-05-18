@@ -63,13 +63,15 @@ async function syncRendererFromDaemon(
   vaultState: VaultState,
 ): Promise<void> {
   const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    const sessionId: string = await createRendererSession(client)
-    mainWindow.webContents.send(
-      'graph:projectedGraphUpdate',
-      await client.getProjectedGraph(sessionId),
-    )
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+    return
   }
+
+  const sessionId: string = await createRendererSession(client)
+  mainWindow.webContents.send(
+    'graph:projectedGraphUpdate',
+    await client.getProjectedGraph(sessionId),
+  )
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
   uiAPI.syncVaultState({
