@@ -324,6 +324,18 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
             if (cy.getElementById(specEdge.id).length > 0) {
                 const existing: CollectionReturnValue = cy.getElementById(specEdge.id)
                 existing.data('label', truncatedEdgeLabel(specEdge.label))
+                existing.data('kind', specEdge.kind)
+                if (specEdge.kind === 'synthetic') {
+                    existing.data('isSyntheticEdge', true)
+                } else {
+                    existing.removeData('isSyntheticEdge')
+                }
+                if (specEdge.edgeCount !== undefined) {
+                    existing.data('edgeCount', specEdge.edgeCount)
+                } else {
+                    existing.removeData('edgeCount')
+                }
+                existing.classes(specEdge.classes ? [...specEdge.classes].join(' ') : '')
                 continue
             }
             const sourceExists: boolean = cy.getElementById(specEdge.source).length > 0

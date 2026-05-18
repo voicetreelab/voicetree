@@ -22,21 +22,31 @@ case "$OS" in
 esac
 
 # Check architecture
+# Releases >= the multi-arch transition publish arch-suffixed names
+# (voicetree-x64.AppImage / voicetree-arm64.AppImage). Older releases
+# only have voicetree.AppImage. Try the new name first; for x86_64,
+# fall back to the legacy name so this script keeps working against
+# both old and new releases.
 ARCH="$(uname -m)"
 case "$ARCH" in
-    x86_64)  APPIMAGE="voicetree-x64.AppImage" ;;
-    aarch64) APPIMAGE="voicetree-arm64.AppImage" ;;
+    x86_64)  APPIMAGE="voicetree-x64.AppImage"; APPIMAGE_FALLBACK="voicetree.AppImage" ;;
+    aarch64) APPIMAGE="voicetree-arm64.AppImage"; APPIMAGE_FALLBACK="" ;;
     *) error "Unsupported architecture: $ARCH. Linux AppImage is available for x86_64 and aarch64." ;;
 esac
 
-# Download AppImage
-URL="https://github.com/$REPO/releases/latest/download/$APPIMAGE"
+BASE_URL="https://github.com/$REPO/releases/latest/download"
 
 info "Downloading Voicetree..."
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-curl -fsSL -o "$TMPDIR/voicetree.AppImage" "$URL" || error "Download failed. Check if release exists: $URL"
+if ! curl -fsSL -o "$TMPDIR/voicetree.AppImage" "$BASE_URL/$APPIMAGE"; then
+    if [ -n "$APPIMAGE_FALLBACK" ] && curl -fsSL -o "$TMPDIR/voicetree.AppImage" "$BASE_URL/$APPIMAGE_FALLBACK"; then
+        :
+    else
+        error "Download failed. Tried $BASE_URL/$APPIMAGE${APPIMAGE_FALLBACK:+ and $BASE_URL/$APPIMAGE_FALLBACK}."
+    fi
+fi
 
 # Install
 info "Installing to $INSTALL_DIR..."
