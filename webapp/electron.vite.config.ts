@@ -1,4 +1,4 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -232,6 +232,15 @@ const buildTimingPlugins = (label: string) => {
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
 const devServerHost: true | string = process.env.DEV_SERVER_HOST || true
+const ELECTRON_VITE_EXTERNALIZE_EXCLUDE = [
+  '@vt/graph-tools',
+  '@vt/graph-model',
+  '@vt/app-config',
+  // ESM-only packages. Rolldown's CJS output preserves external imports as
+  // require(), which returns a module namespace for these dependencies.
+  'fix-path',
+  'rbush',
+]
 const MAIN_RUNTIME_EXTERNALS: string[] = [
   'electron-trackpad-detect',
   '@huggingface/transformers',
@@ -367,10 +376,25 @@ const graphStateFixtureFilenameShimPlugin = {
       return null
     }
 
-    return code
-      .replace('const __filename = fileURLToPath(import.meta.url)', 'const graphStateFixturesFilename = fileURLToPath(import.meta.url)')
-      .replace('const __dirname = path.dirname(__filename)', 'const graphStateFixturesDirname = path.dirname(graphStateFixturesFilename)')
-      .replaceAll('__dirname', 'graphStateFixturesDirname')
+    return {
+      code: code
+        .replace('const __filename = fileURLToPath(import.meta.url)', 'const graphStateFixturesFilename = fileURLToPath(import.meta.url)')
+        .replace('const __dirname = path.dirname(__filename)', 'const graphStateFixturesDirname = path.dirname(graphStateFixturesFilename)')
+        .replaceAll('__dirname', 'graphStateFixturesDirname'),
+      moduleType: 'js'
+    }
+  }
+}
+
+const mainCommonjsPackageBoundaryPlugin = {
+  name: 'main-commonjs-package-boundary',
+  apply: 'build' as const,
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'package.json',
+      source: '{ "type": "commonjs" }\n'
+    })
   }
 }
 
@@ -401,7 +425,8 @@ const rendererNodeShimPlugin = {
   },
   load(id: string) {
     if (id !== RENDERER_NODE_SHIM_ID) return null
-    return `
+    return {
+      code: `
 const noop = () => {};
 // path.posix shim — used by @vt/graph-state/project.ts (labelForFolder, labelForNode).
 // Must be defined before the proxy handler so the handler can return it.
@@ -504,7 +529,9 @@ export const Transform = class {};
 export const Buffer = globalThis.Buffer || class { static from(){ return new Uint8Array(); } };
 // @vscode/ripgrep
 export const rgPath = '';
-`
+`,
+      moduleType: 'js'
+    }
   }
 }
 
@@ -518,9 +545,9 @@ export default defineConfig({
     plugins: [
       ...buildTimingPlugins('main'),
       graphStateFixtureFilenameShimPlugin,
+      mainCommonjsPackageBoundaryPlugin,
       externalNativePlugin,
       externalMainDepsPlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
@@ -538,11 +565,16 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/main',
       logLevel: 'error',
-      rollupOptions: {
+      externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
+      rolldownOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/main.ts')
         },
-        external: isMainExternal
+        external: isMainExternal,
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].js'
+        }
       }
     }
   },
@@ -552,7 +584,6 @@ export default defineConfig({
       ...buildTimingPlugins('preload'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
@@ -570,7 +601,8 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/preload',
       logLevel: 'error',
-      rollupOptions: {
+      externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
+      rolldownOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/preload.ts')
         },
@@ -603,7 +635,10 @@ export default defineConfig({
         },
         load(id) {
           if (id.startsWith('\0') && id.includes('.css.js')) {
-            return 'export const styles = "";'
+            return {
+              code: 'export const styles = "";',
+              moduleType: 'js'
+            }
           }
         }
       },
@@ -650,7 +685,7 @@ export default defineConfig({
       outDir: 'dist',
       target: 'esnext',
       logLevel: 'error',
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html')
         },
@@ -658,14 +693,15 @@ export default defineConfig({
         // empty virtual module, so imports that leak in via `@vt/graph-state`->`@vt/graph-model`
         // barrel re-exports compile to no-ops instead of unresolvable bare specifiers.
         output: {
-          manualChunks(id) {
-            if (id.includes('/node_modules/mermaid/')) return 'mermaid'
+          codeSplitting: {
+            groups: [
+              {
+                name: 'mermaid',
+                test: /node_modules[\\/]mermaid[\\/]/
+              }
+            ]
           }
         }
-      },
-      commonjsOptions: {
-        include: [/node_modules/],
-        transformMixedEsModules: true
       }
     },
     // Disable analytics in test builds
