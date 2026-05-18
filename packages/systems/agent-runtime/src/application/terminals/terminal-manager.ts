@@ -126,7 +126,7 @@ export class TerminalManager {
       this.terminals.set(terminalId, ptyProcess);
       recordTerminalSpawn(terminalId, terminalData);
 
-      writeInitialCommand(terminalData, ptyProcess, deps.setTimeout);
+      writeInitialCommand(terminalData, ptyProcess, deps.setTimeout, customEnv.OBSIDIAN_VAULT_PATH || undefined);
       attachPtyProcessHandlers({
         terminalId,
         ptyProcess,

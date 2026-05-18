@@ -3,8 +3,10 @@ import os from 'os'
 import type pty from 'node-pty'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import type {TerminalData} from './terminal-registry/types'
+import type {TerminalData, TerminalId} from './terminal-registry/types'
+import {getTerminalId} from './terminal-registry/types'
 import {getRuntimeProjectRoot} from '../runtime/graph-bridge'
+import {writePromptFile, rewriteCommandForPromptFile} from '../headless/tmuxPromptFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {markTerminalExited} from './terminal-registry'
 import {captureOutput, clearBuffer} from './terminal-output-buffer'
@@ -106,11 +108,21 @@ export function writeInitialCommand(
     terminalData: TerminalData,
     ptyProcess: Pick<pty.IPty, 'write'>,
     setTimeoutFn: TerminalManagerDeps['setTimeout'],
+    vaultPath?: string | null,
 ): void {
     if (!terminalData.initialCommand) return
-    const command: string = terminalData.executeCommand
-        ? terminalData.initialCommand + '\r'
-        : terminalData.initialCommand
+
+    let command: string = terminalData.initialCommand
+    const prompt: string | undefined = terminalData.initialEnvVars?.AGENT_PROMPT
+
+    if (prompt && vaultPath) {
+        const terminalId: TerminalId = getTerminalId(terminalData)
+        const promptFile: string = writePromptFile(vaultPath, terminalId, prompt)
+        command = rewriteCommandForPromptFile(command, promptFile)
+    }
+
+    if (terminalData.executeCommand) command += '\r'
+
     setTimeoutFn(() => {
         ptyProcess.write(command)
     }, 200)

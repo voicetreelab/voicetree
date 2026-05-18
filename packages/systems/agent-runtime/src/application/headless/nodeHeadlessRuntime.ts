@@ -32,6 +32,15 @@ function captureChildOutput(terminalId: TerminalId): (d: Buffer) => void {
     }
 }
 
+export function stripPromptVarFromCommand(command: string): string {
+    return command
+        .replace(/\s+-p\s+"\$AGENT_PROMPT"/g, '')
+        .replace(/\s+-p\s+'\$AGENT_PROMPT'/g, '')
+        .replace(/\s+"\$AGENT_PROMPT"/g, '')
+        .replace(/\s+'\$AGENT_PROMPT'/g, '')
+        .trim()
+}
+
 export function spawnNodeBackedHeadlessAgent(
     terminalId: TerminalId,
     terminalData: TerminalData,
@@ -42,12 +51,20 @@ export function spawnNodeBackedHeadlessAgent(
 ): void {
     const shell: string = resolveHeadlessShell(deps.getPlatform(), deps.getShellEnv())
     const parentEnv: NodeJS.ProcessEnv = envWithoutClaudeCode(deps.getProcessEnv())
-    const child: ChildProcess = deps.spawnProcess(shell, ['-c', command], {
+    const prompt: string | undefined = env.AGENT_PROMPT
+    const spawnCommand: string = prompt ? stripPromptVarFromCommand(command) : command
+
+    const child: ChildProcess = deps.spawnProcess(shell, ['-c', spawnCommand], {
         cwd: resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory()),
         env: {...parentEnv, ...env},
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [prompt ? 'pipe' : 'ignore', 'pipe', 'pipe'],
         detached: false,
     })
+
+    if (prompt && child.stdin) {
+        child.stdin.write(prompt)
+        child.stdin.end()
+    }
 
     headlessProcesses.set(terminalId, child)
     deps.recordTerminalSpawn(terminalId, terminalData)
