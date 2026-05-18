@@ -289,12 +289,18 @@ export async function setFolderStateThroughDaemon(
   })
 }
 
-export async function addReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation(`addReadPath:${path}`, (client) => client.addReadPath(path))
+export async function addReadPathThroughDaemon(path: string): Promise<unknown> {
+  const graph: unknown = await setFolderStateThroughDaemon(path, 'expanded')
+  publishProjectedGraphToRenderer(graph)
+  await refreshMainGraphFromDaemon()
+  return graph
 }
 
-export async function removeReadPathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation(`removeReadPath:${path}`, (client) => client.removeReadPath(path))
+export async function removeReadPathThroughDaemon(path: string): Promise<unknown> {
+  const graph: unknown = await setFolderStateThroughDaemon(path, 'hidden')
+  publishProjectedGraphToRenderer(graph)
+  await refreshMainGraphFromDaemon()
+  return graph
 }
 
 export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
