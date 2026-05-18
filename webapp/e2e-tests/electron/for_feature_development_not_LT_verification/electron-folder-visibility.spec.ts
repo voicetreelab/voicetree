@@ -27,6 +27,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 type FolderVisibilityMenuAction = 'Expand' | 'Collapse' | 'Hide';
 
 interface VisibilityFixture {
+    readonly rootNoteId: string;
     readonly draftsPath: string;
     readonly draftsFolderId: string;
     readonly draftsTodoId: string;
@@ -73,6 +74,7 @@ function buildFixture(vaultPath: string): VisibilityFixture {
     const publicPath = path.join(vaultPath, 'public');
 
     return {
+        rootNoteId: path.join(vaultPath, 'root.md'),
         draftsPath,
         draftsFolderId: folderId(draftsPath),
         draftsTodoId: path.join(draftsPath, 'todo.md'),
@@ -308,6 +310,24 @@ async function getNodeSnapshot(appWindow: Page, id: string): Promise<GraphNodeSn
     }, id);
 }
 
+async function expectNodeToUseCanonicalRootParent(appWindow: Page, id: string): Promise<void> {
+    const parentData = await appWindow.evaluate((nodeId: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+
+        const node = cy.nodes().filter((candidate: import('cytoscape').NodeSingular) =>
+            candidate.id() === nodeId && !candidate.data('isShadowNode')
+        ).first() as import('cytoscape').NodeSingular;
+
+        if (!node.length) throw new Error(`Expected node ${nodeId} to be present`);
+
+        return (node.data('parent') as string | undefined) ?? null;
+    }, id);
+
+    expect(parentData).toBeNull();
+    expect(await getNodeSnapshot(appWindow, id)).not.toHaveProperty('parent');
+}
+
 async function getHiddenFolderLeakSnapshot(
     appWindow: Page,
     fixture: VisibilityFixture,
@@ -396,6 +416,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         const fixture = buildFixture(vaultPath);
 
         await waitForGraphLoaded(appWindow, 1);
+        await expectNodeToUseCanonicalRootParent(appWindow, fixture.rootNoteId);
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
 
         await expect.poll(
@@ -408,8 +429,8 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         ).toMatchObject({
             present: true,
             isFolderNode: true,
-            parent: undefined,
         });
+        await expectNodeToUseCanonicalRootParent(appWindow, fixture.featureFolderId);
         expect(await getNodeSnapshot(appWindow, fixture.workspaceFolderId)).toMatchObject({
             present: false,
         });
@@ -422,6 +443,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         const fixture = buildFixture(vaultPath);
 
         await waitForGraphLoaded(appWindow, 1);
+        await expectNodeToUseCanonicalRootParent(appWindow, fixture.rootNoteId);
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Expand');
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Hide');
@@ -436,8 +458,8 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         ).toMatchObject({
             present: true,
             isFolderNode: true,
-            parent: undefined,
         });
+        await expectNodeToUseCanonicalRootParent(appWindow, fixture.featureFolderId);
         expect(await getNodeSnapshot(appWindow, fixture.workspaceFolderId)).toMatchObject({
             present: false,
         });
