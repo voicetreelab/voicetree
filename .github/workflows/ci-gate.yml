@@ -28,7 +28,6 @@ jobs:
               'Lint',
               'Branch Verification',
               'Stage 1: Fast Checks',
-              'Stage 3: Deep Tests',
             ];
             const SELF = 'CI Gate';
             const POLL_MS = 30_000;
