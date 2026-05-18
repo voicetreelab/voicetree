@@ -173,6 +173,11 @@ function edgeEndpointForNode(
     return { id: visibleEndpoint, hiddenByCollapse: false }
 }
 
+function isImplicitContainmentEdge(sourceEndpointId: string, targetEndpointId: string): boolean {
+    return parentFolderIdForNode(sourceEndpointId) === targetEndpointId
+        || parentFolderIdForNode(targetEndpointId) === sourceEndpointId
+}
+
 // ── Pipeline Step 4: projectEdges ────────────────────────────────────────────
 
 function projectEdges(
@@ -200,6 +205,7 @@ function projectEdges(
             if (targetEndpoint === undefined) continue
 
             if (sourceEndpoint.id === targetEndpoint.id) continue
+            if (isImplicitContainmentEdge(sourceEndpoint.id, targetEndpoint.id)) continue
 
             if (!sourceEndpoint.hiddenByCollapse && !targetEndpoint.hiddenByCollapse) {
                 const id = `${sourceEndpoint.id}->${targetEndpoint.id}`
