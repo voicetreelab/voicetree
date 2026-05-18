@@ -9,7 +9,7 @@ import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-mode
 import type {VTSettings} from '@vt/graph-model/settings';
 import {getNextAgentName, getUniqueAgentName, getDefaultAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
-import {getExistingAgentNames} from '@vt/agent-runtime';
+import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
@@ -66,7 +66,7 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
   const strippedTitle: string = contextNodeResult.title.replace(/^ASK:\s*/i, '');
   // Generate unique agent name with collision handling
   const baseAgentName: string = getNextAgentName();
-  const existingNames: Set<string> = getExistingAgentNames();
+  const existingNames: Set<string> = terminalRuntimeSurface.getExistingAgentNames();
   const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
   const title: string = `${agentName}: ${strippedTitle}`;
   // terminalId = agentName (unified identification)

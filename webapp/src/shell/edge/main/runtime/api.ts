@@ -14,13 +14,13 @@ import {createContextNodeThroughDaemon as createContextNode} from './electron/da
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/daemon-graph-queries'
-import {agentRuntime} from '@vt/agent-runtime'
+import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
-import {getMcpPort, isMcpIntegrationEnabled, setMcpIntegration} from '@vt/voicetree-mcp';
+import {getMcpPort, setMcpIntegration} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/daemon-graph-queries';
@@ -163,27 +163,27 @@ export const mainAPI = {
   performRedo,
 
   // Terminal spawning
-  spawnTerminalWithContextNode: agentRuntime.spawnTerminalWithContextNode,
+  spawnTerminalWithContextNode: terminalRuntimeSurface.spawnTerminalWithContextNode,
 
   // Plain terminal spawning (no agent command, no context node)
-  spawnPlainTerminal: agentRuntime.spawnPlainTerminal,
+  spawnPlainTerminal: terminalRuntimeSurface.spawnPlainTerminal,
 
   // Plain terminal with attached node (for draggability)
-  spawnPlainTerminalWithNode: agentRuntime.spawnPlainTerminalWithNode,
+  spawnPlainTerminalWithNode: terminalRuntimeSurface.spawnPlainTerminalWithNode,
 
   // Terminal state mutations (renderer -> main for MCP)
-  updateTerminalIsDone: agentRuntime.updateTerminalIsDone,
-  updateTerminalPinned: agentRuntime.updateTerminalPinned,
-  updateTerminalMinimized: agentRuntime.updateTerminalMinimized,
-  updateTerminalActivityState: agentRuntime.updateTerminalActivityState,
-  removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
+  updateTerminalIsDone: terminalRuntimeSurface.updateTerminalIsDone,
+  updateTerminalPinned: terminalRuntimeSurface.updateTerminalPinned,
+  updateTerminalMinimized: terminalRuntimeSurface.updateTerminalMinimized,
+  updateTerminalActivityState: terminalRuntimeSurface.updateTerminalActivityState,
+  removeTerminalFromRegistry: terminalRuntimeSurface.removeTerminalFromRegistry,
 
   // Manual node injection (InjectBar UI)
-  getUnseenNodesForTerminal: agentRuntime.getUnseenNodesForTerminal,
-  injectNodesIntoTerminal: agentRuntime.injectNodesIntoTerminal,
+  getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,
+  injectNodesIntoTerminal: terminalRuntimeSurface.injectNodesIntoTerminal,
 
   // Inject text into a tmux-backed terminal (speech-to-terminal, etc.)
-  sendTextToTerminal: agentRuntime.sendTextToTerminal,
+  sendTextToTerminal: terminalRuntimeSurface.sendTextToTerminal,
 
   // Ask mode operations
   askQuery,
@@ -200,7 +200,6 @@ export const mainAPI = {
   openCodexStatus,
 
   // MCP client configuration
-  isMcpIntegrationEnabled, //todo unused?
   setMcpIntegration,
   getMcpPort,
 
@@ -227,10 +226,10 @@ export const mainAPI = {
   createNewProject,
 
   // Headless agent output (ring buffer) for hover tooltip
-  getHeadlessAgentOutput: agentRuntime.getHeadlessAgentOutput,
+  getHeadlessAgentOutput: terminalRuntimeSurface.getHeadlessAgentOutput,
 
   // Close (kill + deregister) a tmux-backed headless agent
-  closeHeadlessAgent: agentRuntime.closeHeadlessAgent,
+  closeHeadlessAgent: terminalRuntimeSurface.closeHeadlessAgent,
 
   // Debug setup for Playwright MCP
   prettySetupAppForElectronDebugging,

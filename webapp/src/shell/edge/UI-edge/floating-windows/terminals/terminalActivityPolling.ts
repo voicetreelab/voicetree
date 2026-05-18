@@ -19,8 +19,8 @@ import {
     CHECK_INTERVAL_MS,
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
+    shouldFlipToActiveOnOutput,
 } from '@vt/graph-model/agent-tabs';
-import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 

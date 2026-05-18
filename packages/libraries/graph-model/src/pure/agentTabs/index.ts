@@ -55,6 +55,14 @@ export function isTerminalInactive(
 }
 
 /**
+ * Should an output event flip a terminal lifecycle to active?
+ * Completed and errored terminals are sticky terminal states.
+ */
+export function shouldFlipToActiveOnOutput(lifecycle: import('./types').TerminalLifecycle): boolean {
+    return lifecycle !== 'active' && lifecycle !== 'completed' && lifecycle !== 'errored';
+}
+
+/**
  * Truncate a title for display in a pinned tab
  */
 export function truncateTabTitle(title: string, maxLength: number = 12): string {

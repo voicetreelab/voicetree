@@ -31,6 +31,7 @@ type TmuxHeadlessSession = {
     readonly sessionName: string
     readonly logPath: string
     readonly metadataPath: string
+    readonly exitCodePath: string
     readonly promptFilePath: string | null
     readonly pollTimer: ReturnType<typeof setInterval> | null
 }
@@ -48,6 +49,7 @@ type TmuxTerminalMetadata = {
     readonly startedAt: string
     readonly endedAt?: string
     readonly exitCode?: number | null
+    readonly exitCodeFile?: string
     readonly logFile: string
     readonly terminalData: TerminalData
 }
@@ -57,7 +59,11 @@ const tmuxHeadlessState: TmuxHeadlessState = {
     logReadOffsets: new Map(),
 }
 
-function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): {readonly logPath: string; readonly metadataPath: string} {
+function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): {
+    readonly logPath: string
+    readonly metadataPath: string
+    readonly exitCodePath: string
+} {
     const vaultPath: string | undefined = env.VOICETREE_VAULT_PATH
     if (!vaultPath) {
         throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
@@ -67,6 +73,7 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     return {
         logPath: join(terminalDir, `${terminalId}.log`),
         metadataPath: join(terminalDir, `${terminalId}.json`),
+        exitCodePath: join(terminalDir, `${terminalId}.exitcode`),
     }
 }
 
@@ -84,6 +91,20 @@ function readTmuxMetadata(path: string): TmuxTerminalMetadata | null {
 
 function buildTmuxCommand(command: string, cwd: string | undefined): string {
     return cwd ? `cd ${shellQuote(cwd)} && ${command}` : command
+}
+
+function captureExitCode(command: string, exitCodePath: string): string {
+    const script: string = `${command}; code=$?; printf '%s' "$code" > ${shellQuote(exitCodePath)}; exit "$code"`
+    return `bash -lc ${shellQuote(script)}`
+}
+
+function readExitCode(path: string): number | null {
+    try {
+        const value: number = Number(readFileSync(path, 'utf8').trim())
+        return Number.isInteger(value) ? value : null
+    } catch {
+        return null
+    }
 }
 
 function clearTmuxPoll(terminalId: TerminalId): void {
@@ -113,8 +134,10 @@ function startTmuxExitPoll(terminalId: TerminalId, sessionName: string, deps: He
             try {
                 if (await hasSession(sessionName)) return
                 clearTmuxPoll(terminalId)
-                markTmuxMetadataExited(terminalId, null)
-                deps.markTerminalExited(terminalId, null)
+                const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
+                const exitCode: number | null = session ? readExitCode(session.exitCodePath) : null
+                markTmuxMetadataExited(terminalId, exitCode)
+                deps.markTerminalExited(terminalId, exitCode)
             } catch (error) {
                 deps.writeLog({level: 'error', message: `[headlessAgentManager] tmux exit poll failed for ${terminalId}:`, error})
             }
@@ -131,16 +154,17 @@ export async function spawnTmuxBackedTerminal(
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
     promptFilePath: string | null = null,
 ): Promise<{readonly pid: number}> {
-    const paths: {readonly logPath: string; readonly metadataPath: string} = resolveTmuxPaths(terminalId, env)
+    const paths = resolveTmuxPaths(terminalId, env)
     const sessionName: string = buildTmuxSessionName(terminalId, env)
     registerTmuxSessionAlias(terminalId, sessionName)
     const sessionExists: boolean = await hasSession(sessionName)
     const startedAt: string = new Date().toISOString()
+    const tmuxCommand: string = buildTmuxCommand(command, resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory()))
     const created: {readonly pid: number} = sessionExists
         ? {pid: await getPanePid(sessionName)}
         : await createSession(
             terminalId,
-            buildTmuxCommand(command, resolveSpawnCwd(cwd, deps.getHomeDir(), deps.getCurrentDirectory())),
+            terminalData.isHeadless ? captureExitCode(tmuxCommand, paths.exitCodePath) : tmuxCommand,
             env,
         )
 
@@ -153,6 +177,7 @@ export async function spawnTmuxBackedTerminal(
         session: sessionName,
         startedAt: existingMeta?.startedAt ?? startedAt,
         logFile: paths.logPath,
+        exitCodeFile: paths.exitCodePath,
         terminalData,
     })
 
@@ -252,6 +277,7 @@ export async function reconcileTmuxHeadlessAgents(
                 sessionName,
                 logPath: metadata.logFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
+                exitCodePath: metadata.exitCodeFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.exitcode`),
                 promptFilePath: join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
                 pollTimer: startTmuxExitPoll(terminalId, sessionName, deps),
             })

@@ -25,6 +25,7 @@ import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
 import {
   type ExtendedWindow,
+  resolveTmuxSessionNameForTest,
   waitForMcpServer,
 } from './electron-smoke-helpers';
 import { test } from './electron-anchor-test-fixtures';
@@ -33,7 +34,7 @@ const KEYSTROKE_SETTLE_TIMEOUT_MS: number = 15_000;
 
 function tmuxCapturePane(sessionName: string): string {
   try {
-    return execFileSync('tmux', ['capture-pane', '-p', '-J', '-S', '-200', '-t', sessionName], { encoding: 'utf8' });
+    return execFileSync('tmux', ['capture-pane', '-p', '-J', '-S', '-200', '-t', resolveTmuxSessionNameForTest(sessionName)], { encoding: 'utf8' });
   } catch {
     return '';
   }
@@ -41,7 +42,7 @@ function tmuxCapturePane(sessionName: string): string {
 
 function tmuxSessionExists(sessionName: string): boolean {
   try {
-    execFileSync('tmux', ['has-session', '-t', sessionName], { stdio: 'ignore' });
+    execFileSync('tmux', ['has-session', '-t', resolveTmuxSessionNameForTest(sessionName)], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -50,7 +51,7 @@ function tmuxSessionExists(sessionName: string): boolean {
 
 function killTmuxSession(sessionName: string): void {
   try {
-    execFileSync('tmux', ['kill-session', '-t', sessionName], { stdio: 'ignore' });
+    execFileSync('tmux', ['kill-session', '-t', resolveTmuxSessionNameForTest(sessionName)], { stdio: 'ignore' });
   } catch {
     // already gone
   }

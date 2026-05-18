@@ -4,7 +4,7 @@
  * User-observable contract verified through MCP:
  * 1. spawn_agent with headless:true returns a terminalId
  * 2. list_agents reports the agent with isHeadless:true
- * 3. send_message is rejected for headless agents (no terminal input)
+ * 3. send_message reaches tmux-backed headless agents through tmux send-keys
  * 4. read_terminal_output returns the captured stdout/stderr ring buffer
  *    (with isHeadless:true), and that buffer reflects what the spawned
  *    process actually wrote — proving a real process ran, not just a stub
@@ -394,20 +394,17 @@ test.describe('Headless Agent E2E', () => {
         console.log(`✓ Headless agent visible: isHeadless=true, status=${headlessAgent!.status}`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 8: Verify send_message guard (headless rejects stdin)
+        // STEP 8: Verify send_message reaches tmux-backed headless stdin
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 8: Verify send_message guard ===');
+        console.log('=== STEP 8: Verify send_message reaches tmux-backed headless stdin ===');
         const sendResult = await mcpCallTool(mcpUrl, 'send_message', {
             terminalId: headlessTerminalId,
             message: 'test message',
             callerTerminalId: callerTerminalId
         });
-        expect(sendResult.success).toBe(false);
-        expect(sendResult.isError).toBe(true);
-
-        const sendError: string = (sendResult.parsed as { error: string }).error;
-        expect(sendError.toLowerCase()).toContain('headless');
-        console.log(`✓ send_message rejected: "${sendError.slice(0, 80)}..."`);
+        expect(sendResult.success).toBe(true);
+        expect(sendResult.isError).not.toBe(true);
+        console.log('✓ send_message accepted for tmux-backed headless agent');
 
         // ═══════════════════════════════════════════════════════════════════
         // STEP 9: Verify read_terminal_output returns the captured output
@@ -483,7 +480,7 @@ test.describe('Headless Agent E2E', () => {
         console.log('✓ Caller terminal spawned and registered (isHeadless: false)');
         console.log('✓ Headless agent spawned via MCP spawn_agent (headless: true)');
         console.log('✓ list_agents shows isHeadless: true');
-        console.log('✓ send_message rejected for headless agent');
+        console.log('✓ send_message accepted for tmux-backed headless agent');
         console.log('✓ read_terminal_output returns captured output containing the marker');
         console.log('✓ Headless agent process exited cleanly');
         console.log('✓ Headless agent exit code is 0');

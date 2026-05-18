@@ -5,8 +5,8 @@
  * Debounced to 500ms to avoid UI thrashing during bulk operations.
  */
 
-import {getTerminalRecords, type TerminalRecord} from '@vt/agent-runtime'
-import {getUnseenNodesForTerminal, type UnseenNodeInfo} from '@vt/agent-runtime'
+import {terminalRuntimeSurface, type TerminalRecord} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import type {UnseenNodeInfo} from '@vt/agent-runtime'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy'
 
 const DEBOUNCE_MS: number = 500
@@ -27,7 +27,7 @@ export function refreshAllInjectBadges(): void {
 }
 
 async function doRefreshAllInjectBadges(): Promise<void> {
-    const records: TerminalRecord[] = getTerminalRecords()
+    const records: TerminalRecord[] = terminalRuntimeSurface.getTerminalRecords()
 
     // Only refresh for running agent terminals (those with a context node)
     const agentTerminals: TerminalRecord[] = records.filter(
@@ -36,7 +36,7 @@ async function doRefreshAllInjectBadges(): Promise<void> {
 
     await Promise.all(agentTerminals.map(async (record: TerminalRecord) => {
         try {
-            const unseenNodes: readonly UnseenNodeInfo[] = await getUnseenNodesForTerminal(record.terminalId)
+            const unseenNodes: readonly UnseenNodeInfo[] = await terminalRuntimeSurface.getUnseenNodesForTerminal(record.terminalId)
             uiAPI.updateInjectBadge(record.terminalId, unseenNodes.length)
         } catch (error: unknown) {
             console.error(`[inject-badge-refresh] Failed for terminal ${record.terminalId}:`, error)

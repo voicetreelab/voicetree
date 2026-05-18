@@ -4,7 +4,8 @@
  * plus available agent types from settings for discovery.
  */
 
-import type {Graph} from '@vt/graph-model/graph'
+import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
+import {getNodeTitle} from '@vt/graph-model/markdown'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../types'
@@ -21,6 +22,18 @@ function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exi
             : record.terminalData.isDone
                 ? 'idle'
                 : 'running'
+}
+
+function containedNodesForTerminalContext(
+    graph: Graph,
+    contextNodeId: string,
+): Array<{nodeId: string; title: string}> {
+    const contextNode: GraphNode | undefined = graph.nodes[contextNodeId]
+    const containedNodeIds: readonly NodeIdAndFilePath[] = contextNode?.nodeUIMetadata.containedNodeIds ?? []
+    return containedNodeIds.flatMap((nodeId: NodeIdAndFilePath) => {
+        const node: GraphNode | undefined = graph.nodes[nodeId]
+        return node ? [{nodeId, title: getNodeTitle(node)}] : []
+    })
 }
 
 export async function listAgentsTool(): Promise<McpToolResponse> {
@@ -56,8 +69,12 @@ export async function listAgentsTool(): Promise<McpToolResponse> {
             [agentName, record.terminalId],
             record.spawnedAt
         )
+        const containedContextNodes: Array<{nodeId: string; title: string}> = containedNodesForTerminalContext(
+            graph,
+            record.terminalData.attachedToContextNodeId,
+        )
         const newNodesById: Map<string, {nodeId: string; title: string}> = new Map(
-            [...indexedNodes, ...graphMatchedNodes].map((node) => [node.nodeId, node])
+            [...indexedNodes, ...graphMatchedNodes, ...containedContextNodes].map((node) => [node.nodeId, node])
         )
         const newNodes: Array<{nodeId: string; title: string}> = [...newNodesById.values()]
 

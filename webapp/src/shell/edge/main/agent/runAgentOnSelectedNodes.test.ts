@@ -7,8 +7,14 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', () => ({
   getWritePath: vi.fn()
 }))
 
-vi.mock('@vt/agent-runtime', () => ({
+const mocks = vi.hoisted(() => ({
   spawnTerminalWithContextNode: vi.fn()
+}))
+
+vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
+  terminalRuntimeSurface: {
+    spawnTerminalWithContextNode: mocks.spawnTerminalWithContextNode
+  }
 }))
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
@@ -18,7 +24,6 @@ vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
 
 import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
 import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
@@ -62,7 +67,7 @@ describe('runAgentOnSelectedNodes', () => {
 
     vi.mocked(getGraphFromDaemon).mockResolvedValue(graph)
     vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
-    vi.mocked(spawnTerminalWithContextNode).mockResolvedValue({
+    vi.mocked(mocks.spawnTerminalWithContextNode).mockResolvedValue({
       terminalId: 'agent-1',
       contextNodeId: '/vault/ctx-nodes/task_context.md' as NodeIdAndFilePath
     })
@@ -79,7 +84,7 @@ describe('runAgentOnSelectedNodes', () => {
     expect(postDeltaThroughDaemonWithEditors).toHaveBeenCalledTimes(1)
 
     const taskNodeId: NodeIdAndFilePath = result.taskNodeId
-    expect(spawnTerminalWithContextNode).toHaveBeenCalledWith(
+    expect(mocks.spawnTerminalWithContextNode).toHaveBeenCalledWith(
       taskNodeId,
       undefined,
       undefined,
