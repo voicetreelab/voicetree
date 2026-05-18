@@ -7,6 +7,7 @@ const config: KnipConfig = {
                 'scripts/*.mjs',
                 'scripts/*.cjs',
                 'scripts/measures/**/*.ts',
+                'scripts/measures/invariants/coupling/**/*.mjs',
                 'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
                 'packages/systems/*.test.ts',

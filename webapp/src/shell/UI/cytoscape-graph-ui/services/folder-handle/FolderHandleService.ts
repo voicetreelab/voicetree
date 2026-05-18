@@ -369,9 +369,6 @@ export function setupFolderHandles(cy: Core): void {
     }
 }
 
-export const FOLDER_HANDLE_STRIP_WIDTH_PX: number = STRIP_WIDTH_PX;
-export const FOLDER_HANDLE_CHIP_PX: number = CHIP_PX;
-
 interface MousePosition {
     readonly clientX: number;
     readonly clientY: number;
