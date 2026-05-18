@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { readdirSync } from 'fs';
+import { pathToFileURL } from 'url';
 
 const SYSTEM_PACKAGES = new Set([
   '@vt/graph-db-server',
@@ -12,6 +13,7 @@ const SYSTEM_PACKAGES = new Set([
 const RUNTIME_THRESHOLD = 15;
 const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0;
 const root = join(import.meta.dirname, '..');
+const INVARIANTS_DIR = join(root, 'scripts/measures/invariants/coupling');
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES = new Set([
   // vaultless daemon launcher (analogous to serve.ts for CLI)
   'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
@@ -33,6 +35,24 @@ function buildPackageDirMap() {
     } catch { /* layer dir may not exist */ }
   }
   return map;
+}
+
+async function loadCouplingInvariants() {
+  let files = [];
+  try {
+    files = readdirSync(INVARIANTS_DIR)
+      .filter(f => f.endsWith('.mjs') && !f.startsWith('_'))
+      .sort();
+  } catch {
+    return [];
+  }
+
+  const invariants = [];
+  for (const file of files) {
+    const mod = await import(pathToFileURL(join(INVARIANTS_DIR, file)).href);
+    if (mod.invariant) invariants.push(mod.invariant);
+  }
+  return invariants;
 }
 
 function grepLines(dirs) {
@@ -119,6 +139,8 @@ console.log(`Threshold: ${RUNTIME_THRESHOLD} production runtime symbols.\n`);
 
 let failures = 0;
 let daemonOwnedRatchetChecked = false;
+const couplingInvariants = await loadCouplingInvariants();
+const ranInvariantIds = new Set();
 
 function symbolFileEntries(symbolFiles) {
   return [...symbolFiles.entries()].flatMap(([symbol, files]) =>
@@ -167,6 +189,34 @@ function checkDaemonOwnedMutationsRatchet(data) {
   daemonOwnedRatchetChecked = true;
 }
 
+function runCouplingInvariant(invariant, data) {
+  const result = invariant.check(data);
+  const ok = result.violationCount <= invariant.threshold;
+
+  console.log(`${invariant.title}:`);
+  for (const line of invariant.ruleLines) {
+    console.log(`  rule: ${line}`);
+  }
+  console.log(`  violatingFiles=${result.violationCount} / ${invariant.threshold}${ok ? ' ✓' : ' FAIL'}`);
+  console.log(`  violatingImports=${result.importCount}`);
+  console.log(`  allowlistedImports=${result.allowlistedCount}`);
+
+  if (result.allowlistedSummary.length > 0) {
+    console.log(`  allowlisted top: ${result.allowlistedSummary.join(', ')}`);
+  }
+
+  if (result.violationsByFile.size > 0) {
+    console.log('  ── invariant violations (RED) ──');
+    for (const [file, symbols] of [...result.violationsByFile].sort((a, b) => a[0].localeCompare(b[0]))) {
+      console.log(`    ${file}: ${symbols.sort().join(', ')}`);
+    }
+  }
+
+  if (!ok) failures++;
+  console.log('');
+  ranInvariantIds.add(invariant.id);
+}
+
 for (const [pkg, data] of [...packageData].sort((a, b) => b[1].runtime.prod.size - a[1].runtime.prod.size)) {
   const rtProd = data.runtime.prod.size;
   const rtTest = data.runtime.test.size;
@@ -188,6 +238,12 @@ for (const [pkg, data] of [...packageData].sort((a, b) => b[1].runtime.prod.size
 
   if (pkg === '@vt/graph-db-server') {
     checkDaemonOwnedMutationsRatchet(data);
+  }
+
+  for (const invariant of couplingInvariants) {
+    if (invariant.packageName === pkg) {
+      runCouplingInvariant(invariant, data);
+    }
   }
 
   if (rtProd > RUNTIME_THRESHOLD) {
@@ -218,6 +274,16 @@ if (!daemonOwnedRatchetChecked) {
   console.log('Daemon-owned-mutations coupling ratchet:');
   console.log(`  nonLauncherGraphDbServerRuntimeImports=0 / ${DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD} ✓`);
   console.log('  allowlistedGraphDbServerRuntimeImports=0\n');
+}
+
+for (const invariant of couplingInvariants) {
+  if (!ranInvariantIds.has(invariant.id)) {
+    runCouplingInvariant(invariant, {
+      runtime: { prod: new Map(), test: new Map() },
+      types: new Set(),
+      reExportFiles: new Set(),
+    });
+  }
 }
 
 if (failures) {

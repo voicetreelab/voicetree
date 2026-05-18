@@ -1,5 +1,5 @@
 import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
-import { spawnTerminalWithContextNode } from '@vt/agent-runtime';
+import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
@@ -155,7 +155,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
 
     try {
         // 1. Spawn parent terminal (fake agent by default; real agents require explicit opt-in)
-        const { terminalId: parentTerminalId } = await spawnTerminalWithContextNode(
+        const { terminalId: parentTerminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
             candidates[0],
             agentCommand,
             undefined, true, false
@@ -164,7 +164,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
 
         // 2. Spawn child terminal (mocks MCP spawn_agent)
         if (candidates.length > 1) {
-            const { terminalId: childTerminalId } = await spawnTerminalWithContextNode(
+            const { terminalId: childTerminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
                 candidates[1],
                 agentCommand,
                 undefined, true, false,
@@ -177,7 +177,7 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
 
         // 3. Spawn sibling terminal (another root)
         if (candidates.length > 2) {
-            const { terminalId } = await spawnTerminalWithContextNode(
+            const { terminalId } = await terminalRuntimeSurface.spawnTerminalWithContextNode(
                 candidates[2],
                 agentCommand,
                 undefined, true, false

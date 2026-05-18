@@ -25,8 +25,10 @@ vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
     postDeltaThroughDaemon: mocks.postDeltaThroughDaemon,
 }))
 
-vi.mock('@vt/agent-runtime', () => ({
-    getTerminalRecords: mocks.getTerminalRecords,
+vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
+    terminalRuntimeSurface: {
+        getTerminalRecords: mocks.getTerminalRecords,
+    },
 }))
 
 import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/main/workspace/saveNodePositions'

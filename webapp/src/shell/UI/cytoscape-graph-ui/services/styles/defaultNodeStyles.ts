@@ -4,25 +4,6 @@ import { getGoldColor } from './themeColors';
 
 type StyleRule = { selector: string; style: Record<string, unknown> };
 
-/** Top-left pixel size of the chevron chip — kept here so the hit-test in
- *  FolderHandleService can reference the same size as the rendered image. */
-export const FOLDER_CHEVRON_HIT_SIZE_PX = 22;
-
-// 22×22 chevron chip rendered natively as a cytoscape node background-image so
-// pan/zoom stay GPU-cheap. Pill outline border-radius 12 0 8 0, rgba(45,45,48,0.92)
-// fill, 1.5px #888 stroke; chevron stroke #d4d4d4.
-// Explicit width/height (not just viewBox) so the Image() decoder reports
-// non-zero imgW/imgH — cytoscape's drawInscribedImage silently no-ops on a 0 source rect.
-const FOLDER_CHEVRON_SVG =
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${FOLDER_CHEVRON_HIT_SIZE_PX}" height="${FOLDER_CHEVRON_HIT_SIZE_PX}" viewBox="0 0 22 22">` +
-  `<path d="M12 0.75 H21.25 V14 A7.25 7.25 0 0 1 14 21.25 H0.75 V12 A11.25 11.25 0 0 1 12 0.75 Z" ` +
-  `fill="#2d2d30" fill-opacity="0.92" stroke="#888" stroke-width="1.5"/>` +
-  `<path d="M8 9 L11 13 L14 9" stroke="#d4d4d4" stroke-width="1.5" fill="none" ` +
-  `stroke-linecap="round" stroke-linejoin="round"/>` +
-  `</svg>`;
-const FOLDER_CHEVRON_DATA_URI =
-  `data:image/svg+xml;utf8,${encodeURIComponent(FOLDER_CHEVRON_SVG)}`;
-
 /** Returns all node-related Cytoscape style rules */
 export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, isDark: boolean): StyleRule[] {
   return [
@@ -51,7 +32,14 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
-    // Folder compound nodes — subtle dashed outline around sibling files
+    // Folder compound nodes — subtle dashed outline around sibling files.
+    // Chevron + eye affordance chips are NOT rendered as background-image:
+    // cytoscape's WebGL renderer rasterizes node body into a texture atlas
+    // cell sized to the node's bbox, and a compound folder's bbox encloses
+    // every child — so a 44×22 chip ends up as a few pixels in the cell and
+    // turns into a blurry grey blob after upscaling. The chips are owned by
+    // FolderHandleService as a DOM overlay instead (same rendering path for
+    // both expanded folders and collapsed pills).
     {
       selector: 'node[?isFolderNode]',
       style: {
@@ -71,35 +59,27 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
-    // Collapsed folder — fixed size box with child count badge
+    // Collapsed folder — pill sized to seat the DOM chip strip (44 wide) plus
+    // a label row beneath it. padding:0 overrides the 25px inherited from the
+    // general folder rule (that padding exists to give expanded compounds room
+    // around their children — meaningless for a collapsed pill).
+    //
+    // text-margin-y pushes the label down past the 22px chip strip so the
+    // chevron+eye chips and the "name (n)" label don't overlap.
     {
       selector: 'node[?isFolderNode][?collapsed]',
       style: {
-        'width': 40,
-        'height': 40,
+        'width': 80,
+        'height': 48,
+        'padding': 0,
         'background-opacity': 0.15,
         'background-color': '#888',
         'border-style': 'solid',
         'label': (ele: { data: (key: string) => unknown }) =>
             `${ele.data('folderLabel')} (${ele.data('childCount') ?? '?'})`,
         'text-valign': 'center',
-        'font-size': 14,
-      }
-    },
-
-    // Expanded folder — TL chevron chip rendered as a node background-image.
-    // Replaces the per-frame DOM-overlay positioning that was breaking
-    // trackpad pan (see FolderHandleService for the corresponding tap hit-test).
-    {
-      selector: 'node[?isFolderNode][!collapsed]',
-      style: {
-        'background-image': FOLDER_CHEVRON_DATA_URI,
-        'background-position-x': '0%',
-        'background-position-y': '0%',
-        'background-width': `${FOLDER_CHEVRON_HIT_SIZE_PX}px`,
-        'background-height': `${FOLDER_CHEVRON_HIT_SIZE_PX}px`,
-        'background-fit': 'none',
-        'background-clip': 'none',
+        'text-margin-y': 13,
+        'font-size': 13,
       }
     },
 

@@ -3,7 +3,7 @@ import {BrowserWindow, screen} from 'electron';
 import path from 'path';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
-import {agentRuntime, type getTerminalManager} from '@vt/agent-runtime';
+import {terminalRuntimeSurface, type TerminalManager} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {cleanupTerminalsForWindow} from '@/shell/edge/main/agent/terminals/terminal-window-tracker';
 import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
@@ -66,7 +66,7 @@ export function stopTrackpadMonitoring(): void {
  * trackpad detection, and focus tracking.
  */
 export function createWindow(deps: {
-    terminalManager: ReturnType<typeof getTerminalManager>;
+    terminalManager: TerminalManager;
     isQuitting: () => boolean;
 }): void {
     // Note: BrowserWindow icon property only works on Windows/Linux
@@ -161,7 +161,7 @@ export function createWindow(deps: {
     function recomputeAndApplyTier(): void {
         const tier: AppActivityTier = windowFocused
             ? 'active'
-            : agentRuntime.getTerminalRecords().some(r => r.status === 'running') ? 'background' : 'idle';
+            : terminalRuntimeSurface.getTerminalRecords().some(r => r.status === 'running') ? 'background' : 'idle';
         setDaemonGraphSyncTier(tier);
     }
 
@@ -176,7 +176,7 @@ export function createWindow(deps: {
         recomputeAndApplyTier();
     });
 
-    agentRuntime.subscribeToRegistry(() => {
+    terminalRuntimeSurface.subscribeToRegistry(() => {
         if (!windowFocused) recomputeAndApplyTier();
     });
 

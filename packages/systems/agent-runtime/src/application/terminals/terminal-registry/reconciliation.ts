@@ -19,6 +19,7 @@ type TmuxTerminalMetadata = {
     readonly startedAt?: string
     readonly endedAt?: string
     readonly exitCode?: number | null
+    readonly exitCodeFile?: string
     readonly logFile?: string
     readonly terminalData?: TerminalData
 }
