@@ -278,7 +278,12 @@ export async function setFolderStateThroughDaemon(
       ? folderId.slice(0, -1)
       : folderId
     await client.setFolderState(sessionId, folderPath, state)
-    return await client.getProjectedGraph(sessionId)
+    const graph: unknown = await client.getProjectedGraph(sessionId)
+    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('graph:projectedGraphUpdate', graph)
+    }
+    return graph
   })
 }
 
