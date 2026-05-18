@@ -1,0 +1,126 @@
+name: CI Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  all-green:
+    name: all-green
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: read
+      checks: read
+      pull-requests: read
+
+    steps:
+      - name: Wait for required workflows to complete and succeed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const REQUIRED_WORKFLOWS = [
+              'Lint',
+              'Branch Verification',
+              'Stage 1: Fast Checks',
+            ];
+            const SELF = 'CI Gate';
+            const POLL_MS = 30_000;
+            const TIMEOUT_MS = 70 * 60 * 1000;
+
+            const targetSha = context.payload.pull_request?.head.sha
+              || context.payload.head_commit?.id
+              || context.sha;
+            core.info(`Watching SHA: ${targetSha}`);
+            core.info(`Required workflows: ${REQUIRED_WORKFLOWS.join(', ')}`);
+
+            const matchesTarget = (run) => {
+              if (run.name === SELF) return false;
+              if (run.head_sha === targetSha) return true;
+              return (run.pull_requests || []).some(
+                (pr) => pr.head?.sha === targetSha,
+              );
+            };
+
+            const latestPerWorkflow = (runs) => {
+              const out = new Map();
+              for (const r of runs) {
+                const cur = out.get(r.name);
+                if (!cur || new Date(r.created_at) > new Date(cur.created_at)) {
+                  out.set(r.name, r);
+                }
+              }
+              return out;
+            };
+
+            const fetchRuns = async () => {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              });
+              return data.workflow_runs.filter(matchesTarget);
+            };
+
+            const deadline = Date.now() + TIMEOUT_MS;
+            while (Date.now() < deadline) {
+              const latest = latestPerWorkflow(await fetchRuns());
+
+              const missing = REQUIRED_WORKFLOWS.filter((n) => !latest.has(n));
+              const inProgress = REQUIRED_WORKFLOWS
+                .map((n) => latest.get(n))
+                .filter((r) => r && r.status !== 'completed');
+              const failed = REQUIRED_WORKFLOWS
+                .map((n) => latest.get(n))
+                .filter(
+                  (r) =>
+                    r &&
+                    r.status === 'completed' &&
+                    r.conclusion !== 'success' &&
+                    r.conclusion !== 'skipped',
+                );
+
+              if (failed.length) {
+                core.setFailed(
+                  `Failed workflows: ${failed
+                    .map((r) => `${r.name} (${r.conclusion})`)
+                    .join(', ')}`,
+                );
+                return;
+              }
+
+              if (missing.length === 0 && inProgress.length === 0) {
+                core.info('All required workflows completed successfully');
+                return;
+              }
+
+              const status = [
+                missing.length ? `missing: ${missing.join(', ')}` : null,
+                inProgress.length
+                  ? `in-progress: ${inProgress.map((r) => r.name).join(', ')}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' | ');
+              core.info(`Waiting (${status})`);
+              await new Promise((r) => setTimeout(r, POLL_MS));
+            }
+
+            const finalLatest = latestPerWorkflow(await fetchRuns());
+            const stillMissing = REQUIRED_WORKFLOWS.filter(
+              (n) => !finalLatest.has(n),
+            );
+            const stillRunning = REQUIRED_WORKFLOWS
+              .map((n) => finalLatest.get(n))
+              .filter((r) => r && r.status !== 'completed')
+              .map((r) => r.name);
+            core.setFailed(
+              `Timeout after ${TIMEOUT_MS / 60000}m. ` +
+                `Missing: ${stillMissing.join(', ') || '(none)'}. ` +
+                `Running: ${stillRunning.join(', ') || '(none)'}.`,
+            );

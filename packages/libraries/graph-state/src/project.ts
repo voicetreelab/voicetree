@@ -75,6 +75,7 @@ function projectNodes(
     visibleCollapsedFolders: ReadonlySet<FolderId>,
     nodeEntries: readonly (readonly [string, GraphNode])[],
     visibleEndpointByNodeId: ReadonlyMap<string, string>,
+    folderNoteOwnerById: ReadonlyMap<string, FolderId>,
     graph: State['graph'],
     positions: ReadonlyMap<string, unknown>,
     rootPath: string,
@@ -104,6 +105,7 @@ function projectNodes(
     }
 
     for (const [nodeId, node] of nodeEntries) {
+        if (folderNoteOwnerById.has(nodeId)) continue
         if (visibleEndpointByNodeId.get(nodeId) !== nodeId) continue
 
         const parentFolder = parentFolderIdForNode(nodeId)
@@ -139,11 +141,49 @@ function projectNodes(
     return nodes
 }
 
+function buildFolderNoteOwnerById(
+    visibleFolders: readonly FolderProjectionInfo[],
+    graph: State['graph'],
+): ReadonlyMap<string, FolderId> {
+    const folderNoteOwnerById = new Map<string, FolderId>()
+    for (const info of visibleFolders) {
+        const folderNoteId = getFolderNotePath(graph, info.id)
+        if (folderNoteId !== undefined) folderNoteOwnerById.set(folderNoteId, info.id)
+    }
+    return folderNoteOwnerById
+}
+
+function edgeEndpointForNode(
+    nodeId: string,
+    visibleEndpointByNodeId: ReadonlyMap<string, string>,
+    folderNoteOwnerById: ReadonlyMap<string, FolderId>,
+): { readonly id: string; readonly hiddenByCollapse: boolean } | undefined {
+    const visibleEndpoint = visibleEndpointByNodeId.get(nodeId)
+    if (visibleEndpoint === undefined) return undefined
+
+    if (visibleEndpoint !== nodeId) {
+        return { id: visibleEndpoint, hiddenByCollapse: true }
+    }
+
+    const folderNoteOwner = folderNoteOwnerById.get(nodeId)
+    if (folderNoteOwner !== undefined) {
+        return { id: folderNoteOwner, hiddenByCollapse: false }
+    }
+
+    return { id: visibleEndpoint, hiddenByCollapse: false }
+}
+
+function isImplicitContainmentEdge(sourceEndpointId: string, targetEndpointId: string): boolean {
+    return parentFolderIdForNode(sourceEndpointId) === targetEndpointId
+        || parentFolderIdForNode(targetEndpointId) === sourceEndpointId
+}
+
 // ── Pipeline Step 4: projectEdges ────────────────────────────────────────────
 
 function projectEdges(
     nodeEntries: readonly (readonly [string, GraphNode])[],
     visibleEndpointByNodeId: ReadonlyMap<string, string>,
+    folderNoteOwnerById: ReadonlyMap<string, FolderId>,
     graphNodes: Readonly<Record<string, GraphNode>>,
 ): readonly ProjectedEdge[] {
     const realEdges: ProjectedEdge[] = []
@@ -151,8 +191,8 @@ function projectEdges(
     const seenRealEdgeIds = new Set<string>()
 
     for (const [sourceId, sourceNode] of nodeEntries) {
-        const sourceEndpoint = visibleEndpointByNodeId.get(sourceId)
-        if (!sourceEndpoint) continue
+        const sourceEndpoint = edgeEndpointForNode(sourceId, visibleEndpointByNodeId, folderNoteOwnerById)
+        if (sourceEndpoint === undefined) continue
 
         const outgoingEdges = [...sourceNode.outgoingEdges]
             .sort((left, right) => left.targetId.localeCompare(right.targetId) || left.label.localeCompare(right.label))
@@ -161,27 +201,28 @@ function projectEdges(
             const targetNode = graphNodes[edge.targetId]
             if (!isProjectableGraphNode(targetNode)) continue
 
-            const targetEndpoint = visibleEndpointByNodeId.get(edge.targetId)
-            if (!targetEndpoint) continue
+            const targetEndpoint = edgeEndpointForNode(edge.targetId, visibleEndpointByNodeId, folderNoteOwnerById)
+            if (targetEndpoint === undefined) continue
 
-            if (sourceEndpoint === sourceId && targetEndpoint === edge.targetId) {
-                const id = `${sourceId}->${edge.targetId}`
+            if (sourceEndpoint.id === targetEndpoint.id) continue
+            if (isImplicitContainmentEdge(sourceEndpoint.id, targetEndpoint.id)) continue
+
+            if (!sourceEndpoint.hiddenByCollapse && !targetEndpoint.hiddenByCollapse) {
+                const id = `${sourceEndpoint.id}->${targetEndpoint.id}`
                 if (seenRealEdgeIds.has(id)) continue
                 seenRealEdgeIds.add(id)
                 const label = normalizeLabel(edge.label)
                 realEdges.push({
-                    id, source: sourceId, target: edge.targetId, kind: 'real',
+                    id, source: sourceEndpoint.id, target: targetEndpoint.id, kind: 'real',
                     ...(label ? { label } : {}),
                 })
                 continue
             }
 
-            if (sourceEndpoint === targetEndpoint) continue
-
-            const sourceHidden = sourceEndpoint !== sourceId
-            const anchorFolderId = (sourceHidden ? sourceEndpoint : targetEndpoint) as FolderId
+            const sourceHidden = sourceEndpoint.hiddenByCollapse
+            const anchorFolderId = (sourceHidden ? sourceEndpoint.id : targetEndpoint.id) as FolderId
             const direction = sourceHidden ? 'outgoing' as const : 'incoming' as const
-            const externalId = sourceHidden ? targetEndpoint : sourceEndpoint
+            const externalId = sourceHidden ? targetEndpoint.id : sourceEndpoint.id
             if (anchorFolderId === externalId) continue
 
             const syntheticEdgeId = `synthetic:${anchorFolderId}:${direction === 'incoming' ? 'in' : 'out'}:${externalId}`
@@ -263,12 +304,13 @@ export function project(state: State): ProjectedGraph {
     const folders = collectFolders(state)
     const { visibleFolders, visibleFolderIds, visibleCollapsedFolders, nodeEntries, visibleEndpointByNodeId } =
         filterByCollapse(folders, state.collapseSet, state.graph.nodes)
+    const folderNoteOwnerById = buildFolderNoteOwnerById(visibleFolders, state.graph)
     const nodes = projectNodes(
         visibleFolders, visibleFolderIds, visibleCollapsedFolders,
-        nodeEntries, visibleEndpointByNodeId,
+        nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById,
         state.graph, state.layout.positions, rootPath,
     )
-    const edges = projectEdges(nodeEntries, visibleEndpointByNodeId, state.graph.nodes)
+    const edges = projectEdges(nodeEntries, visibleEndpointByNodeId, folderNoteOwnerById, state.graph.nodes)
     const { forests, arboricity } = computeForests(edges)
     return { nodes, edges, rootPath, revision: state.meta.revision, forests, arboricity, recentNodeIds: [] }
 }
