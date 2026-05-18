@@ -8,8 +8,8 @@
  *   they are all current children of the same parent folder.
  * - Guard: action is disabled or no-op when the supported selection count is fewer than 2.
  * - Output shape: create one new folder under that same parent folder.
- * - Inside the new folder, create one empty hub note.
- * - The hub note should have soft links to each extracted child item.
+ * - Inside the new folder, create one `index.md` folder note containing the count of
+ *   contained nodes and no wikilinks.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -81,12 +81,6 @@ async function findSingleNewRootFolderName(vaultPath: string, beforeNames: reado
 function readWikilinks(markdown: string): string[] {
     const matches = markdown.matchAll(/\[\[([^\]]+)\]\]/g);
     return Array.from(matches, (match: RegExpMatchArray) => match[1] ?? '');
-}
-
-function normalizeLinkTarget(target: string): string {
-    const withoutAlias = target.split('|')[0]?.trim() ?? target;
-    const withoutTrailingSlash = withoutAlias.replace(/\/$/, '');
-    return path.basename(withoutTrailingSlash).replace(/\.md$/, '');
 }
 
 function getExtractMenuItem(appWindow: Page): Locator {
@@ -249,7 +243,7 @@ const test = base.extend<{
 });
 
 test.describe('Extract Into Folder Node', () => {
-    test('extracts two same-parent file nodes into one new folder with a linked hub note', async ({ appWindow, vaultPath }) => {
+    test('extracts two same-parent file nodes into one new folder with an index.md note', async ({ appWindow, vaultPath }) => {
         test.setTimeout(90000);
         await waitForGraphLoaded(appWindow, 5);
 
@@ -281,16 +275,13 @@ test.describe('Extract Into Folder Node', () => {
             .map((entry: import('fs').Dirent) => entry.name)
             .sort();
 
-        expect(newFolderFileNames).toEqual(expect.arrayContaining(['alpha.md', 'beta.md']));
+        expect(newFolderFileNames).toEqual(['alpha.md', 'beta.md', 'index.md']);
         expect(await fs.access(path.join(vaultPath, 'alpha.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(vaultPath, 'beta.md')).then(() => true).catch(() => false)).toBe(false);
 
-        const hubNoteNames = newFolderFileNames.filter((name: string) => !['alpha.md', 'beta.md'].includes(name));
-        expect(hubNoteNames).toHaveLength(1);
-
-        const hubNoteContent = await fs.readFile(path.join(newFolderPath, hubNoteNames[0]), 'utf8');
-        const normalizedLinks = readWikilinks(hubNoteContent).map(normalizeLinkTarget).sort();
-        expect(normalizedLinks).toEqual(expect.arrayContaining(['alpha', 'beta']));
+        const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
+        expect(readWikilinks(indexNoteContent)).toEqual([]);
+        expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
     test('extracts a same-parent folder node and file node into one new folder', async ({ appWindow, vaultPath }) => {
@@ -321,14 +312,16 @@ test.describe('Extract Into Folder Node', () => {
         const newFolderPath = path.join(vaultPath, newFolderName!);
         const newFolderEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
         const childNames = newFolderEntries.map((entry: import('fs').Dirent) => entry.name).sort();
-        const hubNoteNames = childNames.filter((name: string) => name.endsWith('.md') && name !== 'overview.md');
 
-        expect(childNames).toEqual(expect.arrayContaining(['docs', 'overview.md']));
-        expect(hubNoteNames).toHaveLength(1);
+        expect(childNames).toEqual(['docs', 'index.md', 'overview.md']);
         expect(await fs.access(path.join(vaultPath, 'docs')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(vaultPath, 'overview.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(true);
+
+        const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
+        expect(readWikilinks(indexNoteContent)).toEqual([]);
+        expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
     test('shows the extract action disabled when fewer than two same-parent items are selected', async ({ appWindow, vaultPath }) => {
