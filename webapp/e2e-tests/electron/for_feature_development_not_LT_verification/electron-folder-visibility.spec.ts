@@ -54,6 +54,11 @@ interface GraphNodeSnapshot {
     readonly parent?: string;
 }
 
+interface CanonicalRootSnapshot extends GraphNodeSnapshot {
+    readonly parentData: string | null;
+    readonly hasSnapshotParent: boolean;
+}
+
 interface HiddenFolderLeakSnapshot {
     readonly publicMarkerVisible: boolean;
     readonly hiddenFolderVisible: boolean;
@@ -311,7 +316,13 @@ async function getNodeSnapshot(appWindow: Page, id: string): Promise<GraphNodeSn
 }
 
 async function expectNodeToUseCanonicalRootParent(appWindow: Page, id: string): Promise<void> {
-    const parentData = await appWindow.evaluate((nodeId: string) => {
+    const snapshot = await getCanonicalRootSnapshot(appWindow, id);
+    expect(snapshot.parentData).toBeNull();
+    expect(snapshot.hasSnapshotParent).toBe(false);
+}
+
+async function getCanonicalRootSnapshot(appWindow: Page, id: string): Promise<CanonicalRootSnapshot> {
+    return appWindow.evaluate((nodeId: string) => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
         if (!cy) throw new Error('No cytoscapeInstance');
 
@@ -319,13 +330,27 @@ async function expectNodeToUseCanonicalRootParent(appWindow: Page, id: string): 
             candidate.id() === nodeId && !candidate.data('isShadowNode')
         ).first() as import('cytoscape').NodeSingular;
 
-        if (!node.length) throw new Error(`Expected node ${nodeId} to be present`);
+        if (!node.length) {
+            return {
+                id: nodeId,
+                present: false,
+                parentData: null,
+                hasSnapshotParent: false,
+            };
+        }
 
-        return (node.data('parent') as string | undefined) ?? null;
+        const parent = node.parent();
+        return {
+            id: node.id(),
+            present: true,
+            isFolderNode: node.data('isFolderNode') === true,
+            collapsed: (node.data('collapsed') as boolean | undefined) ?? false,
+            childCount: node.data('childCount') as number | undefined,
+            ...(parent.length > 0 ? { parent: parent.id() } : {}),
+            parentData: (node.data('parent') as string | undefined) ?? null,
+            hasSnapshotParent: parent.length > 0,
+        };
     }, id);
-
-    expect(parentData).toBeNull();
-    expect(await getNodeSnapshot(appWindow, id)).not.toHaveProperty('parent');
 }
 
 async function getHiddenFolderLeakSnapshot(
@@ -420,7 +445,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
 
         await expect.poll(
-            () => getNodeSnapshot(appWindow, fixture.featureFolderId),
+            () => getCanonicalRootSnapshot(appWindow, fixture.featureFolderId),
             {
                 message: 'Waiting for feature/ to render as an implicit root after only the leaf folder is expanded',
                 timeout: 10000,
@@ -429,8 +454,9 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         ).toMatchObject({
             present: true,
             isFolderNode: true,
+            parentData: null,
+            hasSnapshotParent: false,
         });
-        await expectNodeToUseCanonicalRootParent(appWindow, fixture.featureFolderId);
         expect(await getNodeSnapshot(appWindow, fixture.workspaceFolderId)).toMatchObject({
             present: false,
         });
@@ -449,7 +475,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Hide');
 
         await expect.poll(
-            () => getNodeSnapshot(appWindow, fixture.featureFolderId),
+            () => getCanonicalRootSnapshot(appWindow, fixture.featureFolderId),
             {
                 message: 'Waiting for feature/ to remain visible as an implicit root after workspace/ is hidden',
                 timeout: 10000,
@@ -458,8 +484,9 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         ).toMatchObject({
             present: true,
             isFolderNode: true,
+            parentData: null,
+            hasSnapshotParent: false,
         });
-        await expectNodeToUseCanonicalRootParent(appWindow, fixture.featureFolderId);
         expect(await getNodeSnapshot(appWindow, fixture.workspaceFolderId)).toMatchObject({
             present: false,
         });
