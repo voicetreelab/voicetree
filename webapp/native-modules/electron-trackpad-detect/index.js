@@ -17,12 +17,33 @@ const isMac = process.platform === 'darwin';
 
 let nativeModule = null;
 
+function getNativeAddonCandidates() {
+    const moduleAbi = process.versions.modules;
+    const candidates = [
+        path.join(__dirname, 'bin', `${process.platform}-${process.arch}-${moduleAbi}`, 'electron-trackpad-detect.node'),
+        path.join(__dirname, 'build', 'Release', 'trackpad_detect.node'),
+    ];
+
+    return candidates;
+}
+
 if (isMac) {
+    const errors = [];
     try {
-        // Try to load the native addon
-        nativeModule = require('./build/Release/trackpad_detect.node');
+        for (const candidate of getNativeAddonCandidates()) {
+            try {
+                nativeModule = require(candidate);
+                break;
+            } catch (e) {
+                errors.push(`${candidate}: ${e.message}`);
+            }
+        }
     } catch (e) {
-        console.warn('[electron-trackpad-detect] Failed to load native addon:', e.message);
+        errors.push(e.message);
+    }
+
+    if (!nativeModule) {
+        console.warn('[electron-trackpad-detect] Failed to load native addon:', errors.join(' | '));
         console.warn('[electron-trackpad-detect] Falling back to stub implementation');
     }
 }
