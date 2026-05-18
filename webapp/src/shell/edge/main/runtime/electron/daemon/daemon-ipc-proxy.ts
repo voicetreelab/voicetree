@@ -256,18 +256,23 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
   })
 }
 
+function publishProjectedGraphToRenderer(graph: unknown): void {
+  const mainWindow: Electron.BrowserWindow | null = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return
+
+  mainWindow.webContents.send('graph:projectedGraphUpdate', graph)
+}
+
 export async function collapseFolderThroughDaemon(folderId: string): Promise<unknown> {
-  return await callDaemon(async (client) => {
-    const sessionId: string = await createRendererSession(client)
-    return await client.collapse(sessionId, folderId)
-  })
+  const graph: unknown = await setFolderStateThroughDaemon(folderId, 'collapsed')
+  publishProjectedGraphToRenderer(graph)
+  return graph
 }
 
 export async function expandFolderThroughDaemon(folderId: string): Promise<unknown> {
-  return await callDaemon(async (client) => {
-    const sessionId: string = await createRendererSession(client)
-    return await client.expand(sessionId, folderId)
-  })
+  const graph: unknown = await setFolderStateThroughDaemon(folderId, 'expanded')
+  publishProjectedGraphToRenderer(graph)
+  return graph
 }
 
 export async function setFolderStateThroughDaemon(
