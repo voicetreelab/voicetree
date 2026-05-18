@@ -289,6 +289,20 @@ export function setupFolderHandles(cy: Core): void {
         for (const folderId of chips.keys()) positionChip(folderId);
     }
 
+    function scheduleChipPositionAfterRender(folderId: string): void {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                positionChip(folderId);
+            });
+        });
+    }
+
+    function scheduleAllChipPositionsAfterRender(): void {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(positionAllChips);
+        });
+    }
+
     // Bootstrap: chip for every folder already in the graph
     cy.nodes('node[?isFolderNode]').forEach((n: NodeSingular): void => {
         createChip(n.id());
@@ -302,10 +316,16 @@ export function setupFolderHandles(cy: Core): void {
         destroyChip((evt.target as NodeSingular).id());
     });
 
-    // Data change: collapse / expand toggle → re-render chevron glyph + reposition
+    // Data change: collapse / expand toggle → re-render chevron glyph + reposition.
+    // Cytoscape compound bounds settle after the batch/render turn that removes
+    // or restores descendants, so read renderedBoundingBox again after rAF x2.
     cy.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
-        positionChip((evt.target as NodeSingular).id());
+        const folderId: string = (evt.target as NodeSingular).id();
+        positionChip(folderId);
+        scheduleChipPositionAfterRender(folderId);
     });
+
+    cy.on('layoutstop', scheduleAllChipPositionsAfterRender);
 
     // Reposition on pan / zoom (canvas-relative move). Per-node moves handled
     // by 'position' listeners below. NEVER subscribe to 'bounds' or 'render'
