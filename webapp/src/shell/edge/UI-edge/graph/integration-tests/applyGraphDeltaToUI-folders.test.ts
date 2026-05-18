@@ -4,13 +4,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
-import {
-    addCollapsedFolderLocally,
-    getFolderTreeState,
-    removeCollapsedFolderLocally,
-} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
-import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
+import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, applySpecToUI, folderSpecNode, specWithNodes, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
 
 vi.mock('@/shell/edge/UI-edge/graph/popups/userEngagementPrompts', () => ({
@@ -27,9 +22,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     afterEach(() => {
         cy.destroy()
-        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
-            removeCollapsedFolderLocally(folderId)
-        })
+        setTestCollapseSet(new Set())
         syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
 
@@ -37,7 +30,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('creates nested folder parents within the loaded root and projects collapsed folders from the collapse store', () => {
             syncVaultStateFromMain({ readPaths: [], writePath: '/vault', starredFolders: [] })
             syncFolderTree('/vault')
-            addCollapsedFolderLocally('/vault/auth/internal/')
+            setTestCollapseSet(new Set(['/vault/auth/internal/']))
 
             const directChild: GraphNode = {
                 absoluteFilePathIsID: '/vault/auth/login-flow.md',
@@ -78,12 +71,11 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(1)
             expect(cy.getElementById('/vault/auth/login-flow.md').data('parent')).toBe('/vault/auth/')
             expect(cy.getElementById('/vault/auth/internal/refresh-token.md').length).toBe(0)
-            expect(getFolderTreeState().graphCollapsedFolders.has('/vault/auth/internal/')).toBe(true)
         })
 
         it('projects synced folder roots before VaultPathStore is synced', () => {
             syncFolderTree('/vault')
-            addCollapsedFolderLocally('/vault/auth/internal/')
+            setTestCollapseSet(new Set(['/vault/auth/internal/']))
 
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',
@@ -119,7 +111,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('keeps using the synced folder root across sequential deltas before VaultPathStore is synced', () => {
             syncFolderTree('/vault')
-            addCollapsedFolderLocally('/vault/auth/internal/')
+            setTestCollapseSet(new Set(['/vault/auth/internal/']))
 
             const rootFile: GraphNode = {
                 absoluteFilePathIsID: '/vault/readme.md',

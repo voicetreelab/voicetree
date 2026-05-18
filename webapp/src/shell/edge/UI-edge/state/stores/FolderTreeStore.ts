@@ -2,10 +2,6 @@
  * Push-based folder tree state store.
  * Main process pushes tree updates via syncFolderTreeFromMain().
  * Renderer subscribes via useSyncExternalStore.
- *
- * graphCollapsedFolders tracks which folders the sidebar shows as collapsed.
- * The daemon owns authoritative folderState; this is a local read cache
- * updated from live-state snapshots or test helpers.
  */
 
 import type { FolderTreeNode } from '@vt/graph-model/folders';
@@ -19,7 +15,6 @@ export interface FolderTreeState {
     readonly searchQuery: string;
     readonly isOpen: boolean;
     readonly sidebarWidth: number;
-    readonly graphCollapsedFolders: ReadonlySet<string>;
 }
 
 export type FolderTreeAction =
@@ -29,10 +24,7 @@ export type FolderTreeAction =
     | { readonly type: 'TOGGLE_EXPANDED'; readonly path: string }
     | { readonly type: 'SET_SEARCH'; readonly query: string }
     | { readonly type: 'TOGGLE_SIDEBAR' }
-    | { readonly type: 'SET_WIDTH'; readonly width: number }
-    | { readonly type: 'ADD_COLLAPSED_FOLDER'; readonly folderId: string }
-    | { readonly type: 'REMOVE_COLLAPSED_FOLDER'; readonly folderId: string }
-    | { readonly type: 'SYNC_GRAPH_COLLAPSED_FOLDERS'; readonly folderIds: ReadonlySet<string> };
+    | { readonly type: 'SET_WIDTH'; readonly width: number };
 
 /**
  * Pure reducer: (state, action) → state. No side effects.
@@ -57,32 +49,6 @@ export function folderTreeReducer(state: FolderTreeState, action: FolderTreeActi
             return { ...state, isOpen: !state.isOpen };
         case 'SET_WIDTH':
             return { ...state, sidebarWidth: action.width };
-        case 'ADD_COLLAPSED_FOLDER': {
-            if (state.graphCollapsedFolders.has(action.folderId)) {
-                return state;
-            }
-            const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders, action.folderId]);
-            return { ...state, graphCollapsedFolders };
-        }
-        case 'REMOVE_COLLAPSED_FOLDER': {
-            if (!state.graphCollapsedFolders.has(action.folderId)) {
-                return state;
-            }
-            const graphCollapsedFolders: ReadonlySet<string> = new Set([...state.graphCollapsedFolders].filter((id: string) => id !== action.folderId));
-            return { ...state, graphCollapsedFolders };
-        }
-        case 'SYNC_GRAPH_COLLAPSED_FOLDERS': {
-            const current: ReadonlySet<string> = state.graphCollapsedFolders;
-            const next: ReadonlySet<string> = action.folderIds;
-            if (current.size === next.size) {
-                let same: boolean = true;
-                for (const id of current) {
-                    if (!next.has(id)) { same = false; break; }
-                }
-                if (same) return state;
-            }
-            return { ...state, graphCollapsedFolders: new Set(next) };
-        }
     }
 }
 
@@ -117,7 +83,6 @@ const INITIAL_STATE: FolderTreeState = {
     searchQuery: '',
     isOpen: persisted.isOpen,
     sidebarWidth: persisted.sidebarWidth,
-    graphCollapsedFolders: new Set(),
 };
 
 let currentState: FolderTreeState = INITIAL_STATE;
@@ -165,19 +130,6 @@ function coerceFolderTreeFromMain(snapshot: LiveStateSnapshot): FolderTreeNode |
     return root ? root as FolderTreeNode : null;
 }
 
-function syncFolderVisibilityFromMain(snapshot: LiveStateSnapshot): void {
-    const collapsedFolders: string[] = snapshot.folderState
-        .filter(([, state]) => state === 'collapsed')
-        .map(([folderPath]) => `${folderPath.replace(/\/$/, '')}/`);
-    currentState = {
-        ...currentState,
-        graphCollapsedFolders: new Set(collapsedFolders),
-    };
-    for (const callback of subscribers) {
-        callback(currentState);
-    }
-}
-
 // --- Action dispatchers (thin wrappers over dispatch) ---
 
 export function syncFolderTreeFromMain(tree: FolderTreeNode): void {
@@ -208,32 +160,6 @@ export function setSidebarWidth(width: number): void {
     dispatch({ type: 'SET_WIDTH', width });
 }
 
-export function addCollapsedFolderLocally(folderId: string): void {
-    dispatch({ type: 'ADD_COLLAPSED_FOLDER', folderId });
-}
-
-export function removeCollapsedFolderLocally(folderId: string): void {
-    dispatch({ type: 'REMOVE_COLLAPSED_FOLDER', folderId });
-}
-
-/**
- * Replace the renderer's graph-collapsed-folders cache to match the projected
- * graph. Called from the projection subscriber so the sidebar's collapse-icon
- * class tracks the daemon's authoritative collapseSet without polling.
- */
-export function syncGraphCollapsedFolders(folderIds: ReadonlySet<string>): void {
-    dispatch({ type: 'SYNC_GRAPH_COLLAPSED_FOLDERS', folderIds });
-}
-
-export function isGraphFolderCollapsed(folderId: string): boolean {
-    return currentState.graphCollapsedFolders.has(folderId);
-}
-
-/** Returns folders whose daemon folderState is collapsed. */
-export function getGraphCollapseSet(): ReadonlySet<string> {
-    return currentState.graphCollapsedFolders;
-}
-
 export async function initializeFromMainIfEmpty(): Promise<void> {
     if (currentState.tree !== null) return;
 
@@ -251,7 +177,6 @@ export async function initializeFromMainIfEmpty(): Promise<void> {
     try {
         const snapshot: LiveStateSnapshot | null = await getLiveStateSnapshot();
         if (snapshot === null) return;
-        syncFolderVisibilityFromMain(snapshot);
         const tree: FolderTreeNode | null = coerceFolderTreeFromMain(snapshot);
         if (tree) {
             syncFolderTreeFromMain(tree);
