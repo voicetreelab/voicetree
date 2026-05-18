@@ -363,6 +363,24 @@ async function hoverEyeAndWaitForFolderNote(appWindow: Page, eye: RectSnapshot):
     });
 }
 
+async function clickEyeAndWaitForFolderNote(appWindow: Page, eye: RectSnapshot): Promise<void> {
+    await appWindow.mouse.move(8, 8);
+    await appWindow.waitForTimeout(250);
+    await appWindow.mouse.click(eye.cx, eye.cy);
+
+    await expect.poll(
+        () => getHoverEditorSnapshot(appWindow),
+        {
+            message: 'Waiting for real DOM eye click to open the folder-note editor',
+            timeout: 10000,
+            intervals: [250, 500, 1000],
+        },
+    ).toMatchObject({
+        exists: true,
+        content: expect.stringContaining('Unique folder note content for DOM hover.'),
+    });
+}
+
 async function closeHoverEditor(appWindow: Page): Promise<void> {
     await appWindow.mouse.move(8, 8);
     await appWindow.waitForTimeout(250);
@@ -391,6 +409,8 @@ test.describe('Folder-note DOM affordance', () => {
 
         const expandedHandle = await getFolderHandleSnapshot(appWindow, authFolderId);
         await expectEyeReceivesPointer(appWindow, expandedHandle.eye);
+        await clickEyeAndWaitForFolderNote(appWindow, expandedHandle.eye);
+        await closeHoverEditor(appWindow);
         await hoverEyeAndWaitForFolderNote(appWindow, expandedHandle.eye);
         await closeHoverEditor(appWindow);
 
@@ -414,6 +434,8 @@ test.describe('Folder-note DOM affordance', () => {
         expect(Math.abs(collapsedHandle.chipOffsetFromFolder.dy)).toBeLessThanOrEqual(3);
 
         await expectEyeReceivesPointer(appWindow, collapsedHandle.eye);
+        await clickEyeAndWaitForFolderNote(appWindow, collapsedHandle.eye);
+        await closeHoverEditor(appWindow);
         await hoverEyeAndWaitForFolderNote(appWindow, collapsedHandle.eye);
         await closeHoverEditor(appWindow);
     });
