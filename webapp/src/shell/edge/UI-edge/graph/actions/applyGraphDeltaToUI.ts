@@ -110,8 +110,12 @@ function syncExistingNodeParent(existing: CollectionReturnValue, specNode: Proje
     const nextParent: string | null = specNode.parent ?? null
     const currentParent = existing.parent()
     const currentParentId: string | null = currentParent.length > 0 ? currentParent.id() : null
-    if (currentParentId === nextParent) return
-    existing.move({ parent: nextParent })
+    if (currentParentId !== nextParent) existing.move({ parent: nextParent })
+    if (nextParent === null) {
+        existing.removeData('parent')
+    } else {
+        existing.data('parent', nextParent)
+    }
 }
 
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {

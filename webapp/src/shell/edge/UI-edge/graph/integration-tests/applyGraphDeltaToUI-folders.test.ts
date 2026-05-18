@@ -208,9 +208,14 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/workspace/feature/').data('parent')).toBe('/vault/workspace/')
 
             applySpecToUI(cy, specWithNodes({ ...child, parent: undefined }))
+            const featureFolder: cytoscape.CollectionReturnValue = cy.getElementById('/vault/workspace/feature/')
+            const serializedFeatureFolder = cy.json().elements.nodes.find((node) =>
+                node.data.id === '/vault/workspace/feature/'
+            )
             expect(cy.getElementById('/vault/workspace/').length).toBe(0)
-            expect(cy.getElementById('/vault/workspace/feature/').length).toBe(1)
-            expect(cy.getElementById('/vault/workspace/feature/').data('parent')).toBeUndefined()
+            expect(featureFolder.length).toBe(1)
+            expect(featureFolder.data('parent')).toBeUndefined()
+            expect(serializedFeatureFolder?.data).not.toHaveProperty('parent')
         })
 
         it('inserts collapsed folder nodes with content', () => {
