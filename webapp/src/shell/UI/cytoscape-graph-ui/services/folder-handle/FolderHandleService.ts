@@ -326,13 +326,21 @@ export function setupFolderHandles(cy: Core): void {
         positionChip((parent[0] as NodeSingular).id());
     });
 
-    // ---- Existing folder-body pan loop (unchanged) ---------------------
+    // ---- Existing folder-body pan loop ---------------------------------
     cy.on('mousedown', 'node[?isFolderNode]', (evt: EventObject): void => {
         const node: NodeSingular = evt.target as NodeSingular;
         if (node.data('collapsed') === true) return;
 
         const start: MousePosition | null = mousePositionFromEvent(evt.originalEvent);
         if (start === null || start.button !== 0) return;
+
+        // Defer to cytoscape's native box-selection when a multi-select key
+        // is held (shift/meta/ctrl). Installing our capture-phase mousemove
+        // listener would stopPropagation() before cytoscape's load-listeners
+        // see the move, so box-select inside an expanded folder would never
+        // start. See cytoscape/src/extensions/renderer/base/load-listeners.mjs
+        // (isMultSelKeyDown).
+        if (start.shiftKey || start.metaKey || start.ctrlKey) return;
 
         folderBodyPan = {lastX: start.clientX, lastY: start.clientY};
         window.addEventListener('mousemove', handleFolderBodyPanMove, {capture: true});
@@ -368,6 +376,9 @@ interface MousePosition {
     readonly clientX: number;
     readonly clientY: number;
     readonly button: number;
+    readonly shiftKey: boolean;
+    readonly metaKey: boolean;
+    readonly ctrlKey: boolean;
 }
 
 function mousePositionFromEvent(evt: Event | undefined): MousePosition | null {
@@ -376,5 +387,8 @@ function mousePositionFromEvent(evt: Event | undefined): MousePosition | null {
         clientX: evt.clientX,
         clientY: evt.clientY,
         button: evt.button,
+        shiftKey: evt.shiftKey,
+        metaKey: evt.metaKey,
+        ctrlKey: evt.ctrlKey,
     };
 }
