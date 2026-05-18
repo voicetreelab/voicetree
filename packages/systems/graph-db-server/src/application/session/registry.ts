@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readCurrentFolderState } from '@vt/graph-db-server/views/folderVisibilityResource'
 import type { Session } from './types.ts'
 export type { Session } from './types.ts'
 
@@ -12,13 +13,29 @@ const defaultSessionRegistryDependencies: SessionRegistryDependencies = {
   now: () => Date.now(),
 }
 
+function normalizeFolderId(path: string): string {
+  const trimmed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
+}
+
+function readCollapsedFolderIds(): readonly string[] {
+  try {
+    return readCurrentFolderState()
+      .folderState
+      .filter(([, state]) => state === 'collapsed')
+      .map(([path]) => normalizeFolderId(path))
+  } catch {
+    return []
+  }
+}
+
 function createSession(
   dependencies: SessionRegistryDependencies,
   id?: string,
 ): Session {
   return {
     id: id ?? dependencies.createId(),
-    collapseSet: new Set<string>(),
+    collapseSet: new Set<string>(readCollapsedFolderIds()),
     selection: new Set<string>(),
     expandOverrides: new Set<string>(),
     layout: {
