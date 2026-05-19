@@ -17,7 +17,6 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import * as O from "fp-ts/lib/Option.js";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
 import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
-import {isGraphFolderCollapsed} from "@/shell/edge/UI-edge/state/stores/FolderTreeStore";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
@@ -158,46 +157,11 @@ function repairTerminalAnchorsForNode(cy: Core, nodeId: string): void {
     }
 }
 
-function isUnderCollapsedAncestor(
-    nodeParent: string | undefined,
-    parentById: ReadonlyMap<string, string | undefined>,
-    locallyCollapsed: ReadonlySet<string>,
-): boolean {
-    let current: string | undefined = nodeParent
-    while (current) {
-        if (locallyCollapsed.has(current)) return true
-        current = parentById.get(current)
-    }
-    return false
-}
-
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
-    // Renderer-owned collapse (JOINT-4): folders the user has collapsed live
-    // only in FolderTreeStore.graphCollapsedFolders until the daemon-side
-    // session.collapseSet sync gap is closed. Pre-filter the spec here so
-    // descendants of locally-collapsed folders are dropped from cy and the
-    // folder itself is treated as `folder-collapsed`.
-    const parentById: Map<string, string | undefined> = new Map(
-        graph.nodes.map((n) => [n.id, n.parent] as const),
-    )
-    const locallyCollapsed: Set<string> = new Set(
-        graph.nodes
-            .filter((n) => (n.kind === 'folder' || n.kind === 'folder-collapsed') && isGraphFolderCollapsed(n.id))
-            .map((n) => n.id),
-    )
-    const specNodes: readonly ProjectedNode[] = locallyCollapsed.size === 0
-        ? graph.nodes
-        : graph.nodes
-            .filter((n) => !isUnderCollapsedAncestor(n.parent, parentById, locallyCollapsed))
-            .map((n) => locallyCollapsed.has(n.id) ? { ...n, kind: 'folder-collapsed' as const } : n)
+    const specNodes: readonly ProjectedNode[] = graph.nodes
     const specNodeIds: Set<string> = new Set(specNodes.map((node: ProjectedNode) => node.id))
-    const specEdgeIds: Set<string> = new Set(
-        graph.edges
-            .filter((e) => specNodeIds.has(e.source) && specNodeIds.has(e.target))
-            .map((edge: ProjectedEdge) => edge.id),
-    )
     const specEdges: readonly ProjectedEdge[] = graph.edges
-        .filter((e) => specEdgeIds.has(e.id))
+    const specEdgeIds: Set<string> = new Set(specEdges.map((edge: ProjectedEdge) => edge.id))
 
     const newNodeIds: string[] = []
     const nodesWithoutPositions: string[] = []

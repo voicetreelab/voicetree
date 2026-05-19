@@ -20,41 +20,6 @@ export type SurfaceEntryDefinition = {
 
 export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
     {
-        surface: 'collapseSet',
-        label: 'graphCollapsedFolders renderer store',
-        primary: {
-            relativePath: 'webapp/src/shell/edge/UI-edge/state/FolderTreeStore.ts',
-            contains: 'readonly graphCollapsedFolders: ReadonlySet<string>;',
-        },
-        owner: 'Renderer FolderTreeStore state',
-        consumers: [
-            {
-                description: 'folder collapse toggle mutates the set',
-                ref: {
-                    relativePath: 'webapp/src/shell/edge/UI-edge/graph/folderCollapse.ts',
-                    contains: 'addCollapsedFolder(folderId)',
-                },
-            },
-            {
-                description: 'delta projection snapshots collapsed folders during folder materialization',
-                ref: {
-                    relativePath: 'webapp/src/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts',
-                    contains: '...getFolderTreeState().graphCollapsedFolders,',
-                },
-            },
-            {
-                description: 'folder tree sidebar renders the graph-collapse affordance from the set',
-                ref: {
-                    relativePath: 'webapp/src/shell/UI/views/folderTree/FolderTreeNode.tsx',
-                    contains: 'const isGraphCollapsed: boolean = graphFolderId !== null && graphCollapsedFolders.has(graphFolderId);',
-                },
-            },
-        ],
-        mutatesGraphModel: 'No',
-        survivesRestart: 'No',
-        notes: 'Only sidebar open/width persist in localStorage; graphCollapsedFolders resets on restart.',
-    },
-    {
         surface: 'selection',
         label: 'Cytoscape-owned node selection',
         primary: {

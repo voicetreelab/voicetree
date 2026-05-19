@@ -19,7 +19,7 @@ import {
     updateRecentNodeHistoryFromProjectedGraph,
     clearRecentNodeHistory
 } from '@/shell/edge/UI-edge/state/stores/RecentNodeHistoryStore';
-import {syncGraphCollapsedFolders} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
+import {publishLatestProjectedGraph} from '@/shell/edge/UI-edge/state/stores/LatestProjectedGraphStore';
 import type {GraphNavigationService} from './navigation/GraphNavigationService';
 import type {SearchService} from '@/shell/UI/views/graph-view/SearchService';
 import {scheduleIdleWork} from '@/utils/scheduleIdleWork';
@@ -49,11 +49,7 @@ export function subscribeToGraphUpdates(
         markRendererLoadTiming('renderer:loading-cleared');
 
         applyGraphDeltaToUI(cy, graph);
-        const collapsedFolderIds: Set<string> = new Set<string>();
-        for (const node of graph.nodes) {
-            if (node.kind === 'folder-collapsed') collapsedFolderIds.add(node.id);
-        }
-        syncGraphCollapsedFolders(collapsedFolderIds);
+        publishLatestProjectedGraph(graph);
         searchService.updateSearchData();
 
         // Floating editors don't ride applyGraphDeltaToUI — that path only

@@ -37,12 +37,12 @@ describe('FolderTreeNode — graph collapse dot click', () => {
 
     function renderNode(opts: {
         node?: FolderTreeNodeType;
-        graphCollapsedFolders?: ReadonlySet<string>;
+        collapsedGraphFolderIds?: ReadonlySet<string>;
         onToggleGraphCollapse?: (path: string) => void;
     } = {}): RTLRenderResult & { onToggleGraphCollapse: Mock | ((path: string) => void) } {
         const node: FolderTreeNodeType = opts.node ?? makeFolderNode()
         const onToggleGraphCollapse: Mock | ((path: string) => void) = opts.onToggleGraphCollapse ?? vi.fn()
-        const graphCollapsedFolders: ReadonlySet<string> = opts.graphCollapsedFolders ?? new Set<string>()
+        const collapsedGraphFolderIds: ReadonlySet<string> = opts.collapsedGraphFolderIds ?? new Set<string>()
 
         const result: RTLRenderResult = render(
             <FolderTreeNodeComponent
@@ -54,7 +54,7 @@ describe('FolderTreeNode — graph collapse dot click', () => {
                 onToggleLoad={vi.fn()}
                 onFileSelect={vi.fn()}
                 onSetWriteTarget={vi.fn()}
-                graphCollapsedFolders={graphCollapsedFolders}
+                collapsedGraphFolderIds={collapsedGraphFolderIds}
                 treeRootPath={treeRootPath}
                 onToggleGraphCollapse={onToggleGraphCollapse}
             />
@@ -108,7 +108,7 @@ describe('FolderTreeNode — graph collapse dot click', () => {
                 onToggleLoad={vi.fn()}
                 onFileSelect={vi.fn()}
                 onSetWriteTarget={vi.fn()}
-                graphCollapsedFolders={new Set<string>()}
+                collapsedGraphFolderIds={new Set<string>()}
                 treeRootPath={treeRootPath}
                 onToggleGraphCollapse={onToggleGraphCollapse}
             />
@@ -125,18 +125,18 @@ describe('FolderTreeNode — graph collapse dot click', () => {
         expect(onToggleGraphCollapse).toHaveBeenCalledTimes(1)
     })
 
-    it('should show "collapsed" class when the folder is in graphCollapsedFolders', () => {
-        const graphCollapsedFolders: ReadonlySet<string> = new Set<string>(['/Users/bob/project/src/'])
-        const { container } = renderNode({ graphCollapsedFolders })
+    it('should show "collapsed" class when the folder is in collapsedGraphFolderIds', () => {
+        const collapsedGraphFolderIds: ReadonlySet<string> = new Set<string>(['/Users/bob/project/src/'])
+        const { container } = renderNode({ collapsedGraphFolderIds })
 
         const dot: Element | null = container.querySelector('.folder-tree-graph-collapse-icon')
         expect(dot).not.toBeNull()
         expect(dot!.classList.contains('collapsed')).toBe(true)
     })
 
-    it('should show "expanded" class when the folder is NOT in graphCollapsedFolders', () => {
-        const graphCollapsedFolders: ReadonlySet<string> = new Set<string>()
-        const { container } = renderNode({ graphCollapsedFolders })
+    it('should show "expanded" class when the folder is NOT in collapsedGraphFolderIds', () => {
+        const collapsedGraphFolderIds: ReadonlySet<string> = new Set<string>()
+        const { container } = renderNode({ collapsedGraphFolderIds })
 
         const dot: Element | null = container.querySelector('.folder-tree-graph-collapse-icon')
         expect(dot).not.toBeNull()

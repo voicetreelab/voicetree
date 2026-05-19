@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 /**
- * FolderTreeStore — Graph Collapse State
- *
- * Tests ADD/REMOVE_COLLAPSED_FOLDER reducer actions and the
- * absolutePathToGraphFolderId path mapping function.
+ * FolderTreeStore — sidebar tree state.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -11,11 +8,6 @@ import type { FolderTreeNode } from '@vt/graph-model/folders'
 import type { LiveStateSnapshot } from '@vt/graph-db-client'
 import {
     folderTreeReducer,
-    subscribeFolderTree,
-    addCollapsedFolderLocally,
-    getGraphCollapseSet,
-    removeCollapsedFolderLocally,
-    isGraphFolderCollapsed,
     getFolderTreeState,
     syncFolderTreeFromMain,
     syncStarredTreesFromMain,
@@ -35,55 +27,6 @@ function makeFolderTreeNode(label: string): FolderTreeNode {
     }
 }
 
-// ── ADD_COLLAPSED_FOLDER / REMOVE_COLLAPSED_FOLDER reducer ──
-
-describe('folderTreeReducer — ADD/REMOVE_COLLAPSED_FOLDER', () => {
-    const baseState: FolderTreeState = {
-        tree: null,
-        starredFolderTrees: {},
-        externalFolderTrees: {},
-        expandedPaths: new Set(),
-        searchQuery: '',
-        isOpen: true,
-        sidebarWidth: 220,
-        graphCollapsedFolders: new Set(),
-    }
-
-    it('should add a folder to graphCollapsedFolders', () => {
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
-        expect(next.graphCollapsedFolders.has('auth/')).toBe(true)
-        expect(next.graphCollapsedFolders.size).toBe(1)
-    })
-
-    it('should accumulate multiple collapsed folders', () => {
-        const s1: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
-        const s2: FolderTreeState = folderTreeReducer(s1, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'utils/' })
-        expect(s2.graphCollapsedFolders.has('auth/')).toBe(true)
-        expect(s2.graphCollapsedFolders.has('utils/')).toBe(true)
-        expect(s2.graphCollapsedFolders.size).toBe(2)
-    })
-
-    it('should remove a folder from graphCollapsedFolders', () => {
-        const withFolders: FolderTreeState = { ...baseState, graphCollapsedFolders: new Set(['auth/', 'utils/']) }
-        const next: FolderTreeState = folderTreeReducer(withFolders, { type: 'REMOVE_COLLAPSED_FOLDER', folderId: 'auth/' })
-        expect(next.graphCollapsedFolders.has('auth/')).toBe(false)
-        expect(next.graphCollapsedFolders.has('utils/')).toBe(true)
-        expect(next.graphCollapsedFolders.size).toBe(1)
-    })
-
-    it('should handle removing non-existent folder gracefully', () => {
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'REMOVE_COLLAPSED_FOLDER', folderId: 'nonexistent/' })
-        expect(next.graphCollapsedFolders.size).toBe(0)
-    })
-
-    it('should not mutate other state fields', () => {
-        const next: FolderTreeState = folderTreeReducer(baseState, { type: 'ADD_COLLAPSED_FOLDER', folderId: 'auth/' })
-        expect(next.tree).toBe(baseState.tree)
-        expect(next.expandedPaths).toBe(baseState.expandedPaths)
-        expect(next.isOpen).toBe(baseState.isOpen)
-    })
-})
-
 describe('folderTreeReducer — core store actions', () => {
     const baseState: FolderTreeState = {
         tree: null,
@@ -93,7 +36,6 @@ describe('folderTreeReducer — core store actions', () => {
         searchQuery: '',
         isOpen: true,
         sidebarWidth: 220,
-        graphCollapsedFolders: new Set(),
     }
 
     it('should sync the primary tree', () => {
@@ -150,39 +92,6 @@ describe('folderTreeReducer — core store actions', () => {
     })
 })
 
-// ── Dispatchers + query ──
-
-describe('addCollapsedFolderLocally / removeCollapsedFolderLocally / isGraphFolderCollapsed', () => {
-    it('should add folder via dispatcher and query it', () => {
-        addCollapsedFolderLocally('bf117-test-add/')
-        expect(isGraphFolderCollapsed('bf117-test-add/')).toBe(true)
-    })
-
-    it('should remove folder via dispatcher', () => {
-        addCollapsedFolderLocally('bf117-test-rm/')
-        expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(true)
-        removeCollapsedFolderLocally('bf117-test-rm/')
-        expect(isGraphFolderCollapsed('bf117-test-rm/')).toBe(false)
-    })
-
-    it('should return false for non-existent folder', () => {
-        expect(isGraphFolderCollapsed('bf117-never-added/')).toBe(false)
-    })
-
-    it('should notify subscribers on ADD_COLLAPSED_FOLDER', () => {
-        let notifiedState: FolderTreeState | null = null
-        const unsub: () => void = subscribeFolderTree((state: FolderTreeState) => {
-            notifiedState = state
-        })
-
-        addCollapsedFolderLocally('bf117-notify/')
-        expect(notifiedState).not.toBeNull()
-        expect(notifiedState!.graphCollapsedFolders.has('bf117-notify/')).toBe(true)
-
-        unsub()
-    })
-})
-
 describe('FolderTreeStore dispatchers and persistence', () => {
     beforeEach(() => {
         localStorage.clear()
@@ -190,7 +99,6 @@ describe('FolderTreeStore dispatchers and persistence', () => {
     })
 
     afterEach(() => {
-        ;[...getGraphCollapseSet()].forEach(removeCollapsedFolderLocally)
         localStorage.clear()
         Reflect.deleteProperty(window, 'electronAPI')
         vi.resetModules()
