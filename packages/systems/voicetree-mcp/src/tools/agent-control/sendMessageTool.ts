@@ -49,9 +49,9 @@ function handleMissingTerminal(terminalId: string, callerTerminalId: string, mes
     if (!pending) {
         return buildErrorResponse(`Terminal not found: ${terminalId}`)
     }
-    if (pending.isHeadless) {
-        return buildHeadlessInputError(terminalId)
-    }
+    // All headless agents are tmux-backed. Queue the message — it will be
+    // delivered once spawnTmuxBackedTerminal registers the session and drains
+    // pending messages via recordTerminalSpawn.
     return queuePendingTerminalMessage(terminalId, callerTerminalId, message)
 }
 

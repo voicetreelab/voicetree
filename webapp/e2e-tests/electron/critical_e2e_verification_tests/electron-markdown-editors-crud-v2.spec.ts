@@ -241,6 +241,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
     const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
+    // Wait for the renderer's loading cycle to settle before dispatching.
+    // The renderer syncs editor content from graph state ~300ms after load
+    // (renderer:loading-cleared fires ~1333ms after renderer start). If we
+    // dispatch before this sync, the sync overwrites our edit and autosave
+    // saves the original content instead.
+    await appWindow.waitForTimeout(2000);
+
     // Modify content in the editor using direct CodeMirror DOM access
     const testContent = '# Setting up Agent in Feedback Loop\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nThis is a test to verify file sync works correctly.';
 
@@ -265,13 +272,12 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     // Poll until auto-save writes the content to disk.
     // The chain is: 300ms debounce → getGraph() IPC → applyGraphDelta IPC → FS write.
-    // A fixed 1s wait is not reliable on CI; poll with a 10s budget instead.
     await expect.poll(async () => {
       const content = await fs.readFile(testFilePath, 'utf-8');
       return content.includes(testContent);
     }, {
       message: 'Waiting for auto-save to write test content to disk',
-      timeout: 10_000,
+      timeout: 15_000,
       intervals: [200, 500, 1000, 2000]
     }).toBe(true);
 

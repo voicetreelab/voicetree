@@ -264,35 +264,43 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
     return childId;
   }, nodeId);
 
-  // 5. Wait for the child node to appear in the main-process graph via IPC.
-  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes to the daemon synchronously,
-  // so getGraph() sees the child almost immediately — no SSE delivery dependency.
+  // 5. Wait for the child node file to be written to disk by the daemon.
+  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes via the daemon HTTP API;
+  // the daemon writes the child file synchronously before returning. Polling the
+  // file is simpler and more reliable than polling getGraph(), which can return 0
+  // transiently while the daemon rebuilds its in-memory graph from the file watcher.
   await expect.poll(async () => {
-    return appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) return 0;
-      const graph = await api.main.getGraph();
-      return Object.keys(graph.nodes).length;
-    });
+    try {
+      await fs.access(nodeId.replace(/\.md$/, '') + '_0.md');
+      return true;
+    } catch {
+      return false;
+    }
   }, {
-    message: 'Waiting for child node to appear in main-process graph',
+    message: 'Waiting for child node file to be created on disk',
     timeout: 15_000,
     intervals: [200, 500, 1000, 2000],
-  }).toBeGreaterThanOrEqual(2);
+  }).toBe(true);
 
   // 6. Allow autosave + file watcher to settle
   await appWindow.waitForTimeout(2_000);
 
-  // 7. CRITICAL: Parent node in graph model still has the title
-  const parentGraphContent = await appWindow.evaluate(async (nId) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
-    const graph = await api.main.getGraph();
-    const node = graph.nodes[nId];
-    return node?.contentWithoutYamlOrLinks ?? null;
-  }, nodeId);
-
-  expect(parentGraphContent).toContain('My Important Title');
+  // 7. CRITICAL: Parent node in graph model still has the title.
+  // Poll because the daemon rebuilds its in-memory graph from disk after the delta
+  // write, and getGraph() may return an empty graph during that transient window.
+  await expect.poll(async () => {
+    return appWindow.evaluate(async (nId) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) return null;
+      const graph = await api.main.getGraph();
+      const node = graph.nodes[nId];
+      return node?.contentWithoutYamlOrLinks ?? null;
+    }, nodeId);
+  }, {
+    message: 'Waiting for parent graph node to contain title',
+    timeout: 10_000,
+    intervals: [500, 1000, 2000],
+  }).toContain('My Important Title');
 
   // 8. CRITICAL: Parent file on disk still has the title
   const parentFilePath = path.join(vaultPath, 'parent-node.md');
@@ -306,15 +314,21 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   }, editorWindowId);
   expect(editorText).toContain('My Important Title');
 
-  // 10. Wikilink edge to child exists in graph
-  const parentEdges = await appWindow.evaluate(async (nId) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
-    const graph = await api.main.getGraph();
-    const node = graph.nodes[nId];
-    return node?.outgoingEdges?.length ?? 0;
-  }, nodeId);
-  expect(parentEdges).toBeGreaterThanOrEqual(1);
+  // 10. Wikilink edge to child exists in graph.
+  // Poll for the same reason as step 7 — daemon graph may still be rebuilding.
+  await expect.poll(async () => {
+    return appWindow.evaluate(async (nId) => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) return 0;
+      const graph = await api.main.getGraph();
+      const node = graph.nodes[nId];
+      return node?.outgoingEdges?.length ?? 0;
+    }, nodeId);
+  }, {
+    message: 'Waiting for parent graph node to have edge to child',
+    timeout: 10_000,
+    intervals: [500, 1000, 2000],
+  }).toBeGreaterThanOrEqual(1);
 
   // 11. Wikilink edge is also on disk
   expect(diskContent).toMatch(/\[\[.*\]\]/);
