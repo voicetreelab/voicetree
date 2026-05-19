@@ -7,7 +7,7 @@ import {
     initGraphViewOverlays,
     setEmptyStateVisible,
     setLoadingState,
-} from './GraphViewUIStore'
+} from '../GraphViewUIStore'
 
 function setupOverlays(): {
     readonly empty: HTMLDivElement
