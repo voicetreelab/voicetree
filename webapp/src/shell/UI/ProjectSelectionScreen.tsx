@@ -281,6 +281,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                             {savedProjects.map((project) => (
                                 <button
                                     key={project.id}
+                                    type="button"
+                                    data-testid="saved-project-button"
+                                    data-project-name={project.name}
+                                    data-project-path={project.path}
                                     onClick={() => void handleSelectSaved(project)}
                                     className="w-full text-left p-4 bg-card hover:bg-accent border border-border rounded-lg transition-colors group"
                                 >
@@ -324,6 +328,10 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
                                 {discoveredProjects.map((project) => (
                                     <button
                                         key={project.path}
+                                        type="button"
+                                        data-testid="discovered-project-button"
+                                        data-project-name={project.name}
+                                        data-project-path={project.path}
                                         onClick={() => void handleAddDiscovered(project)}
                                         className="w-full text-left flex items-center gap-3 p-4 bg-card hover:bg-accent border border-border rounded-lg transition-colors"
                                     >

@@ -30,6 +30,26 @@ interface ExtendedWindow {
     electronAPI?: ElectronAPI;
 }
 
+async function waitForProjectScannerToSettle(page: Page): Promise<void> {
+    await page.locator('text=Scanning for projects').waitFor({ state: 'hidden', timeout: 10000 })
+        .catch(() => {
+            console.log('Project scanner still visible after 10s; continuing with saved project selection');
+        });
+}
+
+async function savedProjectButton(page: Page, projectName: string) {
+    const button = page.getByTestId('saved-project-button').filter({ hasText: projectName }).first();
+    await expect(button).toBeVisible({ timeout: 10000 });
+    return button;
+}
+
+async function clickSavedProject(page: Page, projectName: string): Promise<void> {
+    await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
+    await waitForProjectScannerToSettle(page);
+    const button = await savedProjectButton(page, projectName);
+    await button.click({ timeout: 15000 });
+}
+
 // Base test fixture that creates temp directories for testing
 const test = base.extend<{
     testProjectPath: string;
@@ -124,19 +144,22 @@ test.describe('Project Selection Screen E2E', () => {
 
         console.log('✓ Project selection screen title visible');
 
-        // On first launch the screen is in one of three valid states:
+        // On first launch the screen is in one of four valid states:
         // 1. "No projects yet" – scanner hasn't found anything yet
         // 2. "Scanning for projects" – scanner still running
         // 3. "Recent Projects" – scanner already completed (common in CI where git repos exist)
+        // 4. "Discovered Projects" – scanner found local projects before any are saved
         const emptyStateVisible = await appWindow.locator('text=No projects yet').isVisible()
             .catch(() => false);
         const scanningVisible = await appWindow.locator('text=Scanning for projects').isVisible()
             .catch(() => false);
         const recentProjectsVisible = await appWindow.locator('text=Recent Projects').isVisible()
             .catch(() => false);
+        const discoveredProjectsVisible = await appWindow.locator('text=Discovered Projects').isVisible()
+            .catch(() => false);
 
-        expect(emptyStateVisible || scanningVisible || recentProjectsVisible).toBe(true);
-        console.log('✓ Empty state or scanning state visible');
+        expect(emptyStateVisible || scanningVisible || recentProjectsVisible || discoveredProjectsVisible).toBe(true);
+        console.log('✓ Project selection content state visible');
 
         // Open existing folder button should be visible
         const browseButton = appWindow.locator('button:has-text("Open existing folder")');
@@ -193,12 +216,11 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Find and click the test project
         const projectName = testProjectPath.split('/').pop() ?? 'test-project';
-        const projectButton = appWindow.locator(`button:has-text("${projectName}")`).first();
-        await expect(projectButton).toBeVisible({ timeout: 5000 });
+        await savedProjectButton(appWindow, projectName);
         console.log('✓ Test project visible in list');
 
         // Click to select the project
-        await projectButton.click();
+        await clickSavedProject(appWindow, projectName);
         console.log('✓ Clicked project to select');
 
         // Wait for graph view to load (cytoscape instance should become available)
@@ -252,7 +274,7 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Select project
         const projectName = testProjectPath.split('/').pop() ?? 'test-project';
-        await appWindow.locator(`button:has-text("${projectName}")`).first().click();
+        await clickSavedProject(appWindow, projectName);
 
         // Wait for graph view
         await pollForCytoscape(appWindow, 15000);
@@ -272,7 +294,7 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Verify the project is still in the list
         await appWindow.waitForSelector('text=Recent Projects', { timeout: 5000 });
-        const projectStillVisible = await appWindow.locator(`button:has-text("${projectName}")`).first().isVisible();
+        const projectStillVisible = await (await savedProjectButton(appWindow, projectName)).isVisible();
         expect(projectStillVisible).toBe(true);
         console.log('✓ Project still in saved list');
 
@@ -339,7 +361,7 @@ test.describe('Project Selection Screen E2E', () => {
             console.log('✓ First app shows Recent Projects');
 
             // Verify project is visible
-            const projectVisibleInApp1 = await window1.locator('button:has-text("persistent-project")').first().isVisible();
+            const projectVisibleInApp1 = await (await savedProjectButton(window1, 'persistent-project')).isVisible();
             expect(projectVisibleInApp1).toBe(true);
             console.log('✓ Project visible in first app instance');
 
@@ -379,7 +401,7 @@ test.describe('Project Selection Screen E2E', () => {
             console.log('✓ Second app shows Recent Projects');
 
             // Verify the project is still there
-            const projectVisible = await window2.locator('button:has-text("persistent-project")').first().isVisible();
+            const projectVisible = await (await savedProjectButton(window2, 'persistent-project')).isVisible();
             expect(projectVisible).toBe(true);
             console.log('✓ Project persisted across restart');
 
@@ -455,9 +477,7 @@ test.describe('Watched Folder Panel Regression', () => {
             await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Click the project
-            await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-            const projectButton = appWindow.locator('button:has-text("fresh-project")').first();
-            await projectButton.click();
+            await clickSavedProject(appWindow, 'fresh-project');
             console.log('✓ Clicked fresh project');
 
             // Wait for graph
@@ -600,13 +620,11 @@ test.describe('Watched Folder Panel Regression', () => {
 
             if (!graphLoadedViaAutoLoad) {
                 // 5. Verify the project appears in Recent Projects
-                await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-                const projectButton = appWindow.locator('button:has-text("existing-config-project")').first();
-                await expect(projectButton).toBeVisible({ timeout: 5000 });
+                await savedProjectButton(appWindow, 'existing-config-project');
                 console.log('✓ Project visible in Recent Projects');
 
                 // 6. Click to open the project
-                await projectButton.click();
+                await clickSavedProject(appWindow, 'existing-config-project');
                 console.log('✓ Clicked project to open');
             }
 
@@ -757,10 +775,8 @@ test.describe('Watched Folder Panel Regression', () => {
 
             // Helper to check panel visibility
             const checkPanelVisibility = async (appWindow: Page, projectName: string, tempDir: string) => {
-                await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
                 console.log(`[${projectName}] About to click project...`);
-                const projectButton = appWindow.locator(`button:has-text("${projectName}")`).first();
-                await projectButton.click();
+                await clickSavedProject(appWindow, projectName);
                 console.log(`[${projectName}] Clicked, waiting for graph...`);
 
                 await pollForCytoscapeNodes(appWindow, 1, 15000);

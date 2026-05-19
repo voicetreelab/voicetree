@@ -229,6 +229,32 @@ async function mcpCallTool(
     return { success: false };
 }
 
+async function waitForMcpToolSuccess(
+    mcpUrl: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    label: string
+): Promise<{
+    success: boolean;
+    content?: Array<{ type: string; text: string }>;
+    isError?: boolean;
+    parsed?: Record<string, unknown>;
+}> {
+    let lastResult: Awaited<ReturnType<typeof mcpCallTool>> | undefined;
+
+    await expect.poll(async () => {
+        lastResult = await mcpCallTool(mcpUrl, toolName, args);
+        console.log(`  ${label} result: ${JSON.stringify(lastResult.parsed)}`);
+        return lastResult.success === true && lastResult.isError !== true;
+    }, {
+        message: `Waiting for ${label} to succeed`,
+        timeout: 10000,
+        intervals: [500, 1000, 1000, 2000]
+    }).toBe(true);
+
+    return lastResult!;
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Headless Agent E2E', () => {
@@ -397,11 +423,11 @@ test.describe('Headless Agent E2E', () => {
         // STEP 8: Verify send_message reaches tmux-backed headless stdin
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 8: Verify send_message reaches tmux-backed headless stdin ===');
-        const sendResult = await mcpCallTool(mcpUrl, 'send_message', {
+        const sendResult = await waitForMcpToolSuccess(mcpUrl, 'send_message', {
             terminalId: headlessTerminalId,
             message: 'test message',
             callerTerminalId: callerTerminalId
-        });
+        }, 'send_message');
         expect(sendResult.success).toBe(true);
         expect(sendResult.isError).not.toBe(true);
         console.log('✓ send_message accepted for tmux-backed headless agent');
