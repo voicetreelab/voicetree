@@ -47,8 +47,7 @@ async function clickSavedProject(page: Page, projectName: string): Promise<void>
     await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
     await waitForProjectScannerToSettle(page);
     const button = await savedProjectButton(page, projectName);
-    await button.scrollIntoViewIfNeeded();
-    await button.click({ timeout: 15000, force: true });
+    await button.evaluate((element: HTMLElement) => element.click());
 }
 
 // Base test fixture that creates temp directories for testing
