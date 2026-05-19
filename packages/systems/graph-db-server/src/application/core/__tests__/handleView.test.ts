@@ -12,6 +12,7 @@ import {
 function sessionFixture(): Session {
   return {
     id: 'session-1',
+    folderState: new Map(),
     collapseSet: new Set<string>(),
     selection: new Set<string>(),
     expandOverrides: new Set<string>(['/vault/docs']),

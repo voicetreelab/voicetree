@@ -9,6 +9,7 @@ const NODE_ID = '/tmp/vault/docs/one.md'
 function sessionFixture(): Session {
   return {
     id: 'session-1',
+    folderState: new Map([['/tmp/vault/docs', 'expanded']]),
     collapseSet: new Set<string>(),
     selection: new Set<string>([NODE_ID]),
     expandOverrides: new Set<string>(),

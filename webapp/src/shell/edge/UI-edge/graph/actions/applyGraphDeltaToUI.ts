@@ -106,6 +106,18 @@ function isContextNode(node: ProjectedNode): boolean {
     return node.isContextNode === true
 }
 
+function syncExistingNodeParent(existing: CollectionReturnValue, specNode: ProjectedNode): void {
+    const nextParent: string | null = specNode.parent ?? null
+    const currentParent = existing.parent()
+    const currentParentId: string | null = currentParent.length > 0 ? currentParent.id() : null
+    if (currentParentId !== nextParent) existing.move({ parent: nextParent })
+    if (nextParent === null) {
+        existing.removeData('parent')
+    } else {
+        existing.data('parent', nextParent)
+    }
+}
+
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
     const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/anchoring/types').TerminalData> = getTerminals()
     for (const terminal of terminals.values()) {
@@ -280,6 +292,8 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 if (!hasPosition) nodesWithoutPositions.push(specNode.id)
                 continue
             }
+
+            syncExistingNodeParent(existing, specNode)
 
             if (isFolder) {
                 const collapsed: boolean = specNode.kind === 'folder-collapsed'

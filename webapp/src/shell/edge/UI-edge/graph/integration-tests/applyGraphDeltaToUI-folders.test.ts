@@ -187,6 +187,37 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/topic/').data('content')).toBe('# Topic\n\nupdated')
         })
 
+        it('moves an existing folder node back to graph root when the next projection removes its parent', () => {
+            const parent = folderSpecNode('folder', {
+                id: '/vault/workspace/',
+                label: 'workspace',
+                relPath: 'workspace/',
+                basename: 'workspace',
+                folderPath: '/vault/',
+            })
+            const child = folderSpecNode('folder', {
+                id: '/vault/workspace/feature/',
+                label: 'feature',
+                relPath: 'workspace/feature/',
+                basename: 'feature',
+                folderPath: '/vault/workspace/',
+                parent: '/vault/workspace/',
+            })
+
+            applySpecToUI(cy, specWithNodes(parent, child))
+            expect(cy.getElementById('/vault/workspace/feature/').data('parent')).toBe('/vault/workspace/')
+
+            applySpecToUI(cy, specWithNodes({ ...child, parent: undefined }))
+            const featureFolder: cytoscape.CollectionReturnValue = cy.getElementById('/vault/workspace/feature/')
+            const serializedFeatureFolder = cy.json().elements.nodes.find((node) =>
+                node.data.id === '/vault/workspace/feature/'
+            )
+            expect(cy.getElementById('/vault/workspace/').length).toBe(0)
+            expect(featureFolder.length).toBe(1)
+            expect(featureFolder.data('parent')).toBeUndefined()
+            expect(serializedFeatureFolder?.data).not.toHaveProperty('parent')
+        })
+
         it('inserts collapsed folder nodes with content', () => {
             applySpecToUI(cy, specWithNodes(folderSpecNode('folder-collapsed')))
 
