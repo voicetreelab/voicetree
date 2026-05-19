@@ -65,8 +65,24 @@ case "$sub" in
   push)
     [[ "$rest" =~ (^|[[:space:]])(--force|--force-with-lease|-f)([[:space:]]|$) ]] && reason="force-push overwrites remote history"
     ;;
-  # worktree is intentionally NOT gated — add/remove/list/prune all allowed
+  # worktree is intentionally NOT gated — add/remove/list/prune all allowed.
+  # See post-action block below for `worktree add` normalization.
 esac
+
+# --- Post-action: `git worktree add` → normalize admin pointers to relative ---
+# Absolute paths in .git/worktrees/<name>/gitdir are host-specific and break
+# cross-host file sync (e.g. mac<->devbox via mutagen). Relative pointers are
+# host-portable. `worktree repair --relative-paths` rewrites both sides of
+# the pointer pair and is idempotent. Best-effort: failure does not affect
+# the underlying add's exit code.
+if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
+  "$REAL_GIT" "$@"
+  ec=$?
+  if [ $ec -eq 0 ]; then
+    "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1 || true
+  fi
+  exit $ec
+fi
 
 if [ -n "$reason" ]; then
   if [ -n "$merge_assertion" ]; then

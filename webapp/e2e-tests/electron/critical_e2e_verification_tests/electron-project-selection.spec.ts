@@ -343,8 +343,10 @@ test.describe('Project Selection Screen E2E', () => {
             expect(projectVisibleInApp1).toBe(true);
             console.log('✓ Project visible in first app instance');
 
-            // Close first app
-            await app1.close();
+            // Close first app. Plain app.close() can hang while background project
+            // scanning is still active, which prevents this restart test from
+            // reaching the second launch.
+            await robustElectronTeardown(app1);
             console.log('✓ Closed first app instance');
 
             // Wait a moment for file system to sync
@@ -381,8 +383,8 @@ test.describe('Project Selection Screen E2E', () => {
             expect(projectVisible).toBe(true);
             console.log('✓ Project persisted across restart');
 
-            // Cleanup second app
-            await app2.close();
+            // Cleanup second app through the same bounded shutdown path.
+            await robustElectronTeardown(app2);
             console.log('✅ Persistence test passed!');
         } finally {
             // Cleanup temp directories

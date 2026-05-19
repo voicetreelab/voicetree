@@ -11,13 +11,9 @@ function importDebugSetupModule(): Promise<DebugSetupModule> {
     return import('@/shell/edge/main/observability/debug/prettySetupAppForElectronDebugging');
 }
 
-function getDebugAutoSetupReason(env: NodeJS.ProcessEnv): string | null {
+export function getDebugAutoSetupReason(env: NodeJS.ProcessEnv): string | null {
     if (env.VT_DEBUG_AUTOLAUNCHED === '1') {
         return 'vt-debug autolaunch';
-    }
-
-    if (env.ENABLE_PLAYWRIGHT_DEBUG === '1') {
-        return 'Playwright debug';
     }
 
     return null;

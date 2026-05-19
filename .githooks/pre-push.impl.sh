@@ -59,8 +59,10 @@ bold "Stage 2: Rebuild native modules"
 pass "Native module rebuild"
 
 # ── Stage 2c: Tier 1 E2E smoke tests ─────────────────────────────────
+# Use the canonical workspace script: it wraps playwright in xvfb-run on
+# headless Linux (e.g. Onidel) via scripts/run-with-xvfb-if-needed.mjs.
 bold "Stage 2: Tier 1 Electron smoke tests"
-(cd "$WEBAPP" && npx playwright test --config=playwright-tier1-system.config.ts --reporter=line) || fail "Tier 1 Electron smoke tests failed"
+(cd "$WEBAPP" && npm run test:e2e:tier1:run -- --reporter=line) || fail "Tier 1 Electron smoke tests failed"
 pass "Tier 1 Electron smoke tests"
 
 # ── Stage 2d: Tier 1 Browser smoke tests ──────────────────────────────
