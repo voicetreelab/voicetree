@@ -1,9 +1,7 @@
 name: CI Gate
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-gate-${{ github.ref }}
@@ -25,9 +23,7 @@ jobs:
         with:
           script: |
             const REQUIRED_WORKFLOWS = [
-              'Lint',
-              'Branch Verification',
-              'Stage 1: Fast Checks',
+              'PR CI',
             ];
             const SELF = 'CI Gate';
             const POLL_MS = 30_000;
