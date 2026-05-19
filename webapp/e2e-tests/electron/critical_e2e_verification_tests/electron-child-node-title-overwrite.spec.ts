@@ -264,18 +264,20 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
     return childId;
   }, nodeId);
 
-  // 5. Wait for the child node to appear in the graph.
-  // The delta is applied via daemon IPC; the projected graph reaches cytoscape via SSE.
-  // Transient SSE reconnections in CI can delay delivery — use a generous timeout.
+  // 5. Wait for the child node to appear in the main-process graph via IPC.
+  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes to the daemon synchronously,
+  // so getGraph() sees the child almost immediately — no SSE delivery dependency.
   await expect.poll(async () => {
-    return appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      return cy?.nodes().length ?? 0;
+    return appWindow.evaluate(async () => {
+      const api = (window as unknown as ExtendedWindow).electronAPI;
+      if (!api) return 0;
+      const graph = await api.main.getGraph();
+      return Object.keys(graph.nodes).length;
     });
   }, {
-    message: 'Waiting for child node to appear in graph',
-    timeout: 30_000,
-    intervals: [500, 1000, 2000, 3000],
+    message: 'Waiting for child node to appear in main-process graph',
+    timeout: 15_000,
+    intervals: [200, 500, 1000, 2000],
   }).toBeGreaterThanOrEqual(2);
 
   // 6. Allow autosave + file watcher to settle
