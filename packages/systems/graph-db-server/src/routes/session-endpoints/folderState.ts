@@ -15,6 +15,7 @@ import {
   updateCurrentFolderStateBatch,
 } from '@vt/graph-db-server/views/folderVisibilityResource'
 import { errorResult, jsonResult, notFoundResult } from '@vt/graph-db-server/application/workflows/httpResult'
+import { executeCommand } from '@vt/graph-db-server/application/workflows/dispatch'
 import { sendHttpResult } from '../httpResult.ts'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
@@ -56,6 +57,16 @@ function syncSessionCollapseSetBatch(
   }
 }
 
+async function syncGraphLoadedState(path: string, state: FolderState): Promise<void> {
+  if (state === 'expanded') {
+    await executeCommand({ type: 'AddVaultReadPath', path })
+    return
+  }
+  if (state === 'hidden') {
+    await executeCommand({ type: 'RemoveVaultReadPath', path })
+  }
+}
+
 export function mountFolderStateRoutes(
   app: Hono,
   registry: WorkflowSessionRegistry,
@@ -90,6 +101,7 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
+    await syncGraphLoadedState(path, body.data.state)
     syncSessionCollapseSet(session, path, body.data.state)
     return sendHttpResult(
       c,
@@ -112,6 +124,9 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
+    for (const update of body.data.updates) {
+      await syncGraphLoadedState(update.path, update.state)
+    }
     syncSessionCollapseSetBatch(session, body.data.updates)
     return sendHttpResult(
       c,

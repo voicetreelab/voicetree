@@ -88,13 +88,14 @@ function injectStylesheet(): void {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 5;
+    z-index: 1101; /* Above the macOS title-bar drag region (1099). */
 }
 .${CHIP_CLASS} {
     position: absolute;
     display: flex;
     gap: 0;
     pointer-events: none;
+    -webkit-app-region: no-drag;
 }
 .${BUTTON_CHEVRON_CLASS},
 .${BUTTON_EYE_CLASS} {
@@ -111,6 +112,7 @@ function injectStylesheet(): void {
     padding: 0;
     box-sizing: border-box;
     pointer-events: auto;
+    -webkit-app-region: no-drag;
     transition: background-color 80ms linear, border-color 80ms linear;
 }
 .${BUTTON_CHEVRON_CLASS}:hover,
@@ -289,6 +291,20 @@ export function setupFolderHandles(cy: Core): void {
         for (const folderId of chips.keys()) positionChip(folderId);
     }
 
+    function scheduleChipPositionAfterRender(folderId: string): void {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                positionChip(folderId);
+            });
+        });
+    }
+
+    function scheduleAllChipPositionsAfterRender(): void {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(positionAllChips);
+        });
+    }
+
     // Bootstrap: chip for every folder already in the graph
     cy.nodes('node[?isFolderNode]').forEach((n: NodeSingular): void => {
         createChip(n.id());
@@ -302,10 +318,16 @@ export function setupFolderHandles(cy: Core): void {
         destroyChip((evt.target as NodeSingular).id());
     });
 
-    // Data change: collapse / expand toggle → re-render chevron glyph + reposition
+    // Data change: collapse / expand toggle → re-render chevron glyph + reposition.
+    // Cytoscape compound bounds settle after the batch/render turn that removes
+    // or restores descendants, so read renderedBoundingBox again after rAF x2.
     cy.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
-        positionChip((evt.target as NodeSingular).id());
+        const folderId: string = (evt.target as NodeSingular).id();
+        positionChip(folderId);
+        scheduleChipPositionAfterRender(folderId);
     });
+
+    cy.on('layoutstop', scheduleAllChipPositionsAfterRender);
 
     // Reposition on pan / zoom (canvas-relative move). Per-node moves handled
     // by 'position' listeners below. NEVER subscribe to 'bounds' or 'render'

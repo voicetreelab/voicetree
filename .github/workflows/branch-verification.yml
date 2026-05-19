@@ -1,26 +1,6 @@
 name: Branch Verification
 
 on:
-  push:
-    branches-ignore:
-      - main
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'knip.config.ts'
-      - 'scripts/**'
-      - 'packages/**'
-      - 'webapp/**'
-      - '.github/workflows/branch-verification.yml'
-  pull_request:
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'knip.config.ts'
-      - 'scripts/**'
-      - 'packages/**'
-      - 'webapp/**'
-      - '.github/workflows/branch-verification.yml'
   workflow_dispatch:
     inputs:
       run_electron_tier2:

@@ -89,6 +89,48 @@ function getExtractMenuItem(appWindow: Page): Locator {
     }).first();
 }
 
+type ExtractedFolderCollapseState = {
+    projectedKind: string | null;
+    cytoscapeCollapsed: boolean | null;
+};
+
+type ExtractProjectedGraphCaptureWindow = ExtendedWindow & {
+    __extractLastProjectedGraph?: { nodes?: readonly { id: string; kind: string }[] };
+    __extractUnsubscribeProjectedGraph?: () => void;
+};
+
+async function startProjectedGraphCapture(appWindow: Page): Promise<void> {
+    await appWindow.evaluate(() => {
+        const extendedWindow = window as unknown as ExtractProjectedGraphCaptureWindow;
+        extendedWindow.__extractUnsubscribeProjectedGraph?.();
+        extendedWindow.__extractLastProjectedGraph = undefined;
+        extendedWindow.__extractUnsubscribeProjectedGraph = extendedWindow.electronAPI?.graph?.onProjectedGraphUpdate(
+            (graph: { nodes?: readonly { id: string; kind: string }[] }) => {
+                extendedWindow.__extractLastProjectedGraph = graph;
+            }
+        );
+    });
+}
+
+async function getExtractedFolderCollapseState(
+    appWindow: Page,
+    folderPath: string
+): Promise<ExtractedFolderCollapseState> {
+    const folderId = `${folderPath}/`;
+
+    return appWindow.evaluate(async (id: string) => {
+        const extendedWindow = window as unknown as ExtractProjectedGraphCaptureWindow;
+        const projectedGraph = extendedWindow.__extractLastProjectedGraph;
+        const projectedNode = projectedGraph?.nodes?.find((node: { id: string; kind: string }) => node.id === id) ?? null;
+        const cyFolder = extendedWindow.cytoscapeInstance?.getElementById(id);
+
+        return {
+            projectedKind: projectedNode?.kind ?? null,
+            cytoscapeCollapsed: cyFolder?.length ? (cyFolder.data('collapsed') as boolean | undefined) ?? false : null,
+        };
+    }, folderId);
+}
+
 async function selectGraphNodes(appWindow: Page, nodeIds: readonly string[]): Promise<void> {
     await appWindow.evaluate((ids: readonly string[]) => {
         const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -132,6 +174,36 @@ async function openCanvasContextMenu(appWindow: Page): Promise<void> {
     });
 
     await expect(appWindow.locator('.ctxmenu')).toBeVisible({ timeout: 5000 });
+}
+
+async function openProjectFromRecentProjects(appWindow: Page): Promise<void> {
+    await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
+    const projectButton = appWindow.locator('button:has-text("extract-folder-test-vault")').first();
+    await expect(projectButton).toBeVisible({ timeout: 10000 });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const clickError = await projectButton.click({ timeout: 10000 }).then(
+            () => null,
+            (error: unknown) => error
+        );
+        const graphLoaded = await appWindow.waitForFunction(
+            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
+            undefined,
+            { timeout: 5000 }
+        ).then(
+            () => true,
+            () => false
+        );
+
+        if (graphLoaded) return;
+        if (attempt === 3 && clickError) throw clickError;
+    }
+
+    await appWindow.waitForFunction(
+        () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
+        undefined,
+        { timeout: 30000 }
+    );
 }
 
 async function triggerExtractIntoFolder(appWindow: Page): Promise<void> {
@@ -184,7 +256,7 @@ const test = base.extend<{
                 ...process.env,
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
-                MINIMIZE_TEST: '1',
+                MINIMIZE_TEST: '0',
                 VOICETREE_PERSIST_STATE: '1',
             },
             timeout: 15000,
@@ -229,13 +301,7 @@ const test = base.extend<{
         });
 
         await appWindow.waitForLoadState('domcontentloaded');
-        await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await appWindow.locator('button:has-text("extract-folder-test-vault")').first().click();
-
-        await appWindow.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 30000 }
-        );
+        await openProjectFromRecentProjects(appWindow);
         await appWindow.waitForTimeout(3000);
 
         await use(appWindow);
@@ -252,6 +318,7 @@ test.describe('Extract Into Folder Node', () => {
         const rootEntriesBefore = await listRootEntries(vaultPath);
 
         await selectGraphNodes(appWindow, [alphaId, betaId]);
+        await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
@@ -279,6 +346,15 @@ test.describe('Extract Into Folder Node', () => {
         expect(await fs.access(path.join(vaultPath, 'alpha.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(vaultPath, 'beta.md')).then(() => true).catch(() => false)).toBe(false);
 
+        await expect.poll(async () => getExtractedFolderCollapseState(appWindow, newFolderPath), {
+            message: 'Waiting for the extracted folder to be collapsed in the projected graph',
+            timeout: 10000,
+            intervals: [250, 500, 1000],
+        }).toMatchObject({
+            projectedKind: 'folder-collapsed',
+            cytoscapeCollapsed: true,
+        });
+
         const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
         expect(readWikilinks(indexNoteContent)).toEqual([]);
         expect(indexNoteContent).toContain('Contains 2 nodes.');
@@ -293,6 +369,7 @@ test.describe('Extract Into Folder Node', () => {
         const rootEntriesBefore = await listRootEntries(vaultPath);
 
         await selectGraphNodes(appWindow, [docsFolderId, overviewId]);
+        await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
@@ -318,6 +395,15 @@ test.describe('Extract Into Folder Node', () => {
         expect(await fs.access(path.join(vaultPath, 'overview.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(true);
+
+        await expect.poll(async () => getExtractedFolderCollapseState(appWindow, newFolderPath), {
+            message: 'Waiting for the extracted folder to be collapsed in the projected graph',
+            timeout: 10000,
+            intervals: [250, 500, 1000],
+        }).toMatchObject({
+            projectedKind: 'folder-collapsed',
+            cytoscapeCollapsed: true,
+        });
 
         const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
         expect(readWikilinks(indexNoteContent)).toEqual([]);

@@ -18,12 +18,16 @@ import type {Core} from 'cytoscape';
 import {
     updateFloatingEditors,
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {getEditorId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
+import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
 import * as O from 'fp-ts/lib/Option.js';
 import {calculateNodePosition} from "@vt/graph-model/spatial";
 import {buildSpatialIndexFromGraph} from "@vt/graph-model/spatial";
 import type {SpatialIndex} from "@vt/graph-model/spatial";
 import {requestAutoPinOnCreation} from "@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI";
 import {createGraph} from "@vt/graph-model/graph";
+import {parseMarkdownToGraphNode} from "@vt/graph-model/markdown";
 
 /**
  * Merges new metadata with old metadata, preferring new values when they are "present".
@@ -42,6 +46,32 @@ export function mergeNodeUIMetadata(oldMeta: NodeUIMetadata, newMeta: NodeUIMeta
     };
 }
 
+function getOpenEditorContent(nodeId: NodeIdAndFilePath): string | null {
+    const editorOption = getEditorByNodeId(nodeId);
+    if (O.isNone(editorOption)) return null;
+
+    const editorInstance: unknown = vanillaFloatingWindowInstances.get(getEditorId(editorOption.value));
+    return editorInstance
+        && typeof editorInstance === 'object'
+        && 'getValue' in editorInstance
+        && typeof editorInstance.getValue === 'function'
+        ? editorInstance.getValue()
+        : null;
+}
+
+function mergeOpenEditorContentIntoNode(
+    node: GraphNode,
+    graph: Graph,
+): GraphNode {
+    const editorContent: string | null = getOpenEditorContent(node.absoluteFilePathIsID);
+    if (editorContent === null) return node;
+
+    const parsedNode: GraphNode = parseMarkdownToGraphNode(editorContent, node.absoluteFilePathIsID, graph);
+    return {
+        ...parsedNode,
+        nodeUIMetadata: mergeNodeUIMetadata(node.nodeUIMetadata, parsedNode.nodeUIMetadata),
+    };
+}
 
 export async function createNewChildNodeFromUI(
     parentNodeId: string,
@@ -62,18 +92,23 @@ export async function createNewChildNodeFromUI(
         return "-1";
     }
 
-    const graphForChildCreation: Graph = graphParentNode
+    const graphForChildCreationBase: Graph = graphParentNode
         ? currentGraph
         : createGraph({
             ...currentGraph.nodes,
             [parentNodeId]: parentNode,
         });
+    const freshParentNode: GraphNode = mergeOpenEditorContentIntoNode(parentNode, graphForChildCreationBase);
+    const graphForChildCreation: Graph = createGraph({
+        ...graphForChildCreationBase.nodes,
+        [parentNodeId]: freshParentNode,
+    });
 
     const spatialIndexToUse: SpatialIndex = spatialIndex ?? buildSpatialIndexFromGraph(graphForChildCreation);
     const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graphForChildCreation, spatialIndexToUse, parentNodeId));
 
     // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(graphForChildCreation, parentNode, "# ", undefined, O.some(position));
+    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(graphForChildCreation, freshParentNode, "# ", undefined, O.some(position));
     const newNode: GraphNode = (graphDelta[0] as UpsertNodeDelta).nodeToUpsert;
 
     // GRAPH UI CHANGE path: update editor passively BEFORE writing to FS

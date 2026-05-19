@@ -64,7 +64,7 @@ const test = base.extend<{
                 ...process.env,
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
-                MINIMIZE_TEST: '1',
+                MINIMIZE_TEST: '0',
                 VOICETREE_PERSIST_STATE: '1'
             },
             timeout: 15000
@@ -72,20 +72,36 @@ const test = base.extend<{
 
         await use(electronApp);
 
-        try {
-            const w = await electronApp.firstWindow();
-            await w.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (api) await api.main.stopFileWatching();
-            });
-            await w.waitForTimeout(300);
-        } catch { /* cleanup best-effort */ }
+        const closeTask = (async (): Promise<void> => {
+            try {
+                const w = await electronApp.firstWindow();
+                await w.evaluate(async () => {
+                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    if (api) await api.main.stopFileWatching();
+                });
+                await w.waitForTimeout(300);
+            } catch {
+                // Best-effort cleanup only.
+            }
 
-        await electronApp.close();
+            await electronApp.close();
+        })();
+
+        const closed = await Promise.race([
+            closeTask.then(() => true).catch(() => true),
+            new Promise<boolean>(resolve => setTimeout(() => resolve(false), 8000)),
+        ]);
+        if (!closed) {
+            electronApp.process().kill('SIGKILL');
+            await Promise.race([
+                closeTask.catch(() => undefined),
+                new Promise<void>(resolve => setTimeout(resolve, 2000)),
+            ]);
+        }
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath: _vaultPath }, use) => {
+    appWindow: async ({ electronApp, vaultPath }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();
@@ -98,10 +114,12 @@ const test = base.extend<{
 
         await w.waitForLoadState('domcontentloaded');
 
-        // Navigate through project selection screen (required to initialize graph view)
-        await w.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        const projectButton = w.locator('button:has-text("bf113-test")').first();
-        await projectButton.click();
+        const watchResult = await w.evaluate(async (folderPath: string) => {
+            const api = (window as unknown as ExtendedWindow).electronAPI;
+            if (!api) throw new Error('electronAPI not available');
+            return api.main.startFileWatching(folderPath);
+        }, vaultPath);
+        expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
 
         await w.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -126,6 +144,65 @@ async function emitDblTapOnFolder(page: Page, folderSuffix: string): Promise<str
         folder.emit('dbltap');
         return id;
     }, folderSuffix);
+}
+
+async function waitForFolderNode(page: Page, folderSuffix: string): Promise<string> {
+    await expect.poll(
+        () => page.evaluate((suffix: string) => {
+            const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+            if (!cy) return null;
+            const folder = cy.nodes()
+                .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+                .first();
+            return folder.length ? folder.id() : null;
+        }, folderSuffix),
+        { message: `Waiting for folder node ending with ${folderSuffix}`, timeout: 20000 }
+    ).not.toBeNull();
+
+    return page.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        return folder.id();
+    }, folderSuffix);
+}
+
+async function closeFolderTreeSidebarIfVisible(page: Page): Promise<void> {
+    const sidebar = page.locator('[data-testid="folder-tree-sidebar"]');
+    if (!await sidebar.isVisible().catch(() => false)) return;
+    await sidebar.locator('.folder-tree-close-btn').click();
+    await expect(sidebar).not.toBeVisible({ timeout: 5000 });
+}
+
+async function clickFolderChevron(page: Page, folderSuffix: string): Promise<void> {
+    const point = await page.evaluate((suffix: string) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('No cytoscapeInstance');
+        const folder = cy.nodes()
+            .filter((n: import('cytoscape').NodeSingular) => n.data('isFolderNode') && n.id().endsWith(suffix))
+            .first();
+        if (!folder.length) throw new Error(`No folder node ending with: ${suffix}`);
+        const folderId = folder.id();
+        const chip = Array.from(document.querySelectorAll<HTMLElement>('.vt-folder-handle'))
+            .find((el: HTMLElement) => el.dataset.folderId === folderId);
+        if (!chip) throw new Error(`No folder handle chip for: ${folderId}`);
+        const chevron = chip.querySelector<HTMLElement>('.vt-folder-handle__chevron');
+        if (!chevron) throw new Error(`No folder chevron button for: ${folderId}`);
+        const rect = chevron.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        if (!hit?.closest('.vt-folder-handle__chevron')) {
+            const target = hit as HTMLElement | null;
+            throw new Error(`Folder chevron is not the top hit target for: ${folderId}; hit=${target?.tagName ?? 'null'} class=${target?.className ?? ''} id=${target?.id ?? ''}`);
+        }
+        return { x, y };
+    }, folderSuffix);
+
+    await page.mouse.click(point.x, point.y);
 }
 
 interface SyntheticEdgeInfo {
@@ -333,6 +410,8 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
     test('collapsing a folder in graph updates the file tree store state', async ({ appWindow }) => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 3);
+        await waitForFolderNode(appWindow, '/auth/');
+        await closeFolderTreeSidebarIfVisible(appWindow);
 
         // Before collapse: graphCollapsedFolders should be empty
         const collapsedBefore = await appWindow.evaluate(() => {
@@ -345,14 +424,14 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
         // If store is not exposed to window, we test via graph state only
         if (collapsedBefore === -1) {
             // Fallback: just verify graph collapse works via Cytoscape
-            await emitDblTapOnFolder(appWindow, '/auth/');
+            await clickFolderChevron(appWindow, '/auth/');
             await expect.poll(
                 () => getFolderCollapsedState(appWindow, '/auth/'),
                 { message: 'Waiting for auth/ to collapse', timeout: 5000 }
             ).toBe(true);
 
             // Expand to verify round-trip
-            await emitDblTapOnFolder(appWindow, '/auth/');
+            await clickFolderChevron(appWindow, '/auth/');
             await expect.poll(
                 () => getFolderCollapsedState(appWindow, '/auth/'),
                 { message: 'Waiting for auth/ to expand', timeout: 10000 }
@@ -363,7 +442,7 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
         expect(collapsedBefore).toBe(0);
 
         // Collapse auth/ in graph
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await clickFolderChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
@@ -381,6 +460,8 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
     test('graph collapse and expand round-trip preserves state consistency', async ({ appWindow }) => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 3);
+        await waitForFolderNode(appWindow, '/auth/');
+        await closeFolderTreeSidebarIfVisible(appWindow);
 
         // Get initial edge count involving auth/ nodes
         const edgesBefore = await appWindow.evaluate(() => {
@@ -393,14 +474,14 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
         expect(edgesBefore).toBeGreaterThan(0);
 
         // Collapse auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await clickFolderChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { timeout: 5000 }
         ).toBe(true);
 
         // Expand auth/
-        await emitDblTapOnFolder(appWindow, '/auth/');
+        await clickFolderChevron(appWindow, '/auth/');
         await expect.poll(
             () => getFolderCollapsedState(appWindow, '/auth/'),
             { timeout: 10000 }

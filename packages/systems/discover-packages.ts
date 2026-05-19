@@ -51,10 +51,16 @@ async function readPackageJson(absDir: string): Promise<{name?: unknown} | null>
     }
 }
 
+async function isNestedGitRoot(absDir: string, repoRoot: string): Promise<boolean> {
+    return absDir !== repoRoot && await pathExists(join(absDir, '.git'))
+}
+
 export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Promise<readonly PackageInfo[]> {
     const found: PackageInfo[] = []
 
     async function walk(absDir: string, relDir: string): Promise<void> {
+        if (await isNestedGitRoot(absDir, repoRoot)) return
+
         if (absDir !== repoRoot) {
             const pkgJson = await readPackageJson(absDir)
             if (pkgJson && typeof pkgJson.name === 'string' && pkgJson.name.length > 0) {

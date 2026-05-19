@@ -14,7 +14,7 @@ export function VaultPathSelector(): JSX.Element | null {
     const vaultState: VaultPathState = useSyncExternalStore(subscribeToVaultPaths, getVaultState);
     const { readPaths, writePath } = vaultState;
 
-    if (readPaths.length === 0) {
+    if (!writePath && readPaths.length === 0) {
         return null;
     }
 

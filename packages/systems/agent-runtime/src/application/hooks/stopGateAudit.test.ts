@@ -404,4 +404,9 @@ describe('buildHeadlessCommand', () => {
         const cmd: string = buildHeadlessCommand(`claude --settings '/foo/bar.json' --dangerously-skip-permissions "$AGENT_PROMPT"`)
         expect(cmd).toBe(`claude --settings '/foo/bar.json' --dangerously-skip-permissions -p "$AGENT_PROMPT"`)
     })
+
+    it('leaves unknown commands prompt-file driven instead of appending CLI-specific prompt flags', () => {
+        const cmd: string = buildHeadlessCommand('echo "marker" "$AGENT_PROMPT" && sleep 10')
+        expect(cmd).toBe('echo "marker" && sleep 10')
+    })
 })

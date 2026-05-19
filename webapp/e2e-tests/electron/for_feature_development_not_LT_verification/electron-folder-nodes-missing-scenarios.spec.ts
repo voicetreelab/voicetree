@@ -155,18 +155,32 @@ const test = base.extend<{
 
         await use(electronApp);
 
-        try {
-            const window = await electronApp.firstWindow();
-            await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (api) await api.main.stopFileWatching();
-            });
-            await window.waitForTimeout(300);
-        } catch {
-            // Best-effort cleanup only.
-        }
+        const closeTask = (async (): Promise<void> => {
+            try {
+                const window = await electronApp.firstWindow();
+                await window.evaluate(async () => {
+                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    if (api) await api.main.stopFileWatching();
+                });
+                await window.waitForTimeout(300);
+            } catch {
+                // Best-effort cleanup only.
+            }
 
-        await electronApp.close();
+            await electronApp.close();
+        })();
+
+        const closed = await Promise.race([
+            closeTask.then(() => true).catch(() => true),
+            new Promise<boolean>(resolve => setTimeout(() => resolve(false), 8000)),
+        ]);
+        if (!closed) {
+            electronApp.process().kill('SIGKILL');
+            await Promise.race([
+                closeTask.catch(() => undefined),
+                new Promise<void>(resolve => setTimeout(resolve, 2000)),
+            ]);
+        }
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
@@ -405,19 +419,20 @@ test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
         await openFolderTreeSidebar(appWindow);
 
         await expect.poll(
-            () => getEdges(appWindow, fixture.entryId, fixture.exampleNoteId).then(sortEdges),
+            () => getEdges(appWindow, fixture.entryId, fixture.exampleFolderId).then(sortEdges),
             {
-                message: 'Waiting for [[example]] to resolve to example/example.md before collapse',
+                message: 'Waiting for [[example]] to resolve to the expanded example/ folder identity',
                 timeout: 10000,
                 intervals: [250, 500, 1000]
             }
         ).toEqual([{
             source: fixture.entryId,
-            target: fixture.exampleNoteId,
+            target: fixture.exampleFolderId,
             edgeCount: undefined,
             label: undefined,
             synthetic: false,
         }]);
+        expect(await visibleNodeIds(appWindow)).not.toContain(fixture.exampleNoteId);
         await captureStateScreenshot(appWindow, 'before-folder-note.png');
 
         await collapseSidebarFolder(appWindow, 'example', vaultPath);

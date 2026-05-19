@@ -32,3 +32,12 @@ if [ -f "$WORKTREE_PATH/webapp/package.json" ] && [ ! -e "$WORKTREE_PATH/webapp/
 fi
 
 echo "Async setup complete for worktree $WORKTREE_NAME"
+
+# --- Mirror the worktree on devbox so it's reachable as part of "vt-remote" ---
+# Best-effort: if ssh is unreachable, agents keep working locally; user can
+# re-run vt-mirror-worktree.sh manually later. Stderr/stdout captured so the
+# fire-and-forget caller doesn't get noise.
+SCRIPT_DIR_ASYNC="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR_ASYNC/vt-mirror-worktree.sh" "$WORKTREE_PATH" "$WORKTREE_NAME" 2>&1 || {
+    echo "WARNING: vt-mirror-worktree failed; devbox-side admin not registered" >&2
+}
