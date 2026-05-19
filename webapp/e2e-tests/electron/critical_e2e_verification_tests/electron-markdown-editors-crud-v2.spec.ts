@@ -747,28 +747,24 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await fs.writeFile(testFilePath, externallyChangedContent, 'utf-8');
     console.log('✓ File changed externally');
 
-    // Wait for file watcher to detect the change
-    await appWindow.waitForTimeout(2000);
-
-    // Check if editor content was updated to match the external change
-    const updatedEditorContent = await appWindow.evaluate((winId) => {
-      // Escape dots in winId for querySelector
-      const escapedWinId = CSS.escape(winId);
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
-      if (!editorElement) return null;
-
-      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
-      if (!cmView) return null;
-
-      return cmView.state.doc.toString();
-    }, editorWindowId);
-
-    console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
-
-    // This is the key assertion - editor should show the externally changed content
-    // The editor displays content WITHOUT frontmatter (frontmatter is stripped for editing)
+    // Poll until the editor reflects the external file change.
+    // Pipeline: fs.writeFile → file watcher → SSE → renderer → CodeMirror update.
+    // CI is slower than local so we give a generous 15s window.
     const expectedEditorContent = '# Identify Relevant Test\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
-    expect(updatedEditorContent).toBe(expectedEditorContent);
+    await expect.poll(async () => {
+      return appWindow.evaluate((winId) => {
+        const escapedWinId = CSS.escape(winId);
+        const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
+        if (!editorElement) return null;
+        const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+        if (!cmView) return null;
+        return cmView.state.doc.toString();
+      }, editorWindowId);
+    }, {
+      message: 'Waiting for editor to sync external file change',
+      timeout: 15000,
+      intervals: [500, 1000, 2000],
+    }).toBe(expectedEditorContent);
     console.log('✓ Editor synced with external file change');
 
     // Close the editor before restoring file (to prevent auto-save from overwriting)

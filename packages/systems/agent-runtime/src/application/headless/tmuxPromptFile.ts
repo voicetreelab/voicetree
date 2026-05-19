@@ -103,15 +103,17 @@ export function rewriteCommandForPromptFile(command: string, promptFile: string)
 }
 
 /**
- * Wrap a rewritten command in `bash -c 'unset AGENT_PROMPT; exec ...'` for
- * the headless tmux `new-session` argv. The `unset` defeats OS env-inheritance:
+ * Wrap a rewritten command in `bash -c 'unset AGENT_PROMPT; ...'` for the
+ * headless tmux `new-session` argv. The `unset` defeats OS env-inheritance:
  * the parent shell's AGENT_PROMPT leaks via electron → tmux server → pane,
  * and tmux `-e KEY=` doesn't reliably override an inherited value across
  * tmux versions. The on-disk prompt file remains the sole source via
  * AGENT_PROMPT_FILE.
+ *
+ * Note: no `exec` — compound commands (`cmd && sleep N`) must run fully.
  */
 export function wrapForHeadlessTmux(rewrittenCommand: string): string {
-    return `bash -c ${shellSingleQuote(`unset AGENT_PROMPT; exec ${rewrittenCommand}`)}`
+    return `bash -c ${shellSingleQuote(`unset AGENT_PROMPT; ${rewrittenCommand}`)}`
 }
 
 export type PromptFileSpawnPlan = {

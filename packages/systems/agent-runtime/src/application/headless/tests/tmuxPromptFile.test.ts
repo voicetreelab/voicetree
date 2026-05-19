@@ -124,9 +124,14 @@ describe('rewriteCommandForPromptFile (CLI-aware)', () => {
 })
 
 describe('wrapForHeadlessTmux', () => {
-    it("wraps in bash -c 'exec ...' so stdin redirection survives tmux's argv", () => {
+    it("wraps in bash -c '...' to unset AGENT_PROMPT and run the command", () => {
         const out: string = wrapForHeadlessTmux(`claude --print < '/v/p.txt'`)
-        expect(out).toBe(`bash -c 'unset AGENT_PROMPT; exec claude --print < '\\''/v/p.txt'\\'''`)
+        expect(out).toBe(`bash -c 'unset AGENT_PROMPT; claude --print < '\\''/v/p.txt'\\'''`)
+    })
+
+    it('preserves compound commands so both sides of && run', () => {
+        const out: string = wrapForHeadlessTmux(`echo marker && sleep 10`)
+        expect(out).toBe(`bash -c 'unset AGENT_PROMPT; echo marker && sleep 10'`)
     })
 })
 
@@ -140,7 +145,7 @@ describe('applyPromptFileToHeadlessSpawn', () => {
         })
         expect(plan.promptFilePath).toBe(promptFilePath(vault, tid('Aki')))
         expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
-        expect(plan.command).toContain(`bash -c 'unset AGENT_PROMPT; exec claude < `)
+        expect(plan.command).toContain(`bash -c 'unset AGENT_PROMPT; claude < `)
         expect(plan.env.AGENT_PROMPT).toBe('')
         expect(plan.env.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
         expect(plan.env.VOICETREE_TERMINAL_ID).toBe('Aki')
