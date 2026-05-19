@@ -50,6 +50,12 @@ async function clickSavedProject(page: Page, projectName: string): Promise<void>
     await button.evaluate((element: HTMLElement) => element.click());
 }
 
+async function clickBackToProjectSelection(page: Page): Promise<void> {
+    const backButton = page.locator('button[title="Back to project selection"]');
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await backButton.evaluate((element: HTMLElement) => element.click());
+}
+
 // Base test fixture that creates temp directories for testing
 const test = base.extend<{
     testProjectPath: string;
@@ -281,8 +287,7 @@ test.describe('Project Selection Screen E2E', () => {
         console.log('✓ In graph view');
 
         // Click back button
-        const backButton = appWindow.locator('button[title="Back to project selection"]');
-        await backButton.click();
+        await clickBackToProjectSelection(appWindow);
         console.log('✓ Clicked back button');
 
         // Wait for project selection screen to reappear
@@ -717,6 +722,7 @@ test.describe('Watched Folder Panel Regression', () => {
         const projectWithoutConfig = path.join(tempProjectPath, 'without-config');
         const voicetreeWithConfig = path.join(projectWithConfig, 'voicetree');
         const voicetreeWithoutConfig = path.join(projectWithoutConfig, 'voicetree');
+        let electronApp: ElectronApplication | undefined;
 
         try {
             // Create both project structures
@@ -805,8 +811,9 @@ test.describe('Watched Folder Panel Regression', () => {
 
                 // Take screenshot for debugging
                 const screenshotPath = path.join(tempDir, `panel-check-${projectName}.png`);
-                await appWindow.screenshot({ path: screenshotPath });
-                console.log(`[${projectName}] Screenshot saved to: ${screenshotPath}`);
+                await appWindow.screenshot({ path: screenshotPath, timeout: 5000 })
+                    .then(() => console.log(`[${projectName}] Screenshot saved to: ${screenshotPath}`))
+                    .catch(error => console.log(`[${projectName}] Screenshot skipped: ${String(error)}`));
 
                 return {
                     folderNameVisible,
@@ -818,7 +825,7 @@ test.describe('Watched Folder Panel Regression', () => {
             };
 
             // Launch app
-            const electronApp = await electron.launch({
+            electronApp = await electron.launch({
                 args: [
                     ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
@@ -848,7 +855,7 @@ test.describe('Watched Folder Panel Regression', () => {
             console.log('Result (with config):', resultWithConfig);
 
             // Go back to project selection
-            await appWindow.locator('button[title="Back to project selection"]').click();
+            await clickBackToProjectSelection(appWindow);
             await appWindow.waitForSelector('text=Select a project to open', { timeout: 10000 });
 
             // Test project WITHOUT existing config
@@ -890,12 +897,17 @@ test.describe('Watched Folder Panel Regression', () => {
 
             console.log('✅ Both project types show watched folder panel correctly!');
 
-            await safeStopFileWatching(electronApp);
-            await robustElectronTeardown(electronApp);
-
         } finally {
-            await fs.rm(tempUserDataPath, { recursive: true, force: true });
-            await fs.rm(tempProjectPath, { recursive: true, force: true });
+            if (electronApp) {
+                await safeStopFileWatching(electronApp).catch(error => {
+                    console.log(`safeStopFileWatching failed during cleanup: ${String(error)}`);
+                });
+                await robustElectronTeardown(electronApp).catch(error => {
+                    console.log(`robustElectronTeardown failed during cleanup: ${String(error)}`);
+                });
+            }
+            await fs.rm(tempUserDataPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+            await fs.rm(tempProjectPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
         }
     });
 });
