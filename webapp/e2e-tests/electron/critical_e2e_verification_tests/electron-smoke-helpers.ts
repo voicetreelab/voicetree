@@ -161,6 +161,7 @@ export function getCiElectronFlags(): string[] {
 const POLL_INTERVALS: number[] = [250, 500, 1000, 2000];
 const SHUTDOWN_IPC_TIMEOUT_MS = 2500;
 const FIRST_WINDOW_TIMEOUT_MS = 1000;
+const ELECTRON_CLOSE_TIMEOUT_MS = 5000;
 const PROCESS_EXIT_TIMEOUT_MS = 2000;
 
 export async function pollForCytoscape(page: Page, timeout = 30000): Promise<void> {
@@ -220,6 +221,14 @@ export async function robustElectronTeardown(electronApp: ElectronApplication): 
   await safeDaemonShutdown(electronApp);
 
   const proc = electronApp.process();
+  const close = electronApp.close().catch(() => undefined);
+  const closed = await Promise.race([
+    close.then(() => true),
+    delay(ELECTRON_CLOSE_TIMEOUT_MS).then(() => false),
+  ]);
+
+  if (closed) return;
+
   if (proc?.pid) {
     try {
       process.kill(proc.pid, 'SIGKILL');
@@ -228,6 +237,7 @@ export async function robustElectronTeardown(electronApp: ElectronApplication): 
     }
   }
   if (proc) await waitForProcessExit(proc);
+  await Promise.race([close, delay(PROCESS_EXIT_TIMEOUT_MS)]);
 }
 
 export async function safeDaemonShutdown(electronApp: ElectronApplication): Promise<void> {
