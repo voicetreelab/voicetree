@@ -18,7 +18,7 @@ import { executeCommand } from '@vt/graph-db-server/application/workflows/dispat
 import { sendHttpResult } from '../httpResult.ts'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
-import type { Session } from '../../application/session/types.ts'
+import type { Session } from '@vt/graph-db-server/application/session/types'
 
 function decodePath(raw: string): string | null {
   try {
