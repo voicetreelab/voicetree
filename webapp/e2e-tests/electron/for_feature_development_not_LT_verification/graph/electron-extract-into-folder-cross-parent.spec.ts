@@ -11,7 +11,8 @@
  *   live "Final location" preview.
  * - Confirming creates a new folder at the LCA with the chosen name. Selected
  *   files are moved into the new folder, preserving their relative paths from the LCA.
- *   A hub note with wikilinks to the moved items is created inside the new folder.
+ *   An `index.md` folder note is created inside the new folder, with no wikilinks and
+ *   a body stating how many nodes the folder contains.
  * - Cancelling closes the dialog without moving any files or creating any folder.
  * - When 2+ selected nodes SHARE a parent, the menu item is the plain "Extract Into Folder"
  *   (no "common ancestor" suffix) and clicking it extracts directly without showing the popup.
@@ -84,12 +85,6 @@ async function createCrossParentVault(basePath: string): Promise<string> {
 function readWikilinks(markdown: string): string[] {
     const matches = markdown.matchAll(/\[\[([^\]]+)\]\]/g);
     return Array.from(matches, (match: RegExpMatchArray) => match[1] ?? '');
-}
-
-function normalizeLinkTarget(target: string): string {
-    const withoutAlias = target.split('|')[0]?.trim() ?? target;
-    const withoutTrailingSlash = withoutAlias.replace(/\/$/, '');
-    return path.basename(withoutTrailingSlash).replace(/\.md$/, '');
 }
 
 function getExtractMenuItem(appWindow: Page): Locator {
@@ -329,14 +324,14 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         expect(await fs.access(path.join(vaultPath, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(false);
 
         const topLevelEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
-        const hubNoteNames = topLevelEntries
+        const topLevelFileNames = topLevelEntries
             .filter((entry: import('fs').Dirent) => entry.isFile() && entry.name.endsWith('.md'))
             .map((entry: import('fs').Dirent) => entry.name);
-        expect(hubNoteNames).toHaveLength(1);
+        expect(topLevelFileNames).toEqual(['index.md']);
 
-        const hubNoteContent = await fs.readFile(path.join(newFolderPath, hubNoteNames[0]), 'utf8');
-        const normalizedLinks = readWikilinks(hubNoteContent).map(normalizeLinkTarget).sort();
-        expect(normalizedLinks).toEqual(expect.arrayContaining(['intro', 'notes']));
+        const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
+        expect(readWikilinks(indexNoteContent)).toEqual([]);
+        expect(indexNoteContent).toContain('Contains 2 nodes.');
 
         await shot(appWindow, '06-after-extract.png');
     });

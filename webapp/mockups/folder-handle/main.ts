@@ -1,9 +1,10 @@
 // Folder-handle mockup — thin wrapper around the shared browser-only harness.
 //
-// All the real work (cy bootstrap, sample graph, FolderHandleService wiring,
-// hover/anchored editor stubs, theme + reset controls) lives in ../_harness/.
-// This file just supplies the page copy that's specific to the folder-handle
-// demo. New mockups should follow the same pattern — see ../_harness/README.md.
+// The harness now runs the REAL folder-node pipeline end-to-end:
+//   chevron tap → real folderCollapse → real applyGraphDeltaToUI
+//   ⤷ powered by the real graph-state `project()` over a synthetic vault.
+// See ../_harness/README.md for the dependency layering. This file just
+// supplies page copy specific to the folder-handle demo.
 
 import { mountMockupHarness } from '../_harness'
 
@@ -12,25 +13,23 @@ if (!root) throw new Error('folder-handle mockup: #root not found in index.html'
 
 mountMockupHarness({
     root,
-    title: 'Folder handle — interactive mockup',
+    title: 'Folder nodes — interactive playground (real pipeline)',
     introHtml:
-        'This page wires the <strong>real</strong> <code>FolderHandleService</code> from ' +
-        '<code>webapp/src/shell/UI/cytoscape-graph-ui/services/folder-handle/</code> into a ' +
-        'stand-alone cytoscape canvas. The only stubs are <code>window.electronAPI</code> ' +
-        '(so the chevron\'s collapse/expand IPC has somewhere to land) and the sample graph.',
+        'This page drives the <strong>real</strong> folder-node pipeline: ' +
+        '<code>FolderHandleService</code> → <code>folderCollapse</code> → ' +
+        '<code>applyGraphDeltaToUI</code>, with an in-browser daemon running the real ' +
+        '<code>project()</code> from <code>@vt/graph-state</code> over a synthetic vault.',
     legend: [
-        { html: '<b>Chevron click</b> → real <code>toggleFolderCollapse</code> path → stub IPC → cy mutation.' },
+        { html: '<b>Chevron click</b> → real <code>toggleFolderCollapse</code> → in-browser daemon → real <code>applyGraphDeltaToUI</code>.' },
         { html: '<b>Folder body</b> is <code>ungrabify()</code>\'d: pan + right-click pass through to the canvas.' },
         { html: '<b>Hover the folder body</b> → no grab cursor (matches the shipped mouseover early-return).' },
         { html: '<b>Collapsed folder</b> = 40×40 pill, grabbable, no DOM chip (the cy node IS the chip).' },
-        { html: '<b>Click a collapsed pill</b> → expand. The stub rebuilds cy (see note); production routes via daemon IPC.' },
-        { html: '<b>Hover any node / folder</b> → transient editor pops up beneath it (stub of <code>HoverEditor.ts</code>).' },
-        { html: '<b>Click a node / folder body</b> → anchors the editor (stub of <code>AnchoredEditor.ts</code>); click again to un-pin.' },
+        { html: '<b>Double-click a collapsed pill</b> (or any folder) → expand. Same path as production.' },
+        { html: '<b>Hover a file node</b> → real <code>HoverEditor</code> with real CodeMirror, content from <code>fromNodeToContentWithWikilinks(node)</code>.' },
+        { html: '<b>Double-click the hover editor</b> → promotes to <code>AnchoredEditor</code> (pinned).' },
     ],
     noteHtml:
-        'Heads-up: in-place expand stresses a compound-bounds re-entrancy in the shipped chip ' +
-        'listener (positionChip reads bbox synchronously inside its own <code>bounds</code> event handler). ' +
-        'Production hides this via daemon-async IPC + <code>applyGraphDeltaToUI</code>\'s remove/re-add cycle; ' +
-        'the stub here rebuilds the cy instance instead — same end state.',
+        'Edits in CodeMirror are <b>read-only</b> — write IPCs are no-ops, so changes stay in the editor buffer and do NOT round-trip through <code>project()</code>. ' +
+        'Stubbed: image viewers, terminals, engagement prompts. Everything else loads verbatim from <code>webapp/src</code>.',
     footerHint: 'Right-click anywhere inside the dashed folder body — it should pass through. Drag the chevron-less area to pan.',
 })

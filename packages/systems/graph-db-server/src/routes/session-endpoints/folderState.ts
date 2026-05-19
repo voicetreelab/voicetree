@@ -3,8 +3,11 @@ import {
   FolderStateBatchRequestSchema,
   FolderStatePatchRequestSchema,
   FolderStateResponseSchema,
+  type FolderState,
+  type FolderStateBatchUpdate,
 } from '@vt/graph-db-server/contract'
 import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
+import type { Session } from '@vt/graph-db-server/application/session/registry'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import {
   readCurrentFolderState,
@@ -30,6 +33,29 @@ function vaultMustBeOpen() {
     : errorResult('No vault is currently open', 'vault_not_open', 409)
 }
 
+function normalizeFolderId(path: string): string {
+  const trimmed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
+}
+
+function syncSessionCollapseSet(session: Session, path: string, state: FolderState): void {
+  const folderId = normalizeFolderId(path)
+  if (state === 'collapsed') {
+    session.collapseSet.add(folderId)
+    return
+  }
+  session.collapseSet.delete(folderId)
+}
+
+function syncSessionCollapseSetBatch(
+  session: Session,
+  updates: readonly FolderStateBatchUpdate[],
+): void {
+  for (const update of updates) {
+    syncSessionCollapseSet(session, update.path, update.state)
+  }
+}
+
 export function mountFolderStateRoutes(
   app: Hono,
   registry: WorkflowSessionRegistry,
@@ -48,7 +74,8 @@ export function mountFolderStateRoutes(
   })
 
   mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.set'), async (c) => {
-    if (!registry.get(routeParam(c, 'sessionId'))) {
+    const session = registry.get(routeParam(c, 'sessionId'))
+    if (!session) {
       return sendHttpResult(c, notFoundResult())
     }
     const vaultError = vaultMustBeOpen()
@@ -63,6 +90,7 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
+    syncSessionCollapseSet(session, path, body.data.state)
     return sendHttpResult(
       c,
       jsonResult(
@@ -72,7 +100,8 @@ export function mountFolderStateRoutes(
   })
 
   mountDaemonRoute(app, daemonRouteSpecById('session.folder-state.batch'), async (c) => {
-    if (!registry.get(routeParam(c, 'sessionId'))) {
+    const session = registry.get(routeParam(c, 'sessionId'))
+    if (!session) {
       return sendHttpResult(c, notFoundResult())
     }
     const vaultError = vaultMustBeOpen()
@@ -83,6 +112,7 @@ export function mountFolderStateRoutes(
       return sendHttpResult(c, errorResult('Invalid request body', 'INVALID_REQUEST_BODY'))
     }
 
+    syncSessionCollapseSetBatch(session, body.data.updates)
     return sendHttpResult(
       c,
       jsonResult(

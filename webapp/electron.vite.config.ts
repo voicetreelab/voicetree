@@ -1,8 +1,8 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import wasm from 'vite-plugin-wasm'
-import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
 // Per-pipeline build timing. Pair plugins: a `pre`-enforced one starts a per-id
@@ -12,6 +12,18 @@ import path from 'path'
 // Wall-clock per pipeline comes from buildStart/buildEnd. Opt-in via
 // VT_BUILD_TIMING=1 so normal builds stay quiet. Stderr-only output.
 type TimingState = { pipelineStart: bigint; perId: Map<string, bigint>; perPkg: Map<string, bigint> }
+type TimedHook =
+  | 'resolveId'
+  | 'load'
+  | 'transform'
+  | 'generateBundle'
+  | 'renderChunk'
+  | 'writeBundle'
+  | 'closeBundle'
+type HookTiming = { total: bigint; count: number; details: Map<string, bigint> }
+type HookPhase = { firstStart: bigint; lastEnd: bigint; total: bigint; count: number }
+type HookFunction = (this: unknown, ...args: unknown[]) => unknown
+type BuildMark = { label: string; at: bigint }
 const packageOf = (id: string): string => {
   const idx = id.lastIndexOf('/node_modules/')
   if (idx < 0) return '(app)'
@@ -20,6 +32,159 @@ const packageOf = (id: string): string => {
   return parts[0].startsWith('@') && parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0]
 }
 const fmtMs = (ns: bigint) => `${(Number(ns) / 1e6).toFixed(0)}ms`
+const addHookTiming = (
+  timings: Map<string, HookTiming>,
+  phases: Map<TimedHook, HookPhase>,
+  hook: TimedHook,
+  pluginName: string,
+  detail: string | undefined,
+  start: bigint,
+  end: bigint,
+  elapsed: bigint
+) => {
+  const phase = phases.get(hook) ?? { firstStart: start, lastEnd: end, total: 0n, count: 0 }
+  if (start < phase.firstStart) phase.firstStart = start
+  if (end > phase.lastEnd) phase.lastEnd = end
+  phase.total += elapsed
+  phase.count += 1
+  phases.set(hook, phase)
+
+  const key = `${hook}:${pluginName}`
+  const timing = timings.get(key) ?? { total: 0n, count: 0, details: new Map<string, bigint>() }
+  timing.total += elapsed
+  timing.count += 1
+  if (detail) {
+    timing.details.set(detail, (timing.details.get(detail) ?? 0n) + elapsed)
+  }
+  timings.set(key, timing)
+}
+
+const hookDetail = (hook: TimedHook, args: unknown[]): string | undefined => {
+  const first = args[0]
+  if ((hook === 'resolveId' || hook === 'load' || hook === 'transform') && typeof first === 'string') {
+    if (hook === 'transform' && typeof args[1] === 'string') return args[1]
+    return first
+  }
+  if (hook === 'renderChunk') {
+    const chunk = args[1] as { fileName?: string; name?: string } | undefined
+    return chunk?.fileName ?? chunk?.name
+  }
+  return undefined
+}
+
+const summarizeDetails = (details: Map<string, bigint>) =>
+  [...details.entries()]
+    .sort((a, b) => Number(b[1] - a[1]))
+    .slice(0, 5)
+    .map(([detail, ns]) => `      ${detail.slice(0, 90).padEnd(90)} ${fmtMs(ns)}`)
+    .join('\n')
+
+const hookHandler = (hookValue: unknown): HookFunction | undefined => {
+  if (typeof hookValue === 'function') return hookValue
+  if (hookValue && typeof hookValue === 'object' && typeof (hookValue as { handler?: unknown }).handler === 'function') {
+    return (hookValue as { handler: HookFunction }).handler
+  }
+  return undefined
+}
+
+const withHookHandler = (hookValue: unknown, handler: HookFunction) => {
+  if (typeof hookValue === 'function') return handler
+  return { ...(hookValue as object), handler }
+}
+
+const rollupHookTimingPlugin = (label: string): Plugin => {
+  const enabled = process.env.VT_BUILD_TIMING === '1'
+  const hooks: TimedHook[] = ['resolveId', 'load', 'transform', 'generateBundle', 'renderChunk', 'writeBundle', 'closeBundle']
+  const timings = new Map<string, HookTiming>()
+  const phases = new Map<TimedHook, HookPhase>()
+  const marks: BuildMark[] = []
+  const mark = (markLabel: string) => {
+    if (enabled) marks.push({ label: markLabel, at: process.hrtime.bigint() })
+  }
+  return {
+    name: `vt-rollup-hook-timing-${label}`,
+    enforce: 'pre',
+    buildStart() {
+      timings.clear()
+      phases.clear()
+      marks.length = 0
+      mark('buildStart')
+    },
+    renderStart() {
+      mark('renderStart')
+    },
+    generateBundle() {
+      mark('generateBundle')
+    },
+    writeBundle() {
+      mark('writeBundle')
+    },
+    configResolved(config) {
+      if (!enabled) return
+      for (const plugin of config.plugins) {
+        if (plugin.name.startsWith('vt-rollup-hook-timing-')) continue
+        for (const hook of hooks) {
+          const originalValue = plugin[hook]
+          const originalHandler = hookHandler(originalValue)
+          if (!originalHandler) continue
+          plugin[hook] = withHookHandler(originalValue, function timedRollupHook(this: unknown, ...args: unknown[]) {
+            const start = process.hrtime.bigint()
+            const record = () => {
+              const end = process.hrtime.bigint()
+              addHookTiming(timings, phases, hook, plugin.name, hookDetail(hook, args), start, end, end - start)
+            }
+            try {
+              const result = originalHandler.apply(this, args)
+              if (result && typeof (result as Promise<unknown>).then === 'function') {
+                return (result as Promise<unknown>).finally(record)
+              }
+              record()
+              return result
+            } catch (error) {
+              record()
+              throw error
+            }
+          }) as never
+        }
+      }
+    },
+    closeBundle() {
+      mark('closeBundle')
+      if (!enabled || timings.size === 0) return
+      const markLines = marks
+        .map((current, idx) => {
+          const previous = marks[idx - 1]
+          const sinceStart = current.at - marks[0].at
+          const sincePrevious = previous ? current.at - previous.at : 0n
+          return `    ${current.label.padEnd(18)} +${fmtMs(sincePrevious).padStart(8)} since-start=${fmtMs(sinceStart).padStart(8)}`
+        })
+        .join('\n')
+      const phaseLines = [...phases.entries()]
+        .sort((a, b) => Number((b[1].lastEnd - b[1].firstStart) - (a[1].lastEnd - a[1].firstStart)))
+        .map(([hook, phase]) => {
+          const span = phase.lastEnd - phase.firstStart
+          return `    ${hook.padEnd(16)} span=${fmtMs(span).padStart(8)} cumulative=${fmtMs(phase.total).padStart(8)} ${String(phase.count).padStart(6)} calls`
+        })
+        .join('\n')
+      const lines = [...timings.entries()]
+        .sort((a, b) => Number(b[1].total - a[1].total))
+        .slice(0, 40)
+        .map(([key, timing]) => {
+          const details = summarizeDetails(timing.details)
+          return `    ${key.padEnd(62)} ${fmtMs(timing.total).padStart(8)} ${String(timing.count).padStart(5)} calls${
+            details ? `\n${details}` : ''
+          }`
+        })
+        .join('\n')
+      process.stderr.write(
+        `\n[vt-build-timing] ${label} rollup build marks\n${markLines}\n` +
+        `\n[vt-build-timing] ${label} rollup hook phases\n${phaseLines}\n` +
+          `\n[vt-build-timing] ${label} rollup hooks (top cumulative plugin hook time)\n${lines}\n`
+      )
+    }
+  }
+}
+
 const buildTimingPlugins = (label: string) => {
   const enabled = process.env.VT_BUILD_TIMING === '1'
   const state: TimingState = { pipelineStart: 0n, perId: new Map(), perPkg: new Map() }
@@ -67,6 +232,15 @@ const buildTimingPlugins = (label: string) => {
 const npmScript = process.env.npm_lifecycle_event || ''
 const isTestBuild = npmScript.startsWith('test') || npmScript === 'build:test'
 const devServerHost: true | string = process.env.DEV_SERVER_HOST || true
+const ELECTRON_VITE_EXTERNALIZE_EXCLUDE = [
+  '@vt/graph-tools',
+  '@vt/graph-model',
+  '@vt/app-config',
+  // ESM-only packages. Rolldown's CJS output preserves external imports as
+  // require(), which returns a module namespace for these dependencies.
+  'fix-path',
+  'rbush',
+]
 const MAIN_RUNTIME_EXTERNALS: string[] = [
   'electron-trackpad-detect',
   '@huggingface/transformers',
@@ -202,10 +376,25 @@ const graphStateFixtureFilenameShimPlugin = {
       return null
     }
 
-    return code
-      .replace('const __filename = fileURLToPath(import.meta.url)', 'const graphStateFixturesFilename = fileURLToPath(import.meta.url)')
-      .replace('const __dirname = path.dirname(__filename)', 'const graphStateFixturesDirname = path.dirname(graphStateFixturesFilename)')
-      .replaceAll('__dirname', 'graphStateFixturesDirname')
+    return {
+      code: code
+        .replace('const __filename = fileURLToPath(import.meta.url)', 'const graphStateFixturesFilename = fileURLToPath(import.meta.url)')
+        .replace('const __dirname = path.dirname(__filename)', 'const graphStateFixturesDirname = path.dirname(graphStateFixturesFilename)')
+        .replaceAll('__dirname', 'graphStateFixturesDirname'),
+      moduleType: 'js'
+    }
+  }
+}
+
+const mainCommonjsPackageBoundaryPlugin = {
+  name: 'main-commonjs-package-boundary',
+  apply: 'build' as const,
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'package.json',
+      source: '{ "type": "commonjs" }\n'
+    })
   }
 }
 
@@ -236,7 +425,8 @@ const rendererNodeShimPlugin = {
   },
   load(id: string) {
     if (id !== RENDERER_NODE_SHIM_ID) return null
-    return `
+    return {
+      code: `
 const noop = () => {};
 // path.posix shim — used by @vt/graph-state/project.ts (labelForFolder, labelForNode).
 // Must be defined before the proxy handler so the handler can return it.
@@ -339,7 +529,9 @@ export const Transform = class {};
 export const Buffer = globalThis.Buffer || class { static from(){ return new Uint8Array(); } };
 // @vscode/ripgrep
 export const rgPath = '';
-`
+`,
+      moduleType: 'js'
+    }
   }
 }
 
@@ -353,9 +545,9 @@ export default defineConfig({
     plugins: [
       ...buildTimingPlugins('main'),
       graphStateFixtureFilenameShimPlugin,
+      mainCommonjsPackageBoundaryPlugin,
       externalNativePlugin,
       externalMainDepsPlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
@@ -373,11 +565,16 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/main',
       logLevel: 'error',
-      rollupOptions: {
+      externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
+      rolldownOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/main.ts')
         },
-        external: isMainExternal
+        external: isMainExternal,
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].js'
+        }
       }
     }
   },
@@ -387,7 +584,6 @@ export default defineConfig({
       ...buildTimingPlugins('preload'),
       graphStateFixtureFilenameShimPlugin,
       externalNativePlugin,
-      externalizeDepsPlugin({ exclude: ['@vt/graph-tools', '@vt/graph-model', '@vt/app-config'] }),
     ],
     logLevel: 'error',
     resolve: {
@@ -405,7 +601,8 @@ export default defineConfig({
     build: {
       outDir: 'dist-electron/preload',
       logLevel: 'error',
-      rollupOptions: {
+      externalizeDeps: { exclude: ELECTRON_VITE_EXTERNALIZE_EXCLUDE },
+      rolldownOptions: {
         input: {
           index: path.resolve(__dirname, 'src/shell/edge/main/runtime/electron/app/preload.ts')
         },
@@ -421,6 +618,7 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      rollupHookTimingPlugin('renderer'),
       ...buildTimingPlugins('renderer'),
       rendererNodeShimPlugin,
       externalNativePlugin,
@@ -437,13 +635,15 @@ export default defineConfig({
         },
         load(id) {
           if (id.startsWith('\0') && id.includes('.css.js')) {
-            return 'export const styles = "";'
+            return {
+              code: 'export const styles = "";',
+              moduleType: 'js'
+            }
           }
         }
       },
       react(),
       tailwindcss(),
-      topLevelAwait(),
       wasm()
     ],
     base: './',
@@ -485,7 +685,7 @@ export default defineConfig({
       outDir: 'dist',
       target: 'esnext',
       logLevel: 'error',
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html')
         },
@@ -493,14 +693,15 @@ export default defineConfig({
         // empty virtual module, so imports that leak in via `@vt/graph-state`->`@vt/graph-model`
         // barrel re-exports compile to no-ops instead of unresolvable bare specifiers.
         output: {
-          manualChunks(id) {
-            if (id.includes('/node_modules/mermaid/')) return 'mermaid'
+          codeSplitting: {
+            groups: [
+              {
+                name: 'mermaid',
+                test: /node_modules[\\/]mermaid[\\/]/
+              }
+            ]
           }
         }
-      },
-      commonjsOptions: {
-        include: [/node_modules/],
-        transformMixedEsModules: true
       }
     },
     // Disable analytics in test builds

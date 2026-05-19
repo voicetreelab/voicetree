@@ -118,7 +118,7 @@ describe('headlessAgentManager tmux backend', () => {
         await expect(sendHeadlessAgentInput(terminalId, 'BF311_EXIT')).resolves.toEqual({success: true})
         await waitFor(async () => (await readMetadata(metadataPath))?.status === 'exited')
         const exited: TmuxMetadata | null = await readMetadata(metadataPath)
-        expect(exited?.exitCode).toBeNull()
+        expect(exited?.exitCode).toBe(0)
         await waitFor(async () => !(await hasSession(terminalId)))
         sessions.delete(terminalId)
         closeHeadlessAgent(terminalId)

@@ -4,6 +4,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
+import { SessionRegistry } from '../../application/session/registry.ts'
+import { createDaemonApp } from '../daemonApp.ts'
+import {
+  closeFolderVisibilityForVault,
+  openFolderVisibilityForVault,
+  updateCurrentFolderState,
+} from '../../data/views/folderVisibilityResource.ts'
+import {
+  clearWatchFolderState,
+  setProjectRootWatchedDirectory,
+} from '../../state/watch-folder-store.ts'
 
 async function createTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-folder-state-test-'))
@@ -28,6 +39,8 @@ describe('folderState routes', () => {
     for (const handle of handles) {
       await handle.stop().catch(() => {})
     }
+    await closeFolderVisibilityForVault().catch(() => {})
+    clearWatchFolderState()
     await rm(vault, { recursive: true, force: true })
   })
 
@@ -93,5 +106,61 @@ describe('folderState routes', () => {
       [srcPath, 'expanded'],
       [tmpPath, 'hidden'],
     ])
+  })
+
+  test('PATCH syncs the active session collapseSet used by projection', async () => {
+    await openFolderVisibilityForVault(vault)
+    setProjectRootWatchedDirectory(vault as never)
+    const registry = new SessionRegistry()
+    const app = createDaemonApp({
+      registry,
+      readHealth: () => ({
+        version: 'test',
+        vault,
+        uptimeSeconds: 0,
+        sessionCount: registry.size(),
+      }),
+      onShutdown: () => {},
+    })
+    const session = registry.create()
+    const docsPath = join(vault, 'docs')
+    const notesPath = join(vault, 'notes')
+
+    const collapsed = await app.request(
+      `/sessions/${session.id}/folder-state/${encodeURIComponent(docsPath)}`,
+      {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: 'collapsed' }),
+      },
+    )
+    expect(collapsed.status).toBe(200)
+    expect(registry.get(session.id)?.collapseSet).toEqual(new Set([`${docsPath}/`]))
+
+    const batch = await app.request(
+      `/sessions/${session.id}/folder-state`,
+      {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          updates: [
+            { path: docsPath, state: 'expanded' },
+            { path: notesPath, state: 'collapsed' },
+          ],
+        }),
+      },
+    )
+    expect(batch.status).toBe(200)
+    expect(registry.get(session.id)?.collapseSet).toEqual(new Set([`${notesPath}/`]))
+  })
+
+  test('new sessions hydrate collapseSet from current folder visibility rows', async () => {
+    await openFolderVisibilityForVault(vault)
+    const docsPath = join(vault, 'docs')
+    updateCurrentFolderState(docsPath, 'collapsed')
+
+    const session = new SessionRegistry().create()
+
+    expect(session.collapseSet).toEqual(new Set([`${docsPath}/`]))
   })
 })

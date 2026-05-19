@@ -20,7 +20,6 @@ import {
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@vt/graph-model/agent-tabs';
-import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 
@@ -30,6 +29,10 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 
 let inactivityCheckInterval: ReturnType<typeof setInterval> | null = null;
 let visibilityHandler: (() => void) | null = null;
+
+function shouldFlipToActiveOnOutput(lifecycle: TerminalData['lifecycle']): boolean {
+    return lifecycle === 'spawning' || lifecycle === 'idle' || lifecycle === 'awaiting_input';
+}
 
 // =============================================================================
 // Inactivity Checking

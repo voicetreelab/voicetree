@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-17T10:47:41.096Z",
-  "sourceFileCount": 782,
+  "generatedAt": "2026-05-18T04:20:53.242Z",
+  "sourceFileCount": 784,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1270,
-    "samePackageRelativeImports": 1270,
+    "relativeImports": 1273,
+    "samePackageRelativeImports": 1273,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 735,
-    "../x": 535,
+    "./x": 736,
+    "../x": 537,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -50,11 +50,11 @@
     {
       "package": "@vt/graph-model",
       "packageRoot": "packages/libraries/graph-model",
-      "relativeImports": 319,
-      "samePackageRelativeImports": 319,
+      "relativeImports": 320,
+      "samePackageRelativeImports": 320,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 172,
+        "./x": 173,
         "../x": 147,
         "../../x": 0,
         "../../../+x": 0
@@ -102,12 +102,12 @@
     {
       "package": "@vt/voicetree-mcp",
       "packageRoot": "packages/systems/voicetree-mcp",
-      "relativeImports": 140,
-      "samePackageRelativeImports": 140,
+      "relativeImports": 142,
+      "samePackageRelativeImports": 142,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 62,
-        "../x": 78,
+        "../x": 80,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -181,7 +181,7 @@
     {
       "file": "packages/systems/voicetree-mcp/src/agents/index.ts",
       "package": "@vt/voicetree-mcp",
-      "relativeImports": 26,
+      "relativeImports": 28,
       "crossPackageRelativeImports": 0
     },
     {

@@ -6,7 +6,6 @@ import log from 'electron-log';
 import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/application-menu';
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
-import {agentRuntime} from '@vt/agent-runtime';
 import {trace} from '@/shell/edge/main/observability/tracing/trace';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
@@ -17,6 +16,10 @@ import {
     registerChildIfMonitored,
     startMcpServer,
 } from '@vt/voicetree-mcp';
+import {
+    terminalRuntimeSurface,
+    type TerminalRecord,
+} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
@@ -25,7 +28,6 @@ import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, 
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
-import {type TerminalRecord} from '@vt/agent-runtime';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
@@ -109,7 +111,7 @@ configureMcpServer({
 });
 
 // Wire @vt/agent-runtime late-bound deps. Headless vt-mcpd will register its own.
-agentRuntime.configureAgentRuntime({
+terminalRuntimeSurface.configureAgentRuntime({
     env: {
         getAppSupportPath,
         getMcpPort,
@@ -192,7 +194,7 @@ const textToTreeServerManager: StubTextToTreeServerManager | RealTextToTreeServe
     ((process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') && !useRealServer)
         ? new StubTextToTreeServerManager()
         : new RealTextToTreeServerManager();
-const terminalManager: ReturnType<typeof agentRuntime.getTerminalManager> = agentRuntime.getTerminalManager();
+const terminalManager: ReturnType<typeof terminalRuntimeSurface.getTerminalManager> = terminalRuntimeSurface.getTerminalManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -205,7 +207,7 @@ registerTerminalIpcHandlers(
 
 // Bridge registry mutations to the renderer. Headless contexts skip this wiring.
 const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createAgentCompletionNotifier();
-agentRuntime.subscribeToRegistry((records: TerminalRecord[]) => {
+terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
 });
@@ -227,7 +229,7 @@ void app.whenReady().then(async () => {
     await startMcpServer();
 
     if (process.env.VOICETREE_VAULT_PATH) {
-        const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
+        const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
         if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
             log.info('[Startup] Reconciled tmux terminals', reconciliation);
         }

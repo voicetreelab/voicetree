@@ -183,7 +183,9 @@ function applyTargetRedirects(
     }
 }
 
-function computeHubPosition(nodesToMove: readonly GraphNode[]): O.Option<Position> {
+const FOLDER_INDEX_NOTE_NAME: string = 'index.md'
+
+function computeFolderIndexPosition(nodesToMove: readonly GraphNode[]): O.Option<Position> {
     const positionedNodes: readonly Position[] = nodesToMove.flatMap((node) => {
         return O.isSome(node.nodeUIMetadata.position)
             ? [node.nodeUIMetadata.position.value]
@@ -205,19 +207,8 @@ function computeHubPosition(nodesToMove: readonly GraphNode[]): O.Option<Positio
     })
 }
 
-function createExtractionNames(
-    writePath: string,
-    selectedItemIds: readonly NodeIdAndFilePath[]
-): {
-    readonly folderName: string
-    readonly hubNoteName: string
-} {
-    const suffix: string = stableIdSuffix([writePath, ...selectedItemIds])
-
-    return {
-        folderName: `extract_${suffix}`,
-        hubNoteName: `hub_${suffix}.md`
-    }
+function generatedFolderName(writePath: string, selectedItemIds: readonly NodeIdAndFilePath[]): string {
+    return `extract_${stableIdSuffix([writePath, ...selectedItemIds])}`
 }
 
 export function computeExtractIntoFolderGraphDelta(
@@ -236,11 +227,9 @@ export function computeExtractIntoFolderGraphDelta(
         return { delta: [], newFolderId: null }
     }
 
-    const generatedNames = createExtractionNames(writePath, selectedItemIds)
     const folderName: string = folderNameOverride !== undefined && folderNameOverride.trim().length > 0
         ? folderNameOverride.trim()
-        : generatedNames.folderName
-    const hubNoteName: string = generatedNames.hubNoteName
+        : generatedFolderName(writePath, selectedItemIds)
     const newFolderPath: string = joinNodePath(extractionBasePath, folderName)
     const newFolderId: NodeIdAndFilePath = toFolderId(newFolderPath)
 
@@ -358,18 +347,16 @@ export function computeExtractIntoFolderGraphDelta(
         }]
     })
 
-    const hubNoteId: NodeIdAndFilePath = joinNodePath(newFolderPath, hubNoteName)
-    const hubNote: GraphNode = {
+    const folderIndexNoteId: NodeIdAndFilePath = joinNodePath(newFolderPath, FOLDER_INDEX_NOTE_NAME)
+    const containedNodeCount: number = selectedItemTargetIds.size
+    const folderIndexNote: GraphNode = {
         kind: 'leaf',
-        absoluteFilePathIsID: hubNoteId,
-        outgoingEdges: Array.from(selectedItemTargetIds.values()).map((targetId) => ({
-            targetId,
-            label: ''
-        })),
-        contentWithoutYamlOrLinks: '# Hub',
+        absoluteFilePathIsID: folderIndexNoteId,
+        outgoingEdges: [],
+        contentWithoutYamlOrLinks: `Contains ${containedNodeCount} nodes.`,
         nodeUIMetadata: {
             color: O.none,
-            position: computeHubPosition(movedNodes.map(({ oldNode }) => oldNode)),
+            position: computeFolderIndexPosition(movedNodes.map(({ oldNode }) => oldNode)),
             additionalYAMLProps: new Map(),
             isContextNode: false
         }
@@ -393,7 +380,7 @@ export function computeExtractIntoFolderGraphDelta(
             ...externalNodeUpserts,
             {
                 type: 'UpsertNode' as const,
-                nodeToUpsert: hubNote,
+                nodeToUpsert: folderIndexNote,
                 previousNode: O.none
             },
             ...movedNodeDeletes

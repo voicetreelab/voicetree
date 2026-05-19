@@ -9,7 +9,7 @@
 import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/graph'
-import { spawnTerminalWithContextNode } from '@vt/agent-runtime'
+import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
 import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -69,7 +69,7 @@ export async function runAgentOnSelectedNodes(
   // 2. Spawn terminal with task node and selected nodes
   // spawnTerminalWithContextNode creates the context node internally
   const result: { terminalId: string; contextNodeId: NodeIdAndFilePath } =
-    await spawnTerminalWithContextNode(
+    await terminalRuntimeSurface.spawnTerminalWithContextNode(
       taskNodeId,
       undefined, // Use default agent command
       undefined, // Auto-assign terminal count

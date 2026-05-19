@@ -41,7 +41,7 @@ describe('computeExtractIntoFolderGraphDelta', () => {
         })
     })
 
-    it('creates move + hub + delete deltas for same-parent file selections', () => {
+    it('creates move + index.md + delete deltas for same-parent file selections', () => {
         const graph: Graph = createGraph({
             '/tmp/vault/alpha.md': createTestNode('/tmp/vault/alpha.md', { position: { x: 100, y: 100 } }),
             '/tmp/vault/beta.md': createTestNode('/tmp/vault/beta.md', { position: { x: 200, y: 100 } }),
@@ -57,13 +57,17 @@ describe('computeExtractIntoFolderGraphDelta', () => {
         expect(delta.length).toBeGreaterThan(0)
         expect(newFolderId).toMatch(/^\/tmp\/vault\/extract_[a-z0-9_]+\/$/)
 
-        const upsertIds = delta
+        const upserts = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'UpsertNode' }> => nodeDelta.type === 'UpsertNode')
-            .map((nodeDelta) => nodeDelta.nodeToUpsert.absoluteFilePathIsID)
+            .map((nodeDelta) => nodeDelta.nodeToUpsert)
 
-        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}alpha.md`)).toBe(true)
-        expect(upsertIds.some((nodeId) => nodeId === `${newFolderId}beta.md`)).toBe(true)
-        expect(upsertIds.some((nodeId) => nodeId.startsWith(newFolderId!) && nodeId.endsWith('.md') && nodeId.includes('/hub_'))).toBe(true)
+        expect(upserts.some((node) => node.absoluteFilePathIsID === `${newFolderId}alpha.md`)).toBe(true)
+        expect(upserts.some((node) => node.absoluteFilePathIsID === `${newFolderId}beta.md`)).toBe(true)
+
+        const folderIndexNote = upserts.find((node) => node.absoluteFilePathIsID === `${newFolderId}index.md`)
+        expect(folderIndexNote).toBeDefined()
+        expect(folderIndexNote!.outgoingEdges).toEqual([])
+        expect(folderIndexNote!.contentWithoutYamlOrLinks).toBe('Contains 2 nodes.')
 
         const deletedIds = delta
             .filter((nodeDelta): nodeDelta is Extract<typeof delta[number], { type: 'DeleteNode' }> => nodeDelta.type === 'DeleteNode')

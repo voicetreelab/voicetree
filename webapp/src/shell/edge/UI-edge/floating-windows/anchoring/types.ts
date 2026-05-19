@@ -8,16 +8,7 @@
 import type {Option} from 'fp-ts/lib/Option.js';
 import * as O from 'fp-ts/lib/Option.js';
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
-import type {
-    TerminalId as PureTerminalId,
-    TerminalData as PureTerminalData,
-    CreateTerminalDataParams,
-} from '@vt/agent-runtime/types';
-import {
-    createTerminalData as createPureTerminalData,
-    getTerminalId,
-    computeTerminalId,
-} from '@vt/agent-runtime/types';
+import type { TerminalLifecycle } from '@vt/graph-model/agent-tabs';
 import type {CreateEditorDataParams, EditorData} from "@/shell/edge/UI-edge/floating-windows/editors/editorDataType";
 import type {CreateImageViewerDataParams, ImageViewerData} from "@/shell/edge/UI-edge/floating-windows/image-viewers/imageViewerDataType";
 
@@ -26,7 +17,7 @@ import type {CreateImageViewerDataParams, ImageViewerData} from "@/shell/edge/UI
 // =============================================================================
 
 export type EditorId = string & { readonly __brand: 'EditorId' };
-export type TerminalId = PureTerminalId;
+export type TerminalId = string & { readonly __brand: 'TerminalId' };
 export type ImageViewerId = string & { readonly __brand: 'ImageViewerId' };
 export type ShadowNodeId = string & { readonly __brand: 'ShadowNodeId' };
 
@@ -61,8 +52,55 @@ export type FloatingWindowFields = {
 // Webapp's TerminalData = pure runtime shape + optional UI handle.
 // =============================================================================
 
-export type TerminalData = PureTerminalData & { readonly ui?: FloatingWindowUIData };
-export type {CreateTerminalDataParams};
+export type TerminalData = {
+    readonly type: 'Terminal';
+    readonly terminalId: TerminalId;
+    readonly attachedToContextNodeId: NodeIdAndFilePath;
+    readonly terminalCount: number;
+    readonly anchoredToNodeId: Option<NodeIdAndFilePath>;
+    readonly title: string;
+    readonly resizable: boolean;
+    readonly shadowNodeDimensions: { readonly width: number; readonly height: number };
+    readonly initialEnvVars?: Record<string, string>;
+    readonly initialSpawnDirectory?: string;
+    readonly initialCommand?: string;
+    readonly executeCommand?: boolean;
+    readonly isPinned: boolean;
+    readonly isDone: boolean;
+    readonly lifecycle: TerminalLifecycle;
+    readonly lastOutputTime: number;
+    readonly activityCount: number;
+    readonly parentTerminalId: TerminalId | null;
+    readonly agentName: string;
+    readonly worktreeName: string | undefined;
+    readonly isHeadless: boolean;
+    readonly isMinimized: boolean;
+    readonly contextContent: string;
+    readonly agentTypeName: string;
+    readonly ui?: FloatingWindowUIData;
+};
+
+export type CreateTerminalDataParams = {
+    readonly terminalId: TerminalId;
+    readonly attachedToNodeId: NodeIdAndFilePath;
+    readonly terminalCount: number;
+    readonly title: string;
+    readonly anchoredToNodeId?: NodeIdAndFilePath;
+    readonly initialEnvVars?: Record<string, string>;
+    readonly initialSpawnDirectory?: string;
+    readonly initialCommand?: string;
+    readonly executeCommand?: boolean;
+    readonly resizable?: boolean;
+    readonly shadowNodeDimensions?: { readonly width: number; readonly height: number };
+    readonly isPinned?: boolean;
+    readonly parentTerminalId?: TerminalId | null;
+    readonly agentName: string;
+    readonly worktreeName?: string;
+    readonly isHeadless?: boolean;
+    readonly isMinimized?: boolean;
+    readonly contextContent?: string;
+    readonly agentTypeName?: string;
+};
 
 // =============================================================================
 // Union Type for FloatingWindow Content
@@ -78,7 +116,13 @@ export function getEditorId(editor: EditorData): EditorId {
     return `${editor.contentLinkedToNodeId}-editor` as EditorId;
 }
 
-export {getTerminalId, computeTerminalId};
+export function computeTerminalId(attachedToNodeId: string, terminalCount: number): TerminalId {
+    return `${attachedToNodeId}-terminal-${terminalCount}` as TerminalId;
+}
+
+export function getTerminalId(terminal: TerminalData): TerminalId {
+    return terminal.terminalId;
+}
 
 export function getImageViewerId(imageViewer: ImageViewerData): ImageViewerId {
     return `${imageViewer.imageNodeId}-image-viewer` as ImageViewerId;
@@ -116,9 +160,34 @@ export function createEditorData(params: CreateEditorDataParams): EditorData {
     };
 }
 
-// createTerminalData uses the runtime factory; webapp's optional `ui` is undefined
-// at construction (renderer attaches it later via setTerminalUI's spread).
-export const createTerminalData: (p: CreateTerminalDataParams) => TerminalData = createPureTerminalData;
+export function createTerminalData(params: CreateTerminalDataParams): TerminalData {
+    return {
+        type: 'Terminal',
+        terminalId: params.terminalId,
+        attachedToContextNodeId: params.attachedToNodeId,
+        terminalCount: params.terminalCount,
+        title: params.title,
+        anchoredToNodeId: params.anchoredToNodeId ? O.some(params.anchoredToNodeId) : O.none,
+        initialEnvVars: params.initialEnvVars,
+        initialSpawnDirectory: params.initialSpawnDirectory,
+        initialCommand: params.initialCommand,
+        executeCommand: params.executeCommand,
+        resizable: params.resizable ?? true,
+        shadowNodeDimensions: params.shadowNodeDimensions ?? { width: 395, height: 380 },
+        isPinned: params.isPinned ?? true,
+        isDone: false,
+        lifecycle: 'spawning',
+        lastOutputTime: Date.now(),
+        activityCount: 0,
+        parentTerminalId: params.parentTerminalId ?? null,
+        agentName: params.agentName,
+        worktreeName: params.worktreeName,
+        isHeadless: params.isHeadless ?? false,
+        isMinimized: params.isMinimized ?? false,
+        contextContent: params.contextContent ?? '',
+        agentTypeName: params.agentTypeName ?? '',
+    };
+}
 
 export function createImageViewerData(params: CreateImageViewerDataParams): ImageViewerData {
     return {

@@ -14,6 +14,13 @@ export type {
 
 export {createMcpServer, startMcpServer, getMcpPort} from '../tools/agent-control/mcp-server'
 export type {McpServerHandle, StartMcpServerOptions} from '../tools/agent-control/mcp-server'
+export {terminalRuntimeSurface} from '../tools/agent-control/terminalRuntimeSurface'
+export type {
+    AgentRuntimeConfig,
+    TerminalManager,
+    TerminalRecord,
+    TerminalSpawnResult,
+} from '../tools/agent-control/terminalRuntimeSurface'
 export {findAvailablePort, isPortAvailable} from '../tools/findAvailablePort'
 
 export {

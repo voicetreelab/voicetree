@@ -1,20 +1,22 @@
-// mountMockupHarness — bootstrap a browser-only cytoscape sandbox with the
-// real VoiceTree renderer (styles, colors, folder-handle chip) + stubbed
-// editors. Use this from any mockup's main.ts to get a working canvas in
-// ~10 lines without re-deriving the boilerplate.
+// mountMockupHarness — bootstrap a browser-only cytoscape playground that
+// runs the REAL VoiceTree renderer end-to-end.
 //
 // Wires:
-//   - cy bootstrap with getDefaultNodeStyles + getGraphColors (real shipped code)
-//   - sample graph (folders, leaves, edges, collapsed pills)
-//   - setupFolderHandles (real shipped chip service)
-//   - toggleFolderCollapse routed via the folderCollapse alias stub
-//   - setupNodeEditors (stubbed hover + anchored editors)
-//   - theme toggle, reset button, cursor readout, event log
+//   - In-browser daemon (real `project()` from @vt/graph-state over a
+//     synthetic Graph + FolderTreeNode + VaultState)
+//   - window.electronAPI stub bridging to that daemon
+//   - Real `applyGraphDeltaToUI` mutates cy from each ProjectedGraph
+//   - Real `FolderHandleService` chevron chip
+//   - Real `folderCollapse.toggleFolderCollapse` for chip taps
+//   - Real `defaultNodeStyles` + `themeColors` for styling
+//   - Real floating editor stack (HoverEditor → AnchoredEditor → CodeMirror)
+//     via `setupCommandHover` + `updateFloatingEditorsFromProjectedGraph`
+//   - Theme toggle, reset button, cursor readout, event log
 //
 // What's NOT wired (mockups can layer on via `onCyReady`):
-//   - presentation cards / image viewers
+//   - presentation cards / image viewers (stubbed, see viteAliases.ts)
 //   - drag-to-create, right-click menus, context selection
-//   - any window.electronAPI surface beyond the folderCollapse alias
+//   - any window.electronAPI surface beyond folder-state + read-only graph
 
 import './harness.css'
 
@@ -23,10 +25,18 @@ import cytoscape, { type Core, type EventObject, type NodeSingular } from 'cytos
 import { setupFolderHandles } from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/FolderHandleService'
 import { getDefaultNodeStyles } from '@/shell/UI/cytoscape-graph-ui/services/styles/defaultNodeStyles'
 import { getGraphColors } from '@/shell/UI/cytoscape-graph-ui/services/styles/themeColors'
-import { toggleFolderCollapse as toggleFolderCollapseRef } from '@/shell/edge/UI-edge/graph/view/folderCollapse'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse'
+import { setupCommandHover } from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor'
+import { updateFloatingEditorsFromProjectedGraph } from '@/shell/edge/UI-edge/floating-windows/editors/EditorSync'
+import { closeAllEditors } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD'
+import { applyNodeSelectionSideEffects } from '@/shell/edge/UI-edge/graph/actions/applyNodeSelectionSideEffects'
+import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 
-import { buildSampleGraph } from './sampleGraph'
-import { setupNodeEditors, closeAllNodeEditors } from './nodeEditors'
+import { buildPlaygroundFixture } from './playground/domainFixture'
+import { createInBrowserDaemon, type InBrowserDaemon } from './playground/inBrowserDaemon'
+import { installElectronApiStub } from './playground/electronApiStub'
 
 export interface HarnessLegendItem {
     /** HTML allowed — rendered as innerHTML. */
@@ -44,29 +54,24 @@ export interface MountHarnessOptions {
     legend?: HarnessLegendItem[]
     /** Optional yellow-tinted note below the legend. */
     noteHtml?: string
-    /** Folder ids that should boot collapsed. Defaults to `['retros']`. */
-    initialCollapsedFolders?: readonly string[]
     /** Footer hint text on the right of the buttons. */
     footerHint?: string
-    /** Start in dark mode. Defaults to true (matches the existing folder-handle mockup). */
+    /** Start in dark mode. Defaults to true. */
     startDark?: boolean
     /**
-     * Hook to extend / replace the sample graph. Receives the default elements
-     * and must return the final element list.
-     */
-    extendGraph?: (defaults: cytoscape.ElementDefinition[]) => cytoscape.ElementDefinition[]
-    /**
-     * Hook called after each cy build (initial + every rebuild). Use for extra
-     * event wiring, custom listeners, presentation-card setup, etc.
+     * Hook called after the cy instance is built (after initial projection
+     * is applied). Use for extra event wiring, presentation-card setup, etc.
      */
     onCyReady?: (cy: Core, host: HTMLElement) => void
 }
 
 export interface HarnessHandle {
-    /** Current cy instance. Replaced on rebuild. */
+    /** Current cy instance. */
     getCy(): Core
-    /** Tear down and rebuild cy from scratch (preserves collapse state). */
-    rebuild(): void
+    /** In-browser daemon for direct interaction in tests / dev tools. */
+    getDaemon(): InBrowserDaemon
+    /** Re-apply the current projection to cy (for dev parity with reset). */
+    reproject(): void
     /** Detach everything and remove the harness from the DOM. */
     teardown(): void
     /** Flash a transient message in the bottom-left event log. */
@@ -88,7 +93,6 @@ function buildDom(opts: MountHarnessOptions): {
 } {
     const page: HTMLDivElement = el('div', 'vt-harness')
 
-    // Header
     const header: HTMLElement = el('header', 'vt-harness__header')
     if (opts.title) {
         const h1: HTMLHeadingElement = el('h1')
@@ -116,7 +120,6 @@ function buildDom(opts: MountHarnessOptions): {
     }
     page.appendChild(header)
 
-    // Canvas host
     const canvasHost: HTMLDivElement = el('div', 'vt-harness__canvas-host')
     const container: HTMLDivElement = el('div', 'vt-harness__cy')
     const cursorReadout: HTMLDivElement = el('div', 'vt-harness__cursor-readout')
@@ -127,7 +130,6 @@ function buildDom(opts: MountHarnessOptions): {
     canvasHost.appendChild(eventLog)
     page.appendChild(canvasHost)
 
-    // Footer
     const footer: HTMLElement = el('footer', 'vt-harness__footer')
     const resetBtn: HTMLButtonElement = el('button', 'vt-harness__btn')
     resetBtn.textContent = 'Reset graph'
@@ -145,22 +147,32 @@ function buildDom(opts: MountHarnessOptions): {
 }
 
 /**
- * Mount a browser-only cytoscape harness with the real VoiceTree renderer.
- * Returns a handle for rebuild / teardown / flashLog.
+ * Mount a browser-only cytoscape harness that drives the real VoiceTree
+ * folder-node pipeline. Returns a handle for tests + dev tools.
  */
 export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
     const dom = buildDom(opts)
     const { container, cursorReadout, eventLog, resetBtn, themeBtn } = dom
 
-    // Track collapse state across rebuilds (theme toggle, reset, expand re-render).
-    const collapsedFolderIds: Set<string> = new Set<string>(opts.initialCollapsedFolders ?? ['retros'])
-
     let isDark: boolean = opts.startDark ?? true
     document.documentElement.classList.toggle('dark', isDark)
     document.body.classList.toggle('dark', isDark)
 
+    // Build the fixture + daemon ONCE; the cy instance is rebuilt on theme
+    // toggle (because styles are baked in at cytoscape() init), but the
+    // underlying daemon state and collapseSet persist across rebuilds.
+    const fixture = buildPlaygroundFixture()
+    let daemon: InBrowserDaemon = createInBrowserDaemon({
+        vault: fixture.vault,
+        graph: fixture.graph,
+        folderTree: fixture.folderTree,
+        initialCollapsedFolderIds: fixture.initialCollapsedFolderIds,
+        positions: fixture.positions,
+    })
+    installElectronApiStub(daemon)
+
     let cy: Core
-    let editorTeardown: () => void = (): void => {}
+    let lastProjection: ProjectedGraph | null = null
 
     function flashLog(msg: string): void {
         eventLog.textContent = msg
@@ -173,29 +185,28 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
 
     function buildCy(): Core {
         const colors = getGraphColors(isDark)
-        const elements: cytoscape.ElementDefinition[] = buildSampleGraph({ initialCollapsed: collapsedFolderIds })
-        const finalElements: cytoscape.ElementDefinition[] = opts.extendGraph ? opts.extendGraph(elements) : elements
-
+        // Match production's renderer (initializeCytoscapeInstance.ts) so visual
+        // bugs in the WebGL texture path reproduce in the playground.
         const created: Core = cytoscape({
             container,
-            elements: finalElements,
+            elements: [],
             style: getDefaultNodeStyles(colors, 'Inter, system-ui, sans-serif', isDark) as cytoscape.StylesheetCSS[],
             layout: { name: 'preset' },
             wheelSensitivity: 0.2,
-        })
+            renderer: {
+                name: 'canvas',
+                webgl: true,
+                webglDebug: false,
+                webglTexSize: 2048,
+                webglTexRows: 24,
+                webglBatchSize: 2048,
+                webglTexPerBatch: 16,
+            },
+        } as cytoscape.CytoscapeOptions)
 
-        // Mirrors applyGraphDeltaToUI: expanded folders ungrabify, collapsed pills stay grabbable.
-        created.nodes('node[?isFolderNode]').forEach((n: NodeSingular): void => {
-            if (n.data('collapsed') === true) n.grabify()
-            else n.ungrabify()
-        })
-        created.on('add', 'node[?isFolderNode]', (evt: EventObject): void => {
-            const n: NodeSingular = evt.target
-            if (n.data('collapsed') === true) n.grabify()
-            else n.ungrabify()
-        })
-
-        // Mirrors setupBasicCytoscapeEventListeners: folder body is input-inert.
+        // Hover cursor — exact mirror of setupBasicCytoscapeEventListeners
+        // for the folder-vs-leaf distinction. Lives here (not aliased) so
+        // the harness owns its own cursor readout.
         const cursorTarget: HTMLElement = container.parentElement ?? container
         created.on('mouseover', 'node', (e: EventObject): void => {
             const node: NodeSingular = e.target
@@ -212,19 +223,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
             cursorReadout.textContent = 'cursor: default'
         })
 
-        // dbltap on a folder toggles collapse via the same path the chevron uses.
-        created.on('dbltap', 'node[?isFolderNode]', (evt: EventObject): void => {
-            const folderId: string = (evt.target as NodeSingular).id()
-            void toggleFolderCollapseRef(created, folderId)
-        })
-
-        // Single click on a collapsed folder pill → expand (UX call-out from the openspec).
-        created.on('tap', 'node[?isFolderNode][?collapsed]', (evt: EventObject): void => {
-            const folderId: string = (evt.target as NodeSingular).id()
-            void toggleFolderCollapseRef(created, folderId)
-        })
-
-        // Right-click pass-through demo (real impl: cytoscape vertical menu fires).
+        // Right-click pass-through demo (real impl: cytoscape vertical menu).
         created.on('cxttap', (evt: EventObject): void => {
             if (evt.target === created) {
                 flashLog('right-click → canvas context menu would open here')
@@ -235,79 +234,119 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
             }
         })
 
-        // Keep collapsedFolderIds in sync with cy state so rebuild preserves user choices.
-        created.on('data', 'node[?isFolderNode]', (evt: EventObject): void => {
-            const id: string = (evt.target as NodeSingular).id()
-            if ((evt.target as NodeSingular).data('collapsed') === true) collapsedFolderIds.add(id)
-            else collapsedFolderIds.delete(id)
+        // Real chevron chip overlay (handles collapse from the expanded TL
+        // chip). Re-expansion mirrors production's setupBasicCytoscapeEventListeners:
+        // double-tap any folder body (incl. collapsed pills) toggles state.
+        setupFolderHandles(created)
+        created.on('dbltap', 'node[?isFolderNode]', (evt: EventObject): void => {
+            void toggleFolderCollapse(created, (evt.target as NodeSingular).id())
         })
 
-        // Wire the REAL FolderHandleService.
-        setupFolderHandles(created)
+        // Real floating editor stack — hover spawns a HoverEditor backed by
+        // CodeMirror reading content via getGraph()/getNode() (electronApiStub).
+        // Double-click promotes to a pinned AnchoredEditor. Writes are no-ops
+        // (applyGraphDelta* stubs return null), so edits are local to the
+        // CodeMirror buffer and do NOT round-trip into the graph.
+        setupCommandHover(created)
+        // Single-tap a FILE node → pin an AnchoredEditor (production-parity).
+        // Folders are deliberately excluded here even though
+        // setupCytoscape.ts:47-56 matches all nodes: in production the
+        // chevron-tap and tap-to-pin handlers both fire for a single chevron
+        // click, leaving a pinned folder-note editor after every collapse.
+        // The playground exposes folder content via hover (HoverEditor) and
+        // dbltap-to-toggle, so folder pinning is unnecessary noise here.
+        created.on('tap', 'node[!isFolderNode]', (evt: EventObject): void => {
+            const nodeId: string = (evt.target as NodeSingular).id()
+            void applyNodeSelectionSideEffects({ cy: created, nodeId: nodeId as NodeIdAndFilePath })
+        })
 
-        // Stubbed hover + anchored editors. Mount onto the canvas-host so the
-        // editor sits in the same coordinate space as the rendered bbox.
         const editorHost: HTMLElement = container.parentElement ?? container
-        editorTeardown = setupNodeEditors(created, editorHost)
-
-        // User hook for extra wiring.
         if (opts.onCyReady) opts.onCyReady(created, editorHost)
-
-        created.fit(undefined, 60)
         return created
     }
 
-    function rebuild(): void {
-        // Drop chip listeners before destroying cy. Without this, an in-flight
-        // tap/dbltap on the soon-to-be-dead cy can drive positionChip (which
-        // reads compound bounds) into the bbox-emit recursion documented in
-        // folderCollapseStub.ts. Chips come back via the next setupFolderHandles.
-        if (cy) {
-            cy.off('position bounds add remove data render pan zoom')
-            editorTeardown()
-            closeAllNodeEditors()
-            cy.destroy()
-        }
+    function applyProjection(graph: ProjectedGraph): void {
+        applyGraphDeltaToUI(cy, graph)
+        // Real editor sync — close/open/refresh editors so the open editor set
+        // tracks the projection (collapsing a folder closes its child editors).
+        updateFloatingEditorsFromProjectedGraph(cy, graph, lastProjection)
+        lastProjection = graph
+        cy.fit(undefined, 60)
+    }
+
+    function reproject(): void {
+        applyProjection(daemon.getProjection())
+    }
+
+    function destroyCy(): void {
+        if (!cy) return
+        cy.off('position bounds add remove data render pan zoom')
+        closeAllEditors(cy)
+        lastProjection = null
+        cy.destroy()
         container.innerHTML = ''
-        document.querySelectorAll('.vt-folder-handle-overlay').forEach((el): void => el.remove())
-        document.querySelectorAll('.vt-mockup-editor').forEach((el): void => el.remove())
+        document.querySelectorAll('.vt-folder-handle-overlay').forEach((node): void => node.remove())
+    }
+
+    function rebuildForTheme(): void {
+        destroyCy()
         cy = buildCy()
         ;(window as unknown as { cy: Core }).cy = cy
+        // No new subscription needed — the existing electronAPI subscription
+        // is still wired to the same daemon and will push on demand. Re-fit
+        // the current projection synchronously so the new cy is non-empty.
+        applyProjection(daemon.getProjection())
+    }
+
+    function subscribeProjection(): void {
+        // Mirror production's subscribeToGraphUpdates: every projection emit
+        // from the daemon flows through applyGraphDeltaToUI. The initial
+        // hydration fires via queueMicrotask inside installElectronApiStub.
+        // The real folderCollapse also applies its return value optimistically
+        // — this duplicate apply is idempotent and matches production's
+        // optimistic-then-SSE-reconcile cadence.
+        window.electronAPI?.graph.onProjectedGraphUpdate?.((graph: ProjectedGraph): void => {
+            applyProjection(graph)
+            const collapsedCount: number = graph.nodes.filter((n) => n.kind === 'folder-collapsed').length
+            flashLog(`projection → ${graph.nodes.length} nodes, ${collapsedCount} collapsed folders`)
+        })
     }
 
     cy = buildCy()
     ;(window as unknown as { cy: Core }).cy = cy
-
-    // Hook the stub's expand path: re-render cy from a clean state with this
-    // folder marked expanded. Same approach the folder-handle mockup uses to
-    // dodge the compound-bounds re-entrancy in the shipped chip listener.
-    ;(window as unknown as { __mockupExpandFolderRebuild?: (id: string) => void })
-        .__mockupExpandFolderRebuild = (folderId: string): void => {
-        collapsedFolderIds.delete(folderId)
-        rebuild()
-        flashLog(`expand → rebuilt cy with /${folderId} expanded (stub workaround)`)
-    }
+    subscribeProjection()
 
     resetBtn.addEventListener('click', (): void => {
-        collapsedFolderIds.clear()
-        for (const id of opts.initialCollapsedFolders ?? ['retros']) collapsedFolderIds.add(id)
-        rebuild()
+        // Editors live in document.body, not inside cy — they survive a daemon
+        // swap. Close them so the rebuilt projection starts from a clean slate.
+        closeAllEditors(cy)
+        lastProjection = null
+        const freshFixture = buildPlaygroundFixture()
+        daemon = createInBrowserDaemon({
+            vault: freshFixture.vault,
+            graph: freshFixture.graph,
+            folderTree: freshFixture.folderTree,
+            initialCollapsedFolderIds: freshFixture.initialCollapsedFolderIds,
+            positions: freshFixture.positions,
+        })
+        installElectronApiStub(daemon)
+        subscribeProjection()
+        flashLog('reset graph — fresh daemon, initial projection re-applied')
     })
 
     themeBtn.addEventListener('click', (): void => {
         isDark = !isDark
         document.documentElement.classList.toggle('dark', isDark)
         document.body.classList.toggle('dark', isDark)
-        rebuild()
+        rebuildForTheme()
     })
 
     return {
         getCy: (): Core => cy,
-        rebuild,
+        getDaemon: (): InBrowserDaemon => daemon,
+        reproject,
         teardown: (): void => {
-            editorTeardown()
-            closeAllNodeEditors()
-            if (cy) cy.destroy()
+            destroyCy()
             opts.root.replaceChildren()
         },
         flashLog,
