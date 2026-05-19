@@ -6,6 +6,7 @@
 
 import path from 'path'
 import type {Server} from 'http'
+import {createRequire} from 'node:module'
 
 import {
     agentRuntime,
@@ -33,7 +34,9 @@ import {expect} from 'vitest'
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 export const FAKE_AGENT_DIR: string = path.resolve(__dirname, '../../../../../../../../tools/vt-fake-agent')
-export const FAKE_AGENT_ENTRYPOINT: string = path.join(FAKE_AGENT_DIR, 'dist/index.js')
+const require = createRequire(import.meta.url)
+export const FAKE_AGENT_ENTRYPOINT: string = path.join(FAKE_AGENT_DIR, 'src/index.ts')
+export const TSX_IMPORT_PATH: string = require.resolve('tsx')
 export const CALLER_TERMINAL_ID: string = 'test-caller'
 export const SILENCE_POLL_MS: number = 100
 export const SUSTAINED_IDLE_MS: number = 7_000
@@ -89,7 +92,7 @@ export function makeInteractiveTerminalData(
         title: terminalId,
         agentName: terminalId,
         parentTerminalId: parentTerminalId as TerminalId,
-        initialCommand: `node ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)}; exit`,
+        initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(TSX_IMPORT_PATH)} ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)}; exit`,
         executeCommand: true,
         initialSpawnDirectory: FAKE_AGENT_DIR,
         initialEnvVars: {
@@ -333,7 +336,7 @@ export async function startStubMcpServer(port: number): Promise<Server> {
                     title: childId,
                     agentName: childId,
                     parentTerminalId: callerTerminalId as TerminalId,
-                    initialCommand: `node ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)}; exit`,
+                    initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(TSX_IMPORT_PATH)} ${JSON.stringify(FAKE_AGENT_ENTRYPOINT)}; exit`,
                     executeCommand: true,
                     initialSpawnDirectory: FAKE_AGENT_DIR,
                     initialEnvVars: {
