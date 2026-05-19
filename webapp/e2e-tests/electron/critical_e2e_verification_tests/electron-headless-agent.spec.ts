@@ -77,7 +77,7 @@ const test = base.extend<{
         const settingsPath = path.join(tempUserDataPath, 'settings.json');
         await fs.writeFile(settingsPath, JSON.stringify({
             agents: [
-                { name: 'Test Agent', command: `echo "${HEADLESS_OUTPUT_MARKER}" "$AGENT_PROMPT"` }
+                { name: 'Test Agent', command: `echo "${HEADLESS_OUTPUT_MARKER}" "$AGENT_PROMPT" && sleep 10` }
             ],
             terminalSpawnPathRelativeToWatchedDirectory: '/'
         }, null, 2), 'utf8');

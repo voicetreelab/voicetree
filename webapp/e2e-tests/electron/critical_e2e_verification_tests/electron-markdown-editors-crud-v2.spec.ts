@@ -263,18 +263,22 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     console.log('✓ Content modified in editor');
 
-    // Wait for auto-save to complete (debounce is 300ms + IPC + FS write)
-    await appWindow.waitForTimeout(1000);
+    // Poll until auto-save writes the content to disk.
+    // The chain is: 300ms debounce → getGraph() IPC → applyGraphDelta IPC → FS write.
+    // A fixed 1s wait is not reliable on CI; poll with a 10s budget instead.
+    await expect.poll(async () => {
+      const content = await fs.readFile(testFilePath, 'utf-8');
+      return content.includes(testContent);
+    }, {
+      message: 'Waiting for auto-save to write test content to disk',
+      timeout: 10_000,
+      intervals: [200, 500, 1000, 2000]
+    }).toBe(true);
 
-    // Verify file content changed on disk BEFORE closing
-    // Note: The system adds frontmatter with position
-    // Wikilinks are extracted from content, not preserved from old edges
     const savedContentBeforeClose = await fs.readFile(testFilePath, 'utf-8');
     console.log('Saved file content length (before close):', savedContentBeforeClose.length);
 
-    // Verify the test content is present in the saved file
     expect(savedContentBeforeClose).toContain(testContent);
-    // Verify frontmatter is present (either empty frontmatter or with position metadata)
     expect(savedContentBeforeClose).toMatch(/^---\n/);
     console.log('✓ File content saved correctly to disk BEFORE close');
 

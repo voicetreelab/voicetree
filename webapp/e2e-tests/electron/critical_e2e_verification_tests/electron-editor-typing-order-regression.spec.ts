@@ -142,14 +142,25 @@ const test = base.extend<{
   appWindow: async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
-    await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
-    const watchResult = await window.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(dir);
-    }, projectPath);
-    expect(watchResult.success, 'startFileWatching failed').toBe(true);
+    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
+    // before the project selection screen is fully visible. Try detecting auto-load first.
+    let autoLoaded = false;
+    try {
+      await pollForCytoscape(window, 3_000);
+      autoLoaded = true;
+    } catch {
+      // Auto-load didn't happen — fall through to manual project selection
+    }
+    if (!autoLoaded) {
+      await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
+      await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
+      const watchResult = await window.evaluate(async (dir) => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        return await api.main.startFileWatching(dir);
+      }, projectPath);
+      expect(watchResult.success, 'startFileWatching failed').toBe(true);
+    }
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await pollForCondition(window, async () => {
