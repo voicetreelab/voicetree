@@ -24,5 +24,7 @@ else
     exit 127
 fi
 
-exec "$TSX_BIN" \
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# point it at webapp/tsconfig.json so @/* path aliases resolve.
+exec env TSX_TSCONFIG_PATH="$WEBAPP_DIR/tsconfig.json" "$TSX_BIN" \
     "$WEBAPP_DIR/src/shell/edge/main/cli/voicetree-cli.ts" "$@"
