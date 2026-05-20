@@ -2,12 +2,19 @@ import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import type { EventEmitter } from '@/utils/EventEmitter';
 
+export const MAX_AUTOSAVE_WAIT_MS: number = 300;
+
 export interface UpdateListenerOptions {
   autosaveDelay: number;
   changeEmitter: EventEmitter<string>;
   anyDocChangeEmitter: EventEmitter<void>;
   geometryChangeEmitter: EventEmitter<void>;
   container: HTMLElement;
+}
+
+function getDebouncedAutosaveDelay(autosaveDelay: number, elapsedSinceFirstChange: number): number {
+  const remainingMaxWait: number = Math.max(0, MAX_AUTOSAVE_WAIT_MS - elapsedSinceFirstChange);
+  return Math.min(autosaveDelay, remainingMaxWait);
 }
 
 /**
@@ -19,6 +26,7 @@ export interface UpdateListenerOptions {
  */
 export function createUpdateListener(opts: UpdateListenerOptions): { extension: Extension; dispose: () => void } {
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  let firstChangeTime: number | null = null;
 
   const extension: Extension = EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
     // Emit geometry changes (used by auto-height) - fires after layout is complete
@@ -51,6 +59,11 @@ export function createUpdateListener(opts: UpdateListenerOptions): { extension: 
         return; // Skip programmatic changes for autosave
       }
 
+      const now: number = Date.now();
+      if (firstChangeTime === null) {
+        firstChangeTime = now;
+      }
+
       // Clear existing timeout
       if (debounceTimeout) {
         clearTimeout(debounceTimeout);
@@ -62,7 +75,8 @@ export function createUpdateListener(opts: UpdateListenerOptions): { extension: 
       debounceTimeout = setTimeout(() => {
         opts.changeEmitter.emit(viewUpdate.view.state.doc.toString());
         debounceTimeout = null;
-      }, opts.autosaveDelay);
+        firstChangeTime = null;
+      }, getDebouncedAutosaveDelay(opts.autosaveDelay, now - firstChangeTime));
     }
   });
 
@@ -73,6 +87,7 @@ export function createUpdateListener(opts: UpdateListenerOptions): { extension: 
         clearTimeout(debounceTimeout);
         debounceTimeout = null;
       }
+      firstChangeTime = null;
     }
   };
 }
