@@ -20,14 +20,14 @@ describe('loadSchemaPlugin', () => {
     async function writeSchemasModule(body: string): Promise<string> {
         const voicetreeDir: string = join(vaultRoot, '.voicetree')
         await mkdir(voicetreeDir, {recursive: true})
-        const schemasPath: string = join(voicetreeDir, 'schemas.mjs')
+        const schemasPath: string = join(voicetreeDir, 'schemas.cjs')
         await writeFile(schemasPath, body, 'utf8')
         return schemasPath
     }
 
-    it('returns the ValidatorMap exported as default from schemas.mjs', async () => {
+    it('returns the ValidatorMap exported from schemas.cjs', async () => {
         await writeSchemasModule(
-            `export default {
+            `module.exports = {
                 "my-kind": {
                     validate(body) {
                         return body.includes("required") ? [] : [{
@@ -49,7 +49,7 @@ describe('loadSchemaPlugin', () => {
         ])
     })
 
-    it('returns undefined when no schemas.mjs exists', async () => {
+    it('returns undefined when no schemas.cjs exists', async () => {
         await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
         expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
     })
@@ -58,25 +58,25 @@ describe('loadSchemaPlugin', () => {
         expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
     })
 
-    it('returns undefined when the default export is not a ValidatorMap', async () => {
-        await writeSchemasModule('export default "not an object"')
+    it('returns undefined when the exported value is not a ValidatorMap', async () => {
+        await writeSchemasModule('module.exports = "not an object"')
         expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
     })
 
     it('returns undefined when a validator entry is missing the validate function', async () => {
-        await writeSchemasModule(`export default { "broken": { notValidate: () => [] } }`)
+        await writeSchemasModule(`module.exports = { "broken": { notValidate: () => [] } }`)
         expect(await loadSchemaPlugin(vaultRoot)).toBeUndefined()
     })
 
-    it('rejects schemas.mjs that resolves outside the vault root via symlink', async () => {
+    it('rejects schemas.cjs that resolves outside the vault root via symlink', async () => {
         const outsideDir: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-outside-schema-')))
         try {
-            const outsideSchemas: string = join(outsideDir, 'schemas.mjs')
-            await writeFile(outsideSchemas, 'export default {}', 'utf8')
+            const outsideSchemas: string = join(outsideDir, 'schemas.cjs')
+            await writeFile(outsideSchemas, 'module.exports = {}', 'utf8')
 
             const voicetreeDir: string = join(vaultRoot, '.voicetree')
             await mkdir(voicetreeDir, {recursive: true})
-            await symlink(outsideSchemas, join(voicetreeDir, 'schemas.mjs'))
+            await symlink(outsideSchemas, join(voicetreeDir, 'schemas.cjs'))
 
             await expect(loadSchemaPlugin(vaultRoot)).rejects.toThrow(/Refusing to load schema plugin/)
         } finally {
@@ -87,7 +87,7 @@ describe('loadSchemaPlugin', () => {
     it('returns the cached result when the module has not changed', async () => {
         const schemasPath: string = await writeSchemasModule(
             `let count = 0
-            export default {
+            module.exports = {
                 "my-kind": {
                     validate() {
                         count += 1
@@ -103,15 +103,15 @@ describe('loadSchemaPlugin', () => {
         void schemasPath
     })
 
-    it('reloads the module when schemas.mjs mtime changes', async () => {
-        await writeSchemasModule(`export default { "my-kind": { validate: () => [] } }`)
+    it('reloads the module when schemas.cjs mtime changes', async () => {
+        await writeSchemasModule(`module.exports = { "my-kind": { validate: () => [] } }`)
         const before = await loadSchemaPlugin(vaultRoot)
         expect(before?.['my-kind']).toBeDefined()
 
-        const newSchemasPath: string = join(vaultRoot, '.voicetree', 'schemas.mjs')
+        const newSchemasPath: string = join(vaultRoot, '.voicetree', 'schemas.cjs')
         await writeFile(
             newSchemasPath,
-            `export default { "renamed-kind": { validate: () => [] } }`,
+            `module.exports = { "renamed-kind": { validate: () => [] } }`,
             'utf8'
         )
         const future: Date = new Date(Date.now() + 5000)

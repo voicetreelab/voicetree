@@ -1,6 +1,6 @@
 import {realpathSync, statSync, type Stats} from 'node:fs'
+import {createRequire} from 'node:module'
 import {join, relative, resolve, sep} from 'node:path'
-import {pathToFileURL} from 'node:url'
 import type {Validator, ValidatorMap} from './types'
 
 type CacheEntry = {
@@ -8,8 +8,14 @@ type CacheEntry = {
     readonly pluginResult: ValidatorMap | undefined
 }
 
-const SCHEMAS_FILENAME: string = 'schemas.mjs'
+// Plugin file is CJS to allow it to be loaded synchronously via createRequire
+// from Node's native loader, bypassing any bundler/transformer in the toolchain
+// (Vite/vitest's loader doesn't support dynamic `import()` of files outside its
+// module graph). Plugin authors write `module.exports = { typeName: { validate }}`.
+const SCHEMAS_FILENAME: string = 'schemas.cjs'
 const VOICETREE_DIRNAME: string = '.voicetree'
+
+const requireFromHere: NodeJS.Require = createRequire(import.meta.url)
 
 const cacheByVaultRoot: Map<string, CacheEntry> = new Map<string, CacheEntry>()
 
@@ -64,9 +70,9 @@ export async function loadSchemaPlugin(vaultRoot: string): Promise<ValidatorMap 
         return cached.pluginResult
     }
 
-    const moduleUrl: string = `${pathToFileURL(realSchemasPath).href}?mtime=${stats.mtimeMs}`
-    const imported: {default?: unknown} = await import(moduleUrl)
-    const exported: unknown = imported.default
+    // Drop the module from Node's require cache to honor mtime-driven reloads.
+    delete requireFromHere.cache[realSchemasPath]
+    const exported: unknown = requireFromHere(realSchemasPath)
 
     const pluginResult: ValidatorMap | undefined = isValidatorMap(exported) ? exported : undefined
     cacheByVaultRoot.set(absoluteVault, {mtimeMs: stats.mtimeMs, pluginResult})

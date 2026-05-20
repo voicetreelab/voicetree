@@ -72,7 +72,7 @@ async function captureGraphCreate(
     }
 }
 
-const SCHEMAS_REQUIRES_NEEDED_MARKER: string = `export default {
+const SCHEMAS_REQUIRES_NEEDED_MARKER: string = `module.exports = {
     "my-kind": {
         validate(rawBody) {
             if (rawBody.includes("Needed marker")) {
@@ -110,7 +110,7 @@ describe('graph create schema gate (filesystem mode)', () => {
     beforeEach(async () => {
         vaultRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-')))
         await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-        await writeFile(join(vaultRoot, '.voicetree', 'schemas.mjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
+        await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
         const workDir: string = join(vaultRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
@@ -199,8 +199,8 @@ describe('graph create schema gate (filesystem mode)', () => {
         await expect(access(targetPath)).resolves.toBeUndefined()
     })
 
-    it('skips validation when no schemas.mjs is present', async () => {
-        await rm(join(vaultRoot, '.voicetree', 'schemas.mjs'), {force: true})
+    it('skips validation when no schemas.cjs is present', async () => {
+        await rm(join(vaultRoot, '.voicetree', 'schemas.cjs'), {force: true})
         clearLoadSchemaPluginCacheForTest()
 
         const targetPath: string = join(vaultRoot, 'work', 'topic.md')
@@ -246,7 +246,7 @@ describe('graph create schema gate (live mode)', () => {
     beforeEach(async () => {
         vaultRoot = await realpath(await mkdtemp(join(tmpdir(), 'vt-schema-gate-live-')))
         await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
-        await writeFile(join(vaultRoot, '.voicetree', 'schemas.mjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
+        await writeFile(join(vaultRoot, '.voicetree', 'schemas.cjs'), SCHEMAS_REQUIRES_NEEDED_MARKER, 'utf8')
         const workDir: string = join(vaultRoot, 'work')
         await mkdir(workDir, {recursive: true})
         await writeFile(join(workDir, 'work.md'), FOLDER_NOTE_BODY, 'utf8')
