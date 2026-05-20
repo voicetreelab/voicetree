@@ -192,6 +192,9 @@ webapp/workers/share-worker/.wrangler/**
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
 
+# Codex config (machine-local)
+.codex/config.toml
+
 # Wrangler
 **/.wrangler/**
 
