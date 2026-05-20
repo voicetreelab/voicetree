@@ -167,6 +167,7 @@ describe('write-markdown-file daemon roundtrip', () => {
 
     const actualPath = await postWriteMarkdownFile(baseUrl, notePath, body)
     expect(actualPath).toBe(notePath)
+    expect((await readGraph(baseUrl)).nodes[notePath].contentWithoutYamlOrLinks).toBe(body)
 
     const { elapsedMs } = await readProjectedGraphsUntil(reader, graphContainsSuppressedRecentNode(notePath))
     expect(elapsedMs).toBeLessThanOrEqual(ROUNDTRIP_TIMEOUT_MS)

@@ -1,6 +1,12 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import type { FSUpdate, GraphDelta, Graph } from '@vt/graph-model/graph'
+import { mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
 
+import { applyGraphDeltaToMemState, refreshGraphChangeSideEffects } from './applyGraphDelta.ts'
+import { getGraph } from '@vt/graph-db-server/state/graph-store'
+import { markRecentDelta } from '@vt/graph-db-server/state/recent-deltas-store'
+import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { markPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 
 export type WriteMarkdownFileRequest = {
@@ -73,6 +79,19 @@ export function resolveFolderMarkdownTarget(absolutePath: string): string {
     : absolutePath
 }
 
+function buildWriteMarkdownFileDelta(
+  targetPath: string,
+  nextContent: string,
+  eventType: FSUpdate['eventType'],
+  graph: Graph,
+): GraphDelta {
+  return mapFSEventsToGraphDelta({
+    absolutePath: targetPath,
+    content: nextContent,
+    eventType,
+  }, graph)
+}
+
 export async function writeMarkdownFile(
   request: WriteMarkdownFileRequest,
   deps: WriteMarkdownFileDeps = defaultWriteMarkdownFileDeps,
@@ -88,7 +107,23 @@ export async function writeMarkdownFile(
   }
 
   const nextContent = composeMarkdownFileContent(existingContent, request.body)
+  const delta = buildWriteMarkdownFileDelta(
+    targetPath,
+    nextContent,
+    existingContent === null ? 'Added' : 'Changed',
+    getGraph(),
+  )
   markPendingWrite(targetPath, { suppressBroadcastTo: request.editorId })
   await deps.writeFile(targetPath, nextContent, 'utf8')
+  for (const nodeDelta of delta) {
+    markRecentDelta(nodeDelta)
+  }
+  const appliedDelta = await applyGraphDeltaToMemState(delta)
+  refreshGraphChangeSideEffects()
+  publish({
+    delta: appliedDelta,
+    source: 'write-markdown-file',
+    suppressForSubscribers: [request.editorId],
+  })
   return targetPath
 }
