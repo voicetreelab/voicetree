@@ -1,12 +1,14 @@
 /**
  * Fuzz test: random interleaved sequences of UI edits, autosave round-trips,
  * FS events, and focus toggles — verifying EditorSync invariants hold.
+ * Matching external replacements are allowed to win even when focused.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { GraphNode, NodeIdAndFilePath, Edge } from '@vt/graph-model/graph'
+import { getAppendedSuffix, isAppendOnly } from '@vt/graph-model/graph'
 import { getEditors } from '@/shell/edge/UI-edge/state/stores/EditorStore'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 import { updateFloatingEditors } from './EditorSync'
@@ -73,6 +75,7 @@ function runOp(
             const newNode: GraphNode = makeNode(NODE_ID, op.content, state.lastGraphEdges)
             const contentBefore: string = mockEditor.getValue()
             const prevRendered: string = fromNodeToContentWithWikilinks(prevNode)
+            const newRendered: string = fromNodeToContentWithWikilinks(newNode)
 
             updateFloatingEditors(cy, [{
                 type: 'UpsertNode',
@@ -80,13 +83,22 @@ function runOp(
                 nodeToUpsert: newNode,
             }])
 
-            if (!state.focused && contentBefore === prevRendered) {
-                expect(mockEditor.getValue()).toBe(fromNodeToContentWithWikilinks(newNode))
+            if (contentBefore === newRendered || contentBefore.startsWith(newRendered)) {
+                expect(mockEditor.getValue()).toBe(contentBefore)
+            } else if (isAppendOnly(prevRendered, newRendered)) {
+                const suffix: string = getAppendedSuffix(prevRendered, newRendered)
+                if (contentBefore.endsWith(suffix)) {
+                    expect(mockEditor.getValue()).toBe(contentBefore)
+                } else {
+                    expect(mockEditor.getValue()).toBe(contentBefore + suffix)
+                    state.appendedSuffixes.push(suffix)
+                }
+            } else if (contentBefore === prevRendered) {
+                expect(mockEditor.getValue()).toBe(newRendered)
                 state.lastUserContent = null
                 state.userTypedSinceSave = false
                 state.appendedSuffixes = []
-            }
-            if (state.focused) {
+            } else {
                 expect(mockEditor.getValue()).toBe(contentBefore)
             }
             state.lastGraphContent = op.content
@@ -135,17 +147,16 @@ function runOp(
                 nodeToUpsert: newNode,
             }])
 
-            if (state.focused) {
-                expect(mockEditor.getValue()).toBe(contentBefore)
-            }
-            if (!state.focused && contentBefore !== newRendered) {
+            if (contentBefore !== newRendered) {
                 expect(mockEditor.getValue()).toBe(newRendered)
                 state.lastUserContent = null
                 state.userTypedSinceSave = false
                 state.appendedSuffixes = []
-                state.lastGraphContent = op.content
-                state.lastGraphEdges = []
+            } else {
+                expect(mockEditor.getValue()).toBe(contentBefore)
             }
+            state.lastGraphContent = op.content
+            state.lastGraphEdges = []
             break
         }
 

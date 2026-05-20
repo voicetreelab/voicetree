@@ -156,7 +156,7 @@ describe('updateFloatingEditors', () => {
         expect(editor.getValue()).toBe('Hello world')
     })
 
-    it('keeps focused embedded-mode editors immune to non-append replacements', () => {
+    it('applies matching external replacements while the editor is focused', () => {
         const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
         const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
 
@@ -165,19 +165,6 @@ describe('updateFloatingEditors', () => {
             previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
             nodeToUpsert: makeNode(nodeId, 'external update'),
         }])
-
-        expect(editor.getValue()).toBe('# Typing Target\n\n')
-    })
-
-    it('applies matching daemon-mode external replacements while the editor is focused', () => {
-        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
-        const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
-
-        updateFloatingEditors({} as Core, [{
-            type: 'UpsertNode',
-            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
-            nodeToUpsert: makeNode(nodeId, 'external update'),
-        }], true)
 
         expect(editor.getValue()).toBe('external update')
     })
@@ -190,7 +177,7 @@ describe('updateFloatingEditors', () => {
             type: 'UpsertNode',
             previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
             nodeToUpsert: makeNode(nodeId, 'suppressed echo'),
-        }], true, [`${nodeId}-editor`])
+        }], [`${nodeId}-editor`])
 
         expect(editor.getValue()).toBe('# Typing Target\n\n')
     })
@@ -203,7 +190,7 @@ describe('updateFloatingEditors', () => {
             type: 'UpsertNode',
             previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
             nodeToUpsert: makeNode(nodeId, 'external update'),
-        }], true, ['another-editor'])
+        }], ['another-editor'])
 
         expect(editor.getValue()).toBe('external update')
     })

@@ -53,20 +53,20 @@ function updateFloatingEditorsFromExternal(
     suppressForSubscribers: readonly string[] = [],
 ): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta, false, suppressForSubscribers);
+    updateFloatingEditors(cy, delta, suppressForSubscribers);
 }
 
 /**
  * Update floating editors from daemon SSE deltas.
- * Echo filtering already happened at the SSE layer, so these are always
- * external changes — skip the isFocused guard that would block them.
+ * Echo filtering already happened at the SSE layer, so these are external
+ * changes unless explicitly suppressed for the originating editor.
  */
 function updateFloatingEditorsFromDaemon(
     delta: GraphDelta,
     suppressForSubscribers: readonly string[] = [],
 ): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta, true, suppressForSubscribers);
+    updateFloatingEditors(cy, delta, suppressForSubscribers);
 }
 
 /**

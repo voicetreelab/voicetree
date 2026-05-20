@@ -23,7 +23,6 @@ import {closeEditor} from './FloatingEditorCRUD';
 export function updateFloatingEditors(
     cy: Core,
     delta: GraphDelta,
-    skipFocusGuard: boolean = false,
     suppressForSubscribers: readonly string[] = [],
 ): void {
     const suppressedEditors: ReadonlySet<string> = new Set(suppressForSubscribers);
@@ -79,15 +78,6 @@ export function updateFloatingEditors(
                             }
                             continue;
                         }
-                    }
-
-                    // Skip non-append programmatic updates while the user is
-                    // actively typing — the autosave round-trip would clobber
-                    // newer characters.  In daemon mode, echo filtering happens
-                    // at the SSE layer so all deltas reaching here are external;
-                    // skipFocusGuard bypasses this guard for those.
-                    if (!skipFocusGuard && cmEditor.isFocused()) {
-                        continue;
                     }
 
                     if (O.isSome(nodeDelta.previousNode)) {
@@ -192,6 +182,6 @@ export function updateFloatingEditorsFromProjectedGraph(
     }
 
     if (delta.length > 0) {
-        updateFloatingEditors(cy, delta, false, graph.suppressForSubscribers ?? []);
+        updateFloatingEditors(cy, delta, graph.suppressForSubscribers ?? []);
     }
 }
