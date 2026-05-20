@@ -4,9 +4,12 @@ import {
     ensureDaemon,
     type FolderState,
     GraphDbClient,
+    type LiveStateSnapshot,
     type SelectionMode,
     type ViewRecord,
 } from '@vt/graph-db-client'
+import {renderTreeCover, type ProjectedGraph} from '@vt/graph-tools/autoView'
+import {isJsonMode} from '@/shell/edge/main/cli/output'
 import {resolveVault} from '@/shell/edge/main/cli/util/detectVault'
 import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes'
 import {parseSessionFlag, resolveSessionId} from '@/shell/edge/main/cli/util/sessionFlag'
@@ -572,8 +575,27 @@ async function runSelectionCommand(parsed: ParsedSelectionCommand): Promise<void
 async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
     const client: GraphDbClient = await createSessionClient(parsed.vaultFlag)
     const sessionId: string = await resolveCommandSessionId(client, parsed.sessionFlag)
+    const state: LiveStateSnapshot = await client.getSessionState(sessionId, {content: 'omit'})
 
-    emitResult(await client.getSessionState(sessionId, {content: 'omit'}), formatViewState, parsed.forceJson)
+    if (parsed.forceJson || isJsonMode()) {
+        emitResult(state, formatViewState, true)
+        return
+    }
+
+    const graph: ProjectedGraph = await client.getProjectedGraph(sessionId) as ProjectedGraph
+    const collapsed: Set<string> = new Set(
+        state.folderState
+            .filter(([, folderState]: readonly [string, FolderState]): boolean => folderState === 'collapsed')
+            .map(([folderPath]: readonly [string, FolderState]): string => folderPath),
+    )
+    const selected: Set<string> = new Set(state.selection)
+
+    console.log(renderTreeCover(graph, {
+        collapsed,
+        selected,
+        title: state.activeView.name,
+        viewApplied: collapsed.size > 0 || selected.size > 0,
+    }))
 }
 
 export async function runViewCommand(argv: string[]): Promise<void> {

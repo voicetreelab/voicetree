@@ -224,7 +224,16 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                     // Folder body is input-inert. The corner chip (FolderHandleService)
                     // carries drag + collapse. Collapsed folders stay grabbable so the
                     // pill itself can be dragged like a regular node.
-                    if (!collapsed) addedFolder.ungrabify()
+                    //
+                    // Selectability mirrors grabbability: an expanded compound is
+                    // unselectifiable so cmd-drag lasso (cy box-select) doesn't
+                    // sweep the folder into the selection just because the user
+                    // dragged within its bounds. Collapsed pills remain selectable
+                    // — they behave like ordinary nodes.
+                    if (!collapsed) {
+                        addedFolder.ungrabify()
+                        addedFolder.unselectify()
+                    }
                     continue
                 }
 
@@ -267,13 +276,19 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 if (collapsed) {
                     existing.data('collapsed', true)
                     existing.data('childCount', specNode.childCount ?? 0)
-                    // Collapsed pill is a regular node — grabbable
+                    // Collapsed pill is a regular node — grabbable + selectable
                     if (!existing.grabbable()) existing.grabify()
+                    if (!existing.selectable()) existing.selectify()
                 } else {
                     if (existing.data('collapsed')) existing.removeData('collapsed')
                     if (existing.data('childCount') !== undefined) existing.removeData('childCount')
                     // Expanded folder body is input-inert; chip handles drag.
+                    // Unselectify so cmd-drag lasso doesn't catch the compound.
+                    // Also drop any prior selection so the collapsed→expanded
+                    // transition doesn't leave a stuck-selected compound.
                     if (existing.grabbable()) existing.ungrabify()
+                    if (existing.selectable()) existing.unselectify()
+                    if (existing.selected()) existing.unselect()
                 }
                 continue
             }

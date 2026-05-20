@@ -1,5 +1,6 @@
 import type { FolderVisibilityDatabase } from '../views/folderVisibilitySqlite'
 import type { FilePath } from '@vt/graph-model/graph'
+import normalizePath from 'normalize-path'
 
 type FolderState = 'expanded' | 'collapsed' | 'hidden'
 type FolderVisibilityState = ReadonlyMap<string, FolderState>
@@ -100,6 +101,35 @@ export async function setActiveViewFolderState(
         ensureDefaultView(db)
         store.configureFolderVisibilityStore(db)
         store.setFolderState(getActiveViewId(db), folderPath, state)
+    } finally {
+        store.clearFolderVisibilityStoreForTests()
+        dbModule.closeFolderVisibilityDb(db)
+    }
+}
+
+export async function seedActiveViewExpandedFolderStates(
+    vaultPath: FilePath,
+    folderPaths: readonly FilePath[],
+): Promise<void> {
+    let dbModule: Awaited<ReturnType<typeof loadFolderVisibilityDbModule>>
+    try {
+        dbModule = await loadFolderVisibilityDbModule()
+    } catch {
+        return
+    }
+    const store = await loadFolderVisibilityStore()
+    const { ensureDefaultView, getActiveViewId } = await loadViewsRepository()
+    const db: FolderVisibilityDatabase = dbModule.openFolderVisibilityDb(vaultPath)
+    try {
+        ensureDefaultView(db)
+        store.configureFolderVisibilityStore(db)
+        const activeViewId = getActiveViewId(db)
+        const existing = store.getFolderVisibility(activeViewId)
+        for (const folderPath of new Set(folderPaths.map((path) => normalizePath(path)))) {
+            if (!existing.has(folderPath)) {
+                store.setFolderState(activeViewId, folderPath, 'expanded')
+            }
+        }
     } finally {
         store.clearFolderVisibilityStoreForTests()
         dbModule.closeFolderVisibilityDb(db)

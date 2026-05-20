@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {createCeremonyStdinDecoder} from '../../../../../../../../tools/vt-fake-agent/src/stdin-decoder.ts'
+import {createCeremonyStdinDecoder} from './stdin-decoder.ts'
 
 function collect(): {submit: (m: string) => void; messages: string[]} {
     const messages: string[] = []

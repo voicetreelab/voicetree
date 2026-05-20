@@ -60,13 +60,33 @@ function ownFolderState(
   return folderState.get(normalizeFolderPath(path)) ?? 'hidden'
 }
 
+function explicitFolderState(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
+): FolderState | undefined {
+  return folderState.get(normalizeFolderPath(path))
+}
+
+function nearestExplicitAncestorState(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
+): FolderState | undefined {
+  let current: string | null = parentFolderPath(path)
+  while (current) {
+    const state = explicitFolderState(folderState, current)
+    if (state) return state
+    current = parentFolderPath(current)
+  }
+  return undefined
+}
+
 function isFolderRendered(
   folderState: ReadonlyMap<string, FolderState>,
   path: string,
 ): boolean {
-  if (ownFolderState(folderState, path) !== 'hidden') return true
-  const parentPath = parentFolderPath(path)
-  return parentPath !== null && ownFolderState(folderState, parentPath) === 'expanded'
+  const state = explicitFolderState(folderState, path)
+  if (state) return state !== 'hidden'
+  return nearestExplicitAncestorState(folderState, path) === 'expanded'
 }
 
 function collectFolderRecords(
@@ -111,12 +131,20 @@ function shouldProjectGraphNode(
   let current: string | null = normalizeFolderPath(parentPath)
   let isDirectParent = true
   while (current) {
-    const state = ownFolderState(folderState, current)
+    const state = explicitFolderState(folderState, current)
+    if (!state) {
+      current = parentFolderPath(current)
+      isDirectParent = false
+      continue
+    }
+    if (state === 'hidden') {
+      return false
+    }
     if (state === 'collapsed') {
-      return renderedFolderPaths.has(current)
+      return isDirectParent && renderedFolderPaths.has(current)
     }
     if (state === 'expanded') {
-      return isDirectParent && renderedFolderPaths.has(current)
+      return renderedFolderPaths.has(current)
     }
     current = parentFolderPath(current)
     isDirectParent = false
@@ -194,7 +222,7 @@ function projectFolderTree(
     const parentPath = records.get(path)?.parentPath ?? null
     outputParentByPath.set(
       path,
-      parentPath && includedPaths.has(parentPath) && ownFolderState(folderState, parentPath) !== 'hidden'
+      parentPath && includedPaths.has(parentPath) && explicitFolderState(folderState, parentPath) !== 'hidden'
         ? parentPath
         : null,
     )
