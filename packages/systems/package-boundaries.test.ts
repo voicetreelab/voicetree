@@ -79,6 +79,7 @@ function isProductionTypeScriptSource(path: string): boolean {
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.includes('/__tests__/')
+        && !path.includes('/__generated__/')
 }
 
 async function listProductionSources(root: string): Promise<string[]> {

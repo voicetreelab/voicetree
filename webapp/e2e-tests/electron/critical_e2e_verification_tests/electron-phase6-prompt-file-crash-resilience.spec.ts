@@ -228,8 +228,6 @@ type PhaseSixFixtures = {
     vaultPath: string;
     phaseSixPrompt: PhaseSixPrompt;
     userDataDir: string;
-    electronApp: ElectronApplication;
-    appWindow: Page;
 };
 
 const test = base.extend<PhaseSixFixtures>({
@@ -254,147 +252,155 @@ const test = base.extend<PhaseSixFixtures>({
         await use(dir);
         await fs.rm(dir, { recursive: true, force: true });
     },
-
-    electronApp: async ({ userDataDir, vaultPath }, use) => {
-        // Hermeticity: kill any AGENT_NAMES-shaped tmux sessions left over from
-        // prior failed runs, otherwise M1-fix5's idempotent rebind silently
-        // takes over and the prompt-file write path under test never runs.
-        reapStaleTestTmuxSessions(['phase6-caller']);
-        const app = await launchElectronApp(userDataDir, vaultPath);
-        await use(app);
-        // Best-effort teardown — the test itself may have killed the process.
-        try { await safeStopFileWatching(app); } catch { /* may already be dead */ }
-        try { await robustElectronTeardown(app); } catch { /* may already be dead */ }
-    },
-
-    appWindow: async ({ electronApp }, use) => {
-        const window = await electronApp.firstWindow({ timeout: 30_000 });
-        window.on('console', msg => {
-            if (!msg.text().includes('Electron Security Warning')) {
-                console.log(`BROWSER [${msg.type()}]:`, msg.text());
-            }
-        });
-        window.on('pageerror', err => console.error('PAGE ERROR:', err.message));
-        await window.waitForLoadState('domcontentloaded');
-        await use(window);
-    },
 });
+
+async function firstLoadedWindow(app: ElectronApplication, timeout = 30_000): Promise<Page> {
+    const window = await app.firstWindow({ timeout });
+    window.on('console', msg => {
+        if (!msg.text().includes('Electron Security Warning')) {
+            console.log(`BROWSER [${msg.type()}]:`, msg.text());
+        }
+    });
+    window.on('pageerror', err => console.error('PAGE ERROR:', err.message));
+    await window.waitForLoadState('domcontentloaded');
+    return window;
+}
+
+async function cleanupLiveElectronApp(app: ElectronApplication | null): Promise<void> {
+    if (!app) return;
+    try { await safeStopFileWatching(app); } catch { /* may already be dead */ }
+    try { await robustElectronTeardown(app); } catch { /* may already be dead */ }
+}
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
 test.describe('Phase 6 prompt-file + crash resilience (M1-rerun-6)', () => {
     test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
-    test('headless tmux spawn delivers prompt via file, session survives Electron kill -9, relaunch rebinds', async ({ electronApp, appWindow, vaultPath, userDataDir, phaseSixPrompt }) => {
-        // ── STEP 1: MCP ready ──
-        const mcpUrl = await discoverMcpUrl(appWindow);
-        const ready = await waitForMcpServer(mcpUrl, 30, 1000);
-        expect(ready, `MCP server never came up at ${mcpUrl}`).toBe(true);
-        await mcpRequest(mcpUrl, 'initialize', {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'phase6-e2e', version: '1.0.0' },
-        });
+    test('headless tmux spawn delivers prompt via file, session survives Electron kill -9, relaunch rebinds', async ({ vaultPath, userDataDir, phaseSixPrompt }) => {
+        // Hermeticity: kill any AGENT_NAMES-shaped tmux sessions left over from
+        // prior failed runs, otherwise M1-fix5's idempotent rebind silently
+        // takes over and the prompt-file write path under test never runs.
+        reapStaleTestTmuxSessions(['phase6-caller']);
 
-        // ── STEP 2: vault graph loaded — `--open-folder` doesn't reliably attach
-        //           the watcher in the test harness, so trigger explicitly. ──
-        const watchResult = await appWindow.evaluate(async (vp) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
-            return await (api.main as unknown as { startFileWatching: (p: string) => Promise<{ success: boolean }> }).startFileWatching(vp);
-        }, vaultPath);
-        expect(watchResult.success, 'startFileWatching failed').toBe(true);
+        let app1: ElectronApplication | null = null;
+        let app1KilledByTest = false;
+        let app2: ElectronApplication | null = null;
+        let terminalId: string | null = null;
+        let promptFile: string | null = null;
 
-        // Also write `.mcp.json` so any agent that reads vault-local MCP config
-        // finds the in-process server (mirrors the real-agent-spawn pattern).
-        await fs.writeFile(path.join(vaultPath, '.mcp.json'), JSON.stringify({
-            mcpServers: { voicetree: { type: 'http', url: mcpUrl } },
-        }, null, 2), 'utf8');
-
-        await expect.poll(async () => appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            const g = await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, unknown> }> }).getGraph();
-            return Object.keys(g.nodes).length;
-        }), { timeout: 30_000, intervals: [500, 1000, 2000] }).toBeGreaterThan(0);
-        const nodeIds: string[] = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            const g = await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, unknown> }> }).getGraph();
-            return Object.keys(g.nodes);
-        });
-        const parentNodeId = nodeIds[0];
-        expect(parentNodeId, 'expected at least one graph node').toBeTruthy();
-
-        // ── STEP 3: caller terminal + spawn HEADLESS fake-agent with sentinel prompt ──
-        const callerId = 'phase6-caller';
-        await bootstrapCallerTerminal(appWindow, parentNodeId, callerId);
-
-        const { sentinelTitle, agentPrompt } = phaseSixPrompt;
-
-        const spawnRes = await mcpCallTool(mcpUrl, 'spawn_agent', {
-            nodeId: parentNodeId,
-            callerTerminalId: callerId,
-            headless: true,
-        });
-        expect(spawnRes.success, `spawn_agent failed: ${JSON.stringify(spawnRes.parsed)}`).toBe(true);
-        const terminalId = (spawnRes.parsed as { terminalId: string }).terminalId;
-        expect(terminalId).toBeTruthy();
-
-        // ── STEP 4: prompt file contract (existence, mode, contents) ──
-        // `vaultPath` is the watched parent; production writes prompt files
-        // into the voicetree-N-M subfolder it created during init.
-        const writePath = await resolveVaultWritePath(vaultPath);
-        const promptFile = path.join(writePath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`);
-        await expect.poll(async () => {
-            try { await fs.access(promptFile); return true; } catch { return false; }
-        }, { timeout: 10_000, message: `prompt file ${promptFile} never appeared` }).toBe(true);
-        const fileMode = statSync(promptFile).mode & 0o777;
-        expect(fileMode, 'prompt file must be mode 0600').toBe(0o600);
-        const fileContents = await fs.readFile(promptFile, 'utf8');
-        expect(fileContents, 'prompt file must equal AGENT_PROMPT').toBe(agentPrompt);
-
-        // ── STEP 5: tmux session backs the agent ──
-        await expect.poll(() => tmuxSessionExists(terminalId), {
-            timeout: 10_000,
-            message: `tmux session ${terminalId} never appeared`,
-        }).toBe(true);
-        const prePanePid = tmuxPanePid(terminalId);
-        expect(prePanePid, 'pane pid must be readable pre-kill').toBeTruthy();
-
-        // ── STEP 6: agent actually received & parsed the prompt (sentinel node created) ──
-        await expect.poll(async () => {
-            const graph = await appWindow.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                return await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, GraphNode> }> }).getGraph();
-            });
-            return graphIncludesTitle(graph, sentinelTitle);
-        }, {
-            timeout: 60_000,
-            intervals: [1000, 2000, 3000, 5000],
-            message: `sentinel node "${sentinelTitle}" never appeared — fake-agent did not receive AGENT_PROMPT_FILE`,
-        }).toBe(true);
-
-        // ── STEP 7: kill -9 Electron main ──
-        const mainProc = electronApp.process();
-        const mainPid = mainProc?.pid;
-        expect(mainPid, 'electron main pid must be known pre-kill').toBeTruthy();
-        process.kill(mainPid as number, 'SIGKILL');
-        // Wait for the process to actually exit so the next launch doesn't race on userData lock.
-        await expect.poll(() => {
-            try { process.kill(mainPid as number, 0); return true; } catch { return false; }
-        }, { timeout: 10_000, message: 'electron main never exited after SIGKILL' }).toBe(false);
-
-        // ── STEP 8: tmux session + prompt file survive the crash ──
-        expect(tmuxSessionExists(terminalId), 'tmux session must outlive Electron kill').toBe(true);
-        expect(tmuxPanePid(terminalId), 'pane pid must be unchanged post-kill').toBe(prePanePid);
-        try { await fs.access(promptFile); } catch (e) {
-            throw new Error(`prompt file must persist across crash; missing: ${(e as Error).message}`);
-        }
-
-        // ── STEP 9: relaunch — reconciliation imports the surviving session ──
-        const app2 = await launchElectronApp(userDataDir, vaultPath);
         try {
-            const win2 = await app2.firstWindow({ timeout: 60_000 });
-            await win2.waitForLoadState('domcontentloaded');
+            app1 = await launchElectronApp(userDataDir, vaultPath);
+            const appWindow = await firstLoadedWindow(app1);
+
+            // ── STEP 1: MCP ready ──
+            const mcpUrl = await discoverMcpUrl(appWindow);
+            const ready = await waitForMcpServer(mcpUrl, 30, 1000);
+            expect(ready, `MCP server never came up at ${mcpUrl}`).toBe(true);
+            await mcpRequest(mcpUrl, 'initialize', {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'phase6-e2e', version: '1.0.0' },
+            });
+
+            // ── STEP 2: vault graph loaded — `--open-folder` doesn't reliably attach
+            //           the watcher in the test harness, so trigger explicitly. ──
+            const watchResult = await appWindow.evaluate(async (vp) => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                if (!api) throw new Error('electronAPI not available');
+                return await (api.main as unknown as { startFileWatching: (p: string) => Promise<{ success: boolean }> }).startFileWatching(vp);
+            }, vaultPath);
+            expect(watchResult.success, 'startFileWatching failed').toBe(true);
+
+            // Also write `.mcp.json` so any agent that reads vault-local MCP config
+            // finds the in-process server (mirrors the real-agent-spawn pattern).
+            await fs.writeFile(path.join(vaultPath, '.mcp.json'), JSON.stringify({
+                mcpServers: { voicetree: { type: 'http', url: mcpUrl } },
+            }, null, 2), 'utf8');
+
+            await expect.poll(async () => appWindow.evaluate(async () => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const g = await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, unknown> }> }).getGraph();
+                return Object.keys(g.nodes).length;
+            }), { timeout: 30_000, intervals: [500, 1000, 2000] }).toBeGreaterThan(0);
+            const nodeIds: string[] = await appWindow.evaluate(async () => {
+                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const g = await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, unknown> }> }).getGraph();
+                return Object.keys(g.nodes);
+            });
+            const parentNodeId = nodeIds[0];
+            expect(parentNodeId, 'expected at least one graph node').toBeTruthy();
+
+            // ── STEP 3: caller terminal + spawn HEADLESS fake-agent with sentinel prompt ──
+            const callerId = 'phase6-caller';
+            await bootstrapCallerTerminal(appWindow, parentNodeId, callerId);
+
+            const { sentinelTitle, agentPrompt } = phaseSixPrompt;
+
+            const spawnRes = await mcpCallTool(mcpUrl, 'spawn_agent', {
+                nodeId: parentNodeId,
+                callerTerminalId: callerId,
+                headless: true,
+            });
+            expect(spawnRes.success, `spawn_agent failed: ${JSON.stringify(spawnRes.parsed)}`).toBe(true);
+            terminalId = (spawnRes.parsed as { terminalId: string }).terminalId;
+            expect(terminalId).toBeTruthy();
+
+            // ── STEP 4: prompt file contract (existence, mode, contents) ──
+            // `vaultPath` is the watched parent; production writes prompt files
+            // into the voicetree-N-M subfolder it created during init.
+            const writePath = await resolveVaultWritePath(vaultPath);
+            promptFile = path.join(writePath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`);
+            await expect.poll(async () => {
+                try { await fs.access(promptFile as string); return true; } catch { return false; }
+            }, { timeout: 10_000, message: `prompt file ${promptFile} never appeared` }).toBe(true);
+            const fileMode = statSync(promptFile).mode & 0o777;
+            expect(fileMode, 'prompt file must be mode 0600').toBe(0o600);
+            const fileContents = await fs.readFile(promptFile, 'utf8');
+            expect(fileContents, 'prompt file must equal AGENT_PROMPT').toBe(agentPrompt);
+
+            // ── STEP 5: tmux session backs the agent ──
+            await expect.poll(() => tmuxSessionExists(terminalId as string), {
+                timeout: 10_000,
+                message: `tmux session ${terminalId} never appeared`,
+            }).toBe(true);
+            const prePanePid = tmuxPanePid(terminalId);
+            expect(prePanePid, 'pane pid must be readable pre-kill').toBeTruthy();
+
+            // ── STEP 6: agent actually received & parsed the prompt (sentinel node created) ──
+            await expect.poll(async () => {
+                const graph = await appWindow.evaluate(async () => {
+                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    return await (api?.main as unknown as { getGraph: () => Promise<{ nodes: Record<string, GraphNode> }> }).getGraph();
+                });
+                return graphIncludesTitle(graph, sentinelTitle);
+            }, {
+                timeout: 60_000,
+                intervals: [1000, 2000, 3000, 5000],
+                message: `sentinel node "${sentinelTitle}" never appeared — fake-agent did not receive AGENT_PROMPT_FILE`,
+            }).toBe(true);
+
+            // ── STEP 7: kill -9 Electron main ──
+            const mainProc = app1.process();
+            const mainPid = mainProc?.pid;
+            expect(mainPid, 'electron main pid must be known pre-kill').toBeTruthy();
+            process.kill(mainPid as number, 'SIGKILL');
+            app1KilledByTest = true;
+            // Wait for the process to actually exit so the next launch doesn't race on userData lock.
+            await expect.poll(() => {
+                try { process.kill(mainPid as number, 0); return true; } catch { return false; }
+            }, { timeout: 10_000, message: 'electron main never exited after SIGKILL' }).toBe(false);
+
+            // ── STEP 8: tmux session + prompt file survive the crash ──
+            expect(tmuxSessionExists(terminalId), 'tmux session must outlive Electron kill').toBe(true);
+            expect(tmuxPanePid(terminalId), 'pane pid must be unchanged post-kill').toBe(prePanePid);
+            try { await fs.access(promptFile); } catch (e) {
+                throw new Error(`prompt file must persist across crash; missing: ${(e as Error).message}`);
+            }
+
+            // ── STEP 9: relaunch — reconciliation imports the surviving session ──
+            app2 = await launchElectronApp(userDataDir, vaultPath);
+            const win2 = await firstLoadedWindow(app2, 60_000);
             const mcpUrl2 = await discoverMcpUrl(win2);
             const ready2 = await waitForMcpServer(mcpUrl2, 30, 1000);
             expect(ready2, `MCP server never came up post-relaunch at ${mcpUrl2}`).toBe(true);
@@ -474,18 +480,19 @@ test.describe('Phase 6 prompt-file + crash resilience (M1-rerun-6)', () => {
             }).toBe(false);
             if (closeAgentSucceeded) {
                 await expect.poll(async () => {
-                    try { await fs.access(promptFile); return true; } catch { return false; }
+                    try { await fs.access(promptFile as string); return true; } catch { return false; }
                 }, {
                     timeout: 5_000,
                     message: 'prompt file not deleted by close_agent',
                 }).toBe(false);
             }
         } finally {
-            try { await safeStopFileWatching(app2); } catch { /* ignore */ }
-            try { await robustElectronTeardown(app2); } catch { /* ignore */ }
-            // Defensive cleanup in case any assertion failed mid-flight.
-            killTmuxSession(terminalId);
-            try { await fs.rm(promptFile, { force: true }); } catch { /* ignore */ }
+            await cleanupLiveElectronApp(app2);
+            await cleanupLiveElectronApp(app1KilledByTest ? null : app1);
+            if (terminalId) killTmuxSession(terminalId);
+            if (promptFile) {
+                try { await fs.rm(promptFile, { force: true }); } catch { /* ignore */ }
+            }
         }
     });
 });

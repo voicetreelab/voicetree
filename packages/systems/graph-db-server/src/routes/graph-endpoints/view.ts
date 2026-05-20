@@ -21,6 +21,7 @@ export function mountViewRoutes(
         registry,
         routeParam(c, 'sessionId'),
         c.req.query('budget'),
+        c.req.query('title'),
         c.req.queries('expand') ?? [],
       ),
     )

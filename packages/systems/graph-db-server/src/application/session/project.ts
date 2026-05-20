@@ -60,13 +60,42 @@ function ownFolderState(
   return folderState.get(normalizeFolderPath(path)) ?? 'hidden'
 }
 
+function explicitFolderState(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
+): FolderState | undefined {
+  return folderState.get(normalizeFolderPath(path))
+}
+
+function folderStateWithImplicitWritePath(
+  folderState: ReadonlyMap<string, FolderState>,
+  writePath: string,
+): ReadonlyMap<string, FolderState> {
+  const normalizedWritePath = normalizeFolderPath(writePath)
+  if (normalizedWritePath.length === 0 || folderState.has(normalizedWritePath)) return folderState
+  return new Map([...folderState, [normalizedWritePath, 'expanded' as const]])
+}
+
+function nearestExplicitAncestorState(
+  folderState: ReadonlyMap<string, FolderState>,
+  path: string,
+): FolderState | undefined {
+  let current: string | null = parentFolderPath(path)
+  while (current) {
+    const state = explicitFolderState(folderState, current)
+    if (state) return state
+    current = parentFolderPath(current)
+  }
+  return undefined
+}
+
 function isFolderRendered(
   folderState: ReadonlyMap<string, FolderState>,
   path: string,
 ): boolean {
-  if (ownFolderState(folderState, path) !== 'hidden') return true
-  const parentPath = parentFolderPath(path)
-  return parentPath !== null && ownFolderState(folderState, parentPath) === 'expanded'
+  const state = explicitFolderState(folderState, path)
+  if (state) return state !== 'hidden'
+  return nearestExplicitAncestorState(folderState, path) === 'expanded'
 }
 
 function collectFolderRecords(
@@ -111,12 +140,20 @@ function shouldProjectGraphNode(
   let current: string | null = normalizeFolderPath(parentPath)
   let isDirectParent = true
   while (current) {
-    const state = ownFolderState(folderState, current)
+    const state = explicitFolderState(folderState, current)
+    if (!state) {
+      current = parentFolderPath(current)
+      isDirectParent = false
+      continue
+    }
+    if (state === 'hidden') {
+      return false
+    }
     if (state === 'collapsed') {
-      return renderedFolderPaths.has(current)
+      return isDirectParent && renderedFolderPaths.has(current)
     }
     if (state === 'expanded') {
-      return isDirectParent && renderedFolderPaths.has(current)
+      return renderedFolderPaths.has(current)
     }
     current = parentFolderPath(current)
     isDirectParent = false
@@ -186,15 +223,30 @@ function projectFolderTree(
   collectFolderRecords(folderTree, null, records)
   const rootPath = normalizeFolderPath(folderTree.absolutePath)
 
-  const includedPaths = new Set(
+  const renderedPaths = new Set(
     [...records.keys()].filter((path) => path !== rootPath && isFolderRendered(folderState, path)),
   )
+  const hasContentMemo = new Map<string, boolean>()
+  const hasProjectableContent = (path: string): boolean => {
+    const cached = hasContentMemo.get(path)
+    if (cached !== undefined) return cached
+    const record = records.get(path)
+    if (!record) return false
+    const hasDirectFile = record.directFiles.some((file) => graphNodes[file.absolutePath] !== undefined)
+    const hasChildContent = record.childFolderPaths.some((childPath) =>
+      renderedPaths.has(childPath) && hasProjectableContent(childPath),
+    )
+    const result = hasDirectFile || hasChildContent
+    hasContentMemo.set(path, result)
+    return result
+  }
+  const includedPaths = new Set([...renderedPaths].filter(hasProjectableContent))
   const outputParentByPath = new Map<string, string | null>()
   for (const path of includedPaths) {
     const parentPath = records.get(path)?.parentPath ?? null
     outputParentByPath.set(
       path,
-      parentPath && includedPaths.has(parentPath) && ownFolderState(folderState, parentPath) !== 'hidden'
+      parentPath && includedPaths.has(parentPath) && explicitFolderState(folderState, parentPath) !== 'hidden'
         ? parentPath
         : null,
     )
@@ -243,7 +295,7 @@ function projectFolderTree(
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
   const { graph, vault, folderTree, session } = args
-  const folderState = session.folderState
+  const folderState = folderStateWithImplicitWritePath(session.folderState, vault.writePath)
   const renderedFolderPaths = new Set(
     [...folderState]
       .filter(([, state]) => state !== 'hidden')

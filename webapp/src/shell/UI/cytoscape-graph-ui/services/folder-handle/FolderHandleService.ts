@@ -52,7 +52,6 @@ import {
 import {getHoverEditor} from '@/shell/edge/UI-edge/state/stores/EditorStore';
 
 const CHIP_PX = 22;
-const STRIP_WIDTH_PX = CHIP_PX * 2;
 
 // Debounce duration for closing the hover editor after the cursor leaves the
 // eye chip. Long enough for the cursor to traverse from chip to editor
@@ -159,9 +158,7 @@ export function setupFolderHandles(cy: Core): void {
     async function resolveFolderNoteId(folderId: string): Promise<NodeIdAndFilePath | null> {
         const cached: NodeIdAndFilePath | null | undefined = folderNoteCache.get(folderId);
         if (cached !== undefined) return cached;
-        if (cachedGraph === null) {
-            cachedGraph = (await window.electronAPI?.main.getGraph()) ?? null;
-        }
+        cachedGraph ??= (await window.electronAPI?.main.getGraph()) ?? null;
         if (cachedGraph === null) return null;
         const resolved: NodeIdAndFilePath | null = getFolderNotePath(cachedGraph, folderId) ?? null;
         folderNoteCache.set(folderId, resolved);
@@ -292,6 +289,14 @@ export function setupFolderHandles(cy: Core): void {
         // map 1:1 onto offset coords.
         entry.el.style.left = `${bbox.x1}px`;
         entry.el.style.top = `${bbox.y1}px`;
+
+        // Scale chips with cy.zoom() so the strip stays visually proportional
+        // to the folder node (otherwise chips look oversized when zoomed out
+        // and tiny when zoomed in). Same pattern as headless-badge-overlay.
+        // Origin "0 0" keeps the TL corner pinned to the bbox TL.
+        const zoom: number = cy.zoom();
+        entry.el.style.transform = `scale(${zoom})`;
+        entry.el.style.transformOrigin = '0 0';
 
         // Chevron glyph reflects state: down (expanded — "click to collapse"),
         // right (collapsed — "click to expand").
