@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { existsSync, readdirSync } from 'node:fs'
 import path from 'path'
 
 const pathSegments = process.cwd().split(/[\\/]+/)
@@ -17,6 +18,34 @@ const sharedExclude = [
   'tests/system/**',
   'old/**',
 ]
+const repoRoot = process.cwd()
+const nestedGitRootExcludes = (root: string): string[] => {
+  const excludedDirNames = new Set([
+    'node_modules',
+    '.git',
+    '.worktrees',
+    'dist',
+    'dist-electron',
+    'out',
+    'build',
+  ])
+  const found: string[] = []
+  const walk = (absDir: string, relDir: string) => {
+    for (const entry of readdirSync(absDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      if (excludedDirNames.has(entry.name)) continue
+      const childAbs = path.join(absDir, entry.name)
+      const childRel = relDir ? path.join(relDir, entry.name) : entry.name
+      if (existsSync(path.join(childAbs, '.git'))) {
+        found.push(`${childRel.split(path.sep).join('/')}/**`)
+        continue
+      }
+      walk(childAbs, childRel)
+    }
+  }
+  walk(root, '')
+  return found
+}
 const ciCheckReporter = path.resolve(__dirname, 'packages/systems/_vitest-ci-check-reporter.ts')
 const isOrangeGate = process.argv.some(arg =>
   arg.includes('hierarchical-complexity.test.ts')
@@ -52,8 +81,8 @@ export default defineConfig({
     // budget under parallel-worker CPU contention.
     testTimeout: 30_000,
     exclude: isRunningInsideWorktree
-      ? [...configDefaults.exclude, ...sharedExclude]
-      : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**'],
+      ? [...configDefaults.exclude, ...sharedExclude, ...nestedGitRootExcludes(repoRoot)]
+      : [...configDefaults.exclude, ...sharedExclude, '**/.worktrees/**', ...nestedGitRootExcludes(repoRoot)],
     dangerouslyIgnoreUnhandledErrors: true,
   },
 })

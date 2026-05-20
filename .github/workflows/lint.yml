@@ -1,23 +1,7 @@
 name: Lint
 
 on:
-  pull_request:
-    paths:
-      - 'package.json'
-      - 'webapp/eslint.config.js'
-      - 'webapp/**'
-      - 'packages/libraries/graph-model/**'
-      - 'packages/libraries/graph-tools/**'
-      - '.github/workflows/lint.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'webapp/eslint.config.js'
-      - 'webapp/**'
-      - 'packages/libraries/graph-model/**'
-      - 'packages/libraries/graph-tools/**'
-      - '.github/workflows/lint.yml'
+  workflow_dispatch:
 
 jobs:
   lint:

@@ -54,7 +54,7 @@ describe('daemon mutation import lint rule', () => {
         import { addReadPath } from '@vt/graph-model'
         void addReadPath
       `,
-      'webapp/src/__generated__/bad-daemon-imports.ts',
+      'packages/systems/agent-runtime/src/__generated__/bad-daemon-imports.ts',
     )
 
     expect(messages).toEqual([
@@ -69,7 +69,7 @@ describe('daemon mutation import lint rule', () => {
         import { setWritePath } from '@vt/graph-model'
         void setWritePath
       `,
-      'webapp/src/__generated__/primitive-boundary.test.ts',
+      'packages/systems/agent-runtime/src/__generated__/primitive-boundary.test.ts',
     )
 
     expect(messages).toEqual([])
@@ -81,7 +81,7 @@ describe('daemon mutation import lint rule', () => {
         import { removeReadPath } from '@vt/graph-model'
         void removeReadPath
       `,
-      'webapp/src/__fixtures__/allowed-daemon-mutation-imports/sample.ts',
+      'packages/systems/agent-runtime/src/__fixtures__/allowed-daemon-mutation-imports/sample.ts',
     )
 
     expect(messages).toEqual([])

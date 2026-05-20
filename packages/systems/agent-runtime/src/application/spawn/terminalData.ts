@@ -64,14 +64,17 @@ export async function prepareTerminalDataInMain(
     precomputedAgentName?: string
 ): Promise<TerminalData> {
     const graph: Graph = await getRuntimeGraph()
-    const contextNode: GraphNode = graph.nodes[contextNodeId]
-    if (!contextNode) {
-        throw new Error(`Context node ${contextNodeId} not found in graph`)
-    }
-
     // Context nodes are orphaned, so use the taskNodeId directly for the title.
+    // The context node lookup is best-effort: the daemon may be mid-rebuild when
+    // this fires (file-watcher race after context-node creation writes to disk),
+    // and the context node ID is still valid even if not yet visible in getGraph().
+    const contextNode: GraphNode | undefined = graph.nodes[contextNodeId]
     const taskNode: GraphNode | undefined = graph.nodes[taskNodeId]
-    const title: string = taskNode ? getNodeTitle(taskNode) : getNodeTitle(contextNode)
+    const title: string = taskNode
+        ? getNodeTitle(taskNode)
+        : contextNode
+            ? getNodeTitle(contextNode)
+            : 'Terminal'
 
     const agentName: string = precomputedAgentName ?? inheritTerminalId ?? (() => {
         const baseAgentName: string = getNextAgentName()

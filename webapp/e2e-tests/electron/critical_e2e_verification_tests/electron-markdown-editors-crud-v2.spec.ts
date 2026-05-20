@@ -241,6 +241,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
     const escapedEditorWindowId = editorWindowId.replace(/[./]/g, '\\$&');
     await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
+    // Wait for the renderer's loading cycle to settle before dispatching.
+    // The renderer syncs editor content from graph state ~300ms after load
+    // (renderer:loading-cleared fires ~1333ms after renderer start). If we
+    // dispatch before this sync, the sync overwrites our edit and autosave
+    // saves the original content instead.
+    await appWindow.waitForTimeout(2000);
+
     // Modify content in the editor using direct CodeMirror DOM access
     const testContent = '# Setting up Agent in Feedback Loop\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nThis is a test to verify file sync works correctly.';
 
@@ -263,18 +270,21 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     console.log('✓ Content modified in editor');
 
-    // Wait for auto-save to complete (debounce is 300ms + IPC + FS write)
-    await appWindow.waitForTimeout(1000);
+    // Poll until auto-save writes the content to disk.
+    // The chain is: 300ms debounce → getGraph() IPC → applyGraphDelta IPC → FS write.
+    await expect.poll(async () => {
+      const content = await fs.readFile(testFilePath, 'utf-8');
+      return content.includes(testContent);
+    }, {
+      message: 'Waiting for auto-save to write test content to disk',
+      timeout: 15_000,
+      intervals: [200, 500, 1000, 2000]
+    }).toBe(true);
 
-    // Verify file content changed on disk BEFORE closing
-    // Note: The system adds frontmatter with position
-    // Wikilinks are extracted from content, not preserved from old edges
     const savedContentBeforeClose = await fs.readFile(testFilePath, 'utf-8');
     console.log('Saved file content length (before close):', savedContentBeforeClose.length);
 
-    // Verify the test content is present in the saved file
     expect(savedContentBeforeClose).toContain(testContent);
-    // Verify frontmatter is present (either empty frontmatter or with position metadata)
     expect(savedContentBeforeClose).toMatch(/^---\n/);
     console.log('✓ File content saved correctly to disk BEFORE close');
 
@@ -737,28 +747,24 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await fs.writeFile(testFilePath, externallyChangedContent, 'utf-8');
     console.log('✓ File changed externally');
 
-    // Wait for file watcher to detect the change
-    await appWindow.waitForTimeout(2000);
-
-    // Check if editor content was updated to match the external change
-    const updatedEditorContent = await appWindow.evaluate((winId) => {
-      // Escape dots in winId for querySelector
-      const escapedWinId = CSS.escape(winId);
-      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
-      if (!editorElement) return null;
-
-      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
-      if (!cmView) return null;
-
-      return cmView.state.doc.toString();
-    }, editorWindowId);
-
-    console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
-
-    // This is the key assertion - editor should show the externally changed content
-    // The editor displays content WITHOUT frontmatter (frontmatter is stripped for editing)
+    // Poll until the editor reflects the external file change.
+    // Pipeline: fs.writeFile → file watcher → SSE → renderer → CodeMirror update.
+    // CI is slower than local so we give a generous 15s window.
     const expectedEditorContent = '# Identify Relevant Test\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
-    expect(updatedEditorContent).toBe(expectedEditorContent);
+    await expect.poll(async () => {
+      return appWindow.evaluate((winId) => {
+        const escapedWinId = CSS.escape(winId);
+        const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
+        if (!editorElement) return null;
+        const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+        if (!cmView) return null;
+        return cmView.state.doc.toString();
+      }, editorWindowId);
+    }, {
+      message: 'Waiting for editor to sync external file change',
+      timeout: 15000,
+      intervals: [500, 1000, 2000],
+    }).toBe(expectedEditorContent);
     console.log('✓ Editor synced with external file change');
 
     // Close the editor before restoring file (to prevent auto-save from overwriting)

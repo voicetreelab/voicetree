@@ -126,8 +126,14 @@ const test = base.extend<{
   appWindow: async ({ electronApp, projectPath }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
-    await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
+    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
+    // before the project selection screen is visible. Detect auto-load first.
+    try {
+      await pollForCytoscape(window, 3_000);
+    } catch {
+      await window.waitForSelector('text=Recent Projects', { timeout: 10_000 });
+      await window.locator(`button:has-text("${path.basename(projectPath)}")`).first().click();
+    }
     await pollForCytoscape(window, 30_000);
     await pollForCytoscapeNodes(window, 1, 20_000);
     await use(window);

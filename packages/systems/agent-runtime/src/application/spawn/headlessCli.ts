@@ -15,6 +15,14 @@ export function detectCliType(command: string): SupportedHeadlessCli | null {
     return null
 }
 
+function stripPromptPlaceholder(command: string): string {
+    return command
+        .replace('"$AGENT_PROMPT"', '')
+        .replace("'$AGENT_PROMPT'", '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
 /**
  * Build the shell command for a headless agent from the interactive agent command.
  * Strips the interactive "$AGENT_PROMPT" positional arg, then re-adds per CLI convention.
@@ -25,7 +33,7 @@ export function detectCliType(command: string): SupportedHeadlessCli | null {
  * rather than discarding the input.
  */
 export function buildHeadlessCommand(command: string): string {
-    const baseCommand: string = command.replace('"$AGENT_PROMPT"', '').replace("'$AGENT_PROMPT'", '').trim()
+    const baseCommand: string = stripPromptPlaceholder(command)
     const cliType: SupportedHeadlessCli | null = detectCliType(baseCommand)
     if (cliType === 'codex') {
         // Codex headless requires `exec --full-auto`. If the input already
@@ -35,6 +43,9 @@ export function buildHeadlessCommand(command: string): string {
             return `${baseCommand} "$AGENT_PROMPT"`
         }
         return `${baseCommand} exec --full-auto "$AGENT_PROMPT"`
+    }
+    if (cliType === null) {
+        return baseCommand
     }
     const promptArg: string = ' -p "$AGENT_PROMPT"'
     return `${baseCommand}${promptArg}`
