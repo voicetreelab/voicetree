@@ -195,6 +195,9 @@ webapp/workers/share-worker/.wrangler/**
 # Codex config (machine-local)
 .codex/config.toml
 
+# Gemini settings (machine-local)
+.gemini/settings.json
+
 # Wrangler
 **/.wrangler/**
 
