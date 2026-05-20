@@ -214,6 +214,16 @@ export async function postDeltaThroughDaemonWithEditors(
   getCallbacks().onFloatingEditorUpdate?.(delta)
 }
 
+export async function postWriteMarkdownFileThroughDaemon(
+  absolutePath: string,
+  body: string,
+  editorId: string,
+): Promise<void> {
+  await callDaemon(async (client) => {
+    await client.writeMarkdownFile(absolutePath, body, editorId)
+  })
+}
+
 export async function getNodeFromDaemon(
   nodeId: string,
 ): Promise<GraphNode | undefined> {
