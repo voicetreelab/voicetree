@@ -138,9 +138,15 @@ export async function createFloatingEditor(
             .catch(() => undefined)
             .then(async (): Promise<void> => {
                 //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-                await window.electronAPI?.main.writeMarkdownFile(nodeId, newContent, editorId);
+                const writeMarkdownFile = window.electronAPI?.main.writeMarkdownFile;
+                if (!writeMarkdownFile) {
+                    throw new Error('electronAPI.main.writeMarkdownFile is unavailable');
+                }
+                await writeMarkdownFile(nodeId, newContent, editorId);
             });
-        void saveQueue;
+        void saveQueue.catch((error: unknown): void => {
+            console.error('[FloatingEditorCRUD] save failed', error);
+        });
     });
 
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)
