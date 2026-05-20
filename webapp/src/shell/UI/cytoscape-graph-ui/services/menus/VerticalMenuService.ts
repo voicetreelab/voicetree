@@ -10,6 +10,7 @@ import {showTaskInputPopup, type SelectedNodeInfo, type TaskInputResult} from "@
 import {showExtractIntoFolderPopup, type ExtractIntoFolderSelectedNode} from "@/shell/edge/UI-edge/graph/popups/extractIntoFolderPopup";
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
+import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import '@/shell/electron.d.ts';
 import { formatShortcut } from '@vt/graph-model/utils';
 
@@ -234,6 +235,7 @@ export class VerticalMenuService {
                 );
 
                 try {
+                    await Promise.all(selectedNodeIds.map(nodeId => flushEditorForNode(nodeId)));
                     await window.electronAPI?.main.runAgentOnSelectedNodes({
                         selectedNodeIds,
                         taskDescription: result.taskDescription,
