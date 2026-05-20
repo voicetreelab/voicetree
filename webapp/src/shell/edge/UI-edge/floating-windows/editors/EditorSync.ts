@@ -7,13 +7,23 @@ import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/
 import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
-import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/graph";
+import {getAppendedSuffix, isAppendOnly, normalizeContentForEchoComparison} from "@vt/graph-model/graph";
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {closeEditor} from './FloatingEditorCRUD';
 
 // =============================================================================
 // Update Floating Editors
 // =============================================================================
+
+function contentMatchesForEchoComparison(left: string, right: string): boolean {
+    if (left === right) {
+        return true;
+    }
+    if (isAppendOnly(left, right) || isAppendOnly(right, left)) {
+        return false;
+    }
+    return normalizeContentForEchoComparison(left) === normalizeContentForEchoComparison(right);
+}
 
 /**
  * Update floating editors based on graph delta
@@ -50,7 +60,7 @@ export function updateFloatingEditors(
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
                     const currentEditorContent: string = cmEditor.getValue();
 
-                    if (currentEditorContent === newContent) {
+                    if (contentMatchesForEchoComparison(currentEditorContent, newContent)) {
                         continue;
                     }
 
@@ -65,7 +75,10 @@ export function updateFloatingEditors(
                             // whose echo we're seeing now), this delta is
                             // redundant — re-appending the suffix would
                             // duplicate it.
-                            if (currentEditorContent.startsWith(newContent)) {
+                            if (
+                                currentEditorContent.startsWith(newContent) ||
+                                contentMatchesForEchoComparison(currentEditorContent, newContent)
+                            ) {
                                 continue;
                             }
                             const suffix: string = getAppendedSuffix(prevContent, newContent);
@@ -82,7 +95,7 @@ export function updateFloatingEditors(
 
                     if (O.isSome(nodeDelta.previousNode)) {
                         const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
-                        if (currentEditorContent !== prevContent) {
+                        if (!contentMatchesForEchoComparison(currentEditorContent, prevContent)) {
                             continue;
                         }
                     }

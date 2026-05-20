@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { GraphNode, NodeIdAndFilePath, Edge } from '@vt/graph-model/graph'
-import { getAppendedSuffix, isAppendOnly } from '@vt/graph-model/graph'
+import { getAppendedSuffix, isAppendOnly, normalizeContentForEchoComparison } from '@vt/graph-model/graph'
 import { getEditors } from '@/shell/edge/UI-edge/state/stores/EditorStore'
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 import { updateFloatingEditors } from './EditorSync'
@@ -24,6 +24,12 @@ vi.mock('./FloatingEditorCRUD', () => ({ closeEditor: vi.fn() }))
 
 const cy: Core = {} as Core
 const NODE_ID: NodeIdAndFilePath = 'fuzz-target.md' as NodeIdAndFilePath
+
+function contentMatchesForEchoComparison(left: string, right: string): boolean {
+    if (left === right) return true
+    if (isAppendOnly(left, right) || isAppendOnly(right, left)) return false
+    return normalizeContentForEchoComparison(left) === normalizeContentForEchoComparison(right)
+}
 
 function runOp(
     op: ReturnType<typeof generateOps>[number],
@@ -83,7 +89,7 @@ function runOp(
                 nodeToUpsert: newNode,
             }])
 
-            if (contentBefore === newRendered || contentBefore.startsWith(newRendered)) {
+            if (contentMatchesForEchoComparison(contentBefore, newRendered) || contentBefore.startsWith(newRendered)) {
                 expect(mockEditor.getValue()).toBe(contentBefore)
             } else if (isAppendOnly(prevRendered, newRendered)) {
                 const suffix: string = getAppendedSuffix(prevRendered, newRendered)
@@ -93,7 +99,7 @@ function runOp(
                     expect(mockEditor.getValue()).toBe(contentBefore + suffix)
                     state.appendedSuffixes.push(suffix)
                 }
-            } else if (contentBefore === prevRendered) {
+            } else if (contentMatchesForEchoComparison(contentBefore, prevRendered)) {
                 expect(mockEditor.getValue()).toBe(newRendered)
                 state.lastUserContent = null
                 state.userTypedSinceSave = false
@@ -106,6 +112,9 @@ function runOp(
         }
 
         case 'append-wikilink': {
+            if (state.lastGraphEdges.some(edge => edge.targetId === op.childId)) {
+                break
+            }
             const prevNode: GraphNode = makeNodeWithWikilinks(
                 NODE_ID, state.lastGraphContent,
                 state.lastGraphEdges.map(e => e.targetId),

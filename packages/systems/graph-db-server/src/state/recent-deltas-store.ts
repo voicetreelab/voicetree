@@ -11,7 +11,7 @@
  */
 
 import type { NodeDelta, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import { stripBracketedContent } from '@vt/graph-model/graph'
+import { normalizeContentForEchoComparison } from '@vt/graph-model/graph'
 
 const DEFAULT_TTL_MS: number = 10000
 
@@ -27,14 +27,6 @@ type RecentDeltaOptions = {
 
 // Module-level state - array per nodeId to handle multiple rapid writes
 const recentDeltas: Map<NodeIdAndFilePath, RecentDeltaEntry[]> = new Map()
-
-/**
- * Normalize content for comparison by stripping brackets and whitespace.
- * Handles cases where links may resolve differently between write and read paths.
- */
-function normalizeContent(content: string): string {
-    return stripBracketedContent(content).replace(/\s+/g, '')
-}
 
 /**
  * Check if two normalized contents match exactly.
@@ -85,11 +77,13 @@ function hasMatchingUpsert(
     entries: readonly RecentDeltaEntry[],
     incomingContent: string,
 ): boolean {
-    const incomingNormalized: string = normalizeContent(incomingContent)
+    const incomingNormalized: string = normalizeContentForEchoComparison(incomingContent)
 
     return entries.some((entry) => {
         if (entry.delta.type !== 'UpsertNode') return false
-        const storedNormalized: string = normalizeContent(entry.delta.nodeToUpsert.contentWithoutYamlOrLinks)
+        const storedNormalized: string = normalizeContentForEchoComparison(
+            entry.delta.nodeToUpsert.contentWithoutYamlOrLinks,
+        )
         return isNormalizedContentMatch(storedNormalized, incomingNormalized)
     })
 }
