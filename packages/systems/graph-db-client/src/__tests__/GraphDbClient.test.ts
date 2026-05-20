@@ -172,6 +172,7 @@ describe('GraphDbClient', () => {
 
           const responseByPath: Record<string, unknown> = {
             '/graph/apply-delta': { delta: applyDeltaBody?.delta ?? [], graph: {} },
+            '/graph/write-markdown-file': { ok: true, absolutePath: '/vault/note.md' },
             '/graph/context-node-from-selected-nodes': { nodeId: 'ctx.md' },
             '/graph/unseen-nodes-around-context-node': {
               nodes: [{ nodeId: 'node.md', content: '# Node' }],
@@ -195,6 +196,9 @@ describe('GraphDbClient', () => {
       await expect(
         client.createContextNodeFromSelectedNodes('task.md', ['a.md', 'b.md']),
       ).resolves.toEqual({ nodeId: 'ctx.md' })
+      await expect(
+        client.writeMarkdownFile('/vault/note.md', '# Body\n', 'editor-1'),
+      ).resolves.toEqual({ ok: true, absolutePath: '/vault/note.md' })
       await expect(client.getUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
         { nodeId: 'node.md', content: '# Node' },
       ])
@@ -212,6 +216,11 @@ describe('GraphDbClient', () => {
           body: { taskNodeId: 'task.md', selectedNodeIds: ['a.md', 'b.md'] },
           method: 'POST',
           path: '/graph/context-node-from-selected-nodes',
+        },
+        {
+          body: { absolutePath: '/vault/note.md', body: '# Body\n', editorId: 'editor-1' },
+          method: 'POST',
+          path: '/graph/write-markdown-file',
         },
         {
           body: { contextNodeId: 'ctx.md', searchFromNode: 'task.md' },

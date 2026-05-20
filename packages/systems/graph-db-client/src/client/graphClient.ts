@@ -7,6 +7,7 @@ import {
   PreviewContainedNodeIdsResponseSchema,
   UndoRedoResponseSchema,
   UnknownResponseSchema,
+  WriteMarkdownFileResponseSchema,
   WritePositionsResponseSchema,
 } from '../responseSchemas.ts'
 import type { RequestClient } from './requestCore.ts'
@@ -97,6 +98,18 @@ export function createGraphClient(request: RequestClient) {
         body: { positions },
         method: 'POST',
         responseSchema: WritePositionsResponseSchema,
+      })
+    },
+
+    async writeMarkdownFile(
+      absolutePath: string,
+      body: string,
+      editorId: string,
+    ): Promise<{ ok: true; absolutePath: string }> {
+      return await request('/graph/write-markdown-file', {
+        body: { absolutePath, body, editorId },
+        method: 'POST',
+        responseSchema: WriteMarkdownFileResponseSchema,
       })
     },
 
