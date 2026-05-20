@@ -144,6 +144,61 @@ function makeVisibilityFolderTree(): FolderTreeNode {
   }
 }
 
+function makeDynamicMoveGraph(): Graph {
+  return {
+    nodes: {
+      '/vault/source.md': makeNodeWithEdges('/vault/source.md', [
+        { targetId: '/vault/archive/target.md', label: 'target' },
+      ]),
+      '/vault/archive/target.md': makeNode('/vault/archive/target.md', 'Target'),
+      '/vault/docs/archive/target.md': makeNode('/vault/docs/archive/target.md', 'Nested target'),
+      '/vault/docs/direct.md': makeNode('/vault/docs/direct.md', 'Direct'),
+    },
+    incomingEdgesIndex: new Map(),
+    nodeByBaseName: new Map(),
+    unresolvedLinksIndex: new Map(),
+  }
+}
+
+function makeDynamicFolderTree(): FolderTreeNode {
+  return {
+    name: 'vault',
+    absolutePath: toAbsolutePath('/vault'),
+    children: [
+      { name: 'source.md', absolutePath: toAbsolutePath('/vault/source.md'), isInGraph: true },
+      {
+        name: 'archive',
+        absolutePath: toAbsolutePath('/vault/archive'),
+        children: [
+          { name: 'target.md', absolutePath: toAbsolutePath('/vault/archive/target.md'), isInGraph: true },
+        ],
+        loadState: 'loaded',
+        isWriteTarget: false,
+      },
+      {
+        name: 'docs',
+        absolutePath: toAbsolutePath('/vault/docs'),
+        children: [
+          { name: 'direct.md', absolutePath: toAbsolutePath('/vault/docs/direct.md'), isInGraph: true },
+          {
+            name: 'archive',
+            absolutePath: toAbsolutePath('/vault/docs/archive'),
+            children: [
+              { name: 'target.md', absolutePath: toAbsolutePath('/vault/docs/archive/target.md'), isInGraph: true },
+            ],
+            loadState: 'loaded',
+            isWriteTarget: false,
+          },
+        ],
+        loadState: 'loaded',
+        isWriteTarget: false,
+      },
+    ],
+    loadState: 'loaded',
+    isWriteTarget: true,
+  }
+}
+
 function makeVault(): VaultState {
   return {
     vaultPath: '/vault',
@@ -246,7 +301,7 @@ describe('projectSessionState', () => {
     expect(snapshot.roots.folderTree).toEqual([])
   })
 
-  test('unmapped folders are hidden by default even inside the write path', () => {
+  test('implicit write path renders folders with graph content and prunes empty folders', () => {
     const snapshot = projectSessionState({
       graph: makeGraph(),
       vault: makeVault(),
@@ -255,8 +310,115 @@ describe('projectSessionState', () => {
     })
 
     const root = snapshot.roots.folderTree[0]
-    expect(root.children).toEqual([])
-    expect(Object.keys(snapshot.graph.nodes)).toEqual([])
+    expect(root.children.map((child) => child.name)).toEqual(['docs'])
+    expect(Object.keys(snapshot.graph.nodes).sort()).toEqual([
+      '/vault/docs/a.md',
+      '/vault/docs/b.md',
+    ])
+  })
+
+  test('new folders under an expanded write path inherit visibility so moved targets and healed links project', () => {
+    const snapshot = projectSessionState({
+      graph: makeDynamicMoveGraph(),
+      vault: makeVault(),
+      folderTree: makeDynamicFolderTree(),
+      session: makeSession({ folderState: new Map([['/vault', 'expanded']]) }),
+    })
+
+    const root = snapshot.roots.folderTree[0]
+    const archive = root.children.find((child) => child.name === 'archive') as FolderTreeNode
+    const source = snapshot.graph.nodes['/vault/source.md']
+    const projectedIds = project(snapshot).nodes.map((node) => node.id)
+
+    expect(archive.children.map((child) => child.name)).toEqual(['target.md'])
+    expect(snapshot.graph.nodes['/vault/archive/target.md']).toBeDefined()
+    expect(source.outgoingEdges).toEqual([
+      { targetId: '/vault/archive/target.md', label: 'target' },
+    ])
+    expect(projectedIds).toContain('/vault/archive/')
+    expect(projectedIds).toContain('/vault/archive/target.md')
+  })
+
+  test('write path behaves as an implicit expanded ancestor without persisting a view row', () => {
+    const snapshot = projectSessionState({
+      graph: makeDynamicMoveGraph(),
+      vault: makeVault(),
+      folderTree: makeDynamicFolderTree(),
+      session: makeSession({ folderState: new Map() }),
+    })
+
+    const projectedIds = project(snapshot).nodes.map((node) => node.id)
+
+    expect(snapshot.graph.nodes['/vault/archive/target.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeDefined()
+    expect(projectedIds).toContain('/vault/archive/')
+    expect(projectedIds).toContain('/vault/docs/archive/')
+  })
+
+  test.each(['hidden', 'collapsed'] as const)(
+    'new folders under an explicit %s parent do not leak visible graph contents',
+    (parentState) => {
+      const snapshot = projectSessionState({
+        graph: makeDynamicMoveGraph(),
+        vault: makeVault(),
+        folderTree: makeDynamicFolderTree(),
+        session: makeSession({
+          folderState: new Map([
+            ['/vault', 'expanded'],
+            ['/vault/docs', parentState],
+          ]),
+        }),
+      })
+
+      const projected = project(snapshot)
+      const projectedIds = projected.nodes.map((node) => node.id)
+
+      expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
+      expect(projectedIds).not.toContain('/vault/docs/archive/')
+      expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
+    },
+  )
+
+  test('explicit hidden rows still override inherited expanded visibility', () => {
+    const snapshot = projectSessionState({
+      graph: makeDynamicMoveGraph(),
+      vault: makeVault(),
+      folderTree: makeDynamicFolderTree(),
+      session: makeSession({
+        folderState: new Map([
+          ['/vault', 'expanded'],
+          ['/vault/docs', 'hidden'],
+        ]),
+      }),
+    })
+
+    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeUndefined()
+    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
+    expect(snapshot.collapseSet).toEqual(new Set())
+  })
+
+  test('explicit collapsed rows are preserved while inherited descendants stay hidden downstream', () => {
+    const snapshot = projectSessionState({
+      graph: makeDynamicMoveGraph(),
+      vault: makeVault(),
+      folderTree: makeDynamicFolderTree(),
+      session: makeSession({
+        folderState: new Map([
+          ['/vault', 'expanded'],
+          ['/vault/docs', 'collapsed'],
+        ]),
+      }),
+    })
+
+    const projected = project(snapshot)
+    const projectedIds = projected.nodes.map((node) => node.id)
+
+    expect([...snapshot.collapseSet]).toEqual(['/vault/docs/'])
+    expect(snapshot.graph.nodes['/vault/docs/direct.md']).toBeDefined()
+    expect(snapshot.graph.nodes['/vault/docs/archive/target.md']).toBeUndefined()
+    expect(projectedIds).toContain('/vault/docs/')
+    expect(projectedIds).not.toContain('/vault/docs/direct.md')
+    expect(projectedIds).not.toContain('/vault/docs/archive/target.md')
   })
 
   test('expanded folder state renders that folder as an implicit root with direct file children', () => {
@@ -315,6 +477,7 @@ describe('projectSessionState', () => {
     expect(Object.keys(snapshot.graph.nodes).sort()).toEqual([
       '/vault/public/target.md',
       '/vault/root.md',
+      '/vault/workspace/feature/leaf.md',
     ])
     expect(project(snapshot).edges).toEqual([])
   })
