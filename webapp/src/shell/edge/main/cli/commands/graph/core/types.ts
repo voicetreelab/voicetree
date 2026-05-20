@@ -113,3 +113,25 @@ export type GraphFilesystemOps = {
     rmSync: typeof rmSync
     writeFileSync: typeof writeFileSync
 }
+
+export type ValidationError = {
+    readonly path: string
+    readonly message: string
+    readonly severity: 'error' | 'warning'
+    readonly expected?: unknown
+    readonly got?: unknown
+}
+
+export type Validator = {
+    readonly validate: (rawBody: string) => readonly ValidationError[]
+}
+
+export type ValidatorMap = Readonly<Record<string, Validator>>
+
+export type SchemaViolation = {
+    readonly kind: 'schema_violation'
+    readonly targetPath: string
+    readonly typeName: string
+    readonly schemaPath: string
+    readonly violations: readonly ValidationError[]
+}
