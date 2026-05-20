@@ -42,9 +42,16 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     //     onLayoutComplete();
     // });
 
-    // Setup tap handler for nodes
-    //console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
-    cy.on('tap', 'node', (event) => {
+    // Tap a non-folder node → pin an AnchoredEditor for that file.
+    // Folders are excluded for the same reason setupCommandHover excludes them
+    // (HoverEditor.ts:267) and the harness excludes them (mountHarness.ts:270):
+    // the folder body is not a folder-note affordance — the TL eye chip in
+    // FolderHandleService is. A bare 'node' selector would fire tap on the
+    // expanded compound when the user clicks any empty body space, resolve
+    // nodeId.endsWith('/') in AnchoredEditor, and pin the folder note from a
+    // background click. The chevron+eye chips are DOM overlay siblings, so
+    // their clicks never reach the cy canvas — gating here costs nothing.
+    cy.on('tap', 'node[!isFolderNode]', (event) => {
         const node: NodeSingular = event.target;
         const nodeId: string = node.id();
 

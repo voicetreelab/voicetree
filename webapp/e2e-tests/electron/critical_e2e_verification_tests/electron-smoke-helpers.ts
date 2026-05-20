@@ -198,29 +198,53 @@ async function waitForProcessExit(proc: NonNullable<ReturnType<ElectronApplicati
   ]);
 }
 
-async function runBoundedShutdownIpc(electronApp: ElectronApplication, method: 'shutdownGraphDaemon' | 'stopFileWatching'): Promise<void> {
-  const page = await electronApp.firstWindow({ timeout: FIRST_WINDOW_TIMEOUT_MS });
-  await page.evaluate(async ({ methodName, timeoutMs }) => {
-    type ShutdownMethod = 'shutdownGraphDaemon' | 'stopFileWatching';
-    const api = (window as unknown as {
-      electronAPI?: {
-        main: Partial<Record<ShutdownMethod, () => Promise<unknown>>>;
-      };
-    }).electronAPI;
-    const shutdown = api?.main[methodName as ShutdownMethod];
-    if (!shutdown) return;
+function isProcessStillAlive(proc: NonNullable<ReturnType<ElectronApplication['process']>>): boolean {
+  if (proc.exitCode !== null || proc.signalCode !== null) return false;
+  if (!proc.pid) return false;
+  try {
+    process.kill(proc.pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-    await Promise.race([
-      shutdown(),
-      new Promise(resolve => setTimeout(resolve, timeoutMs)),
-    ]);
-  }, { methodName: method, timeoutMs: SHUTDOWN_IPC_TIMEOUT_MS });
+async function runBoundedShutdownIpc(electronApp: ElectronApplication, method: 'shutdownGraphDaemon' | 'stopFileWatching'): Promise<void> {
+  const proc = electronApp.process();
+  if (proc && !isProcessStillAlive(proc)) return;
+
+  const page = await Promise.race([
+    electronApp.firstWindow({ timeout: FIRST_WINDOW_TIMEOUT_MS }).catch(() => null),
+    delay(FIRST_WINDOW_TIMEOUT_MS).then(() => null),
+  ]);
+  if (!page) return;
+
+  await Promise.race([
+    page.evaluate(async ({ methodName, timeoutMs }) => {
+      type ShutdownMethod = 'shutdownGraphDaemon' | 'stopFileWatching';
+      const api = (window as unknown as {
+        electronAPI?: {
+          main: Partial<Record<ShutdownMethod, () => Promise<unknown>>>;
+        };
+      }).electronAPI;
+      const shutdown = api?.main[methodName as ShutdownMethod];
+      if (!shutdown) return;
+
+      await Promise.race([
+        shutdown(),
+        new Promise(resolve => setTimeout(resolve, timeoutMs)),
+      ]);
+    }, { methodName: method, timeoutMs: SHUTDOWN_IPC_TIMEOUT_MS }).catch(() => undefined),
+    delay(SHUTDOWN_IPC_TIMEOUT_MS).then(() => undefined),
+  ]);
 }
 
 export async function robustElectronTeardown(electronApp: ElectronApplication): Promise<void> {
   await safeDaemonShutdown(electronApp);
 
   const proc = electronApp.process();
+  if (proc && !isProcessStillAlive(proc)) return;
+
   const close = electronApp.close().catch(() => undefined);
   const closed = await Promise.race([
     close.then(() => true),

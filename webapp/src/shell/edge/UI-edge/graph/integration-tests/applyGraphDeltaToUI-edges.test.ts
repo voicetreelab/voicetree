@@ -5,12 +5,8 @@ import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
 import type { ProjectedEdge, ProjectedGraph, ProjectedNode } from '@vt/graph-state/contract'
-import {
-    getFolderTreeState,
-    removeCollapsedFolderLocally,
-} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
-import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
+import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, applySpecToUI } from './applyGraphDeltaToUI.test-utils'
 
 vi.mock('@/shell/edge/UI-edge/graph/popups/userEngagementPrompts', () => ({
@@ -27,9 +23,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     afterEach(() => {
         cy.destroy()
-        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
-            removeCollapsedFolderLocally(folderId)
-        })
+        setTestCollapseSet(new Set())
         syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
 

@@ -21,11 +21,11 @@ interface StarredSectionProps {
     readonly onToggleExpand: (path: string) => void;
     readonly onToggleLoad: (path: string, currentState: 'loaded' | 'not-loaded') => void;
     readonly onSetWriteTarget: (path: string) => void;
-    readonly graphCollapsedFolders: ReadonlySet<string>;
+    readonly collapsedGraphFolderIds: ReadonlySet<string>;
     readonly onToggleGraphCollapse: (graphFolderId: string) => void;
 }
 
-export function StarredSection({ starredFolders, starredFolderTrees, readPaths, writePath, expandedPaths, onFileSelect, onToggleExpand, onToggleLoad, onSetWriteTarget, graphCollapsedFolders, onToggleGraphCollapse }: StarredSectionProps): JSX.Element | null {
+export function StarredSection({ starredFolders, starredFolderTrees, readPaths, writePath, expandedPaths, onFileSelect, onToggleExpand, onToggleLoad, onSetWriteTarget, collapsedGraphFolderIds, onToggleGraphCollapse }: StarredSectionProps): JSX.Element | null {
     const [collapsed, setCollapsed] = useState<boolean>(false);
 
     const toggleCollapsed: () => void = useCallback((): void => {
@@ -70,7 +70,7 @@ export function StarredSection({ starredFolders, starredFolderTrees, readPaths, 
                                 onToggleLoad={onToggleLoad}
                                 onFileSelect={onFileSelect}
                                 onSetWriteTarget={onSetWriteTarget}
-                                graphCollapsedFolders={graphCollapsedFolders}
+                                collapsedGraphFolderIds={collapsedGraphFolderIds}
                                 treeRootPath={treeNode.absolutePath}
                                 onToggleGraphCollapse={onToggleGraphCollapse}
                             />

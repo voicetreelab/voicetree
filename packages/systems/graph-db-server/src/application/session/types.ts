@@ -16,6 +16,7 @@ export type SessionLayout = {
 
 export interface Session {
   readonly id: string
+  folderState: Map<string, 'expanded' | 'collapsed' | 'hidden'>
   collapseSet: Set<string>
   selection: Set<string>
   expandOverrides: Set<string>

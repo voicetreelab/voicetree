@@ -7,7 +7,6 @@ import {
   type FolderStateBatchUpdate,
 } from '@vt/graph-db-server/contract'
 import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
-import type { Session } from '@vt/graph-db-server/application/session/registry'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import {
   readCurrentFolderState,
@@ -19,6 +18,7 @@ import { executeCommand } from '@vt/graph-db-server/application/workflows/dispat
 import { sendHttpResult } from '../httpResult.ts'
 import { mountDaemonRoute, routeParam } from '../mountRouteSpec.ts'
 import { daemonRouteSpecById } from '../routeSpecs.ts'
+import type { Session } from '@vt/graph-db-server/application/session/types'
 
 function decodePath(raw: string): string | null {
   try {
@@ -41,6 +41,7 @@ function normalizeFolderId(path: string): string {
 
 function syncSessionCollapseSet(session: Session, path: string, state: FolderState): void {
   const folderId = normalizeFolderId(path)
+  session.folderState.set(path, state)
   if (state === 'collapsed') {
     session.collapseSet.add(folderId)
     return
