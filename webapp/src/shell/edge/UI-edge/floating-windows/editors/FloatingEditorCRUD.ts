@@ -122,7 +122,7 @@ export async function createFloatingEditor(
         ui.contentContainer,
         content,
         {
-            autosaveDelay: 300,
+            autosaveDelay: 150,
             darkMode: document.documentElement.classList.contains('dark'),
             vimMode: settings.vimMode ?? false,
             nodeId: nodeId, // Pass nodeId for image paste support
