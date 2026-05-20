@@ -115,10 +115,10 @@ export async function writeMarkdownFile(
   )
   markPendingWrite(targetPath, { suppressBroadcastTo: request.editorId })
   await deps.writeFile(targetPath, nextContent, 'utf8')
+  const appliedDelta = await applyGraphDeltaToMemState(delta)
   for (const nodeDelta of delta) {
     markRecentDelta(nodeDelta)
   }
-  const appliedDelta = await applyGraphDeltaToMemState(delta)
   refreshGraphChangeSideEffects()
   publish({
     delta: appliedDelta,

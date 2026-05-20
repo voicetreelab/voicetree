@@ -96,7 +96,7 @@ function hasMatchingUpsert(
 
 /**
  * Mark a delta as recently written.
- * Call this BEFORE writing to filesystem to prevent race conditions.
+ * Call this only after the filesystem write and in-memory apply both succeed.
  */
 export function markRecentDelta(delta: NodeDelta, options?: RecentDeltaOptions): void {
     const nodeId: NodeIdAndFilePath = getNodeIdFromDelta(delta)
