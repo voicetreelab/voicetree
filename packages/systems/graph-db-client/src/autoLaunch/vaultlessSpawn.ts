@@ -21,6 +21,7 @@ let handle
 try {
   handle = await startDaemon({
     appSupportPath: process.env.VOICETREE_APP_SUPPORT,
+    exitOnParentDeath: true,
     onShutdownComplete: () => process.exit(0),
   })
 } catch (err) {
