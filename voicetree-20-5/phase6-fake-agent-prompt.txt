@@ -1,0 +1,1 @@
+### FAKE_AGENT_SCRIPT ### {"actions":[{"type":"delay","ms":1}]} ### END_FAKE_AGENT_SCRIPT ###
