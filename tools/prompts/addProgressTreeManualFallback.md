@@ -1,5 +1,9 @@
 As you make progress on the task, create detailed visual updates by adding nodes to our Markdown tree.
 
+## When to use this fallback
+
+This file is the fallback when `vt graph create` is unavailable (CLI not on PATH, sandbox blocks the executable, etc.). In normal operation, follow `addProgressTree.md` and invoke the CLI. Only fall back to writing markdown files directly if you have verified the CLI is unreachable.
+
 ## Orchestration: Decide Before You Start
 Does this task have 2+ distinct concerns or phases?
 

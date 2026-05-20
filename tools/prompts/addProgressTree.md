@@ -1,41 +1,23 @@
-Use the `create_graph` MCP tool with `$VOICETREE_TERMINAL_ID` to add nodes. One call, 1+ nodes. The tool handles frontmatter, file paths, parent linking, and graph positioning automatically.
-You may also create nodes using manual filesystem .md writes, and [[to_add_edge_to_example_node_xyz]].  
+Use the `vt graph create` CLI with `$VOICETREE_TERMINAL_ID` exported in your environment to add progress nodes. Write each node as a markdown file under `$VOICETREE_VAULT_PATH`, then run `vt graph create <path>` (one or more positional `.md` paths per call). The CLI handles frontmatter normalization, parent linking from `[[wikilinks]]` in the body, and graph positioning automatically.
 
-**Why structure matters:** Each item at one level costs the reader superlinearly — 5 items costs more than 5x what 1 costs. This is why both splitting and merging have costs. Design law: minimize items per level + minimize dependency between items. Structure is not preference — it's computational necessity for bounded processors.
+## Orchestration: Decide Before You Start
+Does this task have 2+ distinct concerns or phases?
 
-Use Voicetree agents over built-in subagents: users can see progress, read nodes, and intervene if performing mistakes or stuck. 
-But if interaction from user is highly unlikely necessary, (i.e. no chance the subagent could fail at the given task), you can use your built-in subagents, or headless VT agents if you don't have.
+YES → Decompose and spawn:
+1. Create nodes for each subtask (one node = one concern)
+2. Spawn voicetree agents (`mcp__voicetree__spawn_agent`) to work in parallel
+3. Wait (`mcp__voicetree__wait_for_agents`) and review their work
 
-## When & how to Split Into Multiple Nodes?
+See `decompose_subtask_dependency_graph.md` for graph structure patterns.
 
-- FOR ALL TASKS
+NO → Proceed directly (single concern, < 30 lines, 1-2 files).
 
-Given an argument in pseudocode, decompose it into a graph of nodes that optimally serves both human understanding and agent analysis.
+Voicetree agents over built-in subagents: users can see progress, read nodes, and intervene.
 
-Too few nodes → monolithic, no structure exposed, can't view the information at a higher level of abstraction. (There's no conceptual (boxes and arrows) view)
+## When to Split Into Multiple Nodes
+One node = one concept. Split when independently referenceable (options to compare, decisions to revisit, distinct phases). Keep together when tightly coupled.
 
-Too many nodes → fragmented, graph noise drowns signal, View 1 is useless. 
-
-Nodes, but the graph struture not helpful in representing the structure of the informatioin  (e.g. 1 parent with 20 children all related, sure it's technically true, but there's a more accurate graph view that better represents the structure
-
-
-/// <Example>TODO add example of a parent with many children, better restructured to be a DAG structure </Example>
-
-How do you achieve a great mindmap structure for conveying the relevant information? 
-
-1. Decide what's relevant (what's the situation? a handover? an explanation? a world context?). What would someone re-looking at this mindmap want to see?
-2. Decide structural view of that relevant information
-3. key concepts (most important to hold in attention)
-
-potentially relevant context that you want to still save, but it's not critical, these can be considered as 'details', and added to within a nodes content, NOT be represented by the structural view (concept names + relationship edges + edge names), since that would crowd attention.
-
-- Additionally, FOR SOFTWARE ENGINEERING
-Generally, One node = one important chunk. (A chunk could be 7 moderately important related concepts, or 1 important concept, 7 important related concept can be it's own sub-graph, with its folder becoming its compound node ~ equivocal to moving N nodes under one common parent, which is a great way to re-organise because then you have only "method" in the interface to that subgraph, or inversely only one dependency, or only one connection to it amongst a larger graph (i.e. the global world model), which is key because it reduces complexity, making it more understandable), just like when architecting a codebase to decouple a component, by extracting it into a pure function (i.e. the parent/compound node) Split when independently referenceable (options to compare, decisions to revisit, distinct phases). Keep together when tightly coupled.
-
-**Boundary test** (apply at each level):
-1. **Extract?** Does naming this as a separate node reduce parent cost? Must absorb ≥2 dimensions — if extracting doesn't hide complexity, it adds a name without reducing slots (N+1 toxin).
-2. **Merge?** Remove this node — does the parent get harder? If not, keep inline.
-Quick test: "Could a reader act on this without the sibling nodes?" YES → own node. NO → keep in parent.
+**Split rule: If your output covers N independent concerns, create N nodes.** Quick test: "If the parent disappeared, would this content still make sense?" YES → own node. NO → keep in parent.
 
 Create multiple nodes when:
 - Multiple concerns (bug fix + refactor + new feature)
@@ -57,10 +39,7 @@ Task
 └── Pure functions
 ```
 
-If the output nodes you have to create aren't strictly SWE orchestration outputs, and benefit from more flexible mindmap structures,
-then please read [[]]
-
-Wire multi-node graphs using `parents` (local ids within the same call). Nodes without `parents` attach to your task node by default. Tree structure (containment) = optional attention cost — reader can zoom in or skip. Wikilink edges = forced attention cost — reader must follow. Use tree for hierarchy; edges only for cross-references between independent chunks.
+Wire multi-node graphs by including `[[parent-basename]]` wikilinks in each child node's body. The CLI's filesystem authoring builds parent edges from those wikilinks. Nodes without any wikilinks attach to your task node by default.
 
 ## Scope Guidelines
 
@@ -73,40 +52,48 @@ Wire multi-node graphs using `parents` (local ids within the same call). Nodes w
 
 ## Content Rules
 - **Self-containment:** The node IS the deliverable. Embed all artifacts verbatim (diagrams, code, tables, mockups, analysis) — never summarize an artifact. A reader should never need to look elsewhere to understand what was produced.
-- **Reader-relativity:** Write for the future reader without your context. Name domain concepts explicitly — effective_cost depends on the reader's compiled subfunctions, not yours. If a term needs zooming to understand, define or link it.
-- **`summary`:** Concise summary of what was accomplished. Include key details: specifications, decisions, plans, outcomes.
-- **`filesChanged`:** Always include all file paths you modified.
-- **`codeDiffs`:** Include exact diffs for <40 lines of changes (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes. Requires `complexityScore` and `complexityExplanation`.
-- **`diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
-- **Line limit** per node (default 70). Only `summary` + `content` fields count toward the limit. If over, split into a branching tree (see examples above) — not a linear A→B→C chain.
-- **Color convention:** `green` = task completed, `blue` (default) = in-progress or planning.
-- **`notes`:** Architecture impact, gotchas, tech debt, difficulties.
-- **`linkedArtifacts`:** Link related artifacts (proposals, design, tasks) by basename. These render as regular markdown links in `## Related`, not graph edges.
+- **Title (`# H1`):** Concise one-line description of what was accomplished.
+- **`## Summary`:** Brief recap of key details: specifications, decisions, plans, outcomes.
+- **`## Files Changed`:** Always include all file paths you modified.
+- **`## DIFF`:** Include exact diffs for <40 lines of changes (production files only; omit test diffs unless tests are the main task). Over 40 lines, include only key changes.
+- **`## Diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
+- **Line limit** per node (default 70). If over, split into a branching tree (see examples above) — not a linear A→B→C chain.
+- **Color convention:** `green` for completed work, `blue` (default) for in-progress or planning. Set via frontmatter `color: green` or the CLI's `--color green` flag.
+- **`## NOTES`:** Architecture impact, gotchas, tech debt, difficulties.
+- **Link openspec artifacts** (proposal, design, tasks) in a `## Related` section by basename, e.g. `- [proposal](proposal.md)`.
 
-## For the next agent (non-trivial work only)
+## CLI invocation
 
-Progress nodes are knowledge, not just receipts. Before writing your node, answer these. Put answers in `learnings`.
+Write the node markdown to `$VOICETREE_VAULT_PATH/<title-sluggified>.md`, then:
 
-**1. What did you try first, and why did you change approach?**
-Name the rejected path. "Tried X, switched to Y because Z." If you didn't change approach, say so.
+```bash
+vt graph create "$VOICETREE_VAULT_PATH/<title-sluggified>.md"
+```
 
-**2. If a future agent attempts this same task, what will they get wrong?**
-The non-obvious pitfall. Be concrete: "Don't try X because Y" or "The docs say X but actually Y."
+For multiple nodes in one tree, write each file with its `[[parent-basename]]` wikilinks, then pass all paths in one call:
 
-**3. What would a successor agent need to believe to continue your work without repeating your reasoning?**
-Compress your in-context learnings in such a way that a follow-up agent can truly understand your new mental model / understanding / key findings. Not what you did — what you now hold as true about the problem space.
+```bash
+vt graph create \
+  "$VOICETREE_VAULT_PATH/root.md" \
+  "$VOICETREE_VAULT_PATH/child-a.md" \
+  "$VOICETREE_VAULT_PATH/child-b.md"
+```
 
-Skip learnings ONLY for atomic tasks (< 5 min, single file edit, no decisions).
+Add `--validate-only` to dry-run (parses + schema-gates without writing). Add `--color green` to default unspecified nodes to green.
+
+### Schema gate (folder-note dispatch)
+
+If you are writing into a subfolder that has a folder note declaring `## Type: <kind>` (the public-VT walk-up resolver finds it), the CLI runs a schema validator before writing. On rejection it exits non-zero with structured JSON on stderr. Read the violations, correct the failing H2 sections in your body, and re-run the same command. The progress-node format used here is generic (no `## Type` upstream), so the gate is skipped for normal progress nodes.
 
 ## Fallback
-If the `create_graph` MCP tool is unavailable, read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.
+If `vt graph create` is unavailable (e.g., the CLI is not on PATH), read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.
 
 ## Pre-creation Checklist
-1. `$VOICETREE_TERMINAL_ID` is set (echo it if unsure)
-2. N concerns → N nodes (split by concern, not by size)
-3. All artifacts embedded verbatim in `content`
-4. Diffs included in `codeDiffs` for <40 lines changed (with `complexityScore`)
-5. `filesChanged` populated
-6. `learnings` filled for non-trivial work
+1. `$VOICETREE_TERMINAL_ID` is set (echo it if unsure).
+2. N concerns → N files. Split by concern, not by size.
+3. All artifacts embedded verbatim in the body.
+4. Diffs included in `## DIFF` for <40 lines changed.
+5. `## Files Changed` populated.
+6. `[[parent-basename]]` wikilinks set on each child node.
 
-ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, etc.) are environment variables already set. Check them now.
+ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, `VOICETREE_VAULT_PATH`, etc.) are environment variables already set. Check them now.
