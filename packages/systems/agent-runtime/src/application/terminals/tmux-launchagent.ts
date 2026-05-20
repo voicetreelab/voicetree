@@ -38,7 +38,6 @@ export interface EnsureTmuxLaunchAgentOptions {
     readonly appSupportPath?: string
     readonly deps?: Partial<TmuxLaunchAgentDeps>
     readonly forceInTests?: boolean
-    readonly migrateLegacyDefaultSocketSessions?: boolean
     readonly plistPath?: string
     readonly socketPath?: string
     readonly tmuxBin?: string
@@ -175,31 +174,6 @@ async function waitForSocket(socketPath: string, deps: TmuxLaunchAgentDeps): Pro
     throw new Error(`tmux LaunchAgent did not create socket within ${SOCKET_WAIT_MS}ms: ${socketPath}`)
 }
 
-function migrateLegacyDefaultSocketSessions(tmuxBin: string, deps: TmuxLaunchAgentDeps): void {
-    let output: string
-    try {
-        output = deps.execFileSync(tmuxBin, ['list-sessions', '-F', '#S'], {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-        }) as string
-    } catch {
-        return
-    }
-
-    const voicetreeSessions: string[] = output
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((name: string) => /^vt-[a-f0-9]{10}-/.test(name))
-
-    for (const sessionName of voicetreeSessions) {
-        try {
-            deps.execFileSync(tmuxBin, ['kill-session', '-t', sessionName], {stdio: 'ignore'})
-        } catch {
-            // Best-effort migration. A raced-away session is harmless.
-        }
-    }
-}
-
 function resolveTmuxBinaryPath(deps: TmuxLaunchAgentDeps): string {
     try {
         const whichOutput: string = deps.execFileSync('which', ['tmux'], {
@@ -296,10 +270,6 @@ async function ensureTmuxLaunchAgentOnce(options: EnsureTmuxLaunchAgentOptions):
 
     deps.mkdirSync(dirname(plistPath), {recursive: true})
 
-    if (options.migrateLegacyDefaultSocketSessions) {
-        migrateLegacyDefaultSocketSessions(tmuxBin, deps)
-    }
-
     const loaded: boolean = await isLaunchAgentLoaded(deps)
     if (!plistMatches) {
         deps.writeFileSync(plistPath, plist, 'utf8')
@@ -320,7 +290,6 @@ export function ensureTmuxLaunchAgent(options: EnsureTmuxLaunchAgentOptions = {}
         || options.socketPath
         || options.plistPath
         || options.tmuxBin
-        || options.migrateLegacyDefaultSocketSessions
     ) {
         return ensureTmuxLaunchAgentOnce(options)
     }

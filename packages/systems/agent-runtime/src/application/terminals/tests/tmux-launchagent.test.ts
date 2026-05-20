@@ -44,7 +44,6 @@ function makeDeps(files: Map<string, string>, launchctlLoaded: {value: boolean})
         },
         execFileSync: (file: string, args?: readonly string[] | undefined): string => {
             if (file === 'which' && args?.[0] === 'tmux') return '/opt/homebrew/bin/tmux\n'
-            if (file === '/opt/homebrew/bin/tmux' && args?.[0] === 'list-sessions') return ''
             return ''
         },
         execFile: (file: string, args: readonly string[], callback): void => {
