@@ -192,7 +192,19 @@ export function setupFolderHandles(cy: Core): void {
         const folderNoteId: NodeIdAndFilePath | null = await resolveFolderNoteId(folder.id());
         if (folderNoteId === null) return;
         const eyeBtn: HTMLButtonElement | undefined = chips.get(folder.id())?.eyeBtn;
-        await openHoverEditor(cy, folderNoteId, folder.position(), (mx, my, editorWindow) => {
+        // Anchor the editor to the chip strip (folder bbox TL), not folder.position().
+        // For a collapsed pill, position() ≈ bbox center ≈ strip — they coincide.
+        // For an expanded compound, position() is the centroid of all descendants,
+        // which floats in the middle of the folder body, far from the chip strip in
+        // the TL corner. Using bbox TL keeps the editor pinned just-below-strip in
+        // both states. Strip is 44×22 graph units (CHIP_PX=22 × two chips, scaled
+        // by zoom in CSS so size matches across zooms).
+        const bbox: cytoscape.BoundingBox12 & cytoscape.BoundingBoxWH = folder.boundingBox();
+        const stripAnchor: cytoscape.Position = {
+            x: bbox.x1 + CHIP_PX,  // strip horizontal center (half of 44 wide strip)
+            y: bbox.y1 + CHIP_PX,  // strip bottom edge (22 tall)
+        };
+        await openHoverEditor(cy, folderNoteId, stripAnchor, (mx, my, editorWindow) => {
             // Tight hover zone: eye chip DOM OR editor DOM (not the whole
             // folder bbox). When the user moves off the chip the editor
             // should close unless they're heading into it.
