@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
@@ -8,10 +8,12 @@ import {
   SessionCreateResponseSchema,
 } from '../../daemon/contract.ts'
 
+// Files placed at the vault root are always visible in the projection;
+// files inside subdirectories require explicit folder expansion via
+// folderState, which a fresh session does not have.
 async function withTempVault(): Promise<string> {
   const vault = await mkdtemp(join(tmpdir(), 'graphd-session-state-test-'))
-  await mkdir(join(vault, 'docs'), { recursive: true })
-  await writeFile(join(vault, 'docs', 'one.md'), '# one')
+  await writeFile(join(vault, 'one.md'), '# one')
   return vault
 }
 
@@ -68,7 +70,7 @@ describe('GET /sessions/:sessionId/state', () => {
     )
     expect(fullRes.status).toBe(200)
     const fullBody = LiveStateSnapshotSchema.parse(await fullRes.json())
-    const notePath = join(vault, 'docs', 'one.md')
+    const notePath = join(vault, 'one.md')
     expect(fullBody.graph.nodes[notePath]).toHaveProperty('contentWithoutYamlOrLinks')
 
     const omittedRes = await fetch(
