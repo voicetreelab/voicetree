@@ -20,7 +20,14 @@ import {closeEditor} from './FloatingEditorCRUD';
  * For each node upsert, check if there's an open editor and update its content
  * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
  */
-export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuard: boolean = false): void {
+export function updateFloatingEditors(
+    cy: Core,
+    delta: GraphDelta,
+    skipFocusGuard: boolean = false,
+    suppressForSubscribers: readonly string[] = [],
+): void {
+    const suppressedEditors: ReadonlySet<string> = new Set(suppressForSubscribers);
+
     for (const nodeDelta of delta) {
         if (nodeDelta.type === 'UpsertNode') {
             const nodeId: string = nodeDelta.nodeToUpsert.absoluteFilePathIsID;
@@ -32,6 +39,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
             if (O.isSome(editorOption)) {
                 const editor: EditorData = editorOption.value;
                 const editorId: EditorId = getEditorId(editor);
+                if (suppressedEditors.has(editorId)) {
+                    continue;
+                }
 
                 // Get the editor instance from vanillaFloatingWindowInstances
                 const editorInstance: { dispose: () => void; focus?: () => void } | undefined =
@@ -96,6 +106,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
             const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
 
             if (O.isSome(editorOption)) {
+                if (suppressedEditors.has(getEditorId(editorOption.value))) {
+                    continue;
+                }
                 //console.log('[FloatingEditorManager-v2] Closing editor for deleted node:', nodeId);
                 closeEditor(cy, editorOption.value);
             }
@@ -179,6 +192,6 @@ export function updateFloatingEditorsFromProjectedGraph(
     }
 
     if (delta.length > 0) {
-        updateFloatingEditors(cy, delta);
+        updateFloatingEditors(cy, delta, false, graph.suppressForSubscribers ?? []);
     }
 }

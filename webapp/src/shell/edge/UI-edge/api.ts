@@ -48,9 +48,12 @@ function hasVisibleRoots(): boolean {
  * Update floating editors from external FS changes
  * Called from main process read path when external edits are detected
  */
-function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
+function updateFloatingEditorsFromExternal(
+    delta: GraphDelta,
+    suppressForSubscribers: readonly string[] = [],
+): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta);
+    updateFloatingEditors(cy, delta, false, suppressForSubscribers);
 }
 
 /**
@@ -58,9 +61,12 @@ function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
  * Echo filtering already happened at the SSE layer, so these are always
  * external changes — skip the isFocused guard that would block them.
  */
-function updateFloatingEditorsFromDaemon(delta: GraphDelta): void {
+function updateFloatingEditorsFromDaemon(
+    delta: GraphDelta,
+    suppressForSubscribers: readonly string[] = [],
+): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta, true);
+    updateFloatingEditors(cy, delta, true, suppressForSubscribers);
 }
 
 /**

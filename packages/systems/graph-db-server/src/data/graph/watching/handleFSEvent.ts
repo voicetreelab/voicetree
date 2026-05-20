@@ -29,6 +29,7 @@ import {publish} from "@vt/graph-db-server/state/events/deltaEventBus";
 export function handleFSEventWithStateAndUISides(
     fsEvent: FSEvent,
     _watchedDirectory: string,
+    suppressBroadcastTo: ReadonlySet<string> = new Set(),
 ): void {
     // 2. Get current graph state to resolve wikilinks
     const currentGraph: Graph = getGraph()
@@ -43,24 +44,31 @@ export function handleFSEventWithStateAndUISides(
 
     // 4. Apply delta to memory state and resolve any new wikilinks
     // Uses void since this is fire-and-forget from FS event handler
-    void applyAndBroadcast(delta)
+    void applyAndBroadcast(delta, suppressBroadcastTo)
 }
 
 /**
  * Apply delta to memory, broadcast to UI, and handle editor updates.
  * Extracted to allow async/await while keeping the main handler sync.
  */
-async function applyAndBroadcast(delta: GraphDelta): Promise<void> {
+async function applyAndBroadcast(
+    delta: GraphDelta,
+    suppressBroadcastTo: ReadonlySet<string>,
+): Promise<void> {
     // Apply to memory and resolve any new wikilinks (returns merged delta)
     const mergedDelta: GraphDelta = await applyGraphDeltaToMemState(delta)
 
     refreshGraphChangeSideEffects()
 
     // Publish to SSE event bus for daemon clients
-    publish({ delta: mergedDelta, source: 'fs:external' })
+    publish({
+        delta: mergedDelta,
+        source: 'fs:external',
+        suppressForSubscribers: [...suppressBroadcastTo],
+    })
 
     // Broadcast to floating editor state via callback
-    getCallbacks().onFloatingEditorUpdate?.(mergedDelta)
+    getCallbacks().onFloatingEditorUpdate?.(mergedDelta, [...suppressBroadcastTo])
 
     // Register filesystem-written nodes that have agent_name frontmatter,
     // so wait_for_agents recognises them as agent progress.

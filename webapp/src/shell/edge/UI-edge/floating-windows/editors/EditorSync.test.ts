@@ -181,6 +181,32 @@ describe('updateFloatingEditors', () => {
 
         expect(editor.getValue()).toBe('external update')
     })
+
+    it('skips editors whose id is in the suppression list', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
+            nodeToUpsert: makeNode(nodeId, 'suppressed echo'),
+        }], true, [`${nodeId}-editor`])
+
+        expect(editor.getValue()).toBe('# Typing Target\n\n')
+    })
+
+    it('updates editors whose id is not in the suppression list', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
+            nodeToUpsert: makeNode(nodeId, 'external update'),
+        }], true, ['another-editor'])
+
+        expect(editor.getValue()).toBe('external update')
+    })
 })
 
 function makeProjectedFileNode(id: string, content: string): ProjectedNode {
@@ -270,5 +296,24 @@ describe('updateFloatingEditorsFromProjectedGraph', () => {
         updateFloatingEditorsFromProjectedGraph({} as Core, projected, projected)
 
         expect(editor.getValue()).toBe('live edits in flight')
+    })
+
+    it('honors projected graph editor suppression metadata', () => {
+        const nodeId: NodeIdAndFilePath = 'suppressed.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'local draft')
+
+        const previousProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode(nodeId, 'old body'),
+        ])
+        const newProjected: ProjectedGraph = {
+            ...makeProjectedGraph([
+                makeProjectedFileNode(nodeId, 'new body'),
+            ]),
+            suppressForSubscribers: [`${nodeId}-editor`],
+        }
+
+        updateFloatingEditorsFromProjectedGraph({} as Core, newProjected, previousProjected)
+
+        expect(editor.getValue()).toBe('local draft')
     })
 })

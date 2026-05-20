@@ -3,6 +3,7 @@ import type { GraphDelta } from '@vt/graph-model/graph'
 export type SourceTaggedDelta = {
   delta: GraphDelta
   source: string
+  suppressForSubscribers?: readonly string[]
 }
 
 export type SequencedDeltaEvent = SourceTaggedDelta & {
