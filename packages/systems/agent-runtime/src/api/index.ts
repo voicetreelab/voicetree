@@ -17,6 +17,7 @@ export * from '../application/terminals/terminal-manager-instance'
 export * from '../application/terminals/terminal-registry'
 export * from '../application/terminals/terminal-output-buffer'
 export * from '../application/terminals/global-budget-registry'
+export * from '../application/terminals/tmux-launchagent'
 
 export * from '../application/headless/headlessAgentManager'
 

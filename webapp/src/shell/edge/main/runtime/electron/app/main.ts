@@ -226,6 +226,7 @@ void app.whenReady().then(async () => {
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)
+    await terminalRuntimeSurface.ensureTmuxLaunchAgent({migrateLegacyDefaultSocketSessions: true});
     await startMcpServer();
 
     if (process.env.VOICETREE_VAULT_PATH) {
