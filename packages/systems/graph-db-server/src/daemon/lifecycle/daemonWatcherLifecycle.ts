@@ -1,8 +1,8 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
-import { mountWatcher, type Watcher } from '../data/graph/watching/daemonWatcher.ts'
-import { onReadPathsChanged } from '../state/watch-folder-store.ts'
-import { getVaultPaths } from '../state/vaultAllowlist.ts'
-import type { DaemonLogger } from './daemonTypes.ts'
+import { mountWatcher, type Watcher } from '@vt/graph-db-server/graph/daemonWatcher'
+import { onReadPathsChanged } from '@vt/graph-db-server/state/watch-folder-store'
+import { getVaultPaths } from '@vt/graph-db-server/state/vaultAllowlist'
+import type { DaemonLogger } from '../daemonTypes.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 

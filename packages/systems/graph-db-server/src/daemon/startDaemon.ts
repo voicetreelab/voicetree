@@ -6,7 +6,7 @@ import { CONTRACT_VERSION } from './contract.ts'
 import { createDaemonApp } from '../routes/daemonApp.ts'
 import type { LockHandle } from './lock.ts'
 import type { BoundDaemonHttpServer } from './daemonHttpServer.ts'
-import type { DaemonWatcherController } from './daemonWatcherLifecycle.ts'
+import type { DaemonWatcherController } from './lifecycle/daemonWatcherLifecycle.ts'
 import {
   type DaemonHandle,
   type StartDaemonOptions,
@@ -15,16 +15,16 @@ import {
   resolveDaemonClock,
   resolveDaemonLogger,
 } from './daemonTypes.ts'
-import { acquireDaemonLock } from './daemonLockLifecycle.ts'
+import { acquireDaemonLock } from './lifecycle/daemonLockLifecycle.ts'
 import {
   initDaemonGraphModel,
   resetDaemonGraphState,
-} from './daemonGraphLifecycle.ts'
-import { startParentWatch, type ParentWatchHandle } from './daemonParentWatch.ts'
-import { startDaemonWatcher } from './daemonWatcherLifecycle.ts'
+} from './lifecycle/daemonGraphLifecycle.ts'
+import { startParentWatch, type ParentWatchHandle } from './lifecycle/daemonParentWatch.ts'
+import { startDaemonWatcher } from './lifecycle/daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
-import { deleteDaemonPortFile, writeDaemonPortFile } from './daemonPortLifecycle.ts'
+import { deleteDaemonPortFile, writeDaemonPortFile } from './lifecycle/daemonPortLifecycle.ts'
 import {
   closeVaultWorkflow,
   configureVaultLifecycle,

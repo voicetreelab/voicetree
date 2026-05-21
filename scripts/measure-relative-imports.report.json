@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-20T13:52:01.180Z",
-  "sourceFileCount": 788,
+  "generatedAt": "2026-05-21T03:40:54.727Z",
+  "sourceFileCount": 789,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1277,
-    "samePackageRelativeImports": 1277,
+    "relativeImports": 1271,
+    "samePackageRelativeImports": 1271,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 739,
-    "../x": 538,
+    "./x": 735,
+    "../x": 536,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +63,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 222,
-      "samePackageRelativeImports": 222,
+      "relativeImports": 216,
+      "samePackageRelativeImports": 216,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 115,
-        "../x": 107,
+        "./x": 111,
+        "../x": 105,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -203,6 +203,12 @@
       "crossPackageRelativeImports": 0
     },
     {
+      "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
+      "package": "@vt/graph-db-server",
+      "relativeImports": 17,
+      "crossPackageRelativeImports": 0
+    },
+    {
       "file": "packages/libraries/graph-state/src/index.ts",
       "package": "@vt/graph-state",
       "relativeImports": 16,
@@ -211,12 +217,6 @@
     {
       "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
       "package": "@vt/agent-runtime",
-      "relativeImports": 16,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
-      "package": "@vt/graph-db-server",
       "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },

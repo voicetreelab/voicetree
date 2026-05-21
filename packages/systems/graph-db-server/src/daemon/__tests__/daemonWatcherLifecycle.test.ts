@@ -3,7 +3,7 @@ import { emitReadPathsChanged, clearWatchFolderState } from '../../state/watch-f
 import * as vaultAllowlist from '../../state/vaultAllowlist.ts'
 import * as daemonWatcherModule from '../../data/graph/watching/daemonWatcher.ts'
 import type { Watcher } from '../../data/graph/watching/daemonWatcher.ts'
-import { startDaemonWatcher } from '../daemonWatcherLifecycle.ts'
+import { startDaemonWatcher } from '../lifecycle/daemonWatcherLifecycle.ts'
 
 function makeFakeWatcher(paths: readonly string[]): Watcher & {
   addedPaths: string[]
