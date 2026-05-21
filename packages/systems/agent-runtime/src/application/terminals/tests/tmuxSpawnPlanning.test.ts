@@ -47,29 +47,16 @@ describe('tmux spawn planning', () => {
         expect(resolvePromptFileWrite('/vault', terminalId, undefined)).toBeNull();
     });
 
-    it('shadows AGENT_PROMPT, adds AGENT_PROMPT_FILE, and backfills vault path', () => {
+    it('passes AGENT_PROMPT through, adds AGENT_PROMPT_FILE alongside, and backfills vault path', () => {
         const env = buildTmuxEnv({
             AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
         }, '/vault', '/vault/.voicetree/terminals/Aki-prompt.txt');
 
         expect(env).toEqual({
-            AGENT_PROMPT: '',
-            FOO: 'bar',
-            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
-            VOICETREE_VAULT_PATH: '/vault',
-        });
-    });
-
-    it('shadows AGENT_PROMPT even without a prompt file', () => {
-        const env = buildTmuxEnv({
             AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
-        }, '/vault', null);
-
-        expect(env).toEqual({
-            AGENT_PROMPT: '',
-            FOO: 'bar',
+            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
             VOICETREE_VAULT_PATH: '/vault',
         });
     });
@@ -81,7 +68,6 @@ describe('tmux spawn planning', () => {
         }, '/process-vault', null);
 
         expect(env).toEqual({
-            AGENT_PROMPT: '',
             VOICETREE_VAULT_PATH: '/initial-vault',
         });
     });

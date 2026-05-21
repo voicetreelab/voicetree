@@ -4,7 +4,7 @@ import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
-import {injectAgentCommandHeadful, rewriteCommandForPromptFile, writePromptFile} from '../headless/tmuxPromptFile';
+import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -85,13 +85,13 @@ export class TerminalManager {
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
   // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
-  // time and never crosses tmux's argv. After the shell is ready, the agent
-  // command is injected via `tmux send-keys` with a short reference to the
-  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
-  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
+  // time as an auxiliary delivery path. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` exactly as configured. The
+  // original AGENT_PROMPT env var is kept so existing
+  // agent commands like `claude "$AGENT_PROMPT"` and custom agents continue to
+  // receive the prompt through their configured interface.
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server. AGENT_PROMPT itself is shadowed
-  // with '' and the injected command is rewritten to consume AGENT_PROMPT_FILE.
+  // context; panes inherit from the server.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -110,12 +110,9 @@ export class TerminalManager {
         initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
       };
       await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
-      const injectionCommand: string | undefined = promptFile && terminalData.initialCommand
-        ? rewriteCommandForPromptFile(terminalData.initialCommand, promptFile)
-        : terminalData.initialCommand;
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
-        injectionCommand,
+        terminalData.initialCommand,
       );
       if (promptInjection) {
         await injectAgentCommandHeadful(promptInjection);
