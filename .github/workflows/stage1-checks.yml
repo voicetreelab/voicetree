@@ -99,6 +99,17 @@ jobs:
       - name: Run ${{ matrix.measure }}
         run: npm run health:capture-ci -- --only=${{ matrix.measure }}
 
+  unit-tests-aggregate:
+    name: PR CI / Unit & Integration Tests
+    needs: unit-tests
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unit matrix result
+        run: |
+          echo "unit-tests result: ${{ needs.unit-tests.result }}"
+          test "${{ needs.unit-tests.result }}" = "success"
+
   # Brain Workflow Tests are disabled for now. Re-enable when the brain
   # submodule check should become part of PR gating again.
 
@@ -106,7 +117,7 @@ jobs:
 
   browser-smoke:
     name: PR CI / Browser Tier 1 Smoke
-    needs: [lint-typecheck, unit-tests]
+    needs: [lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -148,7 +159,7 @@ jobs:
 
   electron-smoke:
     name: PR CI / Electron Tier 1 Smoke
-    needs: [lint-typecheck, unit-tests]
+    needs: [lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -235,7 +246,7 @@ jobs:
   fuzz-tests:
     name: Fuzz Tests (${{ matrix.measure }})
     if: github.base_ref == 'main'
-    needs: [lint-typecheck, unit-tests, discover-fuzz]
+    needs: [lint-typecheck, unit-tests-aggregate, discover-fuzz]
     strategy:
       fail-fast: false
       matrix:
@@ -379,7 +390,7 @@ jobs:
   mutation-testing:
     name: Mutation Testing
     if: github.base_ref == 'main'
-    needs: [lint-typecheck, unit-tests]
+    needs: [lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
