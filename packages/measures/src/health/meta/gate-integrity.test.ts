@@ -32,6 +32,32 @@ const GATE_FILES: readonly GateFile[] = [
     },
 ]
 
+const SHARED_FILES: readonly string[] = [
+    'packages/measures/src/_shared/call-graph.ts',
+    'packages/measures/src/_shared/check-report-writer.ts',
+    'packages/measures/src/_shared/cogcx-scorer.ts',
+    'packages/measures/src/_shared/cyclomatic.ts',
+    'packages/measures/src/_shared/discover-packages.ts',
+    'packages/measures/src/_shared/function-discovery.ts',
+    'packages/measures/src/_shared/function-row-formatters.ts',
+    'packages/measures/src/_shared/health-report-writer.ts',
+    'packages/measures/src/_shared/hierarchical-complexity-measures.ts',
+    'packages/measures/src/_shared/import-graph.ts',
+    'packages/measures/src/_shared/maintainability.ts',
+    'packages/measures/src/_shared/purity-analysis.ts',
+    'packages/measures/src/_shared/report-writer.ts',
+    'packages/measures/src/_shared/runtime-fan-in.ts',
+    'packages/measures/src/_shared/vitest-ci-check-reporter.ts',
+]
+
+const RUNNER_FILES: readonly string[] = [
+    'packages/measures/src/_runners/capture-ci-checks.ts',
+    'packages/measures/src/_runners/record-result.ts',
+    'packages/measures/src/_runners/record-run.ts',
+    'packages/measures/src/_runners/run-test-parallel.ts',
+    'packages/measures/src/_runners/run-with-xvfb-if-needed.ts',
+]
+
 function gitShow(relativePath: string): string | null {
     try {
         return execSync(`git show HEAD:${relativePath}`, {cwd: REPO_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']})
@@ -114,6 +140,25 @@ describe('gate integrity — budgets only ratchet down', () => {
             details: {missing, gateFiles: gateFilePaths},
         })
         expect(missing, `Gate files missing: ${missing.join(', ')}`).toEqual([])
+    })
+
+    it('all shared and runner support files exist on disk', async () => {
+        const supportFiles = [...SHARED_FILES, ...RUNNER_FILES]
+        const missing = supportFiles.filter(f => !existsSync(resolve(REPO_ROOT, f)))
+
+        await recordHealthMetric({
+            metricId: 'measures-support-files-exist',
+            metricName: 'Measures Support Files Exist',
+            description: 'Required _shared and _runners files missing from disk.',
+            category: 'Other',
+            current: missing.length,
+            budget: 0,
+            comparison: 'lte',
+            unit: 'files',
+            details: {missing, sharedFiles: SHARED_FILES, runnerFiles: RUNNER_FILES},
+        })
+
+        expect(missing, `Measures support files missing: ${missing.join(', ')}`).toEqual([])
     })
 
     it('coupling budgets have not increased vs committed version', async () => {
