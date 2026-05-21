@@ -2,11 +2,9 @@ import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import {applyGraphDeltaToGraph, ensureUniqueNodeId} from '@vt/graph-model/graph'
-import type {Graph, GraphNode, NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import type {Graph, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
 import {buildMarkdownBody} from '@vt/graph-tools/node'
-import {buildSpatialIndexFromGraph, calculateNodePosition} from '@vt/graph-model/spatial'
-import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {
     extractMermaidBlocks,
     parseDiagramParam,
@@ -25,68 +23,26 @@ import type {
     GraphParentContext,
     NodeDeltaDraft,
     NodeDraft,
-    NodeParentContext,
-    ParentCandidate,
     ParentLink,
     ParentRef,
     Result,
 } from './createGraphTypes'
 
-function parentCandidateFor(
-    parentRef: ParentRef,
-    createdNodes: ReadonlyMap<string, CreatedNodeInfo>,
-    createdPositions: ReadonlyMap<string, Position>,
-    graphParentPosition: Position
-): ParentCandidate | null {
-    const parentFilename: string = parentRefFilename(parentRef)
-    const parentInfo: CreatedNodeInfo | undefined = createdNodes.get(parentFilename)
-    if (!parentInfo) return null
-
-    return {
-        link: {
-            baseName: parentInfo.baseName,
-            edgeLabel: parentRefEdgeLabel(parentRef),
-        },
-        position: createdPositions.get(parentFilename) ?? graphParentPosition,
-        nodeId: parentInfo.nodeId,
-    }
-}
-
-function selectRightmostParent(current: ParentCandidate, candidate: ParentCandidate): ParentCandidate {
-    return candidate.position.x > current.position.x ? candidate : current
-}
-
-function resolveNodeParents(
+function resolveParentLinks(
     node: CreateGraphNodeInput,
     createdNodes: ReadonlyMap<string, CreatedNodeInfo>,
-    createdPositions: ReadonlyMap<string, Position>,
     graphParent: GraphParentContext
-): NodeParentContext {
-    const candidates: readonly ParentCandidate[] = (node.parents ?? [])
-        .map(parentRef => parentCandidateFor(parentRef, createdNodes, createdPositions, graphParent.graphParentPosition))
-        .filter((candidate): candidate is ParentCandidate => candidate !== null)
+): readonly ParentLink[] {
+    const links: readonly ParentLink[] = (node.parents ?? []).flatMap((parentRef: ParentRef): readonly ParentLink[] => {
+        const parentInfo: CreatedNodeInfo | undefined = createdNodes.get(parentRefFilename(parentRef))
+        if (!parentInfo) return []
+        return [{baseName: parentInfo.baseName, edgeLabel: parentRefEdgeLabel(parentRef)}]
+    })
 
-    if (candidates.length === 0) {
-        return {
-            parentLinks: [{baseName: graphParent.graphParentBaseName, edgeLabel: undefined}],
-            deepestParentPosition: graphParent.graphParentPosition,
-            deepestParentNodeId: graphParent.resolvedGraphParentId,
-        }
+    if (links.length === 0) {
+        return [{baseName: graphParent.graphParentBaseName, edgeLabel: undefined}]
     }
-
-    const deepestParent: ParentCandidate = candidates.reduce(selectRightmostParent)
-    return {
-        parentLinks: candidates.map(candidate => candidate.link),
-        deepestParentPosition: deepestParent.position,
-        deepestParentNodeId: deepestParent.nodeId,
-    }
-}
-
-function calculateProgressNodePosition(localGraph: Graph, parentContext: NodeParentContext): Position {
-    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(localGraph)
-    return O.getOrElse(() => parentContext.deepestParentPosition)(
-        calculateNodePosition(localGraph, spatialIndex, parentContext.deepestParentNodeId)
-    )
+    return links
 }
 
 function buildNodeMarkdown(
@@ -146,14 +102,13 @@ function reserveNodeId(
 
 function draftNodeDelta(draft: NodeDraft, localGraph: Graph): Result<NodeDeltaDraft> {
     try {
+        // Position is deliberately not set here. The daemon's
+        // resolveInitialPositionsForDelta fills it in from the parent edge at
+        // apply-time; authoring stays pure per CLAUDE.md.
         const parsedNode: GraphNode = parseMarkdownToGraphNode(draft.markdownContent, draft.nodeId, localGraph)
         const progressNode: GraphNode = {
             ...parsedNode,
             absoluteFilePathIsID: draft.nodeId,
-            nodeUIMetadata: {
-                ...parsedNode.nodeUIMetadata,
-                position: O.some(draft.nodePosition),
-            }
         }
 
         return {
@@ -174,25 +129,21 @@ function draftNodeDelta(draft: NodeDraft, localGraph: Graph): Result<NodeDeltaDr
 
 async function buildNodeDraft(
     node: CreateGraphNodeInput,
-    localGraph: Graph,
     outputDirectory: string,
     existingIds: Set<string>,
     createdNodes: ReadonlyMap<string, CreatedNodeInfo>,
-    createdPositions: ReadonlyMap<string, Position>,
     graphParent: GraphParentContext,
     agentName: string,
     defaultColor: string
 ): Promise<NodeDraft> {
-    const parentContext: NodeParentContext = resolveNodeParents(node, createdNodes, createdPositions, graphParent)
-    const nodePosition: Position = calculateProgressNodePosition(localGraph, parentContext)
+    const parentLinks: readonly ParentLink[] = resolveParentLinks(node, createdNodes, graphParent)
     const createdInfo: CreatedNodeInfo = reserveNodeId(node.filename, outputDirectory, existingIds)
 
     return {
         node,
         nodeId: createdInfo.nodeId,
         baseName: createdInfo.baseName,
-        nodePosition,
-        markdownContent: buildNodeMarkdown(node, parentContext.parentLinks, agentName, defaultColor),
+        markdownContent: buildNodeMarkdown(node, parentLinks, agentName, defaultColor),
         warning: await mermaidWarningForNode(node),
     }
 }
@@ -228,12 +179,11 @@ export async function buildNodeBatch(
     const existingIds: Set<string> = new Set(Object.keys(graph.nodes))
     const allNewNodeIds: NodeIdAndFilePath[] = []
     const createdNodes: Map<string, CreatedNodeInfo> = new Map()
-    const createdPositions: Map<string, Position> = new Map()
     const results = []
 
     for (const node of sortedNodes) {
         const draft: NodeDraft = await buildNodeDraft(
-            node, localGraph, outputDirectory, existingIds, createdNodes, createdPositions, graphParent, agentName, defaultColor
+            node, outputDirectory, existingIds, createdNodes, graphParent, agentName, defaultColor
         )
         const deltaDraft: Result<NodeDeltaDraft> = draftNodeDelta(draft, localGraph)
         if (!deltaDraft.ok) {
@@ -245,7 +195,6 @@ export async function buildNodeBatch(
         localGraph = applyGraphDeltaToGraph(localGraph, deltaDraft.value.delta)
         allNewNodeIds.push(draft.nodeId)
         createdNodes.set(node.filename, {nodeId: draft.nodeId, baseName: draft.baseName})
-        createdPositions.set(node.filename, draft.nodePosition)
         results.push(nodeSuccessResult(draft))
     }
 

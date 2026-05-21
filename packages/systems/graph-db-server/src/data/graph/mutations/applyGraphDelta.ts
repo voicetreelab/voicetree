@@ -2,6 +2,8 @@ import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
 import {pipe} from 'fp-ts/lib/function.js'
 import {applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas, type Env, type Graph, type GraphDelta} from '@vt/graph-model/graph'
+import {resolveInitialPositionsForDelta} from '@vt/graph-model/spatial'
+import {savePositionsSync} from '@vt/app-config/positions'
 import {apply_graph_deltas_to_db} from './graphActionsToDBEffects'
 import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state/undo-store'
 import type {Either} from "fp-ts/es6/Either";
@@ -25,6 +27,8 @@ import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultN
 export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<GraphDelta> {
     const currentGraph: Graph = getGraph();
     delta = rebaseStaleEdgeAdditionDeltas(currentGraph, delta);
+    const {delta: resolvedDelta, anyResolved} = resolveInitialPositionsForDelta(currentGraph, delta);
+    delta = resolvedDelta;
     let newGraph: Graph = applyGraphDeltaToGraph(currentGraph, delta);
 
     // Only resolve wikilinks when delta contains UpsertNode (which might introduce new links)
@@ -44,6 +48,15 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     }
 
     setGraph(newGraph);
+
+    // Persist newly-computed positions synchronously so they survive a daemon
+    // crash (without this, positions live only in memory until vault-switch /
+    // app-exit). Only fires when the resolver actually filled in at least one
+    // position; user drags and unrelated updates take the no-op path.
+    if (anyResolved) {
+        const projectRoot: string | null = getProjectRootWatchedDirectory();
+        if (projectRoot) savePositionsSync(newGraph, projectRoot);
+    }
 
     // Fire onNewNode hook (fire-and-forget). Runs for both UI and FS-event paths.
     // dispatchOnNewNodeHooks filters for UpsertNode with previousNode=None, so

@@ -1,52 +1,16 @@
-import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeDelta} from '..'
+import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeDelta} from '..'
 import * as O from 'fp-ts/lib/Option.js'
 import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-node'
 import {findBestMatchingNode} from '../markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '../graph-operations/transforms/graph-edge-operations'
 import {filenameToNodeId} from '../markdown-parsing/filename-utils'
-import {calculateNodePosition} from '../positioning/placement/calculateInitialPosition';
-import {buildSpatialIndexFromGraph} from '../positioning/placement/spatialAdapters';
-import type {SpatialIndex} from '../spatial';
 import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/indexes/linkResolutionIndexes'
 
-/**
- * Resolve position for a node based on priority:
- * 1. previousNode's Graph position (most current, loaded from .voicetree/positions.json)
- * 2. parsedNode's YAML position (legacy migration for old files)
- * 3. calculated from first parent (if any parent exists)
- * 4. none (defaults to 0,0 in UI)
- */
-function resolveNodePosition(
-    parsedNode: GraphNode,
-    previousNode: O.Option<GraphNode>,
-    affectedNodeIds: readonly string[],
-    currentGraph: Graph
-): O.Option<Position> {
-    // Priority 1: Use previous node's position from Graph (most current, loaded from positions.json)
-    if (O.isSome(previousNode) && O.isSome(previousNode.value.nodeUIMetadata.position)) {
-        return previousNode.value.nodeUIMetadata.position
-    }
-
-    // Priority 2: Use YAML position if present (legacy migration)
-    if (O.isSome(parsedNode.nodeUIMetadata.position)) {
-        return parsedNode.nodeUIMetadata.position
-    }
-
-    // Priority 3: Calculate from first parent with collision avoidance
-    // Uses graph-derived obstacles (approximate dimensions) since cytoscape isn't available in pure context
-    if (affectedNodeIds.length >= 1) {
-        const parentId: NodeIdAndFilePath = affectedNodeIds[0]
-        const parent: GraphNode = currentGraph.nodes[parentId]
-        if (O.isSome(parent.nodeUIMetadata.position)) {
-            const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(currentGraph)
-            return calculateNodePosition(currentGraph, spatialIndex, parentId)
-        }
-        return O.none
-    }
-
-    // Priority 4: No position (defaults to 0,0 in UI layer)
-    return O.none
-}
+// Position resolution lives at the daemon's apply pipeline
+// (resolveInitialPositionsForDelta + applyGraphDeltaToGraph's existing-position
+// merge). This pure function just produces a delta with whatever position the
+// parser extracted from YAML — None for normal files, Some for legacy YAML
+// migrations. Downstream layers fill in or preserve as appropriate.
 
 function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph): readonly UpsertNodeDelta[] {
     return affectedNodeIds.flatMap((affectedNodeId): readonly UpsertNodeDelta[] => {
@@ -132,25 +96,16 @@ export function addNodeToGraphWithEdgeHealingFromFSEvent(
     currentGraph: Graph
 ): GraphDelta {
     const nodeId: string = extractNodeIdFromPath(fsEvent.absolutePath)
-    const parsedNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, nodeId, currentGraph)
+    const newNode: GraphNode = parseMarkdownToGraphNode(fsEvent.content, nodeId, currentGraph)
 
-    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[parsedNode.absoluteFilePathIsID])
+    const previousNode: O.Option<GraphNode> = O.fromNullable(currentGraph.nodes[newNode.absoluteFilePathIsID])
 
     // Use unresolvedLinksIndex for O(1) lookup of nodes with dangling edges to this new node
-    const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(parsedNode, currentGraph)
+    const affectedNodeIds: readonly string[] = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
 
-    // Position resolution priority:
-    // 1. previousNode's Graph position (most current, synced from UI)
-    // 2. newNode's YAML position (initial seed for new nodes)
-    // 3. calculated from first parent (if any parent exists)
-    // 4. none (defaults to 0,0 in UI)
-    const resolvedPosition: O.Option<Position> = resolveNodePosition(parsedNode, previousNode, affectedNodeIds, currentGraph)
-
-    const newNode: GraphNode = resolvedPosition !== parsedNode.nodeUIMetadata.position
-        ? { ...parsedNode, nodeUIMetadata: { ...parsedNode.nodeUIMetadata, position: resolvedPosition } }
-        : parsedNode
-
-    // Build new nodes record
+    // Build new nodes record. Position carried by the parsed node (YAML legacy
+    // migration only); existing-graph preservation + parent-driven calculation
+    // happen downstream in the daemon's apply pipeline.
     const newNodes: Record<string, GraphNode> = {
         ...currentGraph.nodes,
         [newNode.absoluteFilePathIsID]: newNode

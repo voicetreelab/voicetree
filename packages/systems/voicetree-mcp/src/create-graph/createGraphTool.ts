@@ -171,12 +171,10 @@ function resolveGraphParent(
         return {ok: false, error: `Parent node ${rawParentId} not found in graph.`}
     }
 
-    const graphParentNode: GraphNode = graph.nodes[resolvedGraphParentId]
     return {
         ok: true,
         value: {
             resolvedGraphParentId,
-            graphParentPosition: O.getOrElse(() => ({x: 0, y: 0}))(graphParentNode.nodeUIMetadata.position),
             graphParentBaseName: resolvedGraphParentId.split('/').pop()?.replace(/\.md$/, '') ?? resolvedGraphParentId,
         },
     }

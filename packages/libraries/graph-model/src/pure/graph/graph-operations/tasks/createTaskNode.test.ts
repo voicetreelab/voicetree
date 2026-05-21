@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createTaskNode, type TaskNodeCreationParams } from './createTaskNode'
-import type { Graph, GraphNode, Edge, NodeIdAndFilePath, GraphDelta, Position, UpsertNodeDelta } from '../..'
+import type { Graph, GraphNode, Edge, NodeIdAndFilePath, GraphDelta, UpsertNodeDelta } from '../..'
 import { buildIncomingEdgesIndex } from '../indexes/incomingEdgesIndex'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -44,7 +44,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 100, y: 100 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -55,28 +54,23 @@ describe('createTaskNode', () => {
       expect(delta.nodeToUpsert.contentWithoutYamlOrLinks).toContain('# Implement feature X')
     })
 
-    it('should create node with position from params', () => {
+    it('should create node with position O.none (resolver fills in at delta-apply time)', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/vault/a.md': createTestNode('/vault/a.md', [])
       }
       const graph: Graph = createGraphFromNodes(nodes)
 
-      const position: Position = { x: 200, y: 300 }
       const params: TaskNodeCreationParams = {
         taskDescription: 'Test task',
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position
       }
 
       const result: GraphDelta = createTaskNode(params)
 
       const delta: UpsertNodeDelta = result[0] as UpsertNodeDelta
-      expect(O.isSome(delta.nodeToUpsert.nodeUIMetadata.position)).toBe(true)
-      if (O.isSome(delta.nodeToUpsert.nodeUIMetadata.position)) {
-        expect(delta.nodeToUpsert.nodeUIMetadata.position.value).toEqual(position)
-      }
+      expect(O.isNone(delta.nodeToUpsert.nodeUIMetadata.position)).toBe(true)
     })
   })
 
@@ -94,7 +88,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/c.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -115,7 +108,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/single.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -147,7 +139,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md', '/vault/hub.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -171,7 +162,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md', '/vault/b.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -195,7 +185,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/first.md', '/vault/second.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -219,7 +208,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault/tasks',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)
@@ -240,7 +228,6 @@ describe('createTaskNode', () => {
         selectedNodeIds: ['/vault/a.md'] as readonly NodeIdAndFilePath[],
         graph,
         writePath: '/vault',
-        position: { x: 0, y: 0 }
       }
 
       const result: GraphDelta = createTaskNode(params)

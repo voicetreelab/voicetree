@@ -5,11 +5,8 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, Position} from '@vt/graph-model/graph'
+import type {Graph, GraphDelta, GraphNode} from '@vt/graph-model/graph'
 import {createNewNodeNoParent} from '@vt/graph-model/graph'
-import {calculateNodePosition} from '@vt/graph-model/spatial'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
-import type {SpatialIndex} from '@vt/graph-model/spatial'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import type {TerminalData} from '../terminals/terminal-registry/types'
@@ -82,10 +79,8 @@ async function createHookNode(): Promise<string> {
     }
 
     const graph: Graph = await getRuntimeGraph()
-    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
-    const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(hookPosition, writePath, graph)
+        createNewNodeNoParent(undefined, writePath, graph)
 
     const hookNode: GraphNode = {...newNode, contentWithoutYamlOrLinks: '# Hook Terminal'}
     const hookDelta: GraphDelta = [{

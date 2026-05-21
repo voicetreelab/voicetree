@@ -131,24 +131,24 @@ export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{readonly n
 
 
 /**
- * Creates a new node without a parent at the specified position.
- * Node IDs are absolute paths to simplify path handling throughout the codebase.
+ * Creates a new parentless node.
  *
- * @param pos - Position where the node should be placed
- * @param writePath - Absolute path to the write directory (where new nodes are created)
- * @param graph - Current graph state (for uniqueness check)
+ * @param pos - Optional explicit position (UI drag/click sites pass this).
+ *              Omit on agent-spawn sites; the daemon's
+ *              resolveInitialPositionsForDelta fills in a free-slot position
+ *              at apply-time, keeping authoring impurity-free.
+ * @param writePath - Absolute path to the write directory.
+ * @param graph - Current graph state (for unique-ID generation).
  */
-export function createNewNodeNoParent(pos: Position, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
+export function createNewNodeNoParent(pos: Position | undefined, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const suffix: string = stableIdSuffix([
         writePath,
-        String(pos.x),
-        String(pos.y),
+        pos ? String(pos.x) : 'no-pos',
+        pos ? String(pos.y) : 'no-pos',
         ...Object.keys(graph.nodes).sort(),
     ])
     const candidateFileName: string = `node_${suffix}.md`
-    // Node ID is the absolute path to the file
     const candidateId: string = writePath ? `${writePath}/${candidateFileName}` : candidateFileName
-    // Ensure unique if the same stable candidate already exists.
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)
     const newNode: GraphNode = {
@@ -157,9 +157,8 @@ export function createNewNodeNoParent(pos: Position, writePath: string, graph: G
         outgoingEdges: [],
         contentWithoutYamlOrLinks: '# ',
         nodeUIMetadata: {
-            // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
             color: O.none,
-            position: O.of(pos),
+            position: pos ? O.of(pos) : O.none,
             additionalYAMLProps: new Map(),
             isContextNode: false
         },
@@ -168,7 +167,7 @@ export function createNewNodeNoParent(pos: Position, writePath: string, graph: G
         {
             type: 'UpsertNode',
             nodeToUpsert: newNode,
-            previousNode: O.none  // New node - no previous state
+            previousNode: O.none
         },
     ]
     return {newNode, graphDelta};

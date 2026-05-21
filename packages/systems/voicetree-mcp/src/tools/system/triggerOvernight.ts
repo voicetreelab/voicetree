@@ -2,11 +2,8 @@
 // Bypasses MCP protocol — invoked over plain HTTP at /trigger-overnight.
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import type {Graph, GraphDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTaskNode} from '@vt/graph-model/graph'
-import {calculateNodePosition} from '@vt/graph-model/spatial'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
-import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../mcpConfigDependencies'
@@ -62,11 +59,6 @@ export async function triggerOvernight(
     // Anchor the overnight run task node to the first graph node
     const parentNodeId: NodeIdAndFilePath = nodeIds[0] as NodeIdAndFilePath
 
-    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
-    const position: Position = O.getOrElse(() => ({x: 0, y: 0}))(
-        calculateNodePosition(graph, spatialIndex, parentNodeId)
-    )
-
     const isoDate: string = deps.getIsoDate()
     const taskDescription: string = `Overnight Run — ${isoDate}`
 
@@ -75,7 +67,6 @@ export async function triggerOvernight(
         selectedNodeIds: [parentNodeId],
         graph,
         writePath,
-        position
     })
 
     const taskNodeId: NodeIdAndFilePath = taskNodeDelta[0].type === 'UpsertNode'

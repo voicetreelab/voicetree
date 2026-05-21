@@ -1,4 +1,4 @@
-import type {NodeDelta, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import type {NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {ComplexityScore} from '@vt/graph-tools/node'
 
 export type ParentRef = {
@@ -43,29 +43,15 @@ export type ParentLink = {
     readonly edgeLabel: string | undefined
 }
 
-export type ParentCandidate = {
-    readonly link: ParentLink
-    readonly position: Position
-    readonly nodeId: NodeIdAndFilePath
-}
-
 export type GraphParentContext = {
     readonly resolvedGraphParentId: NodeIdAndFilePath
-    readonly graphParentPosition: Position
     readonly graphParentBaseName: string
-}
-
-export type NodeParentContext = {
-    readonly parentLinks: readonly ParentLink[]
-    readonly deepestParentPosition: Position
-    readonly deepestParentNodeId: NodeIdAndFilePath
 }
 
 export type NodeDraft = {
     readonly node: CreateGraphNodeInput
     readonly nodeId: NodeIdAndFilePath
     readonly baseName: string
-    readonly nodePosition: Position
     readonly markdownContent: string
     readonly warning: string | undefined
 }

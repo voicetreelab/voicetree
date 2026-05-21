@@ -1,4 +1,4 @@
-import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '../..'
+import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '../..'
 import { ensureUniqueNodeId, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
 import { findMostConnectedNode } from '../indexes/findMostConnectedNode'
 import * as O from 'fp-ts/lib/Option.js'
@@ -8,7 +8,6 @@ export interface TaskNodeCreationParams {
   readonly selectedNodeIds: readonly NodeIdAndFilePath[]
   readonly graph: Graph
   readonly writePath: string
-  readonly position: Position
   readonly initialStatus?: string
 }
 
@@ -30,13 +29,12 @@ function createTaskNodeCandidateId(
  * @returns GraphDelta containing the new task node
  */
 export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
-  const { taskDescription, selectedNodeIds, graph, writePath, position, initialStatus } = params
+  const { taskDescription, selectedNodeIds, graph, writePath, initialStatus } = params
 
   const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
   const candidateId: NodeIdAndFilePath = createTaskNodeCandidateId(writePath, taskDescription, selectedNodeIds)
   const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
 
-  // Find most-connected node for parent relationship
   const mostConnectedNodeId: NodeIdAndFilePath = findMostConnectedNode(selectedNodeIds, graph)
 
   // Build markdown content with task description and parent link only.
@@ -47,7 +45,6 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
 - parent [[${mostConnectedNodeId}]]
 `
 
-  // Parse to extract edges from wikilinks
   const parsedNode: GraphNode = parseMarkdownToGraphNode(markdownContent, nodeId, graph)
 
   // Merge optional initial YAML props (e.g. status='claimed') into parsed props.
@@ -56,7 +53,8 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
     ? new Map([...parsedNode.nodeUIMetadata.additionalYAMLProps, ['status', initialStatus]])
     : parsedNode.nodeUIMetadata.additionalYAMLProps
 
-  // Create the task node with parsed content and position
+  // Position deliberately left O.none — the daemon's resolveInitialPositionsForDelta
+  // fills it in from the parent edge at apply-time, keeping authoring pure.
   const taskNode: GraphNode = {
     kind: 'leaf',
     absoluteFilePathIsID: nodeId,
@@ -64,7 +62,7 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
     contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
     nodeUIMetadata: {
       ...parsedNode.nodeUIMetadata,
-      position: O.some(position),
+      position: O.none,
       additionalYAMLProps
     }
   }

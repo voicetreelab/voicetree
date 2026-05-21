@@ -4,12 +4,9 @@
  */
 
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
-import {calculateNodePosition} from '@vt/graph-model/spatial'
-import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
-import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '../toolResponse'
@@ -191,11 +188,6 @@ function resolveNodeId(graph: Graph, nodeId: string): NodeIdAndFilePath | undefi
         : findBestMatchingNode(nodeId, graph.nodes, graph.nodeByBaseName)
 }
 
-function calculateTaskNodePosition(graph: Graph, parentNodeId: NodeIdAndFilePath): Position {
-    const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
-    return O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex, parentNodeId))
-}
-
 function taskNodeIdFromDelta(taskNodeDelta: GraphDelta): NodeIdAndFilePath | undefined {
     const firstDelta = taskNodeDelta[0]
     return firstDelta.type === 'UpsertNode'
@@ -294,15 +286,12 @@ async function spawnAgentForTask(
         return errorResponse(`Parent node ${params.parentNodeId} not found.`)
     }
 
-    const taskNodePosition: Position = calculateTaskNodePosition(graphContext.graph, resolvedParentId)
-
     try {
         const taskNodeDelta: GraphDelta = createTaskNode({
             taskDescription,
             selectedNodeIds: [resolvedParentId],
             graph: graphContext.graph,
             writePath: graphContext.writePath,
-            position: taskNodePosition,
             initialStatus: 'claimed'
         })
         const taskNodeId: NodeIdAndFilePath | undefined = taskNodeIdFromDelta(taskNodeDelta)
