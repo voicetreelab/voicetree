@@ -1,4 +1,5 @@
-import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs'
+import {randomUUID} from 'node:crypto'
+import {existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxReconciliationResult} from '../terminals/terminal-registry'
@@ -78,7 +79,9 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
 }
 
 function writeTmuxMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    writeFileSync(path, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
+    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
+    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
+    renameSync(tempPath, path)
 }
 
 function readTmuxMetadata(path: string): TmuxTerminalMetadata | null {

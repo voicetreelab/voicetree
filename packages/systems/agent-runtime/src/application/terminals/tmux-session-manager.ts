@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {appendFileSync, statSync} from 'node:fs'
 import {shellQuote} from '../util/shellQuote.ts'
 import {
     ensureTmuxLaunchAgent,
@@ -145,4 +146,14 @@ export async function getPanePid(name: string): Promise<number> {
 export async function pipePaneToFile(name: string, logPath: string): Promise<void> {
     const sessionName: string = resolveTmuxSessionName(name)
     await runTmux(['pipe-pane', '-t', sessionName, `cat >> ${shellQuote(logPath)}`])
+    try {
+        if (statSync(logPath).size > 0) return
+    } catch {
+        // The pipe creates the file lazily on first output; backfill below covers
+        // output that was already in the pane before the pipe was attached.
+    }
+    const captured: TmuxResult = await runTmux(['capture-pane', '-p', '-J', '-S', '-', '-t', sessionName])
+    if (captured.stdout.length > 0) {
+        appendFileSync(logPath, captured.stdout, 'utf8')
+    }
 }
