@@ -42,6 +42,16 @@ export function subscribeToGraphUpdates(
 
     const cy: Core = navigationService.getCy();
     let lastProjectedGraph: ProjectedGraph | null = null;
+    let searchUpdateRaf: number | null = null;
+
+    const scheduleSearchUpdate = (): void => {
+        if (searchUpdateRaf !== null) return;
+
+        searchUpdateRaf = requestAnimationFrame(() => {
+            searchUpdateRaf = null;
+            searchService.updateSearchData();
+        });
+    };
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
         setLoadingState(false);
@@ -50,7 +60,7 @@ export function subscribeToGraphUpdates(
 
         applyGraphDeltaToUI(cy, graph);
         publishLatestProjectedGraph(graph);
-        searchService.updateSearchData();
+        scheduleSearchUpdate();
 
         // Floating editors don't ride applyGraphDeltaToUI — that path only
         // syncs Cytoscape. Without this call, an external file change (FS
@@ -97,6 +107,11 @@ export function subscribeToGraphUpdates(
         });
 
     return (): void => {
+        if (searchUpdateRaf !== null) {
+            cancelAnimationFrame(searchUpdateRaf);
+            searchUpdateRaf = null;
+        }
+
         isSubscribed = false;
         cleanupProjected();
         cleanupClear();

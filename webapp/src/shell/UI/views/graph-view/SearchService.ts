@@ -26,6 +26,7 @@ interface NinjaAction {
 
 interface NinjaKeysElement extends HTMLElement {
   data: NinjaAction[];
+  disableHotkeys?: boolean;
   open(): void;
   close(): void;
 }
@@ -47,6 +48,7 @@ export class SearchService {
 
     // Create ninja-keys element
     this.ninjaKeys = document.createElement('ninja-keys') as NinjaKeysElement;
+    this.ninjaKeys.disableHotkeys = true;
 
     // Set theme to match dark mode
     if (document.documentElement.classList.contains('dark')) {
