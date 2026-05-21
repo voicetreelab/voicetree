@@ -206,6 +206,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
     return {
       ...process.env,
       VOICETREE_DATA_DIR: serverDir,
+      VOICETREE_PARENT_PID: String(process.pid),
       PATH: enhancedPath
     };
   }
