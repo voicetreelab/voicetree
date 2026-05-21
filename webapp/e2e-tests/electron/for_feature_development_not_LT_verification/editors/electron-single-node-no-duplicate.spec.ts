@@ -196,7 +196,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
           title: 'Test Single Node',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: {}
         }
       };
 
@@ -348,7 +348,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
           title: 'Multi Node One',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 100, y: 100 } } as const,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: {}
         }
       };
 
@@ -373,7 +373,7 @@ test.describe('Single Node Creation - No Duplicate Files', () => {
           title: 'Multi Node Two',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 200, y: 100 } } as const,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: {}
         }
       };
 

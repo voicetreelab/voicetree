@@ -125,7 +125,7 @@ function createNode(isContextNode: boolean): GraphNode {
         contentWithoutYamlOrLinks: '# Node',
         outgoingEdges: [],
         nodeUIMetadata: {
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             color: O.none,
             isContextNode,
             position: O.none,

@@ -7,11 +7,6 @@ import type {Graph, GraphNode} from '@vt/graph-model/graph'
 import {getNewNodesForAgent, getNewNodesForAgentIdentities} from './getNewNodesForAgent'
 
 function buildNode(filePath: string, agentName: string | undefined): GraphNode {
-    const additionalYAMLProps: Map<string, string> = new Map()
-    if (agentName !== undefined) {
-        additionalYAMLProps.set('agent_name', agentName)
-    }
-
     return {
         outgoingEdges: [],
         absoluteFilePathIsID: filePath,
@@ -19,7 +14,7 @@ function buildNode(filePath: string, agentName: string | undefined): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps,
+            additionalYAMLProps: agentName !== undefined ? { agent_name: agentName } : {},
             isContextNode: false
         }
     }

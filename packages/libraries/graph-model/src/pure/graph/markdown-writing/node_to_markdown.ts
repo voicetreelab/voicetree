@@ -109,8 +109,7 @@ function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
         }, {});
 
     // Add additional YAML properties
-    const rawProps = metadata.additionalYAMLProps
-    const additionalData: Record<string, unknown> = Array.from(rawProps instanceof Map ? rawProps.entries() : Object.entries(rawProps))
+    const additionalData: Record<string, unknown> = Object.entries(metadata.additionalYAMLProps)
         .reduce((acc: Record<string, unknown>, [key, value]: readonly [string, string]) => ({
             ...acc,
             [key]: tryParseJSON(value)

@@ -148,11 +148,7 @@ function hasProgressNodes(agentName: string, graph: Graph): boolean {
     for (const nodeId of Object.keys(graph.nodes)) {
         const node = graph.nodes[nodeId]
         if (node.nodeUIMetadata.isContextNode) continue
-        const props = node.nodeUIMetadata.additionalYAMLProps
-        const value: string | undefined = props instanceof Map
-            ? props.get('agent_name')
-            : (props as unknown as Record<string, string> | undefined)?.['agent_name']
-        if (value === agentName) return true
+        if (node.nodeUIMetadata.additionalYAMLProps['agent_name'] === agentName) return true
     }
     return false
 }

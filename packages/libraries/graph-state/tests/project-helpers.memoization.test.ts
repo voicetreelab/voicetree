@@ -14,7 +14,7 @@ function makeLeafNode(nodeId: string) {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
         },
     }
 }

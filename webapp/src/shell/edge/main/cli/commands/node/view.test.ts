@@ -426,7 +426,7 @@ describe('runViewCommand', () => {
             nodeUIMetadata: {
                 color: O.none,
                 position: O.none,
-                additionalYAMLProps: new Map(),
+                additionalYAMLProps: {},
             },
         })
         setGraph(createGraph({

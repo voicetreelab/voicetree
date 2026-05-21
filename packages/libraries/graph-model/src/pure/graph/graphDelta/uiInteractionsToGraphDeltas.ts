@@ -159,7 +159,7 @@ export function createNewNodeNoParent(pos: Position | undefined, writePath: stri
         nodeUIMetadata: {
             color: O.none,
             position: pos ? O.of(pos) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         },
     }

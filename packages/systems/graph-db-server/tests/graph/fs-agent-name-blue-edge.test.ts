@@ -73,13 +73,13 @@ Some work was done.
         expect(upsert.type).toBe('UpsertNode')
         if (upsert.type !== 'UpsertNode') throw new Error('Expected UpsertNode')
         const yamlProps = upsert.nodeToUpsert.nodeUIMetadata.additionalYAMLProps
-        expect(yamlProps.get('agent_name')).toBe('Victor')
+        expect(yamlProps['agent_name']).toBe('Victor')
 
         // Step 2: Apply delta to graph, verify node in graph has agent_name
         const graph: Graph = applyGraphDeltaToGraph(emptyGraph, delta)
         const node = graph.nodes['/vault/agent-progress.md']
         expect(node).toBeDefined()
-        expect(node.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('Victor')
+        expect(node.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('Victor')
 
         // Step 3: Project graph state to ProjectedGraph, verify agent_name survives
         const state: State = buildMinimalState(graph)

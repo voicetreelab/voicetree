@@ -8,21 +8,9 @@ import {isRecord} from '@/shell/edge/main/cli/commands/graph/core/util'
 
 const NONE_OPTION: {readonly _tag: 'None'} = {_tag: 'None'}
 
-function normalizeAdditionalYAMLProps(value: unknown): ReadonlyMap<string, string> {
-    if (value instanceof Map) {
-        return new Map(
-            [...value.entries()].map(([key, entryValue]) => [
-                String(key),
-                typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),
-            ]),
-        )
-    }
-
-    if (!isRecord(value)) {
-        return new Map()
-    }
-
-    return new Map(
+function normalizeAdditionalYAMLProps(value: unknown): Record<string, string> {
+    if (!isRecord(value)) return {}
+    return Object.fromEntries(
         Object.entries(value).map(([key, entryValue]) => [
             key,
             typeof entryValue === 'string' ? entryValue : JSON.stringify(entryValue),

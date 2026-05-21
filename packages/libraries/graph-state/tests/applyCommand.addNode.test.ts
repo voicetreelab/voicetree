@@ -54,7 +54,7 @@ describe('applyCommand AddNode', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 420, y: 180 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                 },
             },
         })

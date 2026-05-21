@@ -70,7 +70,7 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: agentName ? new Map([['agent_name', agentName]]) : new Map(),
+            additionalYAMLProps: agentName ? { agent_name: agentName } : {},
             isContextNode: false
         }
     }
@@ -264,7 +264,7 @@ describe('MCP spawn_agent tool', () => {
         expect(claimCall).toBeDefined()
         const claimDelta: Array<{type: string; nodeToUpsert: GraphNode}> = claimCall![0] as Array<{type: string; nodeToUpsert: GraphNode}>
         expect(claimDelta[0].type).toBe('UpsertNode')
-        expect(claimDelta[0].nodeToUpsert.nodeUIMetadata.additionalYAMLProps.get('status')).toBe('claimed')
+        expect(claimDelta[0].nodeToUpsert.nodeUIMetadata.additionalYAMLProps['status']).toBe('claimed')
     })
 })
 

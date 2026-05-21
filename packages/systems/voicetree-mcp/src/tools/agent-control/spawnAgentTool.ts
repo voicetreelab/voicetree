@@ -220,10 +220,10 @@ function buildCallerContextUpdateDelta(
 }
 
 function claimNodeDelta(targetNode: GraphNode): GraphDelta {
-    const claimedYAML: Map<string, string> = new Map([
+    const claimedYAML: Record<string, string> = {
         ...targetNode.nodeUIMetadata.additionalYAMLProps,
-        ['status', 'claimed']
-    ])
+        status: 'claimed'
+    }
     return [{
         type: 'UpsertNode',
         nodeToUpsert: {

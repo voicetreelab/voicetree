@@ -20,7 +20,7 @@ function createTestNode(
         nodeUIMetadata: {
             color: O.none,
             position: options?.position ? O.some(options.position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

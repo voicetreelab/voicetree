@@ -90,7 +90,7 @@ test.describe('Distance Slider Hover Zone', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 300 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false // NOT a context node, so Run button + slider will appear
           }
         },
@@ -276,7 +276,7 @@ test.describe('Distance Slider Hover Zone', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 300 } } as const,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
           }
         },

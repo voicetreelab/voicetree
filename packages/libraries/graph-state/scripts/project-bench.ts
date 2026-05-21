@@ -48,7 +48,7 @@ function createNode(nodeId: string, targets: readonly string[]): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
         },
     }
 }

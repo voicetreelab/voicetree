@@ -61,7 +61,7 @@ function createLargerTestGraphDelta(): GraphDelta {
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: node.x, y: node.y } } as const,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       },

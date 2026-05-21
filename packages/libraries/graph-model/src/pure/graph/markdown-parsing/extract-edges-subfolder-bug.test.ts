@@ -12,7 +12,7 @@ describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', 
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })
@@ -34,7 +34,7 @@ describe('findBestMatchingNode - full path match requirement', () => {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })
@@ -115,7 +115,7 @@ describe('extractEdges - empty wikilink handling', () => {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })
@@ -175,7 +175,7 @@ describe('findBestMatchingNode - stale absolute path healing (Bug 2 Option B)', 
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })
@@ -224,7 +224,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })

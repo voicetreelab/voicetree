@@ -77,7 +77,7 @@ test.describe('Traffic Light Fullscreen Behaviors (Browser)', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false
             }
           },
@@ -171,7 +171,7 @@ test.describe('Traffic Light Fullscreen Behaviors (Browser)', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: { x: 400, y: 400 } } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false
             }
           },
@@ -278,7 +278,7 @@ test.describe('Traffic Light Fullscreen Behaviors (Browser)', () => {
             nodeUIMetadata: {
               color: { _tag: 'None' } as const,
               position: { _tag: 'Some', value: { x: 400, y: 300 } } as const,
-              additionalYAMLProps: new Map(),
+              additionalYAMLProps: {},
               isContextNode: false
             }
           },

@@ -19,7 +19,7 @@ function createNode(
         nodeUIMetadata: {
             color: O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }
@@ -208,7 +208,7 @@ describe('computeMergeGraphDelta', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 50, y: 50 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }
@@ -249,7 +249,7 @@ describe('computeMergeGraphDelta', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 50, y: 50 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }
@@ -275,7 +275,7 @@ describe('computeMergeGraphDelta', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 0, y: 0 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             },
@@ -287,7 +287,7 @@ describe('computeMergeGraphDelta', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }

@@ -195,7 +195,7 @@ describe('@vt/graph-db-client system contract', () => {
           nodeUIMetadata: {
             color: { _tag: 'None' },
             position: { _tag: 'None' },
-            additionalYAMLProps: new Map([['agent_name', 'e2e']]),
+            additionalYAMLProps: { agent_name: 'e2e' },
           },
         },
         previousNode: { _tag: 'None' },

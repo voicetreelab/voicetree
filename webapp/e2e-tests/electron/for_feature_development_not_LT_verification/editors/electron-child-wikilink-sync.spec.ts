@@ -234,7 +234,7 @@ test.describe('Child Node Wikilink Sync', () => {
         nodeUIMetadata: {
           color: { _tag: 'None' } as const,
           position: { _tag: 'None' } as const,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: {}
         }
       };
 

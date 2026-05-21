@@ -39,7 +39,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }))
@@ -70,7 +70,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }))
@@ -97,7 +97,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.some('#ff0000'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }
@@ -112,7 +112,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.some('cyancyan'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }
@@ -135,7 +135,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.some('orange'),
                     position: O.some({ x: -9.184850993605149e-14, y: -500 }),
-                    additionalYAMLProps: new Map([['agent_name', 'Victor'], ['node_id', '141']]),
+                    additionalYAMLProps: { agent_name: 'Victor', node_id: '141' },
                     isContextNode: false
                 }
             }
@@ -161,7 +161,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 3.061616997868383e-14, y: 500 }),
-                    additionalYAMLProps: new Map([['node_id', '5']]),
+                    additionalYAMLProps: { node_id: '5' },
                     isContextNode: false
                 }
             }
@@ -182,7 +182,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.some({ x: 1.5e6, y: -2.5e5 }), // 1,500,000 and -250,000
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: false
                 }
             }

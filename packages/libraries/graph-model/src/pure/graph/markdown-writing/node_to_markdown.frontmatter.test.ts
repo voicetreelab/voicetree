@@ -15,7 +15,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.some('#00FF00'),
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -37,7 +37,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.some('#00FF00'),
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -59,7 +59,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.some({ x: 100, y: 200 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -82,7 +82,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.none,
           position: O.some({ x: 497.79198993276833, y: -19.08618457963695 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -104,7 +104,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#FFAA00'),
           position: O.some({ x: 300, y: 400 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -128,7 +128,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#0000FF'),
           position: O.some({ x: 50, y: 75 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -153,7 +153,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.some('#AABBCC'),
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -174,7 +174,7 @@ describe('fromNodeToMarkdownContent', () => {
         nodeUIMetadata: {
           color: O.some('#DDEEFF'),
           position: O.some({ x: 10, y: 20 }),
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }
@@ -198,7 +198,7 @@ describe('fromNodeToMarkdownContent', () => {
           color: O.none,
           position: O.none,
 
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false
         }
       }

@@ -34,7 +34,7 @@ test('screenshot terminal-to-created-node dotted edge', async ({ page }) => {
             nodeUIMetadata: {
                 color: { _tag: 'None' } as const,
                 position: { _tag: 'Some', value: { x: 200, y: 200 } } as const,
-                additionalYAMLProps: new Map(),
+                additionalYAMLProps: {},
                 isContextNode: false
             }
         },
@@ -109,7 +109,7 @@ test('screenshot terminal-to-created-node dotted edge', async ({ page }) => {
             nodeUIMetadata: {
                 color: { _tag: 'Some', value: 'blue' } as const,
                 position: { _tag: 'Some', value: { x: 600, y: 300 } } as const,
-                additionalYAMLProps: new Map([['agent_name', 'Sam']]),
+                additionalYAMLProps: { agent_name: 'Sam' },
                 isContextNode: false
             }
         },

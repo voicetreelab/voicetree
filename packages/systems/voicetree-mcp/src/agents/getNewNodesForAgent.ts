@@ -16,7 +16,7 @@ function nodeAgentNameFromDisk(node: GraphNode, graph: Graph): string | undefine
     try {
         const content: string = readFileSync(node.absoluteFilePathIsID, 'utf8')
         return parseMarkdownToGraphNode(content, node.absoluteFilePathIsID, graph)
-            .nodeUIMetadata.additionalYAMLProps.get('agent_name')
+            .nodeUIMetadata.additionalYAMLProps['agent_name']
     } catch {
         return undefined
     }

@@ -30,7 +30,7 @@ function makeNode(id: string, position: O.Option<Position>): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

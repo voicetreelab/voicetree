@@ -178,6 +178,12 @@ function legacyFolderState(state: SerializedState): readonly (readonly [string, 
 // GRAPH NODE
 // ============================================================================
 
+function serializeRecord(record: Record<string, string>): readonly (readonly [string, string])[] {
+    return Object.entries(record)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, value]) => [key, value] as const)
+}
+
 export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
     return {
         kind: node.kind,
@@ -193,7 +199,7 @@ export function serializeGraphNode(node: GraphNode): SerializedGraphNode {
         nodeUIMetadata: {
             color: serializeOption(node.nodeUIMetadata.color),
             position: serializeOption(node.nodeUIMetadata.position),
-            additionalYAMLProps: serializeMap(node.nodeUIMetadata.additionalYAMLProps),
+            additionalYAMLProps: serializeRecord(node.nodeUIMetadata.additionalYAMLProps),
             ...(node.nodeUIMetadata.isContextNode === true ? { isContextNode: true } : {}),
             ...(node.nodeUIMetadata.containedNodeIds
                 ? { containedNodeIds: sortStrings(node.nodeUIMetadata.containedNodeIds) }
@@ -214,7 +220,7 @@ export function hydrateGraphNode(node: SerializedGraphNode): GraphNode {
         nodeUIMetadata: {
             color: hydrateOption(node.nodeUIMetadata.color),
             position: hydrateOption(node.nodeUIMetadata.position),
-            additionalYAMLProps: hydrateMap(node.nodeUIMetadata.additionalYAMLProps),
+            additionalYAMLProps: Object.fromEntries(node.nodeUIMetadata.additionalYAMLProps),
             ...(node.nodeUIMetadata.isContextNode === true ? { isContextNode: true } : {}),
             ...(node.nodeUIMetadata.containedNodeIds
                 ? { containedNodeIds: [...node.nodeUIMetadata.containedNodeIds] }

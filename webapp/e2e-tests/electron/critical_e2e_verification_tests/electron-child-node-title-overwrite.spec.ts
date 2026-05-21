@@ -244,7 +244,7 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
           nodeUIMetadata: {
             color: { _tag: 'None' },
             position: { _tag: 'Some', value: { x: 300, y: 300 } },
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
           },
         },

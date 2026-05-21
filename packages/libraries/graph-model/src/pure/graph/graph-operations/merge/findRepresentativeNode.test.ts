@@ -18,7 +18,7 @@ function createNode(
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     }
 }

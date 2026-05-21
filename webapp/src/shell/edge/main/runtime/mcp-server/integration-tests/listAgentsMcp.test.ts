@@ -63,7 +63,7 @@ function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, agentName?: 
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: agentName ? new Map([['agent_name', agentName]]) : new Map(),
+            additionalYAMLProps: agentName ? { agent_name: agentName } : {},
             isContextNode: false
         }
     }

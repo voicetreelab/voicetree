@@ -20,7 +20,7 @@ function buildGraph(nodeIds: readonly NodeIdAndFilePath[]): Graph {
         nodeUIMetadata: {
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map(),
+          additionalYAMLProps: {},
           isContextNode: false,
         },
       }

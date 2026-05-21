@@ -13,7 +13,7 @@ function createNodeWithPosition(id: string, position: O.Option<Position>): Graph
         nodeUIMetadata: {
             color: O.none,
             position,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
         },
     }

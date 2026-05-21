@@ -24,7 +24,7 @@ function createSingleNodeDelta(id: string, title: string, x: number, y: number):
       nodeUIMetadata: {
         color: { _tag: 'None' } as const,
         position: { _tag: 'Some', value: { x, y } } as const,
-        additionalYAMLProps: new Map(),
+        additionalYAMLProps: {},
         isContextNode: false
       }
     },

@@ -13,7 +13,7 @@ function makeNode(id: string, outgoingEdges: readonly Edge[] = [], position?: { 
         nodeUIMetadata: {
             color: O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
         },
     }

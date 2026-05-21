@@ -23,7 +23,7 @@ function createTestNode(nodeId: string, edgeCount: number = 0): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.some({ x: 0, y: 0 }),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

@@ -163,7 +163,7 @@ describe('L4-BF-197 — getCurrentLiveState round-trip for supported Command var
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.none,
-                        additionalYAMLProps: new Map(),
+                        additionalYAMLProps: {},
                         isContextNode: false,
                     },
                 },

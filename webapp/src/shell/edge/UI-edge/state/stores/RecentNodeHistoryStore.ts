@@ -48,7 +48,7 @@ function projectedNodeToRecentEntry(node: ProjectedNode): UpsertNodeDelta {
         nodeUIMetadata: {
             color: node.color ? O.some(node.color) : O.none,
             position: node.position ? O.some(node.position) : O.none,
-            additionalYAMLProps: new Map(node.additionalYAMLProps ?? []),
+            additionalYAMLProps: Object.fromEntries(node.additionalYAMLProps ?? []),
             isContextNode: node.isContextNode,
         },
     };

@@ -107,7 +107,7 @@ describe('MCP create_graph tool — node creation', () => {
                 : (() => { throw new Error('Expected UpsertNode delta') })()
 
             expect(upsertedNode.nodeUIMetadata.color).toEqual(O.some('green'))
-            expect(upsertedNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')).toBe('my-agent')
+            expect(upsertedNode.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('my-agent')
         })
 
         it('creates a node in a relative outputPath under the write path', async () => {

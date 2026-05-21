@@ -47,7 +47,7 @@ export function buildGraphNode(nodeId: NodeIdAndFilePath, content: string, optio
         nodeUIMetadata: {
             color: O.none,
             position: options?.position ? O.some(options.position) : O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: options?.isContextNode ?? false,
             containedNodeIds: options?.containedNodeIds
         }

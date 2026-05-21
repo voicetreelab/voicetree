@@ -263,7 +263,7 @@ function buildSequence(nodeA: string, nodeB: string, nodeC: string): CommandEntr
                     nodeUIMetadata: {
                         color: {_tag: 'None'},
                         position: {_tag: 'None'},
-                        additionalYAMLProps: new Map(),
+                        additionalYAMLProps: {},
                     },
                 },
             },

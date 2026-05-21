@@ -25,7 +25,7 @@ function makeNode(overrides: Partial<GraphNode> & { outgoingEdges?: GraphNode['o
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         },
         ...restOverrides
@@ -76,7 +76,7 @@ describe('getFolderChildNodeIds', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }),
@@ -97,7 +97,7 @@ describe('getFolderDescendantNodeIds', () => {
                 nodeUIMetadata: {
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map(),
+                    additionalYAMLProps: {},
                     isContextNode: true
                 }
             }),

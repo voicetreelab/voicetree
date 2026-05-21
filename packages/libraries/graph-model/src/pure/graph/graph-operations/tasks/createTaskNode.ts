@@ -49,8 +49,8 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
 
   // Merge optional initial YAML props (e.g. status='claimed') into parsed props.
   // Lets callers create the node already-claimed, avoiding a redundant second write.
-  const additionalYAMLProps: ReadonlyMap<string, string> = initialStatus
-    ? new Map([...parsedNode.nodeUIMetadata.additionalYAMLProps, ['status', initialStatus]])
+  const additionalYAMLProps: Record<string, string> = initialStatus
+    ? { ...parsedNode.nodeUIMetadata.additionalYAMLProps, status: initialStatus }
     : parsedNode.nodeUIMetadata.additionalYAMLProps
 
   // Position deliberately left O.none — the daemon's resolveInitialPositionsForDelta

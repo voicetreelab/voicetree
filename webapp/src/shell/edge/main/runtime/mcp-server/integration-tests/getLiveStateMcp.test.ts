@@ -77,7 +77,7 @@ function buildFixtureGraph(): Graph {
         nodeUIMetadata: {
             color: O.none,
             position: O.some({x: 1, y: 2}),
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false,
         },
     }

@@ -22,7 +22,7 @@ export function mockGraph(
             nodeUIMetadata: {
                 color: {_tag: 'None'} as import('fp-ts/lib/Option.js').Option<string>,
                 position: {_tag: 'None'} as import('fp-ts/lib/Option.js').Option<Position>,
-                additionalYAMLProps: new Map(),
+                additionalYAMLProps: {},
             },
         }
     }

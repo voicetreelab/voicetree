@@ -97,15 +97,13 @@ function valueToString(value: unknown): string {
 function extractAdditionalYAMLProps(
     rawYAMLData: Record<string, unknown>,
     keysWithExplicitFields: ReadonlySet<string>
-): ReadonlyMap<string, string> {
-    const additionalProps: ReadonlyMap<string, string> = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
+): Record<string, string> {
+    return Object.entries(rawYAMLData).reduce<Record<string, string>>((acc, [key, value]) => {
         if (!keysWithExplicitFields.has(key) && value !== undefined && value !== null) {
-            acc.set(key, valueToString(value))
+            return { ...acc, [key]: valueToString(value) }
         }
         return acc
-    }, new Map<string, string>())
-
-    return additionalProps
+    }, {})
 }
 
 // filename can be relative or absolute, prefer relative to watched vault.
@@ -141,7 +139,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
         : undefined
 
     // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata
-    const additionalYAMLProps: ReadonlyMap<string, string> = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
+    const additionalYAMLProps: Record<string, string> = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
 
     // Return node (title is derived via getNodeTitle when needed, not stored)
     return {

@@ -33,7 +33,7 @@ const createNode: (id: string, content?: string, edges?: readonly { readonly tar
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
   })

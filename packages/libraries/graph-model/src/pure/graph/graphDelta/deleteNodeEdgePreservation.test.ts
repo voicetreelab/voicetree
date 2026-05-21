@@ -23,7 +23,7 @@ function createNode(id: string, outgoingEdges: readonly { readonly targetId: str
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map(),
+            additionalYAMLProps: {},
             isContextNode: false
         }
     }

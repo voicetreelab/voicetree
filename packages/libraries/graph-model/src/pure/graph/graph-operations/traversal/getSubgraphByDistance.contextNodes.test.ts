@@ -19,7 +19,7 @@ const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: false
     }
 })
@@ -32,7 +32,7 @@ const createContextNode: (id: string, edges?: readonly string[]) => GraphNode = 
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
       isContextNode: true
     }
 })

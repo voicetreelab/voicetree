@@ -60,8 +60,7 @@ export async function notifyAgentOfUnseenNodes(
         const nodesFromOthers: readonly UnseenNode[] = unseenNodes.filter((node: UnseenNode) => {
             const graphNode: GraphNode | undefined = graph.nodes[node.nodeId]
             if (!graphNode) return true
-            const nodeAgentName: string | undefined = graphNode.nodeUIMetadata.additionalYAMLProps.get('agent_name')
-            return nodeAgentName !== agentName
+            return graphNode.nodeUIMetadata.additionalYAMLProps['agent_name'] !== agentName
         })
 
         const newUnseenNodes: readonly UnseenNode[] = nodesFromOthers.filter(

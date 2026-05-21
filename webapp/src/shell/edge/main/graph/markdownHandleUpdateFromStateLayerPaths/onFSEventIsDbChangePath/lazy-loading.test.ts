@@ -38,7 +38,7 @@ function createMockGraphNode(outgoingEdges: readonly Edge[]): GraphNode {
         nodeUIMetadata: {
             color: { _tag: 'None' },
             position: { _tag: 'None' },
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: {}
         }
     } as GraphNode
 }

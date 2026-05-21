@@ -14,7 +14,7 @@ function makeGraph(nodes: Record<string, {content: string; edges?: string[]; kin
             nodeUIMetadata: {
                 color: O.none,
                 position: O.none,
-                additionalYAMLProps: new Map(),
+                additionalYAMLProps: {},
             },
         }
     }

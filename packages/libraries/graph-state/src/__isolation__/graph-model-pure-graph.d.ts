@@ -15,7 +15,7 @@ export interface Edge { readonly targetId: NodeIdAndFilePath; readonly label: st
 export interface NodeUIMetadata {
     readonly color: Option<string>
     readonly position: Option<Position>
-    readonly additionalYAMLProps: ReadonlyMap<string, string>
+    readonly additionalYAMLProps: Record<string, string>
     readonly isContextNode?: boolean
     readonly containedNodeIds?: readonly NodeIdAndFilePath[]
 }

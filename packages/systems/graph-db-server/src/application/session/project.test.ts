@@ -16,7 +16,7 @@ function makeNode(id: string, content: string, position?: { x: number; y: number
     nodeUIMetadata: {
       color: O.none,
       position: position ? O.some(position) : O.none,
-      additionalYAMLProps: new Map(),
+      additionalYAMLProps: {},
     },
   }
 }
