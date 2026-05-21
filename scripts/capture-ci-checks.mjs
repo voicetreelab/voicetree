@@ -143,8 +143,14 @@ async function spawnCheck(check, env) {
             child.kill('SIGTERM')
             setTimeout(() => child.kill('SIGKILL'), 5_000).unref()
         }, timeoutMs)
-        child.stdout.on('data', chunk => { stdoutBuf += chunk.toString('utf8') })
-        child.stderr.on('data', chunk => { stderrBuf += chunk.toString('utf8') })
+        child.stdout.on('data', chunk => {
+            stdoutBuf += chunk.toString('utf8')
+            process.stdout.write(chunk)
+        })
+        child.stderr.on('data', chunk => {
+            stderrBuf += chunk.toString('utf8')
+            process.stderr.write(chunk)
+        })
         child.on('error', err => {
             clearTimeout(timer)
             resolve({exitCode: -1, signal: null, spawnError: String(err.message ?? err)})
