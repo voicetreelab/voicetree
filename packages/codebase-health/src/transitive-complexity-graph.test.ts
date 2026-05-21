@@ -6,7 +6,7 @@ import {buildCallGraph, type CallGraph, type FunctionNode} from './call-graph'
 import {scoreFunction} from './cogcx-scorer'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
-const REPO_ROOT = resolve(import.meta.dirname, '../..')
+const REPO_ROOT = resolve(import.meta.dirname, '../../..')
 const CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE = 1743
 const CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE = 270
 // 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function

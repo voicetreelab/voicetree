@@ -9,7 +9,7 @@
 //     --status=pass|fail|skip --duration-ms=1234 \
 //     [--display="..."] [--error-summary="..."] [--slow]
 
-import {recordCheckReport} from '../packages/systems/_ci-check-writer.ts'
+import {recordCheckReport} from '@vt/ci-reporting'
 
 function parseArgs(argv) {
     const opts = {

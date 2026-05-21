@@ -18,7 +18,7 @@ import { buildCallGraph, type CallGraph } from './call-graph'
 import { recordHealthMetric } from './_health-report-test-helpers'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../..')
+const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
 const CODEQL_TRANSITIVE_IMPURITY_BASELINE = 277
 const CANARY_TOLERANCE = 0.05
 const IMPURE_RATIO_BUDGET = 1
@@ -327,6 +327,6 @@ function topRoots(graph: CallGraph, ids: readonly string[]): readonly string[] {
 
 function functionId(sourceFile: SourceFile, node: MorphNode, name: string): string {
     const file = relative(REPO_ROOT, sourceFile.getFilePath()).replaceAll('\\', '/')
-    const line = sourceFile.getLineAndColumnAtPos(node.getStart(sourceFile)).line
+    const line = sourceFile.getLineAndColumnAtPos(node.getStart()).line
     return `${file}:${line}:${name}`
 }

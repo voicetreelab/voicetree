@@ -6,8 +6,8 @@ import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-const SYSTEMS_ROOT: string = TEST_FILE_DIR
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../..')
+const SYSTEMS_ROOT: string = resolve(REPO_ROOT, 'packages/systems')
 
 const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'graph-db-server',
@@ -115,7 +115,7 @@ function isConstDeclarationList(node: ts.VariableDeclarationList): boolean {
     return (node.flags & ts.NodeFlags.Const) !== 0
 }
 
-function isMapOrSetConstructor(expression: ts.Expression): boolean {
+function isMapOrSetConstructor(expression: ts.Expression): expression is ts.NewExpression & {expression: ts.Identifier} {
     return ts.isNewExpression(expression)
         && ts.isIdentifier(expression.expression)
         && (expression.expression.text === 'Map' || expression.expression.text === 'Set')

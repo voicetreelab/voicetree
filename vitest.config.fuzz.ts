@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config'
+import { createRequire } from 'node:module'
 import path from 'path'
 
-const ciCheckReporter = path.resolve(__dirname, 'packages/systems/_vitest-ci-check-reporter.ts')
+const require = createRequire(import.meta.url)
+const ciCheckReporter = require.resolve('@vt/ci-reporting/vitest-reporter')
 
 type FuzzCheckCfg = { readonly checkId: string; readonly checkName: string; readonly command: string }
 

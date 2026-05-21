@@ -14,8 +14,8 @@ import {dirname, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 import {describe, expect, it} from 'vitest'
 
-const SYSTEMS_ROOT = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(SYSTEMS_ROOT, '..', '..')
+const TEST_DIR = dirname(fileURLToPath(import.meta.url))
+const REPO_ROOT = resolve(TEST_DIR, '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'scripts', 'measures', 'src')
 const WORKFLOWS_DIR = join(REPO_ROOT, '.github', 'workflows')
 

@@ -25,12 +25,14 @@ const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
 
 const EXCLUDED_RELATIVE_PATHS: ReadonlySet<string> = new Set([
     'brain',
+    'packages/codebase-health',
+    'packages/libraries/ci-reporting',
     'vt-website-quartz',
     'voicetree-evals',
 ])
 
 const THIS_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
-export const DEFAULT_REPO_ROOT: string = resolve(THIS_FILE_DIR, '..', '..')
+export const DEFAULT_REPO_ROOT: string = resolve(THIS_FILE_DIR, '..', '..', '..')
 
 async function pathExists(path: string): Promise<boolean> {
     try {

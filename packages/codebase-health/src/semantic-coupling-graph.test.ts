@@ -5,7 +5,7 @@ import {buildCallGraph, type CallGraph} from './call-graph'
 import {discoverPackages, type PackageInfo} from './discover-packages'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
-const REPO_ROOT = resolve(import.meta.dirname, '../..')
+const REPO_ROOT = resolve(import.meta.dirname, '../../..')
 // Captured 2026-05-15 after widening discovery to whole repo and measuring
 // max community-level coupling across all directory containment depths.
 const SEMANTIC_COUPLING_MAX_PAIR_BASELINE = 217
@@ -148,7 +148,8 @@ function collectSemanticCouplingPairsAtDepth(
         const callerCommunity = communityAtDepth(callerSource.packageName, callerSource.relToSrc, depth)
         for (const calleeId of graph.callees(caller.id)) {
             const callee = graph.nodes.get(calleeId)
-            const calleeSource = callee ? sourceCommunityForPath(callee.file, packageContext) : undefined
+            if (!callee) continue
+            const calleeSource = sourceCommunityForPath(callee.file, packageContext)
             if (!calleeSource) continue
             const calleeCommunity = communityAtDepth(calleeSource.packageName, calleeSource.relToSrc, depth)
             if (calleeCommunity === callerCommunity) continue

@@ -5,13 +5,27 @@ import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
+const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
 
-const GATE_FILES: readonly string[] = [
-    'packages/systems/cross-package-coupling.test.ts',
-    'packages/systems/cognitive-complexity.test.ts',
-    'packages/systems/purity-ratio-ast.test.ts',
+type GateFile = {
+    readonly currentPath: string
+    readonly committedPath: string
+}
+
+const GATE_FILES: readonly GateFile[] = [
+    {
+        currentPath: 'packages/codebase-health/src/cross-package-coupling.test.ts',
+        committedPath: 'packages/systems/cross-package-coupling.test.ts',
+    },
+    {
+        currentPath: 'packages/codebase-health/src/cognitive-complexity.test.ts',
+        committedPath: 'packages/systems/cognitive-complexity.test.ts',
+    },
+    {
+        currentPath: 'packages/codebase-health/src/purity-ratio-ast.test.ts',
+        committedPath: 'packages/systems/purity-ratio-ast.test.ts',
+    },
 ]
 
 function gitShow(relativePath: string): string | null {
@@ -82,7 +96,8 @@ function checkBudgetsOnlyRatchetDown(
 
 describe('gate integrity — budgets only ratchet down', () => {
     it('all gate test files exist on disk', async () => {
-        const missing = GATE_FILES.filter(f => !existsSync(resolve(REPO_ROOT, f)))
+        const gateFilePaths = GATE_FILES.map(f => f.currentPath)
+        const missing = gateFilePaths.filter(f => !existsSync(resolve(REPO_ROOT, f)))
         await recordHealthMetric({
             metricId: 'gate-files-exist',
             metricName: 'Gate Files Exist',
@@ -92,21 +107,21 @@ describe('gate integrity — budgets only ratchet down', () => {
             budget: 0,
             comparison: 'lte',
             unit: 'files',
-            details: {missing, gateFiles: GATE_FILES},
+            details: {missing, gateFiles: gateFilePaths},
         })
         expect(missing, `Gate files missing: ${missing.join(', ')}`).toEqual([])
     })
 
     it('coupling budgets have not increased vs committed version', async () => {
-        const file = 'packages/systems/cross-package-coupling.test.ts'
-        const committed = gitShow(file)
+        const file = GATE_FILES[0]
+        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file), 'utf8')
+        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
         const pattern = /COUPLING_BUDGET[\s\S]*?\{[\s\S]*?\}/
         const committedBudgets = extractRecordBudgets(committed, pattern)
         const currentBudgets = extractRecordBudgets(current, pattern)
-        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file)
+        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file.currentPath)
 
         await recordHealthMetric({
             metricId: 'gate-coupling-budget-ratchet',
@@ -127,11 +142,11 @@ describe('gate integrity — budgets only ratchet down', () => {
     })
 
     it('cognitive complexity threshold has not increased vs committed version', async () => {
-        const file = 'packages/systems/cognitive-complexity.test.ts'
-        const committed = gitShow(file)
+        const file = GATE_FILES[1]
+        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file), 'utf8')
+        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
 
         const committedMax = extractNumericConst(committed, 'MAX_COGNITIVE_COMPLEXITY')
         const currentMax = extractNumericConst(current, 'MAX_COGNITIVE_COMPLEXITY')
@@ -146,22 +161,22 @@ describe('gate integrity — budgets only ratchet down', () => {
                 budget: committedMax,
                 comparison: 'lte',
                 unit: 'score',
-                details: {file, committedMax, currentMax},
+                details: {file: file.currentPath, committedMax, currentMax},
             })
             expect(currentMax, `MAX_COGNITIVE_COMPLEXITY raised from ${committedMax} to ${currentMax}`).toBeLessThanOrEqual(committedMax)
         }
     })
 
     it('cognitive complexity baseline budgets have not increased vs committed version', async () => {
-        const file = 'packages/systems/cognitive-complexity.test.ts'
-        const committed = gitShow(file)
+        const file = GATE_FILES[1]
+        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file), 'utf8')
+        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
         const pattern = /BASELINE_COMPLEXITY_BUDGETS[\s\S]*?new Map\(\[[\s\S]*?\]\)/
         const committedBudgets = extractMapBudgets(committed, pattern)
         const currentBudgets = extractMapBudgets(current, pattern)
-        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file)
+        const violations = checkBudgetsOnlyRatchetDown(committedBudgets, currentBudgets, file.currentPath)
 
         await recordHealthMetric({
             metricId: 'gate-cognitive-baseline-ratchet',
@@ -182,11 +197,11 @@ describe('gate integrity — budgets only ratchet down', () => {
     })
 
     it('purity ratio threshold has not decreased vs committed version', async () => {
-        const file = 'packages/systems/purity-ratio-ast.test.ts'
-        const committed = gitShow(file)
+        const file = GATE_FILES[2]
+        const committed = gitShow(file.currentPath) ?? gitShow(file.committedPath)
         if (!committed) return
 
-        const current = readFileSync(resolve(REPO_ROOT, file), 'utf8')
+        const current = readFileSync(resolve(REPO_ROOT, file.currentPath), 'utf8')
         const committedMin = extractNumericConst(committed, 'MIN_PURITY_PERCENT')
         const currentMin = extractNumericConst(current, 'MIN_PURITY_PERCENT')
 
@@ -200,7 +215,7 @@ describe('gate integrity — budgets only ratchet down', () => {
                 budget: committedMin,
                 comparison: 'gte',
                 unit: 'percent',
-                details: {file, committedMin, currentMin},
+                details: {file: file.currentPath, committedMin, currentMin},
             })
             expect(currentMin, `MIN_PURITY_PERCENT lowered from ${committedMin} to ${currentMin}`).toBeGreaterThanOrEqual(committedMin)
         }

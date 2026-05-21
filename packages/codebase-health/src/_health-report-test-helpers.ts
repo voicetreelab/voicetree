@@ -1,4 +1,4 @@
-import {recordHealthReport, type HealthReport} from './_health-report-writer'
+import {recordHealthReport, type HealthReport} from '@vt/ci-reporting/health-report-writer'
 
 type HealthReportInput = Omit<HealthReport, 'passed' | 'timestamp'> & {
     readonly passed?: boolean

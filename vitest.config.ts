@@ -1,7 +1,9 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import { existsSync, readdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'path'
 
+const require = createRequire(import.meta.url)
 const pathSegments = process.cwd().split(/[\\/]+/)
 const isRunningInsideWorktree = pathSegments.includes('.worktrees')
 const sharedExclude = [
@@ -46,7 +48,7 @@ const nestedGitRootExcludes = (root: string): string[] => {
   walk(root, '')
   return found
 }
-const ciCheckReporter = path.resolve(__dirname, 'packages/systems/_vitest-ci-check-reporter.ts')
+const ciCheckReporter = require.resolve('@vt/ci-reporting/vitest-reporter')
 const isOrangeGate = process.argv.some(arg =>
   arg.includes('hierarchical-complexity.test.ts')
   || arg.includes('behavioral-complexity.test.ts')
