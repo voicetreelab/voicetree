@@ -42,8 +42,8 @@ export function initializeGraphModel(): void {
     })
 
     const callbacks: GraphModelCallbacks = {
-        onFloatingEditorUpdate(delta: GraphDelta): void {
-            uiAPI.updateFloatingEditorsFromExternal(delta)
+        onFloatingEditorUpdate(delta: GraphDelta, suppressForSubscribers?: readonly string[]): void {
+            uiAPI.updateFloatingEditorsFromExternal(delta, suppressForSubscribers ?? [])
         },
         onGraphCleared(): void {
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()

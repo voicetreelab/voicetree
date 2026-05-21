@@ -97,6 +97,18 @@ function formatDirectoryFanoutViolation(violation: DirectoryFanout): string {
     ].join('\n')
 }
 
+const DIRECTORY_FANOUT_REMEDIATION: string = [
+    '',
+    'Remediation:',
+    `  A source directory holding more than ${MAX_DIRECTORY_CHILDREN} immediate children`,
+    '  has stopped being a coherent module. Reorganise the listed directories',
+    '  into subfolders that reflect the semantic / code structure (e.g. group',
+    '  lifecycle files under `lifecycle/`, HTTP wiring under `server/`, state',
+    '  files under `state/`). Update relative imports accordingly. Do NOT raise',
+    '  the limit — that would be reward-hacking this gate.',
+    '',
+].join('\n')
+
 function formatFileLineViolation(violation: FileLineCount): string {
     return `${violation.file}: ${violation.lineCount} lines`
 }
@@ -125,8 +137,9 @@ describe('systems codebase shape', () => {
             },
         })
 
+        const formattedViolations = violations.map(formatDirectoryFanoutViolation).join('\n\n')
         expect(
-            violations.map(formatDirectoryFanoutViolation).join('\n\n'),
+            formattedViolations === '' ? '' : `${formattedViolations}\n${DIRECTORY_FANOUT_REMEDIATION}`,
         ).toBe('')
     })
 

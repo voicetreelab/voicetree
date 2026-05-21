@@ -9,8 +9,8 @@
 # that are already configured.
 #
 # Usage:
-#   bash scripts/git-gate/install.sh           # interactive, prompts for password
-#   bash scripts/git-gate/install.sh --no-password   # skip password setup
+#   bash scripts/dev-setup/git-gate/install.sh           # interactive, prompts for password
+#   bash scripts/dev-setup/git-gate/install.sh --no-password   # skip password setup
 
 set -euo pipefail
 

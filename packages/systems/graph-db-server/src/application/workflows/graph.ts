@@ -17,7 +17,9 @@ import {
   composeFindFileResponse,
   composeGraphResponse,
   graphWithUpdatedPositions,
+  parseWriteMarkdownFileRequest,
   parseWritePositionsRequest,
+  writeMarkdownFileFromRequest,
 } from '../core/graph/index.ts'
 import { executeCommand } from './dispatch.ts'
 import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
@@ -251,6 +253,24 @@ export async function writePositionsWorkflow(rawBody: unknown): Promise<HttpResu
     return jsonResult({ written: result.written })
   } catch (error) {
     return errorResult((error as Error).message, 'WRITE_POSITIONS_FAILED', 500)
+  }
+}
+
+export async function writeMarkdownFileWorkflow(rawBody: unknown): Promise<HttpResult> {
+  const projectRoot = await executeCommand({ type: 'GetWatchedDirectory' })
+  if (!projectRoot) {
+    return structuredVaultErrorResult(new VaultNotOpenError())
+  }
+
+  const parsed = await parseWriteMarkdownFileRequest(rawBody, projectRoot)
+  if (!parsed.ok) {
+    return errorResult(parsed.error, parsed.code, parsed.status)
+  }
+
+  try {
+    return jsonResult(await writeMarkdownFileFromRequest(parsed))
+  } catch (error) {
+    return errorResult((error as Error).message, 'WRITE_MARKDOWN_FILE_FAILED', 500)
   }
 }
 

@@ -3,11 +3,13 @@ import path from 'path'
 const PENDING_WRITE_TTL_MS = 5000
 
 type PendingKind = 'write' | 'delete'
+type EditorId = string
 
 interface PendingEntry {
     count: number
     readonly timers: Set<ReturnType<typeof setTimeout>>
     readonly clearTimer: (timer: ReturnType<typeof setTimeout>) => void
+    readonly suppressBroadcastTo: Set<EditorId>
 }
 
 interface PendingTimerDependencies {
@@ -38,6 +40,7 @@ function getPendingMap(kind: PendingKind): Map<string, PendingEntry> {
 function incrementPending(
     kind: PendingKind,
     absolutePath: string,
+    opts: { suppressBroadcastTo?: EditorId } = {},
     dependencies: PendingTimerDependencies = defaultPendingTimerDependencies,
 ): void {
     const pendingMap: Map<string, PendingEntry> = getPendingMap(kind)
@@ -46,6 +49,7 @@ function incrementPending(
         count: 0,
         timers: new Set(),
         clearTimer: dependencies.clearTimer,
+        suppressBroadcastTo: new Set(),
     }
 
     const timer: ReturnType<typeof setTimeout> = dependencies.setTimer(() => {
@@ -58,6 +62,9 @@ function incrementPending(
     }
 
     entry.count += 1
+    if (kind === 'write' && opts.suppressBroadcastTo) {
+        entry.suppressBroadcastTo.add(opts.suppressBroadcastTo)
+    }
     entry.timers.add(timer)
     pendingMap.set(normalizedPath, entry)
 }
@@ -80,8 +87,11 @@ function decrementPending(kind: PendingKind, absolutePath: string): void {
     }
 }
 
-export function markPendingWrite(absolutePath: string): void {
-    incrementPending('write', absolutePath)
+export function markPendingWrite(
+    absolutePath: string,
+    opts: { suppressBroadcastTo?: EditorId } = {},
+): void {
+    incrementPending('write', absolutePath, opts)
 }
 
 export function markPendingDelete(absolutePath: string): void {
@@ -103,4 +113,16 @@ export function clearPendingWrite(absolutePath: string): void {
     }
 
     decrementPending('delete', normalizedPath)
+}
+
+export function consumeBroadcastSuppression(absolutePath: string): ReadonlySet<EditorId> {
+    const normalizedPath: string = normalizePath(absolutePath)
+    const entry: PendingEntry | undefined = pendingWrites.get(normalizedPath)
+    if (!entry) {
+        return new Set()
+    }
+
+    const suppression: ReadonlySet<EditorId> = new Set(entry.suppressBroadcastTo)
+    decrementPending('write', normalizedPath)
+    return suppression
 }

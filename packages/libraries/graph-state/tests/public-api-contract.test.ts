@@ -79,6 +79,18 @@ describe('@vt/graph-state public API contract', () => {
     }))
   })
 
+  it('normalizes projected markdown content to LF line endings', () => {
+    state = {
+      ...state,
+      graph: createGraph({ [alphaId]: leaf(alphaId, '# Alpha\r\n\r\nStart here.\r\n') }),
+    }
+
+    expect(project(state).nodes).toContainEqual(expect.objectContaining({
+      id: alphaId,
+      content: '# Alpha\n\nStart here.\n',
+    }))
+  })
+
   it('AddNode adds the node to the graph delta', () => {
     expect(apply({ type: 'AddNode', node: beta }).graph).toHaveLength(1)
   })

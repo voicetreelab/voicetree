@@ -7,7 +7,7 @@ import {type EditorId, getEditorId} from '@/shell/edge/UI-edge/floating-windows/
 import {type EditorData, vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {fromNodeToContentWithWikilinks} from '@vt/graph-model/markdown';
-import {getAppendedSuffix, isAppendOnly} from "@vt/graph-model/graph";
+import {getAppendedSuffix, isAppendOnly, normalizeContentForEchoComparison} from "@vt/graph-model/graph";
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView';
 import {closeEditor} from './FloatingEditorCRUD';
 
@@ -15,12 +15,28 @@ import {closeEditor} from './FloatingEditorCRUD';
 // Update Floating Editors
 // =============================================================================
 
+function contentMatchesForEchoComparison(left: string, right: string): boolean {
+    if (left === right) {
+        return true;
+    }
+    if (isAppendOnly(left, right) || isAppendOnly(right, left)) {
+        return false;
+    }
+    return normalizeContentForEchoComparison(left) === normalizeContentForEchoComparison(right);
+}
+
 /**
  * Update floating editors based on graph delta
  * For each node upsert, check if there's an open editor and update its content
  * Editor shows content WITHOUT YAML - uses fromNodeToContentWithWikilinks
  */
-export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuard: boolean = false): void {
+export function updateFloatingEditors(
+    cy: Core,
+    delta: GraphDelta,
+    suppressForSubscribers: readonly string[] = [],
+): void {
+    const suppressedEditors: ReadonlySet<string> = new Set(suppressForSubscribers);
+
     for (const nodeDelta of delta) {
         if (nodeDelta.type === 'UpsertNode') {
             const nodeId: string = nodeDelta.nodeToUpsert.absoluteFilePathIsID;
@@ -32,6 +48,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
             if (O.isSome(editorOption)) {
                 const editor: EditorData = editorOption.value;
                 const editorId: EditorId = getEditorId(editor);
+                if (suppressedEditors.has(editorId)) {
+                    continue;
+                }
 
                 // Get the editor instance from vanillaFloatingWindowInstances
                 const editorInstance: { dispose: () => void; focus?: () => void } | undefined =
@@ -41,7 +60,7 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                     const cmEditor: CodeMirrorEditorView = editorInstance as CodeMirrorEditorView;
                     const currentEditorContent: string = cmEditor.getValue();
 
-                    if (currentEditorContent === newContent) {
+                    if (contentMatchesForEchoComparison(currentEditorContent, newContent)) {
                         continue;
                     }
 
@@ -56,7 +75,10 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                             // whose echo we're seeing now), this delta is
                             // redundant — re-appending the suffix would
                             // duplicate it.
-                            if (currentEditorContent.startsWith(newContent)) {
+                            if (
+                                currentEditorContent.startsWith(newContent) ||
+                                contentMatchesForEchoComparison(currentEditorContent, newContent)
+                            ) {
                                 continue;
                             }
                             const suffix: string = getAppendedSuffix(prevContent, newContent);
@@ -71,18 +93,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
                         }
                     }
 
-                    // Skip non-append programmatic updates while the user is
-                    // actively typing — the autosave round-trip would clobber
-                    // newer characters.  In daemon mode, echo filtering happens
-                    // at the SSE layer so all deltas reaching here are external;
-                    // skipFocusGuard bypasses this guard for those.
-                    if (!skipFocusGuard && cmEditor.isFocused()) {
-                        continue;
-                    }
-
                     if (O.isSome(nodeDelta.previousNode)) {
                         const prevContent: string = fromNodeToContentWithWikilinks(nodeDelta.previousNode.value);
-                        if (currentEditorContent !== prevContent) {
+                        if (!contentMatchesForEchoComparison(currentEditorContent, prevContent)) {
                             continue;
                         }
                     }
@@ -96,6 +109,9 @@ export function updateFloatingEditors(cy: Core, delta: GraphDelta, skipFocusGuar
             const editorOption: O.Option<EditorData> = getEditorByNodeId(nodeId);
 
             if (O.isSome(editorOption)) {
+                if (suppressedEditors.has(getEditorId(editorOption.value))) {
+                    continue;
+                }
                 //console.log('[FloatingEditorManager-v2] Closing editor for deleted node:', nodeId);
                 closeEditor(cy, editorOption.value);
             }
@@ -179,6 +195,6 @@ export function updateFloatingEditorsFromProjectedGraph(
     }
 
     if (delta.length > 0) {
-        updateFloatingEditors(cy, delta);
+        updateFloatingEditors(cy, delta, graph.suppressForSubscribers ?? []);
     }
 }

@@ -191,6 +191,7 @@ export interface ProjectedGraph {
     readonly arboricity: number
     readonly recentNodeIds: readonly string[]
     readonly seq?: number
+    readonly suppressForSubscribers?: readonly string[]
     readonly replayReset?: {
         readonly reason: 'buffer_evicted'
         readonly requestedSince: number

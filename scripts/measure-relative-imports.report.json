@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-21T04:00:10.173Z",
-  "sourceFileCount": 787,
+  "generatedAt": "2026-05-21T04:47:21.023Z",
+  "sourceFileCount": 793,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -15,6 +15,7 @@
       "packages/systems/graph-db-server/src",
       "packages/systems/voicetree-mcp/src",
       "packages/libraries/app-config/src",
+      "packages/libraries/ci-reporting/src",
       "packages/libraries/graph-db-protocol/src",
       "packages/libraries/graph-model/src",
       "packages/libraries/graph-state/src",
@@ -34,15 +35,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1268,
-    "samePackageRelativeImports": 1268,
+    "relativeImports": 1273,
+    "samePackageRelativeImports": 1273,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 733,
-    "../x": 535,
+    "./x": 737,
+    "../x": 536,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +64,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 213,
-      "samePackageRelativeImports": 213,
+      "relativeImports": 216,
+      "samePackageRelativeImports": 216,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 109,
-        "../x": 104,
+        "./x": 111,
+        "../x": 105,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -89,11 +90,11 @@
     {
       "package": "voicetree-webapp",
       "packageRoot": "webapp",
-      "relativeImports": 181,
-      "samePackageRelativeImports": 181,
+      "relativeImports": 182,
+      "samePackageRelativeImports": 182,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 173,
+        "./x": 174,
         "../x": 8,
         "../../x": 0,
         "../../../+x": 0
@@ -159,6 +160,19 @@
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 10,
+        "../x": 0,
+        "../../x": 0,
+        "../../../+x": 0
+      }
+    },
+    {
+      "package": "@vt/ci-reporting",
+      "packageRoot": "packages/libraries/ci-reporting",
+      "relativeImports": 1,
+      "samePackageRelativeImports": 1,
+      "crossPackageRelativeImports": 0,
+      "samePackageByDepth": {
+        "./x": 1,
         "../x": 0,
         "../../x": 0,
         "../../../+x": 0

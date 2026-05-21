@@ -16,7 +16,10 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI";
 import { getFilePathForNode, getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI";
 import { fromNodeToContentWithWikilinks } from "@vt/graph-model/markdown";
-import { modifyNodeContentFromUI } from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import {
+    WORKFLOW_INJECTION_WRITER_ID,
+    writeMarkdownFileFromUI
+} from "@/shell/edge/UI-edge/floating-windows/editors/writeMarkdownFileFromUI";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
 import { getDefaultAgent } from "@vt/graph-model/settings";
@@ -224,8 +227,8 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                                 const existing: string = fromNodeToContentWithWikilinks(currentNode);
                                 const appended: string = existing ? `${existing}\n\n${content}` : content;
                                 console.log('[workflow-inject] appended content length:', appended.length);
-                                await modifyNodeContentFromUI(nodeId, appended, cy, true);
                                 await createAnchoredFloatingEditor(cy, nodeId, false);
+                                await writeMarkdownFileFromUI(nodeId, appended, WORKFLOW_INJECTION_WRITER_ID);
                             } : () => {},
                             ...(hasChildren ? {
                                 getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => buildItems(wf.children),
