@@ -36,15 +36,21 @@ case "$sub" in
     if [[ ! "$rest" =~ (^|[[:space:]])(--continue|--abort|--quit)([[:space:]]|$) ]]; then
       target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
       current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
-      # Only gate merges INTO protected branches (dev-manu). Merges INTO any
-      # worktree / feature branch are allowed without password — they're
-      # cheap-to-revert local integration steps.
-      case "$current_branch" in
-        dev-manu)
-          reason="merging ${target_branch:-branch} into ${current_branch}"
-          merge_assertion="yes_tests_and_measures_green"
-          ;;
-      esac
+      # Only gate merges performed in the MAIN worktree (primary checkout
+      # tied directly to .git/). Merges in linked worktrees (`.worktrees/*`,
+      # created via `git worktree add`) are cheap-to-revert local integration
+      # steps and pass through.
+      # Detection: in the main worktree, --git-dir and --git-common-dir resolve
+      # to the same path. In a linked worktree, --git-dir points inside
+      # <repo>/.git/worktrees/<name>/ while --git-common-dir is the shared .git.
+      gd="$("$REAL_GIT" rev-parse --git-dir 2>/dev/null)"
+      gcd="$("$REAL_GIT" rev-parse --git-common-dir 2>/dev/null)"
+      gd_abs="$(cd "$gd" 2>/dev/null && pwd -P)"
+      gcd_abs="$(cd "$gcd" 2>/dev/null && pwd -P)"
+      if [ -n "$gd_abs" ] && [ "$gd_abs" = "$gcd_abs" ]; then
+        reason="merging ${target_branch:-branch} into ${current_branch} (main worktree)"
+        merge_assertion="yes_tests_and_measures_green"
+      fi
     fi
     ;;
   reset)
