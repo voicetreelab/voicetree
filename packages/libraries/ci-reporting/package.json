@@ -1,0 +1,20 @@
+{
+  "name": "@vt/ci-reporting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/ci-check-writer.ts",
+  "exports": {
+    ".": "./src/ci-check-writer.ts",
+    "./health-report-writer": "./src/health-report-writer.ts",
+    "./vitest-reporter": "./src/vitest-ci-check-reporter.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

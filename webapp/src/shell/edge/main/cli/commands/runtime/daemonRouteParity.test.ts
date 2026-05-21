@@ -125,6 +125,12 @@ describe('daemon CLI route parity', () => {
             },
             {
                 method: 'POST',
+                path: '/graph/write-markdown-file',
+                reason:
+                    '`/graph/write-markdown-file` is the floating markdown editor save endpoint; it writes body text to disk while preserving daemon-owned frontmatter.',
+            },
+            {
+                method: 'POST',
                 path: '/graph/undo',
                 reason:
                     '`/graph/undo` reverses the last graph mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-19T12:26:55.393Z",
-  "sourceFileCount": 785,
+  "generatedAt": "2026-05-21T04:52:51.333Z",
+  "sourceFileCount": 794,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -15,6 +15,7 @@
       "packages/systems/graph-db-server/src",
       "packages/systems/voicetree-mcp/src",
       "packages/libraries/app-config/src",
+      "packages/libraries/ci-reporting/src",
       "packages/libraries/graph-db-protocol/src",
       "packages/libraries/graph-model/src",
       "packages/libraries/graph-state/src",
@@ -34,15 +35,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1273,
-    "samePackageRelativeImports": 1273,
+    "relativeImports": 1281,
+    "samePackageRelativeImports": 1281,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 736,
-    "../x": 537,
+    "./x": 738,
+    "../x": 543,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +64,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 219,
-      "samePackageRelativeImports": 219,
+      "relativeImports": 216,
+      "samePackageRelativeImports": 216,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 113,
-        "../x": 106,
+        "./x": 111,
+        "../x": 105,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -76,12 +77,12 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 186,
-      "samePackageRelativeImports": 186,
+      "relativeImports": 195,
+      "samePackageRelativeImports": 195,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 65,
-        "../x": 121,
+        "./x": 67,
+        "../x": 128,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -89,11 +90,11 @@
     {
       "package": "voicetree-webapp",
       "packageRoot": "webapp",
-      "relativeImports": 181,
-      "samePackageRelativeImports": 181,
+      "relativeImports": 182,
+      "samePackageRelativeImports": 182,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 173,
+        "./x": 174,
         "../x": 8,
         "../../x": 0,
         "../../../+x": 0
@@ -163,6 +164,19 @@
         "../../x": 0,
         "../../../+x": 0
       }
+    },
+    {
+      "package": "@vt/ci-reporting",
+      "packageRoot": "packages/libraries/ci-reporting",
+      "relativeImports": 1,
+      "samePackageRelativeImports": 1,
+      "crossPackageRelativeImports": 0,
+      "samePackageByDepth": {
+        "./x": 1,
+        "../x": 0,
+        "../../x": 0,
+        "../../../+x": 0
+      }
     }
   ],
   "worstOffenders": [
@@ -187,7 +201,7 @@
     {
       "file": "packages/systems/agent-runtime/src/api/index.ts",
       "package": "@vt/agent-runtime",
-      "relativeImports": 21,
+      "relativeImports": 23,
       "crossPackageRelativeImports": 0
     },
     {
@@ -197,26 +211,26 @@
       "crossPackageRelativeImports": 0
     },
     {
+      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
+      "package": "@vt/agent-runtime",
+      "relativeImports": 18,
+      "crossPackageRelativeImports": 0
+    },
+    {
       "file": "packages/libraries/graph-model/src/graph.ts",
       "package": "@vt/graph-model",
       "relativeImports": 17,
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/libraries/graph-state/src/index.ts",
-      "package": "@vt/graph-state",
-      "relativeImports": 16,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
-      "package": "@vt/agent-runtime",
-      "relativeImports": 16,
-      "crossPackageRelativeImports": 0
-    },
-    {
       "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
       "package": "@vt/graph-db-server",
+      "relativeImports": 17,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/libraries/graph-state/src/index.ts",
+      "package": "@vt/graph-state",
       "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },

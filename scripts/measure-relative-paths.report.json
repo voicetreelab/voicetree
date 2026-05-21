@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-19T12:26:55.184Z",
-  "sourceFileCount": 785,
+  "generatedAt": "2026-05-21T04:52:52.198Z",
+  "sourceFileCount": 794,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -15,6 +15,7 @@
       "packages/systems/graph-db-server/src",
       "packages/systems/voicetree-mcp/src",
       "packages/libraries/app-config/src",
+      "packages/libraries/ci-reporting/src",
       "packages/libraries/graph-db-protocol/src",
       "packages/libraries/graph-model/src",
       "packages/libraries/graph-state/src",

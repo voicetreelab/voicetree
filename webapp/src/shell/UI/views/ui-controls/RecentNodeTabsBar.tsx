@@ -28,6 +28,7 @@ import {
 } from '@/shell/edge/UI-edge/state/stores/EditorStore';
 import { Pin } from 'lucide-react';
 import { formatShortcut } from '@vt/graph-model/utils';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 const TAB_WIDTH: number = 90;
 
@@ -71,6 +72,7 @@ function RecentTab({ entry, index, onNavigate }: RecentTabProps): JSX.Element {
     const nodeId: string = entry.nodeToUpsert.absoluteFilePathIsID;
     const label: string = getNodeTitle(entry.nodeToUpsert);
     const shortcutNumber: number = index + 1;
+    const shortcutPlatform = getShortcutPlatform();
 
     const handleClick: () => void = useCallback((): void => {
         onNavigate(nodeId);
@@ -87,7 +89,7 @@ function RecentTab({ entry, index, onNavigate }: RecentTabProps): JSX.Element {
             >
                 <span className="recent-tab-text">{label}</span>
             </button>
-            <span className="recent-tab-shortcut-hint">{formatShortcut(shortcutNumber.toString())}</span>
+            <span className="recent-tab-shortcut-hint">{formatShortcut(shortcutNumber.toString(), shortcutPlatform)}</span>
         </div>
     );
 }

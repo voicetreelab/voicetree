@@ -59,8 +59,10 @@ describe('folderState routes', () => {
     )
 
     expect(response.status).toBe(200)
+    // setWritePath seeds the writePath as 'expanded' on cold mount so the
+    // sidebar can show its contents. Children default collapsed.
     expect(await response.json()).toMatchObject({
-      folderState: [],
+      folderState: [[vault, 'expanded']],
       activeView: { name: 'main' },
     })
   })
@@ -100,7 +102,11 @@ describe('folderState routes', () => {
 
     expect(batch.status).toBe(200)
     const body = await batch.json()
+    // folderState is ordered by path ASC. The PATCHed rows are interleaved
+    // with the seeded [vault, 'expanded'] writePath row (children of vault
+    // sort after vault itself).
     expect(body.folderState).toEqual([
+      [vault, 'expanded'],
       [docsPath, 'collapsed'],
       [notesPath, 'collapsed'],
       [srcPath, 'expanded'],

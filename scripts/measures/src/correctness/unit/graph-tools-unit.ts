@@ -7,4 +7,6 @@ export const check: CheckDef = {
     display: 'npm --workspace @vt/graph-tools run test',
     args: (jsonOut) => npmWorkspaceRun('@vt/graph-tools', 'test', vitestJsonArgs(jsonOut)),
     parser: 'vitest',
+    // CLI/vt-headless tests time out under nested full-suite parallelism.
+    exclusive: true,
 }

@@ -1,10 +1,10 @@
 import {execSync} from 'node:child_process'
 import {existsSync, readFileSync} from 'node:fs'
 import {readdir, readFile, stat} from 'node:fs/promises'
-import {dirname, join, relative, resolve} from 'node:path'
+import {basename, dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
-import {recordHealthReport} from '../packages/systems/_health-report-writer.ts'
+import {recordHealthReport} from '@vt/ci-reporting/health-report-writer'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
@@ -646,6 +646,18 @@ function changedStatusEntries() {
   return output.split('\n').map(line => line.trimEnd()).filter(Boolean)
 }
 
+function isExpectedCodebaseHealthScriptMove(scriptName, current, committed) {
+  return scriptName === 'test:codebase-health'
+    && current === 'npm --workspace @vt/codebase-health run test'
+    && typeof committed === 'string'
+    && committed.startsWith('vitest run packages/systems/')
+}
+
+function isMovedCodebaseHealthTest(path) {
+  if (!/^packages\/systems\/[^/]+\.test\.ts$/.test(path)) return false
+  return existsSync(join(REPO_ROOT, 'packages/codebase-health/src', basename(path)))
+}
+
 function guardFindings() {
   const findings = []
   const currentPackageJson = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8'))
@@ -653,7 +665,12 @@ function guardFindings() {
   if (committedPackageJsonRaw) {
     const committedPackageJson = JSON.parse(committedPackageJsonRaw)
     for (const scriptName of ['test', 'test:codebase-health', 'check:coupling', 'check:circular-deps']) {
-      if (currentPackageJson.scripts?.[scriptName] !== committedPackageJson.scripts?.[scriptName]) {
+      const currentScript = currentPackageJson.scripts?.[scriptName]
+      const committedScript = committedPackageJson.scripts?.[scriptName]
+      if (
+        currentScript !== committedScript
+        && !isExpectedCodebaseHealthScriptMove(scriptName, currentScript, committedScript)
+      ) {
         findings.push(`package.json script "${scriptName}" changed; complexity pressure must not be won by relaxing green gates`)
       }
     }
@@ -663,15 +680,16 @@ function guardFindings() {
     .filter(line => line.startsWith('D ') || line.startsWith(' D'))
     .map(line => line.slice(2).trim())
     .filter(path => /\.(test|spec)\.(ts|tsx|js|jsx)$/.test(path))
+    .filter(path => !isMovedCodebaseHealthTest(path))
   if (deletedTests.length > 0) {
     findings.push(`deleted test files detected: ${deletedTests.join(', ')}`)
   }
 
   for (const file of [
-    'packages/systems/gate-integrity.test.ts',
-    'packages/systems/purity-ratio-ast.test.ts',
-    'packages/systems/cognitive-complexity.test.ts',
-    'packages/systems/cross-package-coupling.test.ts',
+    'packages/codebase-health/src/gate-integrity.test.ts',
+    'packages/codebase-health/src/purity-ratio-ast.test.ts',
+    'packages/codebase-health/src/cognitive-complexity.test.ts',
+    'packages/codebase-health/src/cross-package-coupling.test.ts',
   ]) {
     if (!existsSync(join(REPO_ROOT, file))) findings.push(`required health gate file missing: ${file}`)
   }

@@ -6,7 +6,7 @@ import { CONTRACT_VERSION } from './contract.ts'
 import { createDaemonApp } from '../routes/daemonApp.ts'
 import type { LockHandle } from './lock.ts'
 import type { BoundDaemonHttpServer } from './daemonHttpServer.ts'
-import type { DaemonWatcherController } from './daemonWatcherLifecycle.ts'
+import type { DaemonWatcherController } from './lifecycle/daemonWatcherLifecycle.ts'
 import {
   type DaemonHandle,
   type StartDaemonOptions,
@@ -15,15 +15,16 @@ import {
   resolveDaemonClock,
   resolveDaemonLogger,
 } from './daemonTypes.ts'
-import { acquireDaemonLock } from './daemonLockLifecycle.ts'
+import { acquireDaemonLock } from './lifecycle/daemonLockLifecycle.ts'
 import {
   initDaemonGraphModel,
   resetDaemonGraphState,
-} from './daemonGraphLifecycle.ts'
-import { startDaemonWatcher } from './daemonWatcherLifecycle.ts'
+} from './lifecycle/daemonGraphLifecycle.ts'
+import { startParentWatch, type ParentWatchHandle } from './lifecycle/daemonParentWatch.ts'
+import { startDaemonWatcher } from './lifecycle/daemonWatcherLifecycle.ts'
 import { createIdleSessionTimer } from './daemonIdleSessions.ts'
 import { bindDaemonHttpServer } from './daemonHttpServer.ts'
-import { deleteDaemonPortFile, writeDaemonPortFile } from './daemonPortLifecycle.ts'
+import { deleteDaemonPortFile, writeDaemonPortFile } from './lifecycle/daemonPortLifecycle.ts'
 import {
   closeVaultWorkflow,
   configureVaultLifecycle,
@@ -43,6 +44,7 @@ const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
 type OwnedDaemonResources = {
   clearIdleSessionTimer: () => void
   httpServer: BoundDaemonHttpServer | null
+  parentWatch: ParentWatchHandle | null
 }
 
 type CleanupOptions = {
@@ -56,6 +58,7 @@ async function cleanupOwnedDaemon(
   options: CleanupOptions,
 ): Promise<void> {
   try {
+    resources.parentWatch?.stop()
     resources.clearIdleSessionTimer()
     await resources.httpServer?.close()
     await closeVaultWorkflow()
@@ -80,6 +83,7 @@ async function startOwnedDaemon(
   const resources: OwnedDaemonResources = {
     clearIdleSessionTimer: () => {},
     httpServer: null,
+    parentWatch: null,
   }
   let watcher: DaemonWatcherController | null = null
   let portFileVault: string | null = null
@@ -174,6 +178,25 @@ async function startOwnedDaemon(
         createStarterIfEmpty: opts.createStarterIfEmpty,
       })
       registry.clear()
+    }
+
+    if (opts.exitOnParentDeath) {
+      resources.parentWatch = startParentWatch({
+        onOrphaned: () => {
+          logger.writeStderr('vt-graphd: parent process exited, shutting down\n')
+          queueMicrotask(() => {
+            void (async () => {
+              try {
+                await cleanupOwnedDaemon(lockHandle, resources, {
+                  resetGraphState: true,
+                })
+              } finally {
+                process.exit(0)
+              }
+            })()
+          })
+        },
+      })
     }
 
     return {

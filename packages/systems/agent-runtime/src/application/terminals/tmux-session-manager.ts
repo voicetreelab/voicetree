@@ -1,9 +1,14 @@
 import {spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {appendFileSync, statSync} from 'node:fs'
 import {shellQuote} from '../util/shellQuote.ts'
+import {
+    ensureTmuxLaunchAgent,
+    getTmuxBinaryPath,
+    getTmuxCommandArgs,
+} from './tmux-launchagent.ts'
 import {ensureTmuxAvailable} from './tmux-preflight.ts'
 
-const TMUX: string = 'tmux'
 const tmuxSessionAliases: Map<string, string> = new Map()
 
 type TmuxResult = {
@@ -11,9 +16,10 @@ type TmuxResult = {
     stderr: string
 }
 
-function runTmux(args: string[]): Promise<TmuxResult> {
+async function runTmux(args: string[]): Promise<TmuxResult> {
+    await ensureTmuxLaunchAgent()
     return new Promise((resolve, reject) => {
-        const child = spawn(TMUX, args, {stdio: ['ignore', 'pipe', 'pipe']})
+        const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(args), {stdio: ['ignore', 'pipe', 'pipe']})
         const stdoutChunks: Buffer[] = []
         const stderrChunks: Buffer[] = []
 
@@ -29,7 +35,7 @@ function runTmux(args: string[]): Promise<TmuxResult> {
                 return
             }
 
-            reject(new Error(`tmux ${args.join(' ')} failed with exit code ${code}: ${stderr.trim()}`))
+            reject(new Error(`tmux ${getTmuxCommandArgs(args).join(' ')} failed with exit code ${code}: ${stderr.trim()}`))
         })
     })
 }
@@ -86,9 +92,10 @@ export async function killSession(name: string): Promise<void> {
 }
 
 export async function hasSession(name: string): Promise<boolean> {
+    await ensureTmuxLaunchAgent()
     const sessionName: string = resolveTmuxSessionName(name)
     return new Promise((resolve, reject) => {
-        const child = spawn(TMUX, ['has-session', '-t', sessionName], {stdio: ['ignore', 'ignore', 'pipe']})
+        const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['has-session', '-t', sessionName]), {stdio: ['ignore', 'ignore', 'pipe']})
         const stderrChunks: Buffer[] = []
 
         child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
@@ -139,4 +146,14 @@ export async function getPanePid(name: string): Promise<number> {
 export async function pipePaneToFile(name: string, logPath: string): Promise<void> {
     const sessionName: string = resolveTmuxSessionName(name)
     await runTmux(['pipe-pane', '-t', sessionName, `cat >> ${shellQuote(logPath)}`])
+    try {
+        if (statSync(logPath).size > 0) return
+    } catch {
+        // The pipe creates the file lazily on first output; backfill below covers
+        // output that was already in the pane before the pipe was attached.
+    }
+    const captured: TmuxResult = await runTmux(['capture-pane', '-p', '-J', '-S', '-', '-t', sessionName])
+    if (captured.stdout.length > 0) {
+        appendFileSync(logPath, captured.stdout, 'utf8')
+    }
 }

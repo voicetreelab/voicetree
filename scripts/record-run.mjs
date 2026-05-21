@@ -18,7 +18,7 @@ import {spawn} from 'node:child_process'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-import {recordCheckReport} from '../packages/systems/_ci-check-writer.ts'
+import {recordCheckReport} from '@vt/ci-reporting'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..')

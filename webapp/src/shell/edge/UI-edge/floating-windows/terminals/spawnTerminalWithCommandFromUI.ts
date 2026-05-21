@@ -30,7 +30,7 @@ export async function spawnTerminalWithCommandEditor(
     agentCommand?: string,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
-    await flushEditorForNode(parentNodeId, cy);
+    await flushEditorForNode(parentNodeId);
 
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 
@@ -133,7 +133,7 @@ export async function spawnTerminalWithNewContextNode(
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
-    await flushEditorForNode(parentNodeId, cy)
+    await flushEditorForNode(parentNodeId)
 
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 

@@ -125,9 +125,10 @@ describe('GraphDbClient', () => {
 
       await mkdir(outPath, { recursive: true })
 
+      // setWritePath seeds the writePath as 'expanded' on cold mount.
       await expect(client.getVault()).resolves.toEqual({
         vaultPath: harness.vault,
-        readPaths: [],
+        readPaths: [harness.vault],
         writePath: harness.vault,
       })
 
@@ -136,7 +137,12 @@ describe('GraphDbClient', () => {
         vaultPath: harness.vault,
         writePath: outPath,
       })
-      expect(afterWritePath.readPaths).toEqual([harness.vault])
+      // After setWritePath(outPath): the old writePath (harness.vault) is
+      // demoted to the expanded set, and the new writePath (outPath) is
+      // seeded as expanded. Both appear in readPaths.
+      expect([...afterWritePath.readPaths].sort()).toEqual(
+        [harness.vault, outPath].sort(),
+      )
     })
 
     test('surfaces daemon 4xx responses as GraphDbClientError', async () => {
@@ -172,6 +178,7 @@ describe('GraphDbClient', () => {
 
           const responseByPath: Record<string, unknown> = {
             '/graph/apply-delta': { delta: applyDeltaBody?.delta ?? [], graph: {} },
+            '/graph/write-markdown-file': { ok: true, absolutePath: '/vault/note.md' },
             '/graph/context-node-from-selected-nodes': { nodeId: 'ctx.md' },
             '/graph/unseen-nodes-around-context-node': {
               nodes: [{ nodeId: 'node.md', content: '# Node' }],
@@ -195,6 +202,9 @@ describe('GraphDbClient', () => {
       await expect(
         client.createContextNodeFromSelectedNodes('task.md', ['a.md', 'b.md']),
       ).resolves.toEqual({ nodeId: 'ctx.md' })
+      await expect(
+        client.writeMarkdownFile('/vault/note.md', '# Body\n', 'editor-1'),
+      ).resolves.toEqual({ ok: true, absolutePath: '/vault/note.md' })
       await expect(client.getUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
         { nodeId: 'node.md', content: '# Node' },
       ])
@@ -212,6 +222,11 @@ describe('GraphDbClient', () => {
           body: { taskNodeId: 'task.md', selectedNodeIds: ['a.md', 'b.md'] },
           method: 'POST',
           path: '/graph/context-node-from-selected-nodes',
+        },
+        {
+          body: { absolutePath: '/vault/note.md', body: '# Body\n', editorId: 'editor-1' },
+          method: 'POST',
+          path: '/graph/write-markdown-file',
         },
         {
           body: { contextNodeId: 'ctx.md', searchFromNode: 'task.md' },
@@ -286,15 +301,17 @@ describe('GraphDbClient', () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
 
+      // setWritePath seeds [vault, 'expanded'] on cold mount; subsequent
+      // PATCHes are interleaved with that row by path-ASC ordering.
       await expect(client.getSession(created.sessionId)).resolves.toMatchObject({
         id: created.sessionId,
-        folderStateSize: 0,
+        folderStateSize: 1,
         selectionSize: 0,
       })
 
       await expect(client.getSessionState(created.sessionId)).resolves.toMatchObject(
         {
-          folderState: [],
+          folderState: [[harness.vault, 'expanded']],
           activeView: { name: 'main' },
           selection: [],
         },
@@ -303,10 +320,16 @@ describe('GraphDbClient', () => {
       await expect(
         client.setFolderState(created.sessionId, docsPath, 'collapsed'),
       ).resolves.toMatchObject({
-        folderState: [[docsPath, 'collapsed']],
+        folderState: [
+          [harness.vault, 'expanded'],
+          [docsPath, 'collapsed'],
+        ],
       })
       await expect(client.getFolderState(created.sessionId)).resolves.toMatchObject({
-        folderState: [[docsPath, 'collapsed']],
+        folderState: [
+          [harness.vault, 'expanded'],
+          [docsPath, 'collapsed'],
+        ],
       })
       await expect(
         client.setFolderStateBatch(created.sessionId, [
@@ -315,6 +338,7 @@ describe('GraphDbClient', () => {
         ]),
       ).resolves.toMatchObject({
         folderState: [
+          [harness.vault, 'expanded'],
           [docsPath, 'collapsed'],
           [join(harness.vault, 'src'), 'expanded'],
           [join(harness.vault, 'tmp'), 'hidden'],
@@ -375,8 +399,12 @@ describe('GraphDbClient', () => {
       const docsPath = join(harness.vault, 'docs')
 
       await clientA.setFolderState(sessionId, docsPath, 'collapsed')
+      // The seeded [vault, 'expanded'] row sorts before docsPath (path ASC).
       await expect(clientB.getSessionState(sessionId)).resolves.toMatchObject({
-        folderState: [[docsPath, 'collapsed']],
+        folderState: [
+          [harness.vault, 'expanded'],
+          [docsPath, 'collapsed'],
+        ],
       })
 
       await clientB.setSelection(sessionId, {

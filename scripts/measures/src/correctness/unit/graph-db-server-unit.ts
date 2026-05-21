@@ -7,4 +7,6 @@ export const check: CheckDef = {
     display: 'npm --workspace @vt/graph-db-server run test',
     args: (jsonOut) => npmWorkspaceRun('@vt/graph-db-server', 'test', vitestJsonArgs(jsonOut)),
     parser: 'vitest',
+    // Long black-box daemon/fuzz tests flake under nested full-suite parallelism.
+    exclusive: true,
 }

@@ -10,7 +10,6 @@ const config: KnipConfig = {
                 'scripts/measures/invariants/coupling/**/*.mjs',
                 'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
-                'packages/systems/*.test.ts',
             ],
             ignore: [
                 'brain/**',
@@ -19,6 +18,7 @@ const config: KnipConfig = {
                 'old/**',
                 'spikes/**',
                 'tools/**',
+                'voicetree-20-5/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',
             ],
@@ -42,6 +42,10 @@ const config: KnipConfig = {
         },
         'packages/libraries/*': {
             entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],
+            project: ['src/**/*.ts'],
+        },
+        'packages/codebase-health': {
+            entry: ['src/**/*.test.ts'],
             project: ['src/**/*.ts'],
         },
         'packages/systems/*': {

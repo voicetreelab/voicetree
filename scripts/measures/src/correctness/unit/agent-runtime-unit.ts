@@ -7,4 +7,6 @@ export const check: CheckDef = {
     display: 'npm --workspace @vt/agent-runtime run test',
     args: (jsonOut) => npmWorkspaceRun('@vt/agent-runtime', 'test', vitestJsonArgs(jsonOut)),
     parser: 'vitest',
+    // Real tmux-backed tests time out under nested full-suite parallelism.
+    exclusive: true,
 }

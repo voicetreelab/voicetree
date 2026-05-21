@@ -29,9 +29,6 @@ import {
     getEditorByNodeId,
     getEditors,
 } from "@/shell/edge/UI-edge/state/stores/EditorStore";
-import {
-    modifyNodeContentFromUI
-} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
 import {selectFloatingWindowNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/select-floating-window-node";
 import {setupAutoHeight} from "@/shell/edge/UI-edge/floating-windows/editors/SetupAutoHeight";
 import {createWindowChrome} from "@/shell/edge/UI-edge/floating-windows/chrome/create-window-chrome";
@@ -125,14 +122,14 @@ export async function createFloatingEditor(
         ui.contentContainer,
         content,
         {
-            autosaveDelay: 300,
+            autosaveDelay: 150,
             darkMode: document.documentElement.classList.contains('dark'),
             vimMode: settings.vimMode ?? false,
             nodeId: nodeId, // Pass nodeId for image paste support
         }
     );
 
-    // Setup auto-save with modifyNodeContentFromUI
+    // Setup auto-save with the daemon markdown-file endpoint.
     // Note: onChange only fires for user input (typing, paste, etc.) - NOT for programmatic setValue() calls
     // This is handled by CodeMirrorEditorView using CM6's isUserEvent("input") check
     let saveQueue: Promise<void> = Promise.resolve();
@@ -141,9 +138,15 @@ export async function createFloatingEditor(
             .catch(() => undefined)
             .then(async (): Promise<void> => {
                 //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-                await modifyNodeContentFromUI(nodeId, newContent, cy);
+                const writeMarkdownFile = window.electronAPI?.main.writeMarkdownFile;
+                if (!writeMarkdownFile) {
+                    throw new Error('electronAPI.main.writeMarkdownFile is unavailable');
+                }
+                await writeMarkdownFile(nodeId, newContent, editorId);
             });
-        void saveQueue;
+        void saveQueue.catch((error: unknown): void => {
+            console.error('[FloatingEditorCRUD] save failed', error);
+        });
     });
 
     // Store vanilla instance for getValue/setValue access (legacy pattern, but needed for updateFloatingEditors)

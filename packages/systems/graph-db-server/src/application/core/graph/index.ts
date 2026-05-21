@@ -25,3 +25,7 @@ export {
   graphWithUpdatedPositions,
   parseWritePositionsRequest,
 } from './handleWritePositions.ts'
+export {
+  parseWriteMarkdownFileRequest,
+  writeMarkdownFileFromRequest,
+} from './handleWriteMarkdownFile.ts'

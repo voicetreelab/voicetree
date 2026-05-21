@@ -215,7 +215,7 @@ export function generateOps(rng: () => number, count: number): readonly Op[] {
 // Invariant checkers (pure — throw on violation)
 // =============================================================================
 
-export function checkNoDuplication(editorContent: string, _context: string): void {
+export function checkNoDuplication(editorContent: string, context: string): void {
     const lines: readonly string[] = editorContent.split('\n')
     for (let i: number = 0; i < lines.length - 1; i++) {
         const line: string = lines[i].trim()

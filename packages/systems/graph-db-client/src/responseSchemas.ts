@@ -130,6 +130,15 @@ export const WritePositionsResponseSchema: Schema<{ written: number }> = {
   },
 }
 
+export const WriteMarkdownFileResponseSchema: Schema<{ ok: true; absolutePath: string }> = {
+  parse(input: unknown) {
+    if (!isObject(input) || input.ok !== true || typeof input.absolutePath !== 'string') {
+      throw new Error('Invalid write-markdown-file response body')
+    }
+    return { ok: true, absolutePath: input.absolutePath }
+  },
+}
+
 export const FindFileMatchesResponseSchema: Schema<string[]> = {
   parse(input: unknown) {
     if (!isObject(input) || !Array.isArray(input.matches)) {

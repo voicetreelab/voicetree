@@ -18,7 +18,7 @@ export { fromNodeToMarkdownContent } from './pure/graph/markdown-writing/node_to
 export { linkMatchScore } from './pure/graph/markdown-parsing/extract-edges'
 export { applyPositions, rebaseNewClusterPositions } from './pure/graph/positioning'
 export { addNodeToGraphWithEdgeHealingFromFSEvent } from './pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
-export { stripBracketedContent } from './pure/graph/nodes/contentChangeDetection'
+export { stripBracketedContent, normalizeContentForEchoComparison } from './pure/graph/nodes/contentChangeDetection'
 
 // Pure settings types
 export type { VTSettings } from './pure/settings/types'

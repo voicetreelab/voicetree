@@ -10,6 +10,7 @@ import {
 import { handleFSEventWithStateAndUISides } from './handleFSEvent.ts'
 import { readFileWithRetry } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
 import type { FileWatcherLogger } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
+import { consumeBroadcastSuppression } from '@vt/graph-db-server/watch-folder/pending-writes'
 
 export type Watcher = {
   readonly ready: Promise<void>
@@ -94,6 +95,7 @@ export function mountWatcher(
   const ready = waitForReady(watcher)
 
   watcher.on('add', (filePath: string) => {
+    const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
     const contentPromise = isImageNode(filePath)
       ? Promise.resolve('')
       : dependencies.readFileWithRetry(filePath)
@@ -105,7 +107,7 @@ export function mountWatcher(
           content,
           eventType: 'Added',
         }
-        dependencies.handleFSEvent(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
       })
       .catch((error: unknown) => {
         dependencies.logger.error(`graphd watcher add failed for ${filePath}:`, error)
@@ -113,6 +115,7 @@ export function mountWatcher(
   })
 
   watcher.on('change', (filePath: string) => {
+    const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
     if (isImageNode(filePath)) {
       return
     }
@@ -124,7 +127,7 @@ export function mountWatcher(
           content,
           eventType: 'Changed',
         }
-        dependencies.handleFSEvent(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
       })
       .catch((error: unknown) => {
         dependencies.logger.error(`graphd watcher change failed for ${filePath}:`, error)

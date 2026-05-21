@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage} from 'electron';
+import {app, BrowserWindow, dialog, nativeImage} from 'electron';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -13,6 +13,7 @@ import {
     configureMcpServer,
     disableMcpJsonIntegration,
     getMcpPort,
+    type McpServerHandle,
     registerChildIfMonitored,
     startMcpServer,
 } from '@vt/voicetree-mcp';
@@ -36,6 +37,7 @@ import {
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
+import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/graph-ipc-handlers';
 import {
     getWatchStatus,
     getVaultPaths,
@@ -199,6 +201,11 @@ const terminalManager: ReturnType<typeof terminalRuntimeSurface.getTerminalManag
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
 
+// MCP server handle, captured so before-quit can close the HTTP listener.
+// Without this, the open port keeps Node's event loop alive and the
+// Electron process never exits after Cmd+Q.
+let mcpHandle: McpServerHandle | null = null;
+
 // Inject dependencies into mainAPI (must be done before IPC handler registration)
 registerTerminalIpcHandlers(
     terminalManager,
@@ -223,10 +230,20 @@ void app.whenReady().then(async () => {
     console.time('[Startup] Total time to window');
 
     setupRPCHandlers();
+    registerGraphIpcHandlers();
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)
-    await startMcpServer();
+    try {
+        await terminalRuntimeSurface.ensureTmuxAvailable();
+        await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+    } catch (error: unknown) {
+        const message: string = error instanceof Error ? error.message : String(error);
+        dialog.showErrorBox('Voicetree cannot start', message);
+        app.exit(1);
+        return;
+    }
+    mcpHandle = await startMcpServer();
 
     if (process.env.VOICETREE_VAULT_PATH) {
         const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
@@ -329,6 +346,17 @@ app.on('before-quit', () => {
 
     // Clean up server process
     textToTreeServerManager.stop();
+
+    // Stop the MCP HTTP server. Closing the listener (and idle connections)
+    // releases the last refs holding Node's event loop open so the process
+    // actually exits after Cmd+Q.
+    if (mcpHandle) {
+        const handle: McpServerHandle = mcpHandle;
+        mcpHandle = null;
+        void handle.stop().catch((err: unknown) => {
+            console.warn('[App] Failed to stop MCP server:', err);
+        });
+    }
 
     // Clean up all terminals
     terminalManager.cleanup();

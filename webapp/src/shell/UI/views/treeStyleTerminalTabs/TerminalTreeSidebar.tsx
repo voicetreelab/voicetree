@@ -16,6 +16,7 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/t
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 // =============================================================================
 // Collapse / expand
@@ -352,6 +353,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     );
 
     const totalTabs: number = displayOrder.length;
+    const shortcutPlatform = useMemo(() => getShortcutPlatform(), []);
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
         if (!terminal.isHeadless && terminal.isMinimized) {
@@ -373,7 +375,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                 {treeNodes.map((treeNode: TerminalTreeNode) => {
                     const terminalId: TerminalId = treeNode.terminal.terminalId;
                     const tabIndex: number = displayOrder.indexOf(terminalId);
-                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs, shortcutPlatform);
                     const collapsed: boolean = treeNode.hasChildren
                         && collapse.isCollapsed(terminalId, treeNode.directChildCount);
 

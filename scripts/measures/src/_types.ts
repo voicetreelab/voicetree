@@ -14,6 +14,7 @@ export type CheckDef = {
     readonly parser: ParserKind
     readonly slow?: boolean
     readonly timeoutMs?: number
+    readonly exclusive?: boolean
 }
 
 export const E2E_TIMEOUT_MS = 30 * 60 * 1000

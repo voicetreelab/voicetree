@@ -85,14 +85,13 @@ export class TerminalManager {
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
   // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
-  // time and never crosses tmux's argv. After the shell is ready, the agent
-  // command is injected via `tmux send-keys` with a short reference to the
-  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
-  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
+  // time as an auxiliary delivery path. After the shell is ready, the agent
+  // command is injected via `tmux send-keys` exactly as configured. The
+  // original AGENT_PROMPT env var is kept so existing
+  // agent commands like `claude "$AGENT_PROMPT"` and custom agents continue to
+  // receive the prompt through their configured interface.
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server. Only AGENT_PROMPT itself is
-  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
-  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
+  // context; panes inherit from the server.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;

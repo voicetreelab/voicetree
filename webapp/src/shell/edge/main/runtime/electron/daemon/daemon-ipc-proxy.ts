@@ -1,6 +1,7 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState, ViewRecord } from '@vt/graph-db-client'
+import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { SerializedState, State } from '@vt/graph-state'
 
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
@@ -8,7 +9,11 @@ import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import { subscribeToDaemonSSE } from './daemon-sse-subscription'
+import {
+  getLatestProjectedGraphForSubscription,
+  rememberLatestProjectedGraphForSubscription,
+  subscribeToDaemonSSE,
+} from './daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
 
@@ -51,10 +56,27 @@ function subscribeRendererSessionToDaemon(client: GraphDbClient, sessionId: stri
   subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
 
+let currentRendererSession: {
+  readonly baseUrl: string
+  readonly sessionId: string
+} | null = null
+
 async function createRendererSession(client: GraphDbClient): Promise<string> {
   const created: { sessionId: string } = await client.createSession()
+  currentRendererSession = {
+    baseUrl: client.baseUrl,
+    sessionId: created.sessionId,
+  }
   subscribeRendererSessionToDaemon(client, created.sessionId)
   return created.sessionId
+}
+
+async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
+  if (currentRendererSession?.baseUrl === client.baseUrl) {
+    return currentRendererSession.sessionId
+  }
+
+  return await createRendererSession(client)
 }
 
 async function syncRendererFromDaemon(
@@ -66,12 +88,6 @@ async function syncRendererFromDaemon(
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
     return
   }
-
-  const sessionId: string = await createRendererSession(client)
-  mainWindow.webContents.send(
-    'graph:projectedGraphUpdate',
-    await client.getProjectedGraph(sessionId),
-  )
 
   const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(vaultState, nextGraph)
   uiAPI.syncVaultState({
@@ -196,6 +212,18 @@ export async function getProjectedGraphFromDaemon(): Promise<unknown> {
   })
 }
 
+export async function getCurrentProjectedGraphFromDaemon(): Promise<ProjectedGraph> {
+  return await callDaemon(async (client) => {
+    const sessionId: string = await getOrCreateRendererSession(client)
+    const cachedGraph: ProjectedGraph | null = getLatestProjectedGraphForSubscription(client.baseUrl, sessionId)
+    if (cachedGraph) return cachedGraph
+
+    const graph: ProjectedGraph = await client.getProjectedGraph(sessionId) as ProjectedGraph
+    rememberLatestProjectedGraphForSubscription(client.baseUrl, sessionId, graph)
+    return graph
+  })
+}
+
 export async function postDeltaThroughDaemon(
   delta: GraphDelta,
   recordForUndo: boolean = true,
@@ -212,6 +240,16 @@ export async function postDeltaThroughDaemonWithEditors(
 ): Promise<void> {
   await postDeltaThroughDaemon(delta, recordForUndo)
   getCallbacks().onFloatingEditorUpdate?.(delta)
+}
+
+export async function postWriteMarkdownFileThroughDaemon(
+  absolutePath: string,
+  body: string,
+  editorId: string,
+): Promise<void> {
+  await callDaemon(async (client) => {
+    await client.writeMarkdownFile(absolutePath, body, editorId)
+  })
 }
 
 export async function getNodeFromDaemon(

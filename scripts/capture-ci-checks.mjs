@@ -13,7 +13,7 @@ import {tmpdir} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
-import {recordCheckReport} from '../packages/systems/_ci-check-writer.ts'
+import {recordCheckReport} from '@vt/ci-reporting'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..')
@@ -69,10 +69,11 @@ function measureFolderFor(measurePath) {
 // ── CLI parsing ──────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-    const opts = {quick: false, failFast: false, only: null, folder: null, help: false}
+    const opts = {quick: false, failFast: false, sequential: false, only: null, folder: null, help: false}
     for (const arg of argv) {
         if (arg === '--quick') opts.quick = true
         else if (arg === '--fail-fast') opts.failFast = true
+        else if (arg === '--sequential') opts.sequential = true
         else if (arg === '-h' || arg === '--help') opts.help = true
         else if (arg.startsWith('--only=')) opts.only = new Set(arg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean))
         else if (arg.startsWith('--folder=')) opts.folder = normalizeMeasureFolder(arg.slice('--folder='.length))
@@ -86,15 +87,16 @@ function printHelp(checks) {
         'capture-ci-checks — run every locally-runnable CI/CD check and record reports.',
         '',
         'Usage:',
-        '  npm run health:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--fail-fast]',
+        '  npm run health:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--sequential] [--fail-fast]',
         '',
         'Flags:',
         '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
         '  --folder=<path>   run only checks under scripts/measures/src/<path>.',
+        '  --sequential      run checks sequentially; continue through failures.',
         '  --fail-fast       run sequentially; stop scheduling after the first fail.',
         '',
-        'Eligible checks run in parallel unless --fail-fast is set.',
+        'Eligible checks run in parallel unless --sequential or --fail-fast is set.',
         '',
         'Check ids:',
         ...checks.map(c => `  ${c.id.padEnd(32)} ${c.category.padEnd(11)} ${c.measurePath}`),
@@ -308,22 +310,25 @@ async function runCheck(check) {
 }
 
 async function runChecksInParallel(checks, opts) {
-    const parallelChecks = checks.filter(check => check.category !== 'Integration')
-    const integrationChecks = checks.filter(check => check.category === 'Integration')
+    const shouldRunExclusively = check => check.category === 'Integration' || check.exclusive === true
+    const parallelChecks = checks.filter(check => !shouldRunExclusively(check))
+    const exclusiveChecks = checks.filter(shouldRunExclusively)
     const parallelResults = await Promise.all(parallelChecks.map(async check => ({
         check,
         outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
     })))
-    const integrationResults = []
-    for (const check of integrationChecks) {
-        integrationResults.push({
+    // Some checks spawn global OS resources such as tmux sessions or local daemons.
+    // Keep their isolation narrow instead of forcing the whole registry sequential.
+    const exclusiveResults = []
+    for (const check of exclusiveChecks) {
+        exclusiveResults.push({
             check,
             outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
         })
     }
     return checks.map(check =>
         parallelResults.find(result => result.check === check)
-        ?? integrationResults.find(result => result.check === check),
+        ?? exclusiveResults.find(result => result.check === check),
     )
 }
 
@@ -333,7 +338,7 @@ async function runChecksSequentially(checks, opts) {
     for (const check of checks) {
         const outcome = shouldSkipCheck(check, opts, stopScheduling) ? skippedOutcome() : await runCheck(check)
         results.push({check, outcome})
-        if (outcome.status === 'fail') stopScheduling = true
+        if (opts.failFast && outcome.status === 'fail') stopScheduling = true
     }
     return results
 }
@@ -361,7 +366,7 @@ async function main() {
     const scope = opts.folder ? ` under scripts/measures/src/${opts.folder}` : ''
     console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
 
-    const results = opts.failFast
+    const results = opts.failFast || opts.sequential
         ? await runChecksSequentially(checks, opts)
         : await runChecksInParallel(checks, opts)
 

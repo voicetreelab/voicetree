@@ -49,6 +49,7 @@ import {
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
+  postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
@@ -95,7 +96,9 @@ export const mainAPI = {
   // Graph operations - daemon-only write path
   applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
+  applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
+
+  writeMarkdownFile: postWriteMarkdownFileThroughDaemon,
 
   getGraph,
 

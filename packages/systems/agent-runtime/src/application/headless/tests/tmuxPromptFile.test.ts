@@ -121,6 +121,16 @@ describe('rewriteCommandForPromptFile (CLI-aware)', () => {
         )
         expect(out).toBe(`claude < '/has space/p.txt'`)
     })
+
+    it('detects claude past a leading shell env-var assignment (default template)', () => {
+        const out: string = rewriteCommandForPromptFile(
+            `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT"`,
+            '/v/.voicetree/terminals/Aki-prompt.txt',
+        )
+        expect(out).toBe(
+            `CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions < '/v/.voicetree/terminals/Aki-prompt.txt'`,
+        )
+    })
 })
 
 describe('wrapForHeadlessTmux', () => {

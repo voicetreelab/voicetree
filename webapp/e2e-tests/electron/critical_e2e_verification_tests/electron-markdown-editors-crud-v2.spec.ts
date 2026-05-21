@@ -39,6 +39,15 @@ interface CodeMirrorElement extends HTMLElement {
   cmView?: { view: EditorView };
 }
 
+function expectFrontmatterShapePreserved(savedContent: string, originalContent: string): void {
+  if (originalContent.startsWith('---\n')) {
+    expect(savedContent).toMatch(/^---\n/);
+    return;
+  }
+
+  expect(savedContent).not.toMatch(/^---\n/);
+}
+
 // Extend test with Electron app
 const test = base.extend<{
   electronApp: ElectronApplication;
@@ -271,7 +280,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Content modified in editor');
 
     // Poll until auto-save writes the content to disk.
-    // The chain is: 300ms debounce → getGraph() IPC → applyGraphDelta IPC → FS write.
+    // The chain is: autosave debounce → daemon write → file watcher/SSE propagation.
     await expect.poll(async () => {
       const content = await fs.readFile(testFilePath, 'utf-8');
       return content.includes(testContent);
@@ -285,7 +294,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('Saved file content length (before close):', savedContentBeforeClose.length);
 
     expect(savedContentBeforeClose).toContain(testContent);
-    expect(savedContentBeforeClose).toMatch(/^---\n/);
+    expectFrontmatterShapePreserved(savedContentBeforeClose, originalContent);
     console.log('✓ File content saved correctly to disk BEFORE close');
 
     // CRITICAL TEST: Click the ACTUAL close button (not just remove shadow node)
@@ -306,7 +315,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     // Verify the content hasn't been reverted
     expect(savedContentAfterClose).toContain(testContent);
-    expect(savedContentAfterClose).toMatch(/^---\n/);
+    expectFrontmatterShapePreserved(savedContentAfterClose, originalContent);
     console.log('✓ File content STILL correct after clicking close button');
 
     // Re-open the editor to verify content persisted
@@ -470,7 +479,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
       await appWindow.waitForTimeout(1000);
       const savedContent = await fs.readFile(testFilePath, 'utf-8');
       expect(savedContent).toContain(typedContent);
-      expect(savedContent).toMatch(/^---\n/);
+      expectFrontmatterShapePreserved(savedContent, originalContent);
 
       console.log('✓ Real keyboard editor input saved exactly');
     } finally {

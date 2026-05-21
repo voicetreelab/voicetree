@@ -17,7 +17,7 @@ import { isImageNode } from '@vt/graph-model/graph';
 import { handleFSEventWithStateAndUISides } from "@vt/graph-db-server/graph/handleFSEvent";
 import { getWatcher, setWatcher } from "@vt/graph-db-server/state/watch-folder-store";
 import { broadcastFolderTree } from "../broadcast/broadcast-folder-tree";
-import { clearPendingWrite, isPendingWrite } from "../pending-writes";
+import { clearPendingWrite, consumeBroadcastSuppression, isPendingWrite } from "../pending-writes";
 
 export interface FileWatcherLogger {
     error(message?: unknown, ...optionalParams: unknown[]): void
@@ -175,10 +175,7 @@ export function setupWatcherListeners(
 
     // File changed
     currentWatcher.on('change', (filePath: string) => {
-        if (isPendingWrite(filePath)) {
-            clearPendingWrite(filePath);
-            return;
-        }
+        const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath);
 
         // Skip image file changes - their content is always empty in the graph
         if (isImageNode(filePath)) {
@@ -194,7 +191,7 @@ export function setupWatcherListeners(
                 };
 
                 // Handle FS event: compute delta, update state, broadcast to UI-edge
-                dependencies.handleFSEvent(fsUpdate, watchedDir);
+                dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo);
             })
             .catch(error => {
                 dependencies.logger.error(`Error handling file change ${filePath}:`, error);

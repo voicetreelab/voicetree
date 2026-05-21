@@ -1,4 +1,5 @@
-import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {randomUUID} from 'node:crypto'
+import {readdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from './types'
 import {createTerminalData} from './types'
@@ -52,7 +53,9 @@ function readMetadata(path: string): TmuxTerminalMetadata | null {
 }
 
 function writeMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    writeFileSync(path, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
+    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
+    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
+    renameSync(tempPath, path)
 }
 
 function fallbackTerminalData(metadata: TmuxTerminalMetadata, vaultPath: string): TerminalData {

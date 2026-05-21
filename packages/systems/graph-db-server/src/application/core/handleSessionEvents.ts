@@ -6,6 +6,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 export type ProjectDeltaEventInput = {
   readonly delta: GraphDelta
   readonly seq: number
+  readonly suppressForSubscribers?: readonly string[]
 }
 
 export type ReplayStrategy =
@@ -45,7 +46,12 @@ export function handleProjectDeltaEvent(
     .map(delta => delta.nodeToUpsert.absoluteFilePathIsID)
 
   return {
-    graph: { ...project(state), recentNodeIds, seq: deltaEvent.seq },
+    graph: {
+      ...project(state),
+      recentNodeIds,
+      seq: deltaEvent.seq,
+      suppressForSubscribers: deltaEvent.suppressForSubscribers,
+    },
   }
 }
 

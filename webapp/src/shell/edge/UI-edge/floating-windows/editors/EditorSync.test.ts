@@ -30,8 +30,9 @@ function openEditorForNode(
     nodeId: NodeIdAndFilePath,
     initialContent: string,
     focused: boolean = false,
-): { getValue: () => string } {
+): { getValue: () => string; getSetValueCount: () => number } {
     let value = initialContent
+    let setValueCount = 0
 
     const editor = createEditorData({
         contentLinkedToNodeId: nodeId,
@@ -43,8 +44,10 @@ function openEditorForNode(
         dispose: vi.fn(),
         getValue: () => value,
         setValue: (nextValue: string) => {
+            setValueCount += 1
             value = nextValue
         },
+        getSetValueCount: () => setValueCount,
         appendAtEnd: (suffix: string) => {
             value = value + suffix
         },
@@ -156,7 +159,34 @@ describe('updateFloatingEditors', () => {
         expect(editor.getValue()).toBe('Hello world')
     })
 
-    it('keeps focused embedded-mode editors immune to non-append replacements', () => {
+    it('uses daemon echo normalization when detecting equivalent save echoes', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'Hello\nworld')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, 'old body')),
+            nodeToUpsert: makeNode(nodeId, 'Hello [[child.md]]\r\nworld'),
+        }])
+
+        expect(editor.getValue()).toBe('Hello\nworld')
+        expect(editor.getSetValueCount()).toBe(0)
+    })
+
+    it('uses daemon echo normalization when comparing the previous node baseline', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'Hello\nworld')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, 'Hello [[old.md]]\r\nworld')),
+            nodeToUpsert: makeNode(nodeId, 'external replacement'),
+        }])
+
+        expect(editor.getValue()).toBe('external replacement')
+    })
+
+    it('applies matching external replacements while the editor is focused', () => {
         const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
         const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
 
@@ -166,18 +196,31 @@ describe('updateFloatingEditors', () => {
             nodeToUpsert: makeNode(nodeId, 'external update'),
         }])
 
+        expect(editor.getValue()).toBe('external update')
+    })
+
+    it('skips editors whose id is in the suppression list', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
+            nodeToUpsert: makeNode(nodeId, 'suppressed echo'),
+        }], [`${nodeId}-editor`])
+
         expect(editor.getValue()).toBe('# Typing Target\n\n')
     })
 
-    it('applies matching daemon-mode external replacements while the editor is focused', () => {
+    it('updates editors whose id is not in the suppression list', () => {
         const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
-        const editor = openEditorForNode(nodeId, '# Typing Target\n\n', true)
+        const editor = openEditorForNode(nodeId, '# Typing Target\n\n')
 
         updateFloatingEditors({} as Core, [{
             type: 'UpsertNode',
             previousNode: O.some(makeNode(nodeId, '# Typing Target\n\n')),
             nodeToUpsert: makeNode(nodeId, 'external update'),
-        }], true)
+        }], ['another-editor'])
 
         expect(editor.getValue()).toBe('external update')
     })
@@ -270,5 +313,24 @@ describe('updateFloatingEditorsFromProjectedGraph', () => {
         updateFloatingEditorsFromProjectedGraph({} as Core, projected, projected)
 
         expect(editor.getValue()).toBe('live edits in flight')
+    })
+
+    it('honors projected graph editor suppression metadata', () => {
+        const nodeId: NodeIdAndFilePath = 'suppressed.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'local draft')
+
+        const previousProjected: ProjectedGraph = makeProjectedGraph([
+            makeProjectedFileNode(nodeId, 'old body'),
+        ])
+        const newProjected: ProjectedGraph = {
+            ...makeProjectedGraph([
+                makeProjectedFileNode(nodeId, 'new body'),
+            ]),
+            suppressForSubscribers: [`${nodeId}-editor`],
+        }
+
+        updateFloatingEditorsFromProjectedGraph({} as Core, newProjected, previousProjected)
+
+        expect(editor.getValue()).toBe('local draft')
     })
 })

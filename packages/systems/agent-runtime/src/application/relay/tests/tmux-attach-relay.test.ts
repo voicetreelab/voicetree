@@ -3,6 +3,7 @@ import {createServer, type Server} from 'node:http'
 import type {AddressInfo} from 'node:net'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket} from 'ws'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux-launchagent.ts'
 import {killSession, createSession, hasSession} from '../../terminals/tmux-session-manager.ts'
 import {mountTmuxAttachRelay, type TmuxAttachRelayHandle} from '../tmux-attach-relay.ts'
 
@@ -13,7 +14,7 @@ function delay(ms: number): Promise<void> {
 }
 
 function tmuxOutput(args: string[]): string {
-    return execFileSync('tmux', args, {encoding: 'utf8'})
+    return execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(args), {encoding: 'utf8'})
 }
 
 function shellQuote(value: string): string {
@@ -65,6 +66,18 @@ async function connect(url: string): Promise<{readonly ws: WebSocket, readonly o
         ws.on('error', reject)
     })
     return {ws, output: () => output}
+}
+
+async function connectAndCollect(url: string): Promise<{
+    readonly closed: Promise<void>
+    readonly output: () => string
+    readonly ws: WebSocket
+}> {
+    const connection = await connect(url)
+    const closed = new Promise<void>((resolve) => {
+        connection.ws.on('close', resolve)
+    })
+    return {...connection, closed}
 }
 
 async function waitForOutput(output: () => string, needle: string, timeoutMs: number = 5000): Promise<void> {
@@ -158,5 +171,20 @@ describe('tmux attach relay', () => {
         } finally {
             ws.close()
         }
+    }, TEST_TIMEOUT_MS)
+
+    it('reports a missing session once instead of surfacing tmux set failures', async () => {
+        const sessionName: string = makeSessionName('missing')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {closed, output, ws} = await connectAndCollect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach`
+        )
+
+        await closed
+        expect(output()).toContain('[session ended — agent exited]')
+        expect(output()).not.toContain('tmux session configuration failed')
+        ws.close()
     }, TEST_TIMEOUT_MS)
 })

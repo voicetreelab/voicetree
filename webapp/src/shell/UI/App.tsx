@@ -19,7 +19,6 @@ type AppView = 'project-selection' | 'graph-view';
 interface OpenedVaultState {
     readonly path: string;
     readonly sessionId: string;
-    readonly initialProjectedGraph?: ProjectedGraph;
 }
 
 function getProjectNameFromPath(projectPath: string): string {
@@ -51,6 +50,7 @@ function App(): JSX.Element {
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
     const [openedVault, setOpenedVault] = useState<OpenedVaultState | null>(null);
+    const pendingInitialProjectedGraphRef = useRef<ProjectedGraph | null>(null);
     const [vaultSwitching, setVaultSwitching] = useState<boolean>(false);
     const [vaultError, setVaultError] = useState<string | null>(null);
     const hasBootstrappedStartupProjectRef = useRef(false);
@@ -94,12 +94,12 @@ function App(): JSX.Element {
 
         const response = await window.electronAPI.main.openVault(project.path);
         lastKnownVaultPathRef.current = project.path;
+        pendingInitialProjectedGraphRef.current = isProjectedGraph(response.initialProjectedGraph)
+            ? response.initialProjectedGraph
+            : null;
         setOpenedVault({
             path: project.path,
             sessionId: response.sessionId,
-            ...(isProjectedGraph(response.initialProjectedGraph)
-                ? { initialProjectedGraph: response.initialProjectedGraph }
-                : {}),
         });
         setVaultError(null);
         setCurrentProject(project);
@@ -295,6 +295,8 @@ function App(): JSX.Element {
 
         let graphView: VoiceTreeGraphView | null = null;
         let disposed: boolean = false;
+        const initialProjectedGraph: ProjectedGraph | null = pendingInitialProjectedGraphRef.current;
+        pendingInitialProjectedGraphRef.current = null;
 
         void (async () => {
             const settings: VTSettings | null = await window.electronAPI?.main?.loadSettings() ?? null;
@@ -306,7 +308,7 @@ function App(): JSX.Element {
                 {
                     initialDarkMode: false,
                     showFps: settings?.showFps ?? false,
-                    initialProjectedGraph: openedVault?.initialProjectedGraph,
+                    initialProjectedGraph: initialProjectedGraph ?? undefined,
                 }
             );
         })();
