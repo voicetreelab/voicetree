@@ -1,6 +1,6 @@
 import * as E from 'fp-ts/lib/Either.js';
 
-const MAX_FILES: 600 = 600 as const;
+export const MAX_MARKDOWN_FILES_PER_VAULT_PATH: 1000 = 1000 as const;
 
 /**
  * Error type for file limit exceeded
@@ -29,8 +29,8 @@ function createFileLimitExceededError(fileCount: number, maxFiles: number): File
  * @returns Either.Left with error if limit exceeded, Either.Right with void if ok
  */
 export function enforceFileLimit(fileCount: number): E.Either<FileLimitExceededError, void> {
-    if (fileCount > MAX_FILES) {
-        return E.left(createFileLimitExceededError(fileCount, MAX_FILES));
+    if (fileCount > MAX_MARKDOWN_FILES_PER_VAULT_PATH) {
+        return E.left(createFileLimitExceededError(fileCount, MAX_MARKDOWN_FILES_PER_VAULT_PATH));
     }
 
     return E.right(undefined);
