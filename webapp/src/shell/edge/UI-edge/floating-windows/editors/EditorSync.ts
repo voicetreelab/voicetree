@@ -43,7 +43,21 @@ function getFocusedEditorAppendSuffix(
         return getAppendedSuffix(prevContent, newContent);
     }
 
-    return newContent.slice(commonPrefixLength(currentEditorContent, newContent));
+    const externalAppend: string = newContent.slice(prevContent.length);
+    const userExtension: string = currentEditorContent.slice(prevContent.length);
+    const overlap: number = commonPrefixLength(userExtension, externalAppend);
+    if (overlap === 0) {
+        return externalAppend;
+    }
+    // Only treat the overlap as an autosave echo when it contains
+    // non-whitespace characters. A pure-whitespace overlap (e.g. "\n\n")
+    // is more likely a coincidental paragraph separator that the user
+    // typed independently and that the external append also begins with;
+    // stripping it would drop the separator the external change relies on.
+    if (/^\s+$/.test(externalAppend.slice(0, overlap))) {
+        return externalAppend;
+    }
+    return externalAppend.slice(overlap);
 }
 
 /**
