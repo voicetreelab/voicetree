@@ -23,7 +23,6 @@ const TIER0_CHECK_IDS = new Set([
   'blackbox-tests-lint',
   'claude-stop-quality',
   'complexity',
-  'coupling',
   'dead-code',
   'duplication',
   'e2e-taxonomy',

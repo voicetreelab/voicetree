@@ -29,12 +29,17 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
-    // vaultless daemon launcher (analogous to serve.ts for CLI)
+    // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
     'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
+    // CLI serve command is the intentional webapp entrypoint for starting the daemon.
     'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    // Route-parity command imports daemon route types for CLI/API consistency checks.
     'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    // Graph CLI index command intentionally reaches the daemon search backend.
     'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
+    // vt-mcpd is the MCP-side daemon launcher entrypoint.
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ] as const
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0

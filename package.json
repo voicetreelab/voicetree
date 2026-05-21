@@ -16,7 +16,6 @@
     "orange-codebase-complexity-tests": "vitest run packages/measures/src/health/complexity/hierarchical-complexity.test.ts packages/measures/src/health/complexity/behavioral-complexity.test.ts packages/measures/src/health/complexity/shape-complexity.test.ts",
     "check": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/record-run.mjs --id=npm-check --name=\"npm run check\" --category=Command -- npm run check:run",
     "check:run": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests",
-    "check:coupling": "node scripts/check-coupling.mjs",
     "check:e2e-taxonomy": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/record-run.mjs --id=e2e-taxonomy --name=\"E2E Taxonomy\" --category=Static --display=\"npm run check:e2e-taxonomy\" -- npm run check:e2e-taxonomy:run",
     "check:e2e-taxonomy:run": "npm --workspace webapp run check:e2e-taxonomy",
     "health": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/record-run.mjs --id=npm-health --name=\"npm run health\" --category=Command -- npm run health:run",

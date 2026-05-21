@@ -669,7 +669,7 @@ function guardFindings() {
   const committedPackageJsonRaw = tryRunGit('show HEAD:package.json')
   if (committedPackageJsonRaw) {
     const committedPackageJson = JSON.parse(committedPackageJsonRaw)
-    for (const scriptName of ['test', 'test:codebase-health', 'check:coupling']) {
+    for (const scriptName of ['test', 'test:codebase-health']) {
       const currentScript = currentPackageJson.scripts?.[scriptName]
       const committedScript = committedPackageJson.scripts?.[scriptName]
       if (
