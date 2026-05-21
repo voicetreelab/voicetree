@@ -159,16 +159,6 @@ export function unsubscribeFromDaemonSSE(): void {
     currentController = null
 }
 
-export function getLatestProjectedGraphForSubscription(
-    baseUrl: string,
-    sessionId: string,
-): ProjectedGraph | null {
-    const subscriptionKey: string = `${baseUrl}|${sessionId}`;
-    return latestProjectedGraph?.subscriptionKey === subscriptionKey
-        ? latestProjectedGraph.graph
-        : null;
-}
-
 export function rememberLatestProjectedGraphForSubscription(
     baseUrl: string,
     sessionId: string,

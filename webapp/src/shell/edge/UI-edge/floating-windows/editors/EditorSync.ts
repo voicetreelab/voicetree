@@ -49,12 +49,16 @@ function getFocusedEditorAppendSuffix(
     if (overlap === 0) {
         return externalAppend;
     }
-    // Only treat the overlap as an autosave echo when it contains
-    // non-whitespace characters. A pure-whitespace overlap (e.g. "\n\n")
-    // is more likely a coincidental paragraph separator that the user
-    // typed independently and that the external append also begins with;
-    // stripping it would drop the separator the external change relies on.
-    if (/^\s+$/.test(externalAppend.slice(0, overlap))) {
+    // An autosave echo manifests as a meaningful run of characters from the
+    // user's saved typing showing up at the head of the daemon's reported
+    // append. Coincidental overlaps (paragraph separators, a lone "#" header
+    // marker that both sides happen to start with) are short / mostly
+    // whitespace and should not be stripped — doing so eats the separator the
+    // external change relies on. Require ≥2 non-whitespace overlap characters
+    // before treating it as a real echo.
+    const overlapStr: string = externalAppend.slice(0, overlap);
+    const nonWhitespaceOverlap: number = overlapStr.replace(/\s/g, '').length;
+    if (nonWhitespaceOverlap < 2) {
         return externalAppend;
     }
     return externalAppend.slice(overlap);
