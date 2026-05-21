@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-19T12:26:55.184Z",
-  "sourceFileCount": 785,
+  "generatedAt": "2026-05-21T08:32:20.932Z",
+  "sourceFileCount": 804,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -13,6 +13,7 @@
       "packages/systems/agent-runtime/src",
       "packages/systems/graph-db-client/src",
       "packages/systems/graph-db-server/src",
+      "packages/systems/voicetree-bootcamp/src",
       "packages/systems/voicetree-mcp/src",
       "packages/libraries/app-config/src",
       "packages/libraries/graph-db-protocol/src",

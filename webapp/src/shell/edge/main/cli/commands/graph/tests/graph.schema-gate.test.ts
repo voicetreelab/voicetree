@@ -80,7 +80,7 @@ const SCHEMAS_REQUIRES_NEEDED_MARKER: string = `module.exports = {
             }
             return [
                 {
-                    path: "$",
+                    ruleId: "body.missing_needed_marker",
                     message: "body must include the phrase 'Needed marker'",
                     severity: "error",
                 }
@@ -148,7 +148,7 @@ describe('graph create schema gate (filesystem mode)', () => {
             typeName: 'my-kind',
             violations: [
                 {
-                    path: '$',
+                    ruleId: 'body.missing_needed_marker',
                     message: "body must include the phrase 'Needed marker'",
                     severity: 'error',
                 },

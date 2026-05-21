@@ -31,7 +31,7 @@ describe('loadSchemaPlugin', () => {
                 "my-kind": {
                     validate(body) {
                         return body.includes("required") ? [] : [{
-                            path: "$",
+                            ruleId: "body.missing_required_marker",
                             message: "missing required marker",
                             severity: "error",
                         }]
@@ -45,7 +45,7 @@ describe('loadSchemaPlugin', () => {
         expect(plugin?.['my-kind']).toBeDefined()
         expect(plugin?.['my-kind'].validate('with required content')).toEqual([])
         expect(plugin?.['my-kind'].validate('missing')).toEqual([
-            {path: '$', message: 'missing required marker', severity: 'error'},
+            {ruleId: 'body.missing_required_marker', message: 'missing required marker', severity: 'error'},
         ])
     })
 
@@ -91,7 +91,7 @@ describe('loadSchemaPlugin', () => {
                 "my-kind": {
                     validate() {
                         count += 1
-                        return count > 1 ? [{path: "$", message: "re-evaluated", severity: "error"}] : []
+                        return count > 1 ? [{ruleId: "test.re_evaluated", message: "re-evaluated", severity: "error"}] : []
                     }
                 }
             }`

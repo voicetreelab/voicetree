@@ -39,7 +39,7 @@ async function gateOrExit(input: {targetPath: string; rawBody: string; vaultRoot
         setGateRejection({
             typeName: result.violation.typeName,
             schemaPath: result.violation.schemaPath,
-            ruleIds: result.violation.violations.map((v) => v.path),
+            ruleIds: result.violation.violations.map((v) => v.ruleId),
         })
         emitSchemaViolation(result.violation)
         process.exit(1)

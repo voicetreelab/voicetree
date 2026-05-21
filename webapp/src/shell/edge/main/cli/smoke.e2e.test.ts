@@ -133,7 +133,7 @@ describe('vt CLI smoke (Tier 1)', () => {
                     validate(body) {
                         if (body.includes('Needed marker')) return []
                         return [{
-                            path: '$',
+                            ruleId: 'body.missing_needed_marker',
                             message: "body must include 'Needed marker'",
                             severity: 'error',
                         }]
@@ -160,7 +160,7 @@ describe('vt CLI smoke (Tier 1)', () => {
             typeName: 'my-kind',
             violations: [
                 {
-                    path: '$',
+                    ruleId: 'body.missing_needed_marker',
                     message: "body must include 'Needed marker'",
                     severity: 'error',
                 },
@@ -185,7 +185,9 @@ describe('vt CLI smoke (Tier 1)', () => {
             `module.exports = {
                 'my-kind': {
                     validate(body) {
-                        return body.includes('Needed marker') ? [] : [{path: '$', message: 'missing', severity: 'error'}]
+                        return body.includes('Needed marker')
+                            ? []
+                            : [{ruleId: 'body.missing_needed_marker', message: 'missing', severity: 'error'}]
                     }
                 }
             }`,

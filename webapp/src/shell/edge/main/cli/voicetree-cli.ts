@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {fileURLToPath, pathToFileURL} from 'node:url'
+import {pathToFileURL} from 'node:url'
 import {
     agentClose,
     agentList,
@@ -10,6 +10,8 @@ import {
     agentWait,
 } from './commands/runtime/agent.ts'
 import {runDebugCommand} from './commands/runtime/debug.ts'
+import {runManualCommand} from './commands/manual.ts'
+import {findRepoRoot} from './util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
 import {runVaultCommand} from './commands/runtime/vault.ts'
 import {runViewCommand} from './commands/node/view.ts'
@@ -41,6 +43,7 @@ Commands:
   session   Manage sessions
   view      Folder visibility views
   debug     Run debug subcommands
+  manual    Print the canonical CLI manual (or one tool section)
   help      Show this help
 
 Global flags:
@@ -333,8 +336,7 @@ async function dispatchSearchCommand(
 
 function readVtVersion(): string {
     try {
-        const cliDir: string = path.dirname(fileURLToPath(import.meta.url))
-        const pkgPath: string = path.resolve(cliDir, '../../../../../package.json')
+        const pkgPath: string = path.join(findRepoRoot(import.meta.url), 'webapp', 'package.json')
         const parsed: Record<string, unknown> = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
         if (typeof parsed.version === 'string') return parsed.version
         if (typeof parsed.dmeversion === 'string') return parsed.dmeversion
@@ -351,7 +353,7 @@ const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
     'create', 'index', 'search', 'unseen', 'live', 'structure', 'view', 'lint', 'rename', 'mv', 'group',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
-    'vault', 'session', 'view', 'search', 'debug', 'serve',
+    'vault', 'session', 'view', 'search', 'debug', 'serve', 'manual',
 ])
 
 function computeVerb(commandArgs: readonly string[]): {verb: string; verbTokensInArgv: number} {
@@ -441,6 +443,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             return
         case 'debug':
             await runDebugCommand(commandArgs.slice(1))
+            return
+        case 'manual':
+            runManualCommand(commandArgs.slice(1))
             return
         case 'serve':
             {

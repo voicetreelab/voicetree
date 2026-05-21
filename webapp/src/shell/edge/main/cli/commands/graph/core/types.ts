@@ -115,9 +115,20 @@ export type GraphFilesystemOps = {
 }
 
 export type ValidationError = {
-    readonly path: string
+    /**
+     * Stable, plugin-owned taxonomy identifier (e.g. `body.missing_marker`).
+     * This is the value surfaced in `gate_rejection.ruleIds` telemetry and in
+     * the rejection envelope so callers can react programmatically. Plugin
+     * authors are responsible for keeping these IDs stable across releases.
+     */
+    readonly ruleId: string
     readonly message: string
     readonly severity: 'error' | 'warning'
+    /**
+     * Optional JSON-path locator within the body for nested-structure
+     * validators. Plain-text validators omit it.
+     */
+    readonly path?: string
     readonly expected?: unknown
     readonly got?: unknown
 }

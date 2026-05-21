@@ -70,17 +70,12 @@ const MCP_BASE_PORT: 3001 = 3001 as const
 let mcpPort: number = MCP_BASE_PORT
 
 /**
- * Creates and configures the MCP server with Voicetree tools.
+ * Registers every Voicetree tool against the supplied MCP server. Extracted
+ * from `createMcpServer` so the CLI manual parity lint can capture the same
+ * registrations against a stub server and read each zod schema's
+ * `.description` for verbatim comparison against `tools/prompts/cli-manual.md`.
  */
-export async function createMcpServer(): Promise<McpServer> {
-    const settings: VTSettings = await loadSettings()
-    const _lineLimit: number = settings.nodeLineLimit ?? 70
-    void _lineLimit // used by validation integration (Phase 2)
-    const server: McpServer = new McpServer({
-        name: 'voicetree-mcp',
-        version: '1.0.0'
-    })
-
+export function registerAllTools(server: McpServer): void {
     // Tool: spawn_agent
     server.registerTool(
         'spawn_agent',
@@ -278,7 +273,20 @@ Task
     )
 
     registerLiveTools(server)
+}
 
+/**
+ * Creates and configures the MCP server with Voicetree tools.
+ */
+export async function createMcpServer(): Promise<McpServer> {
+    const settings: VTSettings = await loadSettings()
+    const _lineLimit: number = settings.nodeLineLimit ?? 70
+    void _lineLimit // used by validation integration (Phase 2)
+    const server: McpServer = new McpServer({
+        name: 'voicetree-mcp',
+        version: '1.0.0'
+    })
+    registerAllTools(server)
     return server
 }
 
