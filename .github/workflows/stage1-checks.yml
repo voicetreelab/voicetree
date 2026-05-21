@@ -56,8 +56,28 @@ jobs:
       - name: Codebase health tier 2
         run: npm run health:tier2
 
+  discover-units:
+    name: PR CI / Discover Unit Measures
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.list.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: list
+        run: |
+          ids=$(ls scripts/measures/src/correctness/unit/*.ts \
+                | xargs -n1 basename | sed 's/\.ts$//' \
+                | jq -R -s -c 'split("\n")|map(select(.!=""))')
+          echo "ids=$ids" >> $GITHUB_OUTPUT
+
   unit-tests:
-    name: PR CI / Unit & Integration Tests
+    name: PR CI / Unit & Integration Tests (${{ matrix.measure }})
+    needs: discover-units
+    strategy:
+      fail-fast: false
+      matrix:
+        measure: ${{ fromJSON(needs.discover-units.outputs.ids) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -76,8 +96,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Run unit/integration tests
-        run: npm run health:capture-ci -- --folder=correctness/unit --sequential
+      - name: Run ${{ matrix.measure }}
+        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
 
   # Brain Workflow Tests are disabled for now. Re-enable when the brain
   # submodule check should become part of PR gating again.
@@ -196,10 +216,30 @@ jobs:
 
   # ── Stage 3: Deep tests (gated on Stage 1 jobs via `needs:`) ─────────
 
-  fuzz-tests:
-    name: Fuzz Tests
+  discover-fuzz:
+    name: Discover Fuzz Measures
     if: github.base_ref == 'main'
-    needs: [lint-typecheck, unit-tests]
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.list.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: list
+        run: |
+          ids=$(ls scripts/measures/src/correctness/slow/fuzz/*.ts \
+                | xargs -n1 basename | sed 's/\.ts$//' \
+                | jq -R -s -c 'split("\n")|map(select(.!=""))')
+          echo "ids=$ids" >> $GITHUB_OUTPUT
+
+  fuzz-tests:
+    name: Fuzz Tests (${{ matrix.measure }})
+    if: github.base_ref == 'main'
+    needs: [lint-typecheck, unit-tests, discover-fuzz]
+    strategy:
+      fail-fast: false
+      matrix:
+        measure: ${{ fromJSON(needs.discover-fuzz.outputs.ids) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -221,8 +261,8 @@ jobs:
       - name: Rebuild native modules
         run: npm rebuild better-sqlite3
 
-      - name: Run fuzz tests
-        run: npm run health:capture-ci -- --folder=correctness/slow
+      - name: Run ${{ matrix.measure }}
+        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
 
   browser-tier2:
     name: Browser Tier 2 E2E

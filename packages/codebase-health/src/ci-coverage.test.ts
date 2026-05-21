@@ -141,6 +141,83 @@ function findCaptureInvocations(
     return calls
 }
 
+type WorkflowJob = {
+    id: string
+    text: string
+}
+
+function findWorkflowJobs(workflowText: string): readonly WorkflowJob[] {
+    const jobsMatch = /^jobs:\s*$/m.exec(workflowText)
+    if (!jobsMatch) return []
+
+    const jobsText = workflowText.slice(jobsMatch.index + jobsMatch[0].length)
+    const starts = [...jobsText.matchAll(/^  ([a-z0-9_-]+):\s*$/gim)]
+        .map(m => ({id: m[1], start: m.index ?? 0}))
+
+    return starts.map((job, index) => ({
+        id: job.id,
+        text: jobsText.slice(job.start, starts[index + 1]?.start),
+    }))
+}
+
+function findOutputKeys(jobText: string): readonly string[] {
+    return [...jobText.matchAll(/^\s{6}([a-z0-9_-]+):\s*\$\{\{\s*steps\.[a-z0-9_-]+\.outputs\.[a-z0-9_-]+\s*\}\}\s*$/gim)]
+        .map(m => m[1])
+}
+
+function findFilesystemMeasureFolders(jobText: string): readonly string[] {
+    const folders = new Set<string>()
+    for (const m of jobText.matchAll(/\bls\s+scripts\/measures\/src\/([^\s'"]+)\/\*\.ts\b/g)) {
+        folders.add(m[1])
+    }
+    for (const m of jobText.matchAll(/\bfind\s+scripts\/measures\/src\/([^\s'"]+)\s+[^\n|]*-name\s+['"]\*\.ts['"]/g)) {
+        folders.add(m[1])
+    }
+    return [...folders].sort()
+}
+
+function escapeRegExp(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function jobRunsMatrixMeasure(jobText: string, matrixVar: string): boolean {
+    const matrixOnlyRe = new RegExp(
+        `npm run health:capture-ci[^\\n]*--only=\\$\\{\\{\\s*matrix\\.${escapeRegExp(matrixVar)}\\s*\\}\\}`,
+    )
+    return matrixOnlyRe.test(jobText)
+}
+
+function findMatrixFilesystemCoverage(workflowText: string, workflow: string): readonly CaptureCall[] {
+    const jobs = findWorkflowJobs(workflowText)
+    const foldersByOutput = new Map<string, readonly string[]>()
+
+    // Keep this narrow rather than adding a YAML dependency: recognize the
+    // discover-job/output/matrix shape used by CI, then treat the discovered
+    // filesystem folder exactly like a --folder=<prefix> capture-ci call.
+    for (const job of jobs) {
+        const folders = findFilesystemMeasureFolders(job.text)
+        if (folders.length === 0) continue
+        for (const outputKey of findOutputKeys(job.text)) {
+            foldersByOutput.set(`${job.id}.${outputKey}`, folders)
+        }
+    }
+
+    const calls: CaptureCall[] = []
+    for (const job of jobs) {
+        const matrixRe = /^\s{8}([a-z0-9_-]+):\s*\$\{\{\s*fromJSON\(needs\.([a-z0-9_-]+)\.outputs\.([a-z0-9_-]+)\)\s*\}\}\s*$/gim
+        for (const m of job.text.matchAll(matrixRe)) {
+            const [matrixVar, sourceJob, outputKey] = [m[1], m[2], m[3]]
+            const folders = foldersByOutput.get(`${sourceJob}.${outputKey}`) ?? []
+            if (folders.length === 0 || !jobRunsMatrixMeasure(job.text, matrixVar)) continue
+            for (const folder of folders) {
+                calls.push({workflow, folder, quick: false, only: null})
+            }
+        }
+    }
+
+    return calls
+}
+
 function callCoversMeasure(call: CaptureCall, m: Measure): boolean {
     if (call.only) return call.only.has(m.id)
     if (call.quick && m.slow) return false
@@ -155,6 +232,7 @@ async function loadAllCalls(scripts: ReadonlyMap<string, CaptureFlags>): Promise
         if (!wf.endsWith('.yml') && !wf.endsWith('.yaml')) continue
         const text = await readFile(join(WORKFLOWS_DIR, wf), 'utf8')
         calls.push(...findCaptureInvocations(text, scripts, wf))
+        calls.push(...findMatrixFilesystemCoverage(text, wf))
     }
     return calls
 }
