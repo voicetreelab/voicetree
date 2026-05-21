@@ -18,6 +18,7 @@ const config: KnipConfig = {
                 'old/**',
                 'spikes/**',
                 'tools/**',
+                'voicetree-20-5/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',
             ],
