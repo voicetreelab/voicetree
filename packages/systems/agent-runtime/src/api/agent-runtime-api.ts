@@ -17,6 +17,8 @@ import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../applicati
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
+import { ensureTmuxAvailable } from '../application/terminals/tmux-preflight'
+import { ensureTmuxLaunchAgent } from '../application/terminals/tmux-launchagent'
 import { getTerminalManager } from '../application/terminals/terminal-manager-instance'
 import {
     enqueuePendingMessage,
@@ -43,6 +45,8 @@ export const agentRuntime = {
     closeHeadlessAgent,
     configureAgentRuntime,
     dispatchOnNewNodeHooks,
+    ensureTmuxAvailable,
+    ensureTmuxLaunchAgent,
     enqueuePendingMessage,
     getExistingAgentNames,
     getHeadlessAgentOutput,

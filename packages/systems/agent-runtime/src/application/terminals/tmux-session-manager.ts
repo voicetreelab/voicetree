@@ -1,9 +1,13 @@
 import {spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {shellQuote} from '../util/shellQuote.ts'
+import {
+    ensureTmuxLaunchAgent,
+    getTmuxBinaryPath,
+    getTmuxCommandArgs,
+} from './tmux-launchagent.ts'
 import {ensureTmuxAvailable} from './tmux-preflight.ts'
 
-const TMUX: string = 'tmux'
 const tmuxSessionAliases: Map<string, string> = new Map()
 
 type TmuxResult = {
@@ -11,9 +15,10 @@ type TmuxResult = {
     stderr: string
 }
 
-function runTmux(args: string[]): Promise<TmuxResult> {
+async function runTmux(args: string[]): Promise<TmuxResult> {
+    await ensureTmuxLaunchAgent()
     return new Promise((resolve, reject) => {
-        const child = spawn(TMUX, args, {stdio: ['ignore', 'pipe', 'pipe']})
+        const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(args), {stdio: ['ignore', 'pipe', 'pipe']})
         const stdoutChunks: Buffer[] = []
         const stderrChunks: Buffer[] = []
 
@@ -29,7 +34,7 @@ function runTmux(args: string[]): Promise<TmuxResult> {
                 return
             }
 
-            reject(new Error(`tmux ${args.join(' ')} failed with exit code ${code}: ${stderr.trim()}`))
+            reject(new Error(`tmux ${getTmuxCommandArgs(args).join(' ')} failed with exit code ${code}: ${stderr.trim()}`))
         })
     })
 }
@@ -86,9 +91,10 @@ export async function killSession(name: string): Promise<void> {
 }
 
 export async function hasSession(name: string): Promise<boolean> {
+    await ensureTmuxLaunchAgent()
     const sessionName: string = resolveTmuxSessionName(name)
     return new Promise((resolve, reject) => {
-        const child = spawn(TMUX, ['has-session', '-t', sessionName], {stdio: ['ignore', 'ignore', 'pipe']})
+        const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['has-session', '-t', sessionName]), {stdio: ['ignore', 'ignore', 'pipe']})
         const stderrChunks: Buffer[] = []
 
         child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
