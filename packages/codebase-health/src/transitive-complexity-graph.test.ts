@@ -7,14 +7,14 @@ import {scoreFunction} from './cogcx-scorer'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../..')
-const CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE = 1743
-const CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE = 270
 // 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function
 // vt-graph.ts:691:main grew to transitive=2125 from new vault lifecycle routes
-// + folder-state/view plumbing landed via JOINT-001 / UFV-2. Marginal overrun
-// (0.2191 vs 0.21, +0.9pp) — same precedent as BF-267 module-state bump.
-const MAX_CANARY_TOLERANCE = 0.22
-const FOLDER_MEAN_CANARY_TOLERANCE = 0.50
+// + folder-state/view plumbing landed via JOINT-001 / UFV-2.
+// Budgets derive from previous baseline*tolerance: 1743 * 1.22 ≈ 2127 (max),
+// 270 * 1.50 = 405 (folder mean). These are honest TS-morph budgets, not
+// CodeQL baselines (no CodeQL infrastructure exists in this repo).
+const TRANSITIVE_COMPLEXITY_MAX_BUDGET = 2127
+const TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BUDGET = 405
 const MINIMUM_FOLDER_FUNCTIONS = 4
 
 type ScoredFunction = {
@@ -24,8 +24,8 @@ type ScoredFunction = {
     readonly calleeCount: number
 }
 
-describe('ts-morph transitive complexity canary', () => {
-    it('stays within 20% of the CodeQL transitive complexity baselines', async () => {
+describe('transitive complexity (ts-morph call graph)', () => {
+    it('transitive complexity max and folder-mean stay under budget', async () => {
         const started = performance.now()
         const graph = await buildCallGraph()
         const buildMs = Math.round(performance.now() - started)
@@ -33,14 +33,12 @@ describe('ts-morph transitive complexity canary', () => {
         const top = scored.slice().sort(compareByTransitiveScore)[0]
         const maxTransitive = top?.transitive ?? 0
         const folderMean = maxFolderMean(scored)
-        const maxDiff = percentDiff(maxTransitive, CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE)
-        const folderMeanDiff = percentDiff(folderMean, CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE)
         const expectedTopMatched = top?.node.file.endsWith('libraries/graph-tools/bin/vt-graph.ts') && top.node.name === 'main'
 
-        console.info(`TS transitive complexity max: ${maxTransitive} vs CodeQL ${CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE} (${(maxDiff * 100).toFixed(2)}% diff); top=${formatScore(top)}`)
-        console.info(`TS transitive complexity folder mean max: ${folderMean.toFixed(2)} vs CodeQL ${CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE} (${(folderMeanDiff * 100).toFixed(2)}% diff)`)
+        console.info(`TS transitive complexity max: ${maxTransitive}; top=${formatScore(top)}`)
+        console.info(`TS transitive complexity folder mean max: ${folderMean.toFixed(2)}`)
         if (!expectedTopMatched && top) {
-            console.warn(`TS transitive complexity top function diverged from CodeQL vt-graph.ts:main winner: ${formatScore(top)}`)
+            console.warn(`TS transitive complexity top function diverged from prior vt-graph.ts:main winner: ${formatScore(top)}`)
         }
 
         await recordHealthMetric({
@@ -49,12 +47,10 @@ describe('ts-morph transitive complexity canary', () => {
             description: 'Maximum direct-plus-reachable cognitive complexity for package functions using the ts-morph call graph.',
             category: 'Complexity',
             current: maxTransitive,
-            budget: maxTransitive,
+            budget: TRANSITIVE_COMPLEXITY_MAX_BUDGET,
             comparison: 'lte',
             unit: 'cogcx',
             details: {
-                codeqlBaseline: CODEQL_TRANSITIVE_COMPLEXITY_MAX_BASELINE,
-                percentDiff: maxDiff,
                 buildMs,
                 topFunction: top ? serializableScore(top) : null,
                 expectedTopMatched,
@@ -66,18 +62,17 @@ describe('ts-morph transitive complexity canary', () => {
             description: 'Maximum folder mean of direct-plus-reachable cognitive complexity among folders with at least four functions.',
             category: 'Complexity',
             current: folderMean,
-            budget: folderMean,
+            budget: TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BUDGET,
             comparison: 'lte',
             unit: 'cogcx mean',
             details: {
-                codeqlBaseline: CODEQL_TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BASELINE,
-                percentDiff: folderMeanDiff,
                 minimumFolderFunctions: MINIMUM_FOLDER_FUNCTIONS,
             },
         })
 
-        expect(maxDiff, outOfBandMessage('max', scored)).toBeLessThanOrEqual(MAX_CANARY_TOLERANCE)
-        expect(folderMeanDiff).toBeLessThanOrEqual(FOLDER_MEAN_CANARY_TOLERANCE)
+        // recordHealthMetric only journals the result; enforcement happens here.
+        expect(maxTransitive, outOfBandMessage('max', scored)).toBeLessThanOrEqual(TRANSITIVE_COMPLEXITY_MAX_BUDGET)
+        expect(folderMean).toBeLessThanOrEqual(TRANSITIVE_COMPLEXITY_FOLDER_MEAN_BUDGET)
     }, 120000)
 })
 
@@ -129,10 +124,6 @@ function maxFolderMean(scored: readonly ScoredFunction[]): number {
     return Math.max(0, ...[...folders.values()]
         .filter(folder => folder.count >= MINIMUM_FOLDER_FUNCTIONS)
         .map(folder => folder.total / folder.count))
-}
-
-function percentDiff(current: number, baseline: number): number {
-    return Math.abs(current - baseline) / baseline
 }
 
 function compareByTransitiveScore(a: ScoredFunction, b: ScoredFunction): number {

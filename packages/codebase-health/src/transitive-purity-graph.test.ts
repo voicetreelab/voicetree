@@ -19,8 +19,7 @@ import { recordHealthMetric } from './_health-report-test-helpers'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
-const CODEQL_TRANSITIVE_IMPURITY_BASELINE = 277
-const CANARY_TOLERANCE = 0.05
+const TRANSITIVE_IMPURE_FUNCTIONS_BUDGET = 320
 const IMPURE_RATIO_BUDGET = 1
 const IMPURE_MODULES: ReadonlySet<string> = new Set([
     'fs',
@@ -44,37 +43,32 @@ const IMPURE_GLOBALS: ReadonlySet<string> = new Set(['fetch', 'XMLHttpRequest'])
 
 type FunctionSyntax = FunctionDeclaration | MethodDeclaration | FunctionExpression | MorphNode
 
-describe('ts-morph transitive purity canary', () => {
-    it('stays within 5% of the CodeQL transitive impurity baseline', async () => {
+describe('transitive impurity (ts-morph call graph)', () => {
+    it('transitive impurity functions stay under budget', async () => {
         const started = performance.now()
         const graph = await buildCallGraph()
         const buildMs = Math.round(performance.now() - started)
         const directIds = collectDirectlyImpureFunctionIds(graph)
-        const codeqlScopedNodeIds = [...graph.nodes.keys()].filter(id => id.startsWith('packages/'))
-        const transitiveIds = codeqlScopedNodeIds
+        const scopedNodeIds = [...graph.nodes.keys()].filter(id => id.startsWith('packages/'))
+        const transitiveIds = scopedNodeIds
             .filter(id => directIds.has(id) || graph.reachesAny(id, node => directIds.has(node.id)))
         const maxFolderRatio = maxImpureFolderRatio(graph, new Set(transitiveIds))
-        const diff = transitiveIds.length - CODEQL_TRANSITIVE_IMPURITY_BASELINE
-        const percentDiff = Math.abs(diff) / CODEQL_TRANSITIVE_IMPURITY_BASELINE
         const directTransitiveCount = transitiveIds.filter(id => directIds.has(id)).length
 
         console.info(`buildCallGraph first call: ${buildMs}ms`)
-        console.info(`TS transitive impurity: ${transitiveIds.length} vs CodeQL ${CODEQL_TRANSITIVE_IMPURITY_BASELINE} (${(percentDiff * 100).toFixed(2)}% diff); direct=${directTransitiveCount}, transitive=${transitiveIds.length - directTransitiveCount}`)
+        console.info(`TS transitive impurity: ${transitiveIds.length} functions; direct=${directTransitiveCount}, transitive=${transitiveIds.length - directTransitiveCount}`)
         console.info(`TS transitive impurity top roots: ${topRoots(graph, transitiveIds).join(', ')}`)
 
         await recordHealthMetric({
             metricId: 'transitive-impurity-functions-ts-canary',
             metricName: 'TS Canary Transitive Impurity Functions',
-            description: 'ts-morph call-graph canary count for functions that directly or transitively reach filesystem, network, or process sinks.',
+            description: 'ts-morph call-graph count of functions that directly or transitively reach filesystem, network, or process sinks.',
             category: 'Purity',
             current: transitiveIds.length,
-            budget: 320,
+            budget: TRANSITIVE_IMPURE_FUNCTIONS_BUDGET,
             comparison: 'lte',
             unit: 'functions',
             details: {
-                codeqlBaseline: CODEQL_TRANSITIVE_IMPURITY_BASELINE,
-                diff,
-                percentDiff,
                 directFunctions: directTransitiveCount,
                 transitiveOnlyFunctions: transitiveIds.length - directTransitiveCount,
                 buildMs,
@@ -96,18 +90,12 @@ describe('ts-morph transitive purity canary', () => {
             },
         })
 
-        const topTsOnlyCandidates = transitiveIds
-            .slice(0, 10)
-            .map(id => graph.nodes.get(id)?.name ?? id)
+        // recordHealthMetric only journals the result; enforcement happens here.
+        const topTsCandidates = transitiveIds.slice(0, 10).map(id => graph.nodes.get(id)?.name ?? id)
         expect(
-            percentDiff,
-            [
-                `TS canary differs from CodeQL baseline by ${diff} functions (${(percentDiff * 100).toFixed(2)}%).`,
-                `direct=${directTransitiveCount}; transitiveOnly=${transitiveIds.length - directTransitiveCount}; total=${transitiveIds.length}.`,
-                `TS-only candidates: ${topTsOnlyCandidates.join(', ')}`,
-                'CodeQL-only candidates: see scripts/codeql/queries/purity-reachability.ql baseline.',
-            ].join('\n'),
-        ).toBeLessThanOrEqual(CANARY_TOLERANCE)
+            transitiveIds.length,
+            `Transitive impurity count ${transitiveIds.length} exceeds budget ${TRANSITIVE_IMPURE_FUNCTIONS_BUDGET}. Top candidates: ${topTsCandidates.join(', ')}`,
+        ).toBeLessThanOrEqual(TRANSITIVE_IMPURE_FUNCTIONS_BUDGET)
     }, 120000)
 })
 
