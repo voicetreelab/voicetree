@@ -186,6 +186,19 @@ describe('graph create schema gate (filesystem mode)', () => {
         expect(payload).toMatchObject({kind: 'schema_violation', typeName: 'my-kind'})
     })
 
+    it('rejects --override flags in filesystem mode (CLI gate is non-overridable)', async () => {
+        const targetPath: string = join(vaultRoot, 'work', 'topic.md')
+        await writeFile(targetPath, '# Topic\n\nNeeded marker.\n', 'utf8')
+
+        const result: CapturedRun = await captureGraphCreate(
+            ['work/topic.md', '--override', 'node_line_limit:reason'],
+            vaultRoot
+        )
+
+        expect(result.exitCode).toBe(1)
+        expect(result.stderr).toContain('--override is only valid with live-mode')
+    })
+
     it('skips validation when no upstream folder note declares a Type', async () => {
         const freeDir: string = join(vaultRoot, 'free')
         await mkdir(freeDir, {recursive: true})

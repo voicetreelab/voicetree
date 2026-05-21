@@ -8,6 +8,7 @@ import {
     type SelectionMode,
     type ViewRecord,
 } from '@vt/graph-db-client'
+import {isRecord} from '@/shell/edge/main/cli/commands/graph/core/util'
 import {isJsonMode} from '@/shell/edge/main/cli/output'
 import {resolveVault} from '@/shell/edge/main/cli/util/detectVault'
 import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes'
@@ -386,10 +387,6 @@ function parseViewCommand(argv: string[]): ParsedViewCommand {
         default:
             return validationError(`Unknown layout subcommand: ${rawSubcommand}`)
     }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null
 }
 
 function parsePositionsRecord(value: unknown, filePath: string): LayoutPositions {

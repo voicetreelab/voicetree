@@ -15,14 +15,14 @@ export type ComplexityScore = 'low' | 'medium' | 'high'
 export type BuildMarkdownBodyParams = {
     readonly title: string
     readonly summary: string
-    readonly content: string | undefined
-    readonly codeDiffs: readonly string[] | undefined
-    readonly filesChanged: readonly string[] | undefined
-    readonly diagram: string | undefined
-    readonly notes: readonly string[] | undefined
-    readonly linkedArtifacts: readonly string[] | undefined
-    readonly complexityScore: ComplexityScore | undefined
-    readonly complexityExplanation: string | undefined
+    readonly content?: string
+    readonly codeDiffs?: readonly string[]
+    readonly filesChanged?: readonly string[]
+    readonly diagram?: string
+    readonly notes?: readonly string[]
+    readonly linkedArtifacts?: readonly string[]
+    readonly complexityScore?: ComplexityScore
+    readonly complexityExplanation?: string
     readonly color: string
     readonly agentName: string
     readonly parentLinks: readonly { baseName: string; edgeLabel: string | undefined }[]

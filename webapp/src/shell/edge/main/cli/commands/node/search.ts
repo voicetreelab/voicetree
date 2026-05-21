@@ -1,4 +1,5 @@
 import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
+import {getErrorMessage, getRequiredValue, parsePositiveInteger} from '@/shell/edge/main/cli/commands/graph/core/args'
 import {error, output} from '@/shell/edge/main/cli/output'
 
 type SearchResult = {
@@ -18,28 +19,6 @@ type SearchFailure = {
     error: string
 }
 
-function getRequiredValue(args: string[], index: number, flag: string): string {
-    const value: string | undefined = args[index]
-    if (!value) {
-        error(`${flag} requires a value`)
-    }
-
-    return value
-}
-
-function parseTopK(value: string): number {
-    const topK: number = Number(value)
-    if (!Number.isInteger(topK) || topK < 1) {
-        error(`--top-k must be a positive integer, received "${value}"`)
-    }
-
-    return topK
-}
-
-function getErrorMessage(err: unknown): string {
-    return err instanceof Error ? err.message : String(err)
-}
-
 export async function searchCommand(port: number, _terminalId: string | undefined, args: string[]): Promise<void> {
     let topK = 10
     const queryParts: string[] = []
@@ -47,7 +26,7 @@ export async function searchCommand(port: number, _terminalId: string | undefine
     for (let index = 0; index < args.length; index += 1) {
         const arg: string = args[index]
         if (arg === '--top-k') {
-            topK = parseTopK(getRequiredValue(args, index + 1, '--top-k'))
+            topK = parsePositiveInteger(getRequiredValue(args, index + 1, '--top-k'), '--top-k')
             index += 1
             continue
         }

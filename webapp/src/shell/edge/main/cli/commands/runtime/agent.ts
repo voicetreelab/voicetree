@@ -1,3 +1,4 @@
+import {requireTerminalId} from '@/shell/edge/main/cli/commands/graph/core/args'
 import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
 import {error, output} from '@/shell/edge/main/cli/output'
 
@@ -66,14 +67,6 @@ function parseArgs(
     }
 
     return {positionals, values, booleans}
-}
-
-function requireTerminalId(terminalId: string | undefined): string {
-    if (!terminalId) {
-        error('`--terminal` / `-t` is required for this command or set VOICETREE_TERMINAL_ID')
-    }
-
-    return terminalId
 }
 
 function requireNonEmptyValue(value: string | undefined, message: string): string {

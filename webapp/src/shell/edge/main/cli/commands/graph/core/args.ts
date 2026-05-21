@@ -1,7 +1,7 @@
 import type {StructureManifest} from '@vt/graph-tools/node'
 import {error} from './graphCliDependencies'
 import {readGraphFileUtf8} from '@/shell/edge/main/cli/commands/graph/io/filesystem'
-import type {GraphCreateNode, ParsedGraphCreateArgs} from './types'
+import {OVERRIDABLE_RULE_IDS, type GraphCreateNode, type OverridableRuleId, type OverrideSpec, type ParsedGraphCreateArgs} from './types'
 import {getErrorMessage} from './util'
 
 export {getErrorMessage, normalizeRef} from './util'
@@ -119,6 +119,19 @@ function inferManifestFormat(source: string, filePath: string): StructureManifes
     return 'ascii'
 }
 
+function parseOverrideSpec(value: string): OverrideSpec {
+    const sep: number = value.indexOf(':')
+    const ruleId: string = sep > 0 ? value.slice(0, sep).trim() : ''
+    const rationale: string = sep > 0 ? value.slice(sep + 1).trim() : ''
+    if (!ruleId || !rationale) {
+        error(`--override value "${value}" must be ruleId:rationale (non-empty both sides of ':')`)
+    }
+    if (!(OVERRIDABLE_RULE_IDS as readonly string[]).includes(ruleId)) {
+        error(`--override ruleId "${ruleId}" is not overridable. Valid: ${OVERRIDABLE_RULE_IDS.join(', ')}`)
+    }
+    return {ruleId: ruleId as OverridableRuleId, rationale}
+}
+
 function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let nodesFile: string | undefined
     const inlineNodeSpecs: string[] = []
@@ -127,6 +140,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     const inputFilePaths: string[] = []
     let manifestPath: string | undefined
     let validateOnly: boolean = false
+    const overrides: OverrideSpec[] = []
 
     for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
@@ -166,6 +180,12 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             continue
         }
 
+        if (arg === '--override') {
+            overrides.push(parseOverrideSpec(getRequiredValue(args, index + 1, '--override')))
+            index += 1
+            continue
+        }
+
         if (arg.startsWith('--')) {
             error(`Unknown argument: ${arg}`)
         }
@@ -198,6 +218,10 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             })()
             : undefined
 
+        if (overrides.length > 0) {
+            error('--override is only valid with live-mode (--node / --nodes-file / stdin), not filesystem markdown inputs')
+        }
+
         return {
             mode: 'filesystem',
             inputFilePaths,
@@ -213,6 +237,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
         ...(nodesFile ? {nodesFile} : {}),
         inlineNodeSpecs,
         validateOnly,
+        overrides,
         ...(parentValue ? {parentNodeId: parentValue} : {}),
         ...(color ? {color} : {}),
     }
@@ -220,7 +245,7 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
 
 function requireTerminalId(terminalId: string | undefined): string {
     if (!terminalId) {
-        error('This command requires --terminal or VOICETREE_TERMINAL_ID')
+        error('`--terminal` / `-t` is required for this command or set VOICETREE_TERMINAL_ID')
     }
 
     return terminalId

@@ -3,6 +3,7 @@ import {
     DaemonUnreachableError,
     GraphDbClientError,
 } from '@vt/graph-db-client'
+import {isRecord} from '@/shell/edge/main/cli/commands/graph/core/util'
 import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 
 export const EXIT: {
@@ -33,10 +34,6 @@ export class ArgValidationError extends Error {
         super(message)
         this.name = 'ArgValidationError'
     }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null
 }
 
 function isVaultNotDetectedError(err: unknown): err is VaultNotDetectedErrorShape {

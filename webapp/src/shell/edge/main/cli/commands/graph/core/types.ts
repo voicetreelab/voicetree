@@ -83,11 +83,12 @@ export type GraphCreatePayload = {
     override_with_rationale?: unknown
 }
 
-export type ParsedFilesystemCreateArgs = {
-    inputFilePaths: string[]
-    parentPath?: string
-    color?: string
-    manifest?: StructureManifest
+export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit'] as const
+export type OverridableRuleId = typeof OVERRIDABLE_RULE_IDS[number]
+
+export type OverrideSpec = {
+    readonly ruleId: OverridableRuleId
+    readonly rationale: string
 }
 
 export type ParsedLiveCreateArgs = {
@@ -97,10 +98,15 @@ export type ParsedLiveCreateArgs = {
     parentNodeId?: string
     color?: string
     validateOnly: boolean
+    overrides: readonly OverrideSpec[]
 }
 
-export type ParsedFilesystemModeArgs = ParsedFilesystemCreateArgs & {
+export type ParsedFilesystemModeArgs = {
     mode: 'filesystem'
+    inputFilePaths: string[]
+    parentPath?: string
+    color?: string
+    manifest?: StructureManifest
     validateOnly: boolean
 }
 

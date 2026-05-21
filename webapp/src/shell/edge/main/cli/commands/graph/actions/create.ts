@@ -24,6 +24,7 @@ import type {
     FilesystemCreateSuccess,
     GraphCreateNode,
     GraphCreateSuccess,
+    OverrideSpec,
     ParsedGraphCreateArgs,
     ToolFailure,
 } from '@/shell/edge/main/cli/commands/graph/core/types'
@@ -68,14 +69,7 @@ function assembleLiveBody(node: GraphCreateNode, defaultColor: string | undefine
     return buildMarkdownBody({
         title: String(node.title ?? ''),
         summary: String(node.summary ?? ''),
-        content: typeof node.content === 'string' ? node.content : undefined,
-        codeDiffs: undefined,
-        filesChanged: undefined,
-        diagram: undefined,
-        notes: undefined,
-        linkedArtifacts: undefined,
-        complexityScore: undefined,
-        complexityExplanation: undefined,
+        ...(typeof node.content === 'string' ? {content: node.content} : {}),
         color,
         agentName: process.env.AGENT_NAME ?? '',
         parentLinks: [],
@@ -113,6 +107,15 @@ async function gateLiveNodes(
     }
 }
 
+function rewriteOverrideHintForCli(mcpError: string): string {
+    const markerIndex: number = mcpError.indexOf('To override, add "override_with_rationale"')
+    if (markerIndex === -1) return mcpError
+    const head: string = mcpError.slice(0, markerIndex).trimEnd()
+    const ruleIds: readonly string[] = [...new Set([...head.matchAll(/^ {2}• \[([^\]]+)\]/gm)].map((m) => m[1]))]
+    if (ruleIds.length === 0) return mcpError
+    return `${head}\n\nTo override, re-run with: ${ruleIds.map((id) => `--override '${id}:<rationale>'`).join(' ')}`
+}
+
 export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
     const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
 
@@ -129,11 +132,19 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         const payload = await readCreateGraphPayloadFromStdin(terminalId)
         await gateLiveNodes(payload.nodes, payload.parentNodeId, parsedArgs.color)
 
+        const stdinOverrides: readonly OverrideSpec[] =
+            (payload.override_with_rationale as readonly OverrideSpec[] | undefined) ?? []
+        const overrides: readonly OverrideSpec[] = [...stdinOverrides, ...parsedArgs.overrides]
+        const mcpPayload: Record<string, unknown> = {
+            ...payload,
+            ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
+        }
+
         try {
-            const response: unknown = await callMcpTool(port, 'create_graph', payload)
+            const response: unknown = await callMcpTool(port, 'create_graph', mcpPayload)
             const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
             if (!result.success) {
-                error(result.error)
+                error(rewriteOverrideHintForCli(result.error))
             }
 
             output(result)
@@ -214,10 +225,11 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
             callerTerminalId,
             ...(parsedArgs.parentNodeId ? {parentNodeId: parsedArgs.parentNodeId} : {}),
             nodes,
+            ...(parsedArgs.overrides.length > 0 ? {override_with_rationale: parsedArgs.overrides} : {}),
         })
         const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
         if (!result.success) {
-            error(result.error)
+            error(rewriteOverrideHintForCli(result.error))
         }
 
         output(result)

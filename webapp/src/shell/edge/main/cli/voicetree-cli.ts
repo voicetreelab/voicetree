@@ -15,6 +15,7 @@ import {findRepoRoot} from './util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
 import {runVaultCommand} from './commands/runtime/vault.ts'
 import {runViewCommand} from './commands/node/view.ts'
+import {getErrorMessage} from './commands/graph/core/util.ts'
 import {error} from './output.ts'
 import {argsShape} from './telemetry/argsShape.ts'
 import {
@@ -77,10 +78,6 @@ Subcommands:
   index       Build a local semantic search index for a vault
   search      Search a local semantic search index for a vault
   unseen      Get unseen nodes near your context`
-
-function getErrorMessage(cause: unknown): string {
-    return cause instanceof Error ? cause.message : String(cause)
-}
 
 function parsePort(rawPort: string): number {
     const parsedPort: number = Number(rawPort)

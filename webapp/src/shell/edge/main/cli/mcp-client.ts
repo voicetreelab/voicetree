@@ -1,6 +1,4 @@
-function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error)
-}
+import {getErrorMessage} from '@/shell/edge/main/cli/commands/graph/core/util'
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
     return typeof value === 'object' && value !== null
