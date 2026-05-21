@@ -218,7 +218,7 @@ One node = one concept. If your work covers multiple independent concerns, creat
 
 **Composition guidance:** Read addProgressTree.md before your first progress node for scope rules, when to split, and embedding standards.
 
-**Node wiring:** Each node has a \`filename\` (with or without .md extension). Use \`parents\` (array) to reference other nodes' filenames — all parents are created before children. Nodes without \`parents\` attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: \`"parents": ["phase1", "phase2"]\`.
+**Node wiring:** Each node has a \`filename\` (with or without .md extension). Declare parents inside \`content\` using \`- parent [[other-filename|edge-label]]\` lines (one per line). The pipe-separated edge label is optional — use \`- parent [[other-filename]]\` for a generic parent link. All in-batch parents (filenames declared in this call) are created before children. Nodes with no \`- parent\` line attach to the top-level \`parentNodeId\` (or your task node by default). Diamond dependencies are supported: emit multiple \`- parent [[…]]\` lines.
 
 Split by concern:
 Task: Review git diff
@@ -237,10 +237,10 @@ Task
                 parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
                 outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writePath or readPaths).'),
                 nodes: z.array(z.object({
-                    filename: z.string().describe('Filename for this node (with or without .md extension). Also used in `parents` to reference other nodes in this call.'),
+                    filename: z.string().describe('Filename for this node (with or without .md extension). Other nodes can reference this one via `- parent [[filename|edge-label]]` lines inside their `content`.'),
                     title: z.string().describe('Node title — one concept per node, concise and descriptive'),
                     summary: z.string().describe('Concise summary (1-3 lines) of what was accomplished. Always shown first.'),
-                    content: z.string().optional().describe('Complete work output as markdown. MUST contain all artifacts produced (diagrams, ASCII mockups, code snippets, analysis, tables, proposals). Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Pass empty string if no artifacts were produced.'),
+                    content: z.string().optional().describe('Complete work output as markdown. MUST contain all artifacts produced (diagrams, ASCII mockups, code snippets, analysis, tables, proposals). Embed artifacts verbatim — do not summarize what you created. The node must be self-contained: a reader should never need to look elsewhere to see what was produced. Declare parent edges with `- parent [[other-filename|edge-label]]` lines (label optional). Pass empty string if no artifacts were produced.'),
                     color: z.string().optional().describe('Override node color. Use CSS named colors: red, blue, green, yellow, orange, purple, pink, cyan, teal, brown, gray, lime, magenta, navy, olive, maroon, coral, crimson, gold, indigo, lavender, salmon, tomato, turquoise, violet. Defaults to your agent color. Convention: use green for progress nodes that complete a task; use blue (default) for planning and in-progress work.'),
                     diagram: z.string().optional().describe('Mermaid diagram source (without ```mermaid fences — tool adds them). Validated but non-blocking.'),
                     notes: z.array(z.string()).optional().describe('Array of notes: architecture impact, gotchas, tech debt, difficulties. Rendered as bulleted ### NOTES section.'),
@@ -249,10 +249,6 @@ Task
                     complexityScore: z.enum(['low', 'medium', 'high']).optional().describe('Required when codeDiffs provided. Complexity of the area worked in.'),
                     complexityExplanation: z.string().optional().describe('Required when codeDiffs provided. Brief explanation of the complexity score.'),
                     linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to render as markdown links in a ## Related section. Use for specs, proposals, or openspec artifacts without creating graph edges.'),
-                    parents: z.array(z.object({
-                        filename: z.string().describe('Filename of a parent node within this call'),
-                        edgeLabel: z.string().describe('Relationship label shown on the edge (e.g. "implements", "extends", "blocked by"). Use empty string "" for generic parent-child links.')
-                    })).optional().describe('Parent nodes within this call. Each entry is { filename, edgeLabel } where edgeLabel is required (use "" for generic parent-child links). Supports multiple parents for diamond dependencies. Nodes without parents become roots.'),
                 })).describe('Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.'),
                 override_with_rationale: z.array(z.object({
                     ruleId: z.enum(['grandparent_attachment', 'node_line_limit']),

@@ -3,7 +3,12 @@ import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import {applyGraphDeltaToGraph, ensureUniqueNodeId} from '@vt/graph-model/graph'
 import type {Graph, GraphNode, NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {parseMarkdownToGraphNode} from '@vt/graph-model/markdown'
+import {
+    extractParentRefs,
+    normalizeBatchFilenameKey,
+    parseMarkdownToGraphNode,
+    type ParentLineRef,
+} from '@vt/graph-model/markdown'
 import {buildMarkdownBody} from '@vt/graph-tools/node'
 import {
     extractMermaidBlocks,
@@ -12,10 +17,6 @@ import {
     type MermaidBlock,
     validateMermaidBlocks,
 } from '../tools/graph/addProgressNodeTool'
-import {
-    parentRefEdgeLabel,
-    parentRefFilename,
-} from './createGraphTopology'
 import type {
     BatchBuildResult,
     CreatedNodeInfo,
@@ -24,25 +25,72 @@ import type {
     NodeDeltaDraft,
     NodeDraft,
     ParentLink,
-    ParentRef,
     Result,
 } from './createGraphTypes'
 
+const PARENT_LINE_PATTERN: RegExp = /^[ \t]*(?:[-*+][ \t]+)?parent[ \t]+\[\[[^[\]\n\r]+\]\][ \t]*$/
+const FENCE_OPEN: RegExp = /^[ \t]*(```|~~~)/
+
+/**
+ * Strip parent-declaration lines from a markdown body, leaving fenced code
+ * blocks untouched. Grammar matches `extractParentRefs` in graph-model so the
+ * strip + re-emit round trip cannot desync (an indented `- parent [[X]]` that
+ * the parser caught but the strip missed would yield a duplicate parent edge
+ * on the next read). Collapses runs of ≥3 newlines back down to a single
+ * blank line so removed lines don't leave gaps.
+ */
+export function stripParentLines(content: string | undefined): string | undefined {
+    if (!content) return content
+    const lines: readonly string[] = content.split(/\r?\n/)
+    const kept: string[] = []
+    let inFence: boolean = false
+    let fenceMarker: string | undefined
+    for (const line of lines) {
+        const openMatch: RegExpExecArray | null = FENCE_OPEN.exec(line)
+        if (openMatch) {
+            if (!inFence) {
+                inFence = true
+                fenceMarker = openMatch[1]
+            } else if (fenceMarker && line.trim().startsWith(fenceMarker)) {
+                inFence = false
+                fenceMarker = undefined
+            }
+            kept.push(line)
+            continue
+        }
+        if (inFence) {
+            kept.push(line)
+            continue
+        }
+        if (PARENT_LINE_PATTERN.test(line)) continue
+        kept.push(line)
+    }
+    return kept.join('\n').replace(/\n{3,}/g, '\n\n')
+}
+
+/**
+ * Parent edges live in the node's content body as `- parent [[name|label]]`
+ * lines. We extract them, resolve in-batch filenames to their post-slug
+ * baseNames, and re-emit them at the canonical end-of-body position via
+ * `buildMarkdownBody`; the original lines are stripped from `content` so the
+ * final markdown has exactly one source of truth. Refs that don't match an
+ * in-batch `createdNodes` entry are re-emitted unchanged — the wikilink
+ * parser resolves them against the live graph at apply time. The graphParent
+ * fallback fires only when no parent lines were authored at all.
+ */
 function resolveParentLinks(
     node: CreateGraphNodeInput,
     createdNodes: ReadonlyMap<string, CreatedNodeInfo>,
     graphParent: GraphParentContext
 ): readonly ParentLink[] {
-    const links: readonly ParentLink[] = (node.parents ?? []).flatMap((parentRef: ParentRef): readonly ParentLink[] => {
-        const parentInfo: CreatedNodeInfo | undefined = createdNodes.get(parentRefFilename(parentRef))
-        if (!parentInfo) return []
-        return [{baseName: parentInfo.baseName, edgeLabel: parentRefEdgeLabel(parentRef)}]
-    })
-
-    if (links.length === 0) {
+    const refs: readonly ParentLineRef[] = extractParentRefs(node.content ?? '')
+    if (refs.length === 0) {
         return [{baseName: graphParent.graphParentBaseName, edgeLabel: undefined}]
     }
-    return links
+    return refs.map((ref: ParentLineRef): ParentLink => {
+        const inBatch: CreatedNodeInfo | undefined = createdNodes.get(ref.filename)
+        return {baseName: inBatch?.baseName ?? ref.filename, edgeLabel: ref.edgeLabel}
+    })
 }
 
 function buildNodeMarkdown(
@@ -54,7 +102,7 @@ function buildNodeMarkdown(
     return buildMarkdownBody({
         title: node.title,
         summary: node.summary,
-        content: node.content,
+        content: stripParentLines(node.content),
         codeDiffs: node.codeDiffs,
         filesChanged: node.filesChanged,
         diagram: node.diagram,
@@ -194,7 +242,10 @@ export async function buildNodeBatch(
         batchDelta.push(...deltaDraft.value.delta)
         localGraph = applyGraphDeltaToGraph(localGraph, deltaDraft.value.delta)
         allNewNodeIds.push(draft.nodeId)
-        createdNodes.set(node.filename, {nodeId: draft.nodeId, baseName: draft.baseName})
+        // Key by the normalized form so a child's `- parent [[parent.md]]` and
+        // an input filename of `parent` (or vice versa) compare equal — matches
+        // the normalization extractParentRefs applies to wikilink targets.
+        createdNodes.set(normalizeBatchFilenameKey(node.filename), {nodeId: draft.nodeId, baseName: draft.baseName})
         results.push(nodeSuccessResult(draft))
     }
 

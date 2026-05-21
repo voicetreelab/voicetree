@@ -353,6 +353,71 @@ Parent:
     ])
   })
 
+  describe('parent-declaration edge label syntax', () => {
+    it('splits [[name|label]] on a parent line into target + label', () => {
+      const content: string = '- parent [[mcp-plan|implements]]'
+      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'implements' }])
+    })
+
+    it('uses literal "parent" label when parent line has no pipe', () => {
+      const content: string = '- parent [[mcp-plan]]'
+      const nodes: Record<string, GraphNode> = { 'mcp-plan': createNode('mcp-plan') }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'mcp-plan', label: 'parent' }])
+    })
+
+    it('preserves multi-word labels with spaces after the pipe', () => {
+      const content: string = '- parent [[node-a|blocked by]]'
+      const nodes: Record<string, GraphNode> = { 'node-a': createNode('node-a') }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'node-a', label: 'blocked by' }])
+    })
+
+    it('splits only on the first pipe; subsequent pipes stay in the label', () => {
+      const content: string = '- parent [[node-a|implements|extra]]'
+      const nodes: Record<string, GraphNode> = { 'node-a': createNode('node-a') }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'node-a', label: 'implements|extra' }])
+    })
+
+    it('does NOT split pipe in prose wikilinks — pipe is part of the link text', () => {
+      const content: string = 'See [[foo|bar]] for context'
+      const nodes: Record<string, GraphNode> = {}
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'foo|bar', label: 'See' }])
+    })
+
+    it('does NOT split pipe when the line label is something other than "parent"', () => {
+      const content: string = '- references [[foo|bar]]'
+      const nodes: Record<string, GraphNode> = {}
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'foo|bar', label: 'references' }])
+    })
+
+    it('handles parent line without list marker', () => {
+      const content: string = 'parent [[node-a|implements]]'
+      const nodes: Record<string, GraphNode> = { 'node-a': createNode('node-a') }
+
+      const result: readonly Edge[] = extractEdges(content, nodes)
+
+      expect(result).toEqual([{ targetId: 'node-a', label: 'implements' }])
+    })
+  })
+
   describe('multiline wikilink bug prevention', () => {
     it('should not match across lines when [ is unclosed', () => {
       const content: string = `[[unclosed_link.md

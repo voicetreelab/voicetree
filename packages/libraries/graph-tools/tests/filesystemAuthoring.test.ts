@@ -114,7 +114,7 @@ describe('filesystem authoring contract', () => {
 
         expect(buildMarkdownBody(params)).toBe(legacyBuildMarkdownBody(params))
         expect(buildMarkdownBody(params)).toContain('agent_name: bf-121-test-agent')
-        expect(buildMarkdownBody(params)).toContain('implements [[bf-120-filesystem-native-vt-graph-create]]')
+        expect(buildMarkdownBody(params)).toContain('- parent [[bf-120-filesystem-native-vt-graph-create|implements]]')
     })
 
     it('builds a pure write plan from an ASCII structure manifest before any writes occur', async () => {

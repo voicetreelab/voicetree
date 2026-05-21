@@ -1,11 +1,6 @@
 import type {NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {ComplexityScore} from '@vt/graph-tools/node'
 
-export type ParentRef = {
-    readonly filename: string
-    readonly edgeLabel: string
-}
-
 export interface CreateGraphNodeInput {
     readonly filename: string
     readonly title: string
@@ -19,7 +14,6 @@ export interface CreateGraphNodeInput {
     readonly complexityScore?: ComplexityScore
     readonly complexityExplanation?: string
     readonly linkedArtifacts?: readonly string[]
-    readonly parents?: readonly ParentRef[]
 }
 
 export interface CreatedNodeInfo {

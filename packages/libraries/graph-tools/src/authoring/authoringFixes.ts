@@ -142,16 +142,25 @@ export function mergeFrontmatter(
     return mergedFrontmatterLines
 }
 
+/**
+ * Strict canonical parent-line dedup for `assembleMarkdown`. Matches only
+ * `^- parent [[name|label]]$` (or without `|label`) — the canonical emission
+ * shape produced by `buildMarkdownBody`. Indented or alternative-list-marker
+ * forms are intentionally NOT matched here because they cannot appear in
+ * markdown the CLI assembles itself; the richer parser lives in
+ * `@vt/graph-model/markdown`'s `extractParentRefs`, used by the MCP authoring
+ * path that round-trips author-supplied content.
+ */
 export function extractExistingParentRefs(markdown: string): Set<string> {
     const refs: Set<string> = new Set()
-
-    for (const match of markdown.matchAll(/^- parent \[\[([^[\]]+)\]\]$/gm)) {
-        const ref: string = normalizeRef(match[1] ?? '')
-        if (ref) {
-            refs.add(ref)
-        }
+    for (const match of markdown.matchAll(/^- parent \[\[([^[\]\n\r]+)\]\]$/gm)) {
+        const linkText: string = (match[1] ?? '').trim()
+        if (!linkText) continue
+        const pipeIndex: number = linkText.indexOf('|')
+        const namePart: string = pipeIndex >= 0 ? linkText.slice(0, pipeIndex).trim() : linkText
+        const ref: string = normalizeRef(namePart)
+        if (ref) refs.add(ref)
     }
-
     return refs
 }
 

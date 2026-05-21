@@ -169,11 +169,9 @@ export function buildMarkdownBody(params: BuildMarkdownBodyParams): string {
     }
 
     for (const parent of params.parentLinks) {
-        if (parent.edgeLabel) {
-            sections.push(`${parent.edgeLabel} [[${parent.baseName}]]`)
-        } else {
-            sections.push(`[[${parent.baseName}]]`)
-        }
+        sections.push(parent.edgeLabel
+            ? `- parent [[${parent.baseName}|${parent.edgeLabel}]]`
+            : `- parent [[${parent.baseName}]]`)
     }
     sections.push('')
 

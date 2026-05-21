@@ -1,104 +1,95 @@
 /**
  * Pure topology helpers for createGraphTool: cycle detection and topological
- * sort over the parent references on CreateGraphNodeInput.
+ * sort over parent references declared in each node's content body via
+ * `- parent [[name|label]]` lines.
  *
- * Extracted to keep createGraphTool.ts under the 500-line ceiling. No side
- * effects — these functions only read the array of node inputs.
+ * Only in-batch parents (those whose normalized filename matches another
+ * node's `filename` in the same call) participate in topology. Parent lines
+ * pointing outside the batch are ignored here — they resolve at parse time
+ * via the canonical wikilink matcher.
+ *
+ * Author input `parent.md` and a child's `- parent [[parent]]` must hash to
+ * the same key, so both the batch's filename set and each parent line go
+ * through `normalizeBatchFilenameKey` (strip `./`, normalize slashes, drop
+ * `.md`). Matches the normalization `extractParentRefs` applies to its
+ * wikilink targets.
  */
 
-import type {CreateGraphNodeInput, ParentRef} from './createGraphTypes'
+import {extractParentRefs, normalizeBatchFilenameKey} from '@vt/graph-model/markdown'
+import type {CreateGraphNodeInput} from './createGraphTypes'
 
-/** Extract the filename from a ParentRef. */
-export function parentRefFilename(ref: ParentRef): string {
-    return ref.filename
-}
-
-/** Extract the edge label from a ParentRef. Returns undefined for empty strings. */
-export function parentRefEdgeLabel(ref: ParentRef): string | undefined {
-    return ref.edgeLabel || undefined
+/** Normalized in-batch parent keys declared in this node's content body. */
+export function parentFilenamesFromContent(node: CreateGraphNodeInput): readonly string[] {
+    return extractParentRefs(node.content ?? '').map(ref => ref.filename)
 }
 
 /**
  * Detect cycles in parent references using DFS.
  * Supports multiple parents per node (DAG validation).
- * Returns true if a cycle exists.
  */
 export function hasCycle(nodes: readonly CreateGraphNodeInput[]): boolean {
+    const filenameKeys: Set<string> = new Set(nodes.map(n => normalizeBatchFilenameKey(n.filename)))
     const adjacency: Map<string, string[]> = new Map()
     for (const node of nodes) {
-        if (node.parents) {
-            for (const parentRef of node.parents) {
-                const parentId: string = parentRefFilename(parentRef)
-                const children: string[] = adjacency.get(parentId) ?? []
-                children.push(node.filename)
-                adjacency.set(parentId, children)
-            }
+        const childKey: string = normalizeBatchFilenameKey(node.filename)
+        for (const parentKey of parentFilenamesFromContent(node)) {
+            if (!filenameKeys.has(parentKey)) continue
+            const children: string[] = adjacency.get(parentKey) ?? []
+            children.push(childKey)
+            adjacency.set(parentKey, children)
         }
     }
 
     const visited: Set<string> = new Set()
     const inStack: Set<string> = new Set()
 
-    function dfs(nodeId: string): boolean {
-        if (inStack.has(nodeId)) return true
-        if (visited.has(nodeId)) return false
+    function dfs(nodeKey: string): boolean {
+        if (inStack.has(nodeKey)) return true
+        if (visited.has(nodeKey)) return false
 
-        visited.add(nodeId)
-        inStack.add(nodeId)
+        visited.add(nodeKey)
+        inStack.add(nodeKey)
 
-        for (const child of adjacency.get(nodeId) ?? []) {
+        for (const child of adjacency.get(nodeKey) ?? []) {
             if (dfs(child)) return true
         }
 
-        inStack.delete(nodeId)
+        inStack.delete(nodeKey)
         return false
     }
 
     for (const node of nodes) {
-        if (!visited.has(node.filename)) {
-            if (dfs(node.filename)) return true
-        }
+        const key: string = normalizeBatchFilenameKey(node.filename)
+        if (!visited.has(key) && dfs(key)) return true
     }
 
     return false
 }
 
 /**
- * Topological sort of nodes by parent dependencies.
- * All parents come before their children in the output.
- * Supports multiple parents per node.
+ * Topological sort: all in-batch parents come before their children.
  */
 export function topologicalSort(nodes: readonly CreateGraphNodeInput[]): CreateGraphNodeInput[] {
-    const nodeMap: Map<string, CreateGraphNodeInput> = new Map()
-    for (const node of nodes) {
-        nodeMap.set(node.filename, node)
-    }
-
+    const nodeMap: Map<string, CreateGraphNodeInput> = new Map(
+        nodes.map(n => [normalizeBatchFilenameKey(n.filename), n])
+    )
     const visited: Set<string> = new Set()
     const result: CreateGraphNodeInput[] = []
 
-    function visit(nodeId: string): void {
-        if (visited.has(nodeId)) return
-        visited.add(nodeId)
+    function visit(nodeKey: string): void {
+        if (visited.has(nodeKey)) return
+        visited.add(nodeKey)
 
-        const node: CreateGraphNodeInput | undefined = nodeMap.get(nodeId)
+        const node: CreateGraphNodeInput | undefined = nodeMap.get(nodeKey)
         if (!node) return
 
-        if (node.parents) {
-            for (const parentRef of node.parents) {
-                const parentId: string = parentRefFilename(parentRef)
-                if (nodeMap.has(parentId)) {
-                    visit(parentId)
-                }
-            }
+        for (const parentKey of parentFilenamesFromContent(node)) {
+            if (nodeMap.has(parentKey)) visit(parentKey)
         }
 
         result.push(node)
     }
 
-    for (const node of nodes) {
-        visit(node.filename)
-    }
-
+    for (const node of nodes) visit(normalizeBatchFilenameKey(node.filename))
     return result
 }

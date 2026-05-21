@@ -1,7 +1,13 @@
 /**
  * MCP Tool: create_graph
  * Creates a graph of progress nodes in a single call.
- * Pure types, DAG validation, and path resolution live in createGraphPure.ts.
+ *
+ * Pure types live in createGraphTypes.ts; DAG validation (cycle detection and
+ * topological sort over parent refs declared in each node's content body) in
+ * createGraphTopology.ts; markdown body construction in
+ * @vt/graph-tools/node's filesystemAuthoring. Parent edges are authored as
+ * `- parent [[name|edge-label]]` lines inside `content` (no separate
+ * `parents:[]` field) — see mcp-server.ts for the schema description.
  */
 
 import path from 'path'
@@ -23,7 +29,6 @@ import {
 import {registerAgentNodes} from '../agents/agentNodeIndex'
 import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWritePath} from '../config/mcp-graph-bridge'
 import {
-    parentRefFilename,
     hasCycle,
     topologicalSort,
 } from './createGraphTopology'
@@ -33,12 +38,10 @@ import type {
     CreatedNodeInfo,
     CreateGraphNodeInput,
     GraphParentContext,
-    ParentRef,
     Result,
 } from './createGraphTypes'
 import {listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
 
-export type {ParentRef}
 export type {CreateGraphNodeInput}
 
 export interface CreateGraphParams {
@@ -106,7 +109,7 @@ async function resolveConfiguredOutputDirectory(outputPath: string | undefined):
     return {ok: true, value: outputDirectoryResolution.path}
 }
 
-function validateNodeInputs(nodes: readonly CreateGraphNodeInput[]): Result<Set<string>> {
+function validateNodeInputs(nodes: readonly CreateGraphNodeInput[]): Result<void> {
     if (nodes.length < 1) return {ok: false, error: 'create_graph requires at least 1 node.'}
 
     const filenames: Set<string> = new Set()
@@ -119,26 +122,12 @@ function validateNodeInputs(nodes: readonly CreateGraphNodeInput[]): Result<Set<
         filenames.add(node.filename)
     }
 
-    const parentReferenceError: string | null = findParentReferenceError(nodes, filenames)
-    if (parentReferenceError) return {ok: false, error: parentReferenceError}
     if (hasCycle(nodes)) return {ok: false, error: 'Cycle detected in parent references.'}
 
     const diffComplexityError: string | null = findDiffComplexityError(nodes)
     if (diffComplexityError) return {ok: false, error: diffComplexityError}
 
-    return {ok: true, value: filenames}
-}
-
-function findParentReferenceError(nodes: readonly CreateGraphNodeInput[], filenames: ReadonlySet<string>): string | null {
-    for (const node of nodes) {
-        for (const parentRef of node.parents ?? []) {
-            const parentFilename: string = parentRefFilename(parentRef)
-            if (!filenames.has(parentFilename)) {
-                return `Node "${node.filename}" references parent "${parentFilename}" which is not a declared filename in this call.`
-            }
-        }
-    }
-    return null
+    return {ok: true, value: undefined}
 }
 
 function findDiffComplexityError(nodes: readonly CreateGraphNodeInput[]): string | null {
@@ -259,7 +248,7 @@ export async function createGraphTool({
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 
-    const inputValidation: Result<Set<string>> = validateNodeInputs(nodes)
+    const inputValidation: Result<void> = validateNodeInputs(nodes)
     if (!inputValidation.ok) return errorResponse(inputValidation.error)
 
     const graph: Graph = await getMcpGraph()
