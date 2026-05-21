@@ -18,7 +18,6 @@ interface NinjaAction {
   id: string;
   title: string;
   section?: string;
-  hotkey?: string;
   description?: string;
   keywords?: string;
   handler?: () => void | { keepOpen: boolean };
@@ -26,7 +25,6 @@ interface NinjaAction {
 
 interface NinjaKeysElement extends HTMLElement {
   data: NinjaAction[];
-  disableHotkeys?: boolean;
   open(): void;
   close(): void;
 }
@@ -48,7 +46,6 @@ export class SearchService {
 
     // Create ninja-keys element
     this.ninjaKeys = document.createElement('ninja-keys') as NinjaKeysElement;
-    this.ninjaKeys.disableHotkeys = true;
 
     // Set theme to match dark mode
     if (document.documentElement.classList.contains('dark')) {
@@ -84,14 +81,8 @@ export class SearchService {
     const recentlyVisited: string[] = getRecentlyVisited();
     const recentSet: Set<string> = new Set(recentlyVisited);
 
-    // Strip existing hotkeys before re-sorting (they'll be re-added based on new order)
-    const strippedData: NinjaAction[] = currentData.map((action: NinjaAction) => {
-      const { hotkey: _, ...rest } = action;
-      return rest;
-    });
-
     // Sort by recency
-    const sorted: NinjaAction[] = strippedData.sort((a: NinjaAction, b: NinjaAction) => {
+    const sorted: NinjaAction[] = [...currentData].sort((a: NinjaAction, b: NinjaAction) => {
       const aRecent: boolean = recentSet.has(a.id);
       const bRecent: boolean = recentSet.has(b.id);
 
@@ -107,9 +98,7 @@ export class SearchService {
     const prefixed: NinjaAction[] = sorted.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        // Use cmd+N format so ninja-keys displays the hint but doesn't register plain number keys
-        // HotkeyManager handles the actual Cmd+1-5 shortcuts
-        return { ...action, hotkey: `cmd+${recentIndex + 1}`, section: 'Recently Active' };
+        return { ...action, section: 'Recently Active' };
       }
       return { ...action, section: 'All Nodes' };
     });
@@ -181,9 +170,7 @@ export class SearchService {
     const prefixedSearchData: NinjaAction[] = sortedSearchData.map((action: NinjaAction) => {
       const recentIndex: number = recentlyVisited.indexOf(action.id);
       if (recentIndex >= 0) {
-        // Use cmd+N format so ninja-keys displays the hint but doesn't register plain number keys
-        // HotkeyManager handles the actual Cmd+1-5 shortcuts
-        return { ...action, hotkey: `cmd+${recentIndex + 1}`, section: 'Recently Active' };
+        return { ...action, section: 'Recently Active' };
       }
       return { ...action, section: 'All Nodes' };
     });
