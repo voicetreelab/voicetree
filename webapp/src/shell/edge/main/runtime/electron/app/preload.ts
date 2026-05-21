@@ -123,8 +123,6 @@ async function exposeElectronAPI(): Promise<void> {
 
         // Functional graph API
         graph: {
-            getCurrentProjectedGraph: () => ipcRenderer.invoke('graph:getCurrentProjectedGraph') as Promise<ProjectedGraph>,
-
             // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
             onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
                 const handler: (_event: unknown, graph: ProjectedGraph) => void = (_event: unknown, graph: ProjectedGraph) => callback(graph);
@@ -147,7 +145,6 @@ async function exposeElectronAPI(): Promise<void> {
             const ALLOWED_INVOKE_CHANNELS: Set<string> = new Set([
                 'rpc:call',
                 'rpc:getApiKeys',
-                'graph:getCurrentProjectedGraph',
                 'terminal:spawn',
             ]);
             if (!ALLOWED_INVOKE_CHANNELS.has(channel)) {

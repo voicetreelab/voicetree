@@ -10,7 +10,7 @@ import {
     getTerminal,
     clearTerminals,
     subscribeToTerminalChanges,
-} from '@/shell/edge/UI-edge/state/stores/TerminalStore'
+} from '../TerminalStore'
 import { createTerminalData, computeTerminalId, type TerminalId, type FloatingWindowUIData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type { TerminalRecord } from '@vt/agent-runtime'
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'

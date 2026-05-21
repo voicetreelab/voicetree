@@ -36,7 +36,6 @@ import {
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
 } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
-import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/graph-ipc-handlers';
 import {
     getWatchStatus,
     getVaultPaths,
@@ -224,7 +223,6 @@ void app.whenReady().then(async () => {
     console.time('[Startup] Total time to window');
 
     setupRPCHandlers();
-    registerGraphIpcHandlers();
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)

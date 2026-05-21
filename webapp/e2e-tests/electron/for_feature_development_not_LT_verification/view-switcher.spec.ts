@@ -23,7 +23,7 @@ import {
   resolveGraphDaemonNodeBin,
   stopSmokeGraphDaemonForVault,
   expectNoCriticalElectronErrors,
-} from '@e2e/highest-value-system/electron-smoke-helpers';
+} from '../../highest-value-system/electron-smoke-helpers';
 
 type FixtureVault = {
   readonly tempRoot: string;

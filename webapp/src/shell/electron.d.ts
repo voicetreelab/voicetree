@@ -47,11 +47,8 @@ export interface ElectronAPI {
   // Backend log streaming
   onBackendLog: (callback: (log: string) => void) => void;
 
-  // Functional graph API
+  // Functional graph API - event listeners only
   graph: {
-    // Pull the current projected graph after installing live update handlers
-    getCurrentProjectedGraph: () => Promise<ProjectedGraph>;
-
     // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
     onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => () => void;
 

@@ -198,15 +198,6 @@ test.describe('Dark Mode Toggle Screenshot', () => {
           _graphState: { nodes: {}, edges: [] },
           applyGraphDelta: async () => ({ success: true }),
           getState: async () => ({ nodes: {}, edges: [] }),
-          getCurrentProjectedGraph: async () => ({
-            nodes: [],
-            edges: [],
-            rootPath: '',
-            revision: 0,
-            forests: [],
-            arboricity: 0,
-            recentNodeIds: []
-          }),
           onProjectedGraphUpdate: () => () => {},
           onGraphClear: () => () => {},
           _projectedGraphCallback: undefined

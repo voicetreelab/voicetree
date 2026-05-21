@@ -289,7 +289,6 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
-        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onProjectedGraphUpdate: (callback: (graph: any) => void) => {
           mockElectronAPI.graph._projectedGraphCallback = callback;

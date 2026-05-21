@@ -35,7 +35,7 @@ export function subscribeToGraphUpdates(
 ): (() => void) | null {
     const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
-    if (!electronAPI?.graph?.onProjectedGraphUpdate || !electronAPI.graph.getCurrentProjectedGraph) {
+    if (!electronAPI?.graph?.onProjectedGraphUpdate) {
         console.error('[subscribeToGraphUpdates] projected graph API not available, skipping graph subscription');
         return null;
     }
@@ -94,17 +94,6 @@ export function subscribeToGraphUpdates(
 
     const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
-    let isSubscribed: boolean = true;
-
-    void electronAPI.graph.getCurrentProjectedGraph()
-        .then((graph: ProjectedGraph): void => {
-            if (!isSubscribed) return;
-            handleProjectedGraph(graph);
-        })
-        .catch((error: unknown): void => {
-            if (!isSubscribed) return;
-            console.error('[subscribeToGraphUpdates] failed to fetch current projected graph', error);
-        });
 
     return (): void => {
         if (searchUpdateRaf !== null) {
@@ -112,7 +101,6 @@ export function subscribeToGraphUpdates(
             searchUpdateRaf = null;
         }
 
-        isSubscribed = false;
         cleanupProjected();
         cleanupClear();
     };

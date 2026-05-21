@@ -6,7 +6,7 @@ import { ViewSwitcher } from './ViewSwitcher'
 
 type ViewRecord = { viewId: string; name: string; isActive: boolean }
 
-function makeElectronAPI(views: ViewRecord[]): Window['electronAPI'] {
+function makeElectronAPI(views: ViewRecord[]) {
   const listeners: Array<(data: { activeViewId: string }) => void> = []
 
   const api = {
@@ -39,7 +39,7 @@ function makeElectronAPI(views: ViewRecord[]): Window['electronAPI'] {
       }
     }),
   }
-  return api as unknown as Window['electronAPI']
+  return api
 }
 
 describe('ViewSwitcher', () => {
