@@ -224,11 +224,6 @@ function ensureSyntheticFixtures(
     const fixtures: GeneratedFixture[] = SYNTHETIC_FIXTURE_SPECS.map((spec, index) =>
         writeFixture(path.join(fixturesRoot, spec.name), spec, baseSeed + index),
     )
-    fs.writeFileSync(
-        path.join(fixturesRoot, 'manifest.json'),
-        JSON.stringify({baseSeed, fixtures}, null, 2),
-        'utf8',
-    )
     return fixtures
 }
 
