@@ -25,7 +25,6 @@ const EXCLUDED_DIR_NAMES: ReadonlySet<string> = new Set([
 
 const EXCLUDED_RELATIVE_PATHS: ReadonlySet<string> = new Set([
     'brain',
-    'packages/libraries/ci-reporting',
     'vt-website-quartz',
     'voicetree-evals',
 ])
