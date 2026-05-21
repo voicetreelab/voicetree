@@ -1,4 +1,6 @@
-import {pathToFileURL} from 'node:url'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import {fileURLToPath, pathToFileURL} from 'node:url'
 import {
     agentClose,
     agentList,
@@ -12,6 +14,13 @@ import {runSessionCommand} from './commands/runtime/session.ts'
 import {runVaultCommand} from './commands/runtime/vault.ts'
 import {runViewCommand} from './commands/node/view.ts'
 import {error} from './output.ts'
+import {argsShape} from './telemetry/argsShape.ts'
+import {
+    installCliInvocationSink,
+    setErrorClass,
+    setInvocationContext,
+} from './telemetry/recordCliInvocation.ts'
+import {resolveAppSupportPath} from './util/appSupportPath.ts'
 
 type GlobalOptions = {
     port: number
@@ -322,8 +331,79 @@ async function dispatchSearchCommand(
     await searchHandler(port, terminalId, args)
 }
 
+function readVtVersion(): string {
+    try {
+        const cliDir: string = path.dirname(fileURLToPath(import.meta.url))
+        const pkgPath: string = path.resolve(cliDir, '../../../../../package.json')
+        const parsed: Record<string, unknown> = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+        if (typeof parsed.version === 'string') return parsed.version
+        if (typeof parsed.dmeversion === 'string') return parsed.dmeversion
+        return 'unknown'
+    } catch {
+        return 'unknown'
+    }
+}
+
+const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
+    'spawn', 'list', 'wait', 'close', 'send', 'output',
+])
+const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'view', 'lint', 'rename', 'mv', 'group',
+])
+const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
+    'vault', 'session', 'view', 'search', 'debug', 'serve',
+])
+
+function computeVerb(commandArgs: readonly string[]): {verb: string; verbTokensInArgv: number} {
+    if (commandArgs.length === 0) return {verb: '(none)', verbTokensInArgv: 0}
+    const first: string = commandArgs[0]
+    if (first === '--help' || first === '-h') return {verb: 'help', verbTokensInArgv: 0}
+    if (first === 'help') return {verb: 'help', verbTokensInArgv: 1}
+    const second: string | undefined = commandArgs[1]
+    if (first === 'agent') {
+        if (second !== undefined && KNOWN_AGENT_SUBS.has(second)) {
+            return {verb: `agent ${second}`, verbTokensInArgv: 2}
+        }
+        return {verb: 'agent', verbTokensInArgv: 1}
+    }
+    if (first === 'graph') {
+        if (second !== undefined && KNOWN_GRAPH_SUBS.has(second)) {
+            return {verb: `graph ${second}`, verbTokensInArgv: 2}
+        }
+        return {verb: 'graph', verbTokensInArgv: 1}
+    }
+    if (KNOWN_TOP_LEVEL.has(first)) return {verb: first, verbTokensInArgv: 1}
+    return {verb: '(unknown)', verbTokensInArgv: 0}
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
+    // Telemetry must be wired before anything that could call process.exit so
+    // the on-exit handler is registered and captures the record. We seed
+    // verb="(unknown)" + raw argv shape immediately; the dispatcher refines it.
+    const startMs: number = Number(process.hrtime.bigint() / 1_000_000n)
+    const telemetryFilePath: string = process.env.VOICETREE_TELEMETRY_PATH
+        ?? path.join(resolveAppSupportPath(), 'cli-telemetry.jsonl')
+    installCliInvocationSink({
+        filePath: telemetryFilePath,
+        vtVersion: readVtVersion(),
+        startMs,
+    })
+    setInvocationContext({
+        verb: '(unknown)',
+        argsShape: argsShape({verb: '(unknown)', verbTokensInArgv: 0, argv}),
+    })
+
     const {port, terminalId, commandArgs}: GlobalOptions = extractGlobalOptions(argv)
+
+    const verbInfo: {verb: string; verbTokensInArgv: number} = computeVerb(commandArgs)
+    setInvocationContext({
+        verb: verbInfo.verb,
+        argsShape: argsShape({
+            verb: verbInfo.verb,
+            verbTokensInArgv: verbInfo.verbTokensInArgv,
+            argv,
+        }),
+    })
 
     if (commandArgs.length === 0) {
         printHelp()
@@ -381,6 +461,7 @@ function isDirectExecution(): boolean {
 
 if (isDirectExecution()) {
     void main().catch((cause: unknown) => {
+        setErrorClass(cause instanceof Error ? cause.name : 'UnknownError')
         error(getErrorMessage(cause))
     })
 }

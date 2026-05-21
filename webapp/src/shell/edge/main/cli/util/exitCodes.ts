@@ -3,6 +3,7 @@ import {
     DaemonUnreachableError,
     GraphDbClientError,
 } from '@vt/graph-db-client'
+import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 
 export const EXIT: {
     readonly SUCCESS: 0
@@ -62,7 +63,14 @@ function writeDebugStack(err: unknown): void {
     process.stderr.write(err.stack.endsWith('\n') ? err.stack : `${err.stack}\n`)
 }
 
+function classNameOf(err: unknown): string {
+    if (err instanceof Error) return err.name
+    if (isVaultNotDetectedError(err)) return err.name
+    return 'UnknownError'
+}
+
 function exitWith(code: ExitCode, message: string, err: unknown): never {
+    setErrorClass(classNameOf(err))
     writeStderrLine(`error: ${message}`)
     writeDebugStack(err)
     process.exit(code)

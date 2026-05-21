@@ -7,6 +7,7 @@ import type {
     FilesystemAuthoringValidationError,
 } from '@vt/graph-tools/node'
 import {error, isJsonMode, output} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
+import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 import type {
     FilesystemCreateFailure,
     FilesystemCreateSuccess,
@@ -254,6 +255,7 @@ export function failFilesystemCreateValidation(
             errors,
             reports,
         }
+        setErrorClass('FilesystemValidationError')
         output(failure)
         process.exit(1)
     }

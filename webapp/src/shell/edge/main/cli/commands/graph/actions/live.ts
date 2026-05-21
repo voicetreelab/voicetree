@@ -2,6 +2,7 @@ import {execFileSync} from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 
 function findRepoRoot(): string {
     const marker: string = path.join('packages', 'libraries', 'graph-tools', 'bin', 'vt-graph.ts')
@@ -90,6 +91,7 @@ export async function graphLive(port: number, _terminalId: string | undefined, a
             err as {stdout?: string; stderr?: string; status?: number}
         if (execError.stdout) process.stdout.write(formatVtGraphOutput(execError.stdout))
         if (execError.stderr) process.stderr.write(formatVtGraphOutput(execError.stderr))
+        setErrorClass(err instanceof Error ? err.name : 'GraphLiveSubprocessExit')
         process.exit(execError.status ?? 1)
     }
 }

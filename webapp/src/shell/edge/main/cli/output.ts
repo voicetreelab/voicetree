@@ -1,3 +1,5 @@
+import {setErrorClass} from './telemetry/recordCliInvocation.ts'
+
 export function isJsonMode(): boolean {
     return process.argv.includes('--json') || !process.stdout.isTTY
 }
@@ -12,6 +14,7 @@ export function output<T>(data: T, humanFormat?: (data: T) => string): void {
 }
 
 export function error(message: string): never {
+    setErrorClass('CliError')
     console.error(`error: ${message}`)
     process.exit(1)
 }

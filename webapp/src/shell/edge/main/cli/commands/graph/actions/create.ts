@@ -10,6 +10,7 @@ import {
 } from '@/shell/edge/main/cli/commands/graph/core/args'
 import {detectVaultFromCwd} from '@/shell/edge/main/cli/util/detectVault'
 import {emitSchemaViolation, runSchemaGate, type SchemaGateResult} from '@/shell/edge/main/cli/commands/graph/core/schemaGate'
+import {setErrorClass, setGateRejection} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 import {
     applyFilesystemPlan,
     failFilesystemCreateValidation,
@@ -34,6 +35,12 @@ function absoluteFromCwd(targetPath: string): string {
 async function gateOrExit(input: {targetPath: string; rawBody: string; vaultRoot: string}): Promise<void> {
     const result: SchemaGateResult = await runSchemaGate(input)
     if (result.status === 'rejected') {
+        setErrorClass('SchemaViolation')
+        setGateRejection({
+            typeName: result.violation.typeName,
+            schemaPath: result.violation.schemaPath,
+            ruleIds: result.violation.violations.map((v) => v.path),
+        })
         emitSchemaViolation(result.violation)
         process.exit(1)
     }

@@ -1,5 +1,4 @@
-import {homedir} from 'node:os'
-import {join, resolve} from 'node:path'
+import {resolve} from 'node:path'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
@@ -10,6 +9,8 @@ import {
     type McpServerHandle,
 } from '@vt/voicetree-mcp'
 import {error} from '@/shell/edge/main/cli/output'
+import {emitInvocationStart, setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
+import {resolveAppSupportPath} from '@/shell/edge/main/cli/util/appSupportPath'
 
 type ServeArgs = {
     readonly port?: number
@@ -83,24 +84,6 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
     return {port, vault: resolve(vault)}
 }
 
-function defaultAppSupportPath(): string {
-    if (process.platform === 'darwin') {
-        return join(homedir(), 'Library', 'Application Support', 'Voicetree')
-    }
-
-    if (process.platform === 'win32') {
-        return join(
-            process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
-            'Voicetree',
-        )
-    }
-
-    return join(
-        process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
-        'Voicetree',
-    )
-}
-
 function configureHeadlessBridges(appSupportPath: string): void {
     configureMcpServer({
         liveState: {
@@ -128,7 +111,7 @@ function configureHeadlessBridges(appSupportPath: string): void {
 
 export async function runServeCommand(argv: string[]): Promise<void> {
     const args: ServeArgs = parseServeArgs(argv)
-    const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
+    const appSupportPath: string = resolveAppSupportPath()
 
     configureHeadlessBridges(appSupportPath)
 
@@ -170,6 +153,10 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, vault=${args.vault}\n`,
     )
 
+    // Emit phase="start" telemetry record. Long-running command — without
+    // this, a crash before clean shutdown would leave no trace of the launch.
+    emitInvocationStart()
+
     let shuttingDown: boolean = false
     const shutdown: (signal: string) => Promise<void> = async (signal: string): Promise<void> => {
         if (shuttingDown) return
@@ -185,6 +172,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
             process.exit(0)
         } catch (cause) {
             process.stderr.write(`vt serve: shutdown error: ${(cause as Error).message}\n`)
+            setErrorClass(cause instanceof Error ? cause.name : 'ServeShutdownError')
             process.exit(1)
         }
     }

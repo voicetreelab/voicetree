@@ -2,6 +2,7 @@ import {execFileSync} from 'node:child_process'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import {fileURLToPath} from 'node:url'
+import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 
 function findRepoRoot(): string {
     const marker: string = path.join('packages', 'libraries', 'graph-tools', 'bin', 'vt-debug.ts')
@@ -46,6 +47,7 @@ export async function runDebugCommand(args: string[]): Promise<void> {
             err as { stdout?: string; stderr?: string; status?: number }
         if (execError.stdout) process.stdout.write(execError.stdout)
         if (execError.stderr) process.stderr.write(execError.stderr)
+        setErrorClass(err instanceof Error ? err.name : 'DebugSubprocessExit')
         process.exit(execError.status ?? 1)
     }
 }
