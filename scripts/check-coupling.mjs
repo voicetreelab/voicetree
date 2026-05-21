@@ -13,7 +13,7 @@ const SYSTEM_PACKAGES = new Set([
 const RUNTIME_THRESHOLD = 15;
 const DAEMON_OWNED_NON_LAUNCHER_RUNTIME_IMPORT_THRESHOLD = 0;
 const root = join(import.meta.dirname, '..');
-const INVARIANTS_DIR = join(root, 'packages/measures/invariants/coupling');
+const INVARIANTS_DIR = join(root, 'packages/measures/src/health/coupling/invariants');
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES = new Set([
   // vaultless daemon launcher (analogous to serve.ts for CLI)
   'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',

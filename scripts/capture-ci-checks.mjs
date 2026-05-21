@@ -3,8 +3,8 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every `.ts` file under `packages/measures/src/`
-// (excluding `_*.ts`) is dynamically imported and must export `check: CheckDef`.
+// Measure inventory is auto-detected: every non-test `.ts` file under `packages/measures/src/`
+// (excluding `_*.ts`, except `health/_all.check.ts`) is dynamically imported and must export `check: CheckDef`.
 // Adding a new check = drop a new .ts file anywhere in that tree.
 
 import {spawn} from 'node:child_process'
@@ -27,8 +27,10 @@ async function discoverMeasureFiles(dir = MEASURES_DIR) {
     const entries = await readdir(dir, {withFileTypes: true})
     const nested = await Promise.all(entries.map(async entry => {
         const path = join(dir, entry.name)
-        if (entry.isDirectory()) return discoverMeasureFiles(path)
-        if (!entry.isFile() || !entry.name.endsWith('.ts') || entry.name.startsWith('_')) return []
+        if (entry.isDirectory()) return entry.name.startsWith('_') ? [] : discoverMeasureFiles(path)
+        const isSuiteCheck = entry.name === '_all.check.ts'
+        if (!entry.isFile() || !entry.name.endsWith('.ts') || entry.name.endsWith('.test.ts')) return []
+        if (entry.name.startsWith('_') && !isSuiteCheck) return []
         return [path]
     }))
     return nested.flat()

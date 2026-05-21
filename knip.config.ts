@@ -7,7 +7,7 @@ const config: KnipConfig = {
                 'scripts/*.mjs',
                 'scripts/*.cjs',
                 'packages/measures/**/*.ts',
-                'packages/measures/invariants/coupling/**/*.mjs',
+                'packages/measures/src/health/coupling/invariants/**/*.mjs',
                 'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
             ],
@@ -42,10 +42,6 @@ const config: KnipConfig = {
         },
         'packages/libraries/*': {
             entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],
-            project: ['src/**/*.ts'],
-        },
-        'packages/codebase-health': {
-            entry: ['src/**/*.test.ts'],
             project: ['src/**/*.ts'],
         },
         'packages/systems/*': {

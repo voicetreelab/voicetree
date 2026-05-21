@@ -647,15 +647,20 @@ function changedStatusEntries() {
 }
 
 function isExpectedCodebaseHealthScriptMove(scriptName, current, committed) {
+  const legacyPackage = '@vt/' + 'codebase-health'
   return scriptName === 'test:codebase-health'
-    && current === 'npm --workspace @vt/codebase-health run test'
+    && current === 'npm --workspace @vt/measures run test'
     && typeof committed === 'string'
-    && committed.startsWith('vitest run packages/systems/')
+    && (
+      committed === `npm --workspace ${legacyPackage} run test`
+      || committed.startsWith('vitest run packages/systems/')
+    )
 }
 
 function isMovedCodebaseHealthTest(path) {
-  if (!/^packages\/systems\/[^/]+\.test\.ts$/.test(path)) return false
-  return existsSync(join(REPO_ROOT, 'packages/codebase-health/src', basename(path)))
+  if (!/^packages\/codebase-health\/src\/[^/]+\.test\.ts$/.test(path)) return false
+  const movedHealthDirs = ['churn', 'complexity', 'coupling', 'meta', 'purity', 'shape']
+  return movedHealthDirs.some(dir => existsSync(join(REPO_ROOT, 'packages/measures/src/health', dir, basename(path))))
 }
 
 function guardFindings() {
@@ -686,10 +691,10 @@ function guardFindings() {
   }
 
   for (const file of [
-    'packages/codebase-health/src/gate-integrity.test.ts',
-    'packages/codebase-health/src/purity-ratio-ast.test.ts',
-    'packages/codebase-health/src/cognitive-complexity.test.ts',
-    'packages/codebase-health/src/cross-package-coupling.test.ts',
+    'packages/measures/src/health/meta/gate-integrity.test.ts',
+    'packages/measures/src/health/purity/purity-ratio-ast.test.ts',
+    'packages/measures/src/health/complexity/cognitive-complexity.test.ts',
+    'packages/measures/src/health/coupling/cross-package-coupling.test.ts',
   ]) {
     if (!existsSync(join(REPO_ROOT, file))) findings.push(`required health gate file missing: ${file}`)
   }

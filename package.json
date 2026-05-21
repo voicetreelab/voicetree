@@ -2,7 +2,6 @@
   "private": true,
   "workspaces": [
     "webapp",
-    "packages/codebase-health",
     "packages/measures",
     "packages/libraries/*",
     "packages/systems/*"
@@ -13,8 +12,8 @@
     "test:run": "npm run health && npm run test:vt-fake-agent && node scripts/run-test-parallel.mjs",
     "test:vt-fake-agent": "vitest run --config tools/vt-fake-agent/vitest.config.ts",
     "test:run:serial": "npm run health && npm --workspace webapp run test",
-    "test:codebase-health": "npm --workspace @vt/codebase-health run test",
-    "orange-codebase-complexity-tests": "vitest run packages/codebase-health/src/hierarchical-complexity.test.ts packages/codebase-health/src/behavioral-complexity.test.ts packages/codebase-health/src/shape-complexity.test.ts",
+    "test:codebase-health": "npm --workspace @vt/measures run test",
+    "orange-codebase-complexity-tests": "vitest run packages/measures/src/health/complexity/hierarchical-complexity.test.ts packages/measures/src/health/complexity/behavioral-complexity.test.ts packages/measures/src/health/complexity/shape-complexity.test.ts",
     "check": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/record-run.mjs --id=npm-check --name=\"npm run check\" --category=Command -- npm run check:run",
     "check:run": "npm --workspace webapp run check && npm run lint && npm run lint:verify-cytoscape-rules && npm run lint:blackbox-tests",
     "check:circular-deps": "node scripts/check-circular-deps.mjs",

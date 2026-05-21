@@ -46,7 +46,9 @@ jobs:
         run: npm ci
 
       - name: Codebase health gate
-        run: npm run health
+        run: |
+          npm run health
+          npm run health:capture-ci -- --folder=health --quick
 
   check-version:
     needs: [test]

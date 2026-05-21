@@ -51,7 +51,9 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Codebase health gate
-        run: npm run health
+        run: |
+          npm run health
+          npm run health:capture-ci -- --folder=health --quick
 
       - name: Codebase health tier 2
         run: npm run health:tier2
