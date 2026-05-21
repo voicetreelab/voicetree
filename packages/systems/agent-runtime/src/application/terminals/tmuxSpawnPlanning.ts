@@ -44,9 +44,11 @@ export function buildTmuxEnv(
 ): Record<string, string> {
     const tmuxEnv: Record<string, string> = {};
     for (const key of Object.keys(initialEnvVars)) {
+        if (key === 'AGENT_PROMPT') continue;
         const value: string = initialEnvVars[key];
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
+    tmuxEnv.AGENT_PROMPT = '';
     if (promptFilePath) tmuxEnv.AGENT_PROMPT_FILE = promptFilePath;
     if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
     return tmuxEnv;

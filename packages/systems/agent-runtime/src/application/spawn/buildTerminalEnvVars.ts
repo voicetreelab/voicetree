@@ -62,5 +62,18 @@ export async function buildTerminalEnvVars(params: {
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }
-    return expandEnvVarsInValues(unexpandedEnvVars)
+    return dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
+}
+
+export function dropPromptTemplateVariants(env: Record<string, string>): Record<string, string> {
+    const result: Record<string, string> = {}
+    for (const key of Object.keys(env)) {
+        if (key === 'AGENT_PROMPT' || key === 'AGENT_PROMPT_FILE') {
+            result[key] = env[key]
+            continue
+        }
+        if (key.startsWith('AGENT_PROMPT_')) continue
+        result[key] = env[key]
+    }
+    return result
 }

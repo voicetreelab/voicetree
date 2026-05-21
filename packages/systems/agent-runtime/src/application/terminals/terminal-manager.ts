@@ -4,7 +4,7 @@ import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
-import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
+import {injectAgentCommandHeadful, rewriteCommandForPromptFile, writePromptFile} from '../headless/tmuxPromptFile';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -90,9 +90,8 @@ export class TerminalManager {
   // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
   // env-only AGENT_PROMPT_FILE fallback for other CLIs).
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server. Only AGENT_PROMPT itself is
-  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
-  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
+  // context; panes inherit from the server. AGENT_PROMPT itself is shadowed
+  // with '' and the injected command is rewritten to consume AGENT_PROMPT_FILE.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -111,9 +110,12 @@ export class TerminalManager {
         initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
       };
       await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
+      const injectionCommand: string | undefined = promptFile && terminalData.initialCommand
+        ? rewriteCommandForPromptFile(terminalData.initialCommand, promptFile)
+        : terminalData.initialCommand;
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
-        terminalData.initialCommand,
+        injectionCommand,
       );
       if (promptInjection) {
         await injectAgentCommandHeadful(promptInjection);
