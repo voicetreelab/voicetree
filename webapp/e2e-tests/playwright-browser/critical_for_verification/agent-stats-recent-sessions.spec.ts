@@ -187,6 +187,7 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
+        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         onProjectedGraphUpdate: (callback: (graph: unknown) => void) => {
           mockElectronAPI.graph._projectedGraphCallback = callback;
           return () => {};

@@ -67,6 +67,7 @@ export function installElectronApiStub(daemon: InBrowserDaemon): void {
     const electronApi: Window['electronAPI'] = {
         main: mainProxy as unknown as NonNullable<Window['electronAPI']>['main'],
         graph: {
+            getCurrentProjectedGraph: async (): Promise<ProjectedGraph> => daemon.getProjection(),
             onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void): (() => void) => {
                 subscribers.add(callback)
                 // Hydrate immediately so the renderer sees the initial graph
