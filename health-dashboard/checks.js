@@ -259,7 +259,7 @@ export function bindChecksSection(root, checksData) {
   let pinned = null
 
   function renderDetail(c) {
-    const measurePath = c.details?.measurePath ?? `scripts/measures/${c.checkId}.ts`
+    const measurePath = c.details?.measurePath ?? `packages/measures/${c.checkId}.ts`
     const counts = c.testsTotal !== undefined
       ? `<span><span class="t-pass">${c.testsPassed ?? 0}</span><span class="t-sep">/</span>${c.testsTotal} tests</span><span class="hm-d-sep">·</span><span class="t-fail">${c.testsFailed ?? 0} fail</span><span class="hm-d-sep">·</span><span class="t-skip">${c.testsSkipped ?? 0} skip</span>`
       : ''

@@ -3,7 +3,7 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every `.ts` file under `scripts/measures/src/`
+// Measure inventory is auto-detected: every `.ts` file under `packages/measures/src/`
 // (excluding `_*.ts`) is dynamically imported and must export `check: CheckDef`.
 // Adding a new check = drop a new .ts file anywhere in that tree.
 
@@ -17,7 +17,7 @@ import {recordCheckReport} from '@vt/ci-reporting'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..')
-const MEASURES_DIR = join(SCRIPT_DIR, 'measures', 'src')
+const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 
@@ -55,13 +55,13 @@ function relativePath(path) {
 
 function normalizeMeasureFolder(folder) {
     if (!folder) return null
-    const normalized = folder.replace(/^scripts\/measures\/src\//, '').replace(/^\/+|\/+$/g, '')
-    if (normalized.includes('..')) throw new Error(`measure folder must stay inside scripts/measures/src: ${folder}`)
+    const normalized = folder.replace(/^packages\/measures\/src\//, '').replace(/^\/+|\/+$/g, '')
+    if (normalized.includes('..')) throw new Error(`measure folder must stay inside packages/measures/src: ${folder}`)
     return normalized
 }
 
 function measureFolderFor(measurePath) {
-    const relativeMeasure = measurePath.replace(/^scripts\/measures\/src\//, '')
+    const relativeMeasure = measurePath.replace(/^packages\/measures\/src\//, '')
     const slash = relativeMeasure.indexOf('/')
     return slash === -1 ? '' : relativeMeasure.slice(0, slash)
 }
@@ -92,7 +92,7 @@ function printHelp(checks) {
         'Flags:',
         '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --folder=<path>   run only checks under scripts/measures/src/<path>.',
+        '  --folder=<path>   run only checks under packages/measures/src/<path>.',
         '  --sequential      run checks sequentially; continue through failures.',
         '  --fail-fast       run sequentially; stop scheduling after the first fail.',
         '',
@@ -369,7 +369,7 @@ async function main() {
 
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
 
-    const scope = opts.folder ? ` under scripts/measures/src/${opts.folder}` : ''
+    const scope = opts.folder ? ` under packages/measures/src/${opts.folder}` : ''
     console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
 
     const results = opts.failFast || opts.sequential

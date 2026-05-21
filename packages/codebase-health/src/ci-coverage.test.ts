@@ -1,4 +1,4 @@
-// Drift detector: every check file under scripts/measures/src/ must be invoked
+// Drift detector: every check file under packages/measures/src/ must be invoked
 // by at least one GitHub Actions workflow, either directly (--only=<id>) or via
 // a --folder=<prefix> that contains it. Fails loudly when a new measure file is
 // dropped in but no workflow runs it.
@@ -16,7 +16,7 @@ import {describe, expect, it} from 'vitest'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '..', '..', '..')
-const MEASURES_DIR = join(REPO_ROOT, 'scripts', 'measures', 'src')
+const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 const WORKFLOWS_DIR = join(REPO_ROOT, '.github', 'workflows')
 
 type Measure = {
@@ -167,10 +167,10 @@ function findOutputKeys(jobText: string): readonly string[] {
 
 function findFilesystemMeasureFolders(jobText: string): readonly string[] {
     const folders = new Set<string>()
-    for (const m of jobText.matchAll(/\bls\s+scripts\/measures\/src\/([^\s'"]+)\/\*\.ts\b/g)) {
+    for (const m of jobText.matchAll(/\bls\s+packages\/measures\/src\/([^\s'"]+)\/\*\.ts\b/g)) {
         folders.add(m[1])
     }
-    for (const m of jobText.matchAll(/\bfind\s+scripts\/measures\/src\/([^\s'"]+)\s+[^\n|]*-name\s+['"]\*\.ts['"]/g)) {
+    for (const m of jobText.matchAll(/\bfind\s+packages\/measures\/src\/([^\s'"]+)\s+[^\n|]*-name\s+['"]\*\.ts['"]/g)) {
         folders.add(m[1])
     }
     return [...folders].sort()
@@ -244,7 +244,7 @@ function formatCall(c: CaptureCall): string {
     return `${c.workflow}: --folder=${folder}${quick}${only}`
 }
 
-describe('CI coverage of scripts/measures/', () => {
+describe('CI coverage of packages/measures/', () => {
     it('every measure file is invoked by at least one GitHub Actions workflow', async () => {
         const [measures, scripts] = await Promise.all([loadMeasures(), loadCaptureScripts()])
         const allCalls = await loadAllCalls(scripts)
