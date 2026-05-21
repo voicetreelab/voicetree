@@ -58,6 +58,7 @@ async function listProductionSources(root: string): Promise<string[]> {
             && !path.endsWith('/__audit_seed__.ts')
             && !path.endsWith('.test.ts')
             && !path.endsWith('.spec.ts')
+            && !path.includes('/__generated__/')
             && !path.includes('/__tests__/')) {
             return [path]
         }
