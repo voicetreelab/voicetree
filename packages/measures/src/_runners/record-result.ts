@@ -9,7 +9,7 @@
 //     --status=pass|fail|skip --duration-ms=1234 \
 //     [--display="..."] [--error-summary="..."] [--slow]
 
-import {recordCheckReport} from '@vt/ci-reporting'
+import {recordCheckReport} from '../_shared/check-report-writer.ts'
 
 function parseArgs(argv) {
     const opts = {

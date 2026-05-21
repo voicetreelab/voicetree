@@ -1,7 +1,7 @@
 import type {File, Task, Test} from '@vitest/runner'
 import type {Reporter} from 'vitest/reporters'
 
-import {recordCheckReport, type CheckReport} from './ci-check-writer'
+import {recordCheckReport, type CheckReport} from './check-report-writer.ts'
 
 type ReporterOptions = {
     readonly checkId?: string

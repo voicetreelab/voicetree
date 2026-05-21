@@ -60,7 +60,6 @@ function createCallGraph(): CallGraph {
         `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
         `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
         `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/packages/libraries/ci-reporting/**`,
         `!${REPO_ROOT}/**/*.test.ts`,
         `!${REPO_ROOT}/**/*.test.tsx`,
         `!${REPO_ROOT}/**/*.spec.ts`,

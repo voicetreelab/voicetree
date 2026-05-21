@@ -81,7 +81,6 @@ function buildProject(): Project {
         `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
         `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
         `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
-        `!${REPO_ROOT}/packages/libraries/ci-reporting/**`,
         `!${REPO_ROOT}/**/*.test.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.d.ts`,

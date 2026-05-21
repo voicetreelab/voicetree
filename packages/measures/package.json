@@ -3,11 +3,12 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "exports": {
+    "./vitest-reporter": "./src/_shared/vitest-ci-check-reporter.ts",
+    "./check-report-writer": "./src/_shared/check-report-writer.ts"
+  },
   "scripts": {
     "test": "vitest run src/health/**/*.test.ts src/correctness/**/*.test.ts"
-  },
-  "dependencies": {
-    "@vt/ci-reporting": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
