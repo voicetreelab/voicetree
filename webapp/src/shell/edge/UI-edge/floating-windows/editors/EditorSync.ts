@@ -25,6 +25,27 @@ function contentMatchesForEchoComparison(left: string, right: string): boolean {
     return normalizeContentForEchoComparison(left) === normalizeContentForEchoComparison(right);
 }
 
+function commonPrefixLength(left: string, right: string): number {
+    const limit: number = Math.min(left.length, right.length);
+    let index: number = 0;
+    while (index < limit && left[index] === right[index]) {
+        index += 1;
+    }
+    return index;
+}
+
+function getFocusedEditorAppendSuffix(
+    currentEditorContent: string,
+    prevContent: string,
+    newContent: string,
+): string {
+    if (!currentEditorContent.startsWith(prevContent)) {
+        return getAppendedSuffix(prevContent, newContent);
+    }
+
+    return newContent.slice(commonPrefixLength(currentEditorContent, newContent));
+}
+
 /**
  * Update floating editors based on graph delta
  * For each node upsert, check if there's an open editor and update its content
@@ -81,8 +102,8 @@ export function updateFloatingEditors(
                             ) {
                                 continue;
                             }
-                            const suffix: string = getAppendedSuffix(prevContent, newContent);
-                            if (!currentEditorContent.endsWith(suffix)) {
+                            const suffix: string = getFocusedEditorAppendSuffix(currentEditorContent, prevContent, newContent);
+                            if (suffix.length > 0 && !currentEditorContent.endsWith(suffix)) {
                                 // appendAtEnd inserts the suffix at the doc tail
                                 // without moving the cursor. Using setValue here
                                 // would reset the cursor to end-of-doc, splitting

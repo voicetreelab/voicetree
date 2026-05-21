@@ -204,7 +204,7 @@ describe('GraphDbClient', () => {
       ).resolves.toEqual({ nodeId: 'ctx.md' })
       await expect(
         client.writeMarkdownFile('/vault/note.md', '# Body\n', 'editor-1'),
-      ).resolves.toEqual({ ok: true, absolutePath: '/vault/note.md' })
+      ).resolves.toEqual({ ok: true, absolutePath: '/vault/note.md', preservedSuffix: null })
       await expect(client.getUnseenNodesAroundContextNode('ctx.md', 'task.md')).resolves.toEqual([
         { nodeId: 'node.md', content: '# Node' },
       ])

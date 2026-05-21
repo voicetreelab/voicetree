@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { FSUpdate, GraphDelta, Graph } from '@vt/graph-model/graph'
-import { mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
+import type { FSUpdate, GraphDelta, Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
+import { getAppendedSuffix, isAppendOnly, mapFSEventsToGraphDelta } from '@vt/graph-model/graph'
+import { fromNodeToContentWithWikilinks } from '@vt/graph-model/markdown'
 
 import { applyGraphDeltaToMemState, refreshGraphChangeSideEffects } from './applyGraphDelta.ts'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
@@ -15,6 +16,11 @@ export type WriteMarkdownFileRequest = {
   readonly editorId: string
 }
 
+export type WriteMarkdownFileResult = {
+  readonly absolutePath: string
+  readonly preservedSuffix: string | null
+}
+
 export type WriteMarkdownFileDeps = {
   readonly readFile: (filePath: string, encoding: 'utf8') => Promise<string>
   readonly writeFile: (filePath: string, content: string, encoding: 'utf8') => Promise<void>
@@ -23,6 +29,12 @@ export type WriteMarkdownFileDeps = {
 const defaultWriteMarkdownFileDeps: WriteMarkdownFileDeps = {
   readFile: (filePath, encoding) => fs.readFile(filePath, encoding),
   writeFile: (filePath, content, encoding) => fs.writeFile(filePath, content, encoding),
+}
+
+const lastEditorBodyByTargetAndEditor: Map<string, string> = new Map()
+
+function editorBodyKey(targetPath: string, editorId: string): string {
+  return `${targetPath}\0${editorId}`
 }
 
 function lineEndAt(content: string, from: number): number {
@@ -73,6 +85,59 @@ export function composeMarkdownFileContent(
   return `${frontmatterBlock}${newBody}`
 }
 
+function stripFrontmatterBlock(existingContent: string): string {
+  const frontmatterBlock = extractFrontmatterBlock(existingContent)
+  return frontmatterBlock === null
+    ? existingContent
+    : existingContent.slice(frontmatterBlock.length)
+}
+
+function getGraphBodyForTarget(graph: Graph, targetPath: string): string | null {
+  const node: GraphNode | undefined = graph.nodes[targetPath as NodeIdAndFilePath]
+  return node ? fromNodeToContentWithWikilinks(node) : null
+}
+
+export function preservePendingExternalAppend(
+  existingContent: string | null,
+  newBody: string,
+  currentGraphBody: string | null,
+  lastEditorBody: string | null = null,
+): string {
+  return preservePendingExternalAppendWithSuffix(
+    existingContent,
+    newBody,
+    currentGraphBody,
+    lastEditorBody,
+  ).body
+}
+
+function preservePendingExternalAppendWithSuffix(
+  existingContent: string | null,
+  newBody: string,
+  currentGraphBody: string | null,
+  lastEditorBody: string | null,
+): { readonly body: string; readonly preservedSuffix: string | null } {
+  if (existingContent === null) {
+    return { body: newBody, preservedSuffix: null }
+  }
+
+  const existingBody = stripFrontmatterBlock(existingContent)
+  const baselines: readonly (string | null)[] = [lastEditorBody, currentGraphBody]
+  for (const baseline of baselines) {
+    if (baseline === null || !isAppendOnly(baseline, existingBody)) {
+      continue
+    }
+
+    const suffix = getAppendedSuffix(baseline, existingBody)
+    return {
+      body: newBody.endsWith(suffix) ? newBody : `${newBody}${suffix}`,
+      preservedSuffix: newBody.endsWith(suffix) ? null : suffix,
+    }
+  }
+
+  return { body: newBody, preservedSuffix: null }
+}
+
 export function resolveFolderMarkdownTarget(absolutePath: string): string {
   return absolutePath.endsWith(path.sep) || absolutePath.endsWith('/')
     ? path.join(absolutePath, 'index.md')
@@ -95,7 +160,7 @@ function buildWriteMarkdownFileDelta(
 export async function writeMarkdownFile(
   request: WriteMarkdownFileRequest,
   deps: WriteMarkdownFileDeps = defaultWriteMarkdownFileDeps,
-): Promise<string> {
+): Promise<WriteMarkdownFileResult> {
   const targetPath = resolveFolderMarkdownTarget(request.absolutePath)
   let existingContent: string | null = null
   try {
@@ -106,15 +171,32 @@ export async function writeMarkdownFile(
     }
   }
 
-  const nextContent = composeMarkdownFileContent(existingContent, request.body)
+  const currentGraph = getGraph()
+  const key = editorBodyKey(targetPath, request.editorId)
+  const currentGraphBody = getGraphBodyForTarget(currentGraph, targetPath)
+  const lastEditorBody = lastEditorBodyByTargetAndEditor.get(key) ?? null
+  const preserved = preservePendingExternalAppendWithSuffix(
+    existingContent,
+    request.body,
+    currentGraphBody,
+    lastEditorBody,
+  )
+  const body = preserved.body
+  const nextContent = composeMarkdownFileContent(existingContent, body)
+  const suppressForSubscribers: readonly string[] = preserved.preservedSuffix === null
+    ? [request.editorId]
+    : []
   const delta = buildWriteMarkdownFileDelta(
     targetPath,
     nextContent,
     existingContent === null ? 'Added' : 'Changed',
-    getGraph(),
+    currentGraph,
   )
-  markPendingWrite(targetPath, { suppressBroadcastTo: request.editorId })
+  markPendingWrite(targetPath, preserved.preservedSuffix === null
+    ? { suppressBroadcastTo: request.editorId }
+    : {})
   await deps.writeFile(targetPath, nextContent, 'utf8')
+  lastEditorBodyByTargetAndEditor.set(key, body)
   const appliedDelta = await applyGraphDeltaToMemState(delta)
   for (const nodeDelta of delta) {
     markRecentDelta(nodeDelta)
@@ -123,7 +205,10 @@ export async function writeMarkdownFile(
   publish({
     delta: appliedDelta,
     source: 'write-markdown-file',
-    suppressForSubscribers: [request.editorId],
+    suppressForSubscribers,
   })
-  return targetPath
+  return {
+    absolutePath: targetPath,
+    preservedSuffix: preserved.preservedSuffix,
+  }
 }

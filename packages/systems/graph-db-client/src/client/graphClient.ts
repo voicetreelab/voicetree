@@ -105,7 +105,7 @@ export function createGraphClient(request: RequestClient) {
       absolutePath: string,
       body: string,
       editorId: string,
-    ): Promise<{ ok: true; absolutePath: string }> {
+    ): Promise<{ ok: true; absolutePath: string; preservedSuffix: string | null }> {
       return await request('/graph/write-markdown-file', {
         body: { absolutePath, body, editorId },
         method: 'POST',
