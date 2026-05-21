@@ -24,12 +24,7 @@ else
     exit 127
 fi
 
-# tsx auto-discovers tsconfig from the caller's CWD, which for `vt` is almost
-# always a vault dir, not webapp/. Pin the tsconfig explicitly so @/* aliases
-# resolve. Fix originally landed by Manu after the Directory Fanout refactor
-# (commit 69c58615, 2026-05-15) introduced @/* CLI imports that broke vt from
-# any CWD other than webapp/.
-export TSX_TSCONFIG_PATH="$WEBAPP_DIR/tsconfig.json"
-
-exec "$TSX_BIN" \
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# point it at webapp/tsconfig.json so @/* path aliases resolve.
+exec env TSX_TSCONFIG_PATH="$WEBAPP_DIR/tsconfig.json" "$TSX_BIN" \
     "$WEBAPP_DIR/src/shell/edge/main/cli/voicetree-cli.ts" "$@"

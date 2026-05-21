@@ -5,6 +5,7 @@ import type { Session } from '../session.ts'
 function sessionFixture(): Session {
   return {
     id: 'session-1',
+    folderState: new Map(),
     collapseSet: new Set<string>(),
     selection: new Set<string>(['alpha', 'beta']),
     expandOverrides: new Set<string>(),

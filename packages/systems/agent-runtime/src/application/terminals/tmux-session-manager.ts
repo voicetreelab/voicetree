@@ -109,6 +109,21 @@ export async function hasSession(name: string): Promise<boolean> {
     })
 }
 
+// Write raw bytes to the pane's pty. -l (literal) bypasses tmux's key-name
+// table so every byte — including control bytes (\x1b, \x15, \r) and the
+// bracketed-paste markers (\x1b[200~ / \x1b[201~) — reaches the TUI verbatim.
+// Use this when reproducing a byte-level input ceremony (see
+// inject/send-text-to-terminal.ts).
+export async function sendKeysLiteral(name: string, text: string): Promise<void> {
+    const sessionName: string = resolveTmuxSessionName(name)
+    await runTmux(['send-keys', '-t', sessionName, '-l', '--', text])
+}
+
+// Literal text followed by a plain Enter. Suitable for typing a single shell
+// command into a `bash`-rooted pane (see tmuxPromptFile.injectAgentCommandHeadful).
+// NOT suitable for injecting input into a TUI's chat field — use
+// sendTextToTerminal for that, which performs the vi-mode + bracketed-paste +
+// dual-submit ceremony required by claude / codex / gemini.
 export async function sendKeys(name: string, text: string): Promise<void> {
     const sessionName: string = resolveTmuxSessionName(name)
     await runTmux(['send-keys', '-t', sessionName, '-l', '--', text])

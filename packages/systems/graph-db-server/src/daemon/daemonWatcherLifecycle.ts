@@ -10,62 +10,46 @@ export type DaemonWatcherController = {
   stop(): Promise<void>
 }
 
-async function mountReadyWatcher(
-  watchPaths: readonly string[],
-  vault: string,
-): Promise<Watcher> {
-  const watcher = mountWatcher(watchPaths, vault)
-  try {
-    await watcher.ready
-    return watcher
-  } catch (err) {
-    await watcher.unmount().catch(() => {})
-    throw err
-  }
-}
-
 export async function startDaemonWatcher(
   vault: string,
   logger: DaemonLogger,
 ): Promise<DaemonWatcherController> {
   return tracer.startActiveSpan('daemon.mount-watcher', async (span) => {
     try {
-      let watcher = await mountReadyWatcher(await getVaultPaths(), vault)
+      const initialPaths = await getVaultPaths()
+      const watcher: Watcher = mountWatcher(initialPaths, vault)
       let watcherStopped = false
-      let remountChain: Promise<void> = Promise.resolve()
+      let currentPaths = new Set<string>(initialPaths)
 
-      const queueRemount = (watchPaths: readonly string[]): void => {
-        remountChain = remountChain
-          .then(async () => {
-            if (watcherStopped) {
-              return
-            }
-            await watcher.unmount()
-            if (watcherStopped) {
-              return
-            }
-            const nextWatcher = await mountReadyWatcher(watchPaths, vault)
-            if (watcherStopped) {
-              await nextWatcher.unmount()
-              return
-            }
-            watcher = nextWatcher
-          })
-          .catch((error: unknown) => {
-            logger.error('graphd watcher remount failed:', error)
-          })
+      // Apply path-set diff incrementally — no unmount/remount, no watch gap.
+      // Registered before watcher.ready so changes during initial scan are not lost.
+      const applyPathDiff = (newPaths: readonly string[]): void => {
+        if (watcherStopped) return
+        const newSet = new Set(newPaths)
+        for (const p of newSet) {
+          if (!currentPaths.has(p)) watcher.add(p)
+        }
+        for (const p of currentPaths) {
+          if (!newSet.has(p)) watcher.unwatch(p)
+        }
+        currentPaths = newSet
       }
 
-      const unsubscribeReadPaths = onReadPathsChanged(queueRemount)
+      const unsubscribeReadPaths = onReadPathsChanged(applyPathDiff)
+
+      try {
+        await watcher.ready
+      } catch (err) {
+        unsubscribeReadPaths()
+        await watcher.unmount().catch(() => {})
+        throw err
+      }
 
       return {
         async stop(): Promise<void> {
-          if (watcherStopped) {
-            return
-          }
+          if (watcherStopped) return
           watcherStopped = true
           unsubscribeReadPaths()
-          await remountChain
           await watcher.unmount()
         },
       }

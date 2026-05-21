@@ -30,6 +30,8 @@ import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderColl
 import { setupCommandHover } from '@/shell/edge/UI-edge/floating-windows/editors/HoverEditor'
 import { updateFloatingEditorsFromProjectedGraph } from '@/shell/edge/UI-edge/floating-windows/editors/EditorSync'
 import { closeAllEditors } from '@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD'
+import { mountLayoutProjection, type LayoutProjectionMount } from '@/shell/edge/UI-edge/graph/layout/layoutProjection'
+import { getLayoutStoreSingleton } from '@vt/graph-state/state/layoutStore'
 import { applyNodeSelectionSideEffects } from '@/shell/edge/UI-edge/graph/actions/applyNodeSelectionSideEffects'
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
@@ -172,6 +174,7 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
     installElectronApiStub(daemon)
 
     let cy: Core
+    let layoutProjection: LayoutProjectionMount | null = null
     let lastProjection: ProjectedGraph | null = null
 
     function flashLog(msg: string): void {
@@ -234,6 +237,15 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
             }
         })
 
+        // Sync cy viewport (pan/zoom) back into the singleton layoutStore so
+        // every consumer that reads `getLayout().zoom / .pan` (HoverEditor,
+        // anchored-editor positioning, floating-window overlay transform) stays
+        // aligned with the real cy viewport. Without this the harness's
+        // cy.fit() updates cy but the store keeps reporting `{zoom:1, pan:0}`,
+        // so editors render at the wrong place. Production wires this from
+        // VoiceTreeGraphView; the playground needs the same hook.
+        layoutProjection = mountLayoutProjection(created, getLayoutStoreSingleton())
+
         // Real chevron chip overlay (handles collapse from the expanded TL
         // chip). Re-expansion mirrors production's setupBasicCytoscapeEventListeners:
         // double-tap any folder body (incl. collapsed pills) toggles state.
@@ -280,6 +292,8 @@ export function mountMockupHarness(opts: MountHarnessOptions): HarnessHandle {
 
     function destroyCy(): void {
         if (!cy) return
+        layoutProjection?.unmount()
+        layoutProjection = null
         cy.off('position bounds add remove data render pan zoom')
         closeAllEditors(cy)
         lastProjection = null

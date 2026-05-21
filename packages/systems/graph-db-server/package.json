@@ -10,6 +10,7 @@
     "./package.json": "./package.json",
     "./application/workflows/*": "./src/application/workflows/*.ts",
     "./application/errors/*": "./src/application/errors/*.ts",
+    "./application/session/*": "./src/application/session/*.ts",
     "./contract": "./src/daemon/contract.ts",
     "./daemonRouteParity": "./src/routes/daemonRouteParity.ts",
     "./lock": "./src/daemon/lock.ts",

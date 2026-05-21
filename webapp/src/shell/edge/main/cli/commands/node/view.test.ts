@@ -2,12 +2,15 @@ import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
+import * as O from 'fp-ts/lib/Option.js'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
 import {
+    createGraph,
     createEmptyGraph,
+    type GraphNode,
 } from '@vt/graph-model'
 import {main} from '@/shell/edge/main/cli/voicetree-cli'
 import {EXIT} from '@/shell/edge/main/cli/util/exitCodes'
@@ -383,10 +386,11 @@ describe('runViewCommand', () => {
             path: folderPath,
             state: 'collapsed',
         })
-        await expect(client.getFolderState(sessionId)).resolves.toMatchObject({
-            folderState: [[folderPath, 'collapsed']],
+        const state = await client.getFolderState(sessionId)
+        expect(state).toMatchObject({
             activeView: {name: 'main'},
         })
+        expect(state.folderState).toContainEqual([folderPath, 'collapsed'])
     })
 
     it('omits node markdown content from show JSON output', async () => {
@@ -408,6 +412,41 @@ describe('runViewCommand', () => {
 
         const nodes = (body as {graph: {nodes: Record<string, unknown>}}).graph.nodes
         expect(nodes[nodePath]).not.toHaveProperty('contentWithoutYamlOrLinks')
+    })
+
+    it('renders the projected graph for human show output', async () => {
+        const docsPath: string = join(harness.vault, 'docs')
+        const alphaPath: string = join(docsPath, 'alpha.md')
+        const betaPath: string = join(docsPath, 'beta.md')
+        const makeNode = (absoluteFilePathIsID: string, title: string): GraphNode => ({
+            kind: 'leaf',
+            outgoingEdges: [],
+            absoluteFilePathIsID,
+            contentWithoutYamlOrLinks: title,
+            nodeUIMetadata: {
+                color: O.none,
+                position: O.none,
+                additionalYAMLProps: new Map(),
+            },
+        })
+        setGraph(createGraph({
+            [alphaPath]: makeNode(alphaPath, 'Alpha'),
+            [betaPath]: makeNode(betaPath, 'Beta'),
+        }))
+        const client: GraphDbClient = createClient()
+        const {sessionId}: {sessionId: string} = await client.createSession()
+        await client.setFolderState(sessionId, docsPath, 'collapsed')
+
+        setStdoutIsTTY(true)
+        const result: CommandResult = await captureCommand(() =>
+            runViewCommand(['show', '--vault', harness.vault, '--session', sessionId]),
+        )
+
+        expect(result.exitCode).toBeNull()
+        expect(result.stderr).toBe('')
+        expect(result.stdout).toContain('═══ STRUCTURE main (view applied) ═══')
+        expect(result.stdout).toContain('▢ docs/ [collapsed:user 2 nodes')
+        expect(result.stdout).not.toContain('"graph"')
     })
 
     it('sets selection for a pinned session', async () => {
@@ -480,14 +519,12 @@ describe('runViewCommand', () => {
 
         expect((await client.health()).sessionCount).toBe(0)
         await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
-            folderState: [],
             activeView: {name: 'main'},
             selection: [],
         })
         expect((await client.health()).sessionCount).toBe(1)
 
         await expect(runViewJson(['show', '--vault', harness.vault])).resolves.toMatchObject({
-            folderState: [],
             activeView: {name: 'main'},
             selection: [],
         })

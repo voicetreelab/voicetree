@@ -17,7 +17,6 @@ import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals
 import * as O from "fp-ts/lib/Option.js";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
 import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
-import {isGraphFolderCollapsed} from "@/shell/edge/UI-edge/state/stores/FolderTreeStore";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
@@ -106,6 +105,18 @@ function isContextNode(node: ProjectedNode): boolean {
     return node.isContextNode === true
 }
 
+function syncExistingNodeParent(existing: CollectionReturnValue, specNode: ProjectedNode): void {
+    const nextParent: string | null = specNode.parent ?? null
+    const currentParent = existing.parent()
+    const currentParentId: string | null = currentParent.length > 0 ? currentParent.id() : null
+    if (currentParentId !== nextParent) existing.move({ parent: nextParent })
+    if (nextParent === null) {
+        existing.removeData('parent')
+    } else {
+        existing.data('parent', nextParent)
+    }
+}
+
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
     const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/anchoring/types').TerminalData> = getTerminals()
     for (const terminal of terminals.values()) {
@@ -146,46 +157,62 @@ function repairTerminalAnchorsForNode(cy: Core, nodeId: string): void {
     }
 }
 
-function isUnderCollapsedAncestor(
-    nodeParent: string | undefined,
-    parentById: ReadonlyMap<string, string | undefined>,
-    locallyCollapsed: ReadonlySet<string>,
-): boolean {
-    let current: string | undefined = nodeParent
-    while (current) {
-        if (locallyCollapsed.has(current)) return true
-        current = parentById.get(current)
+function syncFolderNodeInteractivity(folder: CollectionReturnValue, collapsed: boolean): void {
+    if (collapsed) {
+        if (!folder.grabbable()) folder.grabify()
+        if (!folder.selectable()) folder.selectify()
+        return
     }
-    return false
+
+    if (folder.grabbable()) folder.ungrabify()
+    if (folder.selectable()) folder.unselectify()
+    if (folder.selected()) folder.unselect()
+}
+
+function addFolderNode(
+    cy: Core,
+    specNode: ProjectedNode,
+    baseData: Record<string, unknown>,
+): void {
+    const collapsed: boolean = specNode.kind === 'folder-collapsed'
+    const addedFolder = cy.add({
+        group: 'nodes' as const,
+        data: {
+            ...baseData,
+            content: specNode.content ?? '',
+            isFolderNode: true,
+            folderLabel: specNode.label ?? nodeDisplayLabel(specNode),
+            ...(collapsed
+                ? {
+                      collapsed: true,
+                      childCount: specNode.childCount ?? 0,
+                  }
+                : {}),
+        },
+    })
+    syncFolderNodeInteractivity(addedFolder, collapsed)
+}
+
+function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNode): void {
+    const collapsed: boolean = specNode.kind === 'folder-collapsed'
+    existing.data('isFolderNode', true)
+    existing.data('folderLabel', specNode.label ?? nodeDisplayLabel(specNode))
+    existing.data('content', specNode.content ?? '')
+    if (collapsed) {
+        existing.data('collapsed', true)
+        existing.data('childCount', specNode.childCount ?? 0)
+    } else {
+        if (existing.data('collapsed')) existing.removeData('collapsed')
+        if (existing.data('childCount') !== undefined) existing.removeData('childCount')
+    }
+    syncFolderNodeInteractivity(existing, collapsed)
 }
 
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
-    // Renderer-owned collapse (JOINT-4): folders the user has collapsed live
-    // only in FolderTreeStore.graphCollapsedFolders until the daemon-side
-    // session.collapseSet sync gap is closed. Pre-filter the spec here so
-    // descendants of locally-collapsed folders are dropped from cy and the
-    // folder itself is treated as `folder-collapsed`.
-    const parentById: Map<string, string | undefined> = new Map(
-        graph.nodes.map((n) => [n.id, n.parent] as const),
-    )
-    const locallyCollapsed: Set<string> = new Set(
-        graph.nodes
-            .filter((n) => (n.kind === 'folder' || n.kind === 'folder-collapsed') && isGraphFolderCollapsed(n.id))
-            .map((n) => n.id),
-    )
-    const specNodes: readonly ProjectedNode[] = locallyCollapsed.size === 0
-        ? graph.nodes
-        : graph.nodes
-            .filter((n) => !isUnderCollapsedAncestor(n.parent, parentById, locallyCollapsed))
-            .map((n) => locallyCollapsed.has(n.id) ? { ...n, kind: 'folder-collapsed' as const } : n)
+    const specNodes: readonly ProjectedNode[] = graph.nodes
     const specNodeIds: Set<string> = new Set(specNodes.map((node: ProjectedNode) => node.id))
-    const specEdgeIds: Set<string> = new Set(
-        graph.edges
-            .filter((e) => specNodeIds.has(e.source) && specNodeIds.has(e.target))
-            .map((edge: ProjectedEdge) => edge.id),
-    )
     const specEdges: readonly ProjectedEdge[] = graph.edges
-        .filter((e) => specEdgeIds.has(e.id))
+    const specEdgeIds: Set<string> = new Set(specEdges.map((edge: ProjectedEdge) => edge.id))
 
     const newNodeIds: string[] = []
     const nodesWithoutPositions: string[] = []
@@ -229,26 +256,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 }
 
                 if (isFolder) {
-                    const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                    const addedFolder = cy.add({
-                        group: 'nodes' as const,
-                        data: {
-                            ...baseData,
-                            content: specNode.content ?? '',
-                            isFolderNode: true,
-                            folderLabel: specNode.label ?? nodeDisplayLabel(specNode),
-                            ...(collapsed
-                                ? {
-                                      collapsed: true,
-                                      childCount: specNode.childCount ?? 0,
-                                  }
-                                : {}),
-                        },
-                    })
-                    // Folder body is input-inert. The corner chip (FolderHandleService)
-                    // carries drag + collapse. Collapsed folders stay grabbable so the
-                    // pill itself can be dragged like a regular node.
-                    if (!collapsed) addedFolder.ungrabify()
+                    addFolderNode(cy, specNode, baseData)
                     continue
                 }
 
@@ -281,22 +289,10 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 continue
             }
 
+            syncExistingNodeParent(existing, specNode)
+
             if (isFolder) {
-                const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                existing.data('isFolderNode', true)
-                existing.data('folderLabel', specNode.label ?? nodeDisplayLabel(specNode))
-                existing.data('content', specNode.content ?? '')
-                if (collapsed) {
-                    existing.data('collapsed', true)
-                    existing.data('childCount', specNode.childCount ?? 0)
-                    // Collapsed pill is a regular node — grabbable
-                    if (!existing.grabbable()) existing.grabify()
-                } else {
-                    if (existing.data('collapsed')) existing.removeData('collapsed')
-                    if (existing.data('childCount') !== undefined) existing.removeData('childCount')
-                    // Expanded folder body is input-inert; chip handles drag.
-                    if (existing.grabbable()) existing.ungrabify()
-                }
+                updateFolderNode(existing, specNode)
                 continue
             }
 

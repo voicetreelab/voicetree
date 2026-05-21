@@ -13,6 +13,8 @@ import type { FileWatcherLogger } from '@vt/graph-db-server/watch-folder/watchin
 
 export type Watcher = {
   readonly ready: Promise<void>
+  add(path: string): void
+  unwatch(path: string): void
   unmount(): Promise<void>
 }
 
@@ -143,6 +145,12 @@ export function mountWatcher(
 
   return {
     ready,
+    add(path: string): void {
+      watcher.add(path)
+    },
+    unwatch(path: string): void {
+      watcher.unwatch(path)
+    },
     async unmount(): Promise<void> {
       await watcher.close()
     },

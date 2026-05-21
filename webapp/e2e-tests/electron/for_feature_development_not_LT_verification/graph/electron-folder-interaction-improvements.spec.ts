@@ -407,39 +407,11 @@ test.describe('BF-113: Synthetic edges on collapsed folders', () => {
 
 test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
 
-    test('collapsing a folder in graph updates the file tree store state', async ({ appWindow }) => {
+    test('collapsing a folder in graph updates cytoscape folder state', async ({ appWindow }) => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 3);
         await waitForFolderNode(appWindow, '/auth/');
         await closeFolderTreeSidebarIfVisible(appWindow);
-
-        // Before collapse: graphCollapsedFolders should be empty
-        const collapsedBefore = await appWindow.evaluate(() => {
-            // Access the FolderTreeStore state
-            const mod = (window as unknown as { __folderTreeStoreForTest?: { getFolderTreeState: () => { graphCollapsedFolders: ReadonlySet<string> } } }).__folderTreeStoreForTest;
-            if (!mod) return -1; // store not exposed
-            return mod.getFolderTreeState().graphCollapsedFolders.size;
-        });
-
-        // If store is not exposed to window, we test via graph state only
-        if (collapsedBefore === -1) {
-            // Fallback: just verify graph collapse works via Cytoscape
-            await clickFolderChevron(appWindow, '/auth/');
-            await expect.poll(
-                () => getFolderCollapsedState(appWindow, '/auth/'),
-                { message: 'Waiting for auth/ to collapse', timeout: 5000 }
-            ).toBe(true);
-
-            // Expand to verify round-trip
-            await clickFolderChevron(appWindow, '/auth/');
-            await expect.poll(
-                () => getFolderCollapsedState(appWindow, '/auth/'),
-                { message: 'Waiting for auth/ to expand', timeout: 10000 }
-            ).toBe(false);
-            return;
-        }
-
-        expect(collapsedBefore).toBe(0);
 
         // Collapse auth/ in graph
         await clickFolderChevron(appWindow, '/auth/');
@@ -448,13 +420,11 @@ test.describe('BF-114: File tree collapse toggle syncs with graph', () => {
             { message: 'Waiting for auth/ to collapse', timeout: 5000 }
         ).toBe(true);
 
-        // Verify store reflects collapse
-        const collapsedAfter = await appWindow.evaluate(() => {
-            const mod = (window as unknown as { __folderTreeStoreForTest?: { getFolderTreeState: () => { graphCollapsedFolders: ReadonlySet<string> } } }).__folderTreeStoreForTest;
-            if (!mod) return 0;
-            return mod.getFolderTreeState().graphCollapsedFolders.size;
-        });
-        expect(collapsedAfter).toBeGreaterThan(0);
+        await emitDblTapOnFolder(appWindow, '/auth/');
+        await expect.poll(
+            () => getFolderCollapsedState(appWindow, '/auth/'),
+            { message: 'Waiting for auth/ to expand', timeout: 10000 }
+        ).toBe(false);
     });
 
     test('graph collapse and expand round-trip preserves state consistency', async ({ appWindow }) => {

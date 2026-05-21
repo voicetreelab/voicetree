@@ -4,10 +4,15 @@ import { renderTreeCover } from '@vt/graph-tools/autoView'
 import type { Command } from './command.ts'
 import type { Session } from './session.ts'
 
+function normalizeFolderIds(ids: ReadonlySet<string>): ReadonlySet<string> {
+  return new Set([...ids].map((id) => id.endsWith('/') ? id.slice(0, -1) : id))
+}
+
 export function handleRenderView(
   session: Session,
   state: State,
   budgetParam: string | undefined,
+  titleParam: string | undefined,
   expandParams: readonly string[],
 ): {
   commands: Command[]
@@ -21,10 +26,11 @@ export function handleRenderView(
     commands: [],
     response: {
       output: renderTreeCover(graph, {
-        collapsed: session.collapseSet,
+        collapsed: normalizeFolderIds(session.collapseSet),
         selected: session.selection,
         pinnedFolderIds: mergedExpands,
         budget,
+        title: titleParam,
       }),
       format: 'tree-cover',
     },
