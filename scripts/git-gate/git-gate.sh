@@ -36,8 +36,15 @@ case "$sub" in
     if [[ ! "$rest" =~ (^|[[:space:]])(--continue|--abort|--quit)([[:space:]]|$) ]]; then
       target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
       current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
-      reason="merging ${target_branch:-branch} into ${current_branch}"
-      merge_assertion="yes_tests_and_measures_green"
+      # Only gate merges INTO protected branches (dev-manu). Merges INTO any
+      # worktree / feature branch are allowed without password — they're
+      # cheap-to-revert local integration steps.
+      case "$current_branch" in
+        dev-manu)
+          reason="merging ${target_branch:-branch} into ${current_branch}"
+          merge_assertion="yes_tests_and_measures_green"
+          ;;
+      esac
     fi
     ;;
   reset)
