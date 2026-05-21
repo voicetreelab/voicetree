@@ -7,7 +7,7 @@ import {
     renderPlist,
     resetTmuxLaunchAgentForTests,
     type TmuxLaunchAgentDeps,
-} from '../tmux-launchagent.ts'
+} from '../tmux/tmux-launchagent.ts'
 
 type FakeLaunchctlCall = {
     readonly args: readonly string[]

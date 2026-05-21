@@ -15,6 +15,11 @@ import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} f
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
 import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/daemon-graph-queries'
 import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import {
+  attachUnclaimedTmuxSession,
+  killUnclaimedTmuxSession,
+  refreshUnclaimedTmuxSessions,
+} from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
@@ -180,6 +185,12 @@ export const mainAPI = {
   updateTerminalMinimized: terminalRuntimeSurface.updateTerminalMinimized,
   updateTerminalActivityState: terminalRuntimeSurface.updateTerminalActivityState,
   removeTerminalFromRegistry: terminalRuntimeSurface.removeTerminalFromRegistry,
+
+  // Existing tmux sessions not yet claimed by this Electron registry
+  listUnclaimedTmuxSessions: terminalRuntimeSurface.listUnclaimedTmuxSessions,
+  refreshUnclaimedTmuxSessions,
+  attachUnclaimedTmuxSession,
+  killUnclaimedTmuxSession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

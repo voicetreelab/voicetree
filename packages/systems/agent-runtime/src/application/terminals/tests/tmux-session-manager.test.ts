@@ -6,12 +6,14 @@ import {afterAll, afterEach, describe, expect, it} from 'vitest'
 import {
     buildTmuxSessionName,
     createSession,
+    getSessionEnvironment,
     getPanePid,
     hasSession,
     killSession,
+    listSessions,
     pipePaneToFile,
     sendKeys,
-} from '../tmux-session-manager.ts'
+} from '../tmux/tmux-session-manager.ts'
 import {shellQuote} from '../../util/shellQuote.ts'
 
 const sessions: Set<string> = new Set<string>()
@@ -128,6 +130,31 @@ describe('tmux-session-manager', () => {
         )
 
         await waitFor(async () => (await readIfExists(envPath)) === 'BF310_TEST_VAL')
+    })
+
+    it('lists tmux sessions and reads session-scoped environment variables', async () => {
+        const name: string = sessionName()
+        sessions.add(name)
+
+        const created: {pid: number} = await createSession(
+            name,
+            'sleep 5',
+            {
+                AGENT_NAME: 'BF310_AGENT',
+                VOICETREE_TERMINAL_ID: 'BF310_TEST_VAL',
+            },
+        )
+
+        const listed = await listSessions()
+        expect(listed).toContainEqual({
+            sessionName: name,
+            createdAtSeconds: expect.any(Number),
+            panePid: created.pid,
+        })
+
+        const env: Record<string, string> = await getSessionEnvironment(name)
+        expect(env.AGENT_NAME).toBe('BF310_AGENT')
+        expect(env.VOICETREE_TERMINAL_ID).toBe('BF310_TEST_VAL')
     })
 
     it('scopes tmux session names by vault so parallel runtimes can reuse terminal IDs', async () => {

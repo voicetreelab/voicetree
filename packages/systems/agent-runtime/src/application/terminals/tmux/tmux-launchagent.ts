@@ -9,7 +9,7 @@ import {
 import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
-import {getRuntimeEnv} from '../runtime/runtime-config'
+import {getRuntimeEnv} from '../../runtime/runtime-config'
 
 const LABEL: string = 'com.voicetree.tmux'
 const ROOT_SESSION: string = '__voicetree_root__'

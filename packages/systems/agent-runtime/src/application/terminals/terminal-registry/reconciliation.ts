@@ -10,7 +10,7 @@ import {
     type TerminalRegistryLogger,
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
-import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux-session-manager'
+import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux/tmux-session-manager'
 
 type TmuxTerminalMetadata = {
     readonly name: string

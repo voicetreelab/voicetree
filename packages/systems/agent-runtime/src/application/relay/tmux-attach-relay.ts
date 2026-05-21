@@ -3,8 +3,8 @@ import type {IncomingMessage, Server} from 'node:http'
 import type {Duplex} from 'node:stream'
 import pty, {type IPty} from 'node-pty'
 import {WebSocket, WebSocketServer} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux-launchagent'
-import {hasSession, resolveTmuxSessionName} from '../terminals/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-launchagent'
+import {hasSession, resolveTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40

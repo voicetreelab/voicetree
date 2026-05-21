@@ -80,6 +80,16 @@ import {
     clearTerminals,
 } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {
+    attachUnclaimedTmuxSession,
+    clearUnclaimedTmuxSessions,
+    getUnclaimedTmuxSessions,
+    killUnclaimedTmuxSession,
+    refreshUnclaimedTmuxSessions,
+    startUnclaimedTmuxPolling,
+    stopUnclaimedTmuxPolling,
+    subscribeToUnclaimedTmuxChanges,
+} from '@/shell/edge/UI-edge/state/stores/UnclaimedTmuxStore';
+import {
     syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
@@ -89,6 +99,8 @@ import {
 import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
 import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
+import { SurvivingAgentsSection } from './SurvivingAgentsSection';
+import type { UnclaimedTmuxSession } from '@vt/agent-runtime';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -117,6 +129,18 @@ function useActiveTerminalId(): TerminalId | null {
     }, []);
 
     return activeId;
+}
+
+function useUnclaimedTmuxSessions(): readonly UnclaimedTmuxSession[] {
+    const [unclaimed, setUnclaimed] = useState<readonly UnclaimedTmuxSession[]>(
+        () => getUnclaimedTmuxSessions()
+    );
+
+    useEffect(() => {
+        return subscribeToUnclaimedTmuxChanges(setUnclaimed);
+    }, []);
+
+    return unclaimed;
 }
 
 // =============================================================================
@@ -323,6 +347,7 @@ interface SidebarInternalProps {
 // eslint-disable-next-line react-refresh/only-export-components
 function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.Element | null {
     const allTerminals: TerminalData[] = useTerminals();
+    const unclaimedTmuxSessions: readonly UnclaimedTmuxSession[] = useUnclaimedTmuxSessions();
     const activeTerminalId: TerminalId | null = useActiveTerminalId();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
@@ -332,7 +357,11 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     // Start/stop activity polling with component lifecycle
     useEffect(() => {
         startTerminalActivityPolling();
-        return () => stopTerminalActivityPolling();
+        startUnclaimedTmuxPolling();
+        return () => {
+            stopTerminalActivityPolling();
+            stopUnclaimedTmuxPolling();
+        };
     }, []);
 
     const collapse = useCollapseState();
@@ -354,6 +383,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
 
     const totalTabs: number = displayOrder.length;
     const shortcutPlatform = useMemo(() => getShortcutPlatform(), []);
+    const hasSidebarContent: boolean = terminals.length > 0 || unclaimedTmuxSessions.length > 0;
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
         if (!terminal.isHeadless && terminal.isMinimized) {
@@ -368,7 +398,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
             ref={sidebarRef}
             className="terminal-tree-sidebar"
             data-testid="terminal-tree-sidebar"
-            style={{ display: terminals.length === 0 ? 'none' : 'flex' }}
+            style={{ display: hasSidebarContent ? 'flex' : 'none' }}
         >
             <div className="terminal-tree-header">Terminals</div>
             <div className="terminal-tree-container">
@@ -392,6 +422,12 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                     );
                 })}
             </div>
+            <SurvivingAgentsSection
+                sessions={unclaimedTmuxSessions}
+                onRefresh={refreshUnclaimedTmuxSessions}
+                onAttach={attachUnclaimedTmuxSession}
+                onKill={killUnclaimedTmuxSession}
+            />
             <div ref={resizeHandleRef} className="terminal-tree-resize-handle" />
         </div>
     );
@@ -439,4 +475,5 @@ export function disposeTerminalTreeSidebar(): void {
 
     // Clear terminal stores to ensure clean state when switching projects
     clearTerminals();
+    clearUnclaimedTmuxSessions();
 }
