@@ -1,10 +1,10 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 import { createEmptyGraph, initGraphModel } from '@vt/graph-model'
 import { configureRootIO } from '@vt/graph-state'
-import { loadGraphFromDisk } from '../data/graph/loading/loadGraphFromDisk.ts'
-import { getDirectoryTree } from '../data/graph/loading/folderScanner.ts'
-import { clearWatchFolderState } from '../state/watch-folder-store.ts'
-import { setGraph } from '../state/graph-store.ts'
+import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
+import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
+import { clearWatchFolderState } from '@vt/graph-db-server/state/watch-folder-store'
+import { setGraph } from '@vt/graph-db-server/state/graph-store'
 
 const tracer = trace.getTracer('vt-graphd')
 

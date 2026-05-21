@@ -1,5 +1,5 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
-import { deletePortFile, writePortFile } from './portFile.ts'
+import { deletePortFile, writePortFile } from '../portFile.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 

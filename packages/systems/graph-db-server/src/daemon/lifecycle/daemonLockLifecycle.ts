@@ -1,7 +1,7 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api'
-import { acquireLock, type LockHandle } from './lock.ts'
-import { readPortFile } from './portFile.ts'
-import type { DaemonHandle, DaemonLogger } from './daemonTypes.ts'
+import { acquireLock, type LockHandle } from '../lock.ts'
+import { readPortFile } from '../portFile.ts'
+import type { DaemonHandle, DaemonLogger } from '../daemonTypes.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 
