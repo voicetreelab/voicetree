@@ -23,7 +23,7 @@
 //   - the parent exits with the first non-zero lane exit code (0 if all pass)
 //
 // Each underlying lane script already records its own dashboard tile (via
-// record-run.mjs or the vitest CI reporter), so no extra tile wiring here.
+// record-run.ts or the vitest CI reporter), so no extra tile wiring here.
 //
 // Lanes are configurable via --lanes=A,B,C (default: all). Useful for inner
 // loops that want to skip e.g. tier2-browser.
@@ -34,7 +34,7 @@ import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(SCRIPT_DIR, '..')
+const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const LOG_DIR = resolve(REPO_ROOT, 'health-dashboard', 'reports', 'parallel-test-logs')
 mkdirSync(LOG_DIR, {recursive: true})
 

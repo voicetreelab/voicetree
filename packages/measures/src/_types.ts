@@ -1,5 +1,5 @@
 // Type + helpers shared by every measure in this folder.
-// Files starting with `_` are NOT loaded as measures by capture-ci-checks.mjs,
+// Files starting with `_` are NOT loaded as measures by capture-ci-checks.ts,
 // except the suite-level `health/_all.check.ts`.
 
 export type ParserKind = 'vitest' | 'playwright' | 'none'

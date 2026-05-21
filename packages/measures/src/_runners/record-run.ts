@@ -6,7 +6,7 @@
 //   - re-exits with the child's exit code (transparent)
 //
 // Usage:
-//   node scripts/record-run.mjs \
+//   node --experimental-strip-types packages/measures/src/_runners/record-run.ts \
 //     --id=npm-test --name="npm run test" --category=Command \
 //     [--display="npm run test"] [--slow] \
 //     -- <command> [args...]
@@ -21,7 +21,7 @@ import {fileURLToPath} from 'node:url'
 import {recordCheckReport} from '@vt/ci-reporting'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(SCRIPT_DIR, '..')
+const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 
 function parseArgs(argv) {
     const opts = {id: null, name: null, category: null, display: null, slow: false}

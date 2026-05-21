@@ -3,9 +3,9 @@
 // a --folder=<prefix> that contains it. Fails loudly when a new measure file is
 // dropped in but no workflow runs it.
 //
-// Workflows reach capture-ci-checks.mjs both directly (`npm run health:capture-ci`)
+// Workflows reach capture-ci-checks.ts both directly (`npm run health:capture-ci`)
 // and via package.json indirection (`npm run health` → `npm run health:run` →
-// `scripts/capture-ci-checks.mjs --folder=health --quick`). The resolver follows
+// `packages/measures/src/_runners/capture-ci-checks.ts --folder=health --quick`). The resolver follows
 // `npm run <name>` chains until every script that ultimately invokes the runner
 // has its effective flags recorded.
 
@@ -93,13 +93,13 @@ async function loadCaptureScripts(): Promise<ReadonlyMap<string, CaptureFlags>> 
     const result = new Map<string, CaptureFlags>()
 
     for (const [name, body] of Object.entries(scripts)) {
-        if (body.includes('capture-ci-checks.mjs')) {
+        if (body.includes('packages/measures/src/_runners/capture-ci-checks.ts')) {
             result.set(name, parseCaptureFlags(body))
         }
     }
 
     // Follow `npm run <name>` indirection until convergence. Some scripts wrap
-    // their target in `record-run.mjs --name="npm run X" -- npm run X:run`, so we
+    // their target in `record-run.ts --name="npm run X" -- npm run X:run`, so we
     // walk every `npm run` reference in the body (not just the first) and skip
     // self-references before checking the already-resolved set.
     for (let pass = 0; pass < 5; pass++) {
@@ -255,7 +255,7 @@ describe('CI coverage of packages/measures/', () => {
         if (uncovered.length > 0) {
             const measureLines = uncovered.map(m => `  - ${m.relPath}  (id=${m.id}${m.slow ? ', slow' : ''})`)
             const callLines = allCalls.length === 0
-                ? ['  (none — no workflow invokes capture-ci-checks.mjs directly or via an npm script that does)']
+                ? ['  (none - no workflow invokes capture-ci-checks.ts directly or via an npm script that does)']
                 : [...new Set(allCalls.map(formatCall))].sort().map(s => `  - ${s}`)
             throw new Error(
                 `${uncovered.length}/${measures.length} measure files are not invoked by any GitHub Actions workflow.\n\n` +

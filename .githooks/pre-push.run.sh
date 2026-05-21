@@ -4,7 +4,7 @@
 # or dev box). Paths are cwd-relative — git invokes hooks with cwd = repo root.
 set -e
 exec node --no-warnings=ExperimentalWarning --experimental-strip-types \
-  scripts/record-run.mjs \
+  packages/measures/src/_runners/record-run.ts \
   --id=git-pre-push \
   --name="Git pre-push (Stage 1 + Stage 2)" \
   --category=Hook \

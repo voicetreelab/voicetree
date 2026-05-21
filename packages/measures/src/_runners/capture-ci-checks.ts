@@ -16,7 +16,7 @@ import {pathToFileURL, fileURLToPath} from 'node:url'
 import {recordCheckReport} from '@vt/ci-reporting'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(SCRIPT_DIR, '..')
+const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000

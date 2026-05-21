@@ -1,7 +1,7 @@
 import { esc, fmtDuration, relTime } from './format.js'
 
 // Composition map for known rollup ("Command" category) checks.
-// Each rollup is wrapped by record-run.mjs and writes its own report. The
+// Each rollup is wrapped by record-run.ts and writes its own report. The
 // scripts it transitively invokes also write their own reports — those are the
 // `components`. We render rollup duration alongside the sum of its components,
 // so the dev can see WHERE the time goes (and what fraction is unaccounted).

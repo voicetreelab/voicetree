@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// record-result — record a pre-computed CheckReport. Sibling of record-run.mjs.
+// record-result — record a pre-computed CheckReport. Sibling of record-run.ts.
 // Use this when the work has already happened and you only want to file the
 // result (e.g. from inside a Node hook that can't be wrapped externally).
 //
 // Usage:
-//   node scripts/record-result.mjs \
+//   node --experimental-strip-types packages/measures/src/_runners/record-result.ts \
 //     --id=claude-stop-quality --name="Claude Stop hook" --category=Hook \
 //     --status=pass|fail|skip --duration-ms=1234 \
 //     [--display="..."] [--error-summary="..."] [--slow]

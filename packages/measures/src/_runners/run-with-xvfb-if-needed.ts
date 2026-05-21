@@ -20,7 +20,7 @@ function resolveCommand(argv, env, platform) {
     return {
       command: 'node',
       args: ['-e', 'process.exit(64)'],
-      error: 'Usage: run-with-xvfb-if-needed.mjs <command> [...args]',
+      error: 'Usage: run-with-xvfb-if-needed.ts <command> [...args]',
     };
   }
 
