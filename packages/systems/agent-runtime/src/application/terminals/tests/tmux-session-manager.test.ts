@@ -77,11 +77,12 @@ describe('tmux-session-manager', () => {
 
         const created: {pid: number} = await createSession(
             name,
-            `bash -c 'sleep 0.2; echo HELLO; read line; echo REPLY:$line; sleep 5'`,
+            `bash -c 'echo HELLO; sleep 0.2; read line; echo REPLY:$line; sleep 5'`,
         )
         expect(created.pid).toBeGreaterThan(0)
         expect(await getPanePid(name)).toBe(created.pid)
 
+        await new Promise((resolve) => setTimeout(resolve, 100))
         await pipePaneToFile(name, logPath)
         await waitFor(async () => (await readIfExists(logPath)).includes('HELLO'))
 
@@ -92,27 +93,6 @@ describe('tmux-session-manager', () => {
         await killSession(name)
         sessions.delete(name)
         expect(await hasSession(name)).toBe(false)
-    })
-
-    it('backfills output emitted before the pipe is attached', async () => {
-        const name: string = sessionName()
-        const dir: string = await makeTempDir()
-        const logPath: string = join(dir, 'session.log')
-        const readyPath: string = join(dir, 'ready')
-        sessions.add(name)
-
-        const created: {pid: number} = await createSession(
-            name,
-            `bash -c 'echo EARLY_OUTPUT; printf done > ${shellQuote(readyPath)}; read line; echo LATE_OUTPUT:$line; sleep 5'`,
-        )
-        expect(created.pid).toBeGreaterThan(0)
-
-        await waitFor(async () => (await readIfExists(readyPath)) === 'done')
-        await pipePaneToFile(name, logPath)
-        expect(await readIfExists(logPath)).toContain('EARLY_OUTPUT')
-
-        await sendKeys(name, 'AFTER_PIPE')
-        await waitFor(async () => (await readIfExists(logPath)).includes('LATE_OUTPUT:AFTER_PIPE'))
     })
 
     it('passes provided environment variables into the tmux session', async () => {
