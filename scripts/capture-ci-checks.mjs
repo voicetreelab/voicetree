@@ -310,22 +310,25 @@ async function runCheck(check) {
 }
 
 async function runChecksInParallel(checks, opts) {
-    const parallelChecks = checks.filter(check => check.category !== 'Integration')
-    const integrationChecks = checks.filter(check => check.category === 'Integration')
+    const shouldRunExclusively = check => check.category === 'Integration' || check.exclusive === true
+    const parallelChecks = checks.filter(check => !shouldRunExclusively(check))
+    const exclusiveChecks = checks.filter(shouldRunExclusively)
     const parallelResults = await Promise.all(parallelChecks.map(async check => ({
         check,
         outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
     })))
-    const integrationResults = []
-    for (const check of integrationChecks) {
-        integrationResults.push({
+    // Some checks spawn global OS resources such as tmux sessions or local daemons.
+    // Keep their isolation narrow instead of forcing the whole registry sequential.
+    const exclusiveResults = []
+    for (const check of exclusiveChecks) {
+        exclusiveResults.push({
             check,
             outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
         })
     }
     return checks.map(check =>
         parallelResults.find(result => result.check === check)
-        ?? integrationResults.find(result => result.check === check),
+        ?? exclusiveResults.find(result => result.check === check),
     )
 }
 
