@@ -26,6 +26,10 @@ const GATE_FILES: readonly GateFile[] = [
         currentPath: 'packages/measures/src/health/purity/purity-ratio-ast.test.ts',
         committedPath: 'packages/systems/purity-ratio-ast.test.ts',
     },
+    {
+        currentPath: 'packages/measures/src/health/meta/script-tamper-guard.test.ts',
+        committedPath: 'packages/measures/src/health/meta/script-tamper-guard.test.ts',
+    },
 ]
 
 function gitShow(relativePath: string): string | null {
