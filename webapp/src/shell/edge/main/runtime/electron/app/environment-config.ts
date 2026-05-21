@@ -127,6 +127,18 @@ export function configureEnvironment(): void {
         app.commandLine.appendSwitch('disable-renderer-backgrounding');
     }
 
+    // Opt-in heap-snapshot capture for diagnosing renderer OOMs.
+    // VOICETREE_HEAP_TRACE=1 → V8 writes up to 3 .heapsnapshot files into the
+    // renderer's cwd as the heap approaches the limit. Fires while V8 still
+    // has headroom, so the file actually gets written (the alternative
+    // --heap-snapshot-on-oom can't be paired here: Electron splits a
+    // space-separated js-flags value into separate argv entries, dropping
+    // the second flag). Drop the resulting .heapsnapshot files into Chrome
+    // DevTools' Memory tab → "Load profile" to inspect retainers.
+    if (process.env.VOICETREE_HEAP_TRACE === '1') {
+        app.commandLine.appendSwitch('js-flags', '--heapsnapshot-near-heap-limit=3');
+    }
+
     // Auto-enable CDP for all unpackaged builds so vt-debug can attach without manual setup.
     // Uses app.isPackaged instead of NODE_ENV because electron:prod (electron-vite build && electron .)
     // runs unpackaged but with NODE_ENV !== 'development', leaving CDP disabled and cdpPort=0.
