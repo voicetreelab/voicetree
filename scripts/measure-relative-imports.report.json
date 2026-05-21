@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-21T03:39:52.003Z",
-  "sourceFileCount": 787,
+  "generatedAt": "2026-05-21T04:02:03.338Z",
+  "sourceFileCount": 788,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1275,
-    "samePackageRelativeImports": 1275,
+    "relativeImports": 1283,
+    "samePackageRelativeImports": 1283,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 738,
-    "../x": 537,
+    "./x": 739,
+    "../x": 544,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -76,12 +76,12 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 187,
-      "samePackageRelativeImports": 187,
+      "relativeImports": 195,
+      "samePackageRelativeImports": 195,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 66,
-        "../x": 121,
+        "./x": 67,
+        "../x": 128,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -187,13 +187,19 @@
     {
       "file": "packages/systems/agent-runtime/src/api/index.ts",
       "package": "@vt/agent-runtime",
-      "relativeImports": 21,
+      "relativeImports": 23,
       "crossPackageRelativeImports": 0
     },
     {
       "file": "packages/libraries/graph-model/src/index.ts",
       "package": "@vt/graph-model",
       "relativeImports": 20,
+      "crossPackageRelativeImports": 0
+    },
+    {
+      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
+      "package": "@vt/agent-runtime",
+      "relativeImports": 18,
       "crossPackageRelativeImports": 0
     },
     {
@@ -211,12 +217,6 @@
     {
       "file": "packages/libraries/graph-state/src/index.ts",
       "package": "@vt/graph-state",
-      "relativeImports": 16,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
-      "package": "@vt/agent-runtime",
       "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },

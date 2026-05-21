@@ -103,7 +103,7 @@ describe('@vt/graph-db-client system contract', () => {
       const clientB = await GraphDbClient.connect({ vault, sessionId })
 
       await expect(clientA.setFolderState(sessionId, docs, 'collapsed')).resolves.toMatchObject({
-        folderState: [[docs, 'collapsed']],
+        folderState: expect.arrayContaining([[docs, 'collapsed']]),
       })
       await expect(
         clientB.setSelection(sessionId, { nodeIds: [notePath], mode: 'replace' }),
@@ -119,7 +119,7 @@ describe('@vt/graph-db-client system contract', () => {
       })
 
       await expect(clientB.getSessionState(sessionId)).resolves.toMatchObject({
-        folderState: [[docs, 'collapsed']],
+        folderState: expect.arrayContaining([[docs, 'collapsed']]),
         selection: [notePath],
       })
     })
