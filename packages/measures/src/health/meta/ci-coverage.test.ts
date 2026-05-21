@@ -3,8 +3,8 @@
 // a --folder=<prefix> that contains it. Fails loudly when a new measure file is
 // dropped in but no workflow runs it.
 //
-// Workflows reach capture-ci-checks.ts both directly (`npm run health:capture-ci`)
-// and via package.json indirection (`npm run health` → `npm run health:run` →
+// Workflows reach capture-ci-checks.ts both directly (`npm run measures:capture-ci`)
+// and via package.json indirection (`npm run measures` → `npm run measures:run` →
 // `packages/measures/src/_runners/capture-ci-checks.ts --folder=health --quick`). The resolver follows
 // `npm run <name>` chains until every script that ultimately invokes the runner
 // has its effective flags recorded.
@@ -129,14 +129,14 @@ function findCaptureInvocations(
     workflow: string,
 ): readonly CaptureCall[] {
     const calls: CaptureCall[] = []
-    const directRe = /npm run health:capture-ci(?:\s+--\s+([^\n]*))?/g
+    const directRe = /npm run measures:capture-ci(?:\s+--\s+([^\n]*))?/g
     for (const m of workflowText.matchAll(directRe)) {
         calls.push({workflow, ...parseCaptureFlags(m[1] ?? '')})
     }
     const indirectRe = /npm run ([a-z0-9:_-]+)/gi
     for (const m of workflowText.matchAll(indirectRe)) {
         const name = m[1]
-        if (name === 'health:capture-ci') continue
+        if (name === 'measures:capture-ci') continue
         const resolved = scripts.get(name)
         if (resolved) calls.push({workflow, ...resolved})
     }
@@ -184,7 +184,7 @@ function escapeRegExp(s: string): string {
 
 function jobRunsMatrixMeasure(jobText: string, matrixVar: string): boolean {
     const matrixOnlyRe = new RegExp(
-        `npm run health:capture-ci[^\\n]*--only=\\$\\{\\{\\s*matrix\\.${escapeRegExp(matrixVar)}\\s*\\}\\}`,
+        `npm run measures:capture-ci[^\\n]*--only=\\$\\{\\{\\s*matrix\\.${escapeRegExp(matrixVar)}\\s*\\}\\}`,
     )
     return matrixOnlyRe.test(jobText)
 }
@@ -261,7 +261,7 @@ describe('CI coverage of packages/measures/', () => {
                 `${uncovered.length}/${measures.length} measure files are not invoked by any GitHub Actions workflow.\n\n` +
                 `Uncovered measures:\n${measureLines.join('\n')}\n\n` +
                 `capture-ci-checks invocations detected in .github/workflows/:\n${callLines.join('\n')}\n\n` +
-                `Fix: add a workflow step that invokes capture-ci-checks (directly via \`npm run health:capture-ci -- --folder=<prefix>\` ` +
+                `Fix: add a workflow step that invokes capture-ci-checks (directly via \`npm run measures:capture-ci -- --folder=<prefix>\` ` +
                 `or indirectly via an npm script that resolves to it) covering each measure.`,
             )
         }

@@ -25,17 +25,10 @@ function changedStatusEntries(): string[] {
     return output.split('\n').map(line => line.trimEnd()).filter(Boolean)
 }
 
-function isExpectedCodebaseHealthScriptMove(scriptName: string, current: unknown, committed: unknown): boolean {
-    const legacyPackage = '@vt/' + 'codebase-health'
-    // Phase 12 will rename test:codebase-health to test:measures; update this
-    // heuristic in that phase rather than widening it during Phase 7.
-    return scriptName === 'test:codebase-health'
+function isExpectedMeasuresScriptMove(scriptName: string, current: unknown, committed: unknown): boolean {
+    return scriptName === 'test:measures'
         && current === 'npm --workspace @vt/measures run test'
-        && typeof committed === 'string'
-        && (
-            committed === `npm --workspace ${legacyPackage} run test`
-            || committed.startsWith('vitest run packages/systems/')
-        )
+        && committed === undefined
 }
 
 function isMovedCodebaseHealthTest(path: string): boolean {
@@ -51,12 +44,12 @@ function packageJsonScriptFindings(): string[] {
     if (!committedPackageJsonRaw) return findings
 
     const committedPackageJson = JSON.parse(committedPackageJsonRaw) as {scripts?: Record<string, string>}
-    for (const scriptName of ['test', 'test:codebase-health']) {
+    for (const scriptName of ['test', 'test:measures']) {
         const currentScript = currentPackageJson.scripts?.[scriptName]
         const committedScript = committedPackageJson.scripts?.[scriptName]
         if (
             currentScript !== committedScript
-            && !isExpectedCodebaseHealthScriptMove(scriptName, currentScript, committedScript)
+            && !isExpectedMeasuresScriptMove(scriptName, currentScript, committedScript)
         ) {
             findings.push(`package.json script "${scriptName}" changed; complexity pressure must not be won by relaxing green gates`)
         }

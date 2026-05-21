@@ -4,8 +4,8 @@ export const check: CheckDef = {
     id: 'duplication',
     name: 'Code Duplication (jscpd)',
     category: 'Static',
-    display: 'npm run health:duplication',
-    args: () => npmRun('health:duplication'),
+    display: 'npm run measures:duplication',
+    args: () => npmRun('measures:duplication'),
     parser: 'none',
     slow: true,
 }

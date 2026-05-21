@@ -89,7 +89,7 @@ function printHelp(checks) {
         'capture-ci-checks — run every locally-runnable CI/CD check and record reports.',
         '',
         'Usage:',
-        '  npm run health:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--sequential] [--fail-fast]',
+        '  npm run measures:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--sequential] [--fail-fast]',
         '',
         'Flags:',
         '  --quick           skip checks marked slow:true (Stryker mutation).',

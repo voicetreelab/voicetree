@@ -172,7 +172,7 @@ export function formatCheckTier(checksData, tierId) {
 export function formatChecks(checksData) {
   const reports = checksData?.reports ?? []
   if (reports.length === 0) {
-    return `## CI / CD Checks\n(no data — run \`npm run health:capture-ci\`)`
+    return `## CI / CD Checks\n(no data — run \`npm run measures:capture-ci\`)`
   }
   const lines = [
     '## CI / CD Checks',

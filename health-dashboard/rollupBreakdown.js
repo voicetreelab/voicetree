@@ -14,9 +14,9 @@ const ROLLUPS = [
   {
     id: 'npm-test',
     name: 'npm run test',
-    note: 'npm run health  +  vitest  +  electron-vite build  +  native rebuild  +  playwright tier1  +  playwright tier2 browser',
+    note: 'npm run measures  +  vitest  +  electron-vite build  +  native rebuild  +  playwright tier1  +  playwright tier2 browser',
     components: [
-      { id: 'npm-health',         label: 'npm run health',                  kind: 'rollup' },
+      { id: 'npm-health',         label: 'npm run measures',                kind: 'rollup' },
       { id: 'webapp-unit',        label: 'Webapp Unit (vitest)',            kind: 'leaf' },
       { id: 'webapp-vite-build',  label: 'Webapp electron-vite build',      kind: 'leaf' },
       { id: 'native-rebuild',     label: 'Native module rebuild',           kind: 'leaf' },
@@ -37,7 +37,7 @@ const ROLLUPS = [
   },
   {
     id: 'npm-health',
-    name: 'npm run health',
+    name: 'npm run measures',
     note: 'tier-1 system contracts  +  systems-health vitest  +  static checks  +  duplication',
     components: [
       { id: 'graph-db-client-e2e-system',     label: 'Graph DB Client E2E',       kind: 'leaf' },

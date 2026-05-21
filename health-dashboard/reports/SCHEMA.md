@@ -81,7 +81,7 @@ type HealthReport = {
 
 ## CI/CD Check Report
 
-CI/CD checks (unit, integration, e2e, lint, typecheck, static analysis) are captured separately by `npm run health:capture-ci`. Each check writes one file named `checks/<checkId>.json`. The aggregate file `checks.json` contains every check report sorted by category, name, and id.
+CI/CD checks (unit, integration, e2e, lint, typecheck, static analysis) are captured separately by `npm run measures:capture-ci`. Each check writes one file named `checks/<checkId>.json`. The aggregate file `checks.json` contains every check report sorted by category, name, and id.
 
 ```ts
 type CheckReport = {
@@ -152,7 +152,7 @@ type CheckReport = {
 
 ### Runner
 
-`npm run health:capture-ci` (script: `scripts/capture-ci-checks.mjs`) runs each check via `child_process.spawn`, parses test counts where possible, and writes the reports through `recordCheckReport()`.
+`npm run measures:capture-ci` runs each check via `child_process.spawn`, parses test counts where possible, and writes the reports through `recordCheckReport()`.
 
 Flags:
 - `--quick` — skip checks marked `slow: true` (e.g. Stryker mutation).

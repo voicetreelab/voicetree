@@ -62,7 +62,7 @@ const ciCheck = isOrangeGate
   : {
       checkId: 'systems-health',
       checkName: 'Systems Health Suite',
-      command: 'npm run test:codebase-health',
+      command: 'npm run test:measures',
     }
 
 export default defineConfig({
