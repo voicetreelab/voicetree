@@ -33,6 +33,7 @@ import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popup
 import type { WorkflowTreeNode } from '@/shell/edge/main/workflows/workflowHandlers';
 import type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput } from './horizontalMenuTypes';
 import { squareToHops } from './DistanceSlider';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 /**
  * Create slider config for run buttons (non-context nodes only).
@@ -67,6 +68,7 @@ function createRunButtonSliderConfig(
 export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[] {
     const { nodeId, cy, agents, isContextNode, currentDistance, menuElement } = input;
     const menuItems: HorizontalMenuItem[] = [];
+    const shortcutPlatform = getShortcutPlatform();
 
     // Create slider config for non-context nodes (context nodes don't need distance slider)
     // Only create if menuElement is provided (required for slider to be appended as child)
@@ -76,7 +78,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
 
     // LEFT SIDE: Delete, Copy, Add (3 buttons)
     menuItems.push({
-        icon: Trash2, label: 'Delete', hotkey: formatShortcut('Backspace'),
+        icon: Trash2, label: 'Delete', hotkey: formatShortcut('Backspace', shortcutPlatform),
         action: () => deleteNodesFromUI([nodeId], cy),
     });
     menuItems.push({
@@ -84,7 +86,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         action: () => { void navigator.clipboard.writeText(getFilePathForNode(nodeId)); },
     });
     menuItems.push({
-        icon: Plus, label: 'Add Child', hotkey: formatShortcut('N'),
+        icon: Plus, label: 'Add Child', hotkey: formatShortcut('N', shortcutPlatform),
         action: () => { void createNewChildNodeFromUI(nodeId, cy, getCurrentIndex(cy)); },
     });
 
@@ -93,7 +95,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         icon: Play,
         label: 'Run',
         color: '#22c55e', // green
-        hotkey: formatShortcut('Enter'),
+        hotkey: formatShortcut('Enter', shortcutPlatform),
         action: async () => {
             await spawnTerminalWithNewContextNode(nodeId, cy);
         },

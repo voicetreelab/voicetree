@@ -13,6 +13,7 @@ import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import '@/shell/electron.d.ts';
 import { formatShortcut } from '@vt/graph-model/utils';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 export interface Position {
     x: number;
@@ -132,9 +133,11 @@ export class VerticalMenuService {
             )
         }
 
+        const shortcutPlatform = getShortcutPlatform();
+
         if (this.deps) {
             menuItems.push({
-                html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('N')}</span></span>`,
+                html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('N', shortcutPlatform)}</span></span>`,
                 action: async () => {
                     //console.log('[VerticalMenuService] Creating node at position:', position);
                     await this.deps!.handleAddNodeAtPosition(position);
@@ -155,7 +158,7 @@ export class VerticalMenuService {
 
         const deleteText: string = noNodesSelected ? 'Delete (0 nodes selected)' : `Delete Selected (${selectedCount})`;
         menuItems.push({
-            html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('Backspace')}</span></span>`,
+            html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${deleteText} <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('Backspace', shortcutPlatform)}</span></span>`,
             disabled: noNodesSelected,
             action: deleteSelectedNodesAction(this.cy!),
         });
