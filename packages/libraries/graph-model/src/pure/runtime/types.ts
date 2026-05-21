@@ -43,7 +43,8 @@ export interface GraphModelCallbacks {
   semanticSearch?: (query: string, topK: number) => Promise<readonly string[]>
 
   // App-specific setup callbacks (Electron)
-  enableMcpIntegration?: () => Promise<void>  // replaces mcp-server/mcp-client-config
+  stripStaleMcpEntries?: (vaultDir: string) => Promise<void>
+  writeVaultAgentDiscoveryFile?: (vaultDir: string) => Promise<void>
   ensureProjectSetup?: (projectPath: string) => Promise<void>  // replaces electron/tools-setup
   ensureDaemonForVault?: (vaultPath: string) => Promise<void>
   getOnboardingDirectory?: () => string  // replaces electron/onboarding-setup

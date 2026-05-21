@@ -8,7 +8,6 @@ import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjection'
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
-import {syncWorktreeMcpClientConfigs} from './worktreeMcpConfigSync'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeGraph, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
@@ -118,14 +117,6 @@ export async function prepareTerminalDataInMain(
     const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(appSupportPath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
     const finalCommand: string = injectCodexHookFlags(claudeInjected, mcpPort, terminalId)
-
-    // Refresh the worktree-local `.mcp.json` / `.codex/config.toml` so the
-    // agent's cwd-rooted MCP config points at the running VoiceTree port.
-    // Inherited or checked-in files often carry a stale port; without this
-    // sync, the spawned CLI silently attaches to the wrong server.
-    if (initialSpawnDirectory) {
-        await syncWorktreeMcpClientConfigs(initialSpawnDirectory, command, mcpPort)
-    }
 
     return createTerminalData({
         terminalId,

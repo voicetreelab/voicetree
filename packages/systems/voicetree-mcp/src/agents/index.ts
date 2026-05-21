@@ -23,16 +23,8 @@ export type {
 } from '../tools/agent-control/terminalRuntimeSurface'
 export {findAvailablePort, isPortAvailable} from '../tools/findAvailablePort'
 
-export {
-    enableMcpJsonIntegration,
-    enableMcpClientIntegrations,
-    disableMcpJsonIntegration,
-    isMcpIntegrationEnabled,
-    enableOpencodeMcpIntegration,
-    disableOpencodeMcpIntegration,
-    isOpencodeAgent,
-    setMcpIntegration,
-} from '../config/mcp-client-config'
+export {stripStaleVoicetreeMcpEntries} from '../config/mcp-client-config'
+export {writeVaultAgentDiscoveryFile} from '../config/vaultAgentDiscoveryFile'
 
 export type {McpToolResponse} from '../tools/toolResponse'
 export {buildJsonResponse} from '../tools/toolResponse'

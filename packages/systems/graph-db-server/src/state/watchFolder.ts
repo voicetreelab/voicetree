@@ -327,8 +327,8 @@ export async function loadFolder(
     // Update projectRootWatchedDirectory FIRST
     setProjectRootWatchedDirectory(watchedFolderPath);
 
-    // Write .mcp.json with current MCP port so external agents can discover the server
-    void getCallbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ });
+    // Step 7 vault-open hygiene: see GraphModelCallbacks for the two side-effects.
+    void Promise.all([getCallbacks().stripStaleMcpEntries?.(watchedFolderPath), getCallbacks().writeVaultAgentDiscoveryFile?.(watchedFolderPath)]).catch(() => { /* best effort */ });
 
     // Close old watcher before attempting to load new folder
     const oldWatcher: FSWatcher | null = getWatcher();

@@ -20,7 +20,7 @@ import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCre
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
-import {getMcpPort, setMcpIntegration} from '@vt/voicetree-mcp';
+import {getMcpPort} from '@vt/voicetree-mcp';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/daemon-graph-queries';
@@ -199,8 +199,7 @@ export const mainAPI = {
   openClaudeUsage,
   openCodexStatus,
 
-  // MCP client configuration
-  setMcpIntegration,
+  // MCP port (still load-bearing for hook delivery until Step 7e)
   getMcpPort,
 
   // Clipboard operations

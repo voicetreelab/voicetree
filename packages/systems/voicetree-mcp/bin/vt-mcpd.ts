@@ -108,6 +108,7 @@ function configureHeadlessBridges(appSupportPath: string): void {
         env: {
             getAppSupportPath: (): string => appSupportPath,
             getMcpPort,
+            getCliManualPath: (): string => join(appSupportPath, 'tools', 'prompts', 'cli-manual.md'),
         },
         // No interactive terminals in headless mode; only registerChildIfMonitored
         // is reachable (used by the spawn path even for headless agents).

@@ -23,6 +23,15 @@ export type RuntimeEnvProvider = {
     readonly getProjectRootWatchedDirectory?: () => Promise<string | null>;
     readonly getVaultPaths?: () => Promise<readonly string[]>;
     readonly getWritePath?: () => Promise<string | null>;
+    /**
+     * Absolute path to the canonical CLI manual file
+     * (`tools/prompts/cli-manual.md`). The spawn pipeline reads this file
+     * and injects its contents into each spawned agent's AGENT_PROMPT so
+     * the agent learns the `vt` CLI surface. Returns null when the file
+     * cannot be located in this shell (headless tests, etc.); injection
+     * is then skipped silently.
+     */
+    readonly getCliManualPath?: () => string | null;
 };
 
 export type WatchStatus = {

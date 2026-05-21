@@ -16,8 +16,11 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {z} from 'zod'
 import express, {type Express} from 'express'
 import type {Server} from 'node:http'
+import * as nodePath from 'node:path'
 import {findAvailablePort} from '../findAvailablePort'
-import {enableMcpClientIntegrations} from '../mcpConfigDependencies'
+import {stripStaleVoicetreeMcpEntries} from '../mcpConfigDependencies'
+import {writeVaultAgentDiscoveryFile} from '../../config/vaultAgentDiscoveryFile'
+import {getMcpProjectRootWatchedDirectory} from '../../config/mcp-graph-bridge'
 
 // Import tool implementations
 import {spawnAgentTool} from './spawnAgentTool'
@@ -303,7 +306,8 @@ export interface StartMcpServerOptions {
     }
     readonly now?: () => number
     readonly triggerOvernight?: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult>
-    readonly enableClientIntegrations?: () => Promise<void>
+    readonly stripStaleMcpEntries?: (vaultDir: string) => Promise<void>
+    readonly writeVaultAgentDiscoveryFile?: (vaultDir: string, manualPath: string) => Promise<void>
 }
 
 function logMcpMessage(message: string): void {
@@ -335,8 +339,10 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     const getNow: () => number = options?.now ?? getCurrentTimeMs
     const runTriggerOvernight: (params: TriggerOvernightParams) => Promise<TriggerOvernightResult> =
         options?.triggerOvernight ?? triggerOvernight
-    const runEnableClientIntegrations: () => Promise<void> =
-        options?.enableClientIntegrations ?? enableMcpClientIntegrations
+    const runStripStaleMcpEntries: (vaultDir: string) => Promise<void> =
+        options?.stripStaleMcpEntries ?? stripStaleVoicetreeMcpEntries
+    const runWriteVaultAgentDiscoveryFile: (vaultDir: string, manualPath: string) => Promise<void> =
+        options?.writeVaultAgentDiscoveryFile ?? writeVaultAgentDiscoveryFile
 
     // Overnight trigger endpoint — bypasses MCP protocol for direct HTTP invocation
     app.post('/trigger-overnight', async (req, res) => {
@@ -430,12 +436,21 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     })
     const tmuxAttachRelay = mountTmuxAttachRelay(httpServer)
 
-    // Auto-write MCP client configs so external agents can discover this server.
-    // Silently skips if no project folder is open yet (loadFolder will write it later).
+    // Step 7 vault-open hygiene at MCP-server startup: strip stale `voicetree`
+    // entries from external MCP-client configs (so agents don't connect to a
+    // dead port), and write/refresh the AGENTS.md / CLAUDE.md addendum that
+    // advertises the `vt` CLI to user-launched coding agents. Silently skips
+    // when no vault is bound yet — loadFolder will re-run on vault load.
     try {
-        await runEnableClientIntegrations()
-    } catch (_e) {
-        // No watched directory yet — loadFolder will call enableMcpClientIntegrations when one is set
+        const vaultDir: string | null = await getMcpProjectRootWatchedDirectory()
+        if (vaultDir) {
+            await runStripStaleMcpEntries(vaultDir)
+            const appSupportPath: string = agentRuntime.getRuntimeEnv().getAppSupportPath()
+            const manualPath: string = nodePath.join(appSupportPath, 'tools', 'prompts', 'cli-manual.md')
+            await runWriteVaultAgentDiscoveryFile(vaultDir, manualPath)
+        }
+    } catch (error) {
+        logError('[MCP] vault-open hygiene failed:', error)
     }
 
     // Start tier-1 vs tier-3 telemetry: stream every lifecycle event to a

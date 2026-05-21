@@ -121,8 +121,11 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
         })
 
         pushToRenderer('vault:ready', { path: vaultPath })
-        void getCallbacks().enableMcpIntegration?.().catch((err: unknown) => {
-            console.error('[openVault] Failed to enable MCP integration:', err)
+        void getCallbacks().stripStaleMcpEntries?.(vaultPath).catch((err: unknown) => {
+            console.error('[openVault] Failed to strip stale MCP entries:', err)
+        })
+        void getCallbacks().writeVaultAgentDiscoveryFile?.(vaultPath).catch((err: unknown) => {
+            console.error('[openVault] Failed to write vault agent discovery file:', err)
         })
         return response
     } catch (err) {

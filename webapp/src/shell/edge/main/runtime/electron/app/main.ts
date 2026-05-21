@@ -11,7 +11,6 @@ import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     configureMcpServer,
-    disableMcpJsonIntegration,
     getMcpPort,
     registerChildIfMonitored,
     startMcpServer,
@@ -21,6 +20,7 @@ import {
     type TerminalRecord,
 } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
+import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
@@ -122,6 +122,7 @@ terminalRuntimeSurface.configureAgentRuntime({
             const writePath: O.Option<string> = await getWritePath();
             return O.isSome(writePath) ? writePath.value : null;
         },
+        getCliManualPath: (): string => path.join(getToolsDirectory(), 'prompts', 'cli-manual.md'),
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
@@ -337,9 +338,6 @@ app.on('before-quit', () => {
     void cleanupOrphanedContextNodes().catch((error: unknown) => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
     });
-
-    // Remove stale .mcp.json so external agents don't connect to a dead port
-    void disableMcpJsonIntegration();
 
     // Stop OTLP receiver
     void stopOTLPReceiver();

@@ -91,10 +91,7 @@ vi.mock('@vt/app-config/settings', () => ({
 }))
 
 vi.mock('@vt/voicetree-mcp/mcp-client-config', () => ({
-    enableMcpClientIntegrations: vi.fn().mockResolvedValue(undefined),
-    enableMcpJsonIntegration: vi.fn().mockResolvedValue(undefined),
-    isMcpIntegrationEnabled: vi.fn().mockReturnValue(false),
-    setMcpIntegration: vi.fn(),
+    stripStaleVoicetreeMcpEntries: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({

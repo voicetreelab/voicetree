@@ -18,10 +18,10 @@ import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-stat
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject-badge-refresh'
 import { terminalRuntimeSurface, type TerminalRecord } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
-import { registerAgentNodes } from '@vt/voicetree-mcp'
+import { registerAgentNodes, stripStaleVoicetreeMcpEntries, writeVaultAgentDiscoveryFile } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
-import { enableMcpClientIntegrations } from '@vt/voicetree-mcp'
-import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
+import { ensureProjectDotVoicetree, getToolsDirectory } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
+import path from 'path'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { ensureDaemonProcess, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
@@ -153,8 +153,12 @@ export function initializeGraphModel(): void {
         },
 
         // App-specific setup
-        enableMcpIntegration(): Promise<void> {
-            return enableMcpClientIntegrations()
+        stripStaleMcpEntries(vaultDir: string): Promise<void> {
+            return stripStaleVoicetreeMcpEntries(vaultDir)
+        },
+        writeVaultAgentDiscoveryFile(vaultDir: string): Promise<void> {
+            const manualPath: string = path.join(getToolsDirectory(), 'prompts', 'cli-manual.md')
+            return writeVaultAgentDiscoveryFile(vaultDir, manualPath)
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

@@ -8,6 +8,7 @@ import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-mode
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../runtime/graph-bridge'
+import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
@@ -62,5 +63,7 @@ export async function buildTerminalEnvVars(params: {
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }
-    return expandEnvVarsInValues(unexpandedEnvVars)
+    const expanded: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars)
+    const cliManual: string | null = await readCliManualOrNull()
+    return appendCliManualToAgentPrompt(expanded, cliManual)
 }

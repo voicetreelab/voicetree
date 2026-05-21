@@ -1,265 +1,194 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createEmptyGraph } from '@vt/graph-model/graph';
-import { configureMcpServer, type GraphBridge } from './mcp-config';
-import * as mcpClientConfig from './mcp-client-config';
+/**
+ * Black-box tests for `stripStaleVoicetreeMcpEntries`.
+ *
+ * The migrator runs once at vault open. It scrubs any legacy `voicetree`
+ * entry from external coding-agent config files (.mcp.json, opencode.jsonc,
+ * .codex/config.toml) while preserving every other entry the user might
+ * have configured (Linear, custom servers, $schema, model selection, etc.).
+ *
+ * Tests use a real temp directory and assert on file contents — no internal
+ * mocks. The migrator is invoked end-to-end through its public entry point.
+ */
 
-// Hoist testDir so the vi.mock factory can reference it (vi.mock is hoisted above describe)
-const testDir: string = '/tmp/test-voicetree-mcp-opencode';
+import {promises as fs} from 'fs'
+import os from 'os'
+import path from 'path'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {stripStaleVoicetreeMcpEntries} from './mcp-client-config'
 
-function makeGraphBridge(): GraphBridge {
-    return {
-        getGraph: vi.fn(async () => createEmptyGraph()),
-        getVaultPaths: vi.fn(async () => [testDir]),
-        getWritePath: vi.fn(async () => testDir),
-        getProjectRootWatchedDirectory: vi.fn(async () => testDir),
-        applyGraphDelta: vi.fn(async () => undefined),
-    };
+let testDir: string
+
+beforeEach(async () => {
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-strip-stale-'))
+})
+
+afterEach(async () => {
+    await fs.rm(testDir, {recursive: true, force: true})
+})
+
+async function readJson(filePath: string): Promise<unknown> {
+    return JSON.parse(await fs.readFile(filePath, 'utf-8'))
 }
 
-describe('mcp-client-config: OpenCode integration', () => {
-    const mcpJsonPath: string = path.join(testDir, '.mcp.json');
-    const codexConfigPath: string = path.join(testDir, '.codex', 'config.toml');
-    const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
+describe('stripStaleVoicetreeMcpEntries — .mcp.json', () => {
+    it('removes a stale voicetree entry while preserving other servers', async () => {
+        const mcpJsonPath: string = path.join(testDir, '.mcp.json')
+        await fs.writeFile(mcpJsonPath, JSON.stringify({
+            mcpServers: {
+                voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'},
+                linear: {type: 'http', url: 'http://127.0.0.1:9999/mcp'},
+            },
+        }, null, 2))
 
-    // Mock the MCP server port
-    vi.mock('../tools/agent-control/mcp-server', () => ({
-        getMcpPort: vi.fn(() => 3001)
-    }));
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-    beforeEach(async () => {
-        configureMcpServer({graph: makeGraphBridge()});
+        const result = await readJson(mcpJsonPath) as {mcpServers: Record<string, unknown>}
+        expect(result.mcpServers.voicetree).toBeUndefined()
+        expect(result.mcpServers.linear).toEqual({type: 'http', url: 'http://127.0.0.1:9999/mcp'})
+    })
 
-        // Clean up test directory
-        try {
-            await fs.rm(testDir, { recursive: true, force: true });
-            await fs.mkdir(testDir, { recursive: true });
-        } catch (_e) {
-            // File doesn't exist, which is fine
-        }
-    });
+    it('removes the mcpServers object entirely when only voicetree was present', async () => {
+        const mcpJsonPath: string = path.join(testDir, '.mcp.json')
+        await fs.writeFile(mcpJsonPath, JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'}},
+        }, null, 2))
 
-    afterEach(async () => {
-        // Clean up test directory
-        try {
-            await fs.rm(testDir, { recursive: true, force: true });
-        } catch (_e) {
-            // Cleanup failed, ignore
-        }
-    });
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-    describe('enableMcpClientIntegrations', () => {
-        it('writes .mcp.json and .codex/config.toml with the current port', async () => {
-            await expect(mcpClientConfig.enableMcpClientIntegrations()).resolves.not.toThrow();
+        const result = await readJson(mcpJsonPath) as Record<string, unknown>
+        expect(result.mcpServers).toBeUndefined()
+    })
 
-            const mcpJsonContent: string = await fs.readFile(mcpJsonPath, 'utf-8');
-            const mcpJson = JSON.parse(mcpJsonContent);
-            expect(mcpJson.mcpServers.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
+    it('is idempotent — repeat calls do not corrupt a clean file', async () => {
+        const mcpJsonPath: string = path.join(testDir, '.mcp.json')
+        const cleanConfig = {mcpServers: {linear: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}
+        await fs.writeFile(mcpJsonPath, JSON.stringify(cleanConfig, null, 2))
 
-            const codexContent: string = await fs.readFile(codexConfigPath, 'utf-8');
-            expect(codexContent).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n');
-        });
+        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-        it('updates an existing stale Codex MCP port', async () => {
-            await fs.mkdir(path.dirname(codexConfigPath), { recursive: true });
-            await fs.writeFile(
-                codexConfigPath,
-                '[mcp_servers.voicetree]\nurl = "http://localhost:3003/mcp"\n',
-                'utf-8',
-            );
+        const result = await readJson(mcpJsonPath)
+        expect(result).toEqual(cleanConfig)
+    })
 
-            await expect(mcpClientConfig.enableMcpClientIntegrations()).resolves.not.toThrow();
+    it('is a no-op when the file does not exist', async () => {
+        await stripStaleVoicetreeMcpEntries(testDir)
+        const exists: boolean = await fs.stat(path.join(testDir, '.mcp.json')).then(() => true, () => false)
+        expect(exists).toBe(false)
+    })
+})
 
-            const codexContent: string = await fs.readFile(codexConfigPath, 'utf-8');
-            expect(codexContent).toBe('[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n');
-        });
-    });
+describe('stripStaleVoicetreeMcpEntries — opencode.jsonc', () => {
+    it('removes voicetree entry while preserving other servers and root keys', async () => {
+        const opencodePath: string = path.join(testDir, 'opencode.jsonc')
+        await fs.writeFile(opencodePath, JSON.stringify({
+            $schema: 'https://opencode.ai/config.json',
+            model: 'anthropic/claude-sonnet-4-5',
+            mcp: {
+                voicetree: {type: 'remote', url: 'http://127.0.0.1:3001/mcp', enabled: true},
+                other: {type: 'remote', url: 'http://localhost:8080/mcp'},
+            },
+        }, null, 2))
 
-    describe('enableOpencodeMcpIntegration', () => {
-        it('should create opencode.jsonc with voicetree config when file does not exist', async () => {
-            await expect((mcpClientConfig as any).enableOpencodeMcpIntegration()).resolves.not.toThrow();
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
+        const result = await readJson(opencodePath) as {model?: string; mcp: Record<string, unknown>; $schema: string}
+        expect(result.mcp.voicetree).toBeUndefined()
+        expect(result.mcp.other).toEqual({type: 'remote', url: 'http://localhost:8080/mcp'})
+        expect(result.model).toBe('anthropic/claude-sonnet-4-5')
+        expect(result.$schema).toBe('https://opencode.ai/config.json')
+    })
 
-            expect(config.$schema).toBe('https://opencode.ai/config.json');
-            expect(config.mcp).toBeDefined();
-            expect(config.mcp.voicetree).toBeDefined();
-            expect(config.mcp.voicetree.type).toBe('remote');
-            expect(config.mcp.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
-            expect(config.mcp.voicetree.enabled).toBe(true);
-        });
+    it('removes the mcp object entirely when only voicetree was present, leaving root keys intact', async () => {
+        const opencodePath: string = path.join(testDir, 'opencode.jsonc')
+        await fs.writeFile(opencodePath, JSON.stringify({
+            $schema: 'https://opencode.ai/config.json',
+            mcp: {voicetree: {type: 'remote', url: 'http://127.0.0.1:3001/mcp', enabled: true}},
+        }, null, 2))
 
-        it('should preserve existing settings when adding voicetree config', async () => {
-            // Create initial config with existing settings
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                model: 'anthropic/claude-sonnet-4-5',
-                mcp: {
-                    other_server: {
-                        type: 'remote',
-                        url: 'http://localhost:8080/mcp'
-                    }
-                }
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-            await expect((mcpClientConfig as any).enableOpencodeMcpIntegration()).resolves.not.toThrow();
+        const result = await readJson(opencodePath) as {$schema: string; mcp?: unknown}
+        expect(result.mcp).toBeUndefined()
+        expect(result.$schema).toBe('https://opencode.ai/config.json')
+    })
+})
 
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
+describe('stripStaleVoicetreeMcpEntries — .codex/config.toml', () => {
+    it('removes the [mcp_servers.voicetree] block while preserving other blocks', async () => {
+        const codexDir: string = path.join(testDir, '.codex')
+        await fs.mkdir(codexDir)
+        const codexPath: string = path.join(codexDir, 'config.toml')
+        const initial: string =
+            '[mcp_servers.voicetree]\n' +
+            'url = "http://localhost:3001/mcp"\n' +
+            '\n' +
+            '[mcp_servers.other]\n' +
+            'url = "http://localhost:8080/mcp"\n'
+        await fs.writeFile(codexPath, initial)
 
-            expect(config.model).toBe('anthropic/claude-sonnet-4-5');
-            expect(config.mcp.other_server).toBeDefined();
-            expect(config.mcp.voicetree).toBeDefined();
-            expect(config.mcp.voicetree.type).toBe('remote');
-            expect(config.mcp.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
-        });
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-        it('should update existing voicetree config if it already exists', async () => {
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                mcp: {
-                    voicetree: {
-                        type: 'remote',
-                        url: 'http://localhost:9999/mcp',
-                        enabled: false
-                    }
-                }
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
+        const result: string = await fs.readFile(codexPath, 'utf-8')
+        expect(result).not.toContain('[mcp_servers.voicetree]')
+        expect(result).toContain('[mcp_servers.other]')
+        expect(result).toContain('url = "http://localhost:8080/mcp"')
+    })
 
-            await expect((mcpClientConfig as any).enableOpencodeMcpIntegration()).resolves.not.toThrow();
+    it('deletes the config.toml when only the voicetree block was present', async () => {
+        const codexDir: string = path.join(testDir, '.codex')
+        await fs.mkdir(codexDir)
+        const codexPath: string = path.join(codexDir, 'config.toml')
+        await fs.writeFile(codexPath, '[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n')
 
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-            expect(config.mcp.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
-            expect(config.mcp.voicetree.enabled).toBe(true);
-        });
-    });
+        const exists: boolean = await fs.stat(codexPath).then(() => true, () => false)
+        expect(exists).toBe(false)
+    })
 
-    describe('disableOpencodeMcpIntegration', () => {
-        it('should remove voicetree config while preserving other MCP servers', async () => {
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                model: 'anthropic/claude-sonnet-4-5',
-                mcp: {
-                    voicetree: {
-                        type: 'remote',
-                        url: 'http://127.0.0.1:3001/mcp',
-                        enabled: true
-                    },
-                    other_server: {
-                        type: 'remote',
-                        url: 'http://localhost:8080/mcp'
-                    }
-                }
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
+    it('is a no-op when the file does not contain the voicetree section', async () => {
+        const codexDir: string = path.join(testDir, '.codex')
+        await fs.mkdir(codexDir)
+        const codexPath: string = path.join(codexDir, 'config.toml')
+        const initial: string = '[mcp_servers.other]\nurl = "http://localhost:8080/mcp"\n'
+        await fs.writeFile(codexPath, initial)
 
-            await expect((mcpClientConfig as any).disableOpencodeMcpIntegration()).resolves.not.toThrow();
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
+        const result: string = await fs.readFile(codexPath, 'utf-8')
+        expect(result).toBe(initial)
+    })
+})
 
-            expect(config.mcp.voicetree).toBeUndefined();
-            expect(config.mcp.other_server).toBeDefined();
-            expect(config.model).toBe('anthropic/claude-sonnet-4-5');
-        });
+describe('stripStaleVoicetreeMcpEntries — combined cleanup', () => {
+    it('cleans all three file types in a single pass', async () => {
+        const mcpJsonPath: string = path.join(testDir, '.mcp.json')
+        const opencodePath: string = path.join(testDir, 'opencode.jsonc')
+        const codexDir: string = path.join(testDir, '.codex')
+        await fs.mkdir(codexDir)
+        const codexPath: string = path.join(codexDir, 'config.toml')
 
-        it('should delete opencode.jsonc if only voicetree MCP server exists', async () => {
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                mcp: {
-                    voicetree: {
-                        type: 'remote',
-                        url: 'http://127.0.0.1:3001/mcp',
-                        enabled: true
-                    }
-                }
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
+        await fs.writeFile(mcpJsonPath, JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'x'}, linear: {type: 'http', url: 'y'}},
+        }))
+        await fs.writeFile(opencodePath, JSON.stringify({
+            $schema: 's', mcp: {voicetree: {type: 'remote', url: 'x'}, custom: {type: 'remote', url: 'y'}},
+        }))
+        await fs.writeFile(codexPath, '[mcp_servers.voicetree]\nurl = "x"\n\n[mcp_servers.custom]\nurl = "y"\n')
 
-            await expect((mcpClientConfig as any).disableOpencodeMcpIntegration()).resolves.not.toThrow();
+        await stripStaleVoicetreeMcpEntries(testDir)
 
-            // File should be deleted
-            await expect(fs.readFile(opencodeConfigPath, 'utf-8')).rejects.toThrow();
-        });
+        const mcpJson = await readJson(mcpJsonPath) as {mcpServers: Record<string, unknown>}
+        expect(mcpJson.mcpServers.voicetree).toBeUndefined()
+        expect(mcpJson.mcpServers.linear).toBeDefined()
 
-        it('should preserve schema if only schema remains after removing voicetree', async () => {
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                mcp: {
-                    voicetree: {
-                        type: 'remote',
-                        url: 'http://127.0.0.1:3001/mcp',
-                        enabled: true
-                    }
-                }
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
+        const opencode = await readJson(opencodePath) as {mcp: Record<string, unknown>}
+        expect(opencode.mcp.voicetree).toBeUndefined()
+        expect(opencode.mcp.custom).toBeDefined()
 
-            await expect((mcpClientConfig as any).disableOpencodeMcpIntegration()).resolves.not.toThrow();
-
-            // File should be deleted when only schema remains
-            await expect(fs.readFile(opencodeConfigPath, 'utf-8')).rejects.toThrow();
-        });
-
-        it('should do nothing if voicetree config does not exist', async () => {
-            const initialConfig: any = {
-                $schema: 'https://opencode.ai/config.json',
-                model: 'anthropic/claude-sonnet-4-5'
-            };
-            await fs.writeFile(opencodeConfigPath, JSON.stringify(initialConfig, null, 2), 'utf-8');
-
-            await expect((mcpClientConfig as any).disableOpencodeMcpIntegration()).resolves.not.toThrow();
-
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
-
-            expect(config.model).toBe('anthropic/claude-sonnet-4-5');
-        });
-    });
-
-    describe('setMcpIntegration with OpenCode agent', () => {
-        it('should enable opencode.jsonc when enabled=true for opencode agent', async () => {
-            await expect(mcpClientConfig.setMcpIntegration(true, 'opencode --prompt "test"')).resolves.not.toThrow();
-
-            // Check opencode.jsonc was created
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
-
-            expect(config.mcp?.voicetree).toBeDefined();
-            expect(config.mcp.voicetree.url).toBe('http://127.0.0.1:3001/mcp');
-        });
-
-        it('should disable opencode.jsonc when enabled=false for opencode agent', async () => {
-            // First enable
-            await mcpClientConfig.setMcpIntegration(true, 'opencode --prompt "test"');
-
-            // Then disable
-            await expect(mcpClientConfig.setMcpIntegration(false, 'opencode --prompt "test"')).resolves.not.toThrow();
-
-            // File should be deleted
-            await expect(fs.readFile(opencodeConfigPath, 'utf-8')).rejects.toThrow();
-        });
-
-        it('should not write opencode.jsonc for non-opencode agents', async () => {
-            await expect(mcpClientConfig.setMcpIntegration(true, 'claude --prompt "test"')).resolves.not.toThrow();
-
-            // opencode.jsonc should not exist
-            await expect(fs.readFile(opencodeConfigPath, 'utf-8')).rejects.toThrow();
-        });
-
-        it('should write opencode.jsonc for agent command containing "opencode" (case insensitive)', async () => {
-            await expect(mcpClientConfig.setMcpIntegration(true, 'OPENCODE --prompt "test"')).resolves.not.toThrow();
-
-            const content: string = await fs.readFile(opencodeConfigPath, 'utf-8');
-            const config = JSON.parse(content);
-
-            expect(config.mcp?.voicetree).toBeDefined();
-        });
-    });
-});
+        const codex: string = await fs.readFile(codexPath, 'utf-8')
+        expect(codex).not.toContain('[mcp_servers.voicetree]')
+        expect(codex).toContain('[mcp_servers.custom]')
+    })
+})
