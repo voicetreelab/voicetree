@@ -1,4 +1,5 @@
 {
+  "name": "voicetree",
   "private": true,
   "workspaces": [
     "webapp",
