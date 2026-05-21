@@ -3,6 +3,7 @@
   "workspaces": [
     "webapp",
     "packages/codebase-health",
+    "packages/measures",
     "packages/libraries/*",
     "packages/systems/*"
   ],
