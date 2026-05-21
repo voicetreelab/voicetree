@@ -9,10 +9,7 @@ import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import {
-  rememberLatestProjectedGraphForSubscription,
-  subscribeToDaemonSSE,
-} from './daemon-sse-subscription'
+import { subscribeToDaemonSSE } from './daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
 
@@ -216,7 +213,6 @@ export async function getCurrentProjectedGraphFromDaemon(): Promise<ProjectedGra
   return await callDaemon(async (client) => {
     const sessionId: string = await getOrCreateRendererSession(client)
     const graph: ProjectedGraph = await client.getProjectedGraph(sessionId) as ProjectedGraph
-    rememberLatestProjectedGraphForSubscription(client.baseUrl, sessionId, graph)
     return graph
   })
 }
