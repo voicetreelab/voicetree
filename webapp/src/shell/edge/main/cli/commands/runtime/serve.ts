@@ -7,8 +7,11 @@ import {
     getMcpPort,
     registerChildIfMonitored,
     resolveVaultSocketPath,
+    startHookHttpServer,
     startMcpServer,
     startUdsServer,
+    writeHookPortFile,
+    type HookHttpServerHandle,
     type McpServerHandle,
     type UdsServerHandle,
 } from '@vt/voicetree-mcp'
@@ -17,11 +20,11 @@ import {emitInvocationStart, setErrorClass} from '@/shell/edge/main/cli/telemetr
 import {resolveAppSupportPath} from '@/shell/edge/main/cli/util/appSupportPath'
 
 type ServeArgs = {
-    readonly port?: number
+    readonly hookPort?: number
     readonly vault: string
 }
 
-const SERVE_USAGE: string = 'Usage: vt serve --vault <path> [--port <n>]\n'
+const SERVE_USAGE: string = 'Usage: vt serve --vault <path> [--hook-port <n>]\n'
 
 function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
     const value: string | undefined = argv[index + 1]
@@ -32,17 +35,17 @@ function readRequiredValue(argv: readonly string[], index: number, flag: string)
     return value
 }
 
-function parsePort(rawPort: string): number {
+function parsePort(rawPort: string, flag: string): number {
     const port: number = Number.parseInt(rawPort, 10)
     if (!Number.isInteger(port) || port < 0 || port > 65535) {
-        error(`invalid --port: ${rawPort}`)
+        error(`invalid ${flag}: ${rawPort}`)
     }
 
     return port
 }
 
 function parseServeArgs(argv: readonly string[]): ServeArgs {
-    let port: number | undefined
+    let hookPort: number | undefined
     let vault: string | undefined
 
     for (let index: number = 0; index < argv.length; index += 1) {
@@ -67,14 +70,14 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
             continue
         }
 
-        if (arg === '--port') {
-            port = parsePort(readRequiredValue(argv, index, '--port'))
+        if (arg === '--hook-port') {
+            hookPort = parsePort(readRequiredValue(argv, index, '--hook-port'), '--hook-port')
             index += 1
             continue
         }
 
-        if (arg.startsWith('--port=')) {
-            port = parsePort(arg.slice('--port='.length))
+        if (arg.startsWith('--hook-port=')) {
+            hookPort = parsePort(arg.slice('--hook-port='.length), '--hook-port')
             continue
         }
 
@@ -85,7 +88,7 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
         error(`missing required --vault <path>\n\n${SERVE_USAGE}`)
     }
 
-    return {port, vault: resolve(vault)}
+    return {hookPort, vault: resolve(vault)}
 }
 
 function configureHeadlessBridges(appSupportPath: string): void {
@@ -138,7 +141,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     let mcpHandle: McpServerHandle
     try {
-        mcpHandle = await startMcpServer({startPort: args.port})
+        mcpHandle = await startMcpServer()
     } catch (cause) {
         await daemonHandle.stop().catch(() => undefined)
         error(`failed to start MCP server: ${(cause as Error).message}`)
@@ -156,6 +159,20 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(`failed to start UDS server: ${(cause as Error).message}`)
     }
 
+    let hookHandle: HookHttpServerHandle
+    try {
+        hookHandle = await startHookHttpServer({
+            port: args.hookPort,
+            updateAgentEvent: agentRuntime.updateTerminalAgentEvent,
+        })
+        await writeHookPortFile(args.vault, hookHandle.port)
+    } catch (cause) {
+        await udsHandle.stop().catch(() => undefined)
+        await mcpHandle.stop().catch(() => undefined)
+        await daemonHandle.stop().catch(() => undefined)
+        error(`failed to start hook HTTP server: ${(cause as Error).message}`)
+    }
+
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
@@ -167,7 +184,8 @@ export async function runServeCommand(argv: string[]): Promise<void> {
     process.stdout.write(
         `vt serve: graph-db on http://127.0.0.1:${daemonHandle.port}, `
         + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
-        + `uds on ${udsHandle.socketPath}, vault=${args.vault}\n`,
+        + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
+        + `vault=${args.vault}\n`,
     )
 
     // Emit phase="start" telemetry record. Long-running command — without
@@ -181,6 +199,9 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         process.stderr.write(`vt serve: ${signal} received, shutting down\n`)
 
         try {
+            await hookHandle.stop().catch((cause: unknown) => {
+                process.stderr.write(`vt serve: hook stop error: ${(cause as Error).message}\n`)
+            })
             await udsHandle.stop().catch((cause: unknown) => {
                 process.stderr.write(`vt serve: uds stop error: ${(cause as Error).message}\n`)
             })

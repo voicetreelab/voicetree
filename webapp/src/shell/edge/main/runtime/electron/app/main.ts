@@ -57,6 +57,10 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
+import {
+    startElectronHookHttpServer,
+    stopElectronHookHttpServer,
+} from '@/shell/edge/main/runtime/electron/daemon/hook-server-binding';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -229,6 +233,11 @@ void app.whenReady().then(async () => {
     // Start MCP server in-process (shares graph state with Electron)
     await startMcpServer();
 
+    // Start the dedicated hook HTTP server (Step 7e). One ephemeral port for
+    // the lifetime of the app; the port is published to each opened vault via
+    // openVault's publishHookPortForVault call.
+    await startElectronHookHttpServer();
+
     if (process.env.VOICETREE_VAULT_PATH) {
         const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
         if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
@@ -355,6 +364,7 @@ app.on('will-quit', () => {
     unsubscribeFromDaemonSSE();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
+    void stopElectronHookHttpServer();
 });
 
 app.on('window-all-closed', () => {

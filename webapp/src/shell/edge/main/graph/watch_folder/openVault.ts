@@ -18,6 +18,7 @@ import { ensureDaemonProcess, callDaemon } from '@/shell/edge/main/runtime/elect
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription'
 import { bindUdsServerForVault, unbindUdsServer } from '@/shell/edge/main/runtime/electron/daemon/uds-server-binding'
+import { publishHookPortForVault } from '@/shell/edge/main/runtime/electron/daemon/hook-server-binding'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
@@ -123,6 +124,9 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
         })
 
         await bindUdsServerForVault(vaultPath)
+        await publishHookPortForVault(vaultPath).catch((err: unknown) => {
+            console.error('[openVault] Failed to publish hook.port:', err)
+        })
 
         pushToRenderer('vault:ready', { path: vaultPath })
         void getCallbacks().stripStaleMcpEntries?.(vaultPath).catch((err: unknown) => {

@@ -122,10 +122,11 @@ describe('buildCodexHookFlags', () => {
         expect(flags).toContain('hooks.UserPromptSubmit=')
     })
 
-    it('bakes in mcpPort and terminalId (no shell-var refs)', () => {
+    it('bakes in hookPort and terminalId (no shell-var refs)', () => {
         const flags = buildCodexHookFlags(3002, 'Jin')
         expect(flags).toContain('localhost:3002')
         expect(flags).toContain('terminal=Jin')
+        expect(flags).not.toContain('$VOICETREE_HOOK_PORT')
         expect(flags).not.toContain('$VOICETREE_MCP_PORT')
         expect(flags).not.toContain('$VOICETREE_TERMINAL_ID')
     })
@@ -213,9 +214,10 @@ describe('buildClaudeHookSettingsJson', () => {
         expect(Object.keys(settings.hooks).sort()).toEqual(['Notification', 'PostToolUse', 'PreToolUse', 'Stop', 'UserPromptSubmit'])
     })
 
-    it('hook commands reference VOICETREE_MCP_PORT and VOICETREE_TERMINAL_ID env vars', () => {
+    it('hook commands reference VOICETREE_HOOK_PORT and VOICETREE_TERMINAL_ID env vars', () => {
         const json = buildClaudeHookSettingsJson()
-        expect(json).toContain('${VOICETREE_MCP_PORT}')
+        expect(json).toContain('${VOICETREE_HOOK_PORT}')
+        expect(json).not.toContain('${VOICETREE_MCP_PORT}')
         expect(json).toContain('${VOICETREE_TERMINAL_ID}')
     })
 

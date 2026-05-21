@@ -36,7 +36,7 @@ import {graphStructureTool} from '../graph/graphStructureTool'
 import {registerLiveTools} from '../live/registerLiveTools'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {handleHookEventRequest, resolveHookEventName} from './hookEventHandler'
+import {handleHookEventRequest, resolveHookEventName} from '../../hooks/hookEventHandler'
 import {agentRuntime} from '@vt/agent-runtime'
 import {mountTmuxAttachRelay} from '@vt/agent-runtime/relay/tmux-attach-relay.ts'
 import * as path from 'node:path'
@@ -296,8 +296,9 @@ export async function createMcpServer(): Promise<McpServer> {
 
 export interface StartMcpServerOptions {
     /**
-     * Starting port for findAvailablePort. Defaults to 3001.
-     * vt-mcpd passes --port through here to avoid colliding with a running Electron MCP.
+     * Starting port for findAvailablePort. Defaults to 3001. The MCP HTTP
+     * server stays for the dual-surface window (dies in 7f); the port is
+     * auto-assigned and no longer pinnable from the daemon CLI.
      */
     readonly startPort?: number
     readonly logger?: {

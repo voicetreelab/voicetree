@@ -7,7 +7,7 @@
  * caching needed beyond the file system.
  *
  * The path is stable per VoiceTree installation; the hook command inside
- * the JSON references `$VOICETREE_MCP_PORT` and `$VOICETREE_TERMINAL_ID`
+ * the JSON references `$VOICETREE_HOOK_PORT` and `$VOICETREE_TERMINAL_ID`
  * which the spawned Claude Code process inherits via buildTerminalEnvVars.
  */
 

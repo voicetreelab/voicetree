@@ -1,12 +1,14 @@
 #!/usr/bin/env -S node --import tsx
 // vt-mcpd: headless MCP daemon. Embeds graph-db-server + voicetree-mcp in one
 // Node process, with no Electron dependency. Lifecycle:
-//   1. Parse --vault (required) and --port (optional MCP start port).
+//   1. Parse --vault (required) and --hook-port (optional pin for the hook HTTP
+//      server; default ephemeral).
 //   2. Wire @vt/agent-runtime + @vt/voicetree-mcp late-bound bridges for headless mode.
 //   3. Start graph-db-server in-process via startDaemon (loads graph, mounts watcher,
 //      publishes graphd.port, owns the per-vault lock).
 //   4. Start MCP HTTP server (publishes .mcp.json with the assigned port).
-//   5. Wait for SIGINT/SIGTERM, then tear down: MCP server → terminals → graph-db.
+//   5. Start the dedicated hook HTTP server and publish <vault>/.voicetree/hook.port.
+//   6. Wait for SIGINT/SIGTERM, then tear down: hook → UDS → MCP → terminals → graph-db.
 //
 // Headless contract (decided in Phase E; see docs/headless-migration.md):
 //   - READ path:  CLI agents call any read tool over MCP (graph_structure,
@@ -33,8 +35,11 @@ import {
     getMcpPort,
     registerChildIfMonitored,
     resolveVaultSocketPath,
+    startHookHttpServer,
     startMcpServer,
     startUdsServer,
+    writeHookPortFile,
+    type HookHttpServerHandle,
     type McpServerHandle,
     type UdsServerHandle,
 } from '@vt/voicetree-mcp'
@@ -42,7 +47,7 @@ import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 
 interface Args {
     readonly vault: string
-    readonly port?: number
+    readonly hookPort?: number
 }
 
 function die(msg: string): never {
@@ -52,27 +57,27 @@ function die(msg: string): never {
 
 function parseArgs(argv: readonly string[]): Args {
     let vault: string | null = null
-    let port: number | undefined
+    let hookPort: number | undefined
     for (let i: number = 0; i < argv.length; i++) {
         const a: string = argv[i]
         if (a === '--vault') {
             vault = argv[++i] ?? null
-        } else if (a === '--port') {
+        } else if (a === '--hook-port') {
             const v: string | undefined = argv[++i]
             const n: number = Number.parseInt(v ?? '', 10)
             if (!Number.isInteger(n) || n < 0 || n > 65535) {
-                die(`invalid --port: ${v}`)
+                die(`invalid --hook-port: ${v}`)
             }
-            port = n
+            hookPort = n
         } else if (a === '--help' || a === '-h') {
-            process.stdout.write('Usage: vt-mcpd --vault <path> [--port <n>]\n')
+            process.stdout.write('Usage: vt-mcpd --vault <path> [--hook-port <n>]\n')
             process.exit(0)
         } else {
             die(`unknown argument: ${a}`)
         }
     }
     if (!vault) die('missing required --vault <path>')
-    return {vault: resolve(vault!), port}
+    return {vault: resolve(vault!), hookPort}
 }
 
 function defaultAppSupportPath(): string {
@@ -147,7 +152,7 @@ async function main(): Promise<void> {
 
     let mcpHandle: McpServerHandle
     try {
-        mcpHandle = await startMcpServer({startPort: args.port})
+        mcpHandle = await startMcpServer()
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
         die(`failed to start MCP server: ${(err as Error).message}`)
@@ -165,6 +170,20 @@ async function main(): Promise<void> {
         die(`failed to start UDS server: ${(err as Error).message}`)
     }
 
+    let hookHandle: HookHttpServerHandle
+    try {
+        hookHandle = await startHookHttpServer({
+            port: args.hookPort,
+            updateAgentEvent: agentRuntime.updateTerminalAgentEvent,
+        })
+        await writeHookPortFile(args.vault, hookHandle.port)
+    } catch (err) {
+        await udsHandle.stop().catch(() => undefined)
+        await mcpHandle.stop().catch(() => undefined)
+        await daemonHandle.stop().catch(() => undefined)
+        die(`failed to start hook HTTP server: ${(err as Error).message}`)
+    }
+
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
@@ -176,7 +195,8 @@ async function main(): Promise<void> {
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
         + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
-        + `uds on ${udsHandle.socketPath}, vault=${args.vault}\n`,
+        + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
+        + `vault=${args.vault}\n`,
     )
 
     let shuttingDown: boolean = false
@@ -184,8 +204,11 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: UDS server → MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
+        // Order: hook → UDS server → MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
         try {
+            await hookHandle.stop().catch((err: unknown) => {
+                process.stderr.write(`vt-mcpd: hook stop error: ${(err as Error).message}\n`)
+            })
             await udsHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: uds stop error: ${(err as Error).message}\n`)
             })
