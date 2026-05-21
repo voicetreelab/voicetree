@@ -134,7 +134,7 @@ describe('graph create schema gate (filesystem mode)', () => {
         expect(written).toContain('# Topic')
     })
 
-    it('rejects an invalid body with a structured SchemaViolation envelope and does not overwrite the file', async () => {
+    it('rejects an invalid body with a structured batch envelope and does not overwrite the file', async () => {
         const targetPath: string = join(vaultRoot, 'work', 'topic.md')
         const originalBody: string = '# Topic\n\nthis body lacks the marker\n'
         await writeFile(targetPath, originalBody, 'utf8')
@@ -144,15 +144,16 @@ describe('graph create schema gate (filesystem mode)', () => {
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
         expect(payload).toMatchObject({
-            kind: 'schema_violation',
-            typeName: 'my-kind',
-            violations: [
+            kind: 'graph_create_batch_result',
+            nodes: [
                 {
-                    ruleId: 'body.missing_needed_marker',
-                    message: "body must include the phrase 'Needed marker'",
-                    severity: 'error',
+                    path: 'work/topic.md',
+                    status: 'rejected',
+                    typeName: 'my-kind',
+                    ruleIds: ['body.missing_needed_marker'],
                 },
             ],
+            summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
         })
         const onDisk: string = await readFile(targetPath, 'utf8')
         expect(onDisk).toBe(originalBody)
@@ -168,9 +169,9 @@ describe('graph create schema gate (filesystem mode)', () => {
         expect(result.exitCode).toBeNull()
         expect(result.stderr).toBe('')
         expect(JSON.parse(result.stdout)).toMatchObject({
-            success: true,
-            mode: 'filesystem',
-            validateOnly: true,
+            kind: 'graph_create_batch_result',
+            nodes: [{path: 'work/topic.md', status: 'ok'}],
+            summary: {ok: 1, rejected: 0, skipped: 0, warning: 0},
         })
         expect(await readFile(targetPath, 'utf8')).toBe(originalBody)
     })
@@ -183,7 +184,11 @@ describe('graph create schema gate (filesystem mode)', () => {
 
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
-        expect(payload).toMatchObject({kind: 'schema_violation', typeName: 'my-kind'})
+        expect(payload).toMatchObject({
+            kind: 'graph_create_batch_result',
+            nodes: [{path: 'work/topic.md', status: 'rejected', typeName: 'my-kind'}],
+            summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
+        })
     })
 
     it('rejects --override flags in filesystem mode (CLI gate is non-overridable)', async () => {
@@ -247,7 +252,7 @@ describe('graph create schema gate (live mode)', () => {
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
-        Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true})
+        Object.defineProperty(process.stdout, 'isTTY', {value: false, configurable: true})
     })
 
     afterAll(() => {
@@ -289,8 +294,15 @@ describe('graph create schema gate (live mode)', () => {
         expect(result.exitCode).toBe(1)
         const payload: unknown = JSON.parse(result.stderr.trim())
         expect(payload).toMatchObject({
-            kind: 'schema_violation',
-            typeName: 'my-kind',
+            kind: 'graph_create_batch_result',
+            nodes: [
+                {
+                    status: 'rejected',
+                    typeName: 'my-kind',
+                    ruleIds: ['body.missing_needed_marker'],
+                },
+            ],
+            summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
         })
     })
 })

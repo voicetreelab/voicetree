@@ -150,25 +150,82 @@ describe('vt CLI smoke (Tier 1)', () => {
         const result: SpawnResult = await runVt(['graph', 'create', 'work/topic.md'], vaultRoot)
 
         expect(result.code).toBe(1)
-        // The stderr should contain a JSON envelope, possibly with other
-        // diagnostic chatter around it. Find the JSON object.
+        // The stderr should contain the batch-report JSON envelope, possibly
+        // with other diagnostic chatter around it. Find the JSON object.
         const jsonMatch: RegExpMatchArray | null = result.stderr.match(/\{[\s\S]*\}/)
         expect(jsonMatch, `expected JSON envelope in stderr, got: ${result.stderr}`).not.toBeNull()
         const payload: unknown = JSON.parse((jsonMatch as RegExpMatchArray)[0])
         expect(payload).toMatchObject({
-            kind: 'schema_violation',
-            typeName: 'my-kind',
-            violations: [
+            kind: 'graph_create_batch_result',
+            nodes: [
                 {
-                    ruleId: 'body.missing_needed_marker',
-                    message: "body must include 'Needed marker'",
-                    severity: 'error',
+                    path: 'work/topic.md',
+                    status: 'rejected',
+                    typeName: 'my-kind',
+                    ruleIds: ['body.missing_needed_marker'],
                 },
             ],
+            summary: {ok: 0, rejected: 1, skipped: 0, warning: 0},
         })
         // The file on disk must NOT have been touched by the rejected write.
         const onDisk: string = await readFile(targetPath, 'utf8')
         expect(onDisk).toBe(originalBody)
+    })
+
+    it('reports per-node verdicts for a 2-node batch (one valid, one invalid) and exits 1', async () => {
+        // Step 5 acceptance: gate-all must evaluate BOTH nodes (no first-fail
+        // cascade) and the batch report must surface both verdicts.
+        const workDir: string = join(vaultRoot, 'work')
+        await mkdir(workDir, {recursive: true})
+        await writeFile(
+            join(workDir, 'work.md'),
+            '# Work\n\n## Type: my-kind\n\nfolder note body\n',
+            'utf8'
+        )
+        await mkdir(join(vaultRoot, '.voicetree'), {recursive: true})
+        await writeFile(
+            join(vaultRoot, '.voicetree', 'schemas.cjs'),
+            `module.exports = {
+                'my-kind': {
+                    validate(body) {
+                        if (body.includes('Needed marker')) return []
+                        return [{
+                            ruleId: 'body.missing_needed_marker',
+                            message: 'missing marker',
+                            severity: 'error',
+                        }]
+                    }
+                }
+            }`,
+            'utf8'
+        )
+
+        const goodPath: string = join(workDir, 'a.md')
+        const badPath: string = join(workDir, 'b.md')
+        const badOriginalBody: string = '# B\n\nno marker here\n'
+        await writeFile(goodPath, '# A\n\nNeeded marker present.\n', 'utf8')
+        await writeFile(badPath, badOriginalBody, 'utf8')
+
+        const result: SpawnResult = await runVt(
+            ['graph', 'create', 'work/a.md', 'work/b.md'],
+            vaultRoot,
+        )
+
+        expect(result.code).toBe(1)
+        const jsonMatch: RegExpMatchArray | null = result.stderr.match(/\{[\s\S]*\}/)
+        expect(jsonMatch, `expected batch envelope in stderr, got: ${result.stderr}`).not.toBeNull()
+        const payload: unknown = JSON.parse((jsonMatch as RegExpMatchArray)[0])
+        expect(payload).toMatchObject({
+            kind: 'graph_create_batch_result',
+            nodes: [
+                {path: 'work/a.md', status: 'ok'},
+                {path: 'work/b.md', status: 'rejected', ruleIds: ['body.missing_needed_marker']},
+            ],
+            summary: {ok: 1, rejected: 1, skipped: 0, warning: 0},
+        })
+        // The rejected file on disk must NOT have been touched.
+        const onDisk: string = await readFile(badPath, 'utf8')
+        expect(onDisk).toBe(badOriginalBody)
     })
 
     it('accepts a schema-gated valid body and writes the file', async () => {

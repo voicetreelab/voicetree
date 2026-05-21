@@ -2,7 +2,6 @@ import {existsSync, readFileSync, renameSync, rmSync, writeFileSync} from 'fs'
 import type {NodeSearchHit} from '@vt/graph-db-server/search/types'
 import type {
     FilesystemAuthoringFix,
-    FilesystemAuthoringReportEntry,
     FilesystemAuthoringValidationError,
     StructureManifest,
 } from '@vt/graph-tools/node'
@@ -28,22 +27,55 @@ export type GraphCreateSuccess = {
     hint?: string
 }
 
-export type FilesystemCreateSuccess = {
-    success: true
-    mode: 'filesystem'
-    validateOnly?: true
-    nodes: Array<{
-        path: string
-        status: 'ok'
-        fixes?: readonly FilesystemAuthoringFix[]
-    }>
+export type NodeVerdictStatus = 'ok' | 'rejected' | 'skipped' | 'warning'
+
+/**
+ * Concrete reason for a `skipped` gate verdict. Loud-skip surfaces these so the
+ * user can distinguish "gate ran and passed" from "gate didn't fire because…".
+ */
+export type SkipReason =
+    | 'no_type_declared'
+    | 'no_schema_plugin'
+    | 'unknown_type'
+    | 'no_vault_detected'
+    | 'no_parent_for_live_node'
+
+export type NodeVerdict = {
+    readonly path: string
+    readonly status: NodeVerdictStatus
+    readonly ruleIds?: readonly string[]
+    readonly warning?: string
+    readonly fixes?: readonly FilesystemAuthoringFix[]
+    readonly overriddenRuleIds?: readonly string[]
+    readonly typeName?: string
+    readonly schemaPath?: string
+    readonly skipReason?: SkipReason
+    readonly planErrorMessage?: string
 }
 
-export type FilesystemCreateFailure = {
-    success: false
-    mode: 'filesystem'
-    errors: readonly FilesystemAuthoringValidationError[]
-    reports: readonly FilesystemAuthoringReportEntry[]
+export type BatchReportSummary = {
+    readonly ok: number
+    readonly rejected: number
+    readonly skipped: number
+    readonly warning: number
+}
+
+/**
+ * Single envelope `vt graph create` emits for the whole batch. The shape is
+ * the contract that the agent forecasting-retry consumer parses on stderr
+ * when `rejected > 0`. Field set is intentionally minimal — additions should
+ * be additive (optional) to keep parsers stable.
+ */
+export type BatchReport = {
+    readonly kind: 'graph_create_batch_result'
+    readonly nodes: readonly NodeVerdict[]
+    readonly summary: BatchReportSummary
+    /**
+     * Plan-level errors that are not tied to a single input file (e.g.,
+     * manifest format errors). Per-file plan errors are folded into the
+     * relevant node's verdict as `status: 'rejected'`.
+     */
+    readonly planErrors?: readonly FilesystemAuthoringValidationError[]
 }
 
 export type GraphUnseenNode = {

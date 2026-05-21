@@ -201,15 +201,15 @@ describe('graph CLI module resolution', () => {
         expect(result.signal).toBeNull()
         expect(result.stderr).toBe('')
         expect(JSON.parse(result.stdout)).toMatchObject({
-            success: true,
-            mode: 'filesystem',
-            validateOnly: true,
+            kind: 'graph_create_batch_result',
             nodes: [
                 {
-                    path: 'test-node.md',
-                    status: 'ok',
+                    path: './test-node.md',
+                    status: 'skipped',
+                    skipReason: 'no_vault_detected',
                 },
             ],
+            summary: {ok: 0, rejected: 0, skipped: 1, warning: 0},
         })
     }, 30000)
 

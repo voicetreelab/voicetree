@@ -3,14 +3,9 @@ import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringInput,
     FilesystemAuthoringPlanEntry,
-    FilesystemAuthoringReportEntry,
-    FilesystemAuthoringValidationError,
 } from '@vt/graph-tools/node'
-import {error, isJsonMode, output} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
-import {setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
+import {error} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
 import type {
-    FilesystemCreateFailure,
-    FilesystemCreateSuccess,
     GraphCreateNode,
     GraphFilesystemOps,
 } from '@/shell/edge/main/cli/commands/graph/core/types'
@@ -77,27 +72,6 @@ export function loadNodesFromFile(filePath: string, color?: string): GraphCreate
     })
 }
 
-export function formatFilesystemValidationErrors(errors: readonly FilesystemAuthoringValidationError[]): string {
-    return errors
-        .map(({message, filename, ref, suggestions}) => {
-            const details: string[] = []
-            if (filename) {
-                details.push(`file: ${filename}`)
-            }
-            if (ref) {
-                details.push(`ref: ${ref}`)
-            }
-
-            const lines: string[] = [details.length > 0 ? `${message} (${details.join(', ')})` : message]
-            if (suggestions && suggestions.length > 0) {
-                lines.push(...suggestions.map(suggestion => `suggestion: ${suggestion}`))
-            }
-
-            return lines.join('\n')
-        })
-        .join('\n')
-}
-
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -144,10 +118,15 @@ export function validateExternalParent(parentPath: string, inputFilePaths: reado
     return parentRef
 }
 
+export type AppliedNode = {
+    readonly path: string
+    readonly fixes: readonly FilesystemAuthoringFix[]
+}
+
 export function applyFilesystemPlan(
     writePlan: readonly FilesystemAuthoringPlanEntry[],
     externalParentRef: string | undefined
-): FilesystemCreateSuccess {
+): readonly AppliedNode[] {
     const finalEntries: Array<{
         path: string
         markdown: string
@@ -233,52 +212,5 @@ export function applyFilesystemPlan(
         throw new Error(`Failed to apply filesystem authoring plan: ${getErrorMessage(writeError)}`)
     }
 
-    return {
-        success: true,
-        mode: 'filesystem',
-        nodes: finalEntries.map(({path, fixes}) => ({
-            path,
-            status: 'ok',
-            ...(fixes.length > 0 ? {fixes} : {}),
-        })),
-    }
-}
-
-export function failFilesystemCreateValidation(
-    errors: readonly FilesystemAuthoringValidationError[],
-    reports: readonly FilesystemAuthoringReportEntry[]
-): never {
-    if (isJsonMode()) {
-        const failure: FilesystemCreateFailure = {
-            success: false,
-            mode: 'filesystem',
-            errors,
-            reports,
-        }
-        setErrorClass('FilesystemValidationError')
-        output(failure)
-        process.exit(1)
-    }
-
-    error(formatFilesystemValidationErrors(errors))
-}
-
-export function formatFilesystemCreateSuccessHuman(data: FilesystemCreateSuccess): string {
-    const createdLabel: string = data.nodes.length === 1 ? 'node' : 'nodes'
-    const fixesVerb: string = data.validateOnly ? 'would fix' : 'fixed'
-    const lines: string[] = [
-        data.validateOnly
-            ? `Validated ${data.nodes.length} ${createdLabel} in filesystem mode (no files written):`
-            : `Created ${data.nodes.length} ${createdLabel} in filesystem mode:`,
-    ]
-
-    for (const node of data.nodes) {
-        const fixesLabel: string =
-            node.fixes && node.fixes.length > 0
-                ? ` (${fixesVerb}: ${node.fixes.map(fix => fix.message).join('; ')})`
-                : ''
-        lines.push(`✓ ${node.path}${fixesLabel}`)
-    }
-
-    return lines.join('\n')
+    return finalEntries.map(({path, fixes}) => ({path, fixes}))
 }
