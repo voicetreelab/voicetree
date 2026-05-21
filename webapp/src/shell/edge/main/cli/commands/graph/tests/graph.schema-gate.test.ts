@@ -50,7 +50,7 @@ async function captureGraphCreate(
     process.chdir(cwd)
     let exitCode: number | null = null
     try {
-        await graphCreate(0, options.terminalId, args)
+        await graphCreate(options.terminalId, args)
     } catch (err) {
         if (err instanceof ExitCalled) {
             exitCode = err.code

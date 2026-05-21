@@ -21,10 +21,6 @@ function findRepoRoot(): string {
     throw new Error('Cannot find repo root (looked for packages/libraries/graph-tools/bin/vt-graph.ts)')
 }
 
-function hasPortFlag(args: readonly string[]): boolean {
-    return args.some((arg: string) => arg === '--port' || arg.startsWith('--port='))
-}
-
 const LIVE_PATH_FLAGS: readonly string[] = ['--file', '--src-file', '--tgt-file']
 
 function isLivePathFlag(flag: string): boolean {
@@ -68,11 +64,10 @@ function formatVtGraphOutput(output: string): string {
     return output.replaceAll('vt-graph live', 'vt graph live')
 }
 
-export async function graphLive(port: number, _terminalId: string | undefined, args: string[]): Promise<void> {
+export async function graphLive(_terminalId: string | undefined, args: string[]): Promise<void> {
     const repoRoot: string = findRepoRoot()
     const vtGraphBin: string = path.join(repoRoot, 'packages', 'libraries', 'graph-tools', 'bin', 'vt-graph.ts')
-    const normalizedArgs: readonly string[] = normalizeLivePathArgs(args, process.cwd())
-    const forwardedArgs: readonly string[] = hasPortFlag(normalizedArgs) ? normalizedArgs : [...normalizedArgs, '--port', String(port)]
+    const forwardedArgs: readonly string[] = normalizeLivePathArgs(args, process.cwd())
 
     try {
         const result: string = execFileSync(

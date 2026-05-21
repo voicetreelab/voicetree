@@ -253,11 +253,11 @@ describe('graph CLI module resolution', () => {
 
         const addNode: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'add-node',
+                '--port',
+                String(server.port),
                 '--file',
                 relativeFile,
                 '--label',
@@ -274,7 +274,7 @@ describe('graph CLI module resolution', () => {
         await expect(access(join(REPO_ROOT, relativeFile))).rejects.toThrow()
 
         const state: SpawnResult = await spawnCli(
-            ['--port', String(server.port), 'graph', 'live', 'state', 'dump', '--no-pretty'],
+            ['graph', 'live', 'state', 'dump', '--port', String(server.port), '--no-pretty'],
             tempDir,
         )
         expect(state.code, state.stderr).toBe(0)
@@ -282,11 +282,11 @@ describe('graph CLI module resolution', () => {
 
         const moveNode: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'mv-node',
+                '--port',
+                String(server.port),
                 '--file',
                 relativeFile,
                 '--x',
@@ -302,11 +302,11 @@ describe('graph CLI module resolution', () => {
 
         const removeEdge: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'rm-edge',
+                '--port',
+                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
@@ -320,11 +320,11 @@ describe('graph CLI module resolution', () => {
         const missingSource = `missing-${process.pid}-${Date.now()}.md`
         const addMissingEdge: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'add-edge',
+                '--port',
+                String(server.port),
                 '--src-file',
                 missingSource,
                 '--tgt-file',
@@ -336,7 +336,7 @@ describe('graph CLI module resolution', () => {
         await expect(access(join(tempDir, missingSource))).rejects.toThrow()
 
         const removeNode: SpawnResult = await spawnCli(
-            ['--port', String(server.port), 'graph', 'live', 'rm-node', '--file', relativeFile],
+            ['graph', 'live', 'rm-node', '--port', String(server.port), '--file', relativeFile],
             tempDir,
         )
         expect(removeNode.code, removeNode.stderr).toBe(0)
@@ -358,11 +358,11 @@ describe('graph CLI module resolution', () => {
 
         const addNode: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'add-node',
+                '--port',
+                String(server.port),
                 '--file',
                 relativeFile,
                 '--label',
@@ -378,11 +378,11 @@ describe('graph CLI module resolution', () => {
 
         const moveNode: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'mv-node',
+                '--port',
+                String(server.port),
                 '--file',
                 relativeFile,
                 '--x',
@@ -399,11 +399,11 @@ describe('graph CLI module resolution', () => {
 
         const removeEdge: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'rm-edge',
+                '--port',
+                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
@@ -434,11 +434,11 @@ describe('graph CLI module resolution', () => {
 
         const removeEdge: SpawnResult = await spawnCli(
             [
-                '--port',
-                String(server.port),
                 'graph',
                 'live',
                 'rm-edge',
+                '--port',
+                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
@@ -455,7 +455,7 @@ describe('graph CLI module resolution', () => {
         expect(sourceAfterRemove).toContain('plain text')
 
         const state: SpawnResult = await spawnCli(
-            ['--port', String(server.port), 'graph', 'live', 'state', 'dump', '--no-pretty'],
+            ['graph', 'live', 'state', 'dump', '--port', String(server.port), '--no-pretty'],
             tempDir,
         )
         expect(state.code, state.stderr).toBe(0)

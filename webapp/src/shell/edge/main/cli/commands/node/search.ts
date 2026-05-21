@@ -1,4 +1,4 @@
-import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
+import {callDaemon} from '@/shell/edge/main/cli/daemon-client'
 import {getErrorMessage, getRequiredValue, parsePositiveInteger} from '@/shell/edge/main/cli/commands/graph/core/args'
 import {error, output} from '@/shell/edge/main/cli/output'
 
@@ -19,7 +19,7 @@ type SearchFailure = {
     error: string
 }
 
-export async function searchCommand(port: number, _terminalId: string | undefined, args: string[]): Promise<void> {
+export async function searchCommand(_terminalId: string | undefined, args: string[]): Promise<void> {
     let topK = 10
     const queryParts: string[] = []
 
@@ -44,7 +44,7 @@ export async function searchCommand(port: number, _terminalId: string | undefine
     }
 
     try {
-        const response: unknown = await callMcpTool(port, 'search_nodes', {
+        const response: unknown = await callDaemon('search_nodes', {
             query,
             top_k: topK,
         })

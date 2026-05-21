@@ -5,8 +5,7 @@ import {error} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependenc
 import {handleCliError} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
 import {resolveGraphVault} from './snapshot'
 
-export async function graphStructure(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    void port
+export async function graphStructure(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     let folderPath: string | undefined

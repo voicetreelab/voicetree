@@ -14,6 +14,10 @@ export type {
 
 export {createMcpServer, startMcpServer, getMcpPort} from '../tools/agent-control/mcp-server'
 export type {McpServerHandle, StartMcpServerOptions} from '../tools/agent-control/mcp-server'
+export {startUdsServer} from '../transport/udsServer'
+export type {UdsServerHandle, StartUdsServerOptions, ToolCatalog, ToolHandler} from '../transport/udsServer'
+export {buildDefaultToolCatalog} from '../transport/toolCatalog'
+export {resolveVaultSocketPath, resolveHomeSocketPath, VOICETREE_DIRNAME, SOCKET_FILENAME} from '../transport/socketPath'
 export {terminalRuntimeSurface} from '../tools/agent-control/terminalRuntimeSurface'
 export type {
     AgentRuntimeConfig,

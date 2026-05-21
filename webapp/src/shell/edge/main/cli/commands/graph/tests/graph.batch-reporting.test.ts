@@ -11,10 +11,11 @@ import {
 } from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 import {
     captureGraphCreate,
-    mockMcpFetchResponse,
     SCHEMAS_TWO_RULES,
     setupGatedVault,
+    startStubDaemon,
     type CapturedRun,
+    type StubDaemon,
 } from './graphCreateHarness'
 
 describe('graph create batch reporting (filesystem mode)', () => {
@@ -155,11 +156,12 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 })
 
-describe('graph create batch reporting (live mode + MCP)', () => {
+describe('graph create batch reporting (live mode + UDS daemon)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let originalFetch: typeof globalThis.fetch | undefined
+    let originalSockPath: string | undefined
     let vaultRoot: string
     let parentNodeId: string
+    let stub: StubDaemon
 
     beforeAll(() => {
         originalStdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
@@ -176,17 +178,22 @@ describe('graph create batch reporting (live mode + MCP)', () => {
         vaultRoot = await setupGatedVault()
         parentNodeId = join(vaultRoot, 'work', 'parent.md')
         await writeFile(parentNodeId, '# Parent\n\nNeeded marker.\n', 'utf8')
-        originalFetch = globalThis.fetch
+        originalSockPath = process.env.VOICETREE_SOCK_PATH
     })
 
     afterEach(async () => {
-        if (originalFetch) globalThis.fetch = originalFetch
+        if (stub) await stub.stop()
+        if (originalSockPath === undefined) {
+            delete process.env.VOICETREE_SOCK_PATH
+        } else {
+            process.env.VOICETREE_SOCK_PATH = originalSockPath
+        }
         clearLoadSchemaPluginCacheForTest()
         await rm(vaultRoot, {recursive: true, force: true})
     })
 
-    it('case 5: MCP warning surfaces as warning verdict — node was created, exit 0', async () => {
-        globalThis.fetch = mockMcpFetchResponse({
+    it('case 5: daemon warning surfaces as warning verdict — node was created, exit 0', async () => {
+        stub = await startStubDaemon({
             success: true,
             nodes: [
                 {
@@ -197,6 +204,7 @@ describe('graph create batch reporting (live mode + MCP)', () => {
                 },
             ],
         })
+        process.env.VOICETREE_SOCK_PATH = stub.socketPath
 
         const result: CapturedRun = await captureGraphCreate(
             [
@@ -219,7 +227,7 @@ describe('graph create batch reporting (live mode + MCP)', () => {
     })
 
     it('case 7: --override per-node — override applied, verdict ok with overriddenRuleIds', async () => {
-        globalThis.fetch = mockMcpFetchResponse({
+        stub = await startStubDaemon({
             success: true,
             nodes: [
                 {
@@ -229,6 +237,7 @@ describe('graph create batch reporting (live mode + MCP)', () => {
                 },
             ],
         })
+        process.env.VOICETREE_SOCK_PATH = stub.socketPath
 
         const result: CapturedRun = await captureGraphCreate(
             [

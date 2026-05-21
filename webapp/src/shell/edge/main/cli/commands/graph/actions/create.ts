@@ -2,7 +2,7 @@ import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
 } from '@vt/graph-tools/node'
-import {callMcpTool, error} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
+import {callDaemon, error} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
 import {
     getErrorMessage,
     parseGraphCreateArgs,
@@ -50,14 +50,13 @@ function overrideRuleIdMap(
     return new Map(gateVerdicts.map((g) => [g.path, ruleIds]))
 }
 
-async function runLiveMcp(
-    port: number,
+async function runLiveDaemon(
     payload: Record<string, unknown>,
     gateVerdicts: readonly GatedInput[],
     overrides: readonly OverrideSpec[],
 ): Promise<void> {
     try {
-        const response: unknown = await callMcpTool(port, 'create_graph', payload)
+        const response: unknown = await callDaemon('create_graph', payload)
         const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
         if (!result.success) {
             emitMcpFailureAndExit(result.error)
@@ -75,7 +74,6 @@ async function runLiveMcp(
 }
 
 async function runStdinLive(
-    port: number,
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
@@ -94,13 +92,13 @@ async function runStdinLive(
         return
     }
 
-    const mcpPayload: Record<string, unknown> = {
+    const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
         ...(parentNodeId !== undefined ? {parentNodeId} : {}),
         nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
     }
-    await runLiveMcp(port, mcpPayload, gateVerdicts, overrides)
+    await runLiveDaemon(daemonPayload, gateVerdicts, overrides)
 }
 
 async function runFilesystem(
@@ -153,7 +151,6 @@ async function runFilesystem(
 }
 
 async function runFlagLive(
-    port: number,
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
@@ -186,16 +183,16 @@ async function runFlagLive(
         return
     }
 
-    const mcpPayload: Record<string, unknown> = {
+    const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
         ...(parsedArgs.parentNodeId ? {parentNodeId: parsedArgs.parentNodeId} : {}),
         nodes,
         ...(parsedArgs.overrides.length > 0 ? {override_with_rationale: parsedArgs.overrides} : {}),
     }
-    await runLiveMcp(port, mcpPayload, gateVerdicts, parsedArgs.overrides)
+    await runLiveDaemon(daemonPayload, gateVerdicts, parsedArgs.overrides)
 }
 
-export async function graphCreate(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+export async function graphCreate(terminalId: string | undefined, args: string[]): Promise<void> {
     const parsedArgs: ParsedGraphCreateArgs = parseGraphCreateArgs(args)
 
     if (parsedArgs.mode === 'live' && parsedArgs.validateOnly) {
@@ -208,7 +205,7 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         !parsedArgs.nodesFile &&
         parsedArgs.inlineNodeSpecs.length === 0
     ) {
-        await runStdinLive(port, terminalId, parsedArgs)
+        await runStdinLive(terminalId, parsedArgs)
         return
     }
 
@@ -217,5 +214,5 @@ export async function graphCreate(port: number, terminalId: string | undefined, 
         return
     }
 
-    await runFlagLive(port, terminalId, parsedArgs)
+    await runFlagLive(terminalId, parsedArgs)
 }

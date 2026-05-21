@@ -26,14 +26,13 @@ import {
 import {resolveAppSupportPath} from './util/appSupportPath.ts'
 
 type GlobalOptions = {
-    port: number
     terminalId: string | undefined
     commandArgs: string[]
 }
 
-type CommandHandler = (port: number, terminalId: string | undefined, args: string[]) => Promise<void>
+type CommandHandler = (terminalId: string | undefined, args: string[]) => Promise<void>
 
-const HELP_TEXT: string = `Usage: vt [--port PORT] [--terminal ID] [--json] <command> [args]
+const HELP_TEXT: string = `Usage: vt [--terminal ID] [--json] <command> [args]
 
 Commands:
   agent     Manage coding agents
@@ -48,7 +47,6 @@ Commands:
   help      Show this help
 
 Global flags:
-  --port, -p      MCP server port (default: $VOICETREE_MCP_PORT or 3002)
   --terminal, -t  Caller terminal ID (default: $VOICETREE_TERMINAL_ID)
   --json          Force JSON output
 
@@ -79,18 +77,8 @@ Subcommands:
   search      Search a local semantic search index for a vault
   unseen      Get unseen nodes near your context`
 
-function parsePort(rawPort: string): number {
-    const parsedPort: number = Number(rawPort)
-    if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
-        error(`Invalid port: ${rawPort}`)
-    }
-
-    return parsedPort
-}
-
 function extractGlobalOptions(argv: string[]): GlobalOptions {
     const commandArgs: string[] = []
-    let port: number = parsePort(process.env.VOICETREE_MCP_PORT ?? '3002')
     let terminalId: string | undefined = process.env.VOICETREE_TERMINAL_ID
     let commandStarted: boolean = false
 
@@ -98,22 +86,6 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
         const current: string = argv[index]
 
         if (current === '--json') {
-            continue
-        }
-
-        if (!commandStarted && (current === '--port' || current === '-p')) {
-            const rawPort: string | undefined = argv[index + 1]
-            if (!rawPort) {
-                error(`${current} requires a value`)
-            }
-
-            port = parsePort(rawPort)
-            index += 1
-            continue
-        }
-
-        if (!commandStarted && current.startsWith('--port=')) {
-            port = parsePort(current.slice('--port='.length))
             continue
         }
 
@@ -137,7 +109,7 @@ function extractGlobalOptions(argv: string[]): GlobalOptions {
         commandArgs.push(current)
     }
 
-    return {port, terminalId, commandArgs}
+    return {terminalId, commandArgs}
 }
 
 function printHelp(): void {
@@ -168,29 +140,28 @@ async function loadDeferredHandler(
 }
 
 async function dispatchAgentCommand(
-    port: number,
     terminalId: string | undefined,
     subcommand: string | undefined,
     args: string[]
 ): Promise<void> {
     switch (subcommand) {
         case 'spawn':
-            await agentSpawn(port, terminalId, args)
+            await agentSpawn(terminalId, args)
             return
         case 'list':
-            await agentList(port, terminalId, args)
+            await agentList(terminalId, args)
             return
         case 'wait':
-            await agentWait(port, terminalId, args)
+            await agentWait(terminalId, args)
             return
         case 'close':
-            await agentClose(port, terminalId, args)
+            await agentClose(terminalId, args)
             return
         case 'send':
-            await agentSend(port, terminalId, args)
+            await agentSend(terminalId, args)
             return
         case 'output':
-            await agentOutput(port, terminalId, args)
+            await agentOutput(terminalId, args)
             return
         case '--help':
         case 'help':
@@ -203,7 +174,6 @@ async function dispatchAgentCommand(
 }
 
 async function dispatchGraphCommand(
-    port: number,
     terminalId: string | undefined,
     subcommand: string | undefined,
     args: string[]
@@ -215,7 +185,7 @@ async function dispatchGraphCommand(
                 'graphCreate',
                 'Graph commands are not available in this build yet'
             )
-            await graphCreate(port, terminalId, args)
+            await graphCreate(terminalId, args)
             return
         }
         case 'index': {
@@ -224,7 +194,7 @@ async function dispatchGraphCommand(
                 'graphIndex',
                 'Graph commands are not available in this build yet'
             )
-            await graphIndex(port, terminalId, args)
+            await graphIndex(terminalId, args)
             return
         }
         case 'search': {
@@ -233,7 +203,7 @@ async function dispatchGraphCommand(
                 'graphSearch',
                 'Graph commands are not available in this build yet'
             )
-            await graphSearch(port, terminalId, args)
+            await graphSearch(terminalId, args)
             return
         }
         case 'unseen': {
@@ -242,7 +212,7 @@ async function dispatchGraphCommand(
                 'graphUnseen',
                 'Graph commands are not available in this build yet'
             )
-            await graphUnseen(port, terminalId, args)
+            await graphUnseen(terminalId, args)
             return
         }
         case 'live': {
@@ -251,7 +221,7 @@ async function dispatchGraphCommand(
                 'graphLive',
                 'Graph live commands are not available in this build yet'
             )
-            await graphLive(port, terminalId, args)
+            await graphLive(terminalId, args)
             return
         }
         case 'structure': {
@@ -260,7 +230,7 @@ async function dispatchGraphCommand(
                 'graphStructure',
                 'Graph commands are not available in this build yet'
             )
-            await graphStructure(port, terminalId, args)
+            await graphStructure(terminalId, args)
             return
         }
         case 'view': {
@@ -269,7 +239,7 @@ async function dispatchGraphCommand(
                 'graphView',
                 'Graph commands are not available in this build yet'
             )
-            await graphView(port, terminalId, args)
+            await graphView(terminalId, args)
             return
         }
         case 'lint': {
@@ -278,7 +248,7 @@ async function dispatchGraphCommand(
                 'graphLintCommand',
                 'Graph commands are not available in this build yet'
             )
-            await graphLintCommand(port, terminalId, args)
+            await graphLintCommand(terminalId, args)
             return
         }
         case 'rename': {
@@ -287,7 +257,7 @@ async function dispatchGraphCommand(
                 'graphRename',
                 'Rename command is not available in this build yet'
             )
-            await graphRename(port, terminalId, args)
+            await graphRename(terminalId, args)
             return
         }
         case 'mv': {
@@ -296,7 +266,7 @@ async function dispatchGraphCommand(
                 'graphMove',
                 'Move command is not available in this build yet'
             )
-            await graphMove(port, terminalId, args)
+            await graphMove(terminalId, args)
             return
         }
         case 'group': {
@@ -305,7 +275,7 @@ async function dispatchGraphCommand(
                 'graphGroup',
                 'Group command is not available in this build yet'
             )
-            await graphGroup(port, terminalId, args)
+            await graphGroup(terminalId, args)
             return
         }
         case '--help':
@@ -319,7 +289,6 @@ async function dispatchGraphCommand(
 }
 
 async function dispatchSearchCommand(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -328,7 +297,7 @@ async function dispatchSearchCommand(
         'searchCommand',
         'Search commands are not available in this build yet'
     )
-    await searchHandler(port, terminalId, args)
+    await searchHandler(terminalId, args)
 }
 
 function readVtVersion(): string {
@@ -392,7 +361,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         argsShape: argsShape({verb: '(unknown)', verbTokensInArgv: 0, argv}),
     })
 
-    const {port, terminalId, commandArgs}: GlobalOptions = extractGlobalOptions(argv)
+    const {terminalId, commandArgs}: GlobalOptions = extractGlobalOptions(argv)
 
     const verbInfo: {verb: string; verbTokensInArgv: number} = computeVerb(commandArgs)
     setInvocationContext({
@@ -421,10 +390,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             printHelp()
             return
         case 'agent':
-            await dispatchAgentCommand(port, terminalId, subcommand, rest)
+            await dispatchAgentCommand(terminalId, subcommand, rest)
             return
         case 'graph':
-            await dispatchGraphCommand(port, terminalId, subcommand, rest)
+            await dispatchGraphCommand(terminalId, subcommand, rest)
             return
         case 'vault':
             await runVaultCommand(commandArgs.slice(1))
@@ -436,7 +405,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             await runViewCommand(commandArgs.slice(1))
             return
         case 'search':
-            await dispatchSearchCommand(port, terminalId, commandArgs.slice(1))
+            await dispatchSearchCommand(terminalId, commandArgs.slice(1))
             return
         case 'debug':
             await runDebugCommand(commandArgs.slice(1))

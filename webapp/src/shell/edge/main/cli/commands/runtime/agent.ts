@@ -1,5 +1,5 @@
 import {requireTerminalId} from '@/shell/edge/main/cli/commands/graph/core/args'
-import {callMcpTool} from '@/shell/edge/main/cli/mcp-client'
+import {callDaemon} from '@/shell/edge/main/cli/daemon-client'
 import {error, output} from '@/shell/edge/main/cli/output'
 
 type JsonRecord = Record<string, unknown>
@@ -115,7 +115,7 @@ function ensureSuccessfulPayload(payload: unknown): JsonRecord {
 
     const record: JsonRecord | undefined = asRecord(payload)
     if (!record) {
-        error('Voicetree MCP server returned an unexpected payload')
+        error('Voicetree daemon returned an unexpected payload')
     }
 
     return record
@@ -235,7 +235,6 @@ function formatStandardResponse(payload: JsonRecord): string {
 }
 
 export async function agentSpawn(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -266,7 +265,7 @@ export async function agentSpawn(
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(
-        await callMcpTool(port, 'spawn_agent', {
+        await callDaemon('spawn_agent', {
             callerTerminalId,
             ...(nodeId ? {nodeId} : {}),
             ...(task ? {task} : {}),
@@ -290,7 +289,6 @@ export async function agentSpawn(
 }
 
 export async function agentList(
-    port: number,
     _terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -298,12 +296,11 @@ export async function agentList(
         error(`Unexpected arguments for \`agent list\`: ${args.join(' ')}`)
     }
 
-    const payload: JsonRecord = ensureSuccessfulPayload(await callMcpTool(port, 'list_agents', {}))
+    const payload: JsonRecord = ensureSuccessfulPayload(await callDaemon('list_agents', {}))
     output(payload, formatAgentList)
 }
 
 export async function agentWait(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -317,7 +314,7 @@ export async function agentWait(
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(
-        await callMcpTool(port, 'wait_for_agents', {
+        await callDaemon('wait_for_agents', {
             callerTerminalId,
             terminalIds: parsedArgs.positionals,
             ...(parsedArgs.values.has('--poll-interval')
@@ -330,7 +327,6 @@ export async function agentWait(
 }
 
 export async function agentClose(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -344,7 +340,7 @@ export async function agentClose(
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(
-        await callMcpTool(port, 'close_agent', {
+        await callDaemon('close_agent', {
             callerTerminalId,
             terminalId: parsedArgs.positionals[0],
             ...(parsedArgs.values.has('--force')
@@ -357,7 +353,6 @@ export async function agentClose(
 }
 
 export async function agentSend(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -374,7 +369,7 @@ export async function agentSend(
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(
-        await callMcpTool(port, 'send_message', {
+        await callDaemon('send_message', {
             callerTerminalId,
             terminalId: targetTerminalId,
             message,
@@ -385,7 +380,6 @@ export async function agentSend(
 }
 
 export async function agentOutput(
-    port: number,
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
@@ -399,7 +393,7 @@ export async function agentOutput(
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(
-        await callMcpTool(port, 'read_terminal_output', {
+        await callDaemon('read_terminal_output', {
             callerTerminalId,
             terminalId: parsedArgs.positionals[0],
             ...(parsedArgs.values.has('--chars')

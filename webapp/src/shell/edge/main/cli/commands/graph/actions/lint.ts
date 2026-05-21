@@ -11,8 +11,7 @@ import {handleCliError} from '@/shell/edge/main/cli/commands/graph/core/graphCli
 import {getRequiredValue} from '@/shell/edge/main/cli/commands/graph/core/args'
 import {withDaemonGraphSnapshot} from './snapshot'
 
-export async function graphLintCommand(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    void port
+export async function graphLintCommand(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     if (args.length === 0) {

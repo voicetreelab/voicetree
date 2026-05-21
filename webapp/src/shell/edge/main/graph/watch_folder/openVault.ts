@@ -17,6 +17,7 @@ import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/sta
 import { ensureDaemonProcess, callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription'
+import { bindUdsServerForVault, unbindUdsServer } from '@/shell/edge/main/runtime/electron/daemon/uds-server-binding'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 
@@ -99,6 +100,7 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
         await stopDaemonGraphSync()
+        await unbindUdsServer()
 
         const writePath: string = await resolveOrCreateWritePath(vaultPath)
         await getCallbacks().ensureProjectSetup?.(vaultPath).catch((error: unknown) => {
@@ -119,6 +121,8 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
             writePath: response.writePath,
             timestamp: new Date().toISOString(),
         })
+
+        await bindUdsServerForVault(vaultPath)
 
         pushToRenderer('vault:ready', { path: vaultPath })
         void getCallbacks().stripStaleMcpEntries?.(vaultPath).catch((err: unknown) => {

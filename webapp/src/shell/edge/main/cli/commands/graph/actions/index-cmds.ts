@@ -5,8 +5,7 @@ import {error, output} from '@/shell/edge/main/cli/commands/graph/core/graphCliD
 import {getErrorMessage, parseGraphIndexArgs, parseGraphSearchArgs} from '@/shell/edge/main/cli/commands/graph/core/args'
 import type {GraphIndexSuccess, GraphSearchSuccess} from '@/shell/edge/main/cli/commands/graph/core/types'
 
-export async function graphIndex(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    void port
+export async function graphIndex(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     const vaultPath: string = parseGraphIndexArgs(args)
@@ -29,8 +28,7 @@ export async function graphIndex(port: number, terminalId: string | undefined, a
     })
 }
 
-export async function graphSearch(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
-    void port
+export async function graphSearch(terminalId: string | undefined, args: string[]): Promise<void> {
     void terminalId
 
     const {vaultPath, query, topK} = parseGraphSearchArgs(args)

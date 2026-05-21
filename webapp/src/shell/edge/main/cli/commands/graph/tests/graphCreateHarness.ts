@@ -2,6 +2,13 @@ import {mkdir, mkdtemp, realpath, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {vi, type MockInstance} from 'vitest'
+import {
+    buildJsonResponse,
+    startUdsServer,
+    type McpToolResponse,
+    type ToolCatalog,
+    type UdsServerHandle,
+} from '@vt/voicetree-mcp'
 import {graphCreate} from '@/shell/edge/main/cli/commands/graph/core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '@/shell/edge/main/cli/commands/graph/core/loadSchemaPlugin'
 
@@ -50,7 +57,7 @@ export async function captureGraphCreate(
     process.chdir(cwd)
     let exitCode: number | null = null
     try {
-        await graphCreate(0, options.terminalId, args)
+        await graphCreate(options.terminalId, args)
     } catch (err) {
         if (err instanceof ExitCalled) {
             exitCode = err.code
@@ -129,14 +136,28 @@ export async function setupGatedVault(
     return vaultRoot
 }
 
-export function mockMcpFetchResponse(toolResult: unknown): typeof globalThis.fetch {
-    return ((async () => ({
-        ok: true,
-        status: 200,
-        json: async () => ({
-            jsonrpc: '2.0',
-            id: 1,
-            result: {content: [{type: 'text', text: JSON.stringify(toolResult)}]},
-        }),
-    })) as unknown) as typeof globalThis.fetch
+// Spins up a real UDS daemon with a fixed catalog so daemon-client.ts exercises
+// the actual wire (NDJSON + JSON-RPC + framing) instead of a mocked fetch.
+// Mocking globalThis.fetch hid the wire format and was incompatible with the
+// post-7b UDS transport.
+export interface StubDaemon {
+    readonly socketPath: string
+    readonly stop: () => Promise<void>
+}
+
+export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> {
+    const dir: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-uds-stub-')))
+    const socketPath: string = join(dir, 'vt.sock')
+    const catalog: ToolCatalog = new Map([
+        ['create_graph', async (): Promise<McpToolResponse> => buildJsonResponse(toolResult)],
+    ])
+    const handle: UdsServerHandle = await startUdsServer({
+        socketPath,
+        catalog,
+        logger: {log: (): void => {}, error: (): void => {}},
+    })
+    return {
+        socketPath: handle.socketPath,
+        stop: handle.stop,
+    }
 }

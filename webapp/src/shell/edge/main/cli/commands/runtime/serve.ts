@@ -2,11 +2,15 @@ import {resolve} from 'node:path'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
+    buildDefaultToolCatalog,
     configureMcpServer,
     getMcpPort,
     registerChildIfMonitored,
+    resolveVaultSocketPath,
     startMcpServer,
+    startUdsServer,
     type McpServerHandle,
+    type UdsServerHandle,
 } from '@vt/voicetree-mcp'
 import {error} from '@/shell/edge/main/cli/output'
 import {emitInvocationStart, setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
@@ -140,6 +144,18 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(`failed to start MCP server: ${(cause as Error).message}`)
     }
 
+    let udsHandle: UdsServerHandle
+    try {
+        udsHandle = await startUdsServer({
+            socketPath: resolveVaultSocketPath(args.vault),
+            catalog: buildDefaultToolCatalog(),
+        })
+    } catch (cause) {
+        await mcpHandle.stop().catch(() => undefined)
+        await daemonHandle.stop().catch(() => undefined)
+        error(`failed to start UDS server: ${(cause as Error).message}`)
+    }
+
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
@@ -150,7 +166,8 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     process.stdout.write(
         `vt serve: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, vault=${args.vault}\n`,
+        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
+        + `uds on ${udsHandle.socketPath}, vault=${args.vault}\n`,
     )
 
     // Emit phase="start" telemetry record. Long-running command — without
@@ -164,6 +181,9 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         process.stderr.write(`vt serve: ${signal} received, shutting down\n`)
 
         try {
+            await udsHandle.stop().catch((cause: unknown) => {
+                process.stderr.write(`vt serve: uds stop error: ${(cause as Error).message}\n`)
+            })
             await mcpHandle.stop().catch((cause: unknown) => {
                 process.stderr.write(`vt serve: mcp stop error: ${(cause as Error).message}\n`)
             })

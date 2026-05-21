@@ -882,11 +882,11 @@ async function main(): Promise<void> {
       break
     }
     case 'rename': {
-      await graphRename(0, undefined, args)
+      await graphRename(undefined, args)
       break
     }
     case 'mv': {
-      await graphMove(0, undefined, args)
+      await graphMove(undefined, args)
       break
     }
     case 'apply': {

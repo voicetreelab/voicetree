@@ -28,11 +28,15 @@ import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
+    buildDefaultToolCatalog,
     configureMcpServer,
     getMcpPort,
     registerChildIfMonitored,
+    resolveVaultSocketPath,
     startMcpServer,
+    startUdsServer,
     type McpServerHandle,
+    type UdsServerHandle,
 } from '@vt/voicetree-mcp'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 
@@ -149,6 +153,18 @@ async function main(): Promise<void> {
         die(`failed to start MCP server: ${(err as Error).message}`)
     }
 
+    let udsHandle: UdsServerHandle
+    try {
+        udsHandle = await startUdsServer({
+            socketPath: resolveVaultSocketPath(args.vault),
+            catalog: buildDefaultToolCatalog(),
+        })
+    } catch (err) {
+        await mcpHandle.stop().catch(() => undefined)
+        await daemonHandle.stop().catch(() => undefined)
+        die(`failed to start UDS server: ${(err as Error).message}`)
+    }
+
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
     if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
         process.stderr.write(
@@ -159,7 +175,8 @@ async function main(): Promise<void> {
 
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, vault=${args.vault}\n`,
+        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
+        + `uds on ${udsHandle.socketPath}, vault=${args.vault}\n`,
     )
 
     let shuttingDown: boolean = false
@@ -167,8 +184,11 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
+        // Order: UDS server → MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
         try {
+            await udsHandle.stop().catch((err: unknown) => {
+                process.stderr.write(`vt-mcpd: uds stop error: ${(err as Error).message}\n`)
+            })
             await mcpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: mcp stop error: ${(err as Error).message}\n`)
             })

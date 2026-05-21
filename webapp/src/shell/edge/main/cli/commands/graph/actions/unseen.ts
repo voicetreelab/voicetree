@@ -1,9 +1,9 @@
-import {callMcpTool} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
+import {callDaemon} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
 import {error, output} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
 import {getErrorMessage, getRequiredValue, requireTerminalId} from '@/shell/edge/main/cli/commands/graph/core/args'
 import type {GraphUnseenNode, GraphUnseenSuccess, ToolFailure} from '@/shell/edge/main/cli/commands/graph/core/types'
 
-export async function graphUnseen(port: number, terminalId: string | undefined, args: string[]): Promise<void> {
+export async function graphUnseen(terminalId: string | undefined, args: string[]): Promise<void> {
     const callerTerminalId: string = requireTerminalId(terminalId)
 
     let searchFromNode: string | undefined
@@ -20,7 +20,7 @@ export async function graphUnseen(port: number, terminalId: string | undefined, 
     }
 
     try {
-        const response: unknown = await callMcpTool(port, 'get_unseen_nodes_nearby', {
+        const response: unknown = await callDaemon('get_unseen_nodes_nearby', {
             callerTerminalId,
             ...(searchFromNode ? {search_from_node: searchFromNode} : {}),
         })
