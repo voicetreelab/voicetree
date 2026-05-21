@@ -33,11 +33,6 @@ fi
 
 echo "Async setup complete for worktree $WORKTREE_NAME"
 
-# --- Mirror the worktree on devbox so it's reachable as part of "vt-remote" ---
-# Best-effort: if ssh is unreachable, agents keep working locally; user can
-# re-run vt-mirror-worktree.sh manually later. Stderr/stdout captured so the
-# fire-and-forget caller doesn't get noise.
-SCRIPT_DIR_ASYNC="$(CDPATH= cd "$(dirname "$0")" && pwd)"
-"$SCRIPT_DIR_ASYNC/vt-mirror-worktree.sh" "$WORKTREE_PATH" "$WORKTREE_NAME" 2>&1 || {
-    echo "WARNING: vt-mirror-worktree failed; devbox-side admin not registered" >&2
-}
+# Devbox-side mirroring is handled by mutagen (vt-remote bidirectional sync of
+# .git/ with narrow per-host excludes) plus git-gate's `worktree add` post-action
+# that normalizes admin gitdir to relative paths. No bespoke script needed.

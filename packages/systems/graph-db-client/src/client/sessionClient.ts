@@ -139,10 +139,11 @@ export function createSessionClient(request: RequestClient) {
 
     async getView(
       sessionId: string,
-      opts?: { budget?: number; expand?: string[] },
+      opts?: { budget?: number; expand?: string[]; title?: string },
     ): Promise<ViewResponse> {
       const params = new URLSearchParams()
       if (opts?.budget !== undefined) params.set('budget', String(opts.budget))
+      if (opts?.title !== undefined) params.set('title', opts.title)
       for (const id of opts?.expand ?? []) params.append('expand', id)
       const query = params.toString()
       const suffix = query ? `?${query}` : ''

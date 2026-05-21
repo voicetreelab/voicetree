@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-19T12:26:55.393Z",
-  "sourceFileCount": 785,
+  "generatedAt": "2026-05-21T03:39:52.003Z",
+  "sourceFileCount": 787,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,14 +34,14 @@
     ]
   },
   "totals": {
-    "relativeImports": 1273,
-    "samePackageRelativeImports": 1273,
+    "relativeImports": 1275,
+    "samePackageRelativeImports": 1275,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 736,
+    "./x": 738,
     "../x": 537,
     "../../x": 0,
     "../../../+x": 0
@@ -63,11 +63,11 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 219,
-      "samePackageRelativeImports": 219,
+      "relativeImports": 220,
+      "samePackageRelativeImports": 220,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 113,
+        "./x": 114,
         "../x": 106,
         "../../x": 0,
         "../../../+x": 0
@@ -76,11 +76,11 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 186,
-      "samePackageRelativeImports": 186,
+      "relativeImports": 187,
+      "samePackageRelativeImports": 187,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 65,
+        "./x": 66,
         "../x": 121,
         "../../x": 0,
         "../../../+x": 0
@@ -203,6 +203,12 @@
       "crossPackageRelativeImports": 0
     },
     {
+      "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
+      "package": "@vt/graph-db-server",
+      "relativeImports": 17,
+      "crossPackageRelativeImports": 0
+    },
+    {
       "file": "packages/libraries/graph-state/src/index.ts",
       "package": "@vt/graph-state",
       "relativeImports": 16,
@@ -211,12 +217,6 @@
     {
       "file": "packages/systems/agent-runtime/src/api/agent-runtime-api.ts",
       "package": "@vt/agent-runtime",
-      "relativeImports": 16,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/graph-db-server/src/daemon/startDaemon.ts",
-      "package": "@vt/graph-db-server",
       "relativeImports": 16,
       "crossPackageRelativeImports": 0
     },

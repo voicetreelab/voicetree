@@ -157,6 +157,57 @@ function repairTerminalAnchorsForNode(cy: Core, nodeId: string): void {
     }
 }
 
+function syncFolderNodeInteractivity(folder: CollectionReturnValue, collapsed: boolean): void {
+    if (collapsed) {
+        if (!folder.grabbable()) folder.grabify()
+        if (!folder.selectable()) folder.selectify()
+        return
+    }
+
+    if (folder.grabbable()) folder.ungrabify()
+    if (folder.selectable()) folder.unselectify()
+    if (folder.selected()) folder.unselect()
+}
+
+function addFolderNode(
+    cy: Core,
+    specNode: ProjectedNode,
+    baseData: Record<string, unknown>,
+): void {
+    const collapsed: boolean = specNode.kind === 'folder-collapsed'
+    const addedFolder = cy.add({
+        group: 'nodes' as const,
+        data: {
+            ...baseData,
+            content: specNode.content ?? '',
+            isFolderNode: true,
+            folderLabel: specNode.label ?? nodeDisplayLabel(specNode),
+            ...(collapsed
+                ? {
+                      collapsed: true,
+                      childCount: specNode.childCount ?? 0,
+                  }
+                : {}),
+        },
+    })
+    syncFolderNodeInteractivity(addedFolder, collapsed)
+}
+
+function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNode): void {
+    const collapsed: boolean = specNode.kind === 'folder-collapsed'
+    existing.data('isFolderNode', true)
+    existing.data('folderLabel', specNode.label ?? nodeDisplayLabel(specNode))
+    existing.data('content', specNode.content ?? '')
+    if (collapsed) {
+        existing.data('collapsed', true)
+        existing.data('childCount', specNode.childCount ?? 0)
+    } else {
+        if (existing.data('collapsed')) existing.removeData('collapsed')
+        if (existing.data('childCount') !== undefined) existing.removeData('childCount')
+    }
+    syncFolderNodeInteractivity(existing, collapsed)
+}
+
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
     const specNodes: readonly ProjectedNode[] = graph.nodes
     const specNodeIds: Set<string> = new Set(specNodes.map((node: ProjectedNode) => node.id))
@@ -205,35 +256,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
                 }
 
                 if (isFolder) {
-                    const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                    const addedFolder = cy.add({
-                        group: 'nodes' as const,
-                        data: {
-                            ...baseData,
-                            content: specNode.content ?? '',
-                            isFolderNode: true,
-                            folderLabel: specNode.label ?? nodeDisplayLabel(specNode),
-                            ...(collapsed
-                                ? {
-                                      collapsed: true,
-                                      childCount: specNode.childCount ?? 0,
-                                  }
-                                : {}),
-                        },
-                    })
-                    // Folder body is input-inert. The corner chip (FolderHandleService)
-                    // carries drag + collapse. Collapsed folders stay grabbable so the
-                    // pill itself can be dragged like a regular node.
-                    //
-                    // Selectability mirrors grabbability: an expanded compound is
-                    // unselectifiable so cmd-drag lasso (cy box-select) doesn't
-                    // sweep the folder into the selection just because the user
-                    // dragged within its bounds. Collapsed pills remain selectable
-                    // — they behave like ordinary nodes.
-                    if (!collapsed) {
-                        addedFolder.ungrabify()
-                        addedFolder.unselectify()
-                    }
+                    addFolderNode(cy, specNode, baseData)
                     continue
                 }
 
@@ -269,27 +292,7 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
             syncExistingNodeParent(existing, specNode)
 
             if (isFolder) {
-                const collapsed: boolean = specNode.kind === 'folder-collapsed'
-                existing.data('isFolderNode', true)
-                existing.data('folderLabel', specNode.label ?? nodeDisplayLabel(specNode))
-                existing.data('content', specNode.content ?? '')
-                if (collapsed) {
-                    existing.data('collapsed', true)
-                    existing.data('childCount', specNode.childCount ?? 0)
-                    // Collapsed pill is a regular node — grabbable + selectable
-                    if (!existing.grabbable()) existing.grabify()
-                    if (!existing.selectable()) existing.selectify()
-                } else {
-                    if (existing.data('collapsed')) existing.removeData('collapsed')
-                    if (existing.data('childCount') !== undefined) existing.removeData('childCount')
-                    // Expanded folder body is input-inert; chip handles drag.
-                    // Unselectify so cmd-drag lasso doesn't catch the compound.
-                    // Also drop any prior selection so the collapsed→expanded
-                    // transition doesn't leave a stuck-selected compound.
-                    if (existing.grabbable()) existing.ungrabify()
-                    if (existing.selectable()) existing.unselectify()
-                    if (existing.selected()) existing.unselect()
-                }
+                updateFolderNode(existing, specNode)
                 continue
             }
 

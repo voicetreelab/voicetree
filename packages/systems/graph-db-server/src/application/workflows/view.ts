@@ -16,17 +16,19 @@ export async function renderSessionViewWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
   budgetParam: string | undefined,
+  titleParam: string | undefined,
   expandParams: readonly string[],
 ): Promise<HttpResult> {
   return dispatchOrCreateWithState(
     registry,
     sessionId,
-    { budgetParam, expandParams },
+    { budgetParam, titleParam, expandParams },
     (session, state, input) => {
       const result = handleRenderView(
         session,
         state,
         input.budgetParam,
+        input.titleParam,
         input.expandParams,
       )
       return {

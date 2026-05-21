@@ -29,6 +29,11 @@ export type StartDaemonOptions = {
   // see a non-empty graph. Defaults to true to preserve shell behavior; tests
   // pass false to keep their world pristine.
   createStarterIfEmpty?: boolean
+  // Self-exit when the kernel reparents this daemon to PID 1 (parent died).
+  // Set by Electron's vaultless spawn so a crashed/jetsam-killed Electron
+  // doesn't leak orphaned daemons. Disabled by default because launchd-owned
+  // daemons (e.g. the future LaunchAgent path) have ppid=1 from the start.
+  exitOnParentDeath?: boolean
 }
 
 function defaultClock(): number {

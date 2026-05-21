@@ -67,6 +67,15 @@ function explicitFolderState(
   return folderState.get(normalizeFolderPath(path))
 }
 
+function folderStateWithImplicitWritePath(
+  folderState: ReadonlyMap<string, FolderState>,
+  writePath: string,
+): ReadonlyMap<string, FolderState> {
+  const normalizedWritePath = normalizeFolderPath(writePath)
+  if (normalizedWritePath.length === 0 || folderState.has(normalizedWritePath)) return folderState
+  return new Map([...folderState, [normalizedWritePath, 'expanded' as const]])
+}
+
 function nearestExplicitAncestorState(
   folderState: ReadonlyMap<string, FolderState>,
   path: string,
@@ -214,9 +223,24 @@ function projectFolderTree(
   collectFolderRecords(folderTree, null, records)
   const rootPath = normalizeFolderPath(folderTree.absolutePath)
 
-  const includedPaths = new Set(
+  const renderedPaths = new Set(
     [...records.keys()].filter((path) => path !== rootPath && isFolderRendered(folderState, path)),
   )
+  const hasContentMemo = new Map<string, boolean>()
+  const hasProjectableContent = (path: string): boolean => {
+    const cached = hasContentMemo.get(path)
+    if (cached !== undefined) return cached
+    const record = records.get(path)
+    if (!record) return false
+    const hasDirectFile = record.directFiles.some((file) => graphNodes[file.absolutePath] !== undefined)
+    const hasChildContent = record.childFolderPaths.some((childPath) =>
+      renderedPaths.has(childPath) && hasProjectableContent(childPath),
+    )
+    const result = hasDirectFile || hasChildContent
+    hasContentMemo.set(path, result)
+    return result
+  }
+  const includedPaths = new Set([...renderedPaths].filter(hasProjectableContent))
   const outputParentByPath = new Map<string, string | null>()
   for (const path of includedPaths) {
     const parentPath = records.get(path)?.parentPath ?? null
@@ -271,7 +295,7 @@ function projectFolderTree(
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
   const { graph, vault, folderTree, session } = args
-  const folderState = session.folderState
+  const folderState = folderStateWithImplicitWritePath(session.folderState, vault.writePath)
   const renderedFolderPaths = new Set(
     [...folderState]
       .filter(([, state]) => state !== 'hidden')

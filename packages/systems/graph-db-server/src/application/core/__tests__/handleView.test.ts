@@ -53,6 +53,7 @@ describe('handleView', () => {
       sessionFixture(),
       stateFixture(),
       undefined,
+      undefined,
       ['/vault/extra'],
     )
 

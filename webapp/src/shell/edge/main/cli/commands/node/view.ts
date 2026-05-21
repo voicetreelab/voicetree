@@ -8,7 +8,6 @@ import {
     type SelectionMode,
     type ViewRecord,
 } from '@vt/graph-db-client'
-import {renderTreeCover, type ProjectedGraph} from '@vt/graph-tools/autoView'
 import {isJsonMode} from '@/shell/edge/main/cli/output'
 import {resolveVault} from '@/shell/edge/main/cli/util/detectVault'
 import {ArgValidationError, handleCliError} from '@/shell/edge/main/cli/util/exitCodes'
@@ -582,20 +581,8 @@ async function runShowCommand(parsed: ParsedShowCommand): Promise<void> {
         return
     }
 
-    const graph: ProjectedGraph = await client.getProjectedGraph(sessionId) as ProjectedGraph
-    const collapsed: Set<string> = new Set(
-        state.folderState
-            .filter(([, folderState]: readonly [string, FolderState]): boolean => folderState === 'collapsed')
-            .map(([folderPath]: readonly [string, FolderState]): string => folderPath),
-    )
-    const selected: Set<string> = new Set(state.selection)
-
-    console.log(renderTreeCover(graph, {
-        collapsed,
-        selected,
-        title: state.activeView.name,
-        viewApplied: collapsed.size > 0 || selected.size > 0,
-    }))
+    const view = await client.getView(sessionId, { title: state.activeView.name })
+    console.log(view.output)
 }
 
 export async function runViewCommand(argv: string[]): Promise<void> {
