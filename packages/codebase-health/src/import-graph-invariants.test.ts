@@ -6,7 +6,7 @@ import {beforeAll, describe, expect, it} from 'vitest'
 import {recordHealthMetric} from './_health-report-test-helpers'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../..')
+const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
 
 const SERVER_PACKAGE_DIR = 'packages/systems/graph-db-server'
 const CONSUMER_PACKAGE_DIRS: readonly string[] = [
@@ -81,10 +81,12 @@ function buildProject(): Project {
         `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
         `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
         `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
+        `!${REPO_ROOT}/packages/libraries/ci-reporting/**`,
         `!${REPO_ROOT}/**/*.test.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.d.ts`,
         `!${REPO_ROOT}/**/__tests__/**`,
+        `!${REPO_ROOT}/**/tests/**`,
         `!${REPO_ROOT}/**/__generated__/**`,
         `!${REPO_ROOT}/**/integration-tests/**`,
         `!${REPO_ROOT}/**/node_modules/**`,
@@ -122,6 +124,22 @@ function exportRuntimeSymbols(decl: ExportDeclaration): readonly string[] {
     return named.filter(n => !n.isTypeOnly()).map(n => n.getName())
 }
 
+function isProductionSourceFile(sourceFile: SourceFile): boolean {
+    const file = repoRel(sourceFile.getFilePath())
+    return !file.endsWith('.test.ts')
+        && !file.endsWith('.test.tsx')
+        && !file.endsWith('.spec.ts')
+        && !file.endsWith('.spec.tsx')
+        && !file.endsWith('.d.ts')
+        && !file.includes('/__tests__/')
+        && !file.includes('/tests/')
+        && !file.includes('/__generated__/')
+        && !file.includes('/integration-tests/')
+        && !file.includes('/dist/')
+        && !file.includes('/build/')
+        && !file.endsWith('.config.ts')
+}
+
 function buildEdge(args: {
     importerFile: string
     importerPackage: string
@@ -153,6 +171,7 @@ function buildEdge(args: {
 function collectEdges(project: Project): readonly ImportEdge[] {
     const edges: ImportEdge[] = []
     for (const sourceFile of project.getSourceFiles()) {
+        if (!isProductionSourceFile(sourceFile)) continue
         const importerAbs = sourceFile.getFilePath()
         const importerFile = repoRel(importerAbs)
         const importerPackage = findPackageRoot(importerAbs)

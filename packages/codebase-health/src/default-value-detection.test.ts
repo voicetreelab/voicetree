@@ -12,7 +12,7 @@ import {recordHealthMetric} from './_health-report-test-helpers'
 // ---------------------------------------------------------------------------
 // Known impure object.method pairs (mirrors IMPURE_OBJ_METHODS in purity-analysis)
 // ---------------------------------------------------------------------------
-const IMPURE_OBJ_METHOD_PAIRS: ReadonlyMap<string, ReadonlySet<string> | '*'> = new Map([
+const IMPURE_OBJ_METHOD_PAIRS: ReadonlyMap<string, ReadonlySet<string> | '*'> = new Map<string, ReadonlySet<string> | '*'>([
     ['console', new Set(['log', 'warn', 'error', 'info', 'debug', 'trace'])],
     ['fs', '*'],
     ['Math', new Set(['random'])],

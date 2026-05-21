@@ -36,7 +36,7 @@ export type CallGraph = {
 }
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../..')
+const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
 
 let graphPromise: Promise<CallGraph> | undefined
 
@@ -60,6 +60,7 @@ function createCallGraph(): CallGraph {
         `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
         `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
         `${REPO_ROOT}/webapp/src/**/*.{ts,tsx}`,
+        `!${REPO_ROOT}/packages/libraries/ci-reporting/**`,
         `!${REPO_ROOT}/**/*.test.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.spec.{ts,tsx}`,
         `!${REPO_ROOT}/**/*.d.ts`,
@@ -199,7 +200,7 @@ function createFunctionNode(
     isExported: boolean,
 ): FunctionNode {
     const file = normalizePath(relative(REPO_ROOT, sourceFile.getFilePath()))
-    const line = sourceFile.getLineAndColumnAtPos(locationNode.getStart(sourceFile)).line
+    const line = sourceFile.getLineAndColumnAtPos(locationNode.getStart()).line
     return {
         id: `${file}:${line}:${name}`,
         name,

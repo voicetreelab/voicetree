@@ -3,8 +3,8 @@ import {randomBytes} from 'node:crypto'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-const SYSTEMS_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(SYSTEMS_ROOT, '../..')
+const CI_REPORTING_SRC_ROOT: string = dirname(fileURLToPath(import.meta.url))
+const REPO_ROOT: string = resolve(CI_REPORTING_SRC_ROOT, '..', '..', '..', '..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
 const CHECKS_DIR: string = join(REPORTS_DIR, 'checks')
 const CHECKS_REPORT_PATH: string = join(REPORTS_DIR, 'checks.json')
@@ -84,7 +84,7 @@ async function readCheckReport(path: string): Promise<CheckReport | null> {
 }
 
 async function readAllCheckReports(): Promise<CheckReport[]> {
-    let entries: Awaited<ReturnType<typeof readdir>>
+    let entries: readonly {isFile(): boolean; name: string}[]
     try {
         entries = await readdir(CHECKS_DIR, {withFileTypes: true})
     } catch (err) {

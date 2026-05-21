@@ -5,7 +5,7 @@ import * as ts from 'typescript'
 import { discoverPackages } from './discover-packages'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-export const REPO_ROOT: string = resolve(TEST_DIR, '../..')
+export const REPO_ROOT: string = resolve(TEST_DIR, '../../..')
 
 function isProductionSource(p: string): boolean {
     return (p.endsWith('.ts') || p.endsWith('.tsx'))
