@@ -60,9 +60,7 @@ export function createUpdateListener(opts: UpdateListenerOptions): { extension: 
       }
 
       const now: number = Date.now();
-      if (firstChangeTime === null) {
-        firstChangeTime = now;
-      }
+      firstChangeTime ??= now;
 
       // Clear existing timeout
       if (debounceTimeout) {

@@ -43,15 +43,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Lint (root targets)
-        run: npm run lint
+      - name: Correctness lint checks
+        run: npm run health:capture-ci -- --folder=correctness/lint
 
       - name: Typecheck
         working-directory: webapp
         run: npx tsc --noEmit
-
-      - name: Blackbox test lint
-        run: npm run lint:blackbox-tests
 
       - name: Codebase health gate
         run: npm run health
@@ -80,7 +77,7 @@ jobs:
         run: npm ci
 
       - name: Run unit/integration tests
-        run: npx vitest run --reporter=verbose
+        run: npm run health:capture-ci -- --folder=correctness/unit --sequential
 
   # Brain Workflow Tests are disabled for now. Re-enable when the brain
   # submodule check should become part of PR gating again.
@@ -117,7 +114,7 @@ jobs:
       - name: Run browser Tier 1 smoke
         timeout-minutes: 10
         working-directory: webapp
-        run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
+        run: cd .. && npm run health:capture-ci -- --only=e2e-browser-smoke
 
       - name: Upload Playwright artifacts on failure
         if: failure()
@@ -185,10 +182,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_QUIET: 'false'
-        run: |
-          xvfb-run --auto-servernum npx playwright test \
-            --config=playwright-tier1-system.config.ts \
-            --reporter=list
+        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier1
 
       - name: Upload Electron test artifacts on failure
         if: failure()
@@ -228,7 +222,7 @@ jobs:
         run: npm rebuild better-sqlite3
 
       - name: Run fuzz tests
-        run: npx vitest run --config vitest.config.fuzz.ts --reporter=verbose
+        run: npm run health:capture-ci -- --folder=correctness/slow
 
   browser-tier2:
     name: Browser Tier 2 E2E
@@ -261,7 +255,7 @@ jobs:
       - name: Run browser Tier 2 tests
         timeout-minutes: 20
         working-directory: webapp
-        run: npx playwright test --config=playwright.config.ts --reporter=line
+        run: cd .. && npm run health:capture-ci -- --only=e2e-tier2-browser
 
       - name: Upload browser Tier 2 artifacts on failure
         if: failure()
@@ -330,10 +324,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_QUIET: 'false'
-        run: |
-          xvfb-run --auto-servernum npx playwright test \
-            --config=playwright-electron.config.ts \
-            --reporter=list
+        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier2-electron
 
       - name: Upload Electron Tier 2 artifacts on failure
         if: failure()
