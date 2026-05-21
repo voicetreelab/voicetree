@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage} from 'electron';
+import {app, BrowserWindow, dialog, nativeImage} from 'electron';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -226,7 +226,15 @@ void app.whenReady().then(async () => {
     setupApplicationMenu();
 
     // Start MCP server in-process (shares graph state with Electron)
-    await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+    try {
+        await terminalRuntimeSurface.ensureTmuxAvailable();
+        await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+    } catch (error: unknown) {
+        const message: string = error instanceof Error ? error.message : String(error);
+        dialog.showErrorBox('Voicetree cannot start', message);
+        app.exit(1);
+        return;
+    }
     await startMcpServer();
 
     if (process.env.VOICETREE_VAULT_PATH) {
