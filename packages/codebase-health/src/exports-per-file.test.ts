@@ -48,6 +48,8 @@ function isProductionSource(path: string): boolean {
         && !path.endsWith('.test.ts')
         && !path.endsWith('.spec.ts')
         && !path.includes('/__tests__/')
+        && !path.includes('/__generated__/')
+        && !path.includes('/__fixtures__/')
 }
 
 async function listProductionSources(root: string): Promise<string[]> {
