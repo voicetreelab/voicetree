@@ -251,6 +251,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         applyGraphDelta: async () => ({ success: true }),
          
         getState: async () => mockElectronAPI.graph._graphState,
+        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => {
           console.log('[Mock] onProjectedGraphUpdate callback registered');
           mockElectronAPI.graph._projectedGraphCallback = callback;

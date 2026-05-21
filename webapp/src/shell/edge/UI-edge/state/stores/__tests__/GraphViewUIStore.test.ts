@@ -7,7 +7,7 @@ import {
     initGraphViewOverlays,
     setEmptyStateVisible,
     setLoadingState,
-} from '../GraphViewUIStore'
+} from '@/shell/edge/UI-edge/state/stores/GraphViewUIStore'
 
 function setupOverlays(): {
     readonly empty: HTMLDivElement
