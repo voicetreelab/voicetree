@@ -74,7 +74,6 @@ import {
 } from '../../../state/vaultAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
-import { getFolderStateForActiveView } from '../../views/folderStateOps'
 
 // ── Bug 1: removeReadPath toggle — broadcast must complete before return ─
 
@@ -485,77 +484,6 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
     })
 })
 
-describe('write path folder visibility seeding', () => {
-    let testTmpDir: string
-    let appSupportDir: string
-
-    beforeEach(async () => {
-        testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'write-path-visibility-'))
-        appSupportDir = path.join(testTmpDir, 'app-support')
-        await fs.mkdir(appSupportDir, { recursive: true })
-
-        initGraphModel(
-            { appSupportPath: appSupportDir },
-            {
-                syncVaultState: vi.fn(),
-                syncFolderTree: vi.fn(),
-                syncStarredFolderTrees: vi.fn(),
-                syncExternalFolderTrees: vi.fn(),
-                fitViewport: vi.fn(),
-            },
-        )
-
-        setGraph(createEmptyGraph())
-        clearWatchFolderState()
-        clearSettingsCache()
-        await saveSettings({ ...DEFAULT_SETTINGS, starredFolders: [] })
-    })
-
-    afterEach(async () => {
-        await fs.rm(testTmpDir, { recursive: true, force: true })
-        clearWatchFolderState()
-        setGraph(createEmptyGraph())
-        vi.clearAllMocks()
-    })
-
-    it('setWritePath seeds the write path and direct child folders as expanded', async () => {
-        const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'voicetree')
-        const childA = path.join(writePath, '2025-09-30')
-        const childB = path.join(writePath, 'notes')
-        const nested = path.join(childA, 'deep')
-        await fs.mkdir(nested, { recursive: true })
-        await fs.mkdir(childB, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writePath })
-
-        const result = await setWritePath(writePath, { createStarterIfEmpty: false })
-
-        expect(result.success).toBe(true)
-        const expandedPaths = await getReadPaths()
-        expect([...expandedPaths].sort()).toEqual([childA, childB, writePath].sort())
-        expect(expandedPaths).not.toContain(nested)
-    })
-
-    it('setWritePath preserves existing direct child folder visibility rows', async () => {
-        const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'voicetree')
-        const hiddenChild = path.join(writePath, 'private')
-        const newChild = path.join(writePath, 'public')
-        await fs.mkdir(hiddenChild, { recursive: true })
-        await fs.mkdir(newChild, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writePath })
-        await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
-
-        const result = await setWritePath(writePath, { createStarterIfEmpty: false })
-
-        expect(result.success).toBe(true)
-        const expandedPaths = await getReadPaths()
-        expect([...expandedPaths].sort()).toEqual([newChild, writePath].sort())
-        expect(getFolderStateForActiveView(watchedDir).folderState).toContainEqual([
-            hiddenChild,
-            'hidden',
-        ])
-    })
-})
+// The 'write path folder visibility seeding' describe lives in
+// ./write-path-visibility-seeding.test.ts (extracted to keep this file under the
+// 500-line file-size cap).

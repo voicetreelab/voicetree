@@ -8,7 +8,6 @@
  */
 
 import { promises as fs } from "fs";
-import path from "path";
 import normalizePath from "normalize-path";
 export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject } from '../data/watch-folder/paths/resolve-vault-config';
 export {
@@ -50,23 +49,6 @@ import {
     seedActiveViewExpandedFolderStates,
     setActiveViewFolderState,
 } from "../data/watch-folder/folder-visibility-active-view";
-
-async function getWritePathVisibilitySeedPaths(writePath: FilePath): Promise<readonly FilePath[]> {
-    const normalizedWritePath = normalizePath(writePath);
-    const childDirectories = (await fs.readdir(normalizedWritePath, { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => normalizePath(path.join(normalizedWritePath, entry.name)))
-        .sort((left, right) => left.localeCompare(right));
-    return [normalizedWritePath, ...childDirectories];
-}
-
-async function seedWritePathFolderVisibility(
-    watchedDir: FilePath,
-    writePath: FilePath,
-): Promise<void> {
-    const seedPaths = await getWritePathVisibilitySeedPaths(writePath);
-    await seedActiveViewExpandedFolderStates(watchedDir, seedPaths);
-}
 
 /**
  * Get all vault paths (writePath + active-view expanded paths).
@@ -158,7 +140,7 @@ export async function setWritePath(
     }
 
     await traceGraphdSpan('daemon.set-write-path.seed-write-path-folder-visibility', async () => {
-        await seedWritePathFolderVisibility(watchedDir, vaultPath);
+        await seedActiveViewExpandedFolderStates(watchedDir, [normalizePath(vaultPath)]);
     });
 
     // Save to config only AFTER successful load (atomic operation)

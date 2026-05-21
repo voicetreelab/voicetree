@@ -55,9 +55,12 @@ describe('vault routes', () => {
     const response = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
+    // setWritePath seeds the active view's folder-visibility table with the
+    // writePath itself (so the sidebar can show the writePath's contents on
+    // mount). Children default collapsed — only the writePath row appears.
     expect(await response.json()).toEqual({
       vaultPath: vault,
-      readPaths: [],
+      readPaths: [vault],
       writePath: vault,
     })
   })
