@@ -9,6 +9,20 @@ export class GraphDbClientError extends Error {
   }
 }
 
+export class VaultNotOpenError extends GraphDbClientError {
+  constructor(message: string) {
+    super(409, 'vault_not_open', message)
+    this.name = 'VaultNotOpenError'
+  }
+}
+
+export class VaultOpenFailedError extends GraphDbClientError {
+  constructor(message: string) {
+    super(409, 'vault_open_failed', message)
+    this.name = 'VaultOpenFailedError'
+  }
+}
+
 export class DaemonUnreachableError extends Error {
   constructor(message: string) {
     super(message)

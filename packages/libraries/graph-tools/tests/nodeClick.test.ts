@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseButtonMatch, selectButton } from '../src/commands/nodeClick'
+import { parseButtonMatch, selectButton } from '../src/commands/session/nodeClick'
 
 const BUTTONS = [
   { label: 'Delete', enabled: true },

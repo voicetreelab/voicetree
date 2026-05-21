@@ -10,9 +10,12 @@ import {
     getShadowNodeId,
     type ShadowNodeId,
     type TerminalId,
-} from '@/shell/edge/UI-edge/floating-windows/types';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
+} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import { createFloatingTerminal } from './createFloatingTerminal';
+import { clearTerminals, setTerminalUI } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI';
+import type { ProjectedGraph } from '@vt/graph-state/contract';
 
 vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }));
 
@@ -89,12 +92,33 @@ async function assertTerminalAnchoredToLateNode(cy: Core, terminal: TerminalData
     expect(terminal.ui?.windowElement.style.top).not.toBe('100px');
 }
 
+function makeGraphWithLateTaskNode(): ProjectedGraph {
+    return {
+        nodes: [
+            {
+                id: SOURCE_TASK_NODE_ID,
+                label: 'Source task',
+                content: '# Source task\n',
+                position: { x: 500, y: 500 },
+            },
+            {
+                id: LATE_TASK_NODE_ID,
+                label: 'Late node',
+                content: '# Late node\n',
+                position: { x: 1000, y: 1000 },
+            },
+        ],
+        edges: [],
+    } as ProjectedGraph;
+}
+
 describe('createFloatingTerminal behavioural anchoring', () => {
     let cy: Core;
 
     beforeEach(() => {
         document.body.innerHTML = '';
         vanillaFloatingWindowInstances.clear();
+        clearTerminals();
         vi.clearAllMocks();
         vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback): number =>
             window.setTimeout(() => callback(performance.now()), 0)
@@ -107,6 +131,7 @@ describe('createFloatingTerminal behavioural anchoring', () => {
     afterEach(() => {
         cy?.destroy();
         vanillaFloatingWindowInstances.clear();
+        clearTerminals();
         document.body.innerHTML = '';
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
@@ -124,6 +149,25 @@ describe('createFloatingTerminal behavioural anchoring', () => {
         expect(terminal?.ui?.windowElement.style.top).toBe('100px');
 
         cy.add({ group: 'nodes', data: { id: LATE_TASK_NODE_ID }, position: { x: 1000, y: 1000 } });
+
+        await assertTerminalAnchoredToLateNode(cy, terminal as TerminalData);
+        warnSpy.mockRestore();
+    }, 10_000);
+
+    it('re-anchors when the target node is removed after a deferred anchor and later re-projected', async () => {
+        cy = createTestCy(false);
+        const terminalData: TerminalData = makeTerminalData();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const terminal: TerminalData | undefined = await createFloatingTerminal(cy, SOURCE_TASK_NODE_ID, terminalData);
+        expect(terminal?.ui).toBeDefined();
+        setTerminalUI(TERMINAL_ID, terminal?.ui as NonNullable<TerminalData['ui']>, terminal);
+
+        cy.add({ group: 'nodes', data: { id: LATE_TASK_NODE_ID }, position: { x: 1000, y: 1000 } });
+        await assertTerminalAnchoredToLateNode(cy, terminal as TerminalData);
+
+        cy.remove(cy.getElementById(LATE_TASK_NODE_ID));
+        applyGraphDeltaToUI(cy, makeGraphWithLateTaskNode());
 
         await assertTerminalAnchoredToLateNode(cy, terminal as TerminalData);
         warnSpy.mockRestore();

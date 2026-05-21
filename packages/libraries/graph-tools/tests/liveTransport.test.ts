@@ -14,7 +14,7 @@ import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/st
 import {describe, it, expect, beforeEach, afterEach} from 'vitest'
 import {z} from 'zod'
 
-import {createLiveTransport} from '../src/liveTransport'
+import {createLiveTransport} from '../src/live/liveTransport'
 
 // ── fixture state ──────────────────────────────────────────────────────────
 
@@ -119,20 +119,14 @@ async function startTestServer(): Promise<TestServer> {
                     layoutChanged?: {zoom?: number}
                 }
 
-                if (cmd.type === 'Collapse' && cmd.folder) {
-                    if (!mockCollapseSet.includes(cmd.folder)) {
-                        mockCollapseSet = [...mockCollapseSet, cmd.folder]
+                if (cmd.type === 'SetFolderState' && cmd.state === 'collapsed' && cmd.path) {
+                    const folder = `${cmd.path}/`
+                    if (!mockCollapseSet.includes(folder)) {
+                        mockCollapseSet = [...mockCollapseSet, folder]
                     }
                     mockRevision += 1
                     delta.revision = mockRevision
-                    delta.collapseAdded = [cmd.folder]
-                }
-
-                if (cmd.type === 'UnloadRoot' && cmd.root) {
-                    mockRootsLoaded = mockRootsLoaded.filter((root) => root !== cmd.root)
-                    mockRevision += 1
-                    delta.revision = mockRevision
-                    delta.rootsUnloaded = [cmd.root]
+                    delta.collapseAdded = [folder]
                 }
 
                 if (cmd.type === 'SetZoom' && typeof cmd.zoom === 'number') {
@@ -216,28 +210,23 @@ describe('createLiveTransport — MCP roundtrip', () => {
         expect(state.layout.positions.get(SAMPLE_NODE)).toEqual({x: 1, y: 2})
     })
 
-    it('dispatchLiveCommand() sends Collapse and returns a Delta', async () => {
+    it('dispatchLiveCommand() sends SetFolderState and returns a Delta', async () => {
         const transport = createLiveTransport(server.port)
         const delta = await transport.dispatchLiveCommand({
-            type: 'Collapse',
-            folder: TASKS_FOLDER,
+            type: 'SetFolderState',
+            viewId: 'main',
+            path: TASKS_FOLDER.slice(0, -1),
+            state: 'collapsed',
         })
 
         expect(delta.revision).toBe(4)
         expect(delta.collapseAdded).toContain(TASKS_FOLDER)
-        expect(delta.cause).toEqual({type: 'Collapse', folder: TASKS_FOLDER})
-    })
-
-    it('dispatchLiveCommand() preserves rootsUnloaded from the MCP delta', async () => {
-        const transport = createLiveTransport(server.port)
-        const delta = await transport.dispatchLiveCommand({
-            type: 'UnloadRoot',
-            root: VAULT_ROOT,
+        expect(delta.cause).toEqual({
+            type: 'SetFolderState',
+            viewId: 'main',
+            path: TASKS_FOLDER.slice(0, -1),
+            state: 'collapsed',
         })
-
-        expect(delta.revision).toBe(4)
-        expect(delta.rootsUnloaded).toEqual([VAULT_ROOT])
-        expect(delta.cause).toEqual({type: 'UnloadRoot', root: VAULT_ROOT})
     })
 
     it('dispatchLiveCommand() preserves layoutChanged from the MCP delta', async () => {
@@ -252,29 +241,23 @@ describe('createLiveTransport — MCP roundtrip', () => {
         expect(delta.cause).toEqual({type: 'SetZoom', zoom: 1.45})
     })
 
-    it('round-trip: Collapse → getLiveState shows folder in collapseSet + revision bumped', async () => {
+    it('round-trip: SetFolderState → getLiveState shows folder in collapseSet + revision bumped', async () => {
         const transport = createLiveTransport(server.port)
 
         const stateBefore = await transport.getLiveState()
         expect(stateBefore.collapseSet.size).toBe(0)
         const revBefore = stateBefore.meta.revision
 
-        await transport.dispatchLiveCommand({type: 'Collapse', folder: TASKS_FOLDER})
+        await transport.dispatchLiveCommand({
+            type: 'SetFolderState',
+            viewId: 'main',
+            path: TASKS_FOLDER.slice(0, -1),
+            state: 'collapsed',
+        })
 
         const stateAfter = await transport.getLiveState()
         expect(stateAfter.collapseSet.has(TASKS_FOLDER)).toBe(true)
         expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
     })
 
-    it('round-trip: UnloadRoot → getLiveState removes the root from roots.loaded', async () => {
-        const transport = createLiveTransport(server.port)
-
-        expect((await transport.getLiveState()).roots.loaded.has(VAULT_ROOT)).toBe(true)
-
-        await transport.dispatchLiveCommand({type: 'UnloadRoot', root: VAULT_ROOT})
-
-        const stateAfter = await transport.getLiveState()
-        expect(stateAfter.roots.loaded.has(VAULT_ROOT)).toBe(false)
-        expect(stateAfter.meta.revision).toBe(4)
-    })
 })

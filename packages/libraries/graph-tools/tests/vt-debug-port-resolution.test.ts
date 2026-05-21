@@ -5,15 +5,15 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import type { DebugInstance } from '../src/debug/discover'
+import type { DebugInstance } from '../src/debug/protocol/discover'
 import {
   CDP_LOOPBACK_HOST,
   probeCdpPort,
   resolveDebugInstance,
   type LaunchedChild,
   type ResolveDebugInstanceDeps,
-} from '../src/debug/portResolution'
-import { parseArgs as parseScreenshotArgs } from '../src/commands/screenshot'
+} from '../src/debug/protocol/portResolution'
+import { parseArgs as parseScreenshotArgs } from '../src/commands/session/screenshot'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(testDir, '../../../..')

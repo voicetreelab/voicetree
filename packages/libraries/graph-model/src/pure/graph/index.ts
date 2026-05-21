@@ -3,13 +3,13 @@ import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
 import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
 import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
-import { setOutgoingEdges } from './graph-operations/graph-edge-operations'
-import { reverseGraphEdges, makeBidirectionalEdges } from './graph-operations/graph-transformations'
-import { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
+import { setOutgoingEdges } from './graph-operations/transforms/graph-edge-operations'
+import { reverseGraphEdges, makeBidirectionalEdges } from './graph-operations/transforms/graph-transformations'
+import { prettyPrintGraphDelta } from './graph-operations/transforms/prettyPrint'
 import { graphToAscii } from './markdown-writing/graphToAscii'
 import { getSubgraphByDistance, getUnionSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
 import { getNodeIdsInTraversalOrder } from './graph-operations/traversal/getNodeIdsInTraversalOrder'
-import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
+import { mapFSEventsToGraphDelta } from './construction/mapFSEventsToGraphDelta'
 
 
 // CONTAINS TYPES AND FUNCTION TYPES
@@ -196,7 +196,7 @@ export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 
 // === CORE GRAPH DELTA OPERATIONS ===
 
-export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph'
+export { applyGraphDeltaToGraph, rebaseStaleEdgeAdditionDeltas } from './graphDelta/applyGraphDeltaToGraph'
 void (applyGraphDeltaToGraph satisfies ApplyGraphDeltaToGraph)
 
 export { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta'
@@ -205,16 +205,16 @@ void (mapNewGraphToDelta satisfies MapNewGraphToDelta)
 export { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay'
 void (stripDeltaForReplay satisfies StripDeltaForReplay)
 
-export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta'
+export { mapFSEventsToGraphDelta } from './construction/mapFSEventsToGraphDelta'
 void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
 
-export { setOutgoingEdges } from './graph-operations/graph-edge-operations'
+export { setOutgoingEdges } from './graph-operations/transforms/graph-edge-operations'
 void (setOutgoingEdges satisfies SetOutgoingEdges)
 
-export { reverseGraphEdges } from './graph-operations/graph-transformations'
+export { reverseGraphEdges } from './graph-operations/transforms/graph-transformations'
 void (reverseGraphEdges satisfies ReverseGraphEdges)
 
-export { makeBidirectionalEdges } from './graph-operations/graph-transformations'
+export { makeBidirectionalEdges } from './graph-operations/transforms/graph-transformations'
 void (makeBidirectionalEdges satisfies MakeBidirectionalEdges)
 
 export { getSubgraphByDistance } from './graph-operations/traversal/getSubgraphByDistance'
@@ -229,39 +229,39 @@ void (graphToAscii satisfies GraphToAscii)
 export { getNodeIdsInTraversalOrder } from './graph-operations/traversal/getNodeIdsInTraversalOrder'
 void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
-export { prettyPrintGraphDelta } from './graph-operations/prettyPrint'
+export { prettyPrintGraphDelta } from './graph-operations/transforms/prettyPrint'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
 
 // === GRAPH TRANSFORMATION UTILITIES ===
-export { deleteNodeSimple } from './graph-operations/removeNodeMaintainingTransitiveEdges'
-export { removeContextNodes } from './graph-operations/removeContextNodes'
+export { deleteNodeSimple } from './graph-operations/transforms/removeNodeMaintainingTransitiveEdges'
+export { removeContextNodes } from './graph-operations/transforms/removeContextNodes'
 
 // === GRAPH CREATION UTILITIES ===
-export { createGraph, createEmptyGraph } from './createGraph'
+export { createGraph, createEmptyGraph } from './construction/createGraph'
 
 // === GRAPH BUILDING FROM FILES ===
 export type BuildGraphFromFiles = (files: readonly { readonly absolutePath: string; readonly content: string }[]) => Graph
 
-export { buildGraphFromFiles } from './buildGraphFromFiles'
-import { buildGraphFromFiles } from './buildGraphFromFiles'
+export { buildGraphFromFiles } from './construction/buildGraphFromFiles'
+import { buildGraphFromFiles } from './construction/buildGraphFromFiles'
 void (buildGraphFromFiles satisfies BuildGraphFromFiles)
 
 // === FOLDER NOTE RESOLUTION ===
 export { getFolderNotePath } from './folder-note/getFolderNotePath'
 
 // === FOLDER COLLAPSE PURE LAYER (BF-116) ===
-export type { OriginalEdgeRef, SyntheticEdgeSpec, ExpandPlan } from './folderCollapse'
-export { computeSyntheticEdgeSpecs, computeExpandPlan, findCollapsedAncestor, absolutePathToGraphFolderId } from './folderCollapse'
+export type { OriginalEdgeRef, SyntheticEdgeSpec, ExpandPlan } from './nodes/folderCollapse'
+export { computeSyntheticEdgeSpecs, computeExpandPlan, findCollapsedAncestor, absolutePathToGraphFolderId } from './nodes/folderCollapse'
 
 // === NODE TYPE DETECTION ===
-export { isImageNode, IMAGE_EXTENSIONS } from './isImageNode'
+export { isImageNode, IMAGE_EXTENSIONS } from './nodes/isImageNode'
 
 // === AGENT NODE QUERIES ===
-export { getNodesByAgentName } from './getNodesByAgentName'
+export { getNodesByAgentName } from './nodes/getNodesByAgentName'
 
 // === POSITIONING ===
 export type MergePositionsIntoGraph = (graph: Graph, positions: ReadonlyMap<NodeIdAndFilePath, Position>) => Graph
 
-export { mergePositionsIntoGraph } from './positioning/mergePositionsIntoGraph'
-import { mergePositionsIntoGraph } from './positioning/mergePositionsIntoGraph'
+export { mergePositionsIntoGraph } from './positioning/layout/mergePositionsIntoGraph'
+import { mergePositionsIntoGraph } from './positioning/layout/mergePositionsIntoGraph'
 void (mergePositionsIntoGraph satisfies MergePositionsIntoGraph)

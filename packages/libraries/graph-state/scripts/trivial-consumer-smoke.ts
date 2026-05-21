@@ -13,7 +13,12 @@ const api: Pick<GraphStateAPI, 'project' | 'applyCommandWithDelta'> = {
         delta: { revision: s.meta.revision + 1, cause: cmd },
     }),
 }
-const cmd: Command = { type: 'Collapse', folder: '/tmp/vault/tasks/' }
+const cmd: Command = {
+    type: 'SetFolderState',
+    viewId: 'main',
+    path: '/tmp/vault/tasks',
+    state: 'collapsed',
+}
 const { state, delta } = api.applyCommandWithDelta(empty, cmd)
 const spec = api.project(state)
 console.log(`OK rev=${state.meta.revision} cause=${delta.cause.type} nodes=${spec.nodes.length} edges=${spec.edges.length}`)

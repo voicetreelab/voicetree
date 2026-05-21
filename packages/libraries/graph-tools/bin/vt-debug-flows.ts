@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { type DebugInstance } from '../src/debug/discover'
+import { type DebugInstance } from '../src/debug/protocol/discover'
 import {
   FLOW_IDS,
   deriveFlowRuntimeContext,
@@ -14,9 +14,9 @@ import {
   resolveFlowDefinition,
   type FlowDefinition,
   type FlowId,
-} from '../src/debug/flows/index'
-import { err, ok } from '../src/debug/Response'
-import type { Response } from '../src/debug/Response'
+} from '../src/debug/flow/flows/index'
+import { err, ok } from '../src/debug/protocol/Response'
+import type { Response } from '../src/debug/protocol/Response'
 import {
   buildScoreboardRow,
   computeGate,
@@ -24,12 +24,12 @@ import {
   evaluateRunResult,
   type FlowAttempt,
   type FlowScoreboard,
-} from '../src/debug/scoreboard'
-import { parseJudgeResponse, type JudgeVerdict } from '../src/debug/judge'
-import { resolveDebugInstance } from '../src/debug/portResolution'
-import { waitForLiveStateWithRoots } from '../src/debug/waitForLiveRoots'
-import type { RunResult } from '../src/commands/run'
-import { createLiveTransport } from '../src/liveTransport'
+} from '../src/debug/flow/scoreboard'
+import { parseJudgeResponse, type JudgeVerdict } from '../src/debug/flow/judge'
+import { resolveDebugInstance } from '../src/debug/protocol/portResolution'
+import { waitForLiveStateWithRoots } from '../src/debug/protocol/waitForLiveRoots'
+import type { RunResult } from '../src/commands/capture/run'
+import { createLiveTransport } from '../src/live/liveTransport'
 
 const DEFAULT_OUT_DIR = '/tmp/vt-debug/flows'
 const DEFAULT_FIXTURE_OUT = path.resolve(

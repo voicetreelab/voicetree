@@ -1,0 +1,191 @@
+/* git — git-section, git-branch, git-body, git-folder, git-commit */
+/* =============================================================================
+   GIT STATUS
+   ========================================================================== */
+.git-section {
+  margin-bottom: 2.2rem;
+  position: relative;
+}
+
+.git-section .category-tally {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.git-branch {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--rule);
+  background: var(--ink-1);
+  border-radius: 2px;
+}
+
+.git-upstream {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+}
+.git-upstream.is-clean  { color: var(--vital); }
+.git-upstream.is-none   { color: var(--paper-faint); font-style: italic; }
+.git-upstream .git-ahead  { color: var(--vital); }
+.git-upstream .git-behind { color: var(--caution); }
+
+.git-totals,
+.git-clean {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+}
+.git-clean { color: var(--vital); }
+
+.git-adds { color: var(--vital); font-family: var(--mono); }
+.git-dels { color: var(--sig); font-family: var(--mono); margin-left: 0.4em; }
+.git-untracked { color: var(--caution); font-family: var(--mono); margin-left: 0.4em; }
+
+.git-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+}
+
+.git-col-name {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+  margin: 0 0 0.55rem 0;
+}
+
+.git-folders,
+.git-commits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.git-folder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.git-folder-name {
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-folder-files {
+  color: var(--paper-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.git-folder-diff {
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.git-commit {
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+}
+.git-commits > li { list-style: none; }
+.git-commit-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  list-style: none;
+}
+.git-commit-summary::-webkit-details-marker { display: none; }
+.git-commit-summary::marker { content: ''; }
+.git-commit-summary:hover { background: var(--ink-2); }
+
+.git-commit-hash {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: transparent;
+  padding: 0;
+}
+.git-commit-subject {
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-commit-meta {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--paper-faint);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.git-commit-expand {
+  font-size: 0.7rem;
+  color: var(--paper-faint);
+  width: 0.7rem;
+  text-align: center;
+  transition: transform 0.15s;
+}
+.git-commit-expand.is-empty { visibility: hidden; }
+.git-commit[open] .git-commit-expand { transform: rotate(180deg); color: var(--accent); }
+
+.git-commit-body {
+  margin: 0;
+  padding: 0.55rem 0.85rem 0.7rem;
+  border-top: 1px dashed var(--rule);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--paper-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--ink-0);
+}
+
+.git-empty {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--paper-faint);
+  font-style: italic;
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+}
+
+.git-section.is-error .git-error {
+  color: var(--caution);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 880px) {
+  .git-body { grid-template-columns: 1fr; gap: 0.9rem; }
+  .git-commit-summary { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .git-commit-meta { grid-column: 1 / -1; }
+}
+

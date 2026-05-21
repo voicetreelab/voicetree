@@ -21,6 +21,34 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _http_preflight_and_parse(request: Request):
+    """CORS preflight + JSON parse + rate-limit. Returns (parsed, early_response).
+    parsed is (request_json, headers) on success, else None and early_response is the response tuple."""
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return None, ('', 204, headers)
+
+    headers = {
+        'Access-Control-Allow-Origin': '*'
+    }
+
+    request_json = request.get_json(silent=True)
+    if not request_json:
+        logger.error("No JSON body in request")
+        return None, (json.dumps({"error": "Request must be JSON"}), 400, headers)
+
+    rate_limit_response = is_ratelimited(request_json, headers)
+    if rate_limit_response:
+        return None, rate_limit_response
+
+    return (request_json, headers), None
+
+
 @functions_framework.http
 def append_agent_handler(request: Request):
     """
@@ -40,33 +68,12 @@ def append_agent_handler(request: Request):
         "segments": [...]
     }
     """
-    # Set CORS headers for the preflight request
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Max-Age': '3600'
-        }
-        return ('', 204, headers)
-
-    # Set CORS headers for the main request
-    headers = {
-        'Access-Control-Allow-Origin': '*'
-    }
+    parsed, early_response = _http_preflight_and_parse(request)
+    if early_response is not None:
+        return early_response
+    request_json, headers = parsed
 
     try:
-        # Parse request JSON
-        request_json = request.get_json(silent=True)
-        if not request_json:
-            logger.error("No JSON body in request")
-            return (json.dumps({"error": "Request must be JSON"}), 400, headers)
-
-        # Check rate limits (validates user_uuid internally)
-        rate_limit_response = is_ratelimited(request_json, headers)
-        if rate_limit_response:
-            return rate_limit_response
-
         # Extract parameters
         transcript_text = request_json.get("transcript_text")
         existing_nodes_formatted = request_json.get("existing_nodes_formatted")
@@ -133,33 +140,12 @@ def optimizer_agent_handler(request: Request):
         "actions": [...]
     }
     """
-    # Set CORS headers for the preflight request
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Max-Age': '3600'
-        }
-        return ('', 204, headers)
-
-    # Set CORS headers for the main request
-    headers = {
-        'Access-Control-Allow-Origin': '*'
-    }
+    parsed, early_response = _http_preflight_and_parse(request)
+    if early_response is not None:
+        return early_response
+    request_json, headers = parsed
 
     try:
-        # Parse request JSON
-        request_json = request.get_json(silent=True)
-        if not request_json:
-            logger.error("No JSON body in request")
-            return (json.dumps({"error": "Request must be JSON"}), 400, headers)
-
-        # Check rate limits (validates user_uuid internally)
-        rate_limit_response = is_ratelimited(request_json, headers)
-        if rate_limit_response:
-            return rate_limit_response
-
         # Extract parameters
         node_dict = request_json.get("node_dict")
         neighbours_context = request_json.get("neighbours_context")
@@ -270,33 +256,12 @@ def orphan_agent_handler(request: Request):
         "actions": [...]
     }
     """
-    # Set CORS headers for the preflight request
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Max-Age': '3600'
-        }
-        return ('', 204, headers)
-
-    # Set CORS headers for the main request
-    headers = {
-        'Access-Control-Allow-Origin': '*'
-    }
+    parsed, early_response = _http_preflight_and_parse(request)
+    if early_response is not None:
+        return early_response
+    request_json, headers = parsed
 
     try:
-        # Parse request JSON
-        request_json = request.get_json(silent=True)
-        if not request_json:
-            logger.error("No JSON body in request")
-            return (json.dumps({"error": "Request must be JSON"}), 400, headers)
-
-        # Check rate limits (validates user_uuid internally)
-        rate_limit_response = is_ratelimited(request_json, headers)
-        if rate_limit_response:
-            return rate_limit_response
-
         # Extract parameters
         tree_dict = request_json.get("tree_dict")
         max_roots_to_process = request_json.get("max_roots_to_process", 20)

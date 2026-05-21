@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>STRATA · ATLAS — folder-nodes mockup 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:        #ece2cd;
+    --paper-2:      #e1d5ba;
+    --paper-3:      #d7c9a8;
+    --ink:          #141414;
+    --ink-soft:     #3a3a3a;
+    --ink-faint:    rgba(20,20,20,0.32);
+    --bp:           #1f5d7a;
+    --bp-2:         #2e87a8;
+    --gold:         #a07628;
+    --warn:         #b8421a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+  }
+
+  /* sheet chrome */
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+  .br-tl, .br-tr, .br-bl, .br-br {
+    --b: 28px;
+    position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink);
+  }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+  header.masthead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .title-block .kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(48px, 7vw, 96px);
+    letter-spacing: 0.02em;
+    line-height: 0.9;
+    margin: 0;
+  }
+  .title-block h1 .tab {
+    background: var(--ink); color: var(--paper);
+    padding: 0 0.18em;
+    font-size: 0.86em;
+  }
+  .title-block .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+  .stamp-block {
+    text-align: right;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block;
+    padding: 4px 8px;
+    border: 1.5px solid var(--ink);
+    margin-top: 6px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .lede {
+    margin-top: 26px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 78ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+
+  .legend {
+    display: flex; gap: 32px; flex-wrap: wrap;
+    margin: 28px 0 20px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    align-items: center;
+  }
+  .legend .swatch {
+    display: inline-block; width: 12px; height: 12px;
+    margin-right: 8px; vertical-align: -1px;
+    border: 1.5px solid var(--ink);
+  }
+  .legend .ringicon { vertical-align: -3px; margin-right: 6px; }
+  .swatch.ink { background: var(--ink); }
+  .swatch.bp  { background: var(--bp); border-color: var(--bp); }
+  .swatch.bp-out { background: transparent; }
+  .swatch.gold { background: var(--gold); border-color: var(--gold); }
+
+  /* canvas */
+  .canvas {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 32px;
+    min-height: 700px;
+    overflow: hidden;
+  }
+  .tick { position: absolute; font-size: 10px; letter-spacing: 0.2em; color: var(--ink-soft); text-transform: uppercase; }
+  .tick.tl { top: 8px; left: 12px; }
+  .tick.tr { top: 8px; right: 12px; }
+  .tick.bl { bottom: 8px; left: 12px; }
+  .tick.br { bottom: 8px; right: 12px; }
+
+  /* compass rose (canvas decoration) */
+  .compass {
+    position: absolute;
+    bottom: 22px; right: 22px;
+    width: 92px; height: 92px;
+    color: var(--gold);
+    opacity: 0.95;
+  }
+
+  /* leaf node */
+  .node {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    padding: 8px 12px 10px;
+    font-size: 11.5px;
+    line-height: 1.25;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.85);
+    min-width: 110px;
+    z-index: 4;
+  }
+  .node .nm { display: block; font-weight: 500; }
+  .node .meta {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 3px;
+  }
+  .node.doc  .nm::before { content: '◰ '; color: var(--bp); }
+  .node.spec .nm::before { content: '◧ '; color: var(--warn); }
+
+  /* folder enclosures */
+  .folder {
+    position: absolute;
+    border: 2px solid var(--ink);
+    padding: 40px 20px 22px;
+  }
+  .folder.lvl-1 {
+    background:
+      repeating-linear-gradient(45deg, transparent 0 11px, rgba(31,93,122,0.06) 11px 12px),
+      var(--paper-2);
+  }
+  .folder.lvl-2 {
+    background:
+      repeating-linear-gradient(-45deg, transparent 0 9px, rgba(160,118,40,0.10) 9px 10px),
+      var(--paper-3);
+    border-color: var(--ink);
+  }
+  .folder.lvl-3 {
+    background:
+      repeating-linear-gradient(90deg, transparent 0 8px, rgba(20,20,20,0.06) 8px 9px),
+      #cebe98;
+    border-color: var(--ink);
+  }
+
+  /* tab + controls strip on folders */
+  .folder .controls {
+    position: absolute;
+    top: -1.5px; left: -1.5px; right: -1.5px;
+    display: flex; align-items: stretch;
+    height: 30px;
+  }
+  .folder .tab {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 12px 5px;
+    border-right: 1.5px solid var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .folder .tab .lvl {
+    color: var(--gold);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .folder .bearing {
+    flex: 1;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 7px 12px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .folder .bearing b { color: var(--gold); font-weight: 500; }
+  .folder .count {
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--bp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    display: flex; align-items: center;
+  }
+  /* icon buttons */
+  .btn {
+    width: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn:last-child { border-right: 0; }
+  .btn.toggle {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 17px;
+    line-height: 1;
+    padding-bottom: 2px;
+  }
+  .btn.toggle.on  { background: var(--ink); color: var(--paper); }
+  .btn.note svg { color: var(--bp); }
+  .btn.note:hover svg { color: var(--ink); }
+
+  /* corner brackets inside folder */
+  .crn {
+    position: absolute; width: 12px; height: 12px; border: 2px solid var(--ink);
+  }
+  .crn.tl { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+  .crn.tr { top: 4px; right: 4px; border-left: 0; border-bottom: 0; }
+  .crn.bl { bottom: 4px; left: 4px; border-right: 0; border-top: 0; }
+  .crn.br { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+
+  /* COLLAPSED folder treatment */
+  .folder.collapsed {
+    padding: 0;
+    min-width: 240px;
+    min-height: 60px;
+    background:
+      linear-gradient(135deg, var(--bp) 0 14px, transparent 14px) top left/26px 26px no-repeat,
+      var(--paper-2);
+  }
+  .folder.collapsed .controls { height: 100%; }
+  .folder.collapsed .tab,
+  .folder.collapsed .bearing,
+  .folder.collapsed .count,
+  .folder.collapsed .btn { border-right: 1.5px solid var(--ink); border-bottom: 0; }
+  .folder.collapsed .count {
+    color: var(--paper); background: var(--bp); border-color: var(--bp);
+  }
+  /* fanned edge ports */
+  .folder.collapsed .edge-fan {
+    position: absolute;
+    right: -1.5px; top: 50%;
+    transform: translateY(-50%);
+    width: 26px; height: 44px;
+    background-image:
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 10%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 55%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 100%/100% 33%;
+    background-repeat: no-repeat;
+  }
+
+  /* svg edges */
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  svg.edges path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  svg.edges path.bp { stroke: var(--bp); stroke-dasharray: 5 4; }
+  svg.edges path.faint { stroke: var(--ink-faint); stroke-dasharray: 2 4; }
+  svg.edges text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    fill: var(--ink-soft);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /* states strip */
+  .states {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .state {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 18px;
+    min-height: 220px;
+  }
+  .state h5 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ink-faint);
+    display: flex; justify-content: space-between;
+  }
+  .state h5 .num { color: var(--gold); }
+
+  /* small folder inside state */
+  .state .mini { position: relative; }
+  .state .mini .folder { position: relative; margin: 0 auto; }
+
+  /* notes */
+  .notes {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .notes section { border-top: 1.5px solid var(--ink); padding-top: 12px; }
+  .notes h4 {
+    margin: 0 0 6px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .notes p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  .footline {
+    margin-top: 36px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // strata family · 04 of 06 // 2026-05-21</div>
+        <h1>str<span class="tab">ata</span> <span style="color:var(--gold)">/ atlas</span></h1>
+        <div class="sub">cartographic — bearings · contours · compass rose</div>
+      </div>
+      <div class="stamp-block">
+        Sheet 04 / 06<br />
+        Scale 1:1<br />
+        Aki · drafting<br />
+        <span class="sn">REV. A · 3-LEVEL</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      <strong>Atlas</strong> treats the graph as territory. Each folder is a <strong>region</strong> with a bearing reading, a contour-shaded ground, and a fixed control bar that always exposes three affordances: <strong>level chip · bearing/count · toggle · folder-note</strong>. Nesting reads as inset survey plates — first hatching at +45°, then -45°, then orthogonal — so the eye can tell three levels deep at a glance.
+    </p>
+
+    <div class="legend">
+      <span><span class="swatch ink"></span>regular node</span>
+      <span><span class="swatch bp"></span>folder edge / count</span>
+      <span><span class="swatch gold"></span>bearing · level</span>
+      <span>
+        <svg class="ringicon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+          <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+          <line x1="5" y1="6" x2="11" y2="6"/>
+          <line x1="5" y1="9" x2="11" y2="9"/>
+          <line x1="5" y1="12" x2="9" y2="12"/>
+        </svg>
+        folder-note (opens .md)
+      </span>
+      <span>
+        <span style="display:inline-block; width:24px; height:14px; border:1.5px solid var(--ink); text-align:center; line-height:11px; font-family:'Major Mono Display',monospace; font-size:13px; vertical-align:-3px; margin-right:6px;">−</span>
+        toggle expand / collapse
+      </span>
+    </div>
+
+    <div class="canvas">
+      <span class="tick tl">+ 000,000 · N</span>
+      <span class="tick tr">+ 1180,000</span>
+      <span class="tick bl">+ 000,700</span>
+      <span class="tick br">+ 1180,700 · S</span>
+
+      <!-- compass rose -->
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" stroke-width="0.6" stroke-dasharray="2 3"/>
+        <path d="M50 8 L54 50 L50 92 L46 50 Z" fill="currentColor" opacity="0.9"/>
+        <path d="M8 50 L50 54 L92 50 L50 46 Z" fill="currentColor" opacity="0.4"/>
+        <text x="50" y="6" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">N</text>
+        <text x="50" y="99" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">S</text>
+        <text x="3" y="52" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">W</text>
+        <text x="93" y="52" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">E</text>
+      </svg>
+
+      <!-- LEVEL 1 folder: folder-nodes -->
+      <div class="folder lvl-1" style="left: 40px; top: 60px; width: 820px; height: 540px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+        <div class="controls">
+          <div class="tab"><span class="lvl">L1</span> folder-nodes</div>
+          <div class="bearing">bearing <b>N 045°</b> · alt +1.4k · region 01</div>
+          <div class="count">× 12 inside</div>
+          <a class="btn note" title="open folder note: folder-nodes.md">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+              <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+              <line x1="5" y1="6" x2="11" y2="6"/>
+              <line x1="5" y1="9" x2="11" y2="9"/>
+              <line x1="5" y1="12" x2="9" y2="12"/>
+            </svg>
+          </a>
+          <a class="btn toggle on" title="collapse">−</a>
+        </div>
+
+        <!-- direct members of L1 -->
+        <div class="node doc"  style="left:  28px; top:  60px;">
+          <span class="nm">design.md</span>
+          <span class="meta">openspec · 1.4k</span>
+        </div>
+        <div class="node spec" style="left: 28px; top: 130px;">
+          <span class="nm">BF-112 file-cap</span>
+          <span class="meta">researching</span>
+        </div>
+
+        <!-- LEVEL 2 folder: epic -->
+        <div class="folder lvl-2" style="left: 230px; top: 60px; width: 560px; height: 440px;">
+          <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+          <div class="controls">
+            <div class="tab"><span class="lvl">L2</span> openspec</div>
+            <div class="bearing">bearing <b>N 088°</b> · alt +0.9k</div>
+            <div class="count">× 8 inside</div>
+            <a class="btn note" title="open folder note: openspec.md">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                <line x1="5" y1="6" x2="11" y2="6"/>
+                <line x1="5" y1="9" x2="11" y2="9"/>
+                <line x1="5" y1="12" x2="9" y2="12"/>
+              </svg>
+            </a>
+            <a class="btn toggle on" title="collapse">−</a>
+          </div>
+
+          <!-- direct members of L2 -->
+          <div class="node" style="left:  22px; top:  58px;">
+            <span class="nm">proposal.md</span>
+            <span class="meta">openspec · 928 B</span>
+          </div>
+          <div class="node" style="left: 22px; top: 130px;">
+            <span class="nm">BF-110 cross-edges</span>
+            <span class="meta">testing</span>
+          </div>
+
+          <!-- LEVEL 3 folder: arch-refactor -->
+          <div class="folder lvl-3" style="left: 200px; top: 58px; width: 330px; height: 280px;">
+            <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+            <div class="controls">
+              <div class="tab"><span class="lvl">L3</span> arch-refactor</div>
+              <div class="bearing">N 132° · <b>folded × IV</b></div>
+              <a class="btn note" title="open folder note: arch-refactor.md">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                  <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                  <line x1="5" y1="6" x2="11" y2="6"/>
+                  <line x1="5" y1="9" x2="11" y2="9"/>
+                  <line x1="5" y1="12" x2="9" y2="12"/>
+                </svg>
+              </a>
+              <a class="btn toggle on" title="collapse">−</a>
+            </div>
+
+            <!-- direct members of L3 -->
+            <div class="node" style="left:  18px; top:  56px;">
+              <span class="nm">BF-116 extract</span>
+              <span class="meta">phase 1 · done</span>
+            </div>
+            <div class="node" style="left: 170px; top:  56px;">
+              <span class="nm">BF-117 unify</span>
+              <span class="meta">phase 2 · done</span>
+            </div>
+            <div class="node" style="left:  18px; top: 140px;">
+              <span class="nm">BF-118 wire</span>
+              <span class="meta">phase 3 · done</span>
+            </div>
+            <div class="node" style="left: 170px; top: 140px;">
+              <span class="nm">BF-119 cleanup</span>
+              <span class="meta">phase 4 · done</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- external nodes -->
+      <div class="node" style="left: 900px; top: 100px;">
+        <span class="nm">graphLint.ts</span>
+        <span class="meta">webapp · shell/edge</span>
+      </div>
+      <div class="node" style="left: 920px; top: 200px;">
+        <span class="nm">~/brain/types.md</span>
+        <span class="meta">linked spec</span>
+      </div>
+
+      <svg class="edges" viewBox="0 0 1180 700" preserveAspectRatio="none">
+        <!-- L1 -> external -->
+        <path class="bp" d="M 860 130 C 880 130, 894 110, 904 110" />
+        <text x="868" y="118">dist 12u · bearing 030°</text>
+        <path class="bp" d="M 860 240 C 890 230, 906 220, 920 215" />
+      </svg>
+    </div>
+
+    <!-- states strip -->
+    <div class="states">
+      <div class="state">
+        <h5>State I — all expanded <span class="num">L1·L2·L3</span></h5>
+        <div class="mini">
+          <div class="folder lvl-1" style="width: 100%; height: 160px; padding-top: 36px;">
+            <div class="controls">
+              <div class="tab" style="font-size:10px"><span class="lvl">L1</span> nodes</div>
+              <div class="bearing" style="font-size:9px">N 045° · ×12</div>
+              <a class="btn note">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                  <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                  <line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="11" y2="9"/>
+                </svg>
+              </a>
+              <a class="btn toggle on">−</a>
+            </div>
+            <div class="folder lvl-2" style="position:absolute; left:54px; top:42px; right:8px; bottom:8px; padding-top:30px;">
+              <div class="controls" style="height:24px">
+                <div class="tab" style="font-size:9px; padding:4px 8px"><span class="lvl">L2</span></div>
+                <div class="bearing" style="font-size:8px; padding:5px 8px">N 088°</div>
+                <a class="btn note" style="width:22px"><svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/><path d="M10.5 1 L10.5 3.5 L13 3.5"/></svg></a>
+                <a class="btn toggle on" style="width:22px; font-size:13px">−</a>
+              </div>
+              <div class="folder lvl-3" style="position:absolute; left:30px; top:30px; right:6px; bottom:6px; padding-top:24px;">
+                <div class="controls" style="height:20px">
+                  <div class="tab" style="font-size:8px; padding:3px 6px"><span class="lvl">L3</span></div>
+                  <div class="bearing" style="font-size:7.5px; padding:4px 6px">N 132°</div>
+                  <a class="btn toggle on" style="width:20px; font-size:11px">−</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="state">
+        <h5>State II — inner folded <span class="num">L3 = bud</span></h5>
+        <div class="mini">
+          <div class="folder lvl-1" style="width: 100%; height: 160px; padding-top: 36px;">
+            <div class="controls">
+              <div class="tab" style="font-size:10px"><span class="lvl">L1</span> nodes</div>
+              <div class="bearing" style="font-size:9px">N 045° · ×12</div>
+              <a class="btn toggle on">−</a>
+            </div>
+            <div class="folder lvl-2" style="position:absolute; left:54px; top:42px; right:8px; bottom:8px; padding-top:30px;">
+              <div class="controls" style="height:24px">
+                <div class="tab" style="font-size:9px; padding:4px 8px"><span class="lvl">L2</span></div>
+                <div class="bearing" style="font-size:8px; padding:5px 8px">N 088°</div>
+                <a class="btn toggle on" style="width:22px; font-size:13px">−</a>
+              </div>
+              <!-- L3 collapsed -->
+              <div class="folder lvl-3 collapsed" style="position:absolute; left:30px; top:32px; width:160px; height:30px;">
+                <div class="controls" style="height:100%">
+                  <div class="tab" style="font-size:8px; padding:3px 6px"><span class="lvl">L3</span> refactor</div>
+                  <div class="count" style="font-size:8px; padding:4px 6px">×4</div>
+                  <a class="btn toggle" style="width:20px; font-size:11px; background:var(--ink); color:var(--paper);">+</a>
+                </div>
+                <span class="edge-fan" style="width:14px; height:22px;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="state">
+        <h5>State III — outer folded <span class="num">L1 = bud</span></h5>
+        <div class="mini">
+          <div class="folder lvl-1 collapsed" style="width: 100%; height: 64px;">
+            <div class="controls" style="height:100%">
+              <div class="tab" style="font-size:11px"><span class="lvl">L1</span> folder-nodes</div>
+              <div class="bearing" style="font-size:9px">N 045°</div>
+              <div class="count" style="font-size:9.5px">×12 folded</div>
+              <a class="btn note" title="folder note">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                  <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                  <line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="11" y2="9"/>
+                </svg>
+              </a>
+              <a class="btn toggle" style="background:var(--ink); color:var(--paper); font-size:15px;">+</a>
+            </div>
+            <span class="edge-fan"></span>
+          </div>
+          <p style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.16em; color:var(--ink-soft); text-transform:uppercase; margin-top:18px; line-height:1.6;">
+            Collapsed sheet exposes its <b style="color:var(--bp)">edge interface</b> as a 3-port fan on the right border. Cross-folder edges meet the fan, never the absent members.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <section>
+        <h4>nesting language</h4>
+        <p>Three hatching directions per level — +45° / -45° / 90° — make depth legible without color. Inner folders inherit the parent ground but add a darker paper tint (paper-2, paper-3) so depth = paper weight.</p>
+      </section>
+      <section>
+        <h4>control bar</h4>
+        <p>Each folder publishes one 30px-tall strip with the same five slots: <b>L# chip · name · bearing/count · note · toggle</b>. Slot positions never change; only their content shrinks at deeper levels. Toggle becomes inverse (ink-on-paper) when collapsed.</p>
+      </section>
+      <section>
+        <h4>folder-note icon</h4>
+        <p>The note glyph is a sheet-with-corner-fold — the same iconography as architectural callout sheets. Clicking opens <b>foldername/foldername.md</b> per the BF-108 identity contract. Glyph color is blueprint cyan so it reads as <em>interface</em>, not status.</p>
+      </section>
+    </div>
+
+    <div class="footline">
+      <span>strata-atlas.html · folder-nodes design 04 · cartographic</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,75 @@
+/*
+ * CSS variables copied verbatim from webapp/src/index.css :root block so the
+ * popup picks up the same tokens it would in-app.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+}
+
+.driver {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.driver h1 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+}
+
+.driver p.intro {
+  margin: 0 0 16px;
+  color: #666;
+  font-size: 0.88rem;
+}
+
+.driver .actions {
+  margin-top: 12px;
+}
+
+.driver button.secondary {
+  padding: 6px 12px;
+  background: white;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.driver .result {
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-left: 3px solid #2563eb;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+}
+
+.driver .result.cancelled {
+  border-left-color: #999;
+  color: #666;
+}

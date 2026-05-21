@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 import { readFileSync, readdirSync, statSync } from 'fs'
 import path from 'path'
-import { scanMarkdownFiles, extractLinks } from '../src/primitives'
+import { scanMarkdownFiles, extractLinks } from '../src/core/primitives'
 
 function percentile(sorted: number[], p: number): number {
     if (sorted.length === 0) return 0

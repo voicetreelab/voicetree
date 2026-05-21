@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateStepSpec } from '../src/debug/stepShape'
+import { validateStepSpec } from '../src/debug/flow/stepShape'
 
 describe('validateStepSpec', () => {
   it('accepts the supported step variants', () => {
@@ -72,7 +72,7 @@ describe('validateStepSpec', () => {
     })
     expect(validateStepSpec({ dispatch: { type: 'Teleport', nodeId: 'x' } })).toEqual({
       ok: false,
-      error: 'dispatch.dispatch.type must be one of: Collapse, Expand, Select, Deselect, AddNode, RemoveNode, AddEdge, RemoveEdge, Move, LoadRoot, UnloadRoot, SetZoom, SetPan, SetPositions, RequestFit',
+      error: 'dispatch.dispatch.type must be one of: SetFolderState, Select, Deselect, AddNode, RemoveNode, AddEdge, RemoveEdge, Move, SetZoom, SetPan, SetPositions, RequestFit',
     })
   })
 })

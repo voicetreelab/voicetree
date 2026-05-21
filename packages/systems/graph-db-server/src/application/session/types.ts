@@ -1,0 +1,25 @@
+export type SessionLayoutPosition = {
+  x: number
+  y: number
+}
+
+export type SessionViewport = {
+  x: number
+  y: number
+}
+
+export type SessionLayout = {
+  positions: Record<string, SessionLayoutPosition>
+  pan: SessionViewport
+  zoom: number
+}
+
+export interface Session {
+  readonly id: string
+  folderState: Map<string, 'expanded' | 'collapsed' | 'hidden'>
+  collapseSet: Set<string>
+  selection: Set<string>
+  expandOverrides: Set<string>
+  layout: SessionLayout
+  lastAccessedAt: number
+}

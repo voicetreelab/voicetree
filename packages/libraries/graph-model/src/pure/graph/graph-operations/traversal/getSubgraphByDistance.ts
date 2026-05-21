@@ -4,10 +4,10 @@
  */
 
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '../..'
-import { createGraph, createEmptyGraph } from '../../createGraph'
-import { getIncomingNodes } from '../getIncomingNodes'
-import { setOutgoingEdges } from '../graph-edge-operations'
-import { removeContextNodes } from '../removeContextNodes'
+import { getIncomingNodes } from '../indexes/getIncomingNodes'
+import { setOutgoingEdges } from '../transforms/graph-edge-operations'
+import { removeContextNodes } from '../transforms/removeContextNodes'
+import { createEmptyGraph, createGraph } from '../graphOperationPrimitives'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.
@@ -90,7 +90,7 @@ function dfsTraversal(
   startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): ReadonlySet<NodeIdAndFilePath> {
-  const processed: ReadonlySet<NodeIdAndFilePath> = new Set()
+  const processed: Set<NodeIdAndFilePath> = new Set()
 
   const dfsVisit: DfsVisitFn = (
     nodeId: NodeIdAndFilePath,
@@ -132,7 +132,7 @@ function dfsTraversal(
  * Merge multiple graphs into one, preserving all edges.
  */
 function mergeGraphs(graphs: readonly Graph[]): Graph {
-  const allNodeIds: ReadonlySet<NodeIdAndFilePath> = new Set()
+  const allNodeIds: Set<NodeIdAndFilePath> = new Set()
   graphs.forEach(g => Object.keys(g.nodes).forEach(id => allNodeIds.add(id)))
 
   const mergedNodes: Record<NodeIdAndFilePath, GraphNode> = Object.fromEntries(

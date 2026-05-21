@@ -1,0 +1,96 @@
+/* gates — gates-section, gate-chip, btn-toggle-gates, gates-body */
+/* =============================================================================
+   GATES
+   ========================================================================== */
+.gates-section { margin-bottom: 2.2rem; }
+
+.btn-toggle-gates {
+  background: transparent;
+  color: var(--paper-muted);
+  border: 1px solid var(--rule-strong);
+  padding: 0.2rem 0.65rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  margin-left: 0.6rem;
+}
+.btn-toggle-gates:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.btn-toggle-gates[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--ink-2);
+  border-color: var(--rule-strong);
+}
+
+.gates-body {
+  padding: 1.1rem 1.2rem 1.15rem;
+  border: 1px solid var(--rule);
+  background: var(--ink-1);
+  display: flex; flex-direction: column; gap: 0.8rem;
+}
+.gates-help {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--paper-muted);
+  max-width: 78ch;
+}
+
+.gate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+}
+
+.gate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.7rem 0.32rem 0.55rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--ink-0);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  cursor: default;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.gate-chip:hover { border-color: var(--accent); }
+
+.gate-chip.is-pass {
+  color: var(--vital);
+  border-color: var(--vital-edge);
+  background: var(--vital-soft);
+}
+.gate-chip.is-fail {
+  color: var(--sig);
+  border-color: var(--sig-edge);
+  background: var(--sig-soft);
+  font-weight: 600;
+}
+.gate-chip.is-stale {
+  color: var(--caution);
+  border-color: var(--caution-edge);
+  background: var(--caution-soft);
+}
+.gate-chip-icon {
+  font-weight: 700;
+  width: 12px;
+  display: inline-flex;
+  justify-content: center;
+}
+.gate-chip-name { line-height: 1.2; font-family: var(--sans); font-size: 0.78rem; }
+.gate-chip-count {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.06rem 0.4rem;
+  background: var(--sig);
+  color: var(--ink-0);
+}
+

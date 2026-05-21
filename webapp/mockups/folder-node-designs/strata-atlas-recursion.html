@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>STRATA · ATLAS — recursion sheet · soft / hard expand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:        #ece2cd;
+    --paper-2:      #e1d5ba;
+    --paper-3:      #d7c9a8;
+    --paper-4:      #cebe98;
+    --ink:          #141414;
+    --ink-soft:     #3a3a3a;
+    --ink-faint:    rgba(20,20,20,0.32);
+    --bp:           #1f5d7a;
+    --bp-2:         #2e87a8;
+    --gold:         #a07628;
+    --warn:         #b8421a;
+    --pick:         #2a7a2a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply; opacity: 0.55;
+  }
+
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1320px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+  .br-tl, .br-tr, .br-bl, .br-br { --b: 28px; position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink); }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+  header.masthead {
+    display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px;
+    padding-bottom: 24px; border-bottom: 2px solid var(--ink);
+  }
+  .title-block .kicker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em; color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(40px, 6vw, 76px);
+    letter-spacing: 0.02em; line-height: 0.9; margin: 0;
+  }
+  .title-block h1 .tab { background: var(--ink); color: var(--paper); padding: 0 0.18em; font-size: 0.86em; }
+  .title-block .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--gold);
+    letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px;
+  }
+  .stamp-block {
+    text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+    line-height: 1.7; color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block; padding: 4px 8px; border: 1.5px solid var(--ink);
+    margin-top: 6px; color: var(--ink); font-weight: 500;
+  }
+
+  .lede {
+    margin-top: 26px; font-size: 14px; line-height: 1.65; color: var(--ink-soft); max-width: 86ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+  .lede em { color: var(--gold); font-style: normal; }
+
+  /* glyph legend with 4 states */
+  .glyphs {
+    margin: 22px 0 18px;
+    display: flex; flex-wrap: wrap; gap: 22px;
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .glyphs span b {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink); font-weight: 600;
+    margin-right: 6px;
+  }
+  .glyphs .g {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    margin-right: 6px;
+    color: var(--ink);
+    vertical-align: -1px;
+  }
+  .glyphs .g.bp { color: var(--bp); }
+  .glyphs .g.gold { color: var(--gold); }
+
+  /* section divider */
+  .section-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+    margin: 48px 0 22px;
+  }
+  .section-bar .id {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 22px;
+    background: var(--ink); color: var(--paper);
+    padding: 4px 12px 3px;
+  }
+  .section-bar .label {
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .section-bar .label .q { color: var(--gold); }
+  .section-bar .rule {
+    border-top: 1.5px solid var(--ink);
+    height: 1px;
+  }
+
+  .section-desc {
+    font-size: 12px; line-height: 1.55; color: var(--ink-soft);
+    max-width: 86ch;
+    margin-bottom: 22px;
+  }
+  .section-desc strong { color: var(--ink); font-weight: 500; }
+  .section-desc em { color: var(--gold); font-style: normal; }
+
+  /* STATE MODEL */
+  .state-model {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 28px 24px 22px;
+    margin-bottom: 8px;
+  }
+  .states-row {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr 32px 1fr 32px 1fr;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 16px;
+  }
+  .st {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 16px 12px;
+    text-align: center;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.7);
+  }
+  .st .glyph {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .st .glyph.bp { color: var(--bp); }
+  .st .glyph.gold { color: var(--gold); }
+  .st .name {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    margin-top: 8px;
+  }
+  .st .desc {
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .arrow {
+    text-align: center;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 16px;
+    color: var(--gold);
+    position: relative;
+  }
+  .arrow .lbl {
+    position: absolute;
+    top: 100%;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .state-model .demote {
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+    padding-top: 14px;
+    border-top: 1px dotted var(--ink-faint);
+  }
+  .state-model .demote b { color: var(--warn); }
+  .state-model .demote .key {
+    display: inline-block;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 1px 6px;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 10px;
+    margin: 0 3px;
+    box-shadow: 1.5px 1.5px 0 -0.5px rgba(20,20,20,0.6);
+  }
+
+  /* RECURSIVE ANATOMY canvas */
+  .canvas {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 28px;
+    overflow: hidden;
+    min-height: 760px;
+  }
+
+  /* folder anatomy */
+  .folder {
+    position: absolute;
+    border: 2px solid var(--ink);
+    padding: 30px 14px 14px;
+  }
+  .folder.lvl-1 {
+    background: repeating-linear-gradient(45deg, transparent 0 11px, rgba(31,93,122,0.06) 11px 12px), var(--paper-2);
+  }
+  .folder.lvl-2 {
+    background: repeating-linear-gradient(-45deg, transparent 0 9px, rgba(160,118,40,0.10) 9px 10px), var(--paper-3);
+  }
+  .folder.lvl-3 {
+    background: repeating-linear-gradient(90deg, transparent 0 8px, rgba(20,20,20,0.06) 8px 9px), var(--paper-4);
+  }
+
+  .folder .controls {
+    position: absolute;
+    top: -1.5px; left: -1.5px; right: -1.5px;
+    display: flex; align-items: stretch;
+    height: 26px;
+  }
+  .folder .tab {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 5px 10px 4px;
+    border-right: 1.5px solid var(--ink);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .folder .tab .lvl {
+    color: var(--gold);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+  }
+  .folder .info {
+    flex: 1;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .folder .info b { color: var(--ink); font-weight: 500; }
+  .folder .count {
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--bp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    display: flex; align-items: center;
+  }
+  .btn {
+    width: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn:last-child { border-right: 0; }
+  .btn.toggle {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .btn.toggle.on { background: var(--ink); color: var(--paper); }
+  .btn.note svg { color: var(--bp); }
+
+  /* collapsed (sealed) compound — drawer-row mirrored as a sealed box in the body */
+  .folder.collapsed {
+    padding: 0;
+    min-height: 40px;
+  }
+  .folder.collapsed .controls {
+    position: relative;
+    top: 0; left: 0; right: 0;
+    height: 100%;
+  }
+  .folder.collapsed .edge-fan {
+    position: absolute;
+    right: -1.5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 32px;
+    background-image:
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 10%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 55%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 100%/100% 33%;
+    background-repeat: no-repeat;
+    z-index: 4;
+  }
+  .folder.collapsed .count {
+    color: var(--paper);
+    background: var(--bp);
+    border-color: var(--bp);
+  }
+
+  /* small "↑ in body" mirror tag for drawer rows that have a graph projection */
+  .ftree .row .mirror {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--paper);
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    margin-left: 8px;
+    line-height: 1.3;
+  }
+  .ftree .row.focus .mirror { background: var(--paper); color: var(--ink); }
+
+  /* case cards below the anatomy canvas */
+  .cases {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .case {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 16px 14px;
+    position: relative;
+  }
+  .case .id-strip {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .case .id-strip .pill {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 13px;
+    padding: 2px 8px 1px;
+    letter-spacing: 0.04em;
+  }
+  .case .id-strip .glyphs {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    margin: 0;
+  }
+  .case .id-strip .glyphs .a { color: var(--ink); }
+  .case .id-strip .glyphs .b { color: var(--gold); }
+  .case .id-strip .name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-left: auto;
+  }
+  .case p {
+    margin: 0 0 8px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .case p:last-child { margin-bottom: 0; }
+  .case p b { color: var(--ink); }
+  .case p em { color: var(--gold); font-style: normal; }
+  .case .ex {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--bp);
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dotted var(--ink-faint);
+  }
+
+  /* graph leaf */
+  .node {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    padding: 6px 10px 8px;
+    font-size: 10.5px;
+    line-height: 1.2;
+    box-shadow: 2.5px 2.5px 0 -1px rgba(20,20,20,0.85);
+    min-width: 100px;
+    z-index: 4;
+  }
+  .node .nm { display: block; font-weight: 500; }
+  .node .meta { font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
+  .node.doc  .nm::before { content: '◰ '; color: var(--bp); }
+
+  /* FILETREE drawer */
+  .ftree {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-top: 2px solid var(--ink);
+    padding: 14px 10px 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--ink);
+    z-index: 3;
+  }
+  .ftree.embedded {
+    position: relative;
+    margin-top: 12px;
+    z-index: 1;
+  }
+  .ftree::before {
+    content: 'UNLOADED';
+    position: absolute;
+    top: -1.5px; left: 10px;
+    transform: translateY(-100%);
+    background: var(--paper); color: var(--ink-soft);
+    border: 1.5px solid var(--ink);
+    border-bottom: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 3px 8px 2px;
+  }
+  .ftree::after {
+    content: attr(data-count);
+    position: absolute;
+    top: -9px; right: 12px;
+    background: var(--paper);
+    color: var(--bp);
+    border: 1.5px solid var(--bp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 2px 7px 1px;
+  }
+  .ftree .row {
+    display: flex; align-items: center;
+    padding: 1px 4px;
+    white-space: pre;
+  }
+  .ftree .row.focus {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .ftree .row.focus .meta { color: var(--gold); }
+  .ftree .row.focus .glyph,
+  .ftree .row.focus .state { color: var(--paper); }
+  .ftree .indent {
+    color: var(--ink-faint);
+    font-weight: 300;
+  }
+  .ftree .row.focus .indent { color: rgba(255,255,255,0.4); }
+  .ftree .state {
+    display: inline-block;
+    width: 14px;
+    color: var(--ink);
+    text-align: center;
+  }
+  .ftree .glyph {
+    width: 16px;
+    color: var(--bp);
+  }
+  .ftree .name { flex: 1; }
+  .ftree .meta {
+    color: var(--ink-soft);
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-left: 10px;
+  }
+
+  /* RECURSION callout pins */
+  .recursion-pin {
+    position: absolute;
+    pointer-events: none;
+    z-index: 12;
+  }
+  .recursion-pin .arrow {
+    position: absolute;
+    background: var(--gold);
+    height: 1.5px;
+    transform-origin: left center;
+  }
+  .recursion-pin .pin {
+    background: var(--gold); color: var(--paper);
+    padding: 4px 10px 3px;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.7);
+  }
+  .recursion-pin .pin .small {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paper);
+    opacity: 0.9;
+    margin-top: 2px;
+  }
+
+  /* SCENARIO frames */
+  .scenario {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .frame.wide {
+    grid-column: 1 / -1;
+  }
+  .frame.wide .render { height: 360px; }
+  .new-pill {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 6.5px;
+    letter-spacing: 0.18em;
+    padding: 1px 4px;
+    margin-left: 4px;
+    text-transform: uppercase;
+    vertical-align: 1px;
+  }
+  .frame {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 14px 14px;
+    min-height: 280px;
+  }
+  .frame .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .frame .head .step {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .frame .head .step b {
+    background: var(--ink); color: var(--paper);
+    padding: 2px 8px 1px;
+    margin-right: 6px;
+  }
+  .frame .head .key {
+    display: inline-block;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 1px 6px;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 11px;
+    box-shadow: 1.5px 1.5px 0 -0.5px rgba(20,20,20,0.6);
+    margin: 0 2px;
+  }
+  .frame .head .verb {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-left: 6px;
+  }
+  .frame .render {
+    position: relative;
+    height: 200px;
+    border: 1px solid var(--ink-faint);
+    overflow: hidden;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.10) 1px, transparent 1px) 0 0/24px 24px,
+      linear-gradient(90deg, rgba(20,20,20,0.10) 1px, transparent 1px) 0 0/24px 24px;
+    padding: 4px;
+  }
+  .frame .caption {
+    margin-top: 10px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .frame .caption b { color: var(--ink); }
+  .frame .caption em {
+    color: var(--gold);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  /* in-frame mini renderings */
+  .mini-folder {
+    position: absolute;
+    background: var(--paper-2);
+    border: 1.5px solid var(--ink);
+  }
+  .mini-folder.lvl-1 {
+    background: repeating-linear-gradient(45deg, transparent 0 7px, rgba(31,93,122,0.10) 7px 8px), var(--paper-2);
+  }
+  .mini-folder.lvl-2 {
+    background: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(160,118,40,0.14) 6px 7px), var(--paper-3);
+  }
+  .mini-folder.lvl-3 {
+    background: repeating-linear-gradient(90deg, transparent 0 5px, rgba(20,20,20,0.10) 5px 6px), var(--paper-4);
+  }
+  .mini-folder .ctrl {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 8px;
+    padding: 2px 5px 1px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1.5px solid var(--ink);
+    line-height: 1.2;
+  }
+  .mini-folder .ctrl .lvl {
+    color: var(--gold);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7px;
+  }
+  .mini-folder .ctrl .toggle {
+    background: var(--paper); color: var(--ink);
+    padding: 0 3px;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 9px;
+  }
+  .mini-folder .ctrl .toggle.on { background: var(--paper); }
+  .mini-node {
+    position: absolute;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    font-size: 7.5px;
+    padding: 2px 4px;
+    line-height: 1.15;
+    box-shadow: 1px 1px 0 -0.3px rgba(20,20,20,0.7);
+    color: var(--ink);
+  }
+  .mini-ftree {
+    position: absolute;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-top: 1.5px solid var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5px;
+    line-height: 1.45;
+    color: var(--ink);
+    padding: 3px 4px;
+  }
+  .mini-ftree .row { white-space: pre; padding: 0 2px; }
+  .mini-ftree .row.focus { background: var(--ink); color: var(--paper); }
+  .mini-ftree .row .glyph { color: var(--bp); }
+  .mini-ftree .row.focus .glyph { color: var(--paper); }
+  .mini-ftree .row .state {
+    display: inline-block; width: 8px; color: var(--ink); text-align: center;
+  }
+  .mini-ftree .row.focus .state { color: var(--paper); }
+
+  /* laws */
+  .laws {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 0;
+    margin-top: 8px;
+  }
+  .laws ol {
+    list-style: none;
+    margin: 0; padding: 0;
+    counter-reset: law;
+  }
+  .laws li {
+    counter-increment: law;
+    padding: 14px 22px 14px 70px;
+    border-bottom: 1px dotted var(--ink-faint);
+    position: relative;
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .laws li:last-child { border-bottom: 0; }
+  .laws li::before {
+    content: 'L' counter(law);
+    position: absolute;
+    left: 14px; top: 14px;
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 12px;
+    padding: 3px 9px 2px;
+    letter-spacing: 0.04em;
+  }
+  .laws li b { color: var(--ink); }
+  .laws li em { color: var(--gold); font-style: normal; }
+
+  /* edge cases grid */
+  .edges {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 8px;
+  }
+  .edge {
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 16px;
+  }
+  .edge h5 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--warn);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .edge p { font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); margin: 0; }
+  .edge p b { color: var(--ink); }
+
+  /* d1 revisit box */
+  .revisit {
+    margin-top: 8px;
+    border: 2px dashed var(--gold);
+    background: var(--paper);
+    padding: 18px 22px;
+    position: relative;
+  }
+  .revisit::before {
+    content: 'D1 · revisit';
+    position: absolute;
+    top: -10px; left: 18px;
+    background: var(--gold); color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    padding: 3px 10px;
+  }
+  .revisit p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.55; color: var(--ink); }
+  .revisit p:last-child { margin-bottom: 0; }
+  .revisit p b { color: var(--ink); }
+  .revisit p em { color: var(--gold); font-style: normal; }
+
+  .footline {
+    margin-top: 56px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+    border-top: 1.5px solid var(--ink);
+    padding-top: 14px;
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // strata · atlas / recursion sheet // 2026-05-21</div>
+        <h1>str<span class="tab">ata</span> / <span style="color:var(--gold)">recursion</span></h1>
+        <div class="sub">soft expand · hard expand · turtles all the way</div>
+      </div>
+      <div class="stamp-block">
+        Sheet 04.R / 06<br />
+        Recursive anatomy<br />
+        Aki · drafting<br />
+        <span class="sn">SOFT vs HARD</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      Two expand actions, not one. <strong>Soft expand</strong> is filetree-style: the drawer entry opens to show its children as more list rows, inline, still inside the same drawer. <strong>Hard expand</strong> promotes the folder to a full graph compound node — a new boxed region with its own spatial body <em>and its own drawer</em>. The recursion question is: <em>what happens when you soft-expand to depth 2 then hard-expand the deep entry?</em> Below: the state model, the recursive anatomy, the scenario step-by-step, and the laws that fall out.
+    </p>
+
+    <div class="glyphs">
+      <span><span class="g">▶</span> collapsed (drawer row)</span>
+      <span><span class="g">▼</span> soft-expanded (drawer row, children listed below)</span>
+      <span><span class="g gold">▣</span> hard-expanded (graph compound node)</span>
+      <span><span class="g bp">□</span> unloaded indicator (any non-hard state)</span>
+      <span><b>↵</b> hard-expand · <b>→</b> soft-expand · <b>←</b> soft-collapse · <b>[−]</b> seal · <b>⌘W</b> demote</span>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- STATE MODEL -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">M</div>
+      <div class="label">state model — <span class="q">four states per folder, three live transitions</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Every folder in the system is in exactly one of four states. The state lives at the folder, not at the user — two windows looking at the same folder see the same state. Soft and hard are <strong>not nested levels</strong> of the same action; they're <strong>different actions</strong> on the same row.
+    </p>
+
+    <div class="state-model">
+      <div class="states-row">
+        <div class="st">
+          <div class="glyph">▶</div>
+          <div class="name">collapsed</div>
+          <div class="desc">a row in a drawer<br/>no children visible</div>
+        </div>
+        <div class="arrow">→<span class="lbl">→ / click</span></div>
+        <div class="st">
+          <div class="glyph">▼</div>
+          <div class="name">soft-expanded</div>
+          <div class="desc">a row in a drawer<br/>children listed below</div>
+        </div>
+        <div class="arrow">↵<span class="lbl">↵ / dbl-click</span></div>
+        <div class="st">
+          <div class="glyph gold">▣</div>
+          <div class="name">hard-expanded</div>
+          <div class="desc">a graph compound<br/>own body + own drawer</div>
+        </div>
+        <div class="arrow">[−]<span class="lbl">toggle</span></div>
+        <div class="st">
+          <div class="glyph gold">▣</div>
+          <div class="name">sealed</div>
+          <div class="desc">a graph compound<br/>contents hidden</div>
+        </div>
+      </div>
+      <div class="demote">
+        <b>demote · </b> <span class="key">⌘W</span> on a focused compound returns it to the drawer of its parent as a <b>▶ collapsed</b> row — symmetric inverse of <span class="key">↵</span>.<br/>
+        <b>cascade · </b> hard-expanding a depth-N entry implicitly hard-expands every ancestor on the path to the nearest already-hard ancestor. The chain promotes together.
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- RECURSIVE ANATOMY · THREE STATES -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">A</div>
+      <div class="label">three states · recursive anatomy — <span class="q">drawer is the registry; graph is the projection</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Every child of an expanded folder is in one of three states. The <strong>drawer</strong> is the canonical registry — every child has a row there, whether loaded or not. The <strong>graph body</strong> is a spatial projection of the loaded subset. <em>Collapsed compounds keep their drawer row AND appear as sealed boxes in the body</em> — so their edges to other graph nodes stay visible. That's the load-bearing trick that lets you see cross-folder relationships without expanding everything. Below: all three states demonstrated at L1, L2, and L3.
+    </p>
+
+    <div class="canvas" style="min-height: 920px;">
+      <!-- L1 folder (expanded) -->
+      <div class="folder lvl-1" style="left: 30px; top: 30px; width: 1090px; height: 870px;">
+        <div class="controls">
+          <div class="tab"><span class="lvl">L1</span> folder-nodes · ▣ expanded</div>
+          <div class="info">loaded ×2 · unloaded ×2</div>
+          <div class="count">×4 children</div>
+          <a class="btn note">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+              <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+              <line x1="5" y1="6" x2="11" y2="6"/>
+              <line x1="5" y1="9" x2="11" y2="9"/>
+            </svg>
+          </a>
+          <a class="btn toggle on">−</a>
+        </div>
+
+        <!-- L1 loaded leaf -->
+        <div class="node doc" style="left: 22px; top: 44px;">
+          <span class="nm">design.md</span>
+          <span class="meta">openspec · 1.4k</span>
+        </div>
+
+        <!-- L2-A openspec EXPANDED (case C at L2) -->
+        <div class="folder lvl-2" style="left: 22px; top: 120px; width: 700px; height: 600px;">
+          <div class="controls">
+            <div class="tab"><span class="lvl">L2</span> openspec · ▣ expanded</div>
+            <div class="info">loaded ×2 · unloaded ×2</div>
+            <div class="count">×4</div>
+            <a class="btn note">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                <line x1="5" y1="6" x2="11" y2="6"/>
+                <line x1="5" y1="9" x2="11" y2="9"/>
+              </svg>
+            </a>
+            <a class="btn toggle on">−</a>
+          </div>
+
+          <!-- L2 loaded leaf -->
+          <div class="node doc" style="left: 18px; top: 44px;">
+            <span class="nm">proposal.md</span>
+            <span class="meta">openspec · 928 B</span>
+          </div>
+
+          <!-- L3-A arch-refactor EXPANDED (case C at L3) -->
+          <div class="folder lvl-3" style="left: 18px; top: 120px; width: 400px; height: 280px;">
+            <div class="controls">
+              <div class="tab"><span class="lvl">L3</span> arch-refactor · ▣ expanded</div>
+              <div class="info">×0 · ×4</div>
+              <a class="btn toggle on">−</a>
+            </div>
+
+            <!-- L3-A inner collapsed compound (case B at L3-A's level) -->
+            <div class="folder lvl-3 collapsed" style="left: 14px; top: 32px; width: 200px; height: 38px;">
+              <div class="controls">
+                <div class="tab" style="font-size:10px; padding:5px 8px"><span class="lvl">L4</span> phase-1-legacy</div>
+                <div class="count">×3</div>
+                <a class="btn toggle">+</a>
+              </div>
+              <span class="edge-fan"></span>
+            </div>
+
+            <!-- L3-A drawer -->
+            <div class="ftree embedded" data-count="×4" style="position: absolute; left: 14px; right: 14px; top: 86px; bottom: 14px;">
+              <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph" style="color: var(--gold);">▣</span><span class="name"> phase-1-legacy/</span><span class="mirror">↑ in body</span></div>
+              <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> BF-116-extract.md</span></div>
+              <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> BF-117-unify.md</span></div>
+              <div class="row"><span class="indent">└</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> BF-118-wire.md</span></div>
+            </div>
+          </div>
+
+          <!-- L3-B legacy/ COLLAPSED (case B at L3) -->
+          <div class="folder lvl-3 collapsed" style="left: 440px; top: 120px; width: 240px; height: 40px;">
+            <div class="controls">
+              <div class="tab"><span class="lvl">L3</span> legacy</div>
+              <div class="count">×6 sealed</div>
+              <a class="btn note">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                  <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                  <line x1="5" y1="6" x2="11" y2="6"/>
+                  <line x1="5" y1="9" x2="11" y2="9"/>
+                </svg>
+              </a>
+              <a class="btn toggle">+</a>
+            </div>
+            <span class="edge-fan"></span>
+          </div>
+
+          <!-- L2-A drawer · all 4 children listed, with mirrors -->
+          <div class="ftree embedded" data-count="×4 registry" style="position: absolute; left: 18px; right: 18px; bottom: 18px;">
+            <div class="row"><span class="indent">├</span><span class="state">▼</span><span class="glyph" style="color: var(--gold);">▣</span><span class="name"> arch-refactor/</span><span class="mirror">expanded · ↑ in body</span></div>
+            <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph" style="color: var(--gold);">▣</span><span class="name"> legacy/</span><span class="mirror">collapsed · ↑ in body</span></div>
+            <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> tasks.md</span><span class="meta">unloaded</span></div>
+            <div class="row"><span class="indent">└</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> CHANGELOG.md</span><span class="meta">unloaded</span></div>
+          </div>
+        </div>
+
+        <!-- L2-B specs/ COLLAPSED (case B at L2) -->
+        <div class="folder lvl-2 collapsed" style="left: 760px; top: 120px; width: 290px; height: 40px;">
+          <div class="controls">
+            <div class="tab"><span class="lvl">L2</span> specs</div>
+            <div class="count">×6 sealed</div>
+            <a class="btn note">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                <line x1="5" y1="6" x2="11" y2="6"/>
+                <line x1="5" y1="9" x2="11" y2="9"/>
+              </svg>
+            </a>
+            <a class="btn toggle">+</a>
+          </div>
+          <span class="edge-fan"></span>
+        </div>
+
+        <!-- L1 drawer · all 4 children listed, with mirrors -->
+        <div class="ftree embedded" data-count="×4 registry" style="position: absolute; left: 22px; right: 22px; bottom: 18px;">
+          <div class="row"><span class="indent">├</span><span class="state">▼</span><span class="glyph" style="color: var(--gold);">▣</span><span class="name"> openspec/</span><span class="mirror">expanded · ↑ in body</span></div>
+          <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph" style="color: var(--gold);">▣</span><span class="name"> specs/</span><span class="mirror">collapsed · ↑ in body</span></div>
+          <div class="row"><span class="indent">├</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> tasks-archive/</span><span class="meta">unloaded · ×12 inside</span></div>
+          <div class="row"><span class="indent">└</span><span class="state">▶</span><span class="glyph">□</span><span class="name"> README.md</span><span class="meta">unloaded · doc</span></div>
+        </div>
+      </div>
+
+      <!-- EDGE LAYER · the key demonstration: edges to sealed compounds stay visible -->
+      <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;" viewBox="0 0 1180 920" preserveAspectRatio="none">
+        <!-- design.md (L1 leaf) → specs/ (L2-B sealed compound) -->
+        <path d="M 200 105 C 380 105, 580 120, 790 145" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <circle cx="790" cy="145" r="3.5" fill="#1f5d7a"/>
+        <!-- L2-A openspec right border → L2-B specs sealed left -->
+        <path d="M 722 200 C 745 200, 760 180, 785 165" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <circle cx="785" cy="165" r="3.5" fill="#1f5d7a"/>
+        <!-- inside L2-A: proposal.md → L3-B legacy sealed -->
+        <path d="M 142 215 C 280 230, 380 245, 472 260" fill="none" stroke="#1f5d7a" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <circle cx="472" cy="260" r="3.5" fill="#1f5d7a"/>
+        <!-- inside L3-A: the phase-1-legacy sealed compound has an edge to a sibling drawer mirror — show with a tiny dotted line -->
+        <path d="M 240 195 C 268 195, 282 190, 296 192" fill="none" stroke="#1f5d7a" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.7"/>
+
+        <!-- edge labels -->
+        <text x="380" y="98" font-family="IBM Plex Mono" font-size="10" fill="#a07628" letter-spacing="1.5">EDGE TO SEALED L2 — visible because specs/ is collapsed not unloaded</text>
+        <text x="195" y="280" font-family="IBM Plex Mono" font-size="10" fill="#a07628" letter-spacing="1.5">EDGE TO SEALED L3 — same trick, one level deeper</text>
+      </svg>
+    </div>
+
+    <!-- case cards below the anatomy canvas -->
+    <div class="cases">
+      <div class="case">
+        <div class="id-strip">
+          <span class="pill">A</span>
+          <span class="glyphs"><span class="a">▶</span><span class="a">□</span></span>
+          <span class="name">unloaded</span>
+        </div>
+        <p><b>Drawer row only.</b> No graph projection — no node, no edges, no presence in any body. Just a row in the parent's registry.</p>
+        <p>Cheapest state. The vault can have <em>thousands</em> of folders in this state with zero render cost.</p>
+        <div class="ex">in canvas: tasks-archive/ · README.md · BF-116/117/118</div>
+      </div>
+
+      <div class="case">
+        <div class="id-strip">
+          <span class="pill" style="background: var(--bp);">B</span>
+          <span class="glyphs"><span class="a">▶</span><span class="b">▣</span></span>
+          <span class="name">collapsed · sealed</span>
+        </div>
+        <p><b>Drawer row AND sealed compound in body.</b> The compound is a single boxed node — contents hidden, but the box itself participates in the graph: <em>edges to and from its members are aggregated onto its border</em>.</p>
+        <p>This is the new option you proposed. It lets users see cross-folder structure without paying load cost for the contents.</p>
+        <div class="ex">in canvas: L2-B specs/ · L3-B legacy/ · L4 phase-1-legacy/ (3 levels of B)</div>
+      </div>
+
+      <div class="case">
+        <div class="id-strip">
+          <span class="pill" style="background: var(--gold);">C</span>
+          <span class="glyphs"><span class="a">▼</span><span class="b">▣</span></span>
+          <span class="name">expanded</span>
+        </div>
+        <p><b>Drawer row AND open compound in body.</b> The compound is itself an expanded folder — <em>control bar + spatial body + its own drawer</em>. Same anatomy as the outer one. Recursion.</p>
+        <p>The drawer row shows ▼ (matching the compound's expanded state) and an "↑ in body" mirror tag so the user knows the two views are the same entity.</p>
+        <div class="ex">in canvas: L1 (root) · L2-A openspec · L3-A arch-refactor · turtles all the way</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- SCENARIO -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">S</div>
+      <div class="label">scenario — <span class="q">soft-expand to depth 2, then hard-expand the deep entry</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Walking your exact example. <strong>F1</strong> starts with one hard-expanded folder; <strong>F6</strong> ends with three hard-expanded folders, each with its own drawer. The interesting moment is <strong>F4 → F5</strong>: ↵ cascades hard-expansion through the implicit ancestor chain, so two new compounds appear simultaneously.
+    </p>
+
+    <div class="scenario">
+      <!-- F1 -->
+      <div class="frame">
+        <div class="head">
+          <span class="step"><b>F1</b> start</span>
+          <span class="verb">drawer is collapsed, depth 0</span>
+        </div>
+        <div class="render">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle on">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 78px; top: 22px;">BF-112</div>
+            <div class="mini-ftree" style="left: 6px; right: 6px; bottom: 4px; height: 96px;">
+              <div style="font-size:6.5px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED ×4</div>
+              <div class="row focus"><span class="state">▶</span><span class="glyph">□</span> openspec/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> CHANGELOG.md</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <b>folder-nodes</b> is hard-expanded (▣). Its body holds 2 loaded leaves; its drawer holds 4 unloaded entries, all <em>▶ collapsed</em>. Cursor on <b>openspec/</b>. Next: <span class="key" style="font-size:10px; border:1.5px solid var(--ink); padding:1px 5px;">→</span> to soft-expand.
+        </div>
+      </div>
+
+      <!-- F2 -->
+      <div class="frame">
+        <div class="head">
+          <span class="step"><b>F2</b> soft-expand openspec/</span>
+          <span class="verb">+ depth 1 inline</span>
+        </div>
+        <div class="render">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle on">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 78px; top: 22px;">BF-112</div>
+            <div class="mini-ftree" style="left: 6px; right: 6px; bottom: 4px; height: 124px;">
+              <div style="font-size:6.5px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED ×4 · soft ×1</div>
+              <div class="row focus"><span class="state">▼</span><span class="glyph">□</span> openspec/</div>
+              <div class="row" style="padding-left:14px;"><span class="state">▶</span><span class="glyph">□</span> proposal.md</div>
+              <div class="row" style="padding-left:14px;"><span class="state">▶</span><span class="glyph">□</span> arch-refactor/</div>
+              <div class="row" style="padding-left:14px;"><span class="state">▶</span><span class="glyph">□</span> tasks.md</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          openspec/ flips ▶ → <em>▼</em>. Its three children appear <em>indented</em> in the same drawer. <b>Still inside folder-nodes' drawer</b> — no new compound. Cursor steps down to <b>arch-refactor/</b>.
+        </div>
+      </div>
+
+      <!-- F3 -->
+      <div class="frame">
+        <div class="head">
+          <span class="step"><b>F3</b> soft-expand arch-refactor/</span>
+          <span class="verb">+ depth 2 inline</span>
+        </div>
+        <div class="render">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle on">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 78px; top: 22px;">BF-112</div>
+            <div class="mini-ftree" style="left: 6px; right: 6px; bottom: 4px; height: 144px;">
+              <div style="font-size:6.5px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED ×4 · soft ×2</div>
+              <div class="row"><span class="state">▼</span><span class="glyph">□</span> openspec/</div>
+              <div class="row" style="padding-left:14px;"><span class="state">▶</span><span class="glyph">□</span> proposal.md</div>
+              <div class="row focus" style="padding-left:14px;"><span class="state">▼</span><span class="glyph">□</span> arch-refactor/</div>
+              <div class="row" style="padding-left:28px;"><span class="state">▶</span><span class="glyph">□</span> BF-116</div>
+              <div class="row" style="padding-left:28px;"><span class="state">▶</span><span class="glyph">□</span> BF-117</div>
+              <div class="row" style="padding-left:28px;"><span class="state">▶</span><span class="glyph">□</span> BF-118</div>
+              <div class="row" style="padding-left:14px;"><span class="state">▶</span><span class="glyph">□</span> tasks.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          arch-refactor/ flips ▶ → <em>▼</em>. Its BF-* children appear at depth 2 in the same drawer. Both openspec/ and arch-refactor/ are <b>soft-expanded simultaneously</b> — soft state composes freely. Cursor stays on <b>arch-refactor/</b>. Next: <span class="key" style="font-size:10px; border:1.5px solid var(--ink); padding:1px 5px;">↵</span> to hard-expand.
+        </div>
+      </div>
+
+      <!-- F4 -->
+      <div class="frame wide" style="background: linear-gradient(180deg, var(--paper), rgba(160,118,40,0.07)); border-color: var(--gold);">
+        <div class="head" style="border-bottom-color: var(--gold);">
+          <span class="step"><b>F4</b> ↵ HARD-EXPAND arch-refactor</span>
+          <span class="verb" style="color: var(--warn);">cascade · 2 new compounds · 3 new drawers</span>
+        </div>
+        <div class="render" style="height: 360px;">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes · ▣</span><span class="toggle on">−</span></div>
+
+            <!-- L1 loaded leaves -->
+            <div class="mini-node" style="left: 10px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 84px; top: 22px;">BF-112</div>
+
+            <!-- new L2 openspec compound -->
+            <div class="mini-folder lvl-2" style="left: 10px; top: 50px; right: 10px; height: 248px;">
+              <div class="ctrl"><span><span class="lvl">L2</span> openspec · ▣<span class="new-pill">new · cascade</span></span><span class="toggle on">−</span></div>
+
+              <!-- new L3 arch-refactor compound (the explicit target) -->
+              <div class="mini-folder lvl-3" style="left: 10px; top: 18px; right: 10px; height: 168px;">
+                <div class="ctrl"><span><span class="lvl">L3</span> arch-refactor · ▣<span class="new-pill">new · target</span></span><span class="toggle on">−</span></div>
+
+                <!-- L3's own drawer · 3 rows -->
+                <div class="mini-ftree" style="left: 6px; right: 6px; top: 18px; bottom: 4px; font-size: 8.5px; line-height: 1.5;">
+                  <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×3 — L3 owns its drawer</div>
+                  <div class="row"><span class="state">▶</span><span class="glyph">□</span> BF-116-extract.md</div>
+                  <div class="row"><span class="state">▶</span><span class="glyph">□</span> BF-117-unify.md</div>
+                  <div class="row"><span class="state">▶</span><span class="glyph">□</span> BF-118-wire.md</div>
+                </div>
+              </div>
+
+              <!-- L2's own drawer · 2 rows -->
+              <div class="mini-ftree" style="left: 10px; right: 10px; bottom: 4px; height: 50px; font-size: 8.5px; line-height: 1.5;">
+                <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×2 — L2 owns its drawer · proposal stays unloaded (not the target)</div>
+                <div class="row"><span class="state">▶</span><span class="glyph">□</span> proposal.md</div>
+                <div class="row"><span class="state">▶</span><span class="glyph">□</span> tasks.md</div>
+              </div>
+            </div>
+
+            <!-- L1 drawer -->
+            <div class="mini-ftree" style="left: 10px; right: 10px; bottom: 4px; height: 50px; font-size: 8.5px; line-height: 1.5;">
+              <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×2 — openspec/ left the drawer (now in body)</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <em>This is the recursive moment.</em> ↵ on arch-refactor/ requires openspec/ to host it spatially — so the <b>ancestor chain hard-expands together</b>. Three new drawers appear at once: <b>L3 arch-refactor</b> with its own <em>BF-116 / 117 / 118</em>, <b>L2 openspec</b> with its own <em>proposal.md / tasks.md</em> (note: these stay <em>unloaded</em> — openspec was only promoted as a cascade ancestor, its other children weren't the target), and <b>L1</b> sheds openspec/ which is now in the body. Same anatomy at every level.
+        </div>
+      </div>
+
+      <!-- F5 -->
+      <div class="frame wide">
+        <div class="head">
+          <span class="step"><b>F5</b> walk to BF-118 in L3 drawer, ↵</span>
+          <span class="verb">+ leaf graph node · no cascade · L3 drawer −1</span>
+        </div>
+        <div class="render" style="height: 360px;">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle on">−</span></div>
+
+            <div class="mini-node" style="left: 10px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 84px; top: 22px;">BF-112</div>
+
+            <div class="mini-folder lvl-2" style="left: 10px; top: 50px; right: 10px; height: 248px;">
+              <div class="ctrl"><span><span class="lvl">L2</span> openspec</span><span class="toggle on">−</span></div>
+
+              <div class="mini-folder lvl-3" style="left: 10px; top: 18px; right: 10px; height: 168px;">
+                <div class="ctrl"><span><span class="lvl">L3</span> arch-refactor</span><span class="toggle on">−</span></div>
+
+                <!-- BF-118 newly promoted to L3 body -->
+                <div class="mini-node" style="left: 10px; top: 22px;">BF-118 wire<span class="new-pill">new</span></div>
+
+                <!-- L3 drawer · 2 rows -->
+                <div class="mini-ftree" style="left: 6px; right: 6px; top: 52px; bottom: 4px; font-size: 8.5px; line-height: 1.5;">
+                  <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×2 — BF-118 left the drawer (now in body)</div>
+                  <div class="row"><span class="state">▶</span><span class="glyph">□</span> BF-116-extract.md</div>
+                  <div class="row"><span class="state">▶</span><span class="glyph">□</span> BF-117-unify.md</div>
+                </div>
+              </div>
+
+              <!-- L2 drawer unchanged from F4 -->
+              <div class="mini-ftree" style="left: 10px; right: 10px; bottom: 4px; height: 50px; font-size: 8.5px; line-height: 1.5;">
+                <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×2 — unchanged</div>
+                <div class="row"><span class="state">▶</span><span class="glyph">□</span> proposal.md</div>
+                <div class="row"><span class="state">▶</span><span class="glyph">□</span> tasks.md</div>
+              </div>
+            </div>
+
+            <div class="mini-ftree" style="left: 10px; right: 10px; bottom: 4px; height: 50px; font-size: 8.5px; line-height: 1.5;">
+              <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:3px;">UNLOADED ×2 — unchanged</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          ↵ on BF-118 (a markdown file with no descendants) loads it as a <b>leaf graph node</b> inside arch-refactor's body. <em>No cascade</em> — its only ancestor (arch-refactor) is already hard. Arch-refactor's drawer drops BF-118 (now ×2). L2 and L1 drawers are untouched. Compare with F4: only the L3-local effect.
+        </div>
+      </div>
+
+      <!-- F6 -->
+      <div class="frame">
+        <div class="head">
+          <span class="step"><b>F6</b> [−] seal openspec</span>
+          <span class="verb">contents hidden, state preserved</span>
+        </div>
+        <div class="render">
+          <div class="mini-folder lvl-1" style="left: 4px; top: 4px; right: 4px; bottom: 4px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle on">−</span></div>
+            <div class="mini-node" style="left: 6px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 64px; top: 22px;">BF-112</div>
+            <!-- sealed L2 -->
+            <div class="mini-folder lvl-2" style="left: 6px; top: 50px; right: 6px; height: 22px;">
+              <div class="ctrl"><span><span class="lvl">L2</span> openspec · sealed</span><span class="toggle">+</span></div>
+            </div>
+            <div style="position: absolute; left: 6px; top: 78px; right: 6px; font-size:6.5px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; line-height:1.5;">
+              hidden but preserved: L3 + arch-refactor + BF-118 + L2 drawer
+            </div>
+            <div class="mini-ftree" style="left: 6px; right: 6px; bottom: 4px; height: 36px;">
+              <div style="font-size:6.5px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase;">UNLOADED ×2</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="state">▶</span><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          [−] on openspec's toggle <b>seals</b> the compound — it becomes the STRATA collapsed state. Edge interface still publishes; <em>everything inside (L3 + BF-118 + drawers) is preserved</em>. [+] re-opens exactly the same nested state. Demote (⌘W) would instead return openspec to the L1 drawer as ▶ collapsed.
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- LAWS -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">L</div>
+      <div class="label">laws — <span class="q">invariants that fall out</span></div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="laws">
+      <ol>
+        <li><b>Same anatomy at every level.</b> A hard-expanded folder = <em>control bar · spatial body · drawer</em>. No exceptions, no special leaf level, no "outermost" case. <em>Recursion is the design.</em></li>
+        <li><b>Body holds loaded; drawer holds unloaded.</b> A folder's children are partitioned exactly: <em>▣ hard</em> children live as nodes/compounds in the body; <em>▶/▼</em> children live as rows in the drawer. A child is never both.</li>
+        <li><b>Soft is free; hard cascades up.</b> Soft-expand is purely local — composes freely at any depth. Hard-expand on a row at depth-N implicitly hard-expands every ancestor up to the nearest already-hard ancestor. Down does not cascade — only the explicit target promotes.</li>
+        <li><b>Soft state survives hard transitions.</b> If you soft-expanded openspec/ then hard-expanded it, the new L2 compound's drawer remembers your soft-expansion of its tasks/ child (if any). Closing and reopening preserves the unfold tree.</li>
+        <li><b>Seal preserves; demote forgets.</b> [−] keeps every nested compound, drawer state, and leaf node alive but hidden. ⌘W (demote) returns a compound to its parent drawer as ▶ collapsed and discards its internal state.</li>
+        <li><b>Drawer rows can be focused; bodies can be focused; never both.</b> Arrow-key scope is tied to one focus context at a time. <span style="font-family:'Major Mono Display',monospace; background:var(--paper-2); padding:1px 5px; font-size:11px;">Esc</span> walks focus outward: drawer → parent compound → grandparent → canvas.</li>
+        <li><b>The "1280-files cap" remains a hard ceiling on loaded count.</b> Soft-expanding 5,000 list rows is fine — they're text. Hard-expanding 5,000 compounds is not. The drawer's job is <em>let users browse without paying load cost</em>.</li>
+      </ol>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- EDGE CASES -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">E</div>
+      <div class="label">edge cases — <span class="q">what to do when the model strains</span></div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="edges">
+      <div class="edge">
+        <h5>all children loaded</h5>
+        <p>If a folder has 0 unloaded children, the drawer disappears entirely — no empty drawer chrome. A small <b>×0 unloaded</b> chip stays in the control bar to confirm there is no hidden frontier.</p>
+      </div>
+      <div class="edge">
+        <h5>drawer too long</h5>
+        <p>At <b>&gt;30 entries</b> the drawer gets a fixed max-height and scrolls; a <span style="font-family:'Major Mono Display',monospace; font-size:11px;">⌘F</span> filter input appears above the rows. Soft-expansion still works inside the scrolling view.</p>
+      </div>
+      <div class="edge">
+        <h5>cross-folder edge to sealed</h5>
+        <p>If a graph node in folder-nodes' body has an edge to BF-118 (which is now inside <b>sealed</b> openspec), the edge terminates at openspec's <em>edge fan</em> on its sealed border. Sealing never breaks reachability.</p>
+      </div>
+      <div class="edge">
+        <h5>cycle via filetree</h5>
+        <p>The filetree mirrors disk hierarchy — no cycles possible by construction. <b>Symlinks resolve at load time</b>: a symlinked folder loads as a <em>graph leaf node with a link-to badge</em>, never as a recursive compound.</p>
+      </div>
+      <div class="edge">
+        <h5>same file open twice</h5>
+        <p>A markdown file hard-expanded as a leaf is a single graph node. If two parent folders both have it loaded (legal in linked-vaults), the node is <em>shared</em> across both compounds — Cytoscape's normal multi-parent rules apply.</p>
+      </div>
+      <div class="edge">
+        <h5>depth &gt;5</h5>
+        <p>STRATA's hatching repeats at +45° / -45° / 90° / shading-stripe / dotted. Beyond depth 5, the deepest compound auto-focuses (zooms to fill the canvas) and ancestors collapse to a <em>breadcrumb strip</em> at the top.</p>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- D1 REVISIT -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D1?</div>
+      <div class="label">revisit — <span class="q">with the recursion clear, is "filetree outer" back on the table?</span></div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="revisit">
+      <p>
+        Your clarification — <em>"the compound graph would live within the filetree nodes; when a folder is expanded, that part of the filetree expands [into a graph]"</em> — means D1-A is not the squashed-accordion thing I rendered before. It's the <b>symmetric inverse</b> of D1-B: <em>filetree at the root, graph compounds bloom as the visualization of any hard-expanded folder</em>.
+      </p>
+      <p>
+        With the recursive anatomy above, the two designs converge: <b>at the lowest non-trivial scale they're the same thing.</b> A hard-expanded folder has a control bar, a body of graph children, and a drawer of unloaded children — whether the outermost container is a 2D canvas (B) or a vertical scroll (A) only shapes the <em>first frame</em> you see when you open the app.
+      </p>
+      <p>
+        The real choice is: <b>does the user enter the system through the canvas or through the filesystem?</b> If you're a code-editor user (vault opens to a tree, expand to see), A wins. If you're a graph-app user (vault opens to a workspace, drill into territory), B wins. <em>Both deliver the same recursion.</em> Pick by what the first ten seconds of using the app should feel like.
+      </p>
+    </div>
+
+    <div class="footline">
+      <span>strata-atlas-recursion.html · folder-nodes design 04.R · soft/hard recursion sheet</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

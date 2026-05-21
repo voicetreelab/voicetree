@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "100-collapse-command",
-  "description": "Single Collapse command against a flat folder fixture.",
+  "description": "Single SetFolderState(collapsed) command against a flat folder fixture.",
   "initial": "010-flat-folder",
   "commands": [
     {
-      "type": "Collapse",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "collapsed"
     }
   ],
   "expected": {

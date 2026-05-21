@@ -1,0 +1,101 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import type { HealthResponse } from './contract.ts'
+
+export type DaemonHandle = {
+  port: number
+  stop(): Promise<void>
+  alreadyRunning?: { pid: number }
+}
+
+export type DaemonLogger = {
+  error(message?: unknown, ...optionalParams: unknown[]): void
+  writeStderr(message: string): void
+}
+
+export type StartDaemonOptions = {
+  vault?: string | null
+  port?: number
+  logLevel?: 'info' | 'debug'
+  appSupportPath?: string
+  idleTimeoutMs?: number
+  clock?: () => number
+  logger?: DaemonLogger
+  // Called after /shutdown finishes its teardown (server close, lock release,
+  // port-file delete). The bin sets this to process.exit(0); tests leave it
+  // unset so vitest workers survive.
+  onShutdownComplete?: () => void | Promise<void>
+  // When the vault is empty, auto-create a starter node so first-run UI users
+  // see a non-empty graph. Defaults to true to preserve shell behavior; tests
+  // pass false to keep their world pristine.
+  createStarterIfEmpty?: boolean
+  // Self-exit when the kernel reparents this daemon to PID 1 (parent died).
+  // Set by Electron's vaultless spawn so a crashed/jetsam-killed Electron
+  // doesn't leak orphaned daemons. Disabled by default because launchd-owned
+  // daemons (e.g. the future LaunchAgent path) have ppid=1 from the start.
+  exitOnParentDeath?: boolean
+}
+
+function defaultClock(): number {
+  return Date.now()
+}
+
+function defaultDaemonError(message?: unknown, ...optionalParams: unknown[]): void {
+  console.error(message, ...optionalParams)
+}
+
+function defaultDaemonWriteStderr(message: string): void {
+  process.stderr.write(message)
+}
+
+const defaultDaemonLogger: DaemonLogger = {
+  error: defaultDaemonError,
+  writeStderr: defaultDaemonWriteStderr,
+}
+
+function defaultAppSupportPath(): string {
+  if (process.platform === 'darwin') {
+    return join(homedir(), 'Library', 'Application Support', 'Voicetree')
+  }
+  if (process.platform === 'win32') {
+    return join(
+      process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),
+      'Voicetree',
+    )
+  }
+  return join(
+    process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
+    'Voicetree',
+  )
+}
+
+export function resolveDaemonAppSupportPath(opts: StartDaemonOptions): string {
+  return (
+    opts.appSupportPath ??
+    process.env.VOICETREE_APP_SUPPORT ??
+    defaultAppSupportPath()
+  )
+}
+
+export function resolveDaemonClock(opts: StartDaemonOptions): () => number {
+  return opts.clock ?? defaultClock
+}
+
+export function resolveDaemonLogger(opts: StartDaemonOptions): DaemonLogger {
+  return opts.logger ?? defaultDaemonLogger
+}
+
+export function buildHealthResponse(
+  version: string,
+  vault: string,
+  startMs: number,
+  nowMs: number,
+  sessionCount: number,
+): HealthResponse {
+  return {
+    version,
+    vault,
+    uptimeSeconds: Math.floor((nowMs - startMs) / 1000),
+    sessionCount,
+  }
+}

@@ -12,6 +12,7 @@ import { createElement, useRef, useEffect, useCallback, useState, useMemo, useSy
 import type { JSX, ChangeEvent, KeyboardEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { AvailableFolderItem } from '@vt/graph-model/folders';
+import type { ProjectedGraph } from '@vt/graph-state/contract';
 import {
     subscribeFolderTree,
     getFolderTreeState,
@@ -21,16 +22,20 @@ import {
     toggleFolderTreeSidebar,
     setSidebarWidth,
     type FolderTreeState,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore';
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import {
     subscribeToVaultPaths,
     getVaultState,
     type VaultPathState,
-} from '@/shell/edge/UI-edge/state/VaultPathStore';
+} from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
+import {
+    getLatestProjectedGraph,
+    subscribeLatestProjectedGraph,
+} from '@/shell/edge/UI-edge/state/stores/LatestProjectedGraphStore';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import { StarredSection } from './StarredSection';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
-import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse';
 import type {} from '@/shell/electron';
 
 import './folder-tree.css';
@@ -45,6 +50,10 @@ function useFolderTreeState(): FolderTreeState {
 
 function useVaultPathState(): VaultPathState {
     return useSyncExternalStore(subscribeToVaultPaths, getVaultState);
+}
+
+function useLatestProjectedGraph(): ProjectedGraph | null {
+    return useSyncExternalStore(subscribeLatestProjectedGraph, getLatestProjectedGraph);
 }
 
 // =============================================================================
@@ -278,6 +287,7 @@ interface SidebarInternalProps {
 function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Element | null {
     const folderState: FolderTreeState = useFolderTreeState();
     const vaultState: VaultPathState = useVaultPathState();
+    const latestProjectedGraph: ProjectedGraph | null = useLatestProjectedGraph();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
 
@@ -327,6 +337,14 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
         return folderState.tree.absolutePath;
     }, [folderState.tree]);
 
+    const collapsedGraphFolderIds: ReadonlySet<string> = useMemo(() => {
+        return new Set<string>(
+            latestProjectedGraph?.nodes
+                .filter((node) => node.kind === 'folder-collapsed')
+                .map((node) => node.id) ?? [],
+        );
+    }, [latestProjectedGraph]);
+
     return (
         <div
             ref={sidebarRef}
@@ -362,7 +380,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                 onToggleExpand={toggleFolderExpanded}
                 onToggleLoad={handleToggleLoad}
                 onSetWriteTarget={handleSetWriteTarget}
-                graphCollapsedFolders={folderState.graphCollapsedFolders}
+                collapsedGraphFolderIds={collapsedGraphFolderIds}
                 onToggleGraphCollapse={handleToggleGraphCollapse}
             />
 
@@ -381,7 +399,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                             onToggleLoad={handleToggleLoad}
                             onFileSelect={callbacks.onFileSelect}
                             onSetWriteTarget={handleSetWriteTarget}
-                            graphCollapsedFolders={folderState.graphCollapsedFolders}
+                            collapsedGraphFolderIds={collapsedGraphFolderIds}
                             treeRootPath={tree.absolutePath}
                             onToggleGraphCollapse={handleToggleGraphCollapse}
                         />
@@ -401,7 +419,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                         onToggleLoad={handleToggleLoad}
                         onFileSelect={callbacks.onFileSelect}
                         onSetWriteTarget={handleSetWriteTarget}
-                        graphCollapsedFolders={folderState.graphCollapsedFolders}
+                        collapsedGraphFolderIds={collapsedGraphFolderIds}
                         treeRootPath={folderState.tree.absolutePath}
                         onToggleGraphCollapse={handleToggleGraphCollapse}
                     />

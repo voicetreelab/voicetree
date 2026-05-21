@@ -164,7 +164,7 @@ function isSupportedOrphanCleanupPlatform(platform: NodeJS.Platform): boolean {
 }
 
 function listProcessLines(): readonly string[] | null {
-  const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
+  const result = spawnSync('ps', ['-A', '-o', 'pid=,ppid=,command='], {
     encoding: 'utf8',
     timeout: 5000,
   })
@@ -183,12 +183,30 @@ function vaultExists(vault: string): boolean {
 }
 
 function parseVtGraphdProcessLine(line: string): OrphanProcessCandidate | null {
-  const matcher = /^\s*(\d+)\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
+  const matcher = /^\s*(\d+)\s+\d+\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
   const match = matcher.exec(line)
   if (!match) return null
   const pid = Number(match[1])
   if (!Number.isFinite(pid)) return null
   return { pid, vault: match[3] }
+}
+
+type VaultlessOrphanCandidate = { readonly pid: number; readonly ppid: number }
+
+function parseVaultlessVtGraphdLine(
+  line: string,
+): VaultlessOrphanCandidate | null {
+  // Matches the inline script used by spawnVaultlessDaemon, which has no
+  // vt-graphd argv literal and no --vault flag. The destructured import string
+  // (`from '@vt/graph-db-server/server'`) is the unique fingerprint. Required
+  // PPID column placed by listProcessLines.
+  const matcher = /^\s*(\d+)\s+(\d+)\s+.*@vt\/graph-db-server\/server/
+  const match = matcher.exec(line)
+  if (!match) return null
+  const pid = Number(match[1])
+  const ppid = Number(match[2])
+  if (!Number.isFinite(pid) || !Number.isFinite(ppid)) return null
+  return { pid, ppid }
 }
 
 function findOrphanCandidates(
@@ -202,19 +220,27 @@ function findOrphanCandidates(
   const skipped: { pid: number; vault: string; reason: string }[] = []
 
   for (const line of lines) {
-    const candidate = parseVtGraphdProcessLine(line)
-    if (!candidate || candidate.pid === deps.currentPid) continue
-
-    if (deps.vaultExists(candidate.vault)) {
-      skipped.push({
-        pid: candidate.pid,
-        reason: 'vault-exists',
-        vault: candidate.vault,
-      })
+    const vaultBound = parseVtGraphdProcessLine(line)
+    if (vaultBound && vaultBound.pid !== deps.currentPid) {
+      if (deps.vaultExists(vaultBound.vault)) {
+        skipped.push({
+          pid: vaultBound.pid,
+          reason: 'vault-exists',
+          vault: vaultBound.vault,
+        })
+      } else {
+        candidates.push(vaultBound)
+      }
       continue
     }
 
-    candidates.push(candidate)
+    // Vaultless (Electron-spawned) daemons have no --vault arg. We can't use a
+    // vault path as a liveness proxy; instead the kernel-level signal that the
+    // parent died is the daemon's ppid being 1 (reparented to launchd/init).
+    const vaultless = parseVaultlessVtGraphdLine(line)
+    if (!vaultless || vaultless.pid === deps.currentPid) continue
+    if (vaultless.ppid !== 1) continue
+    candidates.push({ pid: vaultless.pid, vault: '<vaultless>' })
   }
 
   return { candidates, skipped }

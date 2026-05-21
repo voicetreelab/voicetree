@@ -1,11 +1,11 @@
 import type { Core } from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import type { ProjectedGraph, ProjectedNode } from '@vt/graph-state/contract'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import { projectDelta } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import type { GraphDelta, GraphNode, UpsertNodeDelta, DeleteNode } from '@vt/graph-model/graph'
 import type { FolderTreeNode } from '@vt/graph-model'
-import { syncFolderTreeFromMain } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { syncFolderTreeFromMain } from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 
 export { O }
 

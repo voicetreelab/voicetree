@@ -1,0 +1,177 @@
+/* checks-wallclock — wc-panel, wc-box, wc-stack, duration tiers */
+/* =============================================================================
+   CI / CD CHECKS — Wall-clock panel
+   ----------------------------------------------------------------------------
+   Big mm:ss display moments for the slowest checks. Sits above the carousel.
+   Boxes are tinted by duration tier; status (PASS/FAIL/SKIP) lives in the foot.
+   ========================================================================== */
+.wc-panel {
+  border: 1px solid var(--rule);
+  background: var(--ink-1);
+  padding: 1rem 1.1rem 1.05rem;
+  margin-bottom: 0.85rem;
+  display: flex; flex-direction: column;
+  gap: 0.9rem;
+}
+
+.wc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px dashed var(--rule-soft);
+}
+.wc-headline { display: flex; align-items: baseline; gap: 0.85rem; }
+.wc-headline-label {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+}
+.wc-headline-time {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 72, 'wght' 500;
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--paper);
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.wc-head-meta {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--paper-muted);
+}
+.wc-note { color: var(--paper-muted); }
+.wc-note-num { color: var(--sig); font-weight: 700; }
+.wc-meta-sep { color: var(--paper-ghost); opacity: 0.7; }
+
+.wc-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.wc-box {
+  background: var(--ink-0);
+  padding: 0.7rem 0.8rem 0.6rem;
+  display: flex; flex-direction: column;
+  gap: 0.3rem;
+  position: relative;
+  cursor: default;
+  transition: background 0.14s;
+  min-height: 96px;
+}
+.wc-box:hover { background: var(--ink-2); }
+
+/* Top accent bar per duration tier */
+.wc-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--paper-ghost);
+}
+.wc-box.wc-instant::before   { background: var(--paper-ghost); opacity: 0.4; }
+.wc-box.wc-quick::before     { background: var(--paper-muted); opacity: 0.5; }
+.wc-box.wc-notable::before   { background: var(--caution); opacity: 0.75; }
+.wc-box.wc-slow::before      { background: #f08838; }
+.wc-box.wc-egregious::before { background: var(--sig); }
+
+.wc-box-time {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 72, 'wght' 500;
+  font-size: 1.85rem;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  color: var(--paper);
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.wc-box.wc-notable   .wc-box-time { color: var(--caution); }
+.wc-box.wc-slow      .wc-box-time { color: #f0a060; }
+.wc-box.wc-egregious .wc-box-time { color: var(--sig); }
+
+.wc-box-name {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--paper-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wc-box-foot {
+  margin-top: auto;
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 0.4rem;
+  padding-top: 0.2rem;
+  border-top: 1px dashed var(--rule-soft);
+}
+.wc-box-status {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.wc-box.is-pass .wc-box-status { color: var(--vital); }
+.wc-box.is-fail .wc-box-status { color: var(--sig); }
+.wc-box.is-skip .wc-box-status { color: var(--paper-ghost); }
+.wc-box-share {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--paper-faint);
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* Proportional time-stack bar */
+.wc-stack {
+  display: flex; flex-direction: column;
+  gap: 0.55rem;
+}
+.wc-stack-bar {
+  height: 12px;
+  background: var(--ink-0);
+  border: 1px solid var(--rule);
+  display: flex;
+  overflow: hidden;
+}
+.wc-stack-seg { display: inline-block; height: 100%; transition: filter 0.14s; }
+.wc-stack-seg:hover { filter: brightness(1.25); }
+.wc-stack-seg + .wc-stack-seg { box-shadow: -1px 0 0 var(--ink-0); }
+.wc-stack-egregious { background: var(--sig); }
+.wc-stack-slow      { background: #f08838; }
+.wc-stack-notable   { background: var(--caution); }
+.wc-stack-quick     { background: var(--paper-muted); }
+.wc-stack-instant   { background: var(--paper-ghost); }
+.wc-stack-other     { background: var(--paper-ghost); opacity: 0.45; }
+
+.wc-stack-legend {
+  display: flex; flex-wrap: wrap; gap: 0.45rem 1.1rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.02em;
+}
+.wc-stack-legend-item {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.wc-stack-dot {
+  width: 9px; height: 9px;
+  display: inline-block;
+  border: 1px solid var(--rule-strong);
+}
+
+@media (max-width: 720px) {
+  .wc-headline-time { font-size: 1.9rem; }
+  .wc-box-time { font-size: 1.5rem; }
+  .wc-boxes { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+

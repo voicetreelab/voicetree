@@ -2,7 +2,7 @@ import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'fs'
 import os from 'os'
 import path from 'path'
 import {afterEach, describe, expect, it} from 'vitest'
-import {renderGraphView} from '../src/viewGraph'
+import {renderGraphView} from '../src/view/viewGraph'
 
 describe('renderGraphView', () => {
     const tempDirs: string[] = []

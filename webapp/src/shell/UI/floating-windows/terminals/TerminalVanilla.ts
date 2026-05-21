@@ -7,16 +7,23 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
 import './terminal-chrome.css'; // Terminal title bar, context badge, active state styles
 import type { VTSettings } from '@vt/graph-model/settings';
-import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows';
-import { getCyInstance } from '@/shell/edge/UI-edge/state/cytoscape-state';
+import { isZoomActive } from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
+import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { getTerminalFontSize, getScrollOffset, getScrollTargetLine } from '@vt/graph-model/floating-windows';
 import { setupTerminalInteractionStrategy } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalInteractionStrategy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
+import {TerminalRelayClient, type RelayConnectionStatus} from './terminalRelayClient';
+import {notifyTerminalOutput} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
+import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 
 // Chromium caps at ~16 WebGL contexts total; stay well under to leave headroom for
 // cytoscape minimap, extensions, etc. Terminals beyond this cap use the DOM renderer.
 let activeWebGLContextCount: number = 0;
 const MAX_WEBGL_CONTEXTS: number = 8;
+
+// Dispose WebGL addon after 10 minutes of no terminal output or user focus,
+// reclaiming GPU-side framebuffers and glyph atlas textures (~20-50MB each).
+const WEBGL_IDLE_TIMEOUT_MS: number = 10 * 60 * 1000;
 
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
@@ -37,15 +44,26 @@ export class TerminalVanilla {
   private shiftEnterSendsOptionEnter: boolean = true;
   private zoomEndUnsubscribe: (() => void) | null = null;
   private hasWebGLContext: boolean = false;
-  private cleanupOnData: (() => void) | null = null;
-  private cleanupOnExit: (() => void) | null = null;
+  private webglAddon: WebglAddon | null = null;
+  private webglIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  private onVisibilityChange: (() => void) | null = null;
+  private relayClient: TerminalRelayClient | null = null;
+  private relayStatusEl: HTMLDivElement | null = null;
+  private readonly settingsPromise: Promise<VTSettings | null>;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
+    this.settingsPromise = window.electronAPI?.main.loadSettings()
+      .then((settings: VTSettings) => settings)
+      .catch((error: unknown) => {
+        console.error('[TerminalVanilla] Failed to load settings:', error);
+        return null;
+      }) ?? Promise.resolve(null);
 
-    void window.electronAPI?.main.loadSettings().then(
-      (settings: VTSettings) => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter ?? true);
+    void this.settingsPromise.then((settings: VTSettings | null) => {
+      this.shiftEnterSendsOptionEnter = settings?.shiftEnterSendsOptionEnter ?? true;
+    });
 
     void this.mount();
   }
@@ -76,22 +94,19 @@ export class TerminalVanilla {
     term.open(this.container);
 
     // Load WebGL2 addon only if under the context limit (Chromium caps at ~16)
-    if (activeWebGLContextCount < MAX_WEBGL_CONTEXTS) {
-      try {
-        const webglAddon: WebglAddon = new WebglAddon();
-        term.loadAddon(webglAddon);
-        activeWebGLContextCount++;
-        this.hasWebGLContext = true;
-        webglAddon.onContextLoss(() => {
-          console.warn('WebGL context lost, terminal will fall back to DOM renderer');
-          webglAddon.dispose();
-          activeWebGLContextCount--;
-          this.hasWebGLContext = false;
-        });
-      } catch (e) {
-        console.warn('WebGL2 not supported, using default DOM renderer:', e);
+    this.attachWebGL();
+    this.resetWebGLIdleTimer();
+
+    this.onVisibilityChange = (): void => {
+      if (document.hidden) {
+        if (this.webglIdleTimer !== null) {
+          clearTimeout(this.webglIdleTimer);
+          this.webglIdleTimer = null;
+        }
+        this.detachWebGL();
       }
-    }
+    };
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
 
     // Load clipboard addon for proper copy/paste handling
     const clipboardAddon: ClipboardAddon = new ClipboardAddon();
@@ -113,9 +128,7 @@ export class TerminalVanilla {
     // The suppressNextEnter flag prevents that duplicate '\r' from being sent.
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (this.shiftEnterSendsOptionEnter && event.type === 'keydown' && event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        if (this.terminalId && window.electronAPI?.terminal) {
-          void window.electronAPI.terminal.write(this.terminalId, '\x1b\r');
-        }
+        void this.writeToBackend('\x1b\r');
         this.suppressNextEnter = true;
         return false;
       }
@@ -131,11 +144,8 @@ export class TerminalVanilla {
       }
       this.suppressNextEnter = false;
 
-      if (this.terminalId && window.electronAPI?.terminal) {
-        window.electronAPI.terminal.write(this.terminalId, data).catch(err => {
-          console.error('Terminal write error:', err);
-        });
-      }
+      this.resetWebGLIdleTimer();
+      void this.writeToBackend(data);
     });
 
     // Handle terminal resize
@@ -162,9 +172,7 @@ export class TerminalVanilla {
         console.trace('[TerminalVanilla] OVERSIZED xterm resize stack trace');
       }
 
-      if (this.terminalId && window.electronAPI?.terminal) {
-        void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
-      }
+      void this.resizeBackend(cols, rows);
     });
 
     // Set up ResizeObserver for container resize with scroll preservation.
@@ -236,33 +244,73 @@ export class TerminalVanilla {
       return;
     }
 
-    const result: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
+    await this.initRelayTerminal();
+  }
 
-    if (result.success && result.terminalId) {
-      this.terminalId = result.terminalId;
+  private async initRelayTerminal(): Promise<void> {
+    if (!this.term) return;
 
-      // Sync initial size
-      if (this.term) {
-        void window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
-      }
-
-      // Handle terminal output
-      this.cleanupOnData = window.electronAPI.terminal.onData((id, data) => {
-        if (id === result.terminalId && this.term) {
-          this.term.write(data);
-        }
-      });
-
-      // Handle terminal exit
-      this.cleanupOnExit = window.electronAPI.terminal.onExit((id, code) => {
-        if (id === result.terminalId && this.term) {
-          this.term.writeln(`\r\nProcess exited with code ${code}`);
-          this.terminalId = null;
-        }
-      });
-    } else {
-      this.term?.writeln('Failed to spawn terminal: ' + (result.error ?? 'Unknown error'));
+    // The relay endpoint runs `tmux attach -t {name}`, which fails if the
+    // session doesn't exist. The IPC handler calls spawnTmuxBacked() to create
+    // the session — trigger IPC spawn BEFORE the WebSocket attach, otherwise
+    // the panel hangs in "tmux reconnecting" forever.
+    const spawnResult: { success: boolean; terminalId?: string; error?: string } = await window.electronAPI.terminal.spawn(this.terminalData);
+    if (!spawnResult.success) {
+      this.term.writeln('Failed to spawn tmux-backed terminal: ' + (spawnResult.error ?? 'Unknown error'));
+      return;
     }
+    this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
+    this.createRelayStatusIndicator();
+
+    const relayPort: number = await window.electronAPI!.main.getMcpPort();
+    const encodedTerminalId: string = encodeURIComponent(this.terminalId);
+    const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
+
+    const activityTerminalId: TerminalId = this.terminalId as TerminalId;
+    this.relayClient = new TerminalRelayClient({
+      url,
+      onData: (data: string): void => {
+        this.term?.write(data);
+        notifyTerminalOutput(activityTerminalId);
+      },
+      onStatus: (status: RelayConnectionStatus): void => {
+        this.setRelayStatus(status);
+        if (status === 'connected' && this.term) {
+          this.relayClient?.sendResize(this.term.cols, this.term.rows);
+        }
+      },
+    });
+    this.relayClient.connect();
+  }
+
+  private writeToBackend(data: string): void {
+    if (!this.terminalId) return;
+    this.relayClient?.sendData(data);
+  }
+
+  private resizeBackend(cols: number, rows: number): void {
+    if (!this.terminalId) return;
+    this.relayClient?.sendResize(cols, rows);
+  }
+
+  private createRelayStatusIndicator(): void {
+    if (this.relayStatusEl) return;
+    this.container.classList.add('terminal-relay-container');
+    const statusEl: HTMLDivElement = document.createElement('div');
+    statusEl.className = 'terminal-relay-status connecting';
+    statusEl.textContent = 'tmux connecting';
+    this.container.appendChild(statusEl);
+    this.relayStatusEl = statusEl;
+  }
+
+  private setRelayStatus(status: RelayConnectionStatus): void {
+    if (!this.relayStatusEl) return;
+    this.relayStatusEl.className = `terminal-relay-status ${status}`;
+    this.relayStatusEl.textContent = status === 'connected'
+      ? 'tmux connected'
+      : status === 'reconnecting'
+        ? 'tmux reconnecting'
+        : `tmux ${status}`;
   }
 
 
@@ -270,6 +318,8 @@ export class TerminalVanilla {
    * Focus the terminal so it receives keyboard input
    */
   focus(): void {
+    this.attachWebGL();
+    this.resetWebGLIdleTimer();
     this.term?.focus();
   }
 
@@ -280,34 +330,70 @@ export class TerminalVanilla {
     this.term?.scrollToBottom();
   }
 
+  private attachWebGL(): void {
+    if (!this.term || this.hasWebGLContext || activeWebGLContextCount >= MAX_WEBGL_CONTEXTS) return;
+    const addon = new WebglAddon();
+    try {
+      this.term.loadAddon(addon);
+      activeWebGLContextCount++;
+      this.hasWebGLContext = true;
+      this.webglAddon = addon;
+      addon.onContextLoss(() => this.detachWebGL());
+    } catch {
+      addon.dispose();
+    }
+  }
+
+  private detachWebGL(): void {
+    if (!this.hasWebGLContext || !this.webglAddon) return;
+    try {
+      this.webglAddon.dispose();
+    } finally {
+      this.webglAddon = null;
+      activeWebGLContextCount--;
+      this.hasWebGLContext = false;
+    }
+  }
+
+  private resetWebGLIdleTimer(): void {
+    if (this.webglIdleTimer !== null) {
+      clearTimeout(this.webglIdleTimer);
+      this.webglIdleTimer = null;
+    }
+    if (this.hasWebGLContext) {
+      this.webglIdleTimer = setTimeout(() => this.detachWebGL(), WEBGL_IDLE_TIMEOUT_MS);
+    }
+  }
+
   /**
    * Cleanup and destroy the terminal
    */
   dispose(): void {
+    if (this.onVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+      this.onVisibilityChange = null;
+    }
+
+    if (this.webglIdleTimer !== null) {
+      clearTimeout(this.webglIdleTimer);
+      this.webglIdleTimer = null;
+    }
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
 
-    // Unsubscribe from IPC terminal listeners
-    this.cleanupOnData?.();
-    this.cleanupOnData = null;
-    this.cleanupOnExit?.();
-    this.cleanupOnExit = null;
+    this.relayClient?.dispose();
+    this.relayClient = null;
+    this.relayStatusEl?.remove();
+    this.relayStatusEl = null;
 
     // Unsubscribe from zoom-end callbacks
     this.zoomEndUnsubscribe?.();
     this.zoomEndUnsubscribe = null;
 
-    // Kill terminal process
-    if (this.terminalId && window.electronAPI?.terminal) {
-      void window.electronAPI.terminal.kill(this.terminalId);
-    }
-
     // Release WebGL context slot so new terminals can use it
-    if (this.hasWebGLContext) {
-      activeWebGLContextCount--;
-      this.hasWebGLContext = false;
-    }
+    this.detachWebGL();
 
     // Dispose terminal instance
     this.term?.dispose();

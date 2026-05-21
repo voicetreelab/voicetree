@@ -2,13 +2,13 @@
 import type { NodeIdAndFilePath, GraphNode } from "@vt/graph-model/graph";
 import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
 import { getDefaultAgent } from "@vt/graph-model/settings";
-import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/agentCommandEditorPopup";
+import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
 import '@/shell/electron.d.ts';
-import type { TerminalId } from "@/shell/edge/UI-edge/floating-windows/types";
-import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/TerminalStore";
+import type { TerminalId } from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
+import { getNextTerminalCount, getTerminals } from "@/shell/edge/UI-edge/state/stores/TerminalStore";
 import { flushEditorForNode } from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
-import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
+import { getNodeFromMainToUI } from "@/shell/edge/UI-edge/graph/view/getNodeFromMainToUI";
 import { getNodeTitle } from "@vt/graph-model/markdown";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { resolveAgentLaunchConfig, type AgentLaunchConfig } from "@/shell/edge/UI-edge/floating-windows/terminals/resolveAgentLaunchConfig";
@@ -30,7 +30,7 @@ export async function spawnTerminalWithCommandEditor(
     agentCommand?: string,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
-    await flushEditorForNode(parentNodeId, cy);
+    await flushEditorForNode(parentNodeId);
 
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 
@@ -133,7 +133,7 @@ export async function spawnTerminalWithNewContextNode(
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
-    await flushEditorForNode(parentNodeId, cy)
+    await flushEditorForNode(parentNodeId)
 
     const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
 
@@ -214,28 +214,4 @@ export async function spawnTerminalInNewWorktree(
 
     // Delegate to existing spawn function with worktree as spawnDirectory
     return spawnTerminalWithNewContextNode(parentNodeId, cy, undefined, worktreePath);
-}
-
-/**
- * Spawn a plain terminal attached to a node (no agent command, no context node)
- *
- * Opens a regular shell terminal anchored to the specified node, useful for
- * manual terminal work without agent automation.
- */
-async function spawnPlainTerminal(
-    nodeId: NodeIdAndFilePath,
-    _cy: Core,
-): Promise<void> {
-    const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
-
-    // Check terminal limit
-    if (terminalsMap.size >= MAX_TERMINALS) {
-        alert(`Glad you are trying to power use VT! Limit of ${MAX_TERMINALS} agents at once for now but send over an email 1manumasson@gmail.com if you want to alpha-test higher limits`);
-        return;
-    }
-
-    const terminalCount: number = getNextTerminalCount(terminalsMap, nodeId);
-
-    // Delegate to main process
-    await window.electronAPI?.main.spawnPlainTerminal(nodeId, terminalCount);
 }

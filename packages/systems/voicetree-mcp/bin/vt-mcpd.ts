@@ -34,7 +34,7 @@ import {
     startMcpServer,
     type McpServerHandle,
 } from '@vt/voicetree-mcp'
-import {configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
+import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 
 interface Args {
     readonly vault: string
@@ -122,6 +122,8 @@ async function main(): Promise<void> {
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 
     configureHeadlessBridges(appSupportPath)
+    await agentRuntime.ensureTmuxAvailable()
+    await agentRuntime.ensureTmuxLaunchAgent()
 
     let daemonHandle: DaemonHandle
     try {
@@ -148,6 +150,14 @@ async function main(): Promise<void> {
         die(`failed to start MCP server: ${(err as Error).message}`)
     }
 
+    const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
+    if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+        process.stderr.write(
+            `vt-mcpd: reconciled tmux terminals imported=${reconciliation.imported.length} `
+            + `markedExited=${reconciliation.markedExited.length}\n`,
+        )
+    }
+
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
         + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, vault=${args.vault}\n`,
@@ -163,7 +173,7 @@ async function main(): Promise<void> {
             await mcpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: mcp stop error: ${(err as Error).message}\n`)
             })
-            getTerminalManager().cleanup()
+            agentRuntime.getTerminalManager().cleanup()
             await daemonHandle.stop()
             process.exit(0)
         } catch (err) {

@@ -1,0 +1,26 @@
+/* =============================================================================
+   CODEBASE HEALTH — Diagnostic Bulletin
+   ----------------------------------------------------------------------------
+   This file is the entry point loaded by index.html. The actual rules live in
+   ./styles/, one file per UI section. Load order is significant — tokens must
+   come first so other files can resolve CSS variables; responsive overrides
+   come last. Do not reorder without checking for cascade regressions.
+   ========================================================================== */
+
+@import './styles/tokens.css';
+@import './styles/layout.css';
+@import './styles/sections.css';
+@import './styles/axes.css';
+@import './styles/gates.css';
+@import './styles/ranking.css';
+@import './styles/cards.css';
+@import './styles/checks.css';
+@import './styles/checks-wallclock.css';
+@import './styles/rollup-breakdown.css';
+@import './styles/checks-heatmap.css';
+@import './styles/filetree.css';
+@import './styles/treemap.css';
+@import './styles/git.css';
+@import './styles/copy-button.css';
+@import './styles/animation.css';
+@import './styles/responsive.css';

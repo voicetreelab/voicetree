@@ -263,10 +263,10 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         previousNode: O.none
       }]
 
-      // WHEN/THEN: Should throw error about watched directory
+      // WHEN/THEN: Should throw the daemon-owned vault lifecycle error
       await expect(applyGraphDeltaToDBThroughMemAndUIAndEditors(delta))
         .rejects
-        .toThrow('Watched directory not initialized')
+        .toThrow('A vault must be opened before using this endpoint')
     })
   })
 })

@@ -4,16 +4,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
-import {
-    addCollapsedFolderLocally,
-    getFolderTreeState,
-    removeCollapsedFolderLocally,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
-import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
+import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
+import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { O, upsert, applyDeltaToUI, syncFolderTree } from './applyGraphDeltaToUI.test-utils'
 
-vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
+vi.mock('@/shell/edge/UI-edge/graph/popups/userEngagementPrompts', () => ({
     checkEngagementPrompts: vi.fn()
 }))
 
@@ -27,9 +22,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     afterEach(() => {
         cy.destroy()
-        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
-            removeCollapsedFolderLocally(folderId)
-        })
+        setTestCollapseSet(new Set())
         syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
 
@@ -121,12 +114,12 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(1)
 
             // Collapse the folder — child node disappears
-            addCollapsedFolderLocally('/vault/auth/')
+            setTestCollapseSet(new Set(['/vault/auth/']))
             applyDeltaToUI(cy, [upsert(childNode)])
             expect(cy.getElementById('/vault/auth/login-flow.md').length).toBe(0)
 
             // Expand — child node reappears at its spec-seeded position
-            removeCollapsedFolderLocally('/vault/auth/')
+            setTestCollapseSet(new Set())
             applyDeltaToUI(cy, [upsert(childNode)])
 
             const node: cytoscape.CollectionReturnValue = cy.getElementById('/vault/auth/login-flow.md')
@@ -171,11 +164,11 @@ describe('applyGraphDeltaToUI - Integration', () => {
             cy.getElementById('/vault/readme.md').position({ x: 800, y: 700 })
 
             // Collapse the folder
-            addCollapsedFolderLocally('/vault/auth/')
+            setTestCollapseSet(new Set(['/vault/auth/']))
             applyDeltaToUI(cy, [upsert(outsideNode), upsert(insideNode)])
 
             // Expand the folder
-            removeCollapsedFolderLocally('/vault/auth/')
+            setTestCollapseSet(new Set())
             applyDeltaToUI(cy, [upsert(outsideNode), upsert(insideNode)])
 
             const pos: cytoscape.Position = cy.getElementById('/vault/readme.md').position()

@@ -5,7 +5,7 @@ import {
   DEFAULT_MCP_PORT,
   type ViewFormat,
 } from '../src/node'
-import {buildAutoViewGraph, renderTreeCover} from '../src/autoView'
+import {buildAutoViewGraph, renderTreeCover} from '../src/view/autoView'
 
 function fail(message: string): never {
   console.error(message)

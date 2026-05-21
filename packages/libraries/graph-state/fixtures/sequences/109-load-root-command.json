@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "109-load-root-command",
-  "description": "LoadRoot adds the second loaded root.",
+  "description": "SetFolderState(expanded) adds the second implicit root.",
   "initial": "050-two-roots-root-a-only",
   "commands": [
     {
-      "type": "LoadRoot",
-      "root": "/tmp/graph-state-fixtures/root-b"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-b",
+      "state": "expanded"
     }
   ],
   "expected": {

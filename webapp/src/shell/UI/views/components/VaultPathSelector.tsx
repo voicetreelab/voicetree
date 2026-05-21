@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import type { JSX } from 'react';
-import { subscribeToVaultPaths, getVaultState } from '@/shell/edge/UI-edge/state/VaultPathStore';
-import type { VaultPathState } from '@/shell/edge/UI-edge/state/VaultPathStore';
-import { toggleFolderTreeSidebar } from '@/shell/edge/UI-edge/state/FolderTreeStore';
+import { subscribeToVaultPaths, getVaultState } from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
+import type { VaultPathState } from '@/shell/edge/UI-edge/state/stores/VaultPathStore';
+import { toggleFolderTreeSidebar } from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
 import type {} from '@/shell/electron';
 
 /**
@@ -14,7 +14,7 @@ export function VaultPathSelector(): JSX.Element | null {
     const vaultState: VaultPathState = useSyncExternalStore(subscribeToVaultPaths, getVaultState);
     const { readPaths, writePath } = vaultState;
 
-    if (readPaths.length === 0) {
+    if (!writePath && readPaths.length === 0) {
         return null;
     }
 

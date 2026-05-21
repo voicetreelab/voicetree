@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeChord } from '../src/debug/normalizeChord'
+import { normalizeChord } from '../src/debug/input/normalizeChord'
 
 describe('normalizeChord', () => {
   it('leaves plain keys unchanged', () => {

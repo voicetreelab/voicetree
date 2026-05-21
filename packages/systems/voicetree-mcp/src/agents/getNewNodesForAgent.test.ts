@@ -4,9 +4,14 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import type {Graph, GraphNode} from '@vt/graph-model/graph'
-import {getNewNodesForAgent} from './getNewNodesForAgent'
+import {getNewNodesForAgent, getNewNodesForAgentIdentities} from './getNewNodesForAgent'
 
-function buildNode(filePath: string, agentName: string): GraphNode {
+function buildNode(filePath: string, agentName: string | undefined): GraphNode {
+    const additionalYAMLProps: Map<string, string> = new Map()
+    if (agentName !== undefined) {
+        additionalYAMLProps.set('agent_name', agentName)
+    }
+
     return {
         outgoingEdges: [],
         absoluteFilePathIsID: filePath,
@@ -14,7 +19,7 @@ function buildNode(filePath: string, agentName: string): GraphNode {
         nodeUIMetadata: {
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map([['agent_name', agentName]]),
+            additionalYAMLProps,
             isContextNode: false
         }
     }
@@ -34,44 +39,31 @@ function buildGraph(nodes: GraphNode[]): Graph {
 }
 
 describe('getNewNodesForAgent — spawnedAt birthtime filter', () => {
-    // TODO: flaky — filesystem birthtime granularity causes intermittent failures under parallel load
-    it.skip('excludes nodes created before spawnedAt', () => {
+    it('excludes nodes created before spawnedAt and includes nodes created after', async () => {
         const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
         const oldFile: string = path.join(tmpDir, 'old-node.md')
         const newFile: string = path.join(tmpDir, 'new-node.md')
 
-        // Create both files — they'll have ~same birthtime (now)
+        // Pad with sleeps so old < spawnedAt < new regardless of fs birthtime granularity.
         fs.writeFileSync(oldFile, '# Old')
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
+        const spawnedAt: number = Date.now()
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
         fs.writeFileSync(newFile, '# New')
-
-        const oldBirthtime: number = fs.statSync(oldFile).birthtimeMs
-        // spawnedAt is AFTER old file's birthtime but BEFORE new file's
-        // Since both files are created nearly simultaneously, we set spawnedAt
-        // to oldBirthtime + 1 to simulate "old was created before spawn"
-        const spawnedAt: number = oldBirthtime + 1
-
-        // Manually set old file's birthtime to the past via utimes
-        // Note: utimes sets atime+mtime, not birthtime on macOS.
-        // Instead, we rely on spawnedAt being after oldBirthtime.
-        // Since files are created ~same ms, we need to wait briefly.
 
         const graph: Graph = buildGraph([
             buildNode(oldFile, 'Ama'),
             buildNode(newFile, 'Ama')
         ])
 
-        // With spawnedAt = oldBirthtime + 1:
-        //   old file birthtime < spawnedAt → excluded
-        //   new file birthtime ≈ old file birthtime → also excluded (same ms)
-        // This proves the filter works — both created before spawnedAt are excluded.
         const result = getNewNodesForAgent(graph, 'Ama', spawnedAt)
-        expect(result).toHaveLength(0)
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(newFile)
 
         // With spawnedAt = 0 (epoch), both files are included
         const resultAll = getNewNodesForAgent(graph, 'Ama', 0)
         expect(resultAll).toHaveLength(2)
 
-        // Cleanup
         fs.rmSync(tmpDir, {recursive: true})
     })
 
@@ -119,6 +111,68 @@ describe('getNewNodesForAgent — spawnedAt birthtime filter', () => {
         const result = getNewNodesForAgent(graph, 'Ama', 0)
         expect(result).toHaveLength(1)
         expect(result[0].nodeId).toBe(amaFile)
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('matches multiple identities and de-duplicates node ids', () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+        const configuredNameFile: string = path.join(tmpDir, 'configured-node.md')
+        const duplicateFile: string = path.join(tmpDir, 'duplicate-node.md')
+
+        fs.writeFileSync(terminalFile, '# Terminal id work')
+        fs.writeFileSync(configuredNameFile, '# Configured name work')
+        fs.writeFileSync(duplicateFile, '# Duplicate work')
+
+        const graph: Graph = buildGraph([
+            buildNode(terminalFile, 'Aki'),
+            buildNode(configuredNameFile, 'Fake Agent'),
+            buildNode(duplicateFile, 'Aki'),
+            buildNode(duplicateFile, 'Fake Agent')
+        ])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Fake Agent', 'Aki', 'Aki'], 0)
+
+        expect(result.map(node => node.nodeId).sort()).toEqual([
+            configuredNameFile,
+            duplicateFile,
+            terminalFile
+        ].sort())
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('falls back to tagged nodes when spawnedAt would exclude all matches', async () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+
+        fs.writeFileSync(terminalFile, '# Terminal id work')
+        await new Promise<void>(resolve => setTimeout(resolve, 50))
+        const spawnedAtAfterNode: number = Date.now()
+
+        const graph: Graph = buildGraph([buildNode(terminalFile, 'Aki')])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Aki'], spawnedAtAfterNode)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(terminalFile)
+
+        fs.rmSync(tmpDir, {recursive: true})
+    })
+
+    it('recovers agent_name from node frontmatter when graph metadata lost YAML props', () => {
+        const tmpDir: string = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-test-'))
+        const terminalFile: string = path.join(tmpDir, 'terminal-node.md')
+
+        fs.writeFileSync(terminalFile, '---\nagent_name: Aki\n---\n# Terminal id work\n')
+
+        const graph: Graph = buildGraph([buildNode(terminalFile, undefined)])
+
+        const result = getNewNodesForAgentIdentities(graph, ['Aki'], 0)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].nodeId).toBe(terminalFile)
 
         fs.rmSync(tmpDir, {recursive: true})
     })

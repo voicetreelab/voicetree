@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Codebase Health · A Bulletin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div class="layout">
+    <header class="header">
+      <div class="header-brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1 class="brand-title">Codebase <em>Health</em></h1>
+          <p class="brand-sub">VoiceTree · Systems Layer</p>
+        </div>
+      </div>
+      <div class="header-summary" id="header-summary" aria-live="polite">
+        <div id="summary-text" class="summary-text"></div>
+        <div class="header-actions">
+          <span class="updated-at" id="updated-at"></span>
+          <button class="btn-refresh" id="btn-refresh" type="button">Refresh</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main" id="main" aria-label="Health metrics">
+      <div class="state-loading" id="state-initial">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Loading reports…</p>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

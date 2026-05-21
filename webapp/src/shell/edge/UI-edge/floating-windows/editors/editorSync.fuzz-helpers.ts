@@ -6,10 +6,10 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { vi } from 'vitest'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/types'
-import type { EditorData } from '@/shell/edge/UI-edge/state/UIAppState'
-import { addEditor } from '@/shell/edge/UI-edge/state/EditorStore'
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
+import { createEditorData } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+import type { EditorData } from '@/shell/edge/UI-edge/state/stores/UIAppState'
+import { addEditor } from '@/shell/edge/UI-edge/state/stores/EditorStore'
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 
 // =============================================================================
 // Seeded PRNG (xorshift32) for reproducible fuzz runs
@@ -75,6 +75,7 @@ export function makeNodeWithWikilinks(
 export interface MockEditor {
     getValue: () => string
     setValue: (v: string) => void
+    appendAtEnd: (suffix: string) => void
     isFocused: () => boolean
     dispose: () => void
     setValueCalls: string[]
@@ -97,6 +98,10 @@ export function createMockEditor(nodeId: NodeIdAndFilePath, initialContent: stri
         setValue: (nextValue: string) => {
             value = nextValue
             setValueCalls.push(nextValue)
+        },
+        appendAtEnd: (suffix: string) => {
+            value = value + suffix
+            setValueCalls.push(value)
         },
         isFocused: () => focused,
         dispose: vi.fn(),
@@ -210,7 +215,7 @@ export function generateOps(rng: () => number, count: number): readonly Op[] {
 // Invariant checkers (pure — throw on violation)
 // =============================================================================
 
-export function checkNoDuplication(editorContent: string, _context: string): void {
+export function checkNoDuplication(editorContent: string, context: string): void {
     const lines: readonly string[] = editorContent.split('\n')
     for (let i: number = 0; i < lines.length - 1; i++) {
         const line: string = lines[i].trim()

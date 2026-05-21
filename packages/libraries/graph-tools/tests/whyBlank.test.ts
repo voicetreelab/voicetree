@@ -5,7 +5,7 @@ import {
   type BlankState,
   type RootDomInfo,
   type ScreenshotSample,
-} from '../src/debug/whyBlank'
+} from '../src/debug/state/whyBlank'
 
 const SHOT: ScreenshotSample = { bytes: 2048 }
 

@@ -14,19 +14,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import type { Graph, GraphNode, GraphDelta } from '@vt/graph-model/graph'
+import { createNewChildNodeFromUI } from '@/shell/edge/UI-edge/graph/actions/handleUIActions'
+import type { Graph, GraphNode, GraphDelta, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { mapNewGraphToDelta } from '@vt/graph-model/graph'
-import { getNodeTitle } from '@vt/graph-model/markdown'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
     projectDelta,
     resetTestProjectionState
 } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
-import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/floating-windows/editors/modifyNodeContentFromFloatingEditor";
+import {
+    WORKFLOW_INJECTION_WRITER_ID,
+    writeMarkdownFileFromUI
+} from "@/shell/edge/UI-edge/floating-windows/editors/writeMarkdownFileFromUI";
 
 // Mock posthog
 vi.mock('posthog-js', () => ({
@@ -255,111 +257,75 @@ describe('createNewChildNodeFromUI - Integration', () => {
     })
 })
 
-describe('modifyNodeContentFromUI - Integration', () => {
-    let cy: Core
-    let mockGraph: Graph
+describe('writeMarkdownFileFromUI - Integration', () => {
+    type MarkdownWriteRequest = {
+        readonly absolutePath: string
+        readonly body: string
+        readonly editorId: string
+    }
+
+    let writtenFiles: Map<string, string>
+    let daemonRequests: MarkdownWriteRequest[]
 
     beforeEach(() => {
-        // Create a minimal graph with 1 node
-        // NOTE: title is derived via getNodeTitle from contentWithoutYamlOrLinks
-        mockGraph = createGraph({
-            'test.md': {
-                absoluteFilePathIsID: 'test.md',
-                contentWithoutYamlOrLinks: '# Old Title\n\nSome content',
-                outgoingEdges: [],
-                nodeUIMetadata: {
-                    color: O.some('#FF0000'),
-                    position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map(),
-                    isContextNode: false
-                }
-            }
-        })
+        writtenFiles = new Map<string, string>()
+        daemonRequests = []
 
-        // Initialize headless cytoscape with the node
-        cy = cytoscape({
-            headless: true,
-            elements: [
-                {
-                    group: 'nodes' as const,
-                    data: { id: 'test.md', label: 'Old Title', content: '# Old Title\n\nSome content', summary: '' },
-                    position: { x: 100, y: 100 }
-                }
-            ]
-        })
-
-        // Mock window.electronAPI
         global.window = {
             electronAPI: {
                 main: {
-                    getGraph: vi.fn().mockReturnValue(mockGraph),
-                    applyGraphDeltaToDBThroughMemUIAndEditorExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
-                        mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
-                        applyDeltaToUI(cy, delta)
-                        return undefined
-                    }),
-                    applyGraphDeltaToDBThroughMemAndUIExposed: vi.fn().mockImplementation(async (delta: GraphDelta) => {
-                        mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
-                        applyDeltaToUI(cy, delta)
-                        return undefined
-                    }),
-                    getNode: vi.fn().mockImplementation((nodeId: string) => mockGraph.nodes[nodeId])
+                    writeMarkdownFile: async (
+                        absolutePath: string,
+                        body: string,
+                        editorId: string,
+                    ): Promise<void> => {
+                        daemonRequests.push({ absolutePath, body, editorId })
+                        const targetPath: string = absolutePath.endsWith('/')
+                            ? `${absolutePath}index.md`
+                            : absolutePath
+                        writtenFiles.set(targetPath, body)
+                    },
                 }
             }
         } as unknown as Window & typeof globalThis
     })
 
     afterEach(() => {
-        cy.destroy()
         vi.clearAllMocks()
     })
 
-    it('should update node title in cytoscape when content heading changes', async () => {
-        // GIVEN: Node with title "Old Title"
-        expect(cy.getElementById('test.md').data('label')).toBe('Old Title')
-
-        // WHEN: Modifying content with a new heading
+    it('writes file body through the daemon endpoint', async () => {
         const newContent: string = '# New Title\n\nSome content'
-        await modifyNodeContentFromUI('test.md', newContent, cy)
 
-        // THEN: Cytoscape node label should be updated to new title
-        expect(cy.getElementById('test.md').data('label')).toBe('New Title')
+        await writeMarkdownFileFromUI('test.md', newContent, 'editor:test')
+
+        expect(writtenFiles.get('test.md')).toBe(newContent)
+        expect(daemonRequests).toEqual([{
+            absolutePath: 'test.md',
+            body: newContent,
+            editorId: 'editor:test',
+        }])
     })
 
-    it('should preserve position in GraphDelta when updating content', async () => {
-        // GIVEN: Node with position (100, 100) in metadata
+    it('lets the daemon resolve folder node saves to index.md', async () => {
+        const newContent: string = '# Folder Body\n'
 
-        // WHEN: Modifying content (which doesn't include position in frontmatter)
-        const newContent: string = '# New Title\n\nSome content'
-        await modifyNodeContentFromUI('test.md', newContent, cy)
+        await writeMarkdownFileFromUI('folder/' as NodeIdAndFilePath, newContent, 'editor:folder')
 
-        // THEN: GraphDelta should contain node with preserved position from old metadata
-        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemAndUIExposed.mock.calls[0]?.[0] as any[]
-        const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
-
-        // Position should be preserved from old metadata (O.some({x: 100, y: 100}))
-        expect(O.isSome(upsertedNode.nodeUIMetadata.position)).toBe(true)
-        if (O.isSome(upsertedNode.nodeUIMetadata.position)) {
-            expect(upsertedNode.nodeUIMetadata.position.value.x).toBe(100)
-            expect(upsertedNode.nodeUIMetadata.position.value.y).toBe(100)
-        }
+        expect(writtenFiles.get('folder/index.md')).toBe(newContent)
+        expect(daemonRequests[0]).toEqual({
+            absolutePath: 'folder/',
+            body: newContent,
+            editorId: 'editor:folder',
+        })
     })
 
-    it('should call applyGraphDeltaToDBThroughMem with updated node - title derived from content', async () => {
-        // GIVEN: Node with old title (derived from content heading)
-        expect(cy.getElementById('test.md').data('label')).toBe('Old Title')
+    it('uses a non-editor writer id for workflow injection writes', async () => {
+        const appended: string = '# Existing\n\nWorkflow summary'
 
-        // WHEN: Modifying content with new title
-        const newContent: string = '# Updated Title\n\nNew content here'
-        await modifyNodeContentFromUI('test.md', newContent, cy)
+        await writeMarkdownFileFromUI('test.md', appended, WORKFLOW_INJECTION_WRITER_ID)
 
-        // THEN: GraphDelta should contain node with content that derives the new title
-        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemAndUIExposed.mock.calls[0]?.[0] as any[]
-        expect(graphDeltaCall).toHaveLength(1)
-        expect(graphDeltaCall[0].type).toBe('UpsertNode')
-
-        const upsertedNode: GraphNode = graphDeltaCall[0].nodeToUpsert as GraphNode
-        // Title is derived from content via getNodeTitle, not stored in metadata
-        expect(getNodeTitle(upsertedNode)).toBe('Updated Title')
+        expect(writtenFiles.get('test.md')).toBe(appended)
+        expect(daemonRequests[0]?.editorId).toBe(WORKFLOW_INJECTION_WRITER_ID)
     })
 })

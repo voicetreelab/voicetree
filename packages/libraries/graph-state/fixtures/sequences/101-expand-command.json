@@ -1,12 +1,14 @@
 {
   "$schema": "graph-state/sequence@1",
   "id": "101-expand-command",
-  "description": "Single Expand command that restores the flat folder fixture.",
+  "description": "Single SetFolderState(expanded) command that restores the flat folder fixture.",
   "initial": "011-flat-folder-collapsed",
   "commands": [
     {
-      "type": "Expand",
-      "folder": "/tmp/graph-state-fixtures/root-a/tasks/"
+      "type": "SetFolderState",
+      "viewId": "main",
+      "path": "/tmp/graph-state-fixtures/root-a/tasks",
+      "state": "expanded"
     }
   ],
   "expected": {

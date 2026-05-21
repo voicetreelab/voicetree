@@ -11,25 +11,36 @@ const mocks = vi.hoisted(() => ({
     writePositionsThroughDaemon: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/electron/daemon-graph-queries', () => ({
+const daemonState = vi.hoisted(() => ({
+    postedDeltas: [] as GraphDelta[],
+    writtenPositions: [] as Array<Record<string, { x: number; y: number }>>,
+}))
+
+vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries', () => ({
     writePositionsThroughDaemon: mocks.writePositionsThroughDaemon,
 }))
 
-vi.mock('@/shell/edge/main/electron/daemon-ipc-proxy', () => ({
+vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
     getGraphFromDaemon: mocks.getGraphFromDaemon,
     postDeltaThroughDaemon: mocks.postDeltaThroughDaemon,
 }))
 
-vi.mock('@vt/agent-runtime', () => ({
-    getTerminalRecords: mocks.getTerminalRecords,
+vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
+    terminalRuntimeSurface: {
+        getTerminalRecords: mocks.getTerminalRecords,
+    },
 }))
 
-import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/main/saveNodePositions'
+import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/main/workspace/saveNodePositions'
 
 describe('saveNodePositions', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        mocks.writePositionsThroughDaemon.mockResolvedValue({ written: 0 })
+        daemonState.writtenPositions = []
+        mocks.writePositionsThroughDaemon.mockImplementation(async (positions) => {
+            daemonState.writtenPositions.push(positions)
+            return { written: Object.keys(positions).length }
+        })
         mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
         mocks.getTerminalRecords.mockReturnValue([])
     })
@@ -42,11 +53,10 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        const writtenPositions = mocks.writePositionsThroughDaemon.mock.calls[0]?.[0]
-        expect(writtenPositions).toEqual({
+        expect(daemonState.writtenPositions).toEqual([{
             'node1.md': { x: 100.25, y: 200.75 },
             'node2.md': { x: -3, y: 4 },
-        })
+        }])
     })
 
     it('ignores Cytoscape entries without finite positions', async () => {
@@ -59,10 +69,9 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        const writtenPositions = mocks.writePositionsThroughDaemon.mock.calls[0]?.[0]
-        expect(writtenPositions).toEqual({
+        expect(daemonState.writtenPositions).toEqual([{
             'valid.md': { x: 1, y: 2 },
-        })
+        }])
     })
 
     it('does not contact the daemon when there are no valid positions', async () => {
@@ -72,14 +81,17 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        expect(mocks.writePositionsThroughDaemon.mock.calls).toHaveLength(0)
+        expect(daemonState.writtenPositions).toEqual([])
     })
 })
 
 describe('cleanupOrphanedContextNodes', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
+        daemonState.postedDeltas = []
+        mocks.postDeltaThroughDaemon.mockImplementation(async (delta) => {
+            daemonState.postedDeltas.push(delta)
+        })
     })
 
     it('deletes daemon graph context nodes that are not attached to an active terminal', async () => {
@@ -98,7 +110,7 @@ describe('cleanupOrphanedContextNodes', () => {
 
         await cleanupOrphanedContextNodes()
 
-        const delta: GraphDelta | undefined = mocks.postDeltaThroughDaemon.mock.calls[0]?.[0]
+        const delta: GraphDelta | undefined = daemonState.postedDeltas[0]
         expect(delta).toHaveLength(1)
         expect(delta?.[0]).toMatchObject({
             type: 'DeleteNode',

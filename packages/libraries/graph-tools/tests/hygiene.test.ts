@@ -9,10 +9,10 @@ import {
     runHygieneAudit,
     formatHygieneReportHuman,
     formatHygieneReportJson,
-} from '../src/hygiene'
-import { buildUniqueBasenameMap } from '../src/primitives'
-import { buildFolderIndexMap } from '../src/lintContainment'
-import type { StructureNode } from '../src/primitives'
+} from '../src/lint/hygiene'
+import { buildUniqueBasenameMap } from '../src/core/primitives'
+import { buildFolderIndexMap } from '../src/lint/lintContainment'
+import type { StructureNode } from '../src/core/primitives'
 
 let tempDir: string
 

@@ -82,7 +82,7 @@ describe('session-state fuzz', () => {
     }
 
     nodeIds = files.map((f) => path.join(f.dir, f.name))
-    folderIds = [`${notes}/`, `${projects}/`, `${projectsSub}/`]
+    folderIds = [vault, notes, projects, projectsSub]
 
     clearWatchFolderState()
     setGraph(createEmptyGraph())
@@ -92,14 +92,6 @@ describe('session-state fuzz', () => {
       appSupportPath: path.join(root, 'app-support'),
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
-
-    for (const dir of [notes, projects]) {
-      await fetch(`${baseUrl}/vault/read-paths`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path: dir }),
-      })
-    }
 
     await waitFor(async () => {
       const body = (await (await fetch(`${baseUrl}/graph`)).json()) as { nodes: Record<string, unknown> }
@@ -153,26 +145,34 @@ describe('session-state fuzz', () => {
           case 'collapse': {
             const folderId = pick(rng, folderIds)
             const res = await fetch(
-              `${baseUrl}/sessions/${sessionId}/collapse/${encodeURIComponent(folderId)}`,
-              { method: 'POST' },
+              `${baseUrl}/sessions/${sessionId}/folder-state/${encodeURIComponent(folderId)}`,
+              {
+                method: 'PATCH',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ state: 'collapsed' }),
+              },
             )
             expect(res.status).toBe(200)
             const body = await res.json()
-            expect(body).toHaveProperty('collapseSet')
-            expect(Array.isArray(body.collapseSet)).toBe(true)
+            expect(body).toHaveProperty('folderState')
+            expect(Array.isArray(body.folderState)).toBe(true)
             break
           }
 
           case 'expand': {
             const folderId = pick(rng, folderIds)
             const res = await fetch(
-              `${baseUrl}/sessions/${sessionId}/collapse/${encodeURIComponent(folderId)}`,
-              { method: 'DELETE' },
+              `${baseUrl}/sessions/${sessionId}/folder-state/${encodeURIComponent(folderId)}`,
+              {
+                method: 'PATCH',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ state: 'expanded' }),
+              },
             )
             expect(res.status).toBe(200)
             const body = await res.json()
-            expect(body).toHaveProperty('collapseSet')
-            expect(Array.isArray(body.collapseSet)).toBe(true)
+            expect(body).toHaveProperty('folderState')
+            expect(Array.isArray(body.folderState)).toBe(true)
             break
           }
 
@@ -233,8 +233,7 @@ describe('session-state fuzz', () => {
               expect(nodeIds).toContain(id)
             }
 
-            for (const folder of snapshot.collapseSet) {
-              expect(folder.endsWith('/')).toBe(true)
+            for (const [folder] of snapshot.folderState) {
               expect(folderIds).toContain(folder)
             }
 

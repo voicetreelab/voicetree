@@ -1,14 +1,25 @@
-export { GraphDbClient } from './GraphDbClient.ts'
+export {
+  createGraphDbClient,
+  GraphDbClient,
+  type GraphDbClientApi,
+  type GraphDbClientOptions,
+} from './GraphDbClient.ts'
 export {
   DaemonLaunchTimeout,
   DaemonLockHeldError,
   DaemonUnreachableError,
   GraphDbClientError,
+  VaultNotOpenError,
+  VaultOpenFailedError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
+  resolveDaemonRuntimeCommand,
+  spawnVaultlessDaemon,
   type EnsureDaemonResult,
+  type SpawnVaultlessDaemonOptions,
+  type VaultlessDaemonHandle,
 } from './autoLaunch.ts'
 export {
   isVtGraphdProcessForVault,
@@ -17,38 +28,4 @@ export {
   type OrphanCleanupResult,
 } from './orphanCleanup.ts'
 
-export {
-  CONTRACT_VERSION,
-  AddReadPathRequestSchema,
-  CollapseStateResponseSchema,
-  GraphStateSchema,
-  HealthResponseSchema,
-  LayoutPartialSchema,
-  LayoutResponseSchema,
-  LiveStateSnapshotSchema,
-  SelectionModeSchema,
-  SelectionRequestSchema,
-  SelectionResponseSchema,
-  SessionCreateResponseSchema,
-  SessionInfoSchema,
-  SetWritePathRequestSchema,
-  ShutdownResponseSchema,
-  VaultStateSchema,
-  ViewResponseSchema,
-  type AddReadPathRequest,
-  type CollapseStateResponse,
-  type GraphState,
-  type HealthResponse,
-  type LayoutPartial,
-  type LayoutResponse,
-  type LiveStateSnapshot,
-  type SelectionMode,
-  type SelectionRequest,
-  type SelectionResponse,
-  type SessionCreateResponse,
-  type SessionInfo,
-  type SetWritePathRequest,
-  type ShutdownResponse,
-  type VaultState,
-  type ViewResponse,
-} from './contract.ts'
+export * from './contract.ts'

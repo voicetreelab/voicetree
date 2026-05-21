@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { computeRenameNodeDelta } from './computeRenameNodeDelta'
-import { createGraph } from '../createGraph'
+import { createGraph } from '../construction/createGraph'
 import type { Graph, GraphDelta, GraphNode, NodeDelta, NodeIdAndFilePath, UpsertNodeDelta } from '..'
 
 /**

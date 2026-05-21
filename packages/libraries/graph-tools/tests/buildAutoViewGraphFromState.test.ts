@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import type {Graph} from '@vt/graph-model'
 import * as O from 'fp-ts/lib/Option.js'
-import {buildAutoViewGraphFromState} from '../src/autoView'
+import {buildAutoViewGraphFromState} from '../src/view/autoView'
 
 function makeGraph(nodes: Record<string, {content: string; edges?: string[]; kind?: 'leaf' | 'folder'}>): Graph {
     const graphNodes: Graph['nodes'] = {}

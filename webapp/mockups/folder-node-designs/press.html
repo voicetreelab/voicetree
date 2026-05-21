@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRESS — folder-nodes mockup 03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Antonio:wght@300;400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:    #f7f4ea;
+    --paper-2:  #efe9d4;
+    --ink:      #0e0d0a;
+    --ink-soft: #3a352c;
+    --rule:     rgba(14,13,10,0.85);
+    --red:      #b8281c;
+    --red-deep: #7d1a14;
+    --gold:     #94782a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'EB Garamond', Georgia, serif;
+    min-height: 100vh;
+    position: relative;
+  }
+  /* paper grain */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.09 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.65;
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 64px 80px;
+  }
+
+  /* broadsheet masthead */
+  .masthead {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: end;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 4px;
+  }
+  .masthead .left, .masthead .right {
+    font-family: 'Antonio', sans-serif;
+    font-weight: 400;
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink);
+    line-height: 1.9;
+  }
+  .masthead .right { text-align: right; }
+  .masthead .center {
+    text-align: center;
+    padding: 0 28px;
+  }
+  .masthead h1 {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(60px, 8vw, 124px);
+    margin: 0;
+    line-height: 0.85;
+    letter-spacing: -0.01em;
+  }
+  .masthead h1 .ampersand {
+    font-style: italic;
+    color: var(--red);
+  }
+  .masthead .strap {
+    font-family: 'Antonio', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    margin-top: 8px;
+    color: var(--ink-soft);
+  }
+  .masthead .folio {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+  }
+
+  /* second rule */
+  .double-rule {
+    border-top: 1px solid var(--ink);
+    margin-top: 3px;
+    margin-bottom: 24px;
+  }
+
+  /* deck / standfirst */
+  .deck {
+    column-count: 2;
+    column-gap: 48px;
+    column-rule: 1px solid rgba(14,13,10,0.18);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 28px;
+  }
+  .deck p { margin: 0 0 12px; text-indent: 0; }
+  .deck p:first-child::first-letter {
+    font-family: 'DM Serif Display', serif;
+    font-size: 64px;
+    line-height: 0.85;
+    float: left;
+    padding: 6px 8px 0 0;
+    color: var(--red);
+  }
+
+  /* section header strip */
+  .section-strip {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 24px;
+    margin: 16px 0 18px;
+  }
+  .section-strip .hr { border-top: 1px solid var(--ink); height: 1px; }
+  .section-strip .label {
+    font-family: 'Antonio', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .section-strip .label .star { color: var(--red); margin: 0 6px; }
+
+  /* canvas */
+  .canvas {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.0)),
+      var(--paper);
+    border-top: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding: 56px 40px 64px;
+    min-height: 560px;
+    overflow: hidden;
+  }
+
+  /* hairline ruling */
+  .canvas::before {
+    content: '';
+    position: absolute; inset: 8px;
+    border: 1px solid rgba(14,13,10,0.16);
+    pointer-events: none;
+  }
+
+  /* basic node = stacked headline + standfirst */
+  .article {
+    position: absolute;
+    width: 200px;
+    padding: 12px 16px 14px;
+    background: var(--paper);
+    border-top: 1.5px solid var(--ink);
+    border-bottom: 1px solid rgba(14,13,10,0.45);
+  }
+  .article .eyebrow {
+    font-family: 'Antonio', sans-serif;
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 6px;
+  }
+  .article .head {
+    font-family: 'DM Serif Display', serif;
+    font-style: normal;
+    font-size: 18px;
+    line-height: 1.05;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+  .article .byline {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .article .byline::before { content: '— '; }
+
+  .article.italic .head { font-style: italic; }
+  .article.red    .head { color: var(--red); }
+  .article.small  { width: 160px; }
+  .article.small  .head { font-size: 15px; }
+
+  /* expanded folder = section / column-block */
+  .folder {
+    position: absolute;
+    padding: 70px 30px 30px;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 22px, rgba(14,13,10,0.04) 22px 23px),
+      var(--paper-2);
+    border-top: 6px double var(--ink);
+    border-bottom: 6px double var(--ink);
+  }
+  .folder .masthead-strip {
+    position: absolute;
+    top: 14px; left: 18px; right: 18px;
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 14px;
+  }
+  .folder .sect-num {
+    font-family: 'Antonio', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--red);
+  }
+  .folder .sect-title {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 44px;
+    line-height: 0.95;
+    color: var(--ink);
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .folder .sect-count {
+    font-family: 'Antonio', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink);
+    padding: 4px 10px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+  }
+  .folder .underline {
+    position: absolute;
+    top: 60px; left: 26px; right: 26px;
+    border-top: 1px solid var(--ink);
+  }
+
+  /* asterism centerpiece */
+  .folder .asterism {
+    position: absolute;
+    left: 50%; bottom: 12px;
+    transform: translateX(-50%);
+    color: var(--red);
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    letter-spacing: 0.4em;
+  }
+
+  /* collapsed folder = "see also" / standfirst block */
+  .folder.collapsed {
+    padding: 16px 22px 18px;
+    min-width: 280px;
+    border-top: 4px double var(--ink);
+    border-bottom: 4px double var(--ink);
+    background: var(--paper);
+  }
+  .folder.collapsed .sect-num,
+  .folder.collapsed .sect-count {
+    position: static;
+  }
+  .folder.collapsed .row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Antonio', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .folder.collapsed .row .red { color: var(--red); }
+  .folder.collapsed .ttl {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 30px;
+    line-height: 1.1;
+    color: var(--ink);
+    margin: 4px 0 6px;
+  }
+  .folder.collapsed .body {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink-soft);
+    border-top: 1px solid rgba(14,13,10,0.4);
+    padding-top: 8px;
+    margin-top: 6px;
+  }
+  .folder.collapsed .pagref {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--red-deep);
+  }
+
+  /* edges */
+  svg.edges {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  svg.edges path {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+  }
+  svg.edges path.red { stroke: var(--red); stroke-width: 1.3; }
+  svg.edges path.faint { stroke: rgba(14,13,10,0.3); stroke-dasharray: 2 4; }
+  svg.edges .cap { fill: var(--ink); }
+  svg.edges .cap.red { fill: var(--red); }
+
+  /* colophon / notes */
+  .columns {
+    margin-top: 36px;
+    column-count: 3;
+    column-gap: 36px;
+    column-rule: 1px solid rgba(14,13,10,0.25);
+  }
+  .columns section { break-inside: avoid; margin-bottom: 18px; }
+  .columns h4 {
+    font-family: 'Antonio', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin: 0 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(14,13,10,0.45);
+  }
+  .columns p {
+    font-family: 'EB Garamond', serif;
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .columns p em { color: var(--red-deep); }
+
+  .colophon {
+    margin-top: 28px;
+    padding-top: 12px;
+    border-top: 2px solid var(--ink);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'Antonio', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .colophon a { color: var(--red); text-decoration: none; border-bottom: 1px solid var(--red); }
+</style>
+</head>
+<body>
+  <main>
+
+    <header class="masthead">
+      <div class="left">
+        Vol. III &nbsp;·&nbsp; No. 03<br />
+        Sheet 03 / 03<br />
+        Drafting: Aki
+      </div>
+      <div class="center">
+        <h1>The Press <span class="ampersand">&amp;</span> Folder</h1>
+        <div class="strap">a broadsheet on folder-nodes · mockup three of three</div>
+        <div class="folio">established yesterday, retired by morning · 21 May 2026</div>
+      </div>
+      <div class="right">
+        Edition&nbsp;A<br />
+        Set in DM Serif Display<br />
+        &amp; EB Garamond
+      </div>
+    </header>
+    <div class="double-rule"></div>
+
+    <div class="deck">
+      <p>A folder takes the form of a <em>section</em>, with its own masthead and standfirst. Each child article sits on a ruled column inside that section. From the outside, the folder is approached as a single masthead — incoming edges meet the title, never the byline of a particular article.</p>
+      <p>Collapsed, the section folds into a <em>see-also</em> dispatch: italic title, Roman folio, count of articles within. The visual rhetoric is print, not screen — hairline rules, double borders, a single red ink that earns its place.</p>
+    </div>
+
+    <div class="section-strip">
+      <div class="hr"></div>
+      <div class="label">— &nbsp;Section <span class="star">✦</span> the field <span class="star">✦</span>&nbsp; —</div>
+      <div class="hr"></div>
+    </div>
+
+    <div class="canvas">
+
+      <!-- expanded folder -->
+      <div class="folder" style="left: 32px; top: 56px; width: 640px; height: 400px;">
+        <div class="masthead-strip">
+          <span class="sect-num">§ I · folder-nodes</span>
+          <span class="sect-title"><em>An Epic in Two Movements</em></span>
+          <span class="sect-count">XII within</span>
+        </div>
+        <div class="underline"></div>
+
+        <div class="article" style="left:  24px; top:  78px;">
+          <div class="eyebrow">contract · done</div>
+          <h3 class="head italic">A Folder Note,<br />Properly Pinned</h3>
+          <div class="byline">BF-108 identity</div>
+        </div>
+        <div class="article small" style="left: 246px; top:  78px;">
+          <div class="eyebrow">openspec · 1.4k</div>
+          <h3 class="head">design.md</h3>
+          <div class="byline">the case for fold &amp; bind</div>
+        </div>
+        <div class="article" style="left: 422px; top:  92px;">
+          <div class="eyebrow">testing</div>
+          <h3 class="head red">Cross-Folder Edges,<br />Still Pending Print</h3>
+          <div class="byline">BF-110</div>
+        </div>
+        <div class="article" style="left:  24px; top: 226px;">
+          <div class="eyebrow">shipped</div>
+          <h3 class="head italic">State Unified;<br />Module Set Retired</h3>
+          <div class="byline">BF-117</div>
+        </div>
+        <div class="article small" style="left: 246px; top: 240px;">
+          <div class="eyebrow">researching</div>
+          <h3 class="head red">The 600-File Cap</h3>
+          <div class="byline">BF-112, in council</div>
+        </div>
+        <div class="article small" style="left: 426px; top: 246px;">
+          <div class="eyebrow">openspec · 73 lines</div>
+          <h3 class="head">tasks.md</h3>
+          <div class="byline">a ledger of intent</div>
+        </div>
+
+        <div class="asterism">✦ ✦ ✦</div>
+      </div>
+
+      <!-- external articles -->
+      <div class="article" style="left: 720px; top: 72px;">
+        <div class="eyebrow">webapp · shell/edge</div>
+        <h3 class="head">graphLint.ts</h3>
+        <div class="byline">on lintable hierarchies</div>
+      </div>
+      <div class="article small" style="left: 740px; top: 198px;">
+        <div class="eyebrow">linked spec</div>
+        <h3 class="head italic">~/brain/types.md</h3>
+        <div class="byline">the primitives</div>
+      </div>
+
+      <!-- collapsed folder -->
+      <div class="folder collapsed" style="left: 880px; top: 350px;">
+        <div class="row">
+          <span class="red">see also</span>
+          <span>arch.refactor</span>
+          <span>× IV</span>
+        </div>
+        <div class="ttl"><em>Refactor, in Four Acts</em></div>
+        <div class="pagref">folio BF-116 → 119</div>
+        <div class="body">
+          A subseries, set down whole. Pure, then state, then shell, then a small cleaning. Closed by April; printed here for reference.
+        </div>
+      </div>
+
+      <div class="article" style="left: 740px; top: 420px;">
+        <div class="eyebrow">webapp · shell/edge</div>
+        <h3 class="head">applyGraphDeltaToUI</h3>
+        <div class="byline">delta, then render</div>
+      </div>
+
+      <svg class="edges" viewBox="0 0 1180 560" preserveAspectRatio="none">
+        <!-- expanded folder masthead → external -->
+        <path class="red" d="M 672 76 C 696 76, 712 78, 730 88" />
+        <circle class="cap red" cx="672" cy="76" r="2.2" />
+
+        <path d="M 672 256 C 700 244, 720 226, 740 218" />
+        <circle class="cap" cx="672" cy="256" r="2.2" />
+
+        <!-- collapsed → external -->
+        <path class="red" d="M 884 386 C 836 402, 808 416, 770 426" />
+        <circle class="cap red" cx="884" cy="386" r="2.2" />
+
+        <!-- faint internal hint -->
+        <path class="faint" d="M 90 200 C 240 226, 380 240, 480 244" />
+        <path class="faint" d="M 290 134 C 320 156, 360 170, 400 178" />
+      </svg>
+    </div>
+
+    <div class="section-strip">
+      <div class="hr"></div>
+      <div class="label">— &nbsp;colophon &nbsp;—</div>
+      <div class="hr"></div>
+    </div>
+
+    <div class="columns">
+      <section>
+        <h4>typography</h4>
+        <p>Display set in <em>DM Serif Display</em> italic, drawing on 19th-c. American job-printing. Body in <em>EB Garamond</em>, a wide-set 16th-c. revival. All-caps labels in <em>Antonio</em> condensed sans, the cadence of column headers and dateline strips.</p>
+      </section>
+      <section>
+        <h4>palette</h4>
+        <p>Ivory paper #F7F4EA, printer's black #0E0D0A. Exactly one red — <em>vermilion</em> #B8281C — used as the editor's mark: status dots, asterisms, leader caps. No second color competes.</p>
+      </section>
+      <section>
+        <h4>motion</h4>
+        <p>The collapse fold is a typeset re-paginate: the section <em>turns</em> to a see-also dispatch over ~280ms. Hovering a child article surfaces a hairline underline, never a glow. Edges trace themselves like leader rules from masthead to masthead.</p>
+      </section>
+      <section>
+        <h4>edge interface</h4>
+        <p>The folder publishes <em>one</em> point of contact — its masthead. Cross-folder edges arrive at the title, never at a member article. Collapsed sections offer a <em>folio reference</em> rather than a member preview.</p>
+      </section>
+      <section>
+        <h4>information density</h4>
+        <p>Members are sized by editorial priority, not by content length. The folder section is paginated with vertical ruling so a glance reveals row alignment. Whitespace earns its keep, in print as on screen.</p>
+      </section>
+      <section>
+        <h4>departures</h4>
+        <p>This is the most <em>maximalist</em> direction: typographic, deliberately literary. It celebrates the act of <em>folding</em> as an editorial decision, not a UI affordance. Adopt fully or not at all — half-prints look like a brochure.</p>
+      </section>
+    </div>
+
+    <div class="colophon">
+      <span>press.html · folder-nodes design 03</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

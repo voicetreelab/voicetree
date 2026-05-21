@@ -2,12 +2,12 @@ import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position
 import * as O from 'fp-ts/lib/Option.js'
 import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-node'
 import {findBestMatchingNode} from '../markdown-parsing/extract-edges'
-import {setOutgoingEdges} from '../graph-operations/graph-edge-operations'
+import {setOutgoingEdges} from '../graph-operations/transforms/graph-edge-operations'
 import {filenameToNodeId} from '../markdown-parsing/filename-utils'
-import {calculateNodePosition} from '../positioning/calculateInitialPosition';
-import {buildSpatialIndexFromGraph} from '../positioning/spatialAdapters';
+import {calculateNodePosition} from '../positioning/placement/calculateInitialPosition';
+import {buildSpatialIndexFromGraph} from '../positioning/placement/spatialAdapters';
 import type {SpatialIndex} from '../spatial';
-import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/linkResolutionIndexes'
+import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/indexes/linkResolutionIndexes'
 
 /**
  * Resolve position for a node based on priority:

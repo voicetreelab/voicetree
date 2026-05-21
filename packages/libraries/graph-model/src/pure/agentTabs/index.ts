@@ -3,7 +3,7 @@
  * No side effects, no DOM, no state
  */
 
-import { formatShortcut } from '../utils/keyboardShortcutDisplay';
+import { formatShortcut, type ShortcutPlatform } from '../utils/keyboardShortcutDisplay';
 
 // =============================================================================
 // Constants
@@ -25,7 +25,8 @@ export const CHECK_INTERVAL_MS: number = 2400;
 export function getShortcutHintForTab(
     tabIndex: number,
     activeIndex: number,
-    totalTabs: number
+    totalTabs: number,
+    platform: ShortcutPlatform
 ): string | null {
     if (tabIndex === activeIndex || totalTabs <= 1) {
         return null; // No hint for active tab or single tab
@@ -36,7 +37,9 @@ export function getShortcutHintForTab(
     const rightDistance: number = (tabIndex - activeIndex + totalTabs) % totalTabs;
 
     // If distances are equal, prefer right (])
-    return leftDistance <= rightDistance ? formatShortcut('[') : formatShortcut(']');
+    return leftDistance <= rightDistance
+        ? formatShortcut('[', platform)
+        : formatShortcut(']', platform);
 }
 
 // =============================================================================
@@ -52,6 +55,14 @@ export function isTerminalInactive(
     threshold: number = INACTIVITY_THRESHOLD_MS
 ): boolean {
     return (now - lastOutputTime) >= threshold;
+}
+
+/**
+ * Should an output event flip a terminal lifecycle to active?
+ * Completed and errored terminals are sticky terminal states.
+ */
+export function shouldFlipToActiveOnOutput(lifecycle: import('./types').TerminalLifecycle): boolean {
+    return lifecycle !== 'active' && lifecycle !== 'completed' && lifecycle !== 'errored';
 }
 
 /**

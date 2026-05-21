@@ -109,12 +109,14 @@ const test = base.extend<{
     const electronApp = await electron.launch({
       args: [
         ...ciFlags,
+        '--remote-debugging-port=0',
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
         `--user-data-dir=${tempUserDataPath}`
       ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        ENABLE_PLAYWRIGHT_DEBUG: '0',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
@@ -142,10 +144,16 @@ const test = base.extend<{
     });
 
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
-    const projectButton = page.locator('button', { hasText: tempProjectName }).first();
-    await projectButton.waitFor({ timeout: 10000 });
-    await projectButton.click();
+    // voicetree-config.json has lastDirectory set, so the app may auto-load the vault
+    // before the project selection screen is visible. Detect auto-load first.
+    try {
+      await pollForCytoscape(page, 3000);
+    } catch {
+      await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
+      const projectButton = page.locator('button', { hasText: tempProjectName }).first();
+      await projectButton.waitFor({ timeout: 10000 });
+      await projectButton.click();
+    }
     await pollForCytoscape(page, 15000);
     await expect.poll(async () => {
       return page.evaluate(({ sourceFilePath, targetFilePath, vaultPath }) => {
@@ -204,6 +212,40 @@ const test = base.extend<{
       directory: tempProjectPath
     });
     await waitForExternalFsPipelineReady(page, path.join(tempVaultPath, SOURCE_FILE_NAME));
+
+    // waitForExternalFsPipelineReady only verifies the main-process graph has settled.
+    // The projected edge (source→target wikilink) may still be in flight via SSE to
+    // cytoscape. Poll until cytoscape also shows the edge before handing off to tests.
+    await expect.poll(async () => {
+      return page.evaluate(({ sourceFilePath, targetFilePath, vaultPath }) => {
+        const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const normalize = (v: string): string => v.replaceAll('\\', '/');
+        const normalizedVaultPath = normalize(vaultPath);
+        const findId = (filePath: string): string | undefined => {
+          const normalized = normalize(filePath);
+          return cy.nodes().find((n) => {
+            const nodeId = n.id();
+            const resolved = nodeId.startsWith('/')
+              ? normalize(nodeId)
+              : normalize(`${normalizedVaultPath}/${nodeId}`);
+            return resolved === normalized;
+          })?.id();
+        };
+        const srcId = findId(sourceFilePath);
+        const tgtId = findId(targetFilePath);
+        if (!srcId || !tgtId) return false;
+        return cy.edges().some((e) => e.source().id() === srcId && e.target().id() === tgtId);
+      }, {
+        sourceFilePath: path.join(tempVaultPath, SOURCE_FILE_NAME),
+        targetFilePath: path.join(tempVaultPath, TARGET_FILE_NAME),
+        vaultPath: tempVaultPath
+      });
+    }, {
+      message: 'Waiting for source→target wikilink edge to appear in cytoscape',
+      timeout: 15000,
+      intervals: [500, 1000, 2000]
+    }).toBe(true);
 
     await use(page);
   }, { timeout: 45000 }]

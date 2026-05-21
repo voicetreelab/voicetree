@@ -6,8 +6,9 @@
 import type {} from '@/shell/electron';
 import type {Core} from 'cytoscape';
 import type {VTSettings} from '@vt/graph-model/settings';
-import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/types';
-import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/UIAppState';
+import type {EditorId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import {vanillaFloatingWindowInstances} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {setDarkMode} from '@/shell/edge/UI-edge/state/controllers/DarkModeManager';
 import {X, createElement} from 'lucide';
 import {createRoot, type Root} from 'react-dom/client';
 import {createElement as reactCreateElement} from 'react';
@@ -123,6 +124,9 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         const saveFn: (updatedSettings: VTSettings) => Promise<void> = async (updatedSettings: VTSettings): Promise<void> => {
             if (window.electronAPI) {
                 await window.electronAPI.main.saveSettings(updatedSettings);
+            }
+            if (updatedSettings.darkMode !== undefined) {
+                setDarkMode(updatedSettings.darkMode);
             }
         };
         root.render(reactCreateElement(SettingsEditor, { initialSettings: settings, onSave: saveFn }));

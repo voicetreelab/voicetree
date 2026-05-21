@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getIncomingEdgesToSubgraph } from './getIncomingEdgesToSubgraph'
 import type { Graph, NodeIdAndFilePath, GraphNode, Edge } from '../..'
-import { createGraph } from '../../createGraph'
+import { createGraph } from '../../construction/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 type IncomingEdgeWithSource = {

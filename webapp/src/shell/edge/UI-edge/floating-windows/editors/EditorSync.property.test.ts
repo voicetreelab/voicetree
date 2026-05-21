@@ -2,7 +2,7 @@
  * Targeted property-based tests for EditorSync invariants:
  * - Wikilink round-trip fidelity (no duplication)
  * - Append-only preserves user typing
- * - Focused editor immune to non-append overwrites
+ * - Stale non-append overwrites do not replace diverged live editor text
  * - Unfocused editor accepts matching external writes
  */
 
@@ -10,8 +10,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Core } from 'cytoscape'
 import type { GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
-import { getEditors } from '@/shell/edge/UI-edge/state/EditorStore'
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState'
+import { getEditors } from '@/shell/edge/UI-edge/state/stores/EditorStore'
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState'
 import { updateFloatingEditors } from './EditorSync'
 import { fromNodeToContentWithWikilinks } from '@vt/graph-model/markdown'
 import {
@@ -98,12 +98,12 @@ describe('EditorSync property — append-only preserves user typing', () => {
     }
 })
 
-describe('EditorSync property — focused editor immune to non-append overwrites', () => {
+describe('EditorSync property — stale non-append overwrites do not replace diverged editor text', () => {
     beforeEach(() => { getEditors().clear(); vanillaFloatingWindowInstances.clear() })
     afterEach(() => { getEditors().clear(); vanillaFloatingWindowInstances.clear() })
 
     for (let seed: number = 300; seed < 330; seed++) {
-        it(`focused-immune seed=${seed}`, () => {
+        it(`stale-overwrite seed=${seed}`, () => {
             const rng: () => number = createPRNG(seed)
             const nodeId: NodeIdAndFilePath = 'focus-test.md' as NodeIdAndFilePath
             const initialBody: string = randomChoice(rng, SAMPLE_TEXTS)

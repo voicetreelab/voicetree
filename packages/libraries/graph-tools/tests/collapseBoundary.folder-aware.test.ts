@@ -3,7 +3,7 @@ import {
     findCollapseBoundary,
     type CollapseBoundaryGraph,
     type CollapseBoundaryNode,
-} from '../src/collapseBoundary'
+} from '../src/view/collapseBoundary'
 
 function makeGraph(nodes: readonly CollapseBoundaryNode[]): CollapseBoundaryGraph {
     return {rootName: 'fixture', nodes}

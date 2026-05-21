@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ranking · D · Treemap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --ink-0:#0c0a06; --ink-1:#15110b; --ink-2:#1d1810; --ink-3:#251d12;
+  --rule:#2c2418; --rule-soft:#1f1810; --rule-strong:#3d3220;
+  --paper:#f4ecda; --paper-muted:#c2b690; --paper-faint:#857a5d; --paper-ghost:#4d4430;
+  --sig:#ff4438; --vital:#9ce363; --caution:#f5b04a; --accent:#f7e3a6;
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);color:var(--paper);background:var(--ink-0);min-height:100vh;
+  background-image:radial-gradient(at 12% 8%,rgba(247,227,166,.025),transparent 40%),radial-gradient(at 88% 92%,rgba(255,68,56,.018),transparent 42%);
+  background-attachment:fixed;line-height:1.5;padding:2.2rem clamp(1.1rem,3vw,2rem) 4rem}
+.wrap{max-width:1380px;margin:0 auto}
+
+.bulletin{display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:1.4rem;padding-bottom:.9rem;border-bottom:1px solid var(--rule-strong);margin-bottom:1.8rem}
+.bulletin-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-faint)}
+.bulletin h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3vw,2.25rem);line-height:1;color:var(--paper);font-variation-settings:"opsz" 96,"SOFT" 30}
+.bulletin h1 em{font-style:italic;color:var(--accent);font-weight:300}
+.bulletin .right{font-family:var(--mono);font-size:.7rem;color:var(--paper-muted);text-align:right;letter-spacing:.04em}
+.bulletin .right b{color:var(--paper);font-weight:500}
+.bulletin .right .fail-tally{color:var(--sig)}
+
+.section-head{display:grid;grid-template-columns:auto 1fr auto auto;align-items:baseline;gap:.9rem;margin-bottom:1.2rem}
+.section-name{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.05rem;color:var(--paper)}
+.section-rule{height:1px;background:var(--rule);align-self:center;margin-top:.2em}
+.section-tally{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;color:var(--paper-faint);text-transform:uppercase}
+.controls{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;display:flex;gap:.3rem}
+.controls button{background:transparent;color:var(--paper-muted);border:1px solid var(--rule);padding:.32rem .65rem;font:inherit;cursor:pointer;letter-spacing:.18em}
+.controls button:hover{color:var(--paper);border-color:var(--rule-strong)}
+.controls button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:rgba(247,227,166,.05)}
+
+.frame{border:1px solid var(--rule-strong);background:var(--ink-1);padding:1rem;position:relative}
+.frame-eyebrow{font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;color:var(--paper-faint);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:.6rem;padding:0 .25rem}
+.frame-eyebrow em{font-family:var(--serif);font-style:italic;letter-spacing:.01em;color:var(--paper)}
+
+#tm-wrap{position:relative;width:100%;aspect-ratio:16/9;min-height:540px}
+svg.treemap{width:100%;height:100%;display:block;font-family:var(--mono)}
+
+/* leaf rects */
+rect.leaf{stroke:#0c0a06;stroke-width:.75;cursor:default;transition:filter .12s}
+rect.leaf:hover{filter:brightness(1.35)}
+
+/* subgroup outline */
+rect.sub-frame{fill:none;stroke:#0c0a06;stroke-width:2;pointer-events:none}
+rect.sub-frame.is-fail{stroke:#ff4438;stroke-dasharray:none}
+/* category outline */
+rect.cat-frame{fill:none;stroke:#0c0a06;stroke-width:3.5;pointer-events:none}
+rect.cat-frame.is-fail{stroke:#ff4438}
+
+/* labels inside cells */
+text.cat-label{font-family:var(--serif);font-style:italic;font-weight:400;letter-spacing:.005em;fill:var(--paper);pointer-events:none;font-variation-settings:"opsz" 96,"SOFT" 50}
+text.cat-meta{font-family:var(--mono);font-size:9px;fill:var(--paper-muted);letter-spacing:.18em;text-transform:uppercase;pointer-events:none}
+text.sub-label{font-family:var(--mono);font-size:9.5px;fill:var(--paper);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;font-weight:500}
+text.sub-meta{font-family:var(--mono);font-size:8px;fill:var(--paper-muted);letter-spacing:.08em;pointer-events:none}
+text.leaf-label{font-family:var(--mono);font-size:9.5px;fill:#0c0a06;letter-spacing:.01em;pointer-events:none;font-weight:500}
+text.leaf-meta{font-family:var(--mono);font-size:8.5px;fill:rgba(12,10,6,.7);letter-spacing:.02em;pointer-events:none}
+
+/* gate cells: light text */
+.is-gate text.leaf-label,.is-gate text.leaf-meta{fill:var(--paper-muted)}
+
+/* shading overlay for category bg */
+rect.cat-bg{stroke:none}
+
+/* tooltip */
+#tooltip{position:absolute;background:var(--ink-0);border:1px solid var(--rule-strong);
+  padding:.6rem .75rem;font-family:var(--mono);font-size:.7rem;color:var(--paper);
+  pointer-events:none;display:none;z-index:10;max-width:280px;line-height:1.45}
+#tooltip b{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--accent);letter-spacing:.005em;font-size:.82rem;display:block;margin-bottom:.3rem}
+#tooltip .row{display:grid;grid-template-columns:80px 1fr;gap:.5rem;color:var(--paper-muted)}
+#tooltip .row b{font-style:normal;font-family:var(--mono);color:var(--paper-faint);font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;margin:0}
+#tooltip[data-status="fail"] {border-color:var(--sig)}
+#tooltip[data-status="caution"] {border-color:var(--caution)}
+
+/* legend */
+.legend{margin-top:1.2rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.7rem 0;border-top:1px solid var(--rule);font-family:var(--mono);font-size:.6rem;color:var(--paper-ghost);letter-spacing:.04em}
+.legend em{font-family:var(--serif);font-style:italic;color:var(--paper-faint);letter-spacing:0}
+.legend .strip{display:inline-flex;height:8px;width:90px;vertical-align:middle;margin:0 .3rem 0 .15rem;border:1px solid var(--rule)}
+.legend .strip.pass{background:linear-gradient(90deg,#2c4416,#9ce363)}
+.legend .strip.caution{background:linear-gradient(90deg,#5a3f12,#f5b04a)}
+.legend .strip.fail{background:linear-gradient(90deg,#5e1a14,#ff4438)}
+.legend .strip.gate{background:#4d4430}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bulletin">
+    <div>
+      <div class="bulletin-eyebrow">View D · Mockup</div>
+      <h1>The <em>Treemap</em></h1>
+    </div>
+    <div></div>
+    <div class="right">
+      <div>WinDirStat-style</div>
+      <div><b>49</b> metrics · <span class="fail-tally"><b id="fail-count">…</b> failing</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-name">Metric Ranking — What's Eating Your Budget</span>
+    <span class="section-rule"></span>
+    <span class="section-tally" id="tally">…</span>
+    <span class="controls">
+      <button id="btn-util" aria-pressed="true">size: utilization</button>
+      <button id="btn-count" aria-pressed="false">size: count</button>
+    </span>
+  </div>
+
+  <div class="frame">
+    <div class="frame-eyebrow">
+      <span>Plate II &nbsp;·&nbsp; <em>nested rectangles · area = chosen weight · colour = pass / caution / fail</em></span>
+      <span>brighter fill = closer to budget ratchet</span>
+    </div>
+    <div id="tm-wrap">
+      <div id="tooltip"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div>
+      <span><b>colour ramp:</b></span>
+      pass <span class="strip pass"></span>
+      caution (≥ .85×) <span class="strip caution"></span>
+      fail <span class="strip fail"></span>
+      gate (budget = 0) <span class="strip gate"></span>
+    </div>
+    <div><em>each rectangle's area</em> · utilization-capped (default) or equal-weight (count) — hover any tile</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { buildTree, METRICS } from './_data.js'
+
+// ── Sizing modes ──────────────────────────────────────────────────────────
+const isCaution = (n) => n.kind === 'leaf' && n.passed && n.util >= .85 && n.metric.budget !== 0
+const leafStatus = (n) => isCaution(n) ? 'caution' : n.status
+
+// utilization-weighted (with floor so passing metrics still show up)
+const weightUtil  = (n) => Math.max(n.utilCapped, 0.18)
+// equal-weight per leaf
+const weightCount = (n) => 1
+
+// ── Build subtree weights ────────────────────────────────────────────────
+function annotateWeights (tree, leafWeightFn) {
+  for (const cat of tree) {
+    let catSum = 0
+    for (const child of cat.children) {
+      if (child.kind === 'leaf') {
+        child._w = leafWeightFn(child)
+        catSum += child._w
+      } else { // subgroup
+        let subSum = 0
+        for (const leaf of child.children) {
+          leaf._w = leafWeightFn(leaf)
+          subSum += leaf._w
+        }
+        child._w = subSum
+        catSum += subSum
+      }
+    }
+    cat._w = catSum
+  }
+}
+
+// ── Squarified treemap ───────────────────────────────────────────────────
+function squarify (items, rect) {
+  // returns array of {item, x, y, w, h}
+  const sorted = [...items].sort((a,b) => b._w - a._w)
+  const out = []
+  layout(sorted, rect, out)
+  return out
+}
+
+function layout (items, rect, out) {
+  if (items.length === 0 || rect.w <= 0 || rect.h <= 0) return
+  if (items.length === 1) {
+    out.push({ item: items[0], x: rect.x, y: rect.y, w: rect.w, h: rect.h })
+    return
+  }
+  const totalW = items.reduce((s,i) => s + i._w, 0)
+  // Find best row prefix
+  let bestRow = [items[0]]
+  let bestSum = items[0]._w
+  let bestAspect = worstAspect(bestRow, bestSum, totalW, rect)
+  for (let i = 1; i < items.length; i++) {
+    const tryRow = [...bestRow, items[i]]
+    const trySum = bestSum + items[i]._w
+    const tryAspect = worstAspect(tryRow, trySum, totalW, rect)
+    if (tryAspect <= bestAspect) {
+      bestRow = tryRow
+      bestSum = trySum
+      bestAspect = tryAspect
+    } else {
+      break
+    }
+  }
+  // Place this row along the SHORTER side of the rect
+  const isHoriz = rect.w >= rect.h
+  if (isHoriz) {
+    // row sits on the LEFT, takes a column slice of width rowW
+    const totalArea = rect.w * rect.h
+    const rowArea  = totalArea * (bestSum / totalW)
+    const rowW = rowArea / rect.h
+    let yC = rect.y
+    for (const it of bestRow) {
+      const h = rect.h * (it._w / bestSum)
+      out.push({ item: it, x: rect.x, y: yC, w: rowW, h })
+      yC += h
+    }
+    const remaining = items.slice(bestRow.length)
+    layout(remaining, { x: rect.x + rowW, y: rect.y, w: rect.w - rowW, h: rect.h }, out)
+  } else {
+    // row sits on the TOP, takes a row slice of height rowH
+    const totalArea = rect.w * rect.h
+    const rowArea  = totalArea * (bestSum / totalW)
+    const rowH = rowArea / rect.w
+    let xC = rect.x
+    for (const it of bestRow) {
+      const w = rect.w * (it._w / bestSum)
+      out.push({ item: it, x: xC, y: rect.y, w, h: rowH })
+      xC += w
+    }
+    const remaining = items.slice(bestRow.length)
+    layout(remaining, { x: rect.x, y: rect.y + rowH, w: rect.w, h: rect.h - rowH }, out)
+  }
+}
+
+function worstAspect (row, rowSum, totalW, rect) {
+  // Lay row along the LONG side, so each item is wide+thin
+  const longSide  = Math.max(rect.w, rect.h)
+  const totalArea = rect.w * rect.h
+  const rowArea   = totalArea * (rowSum / totalW)
+  const rowDepth  = rowArea / longSide
+  if (rowDepth <= 0) return Infinity
+  let worst = 1
+  for (const it of row) {
+    const len = longSide * (it._w / rowSum)
+    if (len <= 0) return Infinity
+    const ratio = Math.max(rowDepth / len, len / rowDepth)
+    if (ratio > worst) worst = ratio
+  }
+  return worst
+}
+
+// ── Color ramp ───────────────────────────────────────────────────────────
+function fillFor (leaf) {
+  const stat = leafStatus(leaf)
+  // Intensity: low util → dim, high util → bright
+  const u = Math.min(leaf.utilCapped, 2) / 2  // 0..1
+  // Map u to [.45..1.0]
+  const t = .45 + 0.55 * u
+  if (stat === 'fail') return mixHex('#5e1a14','#ff4438', t)
+  if (stat === 'caution') return mixHex('#5a3f12','#f5b04a', t)
+  if (stat === 'gate-pass') return '#4d4430'
+  // pass
+  return mixHex('#2c4416','#9ce363', t)
+}
+function mixHex (a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16)
+  const ar = (pa>>16)&255, ag = (pa>>8)&255, ab = pa&255
+  const br = (pb>>16)&255, bg = (pb>>8)&255, bb = pb&255
+  const mr = Math.round(ar + (br-ar)*t), mg = Math.round(ag + (bg-ag)*t), mb = Math.round(ab + (bb-ab)*t)
+  return `rgb(${mr},${mg},${mb})`
+}
+
+// ── Render ───────────────────────────────────────────────────────────────
+const wrap = document.getElementById('tm-wrap')
+const tooltip = document.getElementById('tooltip')
+const CAT_PAD_TOP = 22       // room for category label inside its rect
+const SUB_PAD_TOP = 13       // room for subgroup label
+const PAD = 2                // breathing space inside containers
+
+let mode = 'util'  // or 'count'
+
+function tree () {
+  const t = buildTree(METRICS)
+  annotateWeights(t, mode === 'util' ? weightUtil : weightCount)
+  return t
+}
+
+function render () {
+  const T = tree()
+  const rect = wrap.getBoundingClientRect()
+  const W = Math.max(rect.width, 800), H = Math.max(rect.height, 540)
+
+  const parts = [`<svg class="treemap" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`]
+
+  // Treemap categories
+  const catCells = squarify(T, { x: 1, y: 1, w: W - 2, h: H - 2 })
+
+  for (const c of catCells) {
+    const cat = c.item
+    parts.push(renderCategory(cat, c))
+  }
+  parts.push('</svg>')
+  wrap.innerHTML = `<div id="tooltip"></div>` + parts.join('')
+  // re-grab tooltip after innerHTML replace
+  window._tip = document.getElementById('tooltip')
+  bindHover()
+
+  // tally
+  let total = 0, fail = 0
+  for (const c of T) for (const x of c.children) {
+    if (x.kind === 'leaf') { total++; if (!x.passed) fail++ }
+    else for (const l of x.children) { total++; if (!l.passed) fail++ }
+  }
+  document.getElementById('tally').textContent = `${T.length} categories · ${total} metrics · ${fail} failing`
+  document.getElementById('fail-count').textContent = String(fail)
+}
+
+function renderCategory (cat, R) {
+  const stat = cat.passed ? 'pass' : 'fail'
+  const failCls = cat.passed ? '' : 'is-fail'
+  const out = []
+
+  // category background — slightly lighter ink
+  out.push(`<rect class="cat-bg" x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}" fill="#15110b" />`)
+
+  // Inner content rectangle (with padding-top for label)
+  const inner = { x: R.x + PAD, y: R.y + CAT_PAD_TOP, w: R.w - 2*PAD, h: R.h - CAT_PAD_TOP - PAD }
+
+  if (inner.w > 12 && inner.h > 12) {
+    // Compose children: subgroups + direct leaves all get sized
+    const children = cat.children
+    const childCells = squarify(children, inner)
+    for (const cc of childCells) {
+      if (cc.item.kind === 'subgroup') {
+        out.push(renderSubgroup(cc.item, cc))
+      } else {
+        out.push(renderLeaf(cc.item, cc))
+      }
+    }
+  }
+  // Category outline (drawn AFTER children so it sits on top)
+  out.push(`<rect class="cat-frame ${failCls}" x="${R.x + .5}" y="${R.y + .5}" width="${R.w - 1}" height="${R.h - 1}" />`)
+
+  // Category label
+  const mult = cat.util === Infinity ? '∞×' : `${cat.util.toFixed(2)}×`
+  if (R.w > 100 && R.h > 24) {
+    out.push(`<text class="cat-label" x="${R.x + 8}" y="${R.y + 16}" style="font-size:${Math.min(R.w*.06, 18)}px">${cat.name}</text>`)
+    out.push(`<text class="cat-meta" x="${R.x + R.w - 8}" y="${R.y + 14}" text-anchor="end">${mult} · n=${cat.count}</text>`)
+  }
+  return out.join('')
+}
+
+function renderSubgroup (sub, R) {
+  const out = []
+  const stat = sub.passed ? 'pass' : 'fail'
+  const failCls = sub.passed ? '' : 'is-fail'
+
+  // Inner area (with padding-top for label if there's room)
+  const hasLabel = R.h > 20 && R.w > 60
+  const padTop = hasLabel ? SUB_PAD_TOP : 1
+  const inner = { x: R.x + 1, y: R.y + padTop, w: R.w - 2, h: R.h - padTop - 1 }
+
+  if (inner.w > 4 && inner.h > 4) {
+    const leafCells = squarify(sub.children, inner)
+    for (const lc of leafCells) {
+      out.push(renderLeaf(lc.item, lc))
+    }
+  }
+  // Subgroup outline
+  out.push(`<rect class="sub-frame ${failCls}" x="${R.x + .5}" y="${R.y + .5}" width="${R.w - 1}" height="${R.h - 1}" />`)
+  if (hasLabel) {
+    const mult = sub.util === Infinity ? '∞×' : `${sub.util.toFixed(2)}×`
+    out.push(`<text class="sub-label" x="${R.x + 4}" y="${R.y + 10}">${sub.name}</text>`)
+    if (R.w > 130) out.push(`<text class="sub-meta" x="${R.x + R.w - 4}" y="${R.y + 10}" text-anchor="end">${mult} · n=${sub.count}</text>`)
+  }
+  return out.join('')
+}
+
+function renderLeaf (leaf, R) {
+  const stat = leafStatus(leaf)
+  const fill = fillFor(leaf)
+  const isGate = stat === 'gate-pass' ? 'is-gate' : ''
+  const mult = leaf.util === Infinity ? '∞×' : `${leaf.util.toFixed(2)}×`
+  const cmp = leaf.metric.comparison === 'lte' ? '≤' : '≥'
+  const dataAttrs = `data-name="${leaf.name.replace(/"/g,'&quot;')}" data-mult="${mult}" data-cmp="${cmp}" data-budget="${leaf.metric.budget}" data-current="${leaf.metric.current}" data-status="${stat}" data-id="${leaf.metric.id}"`
+
+  let label = ''
+  if (R.w > 60 && R.h > 22) {
+    // Strip category prefix for compactness
+    const shortName = leaf.name.replace(/^Globals · /,'').replace(/^Hypergraph /,'').replace(/^Boundary /,'')
+    label += `<text class="leaf-label" x="${R.x + 5}" y="${R.y + 13}">${shortName}</text>`
+    if (R.h > 32) label += `<text class="leaf-meta" x="${R.x + 5}" y="${R.y + 25}">${mult}</text>`
+  } else if (R.w > 30 && R.h > 14) {
+    label += `<text class="leaf-meta" x="${R.x + 3}" y="${R.y + 10}">${mult}</text>`
+  }
+  return `
+    <g class="leaf-group ${isGate}" ${dataAttrs}>
+      <rect class="leaf" x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}" fill="${fill}" />
+      ${label}
+    </g>`
+}
+
+function bindHover () {
+  const tip = window._tip
+  wrap.querySelectorAll('.leaf-group').forEach(g => {
+    g.addEventListener('mousemove', (e) => {
+      const r = wrap.getBoundingClientRect()
+      const x = e.clientX - r.left, y = e.clientY - r.top
+      tip.style.left = `${Math.min(x + 14, r.width - 280)}px`
+      tip.style.top = `${Math.max(y - 60, 8)}px`
+      tip.style.display = 'block'
+      tip.dataset.status = g.dataset.status
+      tip.innerHTML = `
+        <b>${g.dataset.name}</b>
+        <div class="row"><b>multi</b><span style="color:var(--paper)">${g.dataset.mult}</span></div>
+        <div class="row"><b>budget</b><span>${g.dataset.cmp} ${g.dataset.budget}</span></div>
+        <div class="row"><b>current</b><span>${g.dataset.current}</span></div>
+        <div class="row"><b>status</b><span style="color:var(--paper);text-transform:uppercase">${g.dataset.status}</span></div>
+        <div class="row"><b>id</b><span style="color:var(--paper-ghost)">${g.dataset.id}</span></div>`
+    })
+    g.addEventListener('mouseleave', () => { tip.style.display = 'none' })
+  })
+}
+
+// Mode toggles
+document.getElementById('btn-util').addEventListener('click', () => {
+  mode = 'util'
+  document.getElementById('btn-util').setAttribute('aria-pressed', 'true')
+  document.getElementById('btn-count').setAttribute('aria-pressed', 'false')
+  render()
+})
+document.getElementById('btn-count').addEventListener('click', () => {
+  mode = 'count'
+  document.getElementById('btn-util').setAttribute('aria-pressed', 'false')
+  document.getElementById('btn-count').setAttribute('aria-pressed', 'true')
+  render()
+})
+
+// Initial render + resize handling
+render()
+let resizeTO = null
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTO)
+  resizeTO = setTimeout(render, 120)
+})
+</script>
+</body>
+</html>

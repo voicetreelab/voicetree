@@ -31,11 +31,11 @@ function fieldPresent(field: (typeof REQUIRED_FIELDS)[number], snapshot: ReturnT
         case 'graph.unresolvedLinksIndex':
             return state.graph.unresolvedLinksIndex.length > 0
         case 'roots.loaded':
-            return state.roots.loaded.length > 0
+            return (state.roots.loaded ?? []).length > 0
         case 'roots.folderTree':
             return state.roots.folderTree.length > 0
         case 'collapseSet':
-            return state.collapseSet.length > 0
+            return (state.collapseSet ?? []).length > 0
         case 'selection':
             return state.selection.length > 0
         case 'layout.positions':

@@ -1,0 +1,33 @@
+sync:
+  defaults:
+    mode: "two-way-resolved"
+    symlink:
+      mode: "posix-raw"
+    ignore:
+      vcs: false
+      paths:
+        - "**/node_modules"
+        - ".worktrees"
+        - "out"
+        - "meta"
+        - "voicetree-evals"
+        - "vt-website-quartz"
+        - "old"
+        - "webapp/e2e-tests/perf-traces"
+        - "webapp/e2e-tests/screenshots"
+        - "webapp/dist"
+        - "webapp/dist-electron"
+        - "webapp/dist-web"
+        - "**/playwright-report*"
+        - "**/test-results"
+        - "**/.next"
+        - "**/.turbo"
+        - "**/.cache"
+        - ".DS_Store"
+        - "health-dashboard/reports"
+        - "**/*.log"
+        - ".venv"
+        - ".venv-server"
+        - ".codeql"
+        - "brain/workflows/evaluation"
+        - "webapp/workers"

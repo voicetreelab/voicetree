@@ -4,18 +4,22 @@
   "private": true,
   "type": "module",
   "description": "Headless agent + terminal runtime: PTY orchestration, terminal registry, headless agent manager, hook dispatch, node injection. Embedded in Electron and consumed by vt-mcpd.",
-  "main": "src/index.ts",
+  "main": "src/api/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types.ts",
-    "./lifecycle": "./src/lifecycle/index.ts",
-    "./lifecycle/output-transition": "./src/lifecycle/output-transition.ts",
-    "./terminals/*": "./src/terminals/*",
-    "./headless/*": "./src/headless/*",
-    "./spawn/*": "./src/spawn/*",
-    "./hooks/*": "./src/hooks/*",
-    "./inject/*": "./src/inject/*",
-    "./util/*": "./src/util/*"
+    ".": "./src/api/index.ts",
+    "./types": "./src/application/terminals/terminal-registry/types.ts",
+    "./lifecycle": "./src/application/lifecycle/index.ts",
+    "./lifecycle/output-transition": "./src/application/lifecycle/output-transition.ts",
+    "./runtime/agent-runtime-api": "./src/api/agent-runtime-api.ts",
+    "./runtime/graph-bridge": "./src/application/runtime/graph-bridge.ts",
+    "./api/*": "./src/api/*",
+    "./terminals/*": "./src/application/terminals/*",
+    "./headless/*": "./src/application/headless/*",
+    "./relay/*": "./src/application/relay/*",
+    "./spawn/*": "./src/application/spawn/*",
+    "./hooks/*": "./src/application/hooks/*",
+    "./inject/*": "./src/application/inject/*",
+    "./util/*": "./src/application/util/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -23,11 +27,12 @@
   },
   "dependencies": {
     "@vt/app-config": "*",
+    "@vt/graph-db-protocol": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
-    "@xterm/headless": "^6.0.0",
     "fp-ts": "^2.16.9",
-    "node-pty": "^1.1.0"
+    "node-pty": "^1.1.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

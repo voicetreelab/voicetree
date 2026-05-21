@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
@@ -8,10 +8,12 @@ import {
   SessionCreateResponseSchema,
 } from '../../daemon/contract.ts'
 
+// Files placed at the vault root are always visible in the projection;
+// files inside subdirectories require explicit folder expansion via
+// folderState, which a fresh session does not have.
 async function withTempVault(): Promise<string> {
   const vault = await mkdtemp(join(tmpdir(), 'graphd-session-state-test-'))
-  await mkdir(join(vault, 'docs'), { recursive: true })
-  await writeFile(join(vault, 'docs', 'one.md'), '# one')
+  await writeFile(join(vault, 'one.md'), '# one')
   return vault
 }
 
@@ -46,10 +48,12 @@ describe('GET /sessions/:sessionId/state', () => {
     const body = LiveStateSnapshotSchema.parse(await res.json())
 
     expect(body.meta.schemaVersion).toBe(1)
-    expect(body.collapseSet).toEqual([])
+    // setWritePath seeds the writePath as 'expanded' so the sidebar can show
+    // its contents on mount. Children remain collapsed by default.
+    expect(body.folderState).toEqual([[vault, 'expanded']])
+    expect(body.activeView.name).toBe('main')
     expect(body.selection).toEqual([])
     expect(Array.isArray(body.roots.folderTree)).toBe(true)
-    expect(Array.isArray(body.roots.loaded)).toBe(true)
     expect(typeof body.graph.nodes).toBe('object')
   })
 
@@ -68,7 +72,7 @@ describe('GET /sessions/:sessionId/state', () => {
     )
     expect(fullRes.status).toBe(200)
     const fullBody = LiveStateSnapshotSchema.parse(await fullRes.json())
-    const notePath = join(vault, 'docs', 'one.md')
+    const notePath = join(vault, 'one.md')
     expect(fullBody.graph.nodes[notePath]).toHaveProperty('contentWithoutYamlOrLinks')
 
     const omittedRes = await fetch(

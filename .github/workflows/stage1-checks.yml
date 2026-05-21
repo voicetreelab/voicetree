@@ -1,32 +1,28 @@
-name: "Stage 1: Fast Checks"
+name: "PR CI"
 
 on:
-  push:
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'packages/**'
-      - 'webapp/**'
-      - 'scripts/**'
-      - '.github/workflows/stage1-checks.yml'
-      - '.github/workflows/stage3-deep-tests.yml'
   pull_request:
+    branches:
+      - dev
+      - main
     paths:
       - 'package.json'
       - 'package-lock.json'
+      - 'knip.config.ts'
       - 'packages/**'
       - 'webapp/**'
       - 'scripts/**'
-      - '.github/workflows/stage1-checks.yml'
-      - '.github/workflows/stage3-deep-tests.yml'
+      - 'brain'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 concurrency:
-  group: stage1-${{ github.ref }}
+  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-typecheck:
-    name: Lint + Typecheck + Taxonomy
+    name: PR CI / Lint + Typecheck + Taxonomy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -47,37 +43,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Lint (root targets)
-        run: npm run lint
+      - name: Correctness lint checks
+        run: npm run health:capture-ci -- --folder=correctness/lint
 
       - name: Typecheck
         working-directory: webapp
         run: npx tsc --noEmit
 
-      - name: Blackbox test lint
-        continue-on-error: true
-        run: npm run lint:blackbox-tests
+      - name: Codebase health gate
+        run: npm run health
 
-      - name: Purity ratio gate (AST)
-        run: npx vitest run packages/systems/purity-ratio-ast.test.ts
+      - name: Codebase health tier 2
+        run: npm run health:tier2
 
-      - name: Boundary complexity gate
-        run: npx vitest run packages/systems/boundary-complexity.test.ts
+  discover-units:
+    name: PR CI / Discover Unit Measures
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.list.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Dead code check (unused files + exports)
-        run: npm run check:dead-code
-
-      - name: E2E taxonomy check
-        run: npm run check:e2e-taxonomy
-
-      - name: Circular dependency check
-        run: npm run check:circular-deps
-
-      - name: Cross-package coupling check
-        run: npm run check:coupling
+      - id: list
+        run: |
+          ids=$(ls scripts/measures/src/correctness/unit/*.ts \
+                | xargs -n1 basename | sed 's/\.ts$//' \
+                | jq -R -s -c 'split("\n")|map(select(.!=""))')
+          echo "ids=$ids" >> $GITHUB_OUTPUT
 
   unit-tests:
-    name: Unit & Integration Tests
+    name: PR CI / Unit & Integration Tests (${{ matrix.measure }})
+    needs: discover-units
+    strategy:
+      fail-fast: false
+      matrix:
+        measure: ${{ fromJSON(needs.discover-units.outputs.ids) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -96,15 +96,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Run unit/integration tests
-        continue-on-error: true
-        run: npx vitest run --reporter=verbose
+      - name: Run ${{ matrix.measure }}
+        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
+
+  unit-tests-aggregate:
+    name: PR CI / Unit & Integration Tests
+    needs: unit-tests
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unit matrix result
+        run: |
+          echo "unit-tests result: ${{ needs.unit-tests.result }}"
+          test "${{ needs.unit-tests.result }}" = "success"
+
+  # Brain Workflow Tests are disabled for now. Re-enable when the brain
+  # submodule check should become part of PR gating again.
 
   # ── Stage 2: Tier 1 E2E (gated on Stage 1) ──────────────────────────
 
   browser-smoke:
-    name: Browser Tier 1 Smoke
-    needs: [lint-typecheck, unit-tests]
+    name: PR CI / Browser Tier 1 Smoke
+    needs: [lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -132,7 +145,7 @@ jobs:
       - name: Run browser Tier 1 smoke
         timeout-minutes: 10
         working-directory: webapp
-        run: npx playwright test --config=playwright-ci-smoke.config.ts --reporter=line
+        run: cd .. && npm run health:capture-ci -- --only=e2e-browser-smoke
 
       - name: Upload Playwright artifacts on failure
         if: failure()
@@ -145,8 +158,8 @@ jobs:
           retention-days: 7
 
   electron-smoke:
-    name: Electron Tier 1 Smoke
-    needs: [lint-typecheck, unit-tests]
+    name: PR CI / Electron Tier 1 Smoke
+    needs: [lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -200,10 +213,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_QUIET: 'false'
-        run: |
-          xvfb-run --auto-servernum npx playwright test \
-            --config=playwright-tier1-system.config.ts \
-            --reporter=list
+        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier1
 
       - name: Upload Electron test artifacts on failure
         if: failure()
@@ -214,3 +224,219 @@ jobs:
             webapp/test-results/
             webapp/playwright-report-tier1-system/
           retention-days: 7
+
+  # ── Stage 3: Deep tests (gated on Stage 1 jobs via `needs:`) ─────────
+
+  discover-fuzz:
+    name: Discover Fuzz Measures
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.list.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: list
+        run: |
+          ids=$(ls scripts/measures/src/correctness/slow/fuzz/*.ts \
+                | xargs -n1 basename | sed 's/\.ts$//' \
+                | jq -R -s -c 'split("\n")|map(select(.!=""))')
+          echo "ids=$ids" >> $GITHUB_OUTPUT
+
+  fuzz-tests:
+    name: Fuzz Tests (${{ matrix.measure }})
+    if: github.base_ref == 'main'
+    needs: [lint-typecheck, unit-tests-aggregate, discover-fuzz]
+    strategy:
+      fail-fast: false
+      matrix:
+        measure: ${{ fromJSON(needs.discover-fuzz.outputs.ids) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Rebuild native modules
+        run: npm rebuild better-sqlite3
+
+      - name: Run ${{ matrix.measure }}
+        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
+
+  browser-tier2:
+    name: Browser Tier 2 E2E
+    if: github.base_ref == 'main'
+    needs: [browser-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser Tier 2 tests
+        timeout-minutes: 20
+        working-directory: webapp
+        run: cd .. && npm run health:capture-ci -- --only=e2e-tier2-browser
+
+      - name: Upload browser Tier 2 artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tier2-results
+          path: |
+            webapp/test-results/
+            webapp/playwright-report/
+          retention-days: 7
+
+  electron-tier2:
+    name: Electron Tier 2 E2E
+    if: github.base_ref == 'main'
+    needs: [electron-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install system dependencies for Electron
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
+
+      - name: Build Electron app
+        working-directory: webapp
+        run: npx electron-vite build
+
+      - name: Rebuild native modules for Electron
+        working-directory: webapp
+        run: npx @electron/rebuild --only node-pty,electron-trackpad-detect
+
+      - name: Build vt-fake-agent
+        working-directory: tools/vt-fake-agent
+        run: npm install && npx tsc
+
+      - name: Pre-warm graph daemon (tsx JIT compile)
+        run: |
+          mkdir -p /tmp/daemon-warmup/.voicetree
+          echo "# warmup" > /tmp/daemon-warmup/root.md
+          TSX_PATH=$(node -e "console.log(require.resolve('tsx'))")
+          timeout 30 node --import "$TSX_PATH" \
+            packages/systems/graph-db-server/bin/vt-graphd.ts \
+            --vault /tmp/daemon-warmup --idle-timeout-ms 3000 || true
+          rm -rf /tmp/daemon-warmup
+
+      - name: Run Electron Tier 2 tests
+        timeout-minutes: 30
+        working-directory: webapp
+        env:
+          CI: 'true'
+          PLAYWRIGHT_QUIET: 'false'
+        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier2-electron
+
+      - name: Upload Electron Tier 2 artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-tier2-results
+          path: |
+            webapp/test-results/
+            webapp/playwright-report/
+          retention-days: 7
+
+  mutation-testing:
+    name: Mutation Testing
+    if: github.base_ref == 'main'
+    needs: [lint-typecheck, unit-tests-aggregate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run Stryker on graph-model
+        working-directory: packages/libraries/graph-model
+        run: npx stryker run
+
+      - name: Run Stryker on graph-state
+        working-directory: packages/libraries/graph-state
+        run: npx stryker run
+
+      - name: Check mutation scores
+        run: |
+          check_score() {
+            local file=$1 name=$2 threshold=$3
+            if [ ! -f "$file" ]; then
+              echo "WARN: $name report not found, skipping"
+              return 0
+            fi
+            score=$(node -e "
+              const r = require('./$file');
+              const files = Object.values(r.files || {});
+              const killed = files.reduce((s,f) => s + f.killed, 0);
+              const total = files.reduce((s,f) => s + f.killed + f.survived + f.noCoverage, 0);
+              console.log(total > 0 ? Math.round(killed * 100 / total) : 100);
+            ")
+            echo "$name mutation score: ${score}%  (threshold: ${threshold}%)"
+            if [ "$score" -lt "$threshold" ]; then
+              echo "FAIL: $name mutation score ${score}% is below ${threshold}% threshold"
+              return 1
+            fi
+          }
+          check_score stryker-graph-model.json graph-model 70
+          check_score stryker-graph-state.json graph-state 65
