@@ -43,6 +43,15 @@ async function pathExists(path: string): Promise<boolean> {
     }
 }
 
+async function readdirOrEmpty(absDir: string): Promise<Awaited<ReturnType<typeof readdir>>> {
+    try {
+        return await readdir(absDir, {withFileTypes: true})
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+        throw err
+    }
+}
+
 async function readPackageJson(absDir: string): Promise<{name?: unknown} | null> {
     const pkgJsonPath = join(absDir, 'package.json')
     if (!(await pathExists(pkgJsonPath))) return null
@@ -78,7 +87,7 @@ export async function discoverPackages(repoRoot: string = DEFAULT_REPO_ROOT): Pr
             }
         }
 
-        const entries = await readdir(absDir, {withFileTypes: true})
+        const entries = await readdirOrEmpty(absDir)
         await Promise.all(entries.map(async entry => {
             if (!entry.isDirectory()) return
             if (EXCLUDED_DIR_NAMES.has(entry.name)) return
