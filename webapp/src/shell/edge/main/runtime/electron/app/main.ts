@@ -13,6 +13,7 @@ import {
     configureMcpServer,
     disableMcpJsonIntegration,
     getMcpPort,
+    type McpServerHandle,
     registerChildIfMonitored,
     startMcpServer,
 } from '@vt/voicetree-mcp';
@@ -200,6 +201,11 @@ const terminalManager: ReturnType<typeof terminalRuntimeSurface.getTerminalManag
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
 
+// MCP server handle, captured so before-quit can close the HTTP listener.
+// Without this, the open port keeps Node's event loop alive and the
+// Electron process never exits after Cmd+Q.
+let mcpHandle: McpServerHandle | null = null;
+
 // Inject dependencies into mainAPI (must be done before IPC handler registration)
 registerTerminalIpcHandlers(
     terminalManager,
@@ -237,7 +243,7 @@ void app.whenReady().then(async () => {
         app.exit(1);
         return;
     }
-    await startMcpServer();
+    mcpHandle = await startMcpServer();
 
     if (process.env.VOICETREE_VAULT_PATH) {
         const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
@@ -340,6 +346,17 @@ app.on('before-quit', () => {
 
     // Clean up server process
     textToTreeServerManager.stop();
+
+    // Stop the MCP HTTP server. Closing the listener (and idle connections)
+    // releases the last refs holding Node's event loop open so the process
+    // actually exits after Cmd+Q.
+    if (mcpHandle) {
+        const handle: McpServerHandle = mcpHandle;
+        mcpHandle = null;
+        void handle.stop().catch((err: unknown) => {
+            console.warn('[App] Failed to stop MCP server:', err);
+        });
+    }
 
     // Clean up all terminals
     terminalManager.cleanup();
