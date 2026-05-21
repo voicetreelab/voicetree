@@ -18,6 +18,7 @@ import {
     type AppliedNode,
 } from '@/shell/edge/main/cli/commands/graph/io/filesystem'
 import {readCreateGraphPayloadFromStdin} from '@/shell/edge/main/cli/commands/graph/io/stdin'
+import {mergeOverrideSpecs} from '@/shell/edge/main/cli/commands/graph/core/overrideSpec'
 import type {
     GraphCreateNode,
     GraphCreateSuccess,
@@ -78,14 +79,13 @@ async function runStdinLive(
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
-    const payload = await readCreateGraphPayloadFromStdin(terminalId)
-    const stdinOverrides: readonly OverrideSpec[] =
-        (payload.override_with_rationale as readonly OverrideSpec[] | undefined) ?? []
-    const overrides: readonly OverrideSpec[] = [...stdinOverrides, ...parsedArgs.overrides]
+    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides} =
+        await readCreateGraphPayloadFromStdin(terminalId)
+    const overrides: readonly OverrideSpec[] = mergeOverrideSpecs(stdinOverrides, parsedArgs.overrides)
 
     const gateVerdicts: readonly GatedInput[] = await collectLiveGateVerdicts(
-        payload.nodes,
-        payload.parentNodeId,
+        nodes,
+        parentNodeId,
         parsedArgs.color,
     )
 
@@ -95,7 +95,9 @@ async function runStdinLive(
     }
 
     const mcpPayload: Record<string, unknown> = {
-        ...payload,
+        callerTerminalId,
+        ...(parentNodeId !== undefined ? {parentNodeId} : {}),
+        nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
     }
     await runLiveMcp(port, mcpPayload, gateVerdicts, overrides)

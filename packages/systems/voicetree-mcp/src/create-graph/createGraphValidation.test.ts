@@ -12,7 +12,7 @@ import {
     type ValidationResult,
     type RuleViolation,
     type OverrideEntry,
-    type ValidationRuleId,
+    type OverridableRuleId,
     ALL_RULES,
     runValidations,
     resolveOverrides,
@@ -52,7 +52,7 @@ describe('runValidations', () => {
         const result: ValidationResult = runValidations(ALL_RULES, ctx)
         expect(result.status).toBe('violations')
         if (result.status === 'violations') {
-            const ruleIds: ValidationRuleId[] = result.violations.map((v: RuleViolation) => v.ruleId)
+            const ruleIds: OverridableRuleId[] = result.violations.map((v: RuleViolation) => v.ruleId)
             expect(ruleIds).toContain('grandparent_attachment')
             expect(ruleIds).toContain('node_line_limit')
         }

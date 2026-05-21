@@ -1,12 +1,13 @@
 import {error} from '@/shell/edge/main/cli/commands/graph/core/graphCliDependencies'
-import type {GraphCreateNode, GraphCreatePayload} from '@/shell/edge/main/cli/commands/graph/core/types'
+import {parseOverrideEntry} from '@/shell/edge/main/cli/commands/graph/core/overrideSpec'
+import type {GraphCreateNode, GraphCreatePayload, OverrideSpec} from '@/shell/edge/main/cli/commands/graph/core/types'
 import {getErrorMessage, isRecord} from '@/shell/edge/main/cli/commands/graph/core/util'
 
 export async function readCreateGraphPayloadFromStdin(terminalId: string | undefined): Promise<{
     callerTerminalId: string
     parentNodeId?: string
     nodes: GraphCreateNode[]
-    override_with_rationale?: unknown
+    overrides: readonly OverrideSpec[]
 }> {
     const fsModule: typeof import('fs') = await import('fs')
     let rawPayload: string
@@ -64,12 +65,22 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
         error('parentNodeId must be a non-empty string')
     }
 
+    const overrides: readonly OverrideSpec[] = parseStdinOverrides(typedPayload.override_with_rationale)
+
     return {
         callerTerminalId,
         ...(parentNodeId !== undefined ? {parentNodeId} : {}),
         nodes,
-        ...(typedPayload.override_with_rationale !== undefined
-            ? {override_with_rationale: typedPayload.override_with_rationale}
-            : {}),
+        overrides,
     }
+}
+
+function parseStdinOverrides(raw: unknown): readonly OverrideSpec[] {
+    if (raw === undefined) return []
+    if (!Array.isArray(raw)) {
+        error('Stdin override_with_rationale must be an array of {ruleId, rationale} objects')
+    }
+    return raw.map((entry: unknown, index: number): OverrideSpec =>
+        parseOverrideEntry(entry, `Stdin override_with_rationale[${index}]`),
+    )
 }

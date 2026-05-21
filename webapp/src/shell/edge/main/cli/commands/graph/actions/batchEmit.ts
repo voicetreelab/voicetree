@@ -77,7 +77,7 @@ export function emitBatchReport(report: BatchReport): void {
     }
 }
 
-function rewriteOverrideHintForCli(mcpError: string): string {
+export function rewriteOverrideHintForCli(mcpError: string): string {
     const markerIndex: number = mcpError.indexOf('To override, add "override_with_rationale"')
     if (markerIndex === -1) return mcpError
     const head: string = mcpError.slice(0, markerIndex).trimEnd()

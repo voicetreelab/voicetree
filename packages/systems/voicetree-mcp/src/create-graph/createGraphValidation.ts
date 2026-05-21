@@ -15,17 +15,24 @@ import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 // Types
 // ============================================================================
 
-export type ValidationRuleId = 'grandparent_attachment' | 'node_line_limit'
+/**
+ * Soft, overridable validation rules for create_graph. Single source of truth
+ * for the rule taxonomy — consumed by both the MCP zod schema (in
+ * mcp-server.ts) and the CLI `--override` parser (in webapp). Adding a rule
+ * here is the only place needed.
+ */
+export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit'] as const
+export type OverridableRuleId = typeof OVERRIDABLE_RULE_IDS[number]
 
 export interface RuleViolation {
-    readonly ruleId: ValidationRuleId
+    readonly ruleId: OverridableRuleId
     readonly message: string
     readonly nodeFilename: string // '__graph_root__' for graph-level rules
     readonly details: Record<string, unknown>
 }
 
 export interface OverrideEntry {
-    readonly ruleId: ValidationRuleId
+    readonly ruleId: OverridableRuleId
     readonly rationale: string
 }
 
@@ -34,7 +41,7 @@ export type ValidationResult =
     | { readonly status: 'violations'; readonly violations: readonly RuleViolation[] }
 
 export interface ValidationRule {
-    readonly id: ValidationRuleId
+    readonly id: OverridableRuleId
     readonly description: string
     readonly check: (ctx: ValidationContext) => readonly RuleViolation[]
 }
@@ -80,14 +87,14 @@ export function resolveOverrides(
     readonly unresolved: readonly RuleViolation[]
     readonly accepted: readonly OverrideEntry[]
 } {
-    const overridesByRuleId: Map<ValidationRuleId, OverrideEntry> = new Map()
+    const overridesByRuleId: Map<OverridableRuleId, OverrideEntry> = new Map()
     for (const entry of overrides) {
         overridesByRuleId.set(entry.ruleId, entry)
     }
 
     const unresolved: RuleViolation[] = []
     const accepted: OverrideEntry[] = []
-    const usedRuleIds: Set<ValidationRuleId> = new Set()
+    const usedRuleIds: Set<OverridableRuleId> = new Set()
 
     for (const violation of violations) {
         const override: OverrideEntry | undefined = overridesByRuleId.get(violation.ruleId)
@@ -118,9 +125,9 @@ export function formatViolationError(unresolved: readonly RuleViolation[]): stri
         lines.push(`  • [${v.ruleId}] ${v.message} (node: "${v.nodeFilename}")`)
     }
 
-    const uniqueRuleIds: ValidationRuleId[] = [...new Set(unresolved.map((v: RuleViolation) => v.ruleId))]
-    const exampleOverrides: readonly { ruleId: ValidationRuleId; rationale: string }[] =
-        uniqueRuleIds.map((ruleId: ValidationRuleId) => ({
+    const uniqueRuleIds: OverridableRuleId[] = [...new Set(unresolved.map((v: RuleViolation) => v.ruleId))]
+    const exampleOverrides: readonly { ruleId: OverridableRuleId; rationale: string }[] =
+        uniqueRuleIds.map((ruleId: OverridableRuleId) => ({
             ruleId,
             rationale: '<explain why this override is justified>',
         }))

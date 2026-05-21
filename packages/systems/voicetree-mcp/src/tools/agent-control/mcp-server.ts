@@ -28,6 +28,7 @@ import {sendMessageTool} from './sendMessageTool'
 import {closeAgentTool} from './closeAgentTool'
 import {readTerminalOutputTool} from './readTerminalOutputTool'
 import {createGraphTool} from '../createGraphDependencies'
+import {OVERRIDABLE_RULE_IDS} from '../../create-graph/createGraphValidation'
 import {graphStructureTool} from '../graph/graphStructureTool'
 import {registerLiveTools} from '../live/registerLiveTools'
 import {loadSettings} from '@vt/app-config/settings'
@@ -246,7 +247,7 @@ Task
                     linkedArtifacts: z.array(z.string()).optional().describe('Array of node basenames to render as markdown links in a ## Related section. Use for specs, proposals, or openspec artifacts without creating graph edges.'),
                 })).describe('Array of nodes to create. At least 1 required. Each node needs filename + title + summary at minimum.'),
                 override_with_rationale: z.array(z.object({
-                    ruleId: z.enum(['grandparent_attachment', 'node_line_limit']),
+                    ruleId: z.enum(OVERRIDABLE_RULE_IDS),
                     rationale: z.string()
                 })).optional().describe(
                     'Override validation rules that would otherwise block. '

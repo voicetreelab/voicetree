@@ -1,7 +1,8 @@
 import type {StructureManifest} from '@vt/graph-tools/node'
 import {error} from './graphCliDependencies'
 import {readGraphFileUtf8} from '@/shell/edge/main/cli/commands/graph/io/filesystem'
-import {OVERRIDABLE_RULE_IDS, type GraphCreateNode, type OverridableRuleId, type OverrideSpec, type ParsedGraphCreateArgs} from './types'
+import {parseOverrideSpec} from './overrideSpec'
+import type {GraphCreateNode, OverrideSpec, ParsedGraphCreateArgs} from './types'
 import {getErrorMessage} from './util'
 
 export {getErrorMessage, normalizeRef} from './util'
@@ -117,19 +118,6 @@ function inferManifestFormat(source: string, filePath: string): StructureManifes
     }
 
     return 'ascii'
-}
-
-function parseOverrideSpec(value: string): OverrideSpec {
-    const sep: number = value.indexOf(':')
-    const ruleId: string = sep > 0 ? value.slice(0, sep).trim() : ''
-    const rationale: string = sep > 0 ? value.slice(sep + 1).trim() : ''
-    if (!ruleId || !rationale) {
-        error(`--override value "${value}" must be ruleId:rationale (non-empty both sides of ':')`)
-    }
-    if (!(OVERRIDABLE_RULE_IDS as readonly string[]).includes(ruleId)) {
-        error(`--override ruleId "${ruleId}" is not overridable. Valid: ${OVERRIDABLE_RULE_IDS.join(', ')}`)
-    }
-    return {ruleId: ruleId as OverridableRuleId, rationale}
 }
 
 function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {

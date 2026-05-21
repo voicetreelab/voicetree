@@ -5,6 +5,7 @@ import type {
     FilesystemAuthoringValidationError,
     StructureManifest,
 } from '@vt/graph-tools/node'
+import type {OverridableRuleId} from '@vt/voicetree-mcp'
 
 export type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -114,9 +115,6 @@ export type GraphCreatePayload = {
     nodes?: unknown
     override_with_rationale?: unknown
 }
-
-export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit'] as const
-export type OverridableRuleId = typeof OVERRIDABLE_RULE_IDS[number]
 
 export type OverrideSpec = {
     readonly ruleId: OverridableRuleId
