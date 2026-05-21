@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-19T12:26:55.393Z",
-  "sourceFileCount": 785,
+  "generatedAt": "2026-05-20T13:52:01.180Z",
+  "sourceFileCount": 788,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -34,15 +34,15 @@
     ]
   },
   "totals": {
-    "relativeImports": 1273,
-    "samePackageRelativeImports": 1273,
+    "relativeImports": 1277,
+    "samePackageRelativeImports": 1277,
     "crossPackageRelativeImports": 0,
     "deepSamePackageRelativeImports": 0,
     "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 736,
-    "../x": 537,
+    "./x": 739,
+    "../x": 538,
     "../../x": 0,
     "../../../+x": 0
   },
@@ -63,12 +63,12 @@
     {
       "package": "@vt/graph-db-server",
       "packageRoot": "packages/systems/graph-db-server",
-      "relativeImports": 219,
-      "samePackageRelativeImports": 219,
+      "relativeImports": 222,
+      "samePackageRelativeImports": 222,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 113,
-        "../x": 106,
+        "./x": 115,
+        "../x": 107,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -76,11 +76,11 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 186,
-      "samePackageRelativeImports": 186,
+      "relativeImports": 187,
+      "samePackageRelativeImports": 187,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 65,
+        "./x": 66,
         "../x": 121,
         "../../x": 0,
         "../../../+x": 0

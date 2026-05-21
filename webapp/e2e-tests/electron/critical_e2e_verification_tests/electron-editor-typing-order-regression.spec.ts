@@ -290,8 +290,7 @@ test('preserves character-by-character editor typing after autosave and file wat
   expect(settled).toBe(expectedContent);
 
   const savedContent = await fs.readFile(path.join(writePath, 'Typing Target.md'), 'utf8');
-  expect(savedContent).toContain(expectedContent);
-  expect(savedContent).toMatch(/^---\n/);
+  expect(savedContent).toBe(expectedContent);
 });
 
 test('merges external daemon SSE append while the editor is focused and typing', async ({ appWindow, writePath }) => {
