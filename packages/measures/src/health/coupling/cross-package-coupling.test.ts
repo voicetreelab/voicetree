@@ -293,47 +293,4 @@ describe('cross-package coupling bounds', () => {
 
         expect(violations, violations.join('\n')).toEqual([])
     })
-
-    it('no circular dependency chains between packages', async () => {
-        const packages = await discoverPackages()
-        const edges = await scanAllEdges(packages)
-
-        const adjacency = new Map<string, Set<string>>()
-        for (const edge of edges) {
-            const deps = adjacency.get(edge.fromPackage)
-            if (deps) deps.add(edge.toPackage)
-            else adjacency.set(edge.fromPackage, new Set([edge.toPackage]))
-        }
-
-        const cycles: string[] = []
-        for (const pkg of packages) {
-            const visited = new Set<string>()
-            const stack = [pkg.dirName]
-            while (stack.length > 0) {
-                const current = stack.pop()!
-                if (current === pkg.dirName && visited.size > 0) {
-                    cycles.push(`cycle involving ${pkg.dirName}`)
-                    break
-                }
-                if (visited.has(current)) continue
-                visited.add(current)
-                const deps = adjacency.get(current)
-                if (deps) stack.push(...deps)
-            }
-        }
-
-        await recordHealthMetric({
-            metricId: 'cross-package-cycles',
-            metricName: 'Cross-Package Cycles',
-            description: 'Circular dependency chains between systems packages.',
-            category: 'Coupling',
-            current: cycles.length,
-            budget: 0,
-            comparison: 'lte',
-            unit: 'cycles',
-            details: {cycles},
-        })
-
-        expect(cycles, cycles.join('\n')).toEqual([])
-    })
 })

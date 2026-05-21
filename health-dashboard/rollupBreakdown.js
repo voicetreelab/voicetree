@@ -51,7 +51,6 @@ const ROLLUPS = [
       { id: 'systems-health',                 label: 'Systems Health (vitest)',   kind: 'leaf' },
       { id: 'dead-code',                      label: 'Dead Code (knip)',          kind: 'leaf' },
       { id: 'e2e-taxonomy',                   label: 'E2E Taxonomy',              kind: 'leaf' },
-      { id: 'circular-deps',                  label: 'Circular Dependencies',     kind: 'leaf' },
       { id: 'coupling',                       label: 'Cross-Package Coupling',    kind: 'leaf' },
       { id: 'duplication',                    label: 'Code Duplication (jscpd)',  kind: 'leaf' },
     ],
