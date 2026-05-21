@@ -21,7 +21,8 @@ const TOP_FOLDER_COUNT = 5
 const SUBFOLDER_COUNT = 5
 const PROFILE_FILE_COUNTS = [600, MAX_MARKDOWN_FILES_PER_VAULT_PATH] as const
 const CROSS_FOLDER_LINK_STRIDE = 5
-const LOCAL_LOAD_AND_PROJECT_BUDGET_MS = 3000
+// Full pre-push runs execute this profile under suite-wide CPU/IO contention; isolated runs remain well under 1s.
+const LOCAL_LOAD_AND_PROJECT_BUDGET_MS = 6000
 
 interface ProfileResult {
   readonly fileCount: number
