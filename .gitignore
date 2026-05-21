@@ -151,6 +151,7 @@ tools/state/*
 /webapp/playwright-report-electron-dev/**/*
 /webapp/test-results/**/*
 /webapp/playwright-report-electron/**/*
+/webapp/playwright-report-tier1-system/**/*
 /webapp/e2e-tests/screenshots/**/*
 /webapp/dist-electron/**/*
 /webapp/native-modules/electron-trackpad-detect/build/
