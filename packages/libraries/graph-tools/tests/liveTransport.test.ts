@@ -1,19 +1,26 @@
 /**
- * BF-163 · Integration test for liveTransport.ts.
+ * Step 7c — UDS round-trip for createLiveTransport.
  *
- * Spins up an in-process MCP server (McpServer + StreamableHTTPServerTransport)
- * serving mock vt_get_live_state and vt_dispatch_live_command tools, then
- * exercises createLiveTransport against it. Same transport stack as production.
- *
- * V-L1-15/16 pass criterion: real MCP roundtrip demonstrated.
+ * Spins up a tiny in-process UDS JSON-RPC server using udsServer.ts from
+ * voicetree-mcp, registers mock vt_get_live_state / vt_dispatch_live_command
+ * tools, then exercises createLiveTransport against it. Same wire as
+ * production after 7c.
  */
-import express, {type Express} from 'express'
-import type {Server} from 'http'
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
-import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import {describe, it, expect, beforeEach, afterEach} from 'vitest'
-import {z} from 'zod'
+import {mkdtemp, realpath, rm} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
+// Relative path import (not package alias) breaks an ESM circular-init cycle:
+// @vt/voicetree-mcp imports @vt/graph-tools, so loading voicetree-mcp from
+// inside graph-tools' own test set leaves voicetree-mcp's exports undefined.
+// filesystemAuthoring.test.ts uses the same pattern.
+import {buildJsonResponse} from '../../../systems/voicetree-mcp/src/tools/toolResponse'
+import {
+    startUdsServer,
+    type ToolCatalog,
+    type UdsServerHandle,
+} from '../../../systems/voicetree-mcp/src/transport/udsServer'
 import {createLiveTransport} from '../src/live/liveTransport'
 
 // ── fixture state ──────────────────────────────────────────────────────────
@@ -58,147 +65,113 @@ const FIXTURE_SERIALIZED_STATE = {
     meta: {schemaVersion: 1 as const, revision: 3, mutatedAt: '2026-04-17T00:00:00.000Z'},
 }
 
-// ── mock MCP server ────────────────────────────────────────────────────────
+// ── mock catalog backing the daemon ────────────────────────────────────────
 
-interface TestServer {
-    port: number
-    close(): Promise<void>
+interface MockServer {
+    collapseSet: string[]
+    revision: number
+    rootsLoaded: string[]
+    zoom: number | undefined
 }
 
-let mockCollapseSet: string[] = []
-let mockRevision: number = FIXTURE_SERIALIZED_STATE.meta.revision
-let mockRootsLoaded: string[] = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
-let mockZoom: number | undefined
-
-function buildCurrentState() {
+function buildCurrentState(mock: MockServer) {
     return {
         ...FIXTURE_SERIALIZED_STATE,
         roots: {
             ...FIXTURE_SERIALIZED_STATE.roots,
-            loaded: [...mockRootsLoaded],
+            loaded: [...mock.rootsLoaded],
         },
-        collapseSet: [...mockCollapseSet],
+        collapseSet: [...mock.collapseSet],
         layout: {
             ...FIXTURE_SERIALIZED_STATE.layout,
-            ...(mockZoom !== undefined ? {zoom: mockZoom} : {}),
+            ...(mock.zoom !== undefined ? {zoom: mock.zoom} : {}),
         },
-        meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: mockRevision},
+        meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: mock.revision},
     }
 }
 
-async function startTestServer(): Promise<TestServer> {
-    const app: Express = express()
-    app.use(express.json())
+interface DispatchedCommand {
+    readonly type: string
+    readonly path?: string
+    readonly state?: string
+    readonly zoom?: number
+}
 
-    app.post('/mcp', async (req, res) => {
-        const mcpServer = new McpServer({name: 'bf163-test-server', version: '1.0.0'})
+function buildCatalog(mock: MockServer): ToolCatalog {
+    return new Map([
+        ['vt_get_live_state', async () => buildJsonResponse(buildCurrentState(mock))],
+        ['vt_dispatch_live_command', async (args: Record<string, unknown>) => {
+            const command = args.command as DispatchedCommand
+            const delta: {
+                revision: number
+                cause: unknown
+                collapseAdded?: string[]
+                rootsUnloaded?: string[]
+                layoutChanged?: {zoom?: number}
+            } = {revision: mock.revision, cause: command}
 
-        mcpServer.tool('vt_get_live_state', 'Returns the live state', async () => ({
-            content: [{type: 'text' as const, text: JSON.stringify(buildCurrentState())}],
-        }))
-
-        mcpServer.tool(
-            'vt_dispatch_live_command',
-            'Dispatches a live command',
-            {command: z.object({type: z.string()}).passthrough()},
-            async ({command}) => {
-                const cmd = command as {
-                    type: string
-                    folder?: string
-                    root?: string
-                    zoom?: number
+            if (command.type === 'SetFolderState'
+                && command.state === 'collapsed'
+                && typeof command.path === 'string'
+            ) {
+                const folder = `${command.path}/`
+                if (!mock.collapseSet.includes(folder)) {
+                    mock.collapseSet.push(folder)
                 }
-                const delta = {
-                    revision: mockRevision,
-                    cause: command,
-                } as {
-                    revision: number
-                    cause: unknown
-                    collapseAdded?: string[]
-                    rootsUnloaded?: string[]
-                    layoutChanged?: {zoom?: number}
-                }
+                mock.revision += 1
+                delta.revision = mock.revision
+                delta.collapseAdded = [folder]
+            }
 
-                if (cmd.type === 'SetFolderState' && cmd.state === 'collapsed' && cmd.path) {
-                    const folder = `${cmd.path}/`
-                    if (!mockCollapseSet.includes(folder)) {
-                        mockCollapseSet = [...mockCollapseSet, folder]
-                    }
-                    mockRevision += 1
-                    delta.revision = mockRevision
-                    delta.collapseAdded = [folder]
-                }
+            if (command.type === 'SetZoom' && typeof command.zoom === 'number') {
+                mock.zoom = command.zoom
+                mock.revision += 1
+                delta.revision = mock.revision
+                delta.layoutChanged = {zoom: command.zoom}
+            }
 
-                if (cmd.type === 'SetZoom' && typeof cmd.zoom === 'number') {
-                    mockZoom = cmd.zoom
-                    mockRevision += 1
-                    delta.revision = mockRevision
-                    delta.layoutChanged = {zoom: cmd.zoom}
-                }
-                return {
-                    content: [{
-                        type: 'text' as const,
-                        text: JSON.stringify({delta, revision: mockRevision}),
-                    }],
-                }
-            },
-        )
-
-        const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-        })
-        res.on('close', () => {
-            void transport.close()
-            void mcpServer.close()
-        })
-        try {
-            await mcpServer.connect(transport)
-            await transport.handleRequest(req, res, req.body as Record<string, unknown>)
-        } catch (error) {
-            if (!res.headersSent) res.status(500).json({error: String(error)})
-        }
-    })
-
-    // Find a free port
-    const port: number = await new Promise<number>((resolve) => {
-        const srv = app.listen(0, '127.0.0.1', () => {
-            const addr = srv.address()
-            srv.close(() => {
-                resolve(typeof addr === 'object' && addr ? addr.port : 4200)
-            })
-        })
-    })
-
-    const httpServer: Server = await new Promise<Server>((resolve) => {
-        const srv: Server = app.listen(port, '127.0.0.1', () => resolve(srv))
-    })
-
-    return {
-        port,
-        close: () => new Promise<void>((resolve) => httpServer.close(() => resolve())),
-    }
+            return buildJsonResponse({delta, revision: mock.revision})
+        }],
+    ])
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────
 
-describe('createLiveTransport — MCP roundtrip', () => {
-    let server: TestServer
+describe('createLiveTransport — UDS round-trip', () => {
+    let workDir: string
+    let socketPath: string
+    let handle: UdsServerHandle | null
+    let envSock: string | undefined
+    let mock: MockServer
 
     beforeEach(async () => {
-        mockCollapseSet = []
-        mockRevision = FIXTURE_SERIALIZED_STATE.meta.revision
-        mockRootsLoaded = [...FIXTURE_SERIALIZED_STATE.roots.loaded]
-        mockZoom = undefined
-        server = await startTestServer()
+        envSock = process.env.VOICETREE_SOCK_PATH
+        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-')))
+        socketPath = join(workDir, 'vt.sock')
+        handle = null
+        mock = {
+            collapseSet: [],
+            revision: FIXTURE_SERIALIZED_STATE.meta.revision,
+            rootsLoaded: [...FIXTURE_SERIALIZED_STATE.roots.loaded],
+            zoom: undefined,
+        }
+        handle = await startUdsServer({
+            socketPath,
+            catalog: buildCatalog(mock),
+            logger: {log: () => {}, error: () => {}},
+        })
+        process.env.VOICETREE_SOCK_PATH = socketPath
     })
 
     afterEach(async () => {
-        await server?.close()
+        if (handle) await handle.stop()
+        await rm(workDir, {recursive: true, force: true})
+        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
+        else process.env.VOICETREE_SOCK_PATH = envSock
     })
 
-    it('getLiveState() returns a hydrated State via real MCP HTTP transport', async () => {
-        const transport = createLiveTransport(server.port)
+    it('getLiveState() returns a hydrated State via UDS JSON-RPC', async () => {
+        const transport = createLiveTransport()
         const state = await transport.getLiveState()
 
         expect(state.meta.revision).toBe(3)
@@ -211,7 +184,7 @@ describe('createLiveTransport — MCP roundtrip', () => {
     })
 
     it('dispatchLiveCommand() sends SetFolderState and returns a Delta', async () => {
-        const transport = createLiveTransport(server.port)
+        const transport = createLiveTransport()
         const delta = await transport.dispatchLiveCommand({
             type: 'SetFolderState',
             viewId: 'main',
@@ -229,8 +202,8 @@ describe('createLiveTransport — MCP roundtrip', () => {
         })
     })
 
-    it('dispatchLiveCommand() preserves layoutChanged from the MCP delta', async () => {
-        const transport = createLiveTransport(server.port)
+    it('dispatchLiveCommand() preserves layoutChanged from the daemon delta', async () => {
+        const transport = createLiveTransport()
         const delta = await transport.dispatchLiveCommand({
             type: 'SetZoom',
             zoom: 1.45,
@@ -242,7 +215,7 @@ describe('createLiveTransport — MCP roundtrip', () => {
     })
 
     it('round-trip: SetFolderState → getLiveState shows folder in collapseSet + revision bumped', async () => {
-        const transport = createLiveTransport(server.port)
+        const transport = createLiveTransport()
 
         const stateBefore = await transport.getLiveState()
         expect(stateBefore.collapseSet.size).toBe(0)
@@ -259,5 +232,54 @@ describe('createLiveTransport — MCP roundtrip', () => {
         expect(stateAfter.collapseSet.has(TASKS_FOLDER)).toBe(true)
         expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
     })
+})
 
+describe('createLiveTransport — error surfaces', () => {
+    let workDir: string
+    let socketPath: string
+    let handle: UdsServerHandle | null
+    let envSock: string | undefined
+
+    beforeEach(async () => {
+        envSock = process.env.VOICETREE_SOCK_PATH
+        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-errs-')))
+        socketPath = join(workDir, 'vt.sock')
+        handle = null
+    })
+
+    afterEach(async () => {
+        if (handle) await handle.stop()
+        await rm(workDir, {recursive: true, force: true})
+        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
+        else process.env.VOICETREE_SOCK_PATH = envSock
+    })
+
+    it('surfaces a renderer-required-style error from the tool handler', async () => {
+        // Simulates `vt serve` (headless) — getLiveStateBridge returning no
+        // bridge causes the live tool to respond with isError + the operational
+        // reason in the JSON payload. Our client must surface that reason
+        // intelligibly, not as a generic fetch-style failure.
+        const catalog: ToolCatalog = new Map([
+            ['vt_get_live_state', async () =>
+                buildJsonResponse({error: 'Requires an Electron renderer'}, true),
+            ],
+        ])
+        handle = await startUdsServer({
+            socketPath,
+            catalog,
+            logger: {log: () => {}, error: () => {}},
+        })
+        process.env.VOICETREE_SOCK_PATH = socketPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState())
+            .rejects.toThrow(/Requires an Electron renderer/)
+    })
+
+    it('throws DaemonUnreachable when the socket path env var points nowhere', async () => {
+        process.env.VOICETREE_SOCK_PATH = join(workDir, 'missing.sock')
+
+        const transport = (): ReturnType<typeof createLiveTransport> => createLiveTransport()
+        expect(transport).toThrow(/VOICETREE_SOCK_PATH/)
+    })
 })

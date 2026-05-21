@@ -7,13 +7,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 const repoRoot = path.resolve(import.meta.dirname, '../../../..')
 const HEADLESS_START_TIMEOUT_MS = 15_000
 
-function runCli(args: readonly string[]) {
+function runCli(args: readonly string[], env?: NodeJS.ProcessEnv) {
   return spawnSync(
     process.execPath,
     ['--import', 'tsx', 'packages/libraries/graph-tools/bin/vt-graph.ts', ...args],
     {
       cwd: repoRoot,
       encoding: 'utf8',
+      env: env ? {...process.env, ...env} : process.env,
     },
   )
 }
@@ -27,9 +28,9 @@ function makeVault(tempDirs: string[]): string {
   return vault
 }
 
-async function startHeadless(vault: string): Promise<{
+async function startHeadless(vault: string, socketPath: string): Promise<{
   close(): Promise<void>
-  port: number
+  socketPath: string
 }> {
   const child = spawn(
     process.execPath,
@@ -38,8 +39,8 @@ async function startHeadless(vault: string): Promise<{
       'tsx',
       'packages/libraries/graph-tools/bin/vt-headless.ts',
       'serve',
-      '--port',
-      '0',
+      '--socket',
+      socketPath,
       '--vault',
       vault,
     ],
@@ -53,16 +54,15 @@ async function startHeadless(vault: string): Promise<{
   child.stdout.on('data', (chunk) => { stdout += chunk })
   child.stderr.on('data', (chunk) => { stderr += chunk })
 
-  const port = await new Promise<number>((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       child.kill('SIGINT')
-      reject(new Error(`vt-headless did not print a port. stdout=${stdout} stderr=${stderr}`))
+      reject(new Error(`vt-headless did not announce a socket. stdout=${stdout} stderr=${stderr}`))
     }, HEADLESS_START_TIMEOUT_MS)
     child.stdout.on('data', () => {
-      const match = stdout.match(/Listening on port (\d+)/)
-      if (!match) return
+      if (!stdout.includes('Listening on ')) return
       clearTimeout(timeout)
-      resolve(Number.parseInt(match[1], 10))
+      resolve()
     })
     child.once('exit', (code) => {
       clearTimeout(timeout)
@@ -71,7 +71,7 @@ async function startHeadless(vault: string): Promise<{
   })
 
   return {
-    port,
+    socketPath,
     close: async () => {
       if (child.exitCode !== null) return
       child.kill('SIGINT')
@@ -128,17 +128,25 @@ describe('@vt/graph-tools system contract', () => {
       await Promise.all(servers.splice(0).map((server) => server.close()))
     })
 
-    it('live state dump returns the snapshot via HTTP', { timeout: 30_000 }, async () => {
-      const server = await startHeadless(vault)
+    function vaultSocketDir(): string {
+      const dir = mkdtempSync(path.join(tmpdir(), 'vt-headless-sock-'))
+      tempDirs.push(dir)
+      return path.join(dir, 'vt.sock')
+    }
+
+    it('live state dump returns the snapshot via UDS', { timeout: 30_000 }, async () => {
+      const socket = vaultSocketDir()
+      const server = await startHeadless(vault, socket)
       servers.push(server)
 
-      const result = runCli(['live', 'state', 'dump', '--port', String(server.port)])
+      const result = runCli(['live', 'state', 'dump'], {VOICETREE_SOCK_PATH: server.socketPath})
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout).folderState).toEqual([[vault, 'expanded']])
     })
 
     it('live apply SetFolderState mutates session state', { timeout: 30_000 }, async () => {
-      const server = await startHeadless(vault)
+      const socket = vaultSocketDir()
+      const server = await startHeadless(vault, socket)
       servers.push(server)
       const collapseFolder = `${vault}/work/`
 
@@ -151,9 +159,7 @@ describe('@vt/graph-tools system contract', () => {
           path: collapseFolder.slice(0, -1),
           state: 'collapsed',
         }),
-        '--port',
-        String(server.port),
-      ])
+      ], {VOICETREE_SOCK_PATH: server.socketPath})
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout)).toMatchObject({
         collapseAdded: [collapseFolder],
@@ -161,10 +167,11 @@ describe('@vt/graph-tools system contract', () => {
     })
 
     it('live view prints node titles', { timeout: 30_000 }, async () => {
-      const server = await startHeadless(vault)
+      const socket = vaultSocketDir()
+      const server = await startHeadless(vault, socket)
       servers.push(server)
 
-      const result = runCli(['live', 'view', '--port', String(server.port)])
+      const result = runCli(['live', 'view'], {VOICETREE_SOCK_PATH: server.socketPath})
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('index')
     })

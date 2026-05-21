@@ -1,22 +1,42 @@
 /**
- * BF-188 — integration test for vt-headless serve.
+ * BF-188 — integration test for vt-headless serve (Step 7c, UDS).
  *
- * Boots the headless MCP server in-process on port 0, connects
- * createLiveTransport, and verifies round-trips. Port 3002 is never bound.
+ * Boots the headless UDS daemon in-process on a temp socket and verifies
+ * createLiveTransport round-trips state + commands. No HTTP port.
  */
-import {describe, it, expect} from 'vitest'
+import {mkdtemp, realpath, rm} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
+import {describe, it, expect, afterEach, beforeEach} from 'vitest'
 import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
 import {createLiveTransport} from '../src/live/liveTransport'
 
-describe('vt-headless serve', () => {
-    it('boots on ephemeral port — not 3002, not 0, responds to vt_get_live_state', async () => {
-        const server: HeadlessServer = await createHeadlessServer()
-        try {
-            expect(server.port).not.toBe(3002)
-            expect(server.port).not.toBe(0)
-            expect(server.port).toBeGreaterThan(0)
+describe('vt-headless serve (UDS)', () => {
+    let workDir: string
+    let envSock: string | undefined
 
-            const transport = createLiveTransport(server.port)
+    beforeEach(async () => {
+        envSock = process.env.VOICETREE_SOCK_PATH
+        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-headless-')))
+    })
+
+    afterEach(async () => {
+        await rm(workDir, {recursive: true, force: true})
+        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
+        else process.env.VOICETREE_SOCK_PATH = envSock
+    })
+
+    async function startServer(name: string): Promise<HeadlessServer> {
+        return createHeadlessServer({socketPath: join(workDir, `${name}.sock`)})
+    }
+
+    it('boots on a UDS socket and responds to vt_get_live_state', async () => {
+        const server = await startServer('server')
+        try {
+            expect(server.socketPath.endsWith('.sock')).toBe(true)
+
+            process.env.VOICETREE_SOCK_PATH = server.socketPath
+            const transport = createLiveTransport()
             const state = await transport.getLiveState()
 
             expect(state.meta.schemaVersion).toBe(1)
@@ -29,9 +49,10 @@ describe('vt-headless serve', () => {
     })
 
     it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded + bumped revision', async () => {
-        const server: HeadlessServer = await createHeadlessServer()
+        const server = await startServer('server')
         try {
-            const transport = createLiveTransport(server.port)
+            process.env.VOICETREE_SOCK_PATH = server.socketPath
+            const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
             const delta = await transport.dispatchLiveCommand({
@@ -49,9 +70,10 @@ describe('vt-headless serve', () => {
     })
 
     it('round-trip: SetFolderState → getLiveState reflects collapse and bumped revision', async () => {
-        const server: HeadlessServer = await createHeadlessServer()
+        const server = await startServer('server')
         try {
-            const transport = createLiveTransport(server.port)
+            process.env.VOICETREE_SOCK_PATH = server.socketPath
+            const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
             const stateBefore = await transport.getLiveState()
@@ -73,33 +95,29 @@ describe('vt-headless serve', () => {
         }
     })
 
-    it('two concurrent servers bind distinct ports — no collision, neither is 3002', async () => {
-        const [srv1, srv2] = await Promise.all([
-            createHeadlessServer(),
-            createHeadlessServer(),
-        ])
+    it('two concurrent servers bind distinct sockets — mutations are isolated', async () => {
+        const srv1 = await startServer('one')
+        const srv2 = await startServer('two')
         try {
-            expect(srv1.port).not.toBe(srv2.port)
-            expect(srv1.port).not.toBe(3002)
-            expect(srv2.port).not.toBe(3002)
+            expect(srv1.socketPath).not.toBe(srv2.socketPath)
 
-            // Both independently functional
-            const [s1, s2] = await Promise.all([
-                createLiveTransport(srv1.port).getLiveState(),
-                createLiveTransport(srv2.port).getLiveState(),
-            ])
+            process.env.VOICETREE_SOCK_PATH = srv1.socketPath
+            const t1 = createLiveTransport()
+            process.env.VOICETREE_SOCK_PATH = srv2.socketPath
+            const t2 = createLiveTransport()
+
+            const [s1, s2] = await Promise.all([t1.getLiveState(), t2.getLiveState()])
             expect(s1.meta.revision).toBe(0)
             expect(s2.meta.revision).toBe(0)
 
-            // Mutations are isolated
-            await createLiveTransport(srv1.port).dispatchLiveCommand({
+            await t1.dispatchLiveCommand({
                 type: 'SetFolderState',
                 viewId: 'main',
                 path: '/tmp/test-headless/tasks',
                 state: 'collapsed',
             })
-            const s1After = await createLiveTransport(srv1.port).getLiveState()
-            const s2After = await createLiveTransport(srv2.port).getLiveState()
+
+            const [s1After, s2After] = await Promise.all([t1.getLiveState(), t2.getLiveState()])
             expect(s1After.collapseSet.size).toBe(1)
             expect(s2After.collapseSet.size).toBe(0)
         } finally {

@@ -9,18 +9,12 @@
 import {hydrateCommand, serializeState, type SerializedCommand} from '@vt/graph-state'
 import type {Command, Delta} from '@vt/graph-state/contract'
 
-import {createLiveTransport, DEFAULT_MCP_PORT} from './liveTransport'
+import {createLiveTransport} from './liveTransport'
 import {renderProjectedLiveView} from '../view/projectedLiveView'
 import type {ViewFormat, ViewGraphResult} from '../view/viewGraph'
 import {renderFocus, renderNeighbors, renderPath} from '../view/egoGraph'
 
 // ── helpers ────────────────────────────────────────────────────────────────
-
-function getMcpPort(portOverride?: number): number {
-    const envPort = process.env.VOICETREE_MCP_PORT
-    if (portOverride !== undefined) return portOverride
-    return envPort ? parseInt(envPort, 10) : DEFAULT_MCP_PORT
-}
 
 function formatJson(value: unknown, pretty: boolean): string {
     return pretty ? `${JSON.stringify(value, null, 2)}\n` : `${JSON.stringify(value)}\n`
@@ -29,7 +23,7 @@ function formatJson(value: unknown, pretty: boolean): string {
 // ── live state dump ────────────────────────────────────────────────────────
 
 export interface LiveStateDumpOptions {
-    readonly port?: number
+    readonly vaultPath?: string
     readonly pretty?: boolean
 }
 
@@ -38,7 +32,7 @@ export interface LiveStateDumpResult {
 }
 
 export async function liveStateDump(options: LiveStateDumpOptions = {}): Promise<LiveStateDumpResult> {
-    const transport = createLiveTransport(getMcpPort(options.port))
+    const transport = createLiveTransport(options.vaultPath)
     const state = await transport.getLiveState()
     const serialized = serializeState(state)
     const json = formatJson(serialized, options.pretty !== false)
@@ -54,7 +48,7 @@ const VALID_COMMAND_TYPES = new Set([
 ])
 
 export interface LiveApplyOptions {
-    readonly port?: number
+    readonly vaultPath?: string
     readonly pretty?: boolean
 }
 
@@ -84,7 +78,7 @@ export async function liveApply(cmdJson: string, options: LiveApplyOptions = {})
     }
 
     const cmd: Command = hydrateCommand(parsed as SerializedCommand)
-    const transport = createLiveTransport(getMcpPort(options.port))
+    const transport = createLiveTransport(options.vaultPath)
     const delta = await transport.dispatchLiveCommand(cmd)
     const output = formatJson(delta, options.pretty !== false)
     return {output, delta}
@@ -96,12 +90,11 @@ export interface LiveViewOptions {
     readonly collapsedFolders?: readonly string[]
     readonly selectedIds?: readonly string[]
     readonly format?: ViewFormat
-    readonly port?: number
+    readonly vaultPath?: string
 }
 
 export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraphResult> {
-    const port = getMcpPort(options.port)
-    const transport = createLiveTransport(port)
+    const transport = createLiveTransport(options.vaultPath)
 
     // Dispatch any folder-state commands first (idempotent if already collapsed).
     for (const folder of options.collapsedFolders ?? []) {
@@ -156,33 +149,33 @@ export async function liveView(options: LiveViewOptions = {}): Promise<ViewGraph
 // ── live ego-graph queries (BF-200) ────────────────────────────────────────────
 
 export interface LiveFocusOptions {
-    readonly port?: number
+    readonly vaultPath?: string
     readonly hops?: number
 }
 
 export interface LiveNeighborsOptions {
-    readonly port?: number
+    readonly vaultPath?: string
     readonly hops?: number
 }
 
 export interface LivePathOptions {
-    readonly port?: number
+    readonly vaultPath?: string
 }
 
 export async function liveFocus(nodeId: string, options: LiveFocusOptions = {}): Promise<string> {
-    const transport = createLiveTransport(getMcpPort(options.port))
+    const transport = createLiveTransport(options.vaultPath)
     const state = await transport.getLiveState()
     return renderFocus(state.graph, nodeId, options.hops ?? 1)
 }
 
 export async function liveNeighbors(nodeId: string, options: LiveNeighborsOptions = {}): Promise<string> {
-    const transport = createLiveTransport(getMcpPort(options.port))
+    const transport = createLiveTransport(options.vaultPath)
     const state = await transport.getLiveState()
     return renderNeighbors(state.graph, nodeId, options.hops ?? 1)
 }
 
 export async function livePath(nodeA: string, nodeB: string, options: LivePathOptions = {}): Promise<string> {
-    const transport = createLiveTransport(getMcpPort(options.port))
+    const transport = createLiveTransport(options.vaultPath)
     const state = await transport.getLiveState()
     return renderPath(state.graph, nodeA, nodeB)
 }

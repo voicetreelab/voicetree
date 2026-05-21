@@ -1,16 +1,19 @@
 /**
- * BF-188 — data-layer-only MCP server (headless).
+ * BF-188 — data-layer-only daemon (headless).
  *
- * No Electron, no cytoscape, no UI. Exposes vt_get_live_state +
- * vt_dispatch_live_command via StreamableHTTP on an ephemeral port.
- * Default port is 0 (OS picks an available port — never 3002).
+ * No Electron, no cytoscape, no UI. Hosts vt_get_live_state +
+ * vt_dispatch_live_command on a Unix domain socket (Step 7c). Used by
+ * `vt-headless serve` and as a test fixture for the live tooling.
+ *
+ * The UDS framing here is the same NDJSON JSON-RPC the daemon speaks; we
+ * duplicate the server-side bytes because graph-tools cannot import
+ * @vt/voicetree-mcp without creating a runtime dependency cycle. 7g may
+ * consolidate the transport primitives into a shared package.
  */
-import path from 'path'
-import express, {type Express} from 'express'
-import type {Server} from 'http'
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
-import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import {z} from 'zod'
+import net from 'node:net'
+import {existsSync, unlinkSync} from 'node:fs'
+import {mkdir} from 'node:fs/promises'
+import {dirname, resolve} from 'node:path'
 import {
     emptyState,
     buildStateFromVault,
@@ -48,119 +51,214 @@ function toSerializableDelta(delta: Delta, cause: SerializedCommand): Serializab
     }
 }
 
-function mcpResponse(payload: unknown, isError?: boolean) {
-    return {
-        content: [{type: 'text' as const, text: JSON.stringify(payload)}],
-        ...(isError ? {isError: true} : {}),
+// ── JSON-RPC envelope helpers ─────────────────────────────────────────────────
+
+type JsonRpcResponse =
+    | {jsonrpc: '2.0'; id: number | string | null; result: unknown}
+    | {jsonrpc: '2.0'; id: number | string | null; error: {code: number; message: string; data?: unknown}}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function writeFrame(socket: net.Socket, envelope: JsonRpcResponse): void {
+    socket.write(`${JSON.stringify(envelope)}\n`)
+}
+
+// ── tool handlers ─────────────────────────────────────────────────────────────
+
+type ToolResult = {ok: true; payload: unknown} | {ok: false; payload: unknown}
+
+function runGetLiveState(getState: () => State): ToolResult {
+    try {
+        return {ok: true, payload: serializeState(getState())}
+    } catch (error) {
+        return {ok: false, payload: {error: error instanceof Error ? error.message : String(error)}}
     }
 }
 
-// ── MCP tool registration ─────────────────────────────────────────────────────
-
-function registerHeadlessTools(
-    server: McpServer,
+function runDispatchLiveCommand(
     getState: () => State,
-    setState: (s: State) => void,
-): void {
-    server.registerTool(
-        'vt_get_live_state',
-        {
-            title: 'Get Live State (headless)',
-            description: 'Returns current SerializedState of the headless server.',
-            inputSchema: {},
-        },
-        async () => {
-            try {
-                return mcpResponse(serializeState(getState()))
-            } catch (error) {
-                return mcpResponse({error: error instanceof Error ? error.message : String(error)}, true)
-            }
-        },
-    )
-
-    server.registerTool(
-        'vt_dispatch_live_command',
-        {
-            title: 'Dispatch Live Command (headless)',
-            description: 'Apply a SerializedCommand to the headless state. Returns {delta, revision}.',
-            inputSchema: {
-                command: z.record(z.string(), z.unknown()).describe('SerializedCommand payload'),
+    setState: (state: State) => void,
+    args: Record<string, unknown>,
+): ToolResult {
+    try {
+        const serializedCommand = args.command as SerializedCommand
+        const cmd = hydrateCommand(serializedCommand)
+        const {state, delta} = applyCommandWithDelta(getState(), cmd)
+        setState(state)
+        return {
+            ok: true,
+            payload: {
+                delta: toSerializableDelta(delta, serializedCommand),
+                revision: delta.revision,
             },
-        },
-        async (args: {command: Record<string, unknown>}) => {
-            try {
-                const serializedCommand = args.command as SerializedCommand
-                const cmd = hydrateCommand(serializedCommand)
-                const {state, delta} = applyCommandWithDelta(getState(), cmd)
-                setState(state)
-                return mcpResponse({
-                    delta: toSerializableDelta(delta, serializedCommand),
-                    revision: delta.revision,
-                })
-            } catch (error) {
-                return mcpResponse({error: error instanceof Error ? error.message : String(error)}, true)
+        }
+    } catch (error) {
+        return {ok: false, payload: {error: error instanceof Error ? error.message : String(error)}}
+    }
+}
+
+async function dispatch(
+    method: string,
+    params: Record<string, unknown>,
+    getState: () => State,
+    setState: (state: State) => void,
+): Promise<ToolResult | null> {
+    if (method === 'vt_get_live_state') return runGetLiveState(getState)
+    if (method === 'vt_dispatch_live_command') return runDispatchLiveCommand(getState, setState, params)
+    return null
+}
+
+// ── connection handler ────────────────────────────────────────────────────────
+
+function handleConnection(
+    socket: net.Socket,
+    getState: () => State,
+    setState: (state: State) => void,
+): void {
+    socket.setEncoding('utf8')
+    let buffer: string = ''
+
+    const handleFrame = async (frame: string): Promise<void> => {
+        let request: {method?: unknown; params?: unknown; id?: unknown}
+        const idOrNull = (raw: unknown): number | string | null =>
+            (typeof raw === 'number' || typeof raw === 'string') ? raw : null
+
+        try {
+            const parsed: unknown = JSON.parse(frame)
+            if (!isRecord(parsed)) {
+                writeFrame(socket, {jsonrpc: '2.0', id: null, error: {code: -32600, message: 'Invalid request'}})
+                socket.end()
+                return
             }
-        },
-    )
+            request = parsed
+        } catch (cause) {
+            writeFrame(socket, {
+                jsonrpc: '2.0', id: null,
+                error: {code: -32700, message: cause instanceof Error ? cause.message : 'Malformed JSON'},
+            })
+            socket.end()
+            return
+        }
+
+        const id = idOrNull(request.id)
+        const method = typeof request.method === 'string' ? request.method : ''
+        if (!method) {
+            writeFrame(socket, {jsonrpc: '2.0', id, error: {code: -32600, message: 'Missing method'}})
+            socket.end()
+            return
+        }
+
+        const params: Record<string, unknown> = isRecord(request.params) ? request.params : {}
+        const result = await dispatch(method, params, getState, setState)
+        if (result === null) {
+            writeFrame(socket, {jsonrpc: '2.0', id, error: {code: -32601, message: `Unknown method: ${method}`}})
+            socket.end()
+            return
+        }
+
+        if (result.ok) {
+            writeFrame(socket, {jsonrpc: '2.0', id, result: result.payload})
+        } else {
+            writeFrame(socket, {
+                jsonrpc: '2.0', id,
+                error: {code: -32003, message: 'Tool handler returned an error response', data: result.payload},
+            })
+        }
+        socket.end()
+    }
+
+    socket.on('data', (chunk: string): void => {
+        buffer += chunk
+        let newlineIndex: number = buffer.indexOf('\n')
+        while (newlineIndex >= 0) {
+            const frame: string = buffer.slice(0, newlineIndex)
+            buffer = buffer.slice(newlineIndex + 1)
+            void handleFrame(frame)
+            newlineIndex = buffer.indexOf('\n')
+        }
+    })
+
+    socket.on('error', (cause: NodeJS.ErrnoException): void => {
+        if (cause.code !== 'EPIPE' && cause.code !== 'ECONNRESET') {
+            process.stderr.write(`[vt-headless] socket error: ${cause.message}\n`)
+        }
+    })
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
 
 export interface HeadlessServerOptions {
-    readonly port?: number
+    readonly socketPath: string
     readonly vaultPath?: string
 }
 
 export interface HeadlessServer {
-    readonly port: number
+    readonly socketPath: string
     readonly close: () => Promise<void>
 }
 
-export async function createHeadlessServer(options: HeadlessServerOptions = {}): Promise<HeadlessServer> {
+async function clearStaleSocket(socketPath: string): Promise<void> {
+    if (!existsSync(socketPath)) return
+    await new Promise<void>((resolveCheck, rejectCheck): void => {
+        const probe: net.Socket = net.createConnection({path: socketPath})
+        probe.once('connect', (): void => {
+            probe.end()
+            rejectCheck(new Error(`Another process is already listening on ${socketPath}.`))
+        })
+        probe.once('error', (cause: NodeJS.ErrnoException): void => {
+            if (cause.code === 'ECONNREFUSED' || cause.code === 'ENOENT' || cause.code === 'ENOTSOCK') {
+                try {
+                    unlinkSync(socketPath)
+                    resolveCheck()
+                } catch (unlinkCause) {
+                    rejectCheck(unlinkCause instanceof Error ? unlinkCause : new Error(String(unlinkCause)))
+                }
+                return
+            }
+            rejectCheck(cause)
+        })
+    })
+}
+
+export async function createHeadlessServer(options: HeadlessServerOptions): Promise<HeadlessServer> {
     configureGraphToolsRootIO()
 
     let state: State = emptyState()
-
     if (options.vaultPath) {
-        const resolved = path.resolve(options.vaultPath)
+        const resolved = resolve(options.vaultPath)
         state = await buildStateFromVault(resolved, resolved)
     }
 
-    const app: Express = express()
-    app.use(express.json())
+    await mkdir(dirname(options.socketPath), {recursive: true})
+    await clearStaleSocket(options.socketPath)
 
-    app.post('/mcp', async (req, res) => {
-        const server = new McpServer({name: 'vt-headless', version: '1.0.0'})
-        registerHeadlessTools(
-            server,
-            () => state,
-            (s) => { state = s },
-        )
-        const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-        })
-        res.on('close', () => {
-            void transport.close()
-            void server.close()
-        })
-        try {
-            await server.connect(transport)
-            await transport.handleRequest(req, res, req.body as Record<string, unknown>)
-        } catch (error) {
-            if (!res.headersSent) res.status(500).json({error: String(error)})
-        }
+    const server: net.Server = net.createServer((socket: net.Socket): void => {
+        handleConnection(socket, () => state, (s: State) => { state = s })
     })
 
-    const httpServer: Server = await new Promise<Server>((resolve) => {
-        const srv = app.listen(options.port ?? 0, '127.0.0.1', () => resolve(srv))
+    await new Promise<void>((resolveListen, rejectListen): void => {
+        server.once('error', rejectListen)
+        server.listen(options.socketPath, (): void => {
+            server.removeListener('error', rejectListen)
+            resolveListen()
+        })
     })
-
-    const address = httpServer.address()
-    const boundPort = typeof address === 'object' && address !== null ? address.port : (options.port ?? 0)
 
     return {
-        port: boundPort,
-        close: () => new Promise<void>((resolve) => httpServer.close(() => resolve())),
+        socketPath: options.socketPath,
+        close: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
+            server.close((cause?: Error): void => {
+                if (cause) {
+                    rejectClose(cause)
+                    return
+                }
+                if (existsSync(options.socketPath)) {
+                    try { unlinkSync(options.socketPath) } catch { /* best effort */ }
+                }
+                resolveClose()
+            })
+        }),
     }
 }

@@ -1,12 +1,13 @@
 /**
- * BF-200 — integration tests for live focus/neighbors/path.
+ * BF-200 — integration tests for live focus/neighbors/path (Step 7c, UDS).
  *
- * Boots createHeadlessServer with a small fixture vault, then calls
+ * Boots the headless UDS daemon with a fixture vault, then calls
  * liveFocus / liveNeighbors / livePath via the transport layer.
- * Port 3002 is never bound.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
-import {mkdirSync, writeFileSync, rmSync} from 'fs'
+import {mkdirSync, mkdtempSync, writeFileSync, rmSync} from 'fs'
+import {tmpdir} from 'os'
+import {join} from 'path'
 import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
 import {liveFocus, liveNeighbors, livePath} from '../src/live/live'
 
@@ -17,6 +18,7 @@ const C = `${VAULT}/c.md`
 const D = `${VAULT}/d.md`
 
 let server: HeadlessServer
+let savedSockEnv: string | undefined
 
 beforeAll(async () => {
     mkdirSync(VAULT, {recursive: true})
@@ -24,19 +26,25 @@ beforeAll(async () => {
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n') // isolated
-    server = await createHeadlessServer({vaultPath: VAULT})
-    expect(server.port).not.toBe(3002)
-    expect(server.port).not.toBe(0)
+
+    const sockDir = mkdtempSync(join(tmpdir(), 'vt-bf200-obs-'))
+    const socketPath = join(sockDir, 'vt.sock')
+    server = await createHeadlessServer({socketPath, vaultPath: VAULT})
+
+    savedSockEnv = process.env.VOICETREE_SOCK_PATH
+    process.env.VOICETREE_SOCK_PATH = server.socketPath
 })
 
 afterAll(async () => {
     await server.close()
+    if (savedSockEnv === undefined) delete process.env.VOICETREE_SOCK_PATH
+    else process.env.VOICETREE_SOCK_PATH = savedSockEnv
     rmSync(VAULT, {recursive: true, force: true})
 })
 
 describe('liveFocus()', () => {
     it('returns ASCII with center and neighbors', async () => {
-        const out = await liveFocus(B, {port: server.port, hops: 1})
+        const out = await liveFocus(B, {hops: 1})
         expect(out).toContain('b.md')
         expect(out).toContain('a.md')
         expect(out).toContain('c.md')
@@ -44,42 +52,42 @@ describe('liveFocus()', () => {
     })
 
     it('missing node reports not found', async () => {
-        const out = await liveFocus('/nonexistent/x.md', {port: server.port})
+        const out = await liveFocus('/nonexistent/x.md')
         expect(out).toContain('not found')
     })
 })
 
 describe('liveNeighbors()', () => {
     it('1-hop returns direct neighbors', async () => {
-        const out = await liveNeighbors(B, {port: server.port, hops: 1})
+        const out = await liveNeighbors(B, {hops: 1})
         expect(out).toContain('a.md')
         expect(out).toContain('c.md')
     })
 
     it('2-hop from a reaches c', async () => {
-        const out = await liveNeighbors(A, {port: server.port, hops: 2})
+        const out = await liveNeighbors(A, {hops: 2})
         expect(out).toContain('c.md')
     })
 
     it('isolated node has 0 neighbors', async () => {
-        const out = await liveNeighbors(D, {port: server.port, hops: 1})
+        const out = await liveNeighbors(D, {hops: 1})
         expect(out).toContain('0 found')
     })
 })
 
 describe('livePath()', () => {
     it('finds path a → b → c', async () => {
-        const out = await livePath(A, C, {port: server.port})
+        const out = await livePath(A, C)
         expect(out).toBe('a.md → b.md → c.md')
     })
 
     it('no path from a to isolated d', async () => {
-        const out = await livePath(A, D, {port: server.port})
+        const out = await livePath(A, D)
         expect(out).toContain('no path')
     })
 
     it('self path is just the node', async () => {
-        const out = await livePath(B, B, {port: server.port})
+        const out = await livePath(B, B)
         expect(out).toBe('b.md')
     })
 })

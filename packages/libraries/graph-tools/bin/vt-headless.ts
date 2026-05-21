@@ -1,5 +1,7 @@
 #!/usr/bin/env npx tsx
-import path from 'path'
+import {createHash} from 'node:crypto'
+import {homedir} from 'node:os'
+import path from 'node:path'
 import {createHeadlessServer} from '../src/live/headlessServer'
 
 const [,, subcommand, ...args] = process.argv
@@ -10,22 +12,22 @@ function fail(msg: string): never {
 }
 
 if (subcommand !== 'serve') {
-    fail('Usage: vt-headless serve [--port N] [--vault <path>]')
+    fail('Usage: vt-headless serve [--socket <path>] [--vault <path>]')
 }
 
-let portArg = 0
+let socketArg: string | undefined
 let vaultArg: string | undefined
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i]
-    if (arg === '--port') {
+    if (arg === '--socket') {
         const next = args[++i]
-        if (!next || next.startsWith('--')) fail('--port requires a value')
-        portArg = parseInt(next, 10)
+        if (!next || next.startsWith('--')) fail('--socket requires a path')
+        socketArg = next
         continue
     }
-    if (arg.startsWith('--port=')) {
-        portArg = parseInt(arg.slice('--port='.length), 10)
+    if (arg.startsWith('--socket=')) {
+        socketArg = arg.slice('--socket='.length)
         continue
     }
     if (arg === '--vault') {
@@ -43,13 +45,24 @@ for (let i = 0; i < args.length; i++) {
 
 const vaultPath = vaultArg ? path.resolve(vaultArg) : undefined
 
+function defaultSocketPath(): string {
+    if (vaultPath) {
+        return path.join(vaultPath, '.voicetree', 'vt.sock')
+    }
+    // Headless without a vault: pick a per-cwd socket under $HOME/.voicetree.
+    const hash: string = createHash('sha256').update(process.cwd()).digest('hex').slice(0, 16)
+    return path.join(homedir(), '.voicetree', `${hash}.sock`)
+}
+
+const socketPath: string = socketArg ? path.resolve(socketArg) : defaultSocketPath()
+
 if (vaultPath) {
     process.stderr.write(`[vt-headless] Loading vault from ${vaultPath}...\n`)
 }
 
-const server = await createHeadlessServer({port: portArg, vaultPath})
+const server = await createHeadlessServer({socketPath, vaultPath})
 
-process.stdout.write(`Listening on port ${server.port}\n`)
+process.stdout.write(`Listening on ${server.socketPath}\n`)
 
 process.on('SIGINT', () => {
     process.stderr.write('[vt-headless] Shutting down...\n')

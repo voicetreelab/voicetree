@@ -63,11 +63,11 @@ function buildChildEnv(
     return result
 }
 
-function spawnCli(args: string[], cwd: string): Promise<SpawnResult> {
+function spawnCli(args: string[], cwd: string, envOverrides?: Record<string, string>): Promise<SpawnResult> {
     return new Promise<SpawnResult>((resolvePromise, rejectPromise) => {
         const child: ChildProcess = spawn(process.execPath, ['--import', TSX_LOADER, CLI_ENTRYPOINT, ...args], {
             cwd,
-            env: buildChildEnv(),
+            env: buildChildEnv(envOverrides),
             stdio: ['ignore', 'pipe', 'pipe'],
         })
 
@@ -101,7 +101,9 @@ function spawnCli(args: string[], cwd: string): Promise<SpawnResult> {
     })
 }
 
-async function startHeadless(vault: string): Promise<{readonly port: number; close(): Promise<void>}> {
+async function startHeadless(vault: string): Promise<{readonly socketPath: string; close(): Promise<void>}> {
+    const socketPath: string = join(await mkdtemp(join(tmpdir(), 'vt-headless-sock-')), 'vt.sock')
+    tempDirs.push(dirname(socketPath))
     const child: ChildProcess = spawn(
         process.execPath,
         [
@@ -109,8 +111,8 @@ async function startHeadless(vault: string): Promise<{readonly port: number; clo
             TSX_LOADER,
             join(REPO_ROOT, 'packages/libraries/graph-tools/bin/vt-headless.ts'),
             'serve',
-            '--port',
-            '0',
+            '--socket',
+            socketPath,
             '--vault',
             vault,
         ],
@@ -132,17 +134,16 @@ async function startHeadless(vault: string): Promise<{readonly port: number; clo
         stderr += chunk
     })
 
-    const port: number = await new Promise<number>((resolvePromise, rejectPromise) => {
+    await new Promise<void>((resolvePromise, rejectPromise) => {
         const timeout: NodeJS.Timeout = setTimeout(() => {
             child.kill('SIGINT')
-            rejectPromise(new Error(`vt-headless did not print a port. stdout=${stdout} stderr=${stderr}`))
+            rejectPromise(new Error(`vt-headless did not announce its socket. stdout=${stdout} stderr=${stderr}`))
         }, HEADLESS_START_TIMEOUT_MS)
 
         child.stdout?.on('data', (): void => {
-            const match: RegExpMatchArray | null = stdout.match(/Listening on port (\d+)/)
-            if (!match) return
+            if (!stdout.includes('Listening on ')) return
             clearTimeout(timeout)
-            resolvePromise(Number.parseInt(match[1] ?? '', 10))
+            resolvePromise()
         })
         child.once('exit', (code: number | null): void => {
             clearTimeout(timeout)
@@ -151,7 +152,7 @@ async function startHeadless(vault: string): Promise<{readonly port: number; clo
     })
 
     return {
-        port,
+        socketPath,
         close: async (): Promise<void> => {
             if (child.exitCode !== null) return
             child.kill('SIGINT')
@@ -251,13 +252,12 @@ describe('graph CLI module resolution', () => {
         servers.push(server)
         const relativeFile = `rel-${process.pid}-${Date.now()}.md`
 
+        const sockEnv = {VOICETREE_SOCK_PATH: server.socketPath}
         const addNode: SpawnResult = await spawnCli(
             [
                 'graph',
                 'live',
                 'add-node',
-                '--port',
-                String(server.port),
                 '--file',
                 relativeFile,
                 '--label',
@@ -268,14 +268,16 @@ describe('graph CLI module resolution', () => {
                 '5',
             ],
             tempDir,
+            sockEnv,
         )
         expect(addNode.code, addNode.stderr).toBe(0)
         expect(await readFile(join(tempDir, relativeFile), 'utf8')).toBe('# Relative\n')
         await expect(access(join(REPO_ROOT, relativeFile))).rejects.toThrow()
 
         const state: SpawnResult = await spawnCli(
-            ['graph', 'live', 'state', 'dump', '--port', String(server.port), '--no-pretty'],
+            ['graph', 'live', 'state', 'dump', '--no-pretty'],
             tempDir,
+            sockEnv,
         )
         expect(state.code, state.stderr).toBe(0)
         expect(Object.keys(JSON.parse(state.stdout).graph.nodes)).toContain(join(canonicalTempDir, relativeFile))
@@ -285,8 +287,6 @@ describe('graph CLI module resolution', () => {
                 'graph',
                 'live',
                 'mv-node',
-                '--port',
-                String(server.port),
                 '--file',
                 relativeFile,
                 '--x',
@@ -295,6 +295,7 @@ describe('graph CLI module resolution', () => {
                 '7',
             ],
             tempDir,
+            sockEnv,
         )
         expect(moveNode.code, moveNode.stderr).toBe(0)
         const positions = JSON.parse(await readFile(join(tempDir, '.voicetree', 'positions.json'), 'utf8'))
@@ -305,14 +306,13 @@ describe('graph CLI module resolution', () => {
                 'graph',
                 'live',
                 'rm-edge',
-                '--port',
-                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
                 'target.md',
             ],
             tempDir,
+            sockEnv,
         )
         expect(removeEdge.code, removeEdge.stderr).toBe(0)
         expect(await readFile(join(tempDir, 'source.md'), 'utf8')).not.toContain('[[target.md]]')
@@ -323,21 +323,21 @@ describe('graph CLI module resolution', () => {
                 'graph',
                 'live',
                 'add-edge',
-                '--port',
-                String(server.port),
                 '--src-file',
                 missingSource,
                 '--tgt-file',
                 'target.md',
             ],
             tempDir,
+            sockEnv,
         )
         expect(addMissingEdge.code, addMissingEdge.stderr).toBe(0)
         await expect(access(join(tempDir, missingSource))).rejects.toThrow()
 
         const removeNode: SpawnResult = await spawnCli(
-            ['graph', 'live', 'rm-node', '--port', String(server.port), '--file', relativeFile],
+            ['graph', 'live', 'rm-node', '--file', relativeFile],
             tempDir,
+            sockEnv,
         )
         expect(removeNode.code, removeNode.stderr).toBe(0)
         await expect(access(join(tempDir, relativeFile))).rejects.toThrow()
@@ -355,14 +355,13 @@ describe('graph CLI module resolution', () => {
 
         const server = await startHeadless(tempDir)
         servers.push(server)
+        const sockEnv = {VOICETREE_SOCK_PATH: server.socketPath}
 
         const addNode: SpawnResult = await spawnCli(
             [
                 'graph',
                 'live',
                 'add-node',
-                '--port',
-                String(server.port),
                 '--file',
                 relativeFile,
                 '--label',
@@ -373,6 +372,7 @@ describe('graph CLI module resolution', () => {
                 '2',
             ],
             tempDir,
+            sockEnv,
         )
         expect(addNode.code, addNode.stderr).toBe(0)
 
@@ -381,8 +381,6 @@ describe('graph CLI module resolution', () => {
                 'graph',
                 'live',
                 'mv-node',
-                '--port',
-                String(server.port),
                 '--file',
                 relativeFile,
                 '--x',
@@ -391,6 +389,7 @@ describe('graph CLI module resolution', () => {
                 '4',
             ],
             tempDir,
+            sockEnv,
         )
         expect(moveNode.code, moveNode.stderr).toBe(0)
 
@@ -402,14 +401,13 @@ describe('graph CLI module resolution', () => {
                 'graph',
                 'live',
                 'rm-edge',
-                '--port',
-                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
                 'target.md',
             ],
             tempDir,
+            sockEnv,
         )
         expect(removeEdge.code, removeEdge.stderr).toBe(0)
         expect(await readFile(join(tempDir, 'source.md'), 'utf8')).not.toContain('[[target.md]]')
@@ -431,20 +429,20 @@ describe('graph CLI module resolution', () => {
 
         const server = await startHeadless(canonicalTempDir)
         servers.push(server)
+        const sockEnv = {VOICETREE_SOCK_PATH: server.socketPath}
 
         const removeEdge: SpawnResult = await spawnCli(
             [
                 'graph',
                 'live',
                 'rm-edge',
-                '--port',
-                String(server.port),
                 '--src-file',
                 'source.md',
                 '--tgt-file',
                 'a/target.md',
             ],
             tempDir,
+            sockEnv,
         )
         expect(removeEdge.code, removeEdge.stderr).toBe(0)
 
@@ -455,8 +453,9 @@ describe('graph CLI module resolution', () => {
         expect(sourceAfterRemove).toContain('plain text')
 
         const state: SpawnResult = await spawnCli(
-            ['graph', 'live', 'state', 'dump', '--port', String(server.port), '--no-pretty'],
+            ['graph', 'live', 'state', 'dump', '--no-pretty'],
             tempDir,
+            sockEnv,
         )
         expect(state.code, state.stderr).toBe(0)
         const sourceNode = JSON.parse(state.stdout).graph.nodes[join(canonicalTempDir, 'source.md')]
