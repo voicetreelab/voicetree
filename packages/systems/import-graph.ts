@@ -2,6 +2,7 @@ import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {DEFAULT_REPO_ROOT, type PackageInfo} from './discover-packages'
+import {resolveWorkspaceBasePath} from './package-exports'
 
 export type SourceFile = {
     readonly absolutePath: string
@@ -94,8 +95,7 @@ export async function buildImportGraph(packages: readonly PackageInfo[], repoRoo
             } else {
                 for (const [npmName, pkg] of packagesByNpmName) {
                     if (specifier !== npmName && !specifier.startsWith(npmName + '/')) continue
-                    const subPath = specifier === npmName ? 'index' : specifier.slice(npmName.length + 1)
-                    toPath = resolveFileCandidate(join(pkg.srcRoot, subPath), knownPaths)
+                    toPath = resolveFileCandidate(resolveWorkspaceBasePath(pkg, specifier), knownPaths)
                     break
                 }
             }
