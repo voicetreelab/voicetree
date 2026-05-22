@@ -19,7 +19,7 @@ import {
   withResolvedTmuxVaultPath,
   type HeadfulPromptInjectionRequest,
   type PromptFileWriteRequest,
-} from './tmuxSpawnPlanning';
+} from './tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
 
 export interface TerminalSpawnResult {

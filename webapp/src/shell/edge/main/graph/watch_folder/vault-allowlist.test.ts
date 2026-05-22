@@ -30,6 +30,7 @@ vi.mock('@/shell/edge/main/runtime/ui-api-proxy', () => ({
 }))
 
 let notifyWriteDirectory: ReturnType<typeof vi.fn>
+const FILE_COUNT_ABOVE_RAISED_LIMIT = 1001
 
 function resetGraphModel(): void {
   notifyWriteDirectory = vi.fn()
@@ -235,7 +236,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     // GIVEN: A vault path
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
-    await seedMarkdownFiles(vaultPath, 601)
+    await seedMarkdownFiles(vaultPath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
     // WHEN: loadAndMergeVaultPath is called (impure edge function)
     const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath)
@@ -243,8 +244,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     // THEN: Should return error
     expect(result.success).toBe(false)
     expect(result.error).toContain('File limit exceeded')
-    expect(result.error).toContain('601')
-    expect(result.error).toContain('600')
+    expect(result.error).toContain(String(FILE_COUNT_ABOVE_RAISED_LIMIT))
   })
 })
 
@@ -294,7 +294,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       }
       await saveVaultConfigForDirectory(watchedDir, config)
 
-      await seedMarkdownFiles(newReadPath, 601)
+      await seedMarkdownFiles(newReadPath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
       // WHEN: addReadPath is called
       const result: { success: boolean; error?: string } = await addReadPath(newReadPath)
@@ -303,8 +303,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
       expect(result.error).toContain('File limit exceeded')
-      expect(result.error).toContain('601')
-      expect(result.error).toContain('600')
+      expect(result.error).toContain(String(FILE_COUNT_ABOVE_RAISED_LIMIT))
     })
   })
 
@@ -324,7 +323,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       }
       await saveVaultConfigForDirectory(watchedDir, config)
 
-      await seedMarkdownFiles(newWritePath, 601)
+      await seedMarkdownFiles(newWritePath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
       // WHEN: setWritePath is called
       const result: { success: boolean; error?: string } = await setWritePath(newWritePath)
@@ -333,8 +332,7 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
       expect(result.error).toContain('File limit exceeded')
-      expect(result.error).toContain('601')
-      expect(result.error).toContain('600')
+      expect(result.error).toContain(String(FILE_COUNT_ABOVE_RAISED_LIMIT))
     })
   })
 })

@@ -17,9 +17,14 @@ import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../applicati
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
-import { ensureTmuxAvailable } from '../application/terminals/tmux-preflight'
-import { ensureTmuxLaunchAgent } from '../application/terminals/tmux-launchagent'
+import { ensureTmuxAvailable } from '../application/terminals/tmux/tmux-preflight'
+import { ensureTmuxLaunchAgent } from '../application/terminals/tmux/tmux-launchagent'
 import { getTerminalManager } from '../application/terminals/terminal-manager-instance'
+import {
+    attachUnclaimedTmuxSession,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
+} from '../application/terminals/tmux/unclaimed-tmux'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -42,6 +47,7 @@ import {
 } from '../application/terminals/global-budget-registry'
 
 export const agentRuntime = {
+    attachUnclaimedTmuxSession,
     closeHeadlessAgent,
     configureAgentRuntime,
     dispatchOnNewNodeHooks,
@@ -63,6 +69,8 @@ export const agentRuntime = {
     getUnseenNodesForTerminal,
     installJsonlTelemetrySink,
     injectNodesIntoTerminal,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,
