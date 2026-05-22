@@ -84,7 +84,7 @@ describe('tmux-launchagent', () => {
         resetTmuxLaunchAgentForTests()
     })
 
-    it('renders an interactive keep-alive tmux LaunchAgent plist', () => {
+    it('renders an idempotent tmux LaunchAgent plist that does not relaunch after successful exit', () => {
         const plist: string = renderPlist({
             tmuxBin: '/opt/homebrew/bin/tmux',
             socketPath: '/Users/test/Library/Application Support/Voicetree/tmux.sock',
@@ -102,13 +102,16 @@ describe('tmux-launchagent', () => {
               <string>/opt/homebrew/bin/tmux</string>
               <string>-S</string><string>/Users/test/Library/Application Support/Voicetree/tmux.sock</string>
               <string>-f</string><string>/dev/null</string>
-              <string>new-session</string><string>-d</string>
+              <string>new-session</string><string>-A</string><string>-d</string>
               <string>-s</string><string>__voicetree_root__</string>
               <string>--</string><string>sleep</string><string>infinity</string>
             </array>
             <key>ProcessType</key><string>Interactive</string>
             <key>RunAtLoad</key><true/>
-            <key>KeepAlive</key><true/>
+            <key>KeepAlive</key>
+            <dict>
+              <key>SuccessfulExit</key><false/>
+            </dict>
             <key>StandardOutPath</key><string>/Users/test/Library/Application Support/Voicetree/logs/tmux-server.out.log</string>
             <key>StandardErrorPath</key><string>/Users/test/Library/Application Support/Voicetree/logs/tmux-server.err.log</string>
           </dict>
