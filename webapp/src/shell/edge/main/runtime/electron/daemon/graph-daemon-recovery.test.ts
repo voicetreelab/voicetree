@@ -166,7 +166,7 @@ describe('attemptBoundedRecovery — stop loops + bounded ensure', () => {
 
   test('resetRecoveryHistory clears the bound for that vault', async () => {
     let ensureCalls = 0
-    let now = 1_000_000
+    const now = 1_000_000
     const opts = {
       stopLoops: () => undefined,
       ensureFn: async (): Promise<EnsureGraphDaemonResult> => {
