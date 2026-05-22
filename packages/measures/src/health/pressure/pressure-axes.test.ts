@@ -12,7 +12,7 @@ const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
 const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
 const PRESSURE_AXIS_CONFIGS = [
-    // Aspirational function readability target from the legacy pressure rollup.
+    // Whole-repo function readability target.
     {
         name: 'max cognitive complexity',
         metricKey: 'maxCognitiveComplexity',
@@ -21,7 +21,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'score',
     },
-    // Stricter systems-only pressure target than the whole-repo split test.
+    // Whole-repo cyclomatic complexity target.
     {
         name: 'max cyclomatic complexity',
         metricKey: 'maxCyclomaticComplexity',
@@ -30,7 +30,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'score',
     },
-    // Aspirational MI quality target; distinct from the Phase 4 floor gate.
+    // Whole-repo MI quality target; distinct from the Phase 4 floor gate.
     {
         name: 'min maintainability index',
         metricKey: 'minMaintainabilityIndex',
@@ -39,7 +39,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'gte',
         unit: 'index',
     },
-    // Stricter systems-only zero-coverage risk target than the whole-repo split test.
+    // Whole-repo zero-coverage risk target (cyc^2 + cyc).
     {
         name: 'max CRAP0 risk',
         metricKey: 'maxCrapZeroCoverage',
@@ -184,6 +184,20 @@ function subdirectoryOf(absolutePath: string, srcRoot: string): string {
     return firstSlash >= 0 ? srcRelative.slice(0, firstSlash) : '.'
 }
 
+async function materializeSystemFiles(packages: readonly PackageInfo[]): Promise<SystemFile[]> {
+    const nested = await Promise.all(packages.map(async pkg => {
+        const sourceFiles = await discoverSourceFiles([pkg], REPO_ROOT)
+        return sourceFiles.map(sf => ({
+            absolutePath: sf.absolutePath,
+            relativePath: sf.relativePath,
+            packageName: sf.packageName,
+            npmName: pkg.name,
+            subdirectory: subdirectoryOf(sf.absolutePath, pkg.srcRoot),
+        }))
+    }))
+    return nested.flat()
+}
+
 function extractImportDeclarations(filePath: string, text: string): {specifier: string; isTypeOnly: boolean; text: string}[] {
     const sourceFile = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true)
     const declarations: {specifier: string; isTypeOnly: boolean; text: string}[] = []
@@ -248,21 +262,12 @@ function collectRuntimeSymbols(declaration: {isTypeOnly: boolean; text: string})
 }
 
 async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<SystemGraph> {
-    const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
-    const packagesByDirName = new Map(packages.map(pkg => [pkg.dirName, pkg]))
+    const materialized = await materializeSystemFiles(packages)
     const filesByPkg = new Map<string, SystemFile[]>()
-    for (const sf of sourceFiles) {
-        const pkg = packagesByDirName.get(sf.packageName)
-        if (!pkg) continue
-        const bucket = filesByPkg.get(sf.packageName) ?? []
-        bucket.push({
-            absolutePath: sf.absolutePath,
-            relativePath: sf.relativePath,
-            packageName: sf.packageName,
-            npmName: pkg.name,
-            subdirectory: subdirectoryOf(sf.absolutePath, pkg.srcRoot),
-        })
-        filesByPkg.set(sf.packageName, bucket)
+    for (const file of materialized) {
+        const bucket = filesByPkg.get(file.packageName) ?? []
+        bucket.push(file)
+        filesByPkg.set(file.packageName, bucket)
     }
     const files: SystemFile[] = packages.flatMap(pkg => {
         const bucket = filesByPkg.get(pkg.dirName) ?? []
@@ -751,16 +756,26 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
 }
 
 async function computePressureAxes(): Promise<PressureAxis[]> {
-    const packages = await discoverSystemPackages()
-    const packageNames = packages.map(pkg => pkg.dirName)
-    const graph = await buildSystemGraph(packages)
-    const cognitive = await measureCognitiveComplexity(graph.files)
-    const cyclomatic = await measureCyclomaticComplexity(graph.files)
-    const maintainability = await measureMaintainability(graph.files, cyclomatic)
-    const turbulence = await measureTurbulence(graph.files)
+    const systemsPackages = await discoverSystemPackages()
+    const allPackages = await discoverPackages(REPO_ROOT)
+    const packageNames = systemsPackages.map(pkg => pkg.dirName)
+
+    // Boundary, subdir-cross, BCI, runtime-fan-in: stay systems-scoped (they're about
+    // packages/systems/ architecture). Turbulence: stay systems-scoped (git-log filter
+    // is already --packages/systems).
+    const systemsGraph = await buildSystemGraph(systemsPackages)
+
+    // Function-level axes (cog, cyc, MI, CRAP0): whole-repo. Without this, real worst
+    // offenders in webapp/, graph-tools/, libraries/ stay invisible to these gates.
+    const allFiles = await materializeSystemFiles(allPackages)
+
+    const cognitive = await measureCognitiveComplexity(allFiles)
+    const cyclomatic = await measureCyclomaticComplexity(allFiles)
+    const maintainability = await measureMaintainability(allFiles, cyclomatic)
+    const turbulence = await measureTurbulence(systemsGraph.files)
     const packageTurbulence = aggregateTurbulence(turbulence)
-    const boundaries = measureBoundaries(graph.files, graph.edges, packageNames)
-    const runtimeFanIn = runtimeFanInRows(graph.runtimeSymbolsByTarget)
+    const boundaries = measureBoundaries(systemsGraph.files, systemsGraph.edges, packageNames)
+    const runtimeFanIn = runtimeFanInRows(systemsGraph.runtimeSymbolsByTarget)
     const maxCrap = [...cyclomatic].sort((a, b) => b.crapZeroCoverage - a.crapZeroCoverage)[0]
 
     return [
