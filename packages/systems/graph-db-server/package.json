@@ -30,7 +30,7 @@
     "./graph/writeMarkdownFile": "./src/data/graph/mutations/writeMarkdownFile.ts",
     "./graph/writeAllPositionsOnExit": "./src/data/graph/mutations/writeAllPositionsOnExit.ts",
     "./state/*": "./src/state/*.ts",
-    "./watch-folder/watchFolder": "./src/state/watchFolder.ts",
+    "./watch-folder/watchFolder": "./src/application/workflows/watchFolder.ts",
     "./watch-folder/vault-allowlist": "./src/state/vaultAllowlist.ts",
     "./watch-folder/resolve-vault-config": "./src/data/watch-folder/paths/resolve-vault-config.ts",
     "./watch-folder/*": "./src/data/watch-folder/*.ts",

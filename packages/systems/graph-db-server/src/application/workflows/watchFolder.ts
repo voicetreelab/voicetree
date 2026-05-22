@@ -13,7 +13,7 @@
  */
 
 import type { FilePath, Position } from '@vt/graph-model/graph';
-import { getGraph, setGraph } from "./graph-store";
+import { getGraph, setGraph } from "../../state/graph-store";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
 import { promises as fs } from "fs";
@@ -30,8 +30,7 @@ import {
     setProjectRootWatchedDirectory,
     getStartupFolderOverride,
     getOnFolderSwitchCleanup,
-} from "./watch-folder-store";
-// Import from extracted modules
+} from "../../state/watch-folder-store";
 import {
     getLastDirectory,
     saveLastDirectory,
@@ -42,23 +41,23 @@ import {
     loadAndMergeVaultPath,
     type VaultLoadOutcome,
     type FileLimitDetails,
-} from "./vaultAllowlist";
-import { setActiveViewFolderState } from "../data/watch-folder/folder-visibility-active-view";
-import { setupWatcher } from "../data/watch-folder/watching/file-watcher-setup";
-import { setupStateChangeSubscriptions } from "../data/views/watcherRebuild";
-import type { WatcherOptions } from "../data/watch-folder/watching/file-watcher-setup";
-import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "../data/watch-folder/watching/watcher-options.shared";
+} from "../../state/vaultAllowlist";
+import { setActiveViewFolderState } from "../../data/watch-folder/folder-visibility-active-view";
+import { setupWatcher } from "../../data/watch-folder/watching/file-watcher-setup";
+import { setupStateChangeSubscriptions } from "../../data/views/watcherRebuild";
+import type { WatcherOptions } from "../../data/watch-folder/watching/file-watcher-setup";
+import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "../../data/watch-folder/watching/watcher-options.shared";
 import { createEmptyGraph } from '@vt/graph-model/graph';
-import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
+import { broadcastVaultState } from "../../data/watch-folder/broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 import {
     decideVaultConfig,
     type WatchFolderConfig,
-} from "../application/core/vault-config/decideVaultConfig";
+} from "../core/vault-config/decideVaultConfig";
 import {
     buildPatternAllowlist as buildPatternAllowlistPure,
     type PatternProbe,
-} from "../application/core/vault-config/buildPatternAllowlist";
+} from "../core/vault-config/buildPatternAllowlist";
 
 export interface WatchFolderLoadOptions {
     broadcastVaultState?: boolean;
