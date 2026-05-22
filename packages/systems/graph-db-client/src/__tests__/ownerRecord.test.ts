@@ -8,7 +8,7 @@ import {
   OWNER_RECORD_SCHEMA_VERSION,
   type CommandFingerprint,
   type OwnerRecord,
-} from '../autoLaunch/ownerRecord.ts'
+} from '@vt/graph-db-protocol'
 
 function fingerprint(
   overrides: Partial<CommandFingerprint> = {},

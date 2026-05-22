@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export * from './owner.ts'
+
 export const CONTRACT_VERSION = '0.2.0'
 
 export const HealthResponseSchema = z.object({

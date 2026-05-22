@@ -1,13 +1,16 @@
 /**
- * Vault-scoped vt-graphd ownership record.
+ * Vault-scoped vt-graphd ownership contract.
  *
- * The owner record is the durable cross-process source of truth describing
- * which vt-graphd process owns a canonical vault path. Every production
- * caller (Electron, CLI, MCP/headless, graph-db-client) shares this shape
- * to coordinate reuse, claim, wait, and reclaim decisions through pure
- * decisions in {@link ownerDecision.ts}.
+ * Both the graph-db-server daemon (BF-343) and the graph-db-client launcher
+ * (BF-344) read and write this shape under `<vault>/.voicetree/`. The types
+ * live in the protocol package because they are the on-disk format shared by
+ * every caller: a single shape lets pure decision functions (BF-342's
+ * `decideOwnerAction`) coordinate reuse / wait / claim / reclaim across
+ * processes without either side inventing a parallel shape.
  *
- * BF-342: types only — no I/O, no production launcher wiring.
+ * Originally introduced by BF-342 inside graph-db-client; relocated here in
+ * BF-343 once graph-db-server needed to read/write the same record without a
+ * circular package dependency.
  */
 
 export const OWNER_RECORD_SCHEMA_VERSION = 1
