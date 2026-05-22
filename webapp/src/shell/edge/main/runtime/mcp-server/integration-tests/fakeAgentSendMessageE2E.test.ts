@@ -36,7 +36,7 @@ import {
     type AgentNodeEntry,
 } from './fakeAgentE2E.helpers'
 
-const TEST_TIMEOUT_MS: number = 60_000
+const TEST_TIMEOUT_MS: number = 90_000
 // Setup waits for the fake agent's stdin REPL banner ("Entering REPL mode").
 // Isolated runs hit it in ~6s, but the pre-push hook runs this test in parallel
 // with the full vitest suite — fork startup under that contention has been
