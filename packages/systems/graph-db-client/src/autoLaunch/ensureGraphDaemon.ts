@@ -1,5 +1,5 @@
 /**
- * Public entry for the BF-344 owner-aware client launcher.
+ * Public entry for the owner-aware client launcher.
  *
  * `ensureGraphDaemonForVault` is the only sanctioned way for the client to
  * obtain a {@link GraphDbClient} bound to the authoritative vt-graphd owner
@@ -7,50 +7,49 @@
  * reclamation, and cooldown suppression by wrapping pure {@link
  * decideOwnerAction} with the impure IO adapters in this directory.
  *
- * Functional shape: one deep, narrow public function backed by composed
- * smaller adapters (`readOwnerRecord`, `probeOwnerHealth`,
- * `readProcessLiveness`, `readCommandFingerprintMatch`, `acquireSpawnLock`,
- * `spawn`). All filesystem, process, HTTP, and clock effects live at the
- * adapter boundary; the orchestrator only sequences them.
+ * Functional shape: one deep, narrow public function backed by a pure
+ * decision rule (`decideOwnerAction`) and the impure spawn/wait/reclaim
+ * helpers in `spawnCoordinator.ts`. The orchestrator only sequences them
+ * and emits structured ownership diagnostics (BF-347) at each transition.
  *
  * The function is safe to call concurrently from the same Node process for
  * the same vault — an in-process single-flight cache coalesces concurrent
  * callers into one work-loop. Cross-process concurrency is serialised via
- * the {@link acquireSpawnLock} lock so 100 callers across 100 processes
- * still produce exactly one vt-graphd spawn.
+ * the spawn lock so 100 callers across 100 processes still produce exactly
+ * one vt-graphd spawn.
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { CallerKind, OwnerRecord } from '@vt/graph-db-protocol'
-import { GraphDbClient } from '../GraphDbClient.ts'
+import type { CallerKind } from '@vt/graph-db-protocol'
 import {
   DaemonLaunchTimeout,
   OwnerSpawnCooldownError,
   OwnerWaitTimeoutError,
   UnsafeOwnerError,
 } from '../errors.ts'
-import { resolveCommand, type CommandSpec } from './runtime.ts'
+import { GraphDbClient } from '../GraphDbClient.ts'
+import { emitOwnerDiagnostic } from './diagnostics.ts'
+import { decideOwnerAction } from './ownerDecision.ts'
+import { readOwnerRecord } from './ownerRecordIo.ts'
 import {
-  decideOwnerAction,
-  type OwnerEvidence,
-} from './ownerDecision.ts'
-import { probeOwnerHealth } from './healthIdentityProbe.ts'
-import { readOwnerRecord, deleteOwnerRecord } from './ownerRecordIo.ts'
-import {
-  readCommandFingerprintMatch,
-  readProcessLiveness,
-} from './processLiveness.ts'
-import { acquireSpawnLock } from './spawnLock.ts'
+  attemptSpawnAndWait,
+  boundedDelay,
+  clientFor,
+  gatherEvidence,
+  nextBackoff,
+  reclaimStaleOwner,
+  sleep,
+  type SpawnAttemptResult,
+} from './spawnCoordinator.ts'
 
 export type EnsureGraphDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */
   readonly timeoutMs?: number
   /**
    * Optional override of the daemon command (`<bin> [args] --vault <path>`).
-   * Forwarded to {@link resolveCommand}. Primarily for tests that point at
-   * a fake vt-graphd entrypoint.
+   * Primarily for tests that point at a fake vt-graphd entrypoint.
    */
   readonly bin?: string
   /**
@@ -62,6 +61,13 @@ export type EnsureGraphDaemonOptions = {
   readonly initialBackoffMs?: number
   /** Maximum poll backoff. Default 400ms. */
   readonly maxBackoffMs?: number
+  /**
+   * Cooldown window persisted to `<vault>/.voicetree/graphd.cooldown.json`
+   * after a spawn fails. Subsequent ensure calls within this window
+   * short-circuit with {@link OwnerSpawnCooldownError} before re-spawning.
+   * Default 5000ms.
+   */
+  readonly spawnCooldownMs?: number
 }
 
 export type EnsureGraphDaemonResult = {
@@ -81,6 +87,7 @@ const DEFAULT_TIMEOUT_MS = 5_000
 const DEFAULT_STALE_HEARTBEAT_MS = 15_000
 const DEFAULT_INITIAL_BACKOFF_MS = 50
 const DEFAULT_MAX_BACKOFF_MS = 400
+const DEFAULT_SPAWN_COOLDOWN_MS = 5_000
 
 const inflightByVault = new Map<string, Promise<EnsureGraphDaemonResult>>()
 
@@ -106,12 +113,15 @@ async function runEnsure(
   options: EnsureGraphDaemonOptions,
 ): Promise<EnsureGraphDaemonResult> {
   await mkdir(`${canonicalVaultPath}/.voicetree`, { recursive: true })
+  const attemptId = randomUUID()
   const deadlineMs = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   const staleHeartbeatMs =
     options.staleHeartbeatMs ?? DEFAULT_STALE_HEARTBEAT_MS
   const initialBackoffMs =
     options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS
   const maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS
+  const spawnCooldownMs =
+    options.spawnCooldownMs ?? DEFAULT_SPAWN_COOLDOWN_MS
   let backoff = initialBackoffMs
 
   while (Date.now() < deadlineMs) {
@@ -123,30 +133,66 @@ async function runEnsure(
 
     switch (decision.kind) {
       case 'reuse': {
-        return {
-          client: clientFor(decision.port),
-          port: decision.port,
+        emitOwnerDiagnostic({
+          kind: 'reuse',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
           pid: decision.pid,
+          port: decision.port,
           ownerNonce: decision.ownerNonce,
-          launched: false,
-        }
+        })
+        return finaliseReuse(decision.port, decision.pid, decision.ownerNonce)
       }
 
       case 'wait': {
+        emitOwnerDiagnostic({
+          kind: 'wait',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
+          reason: decision.reason,
+          recordedPid: decision.recordedPid,
+          recordedPort: decision.recordedPort,
+        })
         await sleep(boundedDelay(backoff, deadlineMs))
         backoff = nextBackoff(backoff, maxBackoffMs)
         continue
       }
 
       case 'claim': {
-        const launched = await attemptSpawnAndWait(
+        emitOwnerDiagnostic({
+          kind: 'claim-attempt',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
+          reason: 'no-owner',
+        })
+        const result = await attemptSpawnAndWait(
           canonicalVaultPath,
           caller,
-          options,
+          attemptId,
+          { bin: options.bin, initialBackoffMs, maxBackoffMs },
           deadlineMs,
           staleHeartbeatMs,
+          spawnCooldownMs,
         )
-        if (launched !== null) return launched
+        if (result !== null) {
+          emitOwnerDiagnostic({
+            kind: 'acquired',
+            attemptId,
+            callerKind: caller,
+            canonicalVaultPath,
+            nowMs: Date.now(),
+            pid: result.pid,
+            port: result.port,
+            ownerNonce: result.ownerNonce,
+          })
+          return result
+        }
         // Lost the spawn lock or another caller's claim raced ahead;
         // loop back to discovery and reuse/wait on their owner.
         await sleep(boundedDelay(backoff, deadlineMs))
@@ -155,7 +201,24 @@ async function runEnsure(
       }
 
       case 'stale-reclaim': {
+        emitOwnerDiagnostic({
+          kind: 'claim-attempt',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
+          reason: 'stale-reclaim',
+        })
         await reclaimStaleOwner(canonicalVaultPath, decision.staleRecord)
+        emitOwnerDiagnostic({
+          kind: 'stale-reclaimed',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
+          reason: decision.reason,
+          recordedPid: decision.staleRecord.pid,
+        })
         backoff = initialBackoffMs
         continue
       }
@@ -169,6 +232,15 @@ async function runEnsure(
       }
 
       case 'cooldown-suppressed': {
+        emitOwnerDiagnostic({
+          kind: 'cooldown-suppressed',
+          attemptId,
+          callerKind: caller,
+          canonicalVaultPath,
+          nowMs: Date.now(),
+          untilMs: decision.untilMs,
+          reason: decision.reason,
+        })
         throw new OwnerSpawnCooldownError(
           canonicalVaultPath,
           decision.untilMs,
@@ -189,201 +261,20 @@ async function runEnsure(
   )
 }
 
-async function gatherEvidence(
-  canonicalVaultPath: string,
-): Promise<OwnerEvidence> {
-  const record = await readOwnerRecord(canonicalVaultPath)
-  if (record === null) {
-    return {
-      record: null,
-      recordedPidLiveness: 'unknown',
-      health: { kind: 'unprobed' },
-      commandFingerprintMatch: 'unknown',
-      cooldown: null,
-    }
-  }
-  const recordedPidLiveness = readProcessLiveness(record.pid)
-  const commandFingerprintMatch =
-    recordedPidLiveness === 'alive'
-      ? readCommandFingerprintMatch(record.pid, record.commandFingerprint)
-      : 'unknown'
-  const health =
-    record.port === null
-      ? { kind: 'unprobed' as const }
-      : await probeOwnerHealth(record.port)
+function finaliseReuse(
+  port: number,
+  pid: number,
+  ownerNonce: string,
+): EnsureGraphDaemonResult {
   return {
-    record,
-    recordedPidLiveness,
-    health,
-    commandFingerprintMatch,
-    cooldown: null,
-  }
-}
-
-/**
- * Run the spawn step under the cross-process spawn lock. Returns the
- * resulting handle when this caller spawned (or finalised) the daemon,
- * `null` when the spawn lock is held by another live caller (the work-loop
- * loops back to discovery in that case).
- */
-async function attemptSpawnAndWait(
-  canonicalVaultPath: string,
-  caller: CallerKind,
-  options: EnsureGraphDaemonOptions,
-  deadlineMs: number,
-  staleHeartbeatMs: number,
-): Promise<EnsureGraphDaemonResult | null> {
-  const acquisition = await acquireSpawnLock(canonicalVaultPath, process.pid)
-  if (acquisition.kind === 'held') {
-    return null
-  }
-
-  try {
-    // Another caller may have produced a healthy owner record between our
-    // last discovery scan and acquiring the spawn lock. Honour it.
-    const preSpawnRecord = await readOwnerRecord(canonicalVaultPath)
-    if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
-      const reuseResult = await tryReuseExistingOwner(
-        canonicalVaultPath,
-        preSpawnRecord,
-      )
-      if (reuseResult !== null) return reuseResult
-    }
-
-    const command = resolveCommand(canonicalVaultPath, options.bin)
-    const spawnedPid = spawnDaemon(command, caller)
-    return await waitForDaemonHealth(
-      canonicalVaultPath,
-      spawnedPid,
-      deadlineMs,
-      staleHeartbeatMs,
-      options,
-    )
-  } finally {
-    await acquisition.release()
-  }
-}
-
-async function tryReuseExistingOwner(
-  canonicalVaultPath: string,
-  record: OwnerRecord,
-): Promise<EnsureGraphDaemonResult | null> {
-  if (record.port === null) return null
-  const probe = await probeOwnerHealth(record.port)
-  if (probe.kind !== 'verified') return null
-  if (probe.canonicalVaultPath !== record.canonicalVaultPath) return null
-  if (probe.ownerNonce !== record.ownerNonce) return null
-  return {
-    client: clientFor(probe.port),
-    port: probe.port,
-    pid: probe.pid,
-    ownerNonce: probe.ownerNonce,
+    client: clientFor(port),
+    port,
+    pid,
+    ownerNonce,
     launched: false,
   }
 }
 
-function spawnDaemon(command: CommandSpec, caller: CallerKind): number | null {
-  const child: ChildProcess = spawn(command.cmd, command.args, {
-    detached: true,
-    env: {
-      ...(command.env ?? process.env),
-      VT_GRAPHD_CALLER_KIND: caller,
-    },
-    stdio: ['ignore', 'ignore', 'ignore'],
-  })
-  child.unref()
-  child.on('error', () => {
-    // Errors here surface as the wait-for-health loop timing out, which is
-    // the right boundary: we want one launch-failure shape, not two.
-  })
-  return child.pid ?? null
-}
-
-async function waitForDaemonHealth(
-  canonicalVaultPath: string,
-  spawnedPid: number | null,
-  deadlineMs: number,
-  staleHeartbeatMs: number,
-  options: EnsureGraphDaemonOptions,
-): Promise<EnsureGraphDaemonResult> {
-  const initialBackoffMs =
-    options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS
-  const maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS
-  let backoff = initialBackoffMs
-
-  while (Date.now() < deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVaultPath)
-    const decision = decideOwnerAction(evidence, {
-      nowMs: Date.now(),
-      staleHeartbeatMs,
-    })
-    if (decision.kind === 'reuse') {
-      return {
-        client: clientFor(decision.port),
-        port: decision.port,
-        pid: decision.pid,
-        ownerNonce: decision.ownerNonce,
-        launched: true,
-      }
-    }
-    if (decision.kind === 'unsafe-owner') {
-      throw new UnsafeOwnerError(
-        canonicalVaultPath,
-        decision.recordedPid,
-        decision.reason,
-      )
-    }
-    // wait / claim / stale-reclaim during the spawn window all reduce to
-    // "the daemon has not yet finalised its claim". Keep polling.
-    await sleep(boundedDelay(backoff, deadlineMs))
-    backoff = nextBackoff(backoff, maxBackoffMs)
-  }
-
-  throw new DaemonLaunchTimeout(
-    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVaultPath} before deadline`,
-  )
-}
-
-async function reclaimStaleOwner(
-  canonicalVaultPath: string,
-  staleRecord: OwnerRecord,
-): Promise<void> {
-  // Stale reclaim is only ever returned by `decideOwnerAction` after the
-  // safe-kill predicates passed (dead pid, OR alive pid with matching
-  // command fingerprint). The dead case has nothing to terminate; the
-  // alive case is a hung vt-graphd we are authorised to terminate so its
-  // owner record can be replaced.
-  if (readProcessLiveness(staleRecord.pid) === 'alive') {
-    try {
-      process.kill(staleRecord.pid, 'SIGTERM')
-    } catch {
-      // already gone
-    }
-    const exitDeadline = Date.now() + 500
-    while (
-      Date.now() < exitDeadline &&
-      readProcessLiveness(staleRecord.pid) === 'alive'
-    ) {
-      await sleep(25)
-    }
-  }
-  await deleteOwnerRecord(canonicalVaultPath)
-}
-
-function clientFor(port: number): GraphDbClient {
-  return new GraphDbClient({ baseUrl: `http://127.0.0.1:${port}` })
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms))
-}
-
-function nextBackoff(current: number, ceiling: number): number {
-  return Math.min(current * 2, ceiling)
-}
-
-function boundedDelay(backoff: number, deadlineMs: number): number {
-  const remaining = deadlineMs - Date.now()
-  if (remaining <= 0) return 0
-  return Math.min(backoff, remaining)
-}
+// Help downstream consumers of the spawn coordinator stay aligned with the
+// public result shape without leaking the internal type.
+export type { SpawnAttemptResult }
