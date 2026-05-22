@@ -47,6 +47,16 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'score',
     },
+    // Whole-repo max raw file line count. File-size pressure was previously
+    // folded into Halstead-MI (16.2·ln(SLOC) term); now an explicit gate.
+    {
+        name: 'max file lines',
+        metricKey: 'maxFileLines',
+        metricId: 'complexity-pressure-file-lines-max',
+        budget: 400,
+        comparison: 'lte',
+        unit: 'lines',
+    },
     // Whole-repo target for files touching package boundaries.
     {
         name: 'max boundary ratio',
@@ -140,6 +150,11 @@ type FunctionComplexity = {
 type MaintainabilityRow = {
     readonly file: string
     readonly maintainabilityIndex: number
+}
+
+type FileLinesRow = {
+    readonly file: string
+    readonly lineCount: number
 }
 
 type TurbulenceRow = {
@@ -544,6 +559,15 @@ function measureHalstead(filePath: string, text: string, cyclomatic: number): Ma
     return {file: relative(REPO_ROOT, filePath), maintainabilityIndex}
 }
 
+async function measureFileLines(files: readonly SystemFile[]): Promise<FileLinesRow[]> {
+    const rows: FileLinesRow[] = []
+    for (const file of files) {
+        const text = await readFile(file.absolutePath, 'utf8')
+        rows.push({file: file.relativePath, lineCount: text.split('\n').length})
+    }
+    return rows.sort((a, b) => b.lineCount - a.lineCount || a.file.localeCompare(b.file))
+}
+
 async function measureMaintainability(files: readonly SystemFile[], cyclomaticRows: readonly FunctionComplexity[]): Promise<MaintainabilityRow[]> {
     const cyclomaticByFile = new Map<string, number>()
     for (const row of cyclomaticRows) {
@@ -750,6 +774,7 @@ async function computePressureAxes(): Promise<PressureAxis[]> {
     const cognitive = await measureCognitiveComplexity(graph.files)
     const cyclomatic = await measureCyclomaticComplexity(graph.files)
     const maintainability = await measureMaintainability(graph.files, cyclomatic)
+    const fileLines = await measureFileLines(graph.files)
     const turbulence = await measureTurbulence(graph.files)
     const packageTurbulence = aggregateTurbulence(turbulence)
     const boundaries = measureBoundaries(graph.files, graph.edges, packageNames)
@@ -761,12 +786,13 @@ async function computePressureAxes(): Promise<PressureAxis[]> {
         axis(PRESSURE_AXIS_CONFIGS[1], cyclomatic[0]?.score ?? 0, cyclomatic[0] ? `${cyclomatic[0].file}:${cyclomatic[0].line} ${cyclomatic[0].name}` : 'n/a'),
         axis(PRESSURE_AXIS_CONFIGS[2], maintainability[0]?.maintainabilityIndex ?? 100, maintainability[0]?.file ?? 'n/a'),
         axis(PRESSURE_AXIS_CONFIGS[3], maxCrap?.crapZeroCoverage ?? 0, maxCrap ? `${maxCrap.file}:${maxCrap.line} ${maxCrap.name}` : 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[4], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[5], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[6], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[7], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[8], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[9], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[4], fileLines[0]?.lineCount ?? 0, fileLines[0]?.file ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[5], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[6], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[7], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[8], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[9], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[10], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
     ]
 }
 
