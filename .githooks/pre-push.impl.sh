@@ -72,6 +72,7 @@ pass "Native module rebuild"
 # Use the canonical workspace script: it wraps playwright in xvfb-run on
 # headless Linux (e.g. Onidel) via scripts/run-with-xvfb-if-needed.mjs.
 bold "Stage 2: Tier 1 Electron smoke tests"
+(cd "$WEBAPP" && npm run pretest:e2e:tier1) || fail "Fake agent build failed"
 (cd "$WEBAPP" && npm run test:e2e:tier1:run -- --reporter=line) || fail "Tier 1 Electron smoke tests failed"
 pass "Tier 1 Electron smoke tests"
 
