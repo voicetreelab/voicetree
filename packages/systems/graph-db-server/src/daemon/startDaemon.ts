@@ -116,6 +116,16 @@ async function startOwnedDaemon(
       closeForVault: closeFolderVisibilityForVault,
     })
     registerVaultResource({
+      async openForVault(): Promise<void> {
+        // A fresh vault means previously cached roots are now irrelevant; clear
+        // everything rather than try to scope by old vs new root.
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
+      async closeForVault(): Promise<void> {
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
+    })
+    registerVaultResource({
       async openForVault(vaultPath: string): Promise<void> {
         await watcher?.stop()
         watcher = await startDaemonWatcher(vaultPath, logger)
