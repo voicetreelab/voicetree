@@ -1,9 +1,9 @@
 import {spawn} from 'node:child_process'
 
-const WRITER_URL = new URL('../../packages/systems/_ci-check-writer.ts', import.meta.url).href
+const WRITER_SPECIFIER = '@vt/measures/check-report-writer'
 const RECORD_SCRIPT = `
 const report = JSON.parse(process.env.PLAYWRIGHT_CI_CHECK_REPORT)
-const {recordCheckReport} = await import(process.env.PLAYWRIGHT_CI_CHECK_WRITER_URL)
+const {recordCheckReport} = await import(process.env.PLAYWRIGHT_CI_CHECK_WRITER_SPECIFIER)
 await recordCheckReport(report)
 `
 
@@ -26,7 +26,7 @@ async function recordWithCiCheckWriter(report) {
             env: {
                 ...process.env,
                 PLAYWRIGHT_CI_CHECK_REPORT: JSON.stringify(report),
-                PLAYWRIGHT_CI_CHECK_WRITER_URL: WRITER_URL,
+                PLAYWRIGHT_CI_CHECK_WRITER_SPECIFIER: WRITER_SPECIFIER,
             },
             stdio: ['ignore', 'ignore', 'pipe'],
         })

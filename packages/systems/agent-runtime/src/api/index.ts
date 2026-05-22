@@ -17,6 +17,14 @@ export * from '../application/terminals/terminal-manager-instance'
 export * from '../application/terminals/terminal-registry'
 export * from '../application/terminals/terminal-output-buffer'
 export * from '../application/terminals/global-budget-registry'
+export * from '../application/terminals/tmux/tmux-preflight'
+export * from '../application/terminals/tmux/tmux-server'
+export * from '../application/terminals/tmux/unclaimed-tmux'
+
+export * from '../application/recovery/types'
+export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
+export {resumePersistedAgentSession, defaultResumePersistedDeps, type ResumePersistedDeps, type ResumePersistedResult} from '../application/recovery/resumePersistedAgentSession'
+export {captureMissingNativeSessions, defaultCaptureDeps, type CaptureMissingNativeSessionsDeps} from '../application/recovery/captureNativeSessions'
 
 export * from '../application/headless/headlessAgentManager'
 

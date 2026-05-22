@@ -16,6 +16,7 @@ Testing:
 `npm run test` - Runs all unit tests
 `npx vitest run <file>` - Test specific unit tests
 `npx electron-vite build && npx playwright test webapp/tests/e2e/full-electron/electron-terminal.spec.ts --config=playwright-electron.config.ts` - Run electron test
+Direct `npm --workspace webapp run lint` no longer auto-refreshes the dashboard tile. Refresh via `npm run test:t1 -- --only=webapp-lint`.
  If electron playwright tests, such as smoke tests fail with unclear error messages, run `npm run electron:prod` WITH IMPORTANTLY A 30s bash tool timeout. This reveals electron startup errors that don't show up in test logs. 
 
 DO NOT run `npm run dev` or `npm run electron` in foreground without a short timeout. These will block your session as they start indefinite servers.

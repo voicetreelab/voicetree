@@ -131,6 +131,8 @@ async function main(): Promise<void> {
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 
     configureHeadlessBridges(appSupportPath)
+    await agentRuntime.ensureTmuxAvailable()
+    await agentRuntime.ensureTmuxServer()
 
     let daemonHandle: DaemonHandle
     try {

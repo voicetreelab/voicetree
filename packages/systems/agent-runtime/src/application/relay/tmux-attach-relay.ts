@@ -2,7 +2,8 @@ import {execFileSync} from 'node:child_process'
 import type {IncomingMessage} from 'node:http'
 import pty, {type IPty} from 'node-pty'
 import {WebSocket} from 'ws'
-import {resolveTmuxSessionName} from '../terminals/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
+import {hasSession, resolveTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
@@ -41,14 +42,14 @@ function parseAttachRequest(request: IncomingMessage): ParsedAttachRequest {
 }
 
 function configureTmuxSession(sessionName: string): void {
-    execFileSync('tmux', ['set', '-t', sessionName, 'escape-time', '0'], {stdio: 'ignore'})
-    execFileSync('tmux', ['set', '-t', sessionName, 'status', 'off'], {stdio: 'ignore'})
-    execFileSync('tmux', ['set', '-t', sessionName, 'mouse', 'on'], {stdio: 'ignore'})
-    execFileSync('tmux', ['set', '-t', sessionName, 'history-limit', '50000'], {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'escape-time', '0']), {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'status', 'off']), {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', 'on']), {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'history-limit', '9999']), {stdio: 'ignore'})
 }
 
 function resizeTmuxPane(sessionName: string, cols: number, rows: number): void {
-    execFileSync('tmux', ['resize-pane', '-t', sessionName, '-x', String(cols), '-y', String(rows)], {stdio: 'ignore'})
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['resize-pane', '-t', sessionName, '-x', String(cols), '-y', String(rows)]), {stdio: 'ignore'})
 }
 
 function sendData(ws: WebSocket, payload: string): void {
@@ -95,17 +96,31 @@ function parseWsMessage(raw: Buffer | ArrayBuffer | Buffer[]): unknown {
     return JSON.parse(text)
 }
 
-export function attachTmuxSessionToWebSocket(
+export async function attachTmuxSessionToWebSocket(
     ws: WebSocket,
     request: IncomingMessage,
     options: TmuxAttachRelayOptions = {}
-): void {
+): Promise<void> {
     const parsed: ParsedAttachRequest = parseAttachRequest(request)
     if (!parsed) {
         ws.close()
         return
     }
     const sessionName: string = resolveTmuxSessionName(parsed.sessionName)
+
+    try {
+        if (!(await hasSession(sessionName))) {
+            sendData(ws, '[session ended — agent exited]\r\n')
+            sendExit(ws, 0)
+            ws.close()
+            return
+        }
+    } catch (error) {
+        sendData(ws, `tmux session check failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
+        sendExit(ws, 1)
+        ws.close()
+        return
+    }
 
     try {
         configureTmuxSession(sessionName)
@@ -128,7 +143,7 @@ export function attachTmuxSessionToWebSocket(
 
     let term: IPty
     try {
-        term = pty.spawn('tmux', ['attach', '-t', sessionName], {
+        term = pty.spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['attach', '-t', sessionName]), {
             name: 'xterm-256color',
             cols: parsed.cols,
             rows: parsed.rows,

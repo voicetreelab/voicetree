@@ -43,3 +43,10 @@ export {
     reconcileTmuxTerminalRegistry,
     type TmuxReconciliationResult,
 } from './reconciliation'
+
+export {
+    readMetadata,
+    writeMetadata,
+    type NativeRecoveryHandle,
+    type TmuxTerminalMetadata,
+} from './terminal-metadata'

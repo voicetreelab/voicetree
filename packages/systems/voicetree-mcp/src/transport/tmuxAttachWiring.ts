@@ -49,7 +49,7 @@ export function createTmuxAttachWiring(): TmuxAttachWiring {
         acceptUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer, onAccepted: () => void): void => {
             wss.handleUpgrade(req, socket, head, (ws: WebSocket): void => {
                 onAccepted()
-                attachTmuxSessionToWebSocket(ws, req)
+                void attachTmuxSessionToWebSocket(ws, req)
             })
         },
         close: (): Promise<void> => new Promise<void>((resolveClose): void => {

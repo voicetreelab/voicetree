@@ -26,7 +26,7 @@ import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths'
 import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/utils/test-utils/waitForCondition'
 import { initGraphModel } from '@vt/graph-model'
-import { clearDaemonClientCache, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { clearDaemonClientCache, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 
 function hasEdgeToBasename(node: GraphNode | undefined, basename: string): boolean {
   if (!node?.outgoingEdges) return false

@@ -11,7 +11,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REBUILD="$ROOT/webapp/node_modules/.bin/electron-rebuild"
+# @electron/rebuild is declared in webapp/package.json but npm workspaces
+# hoists its `electron-rebuild` bin into the workspace root, not webapp's
+# local .bin. Resolve it from the root.
+REBUILD="$ROOT/node_modules/.bin/electron-rebuild"
 
 if [[ ! -x "$REBUILD" ]]; then
     echo "rebuild-native: $REBUILD not found. Run 'npm install' first." >&2

@@ -16,6 +16,14 @@ export function stripBracketedContent(content: string): string {
 }
 
 /**
+ * Normalize editor/daemon echo content comparisons by ignoring bracketed link
+ * payloads and whitespace differences.
+ */
+export function normalizeContentForEchoComparison(content: string): string {
+    return stripBracketedContent(content).replace(/\s+/g, '')
+}
+
+/**
  * Check if actual content changed, ignoring changes only within square brackets.
  * Returns true if non-bracket content differs.
  */

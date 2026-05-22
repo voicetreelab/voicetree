@@ -16,11 +16,11 @@ const daemonState = vi.hoisted(() => ({
     writtenPositions: [] as Array<Record<string, { x: number; y: number }>>,
 }))
 
-vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries', () => ({
+vi.mock('@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries', () => ({
     writePositionsThroughDaemon: mocks.writePositionsThroughDaemon,
 }))
 
-vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
+vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => ({
     getGraphFromDaemon: mocks.getGraphFromDaemon,
     postDeltaThroughDaemon: mocks.postDeltaThroughDaemon,
 }))

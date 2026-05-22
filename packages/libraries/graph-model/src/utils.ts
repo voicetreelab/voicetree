@@ -1,1 +1,8 @@
-export { isMacPlatform, getModifierSymbol, formatShortcut, getSpecialKeySymbol } from './pure/utils/keyboardShortcutDisplay'
+export {
+    platformFromRuntimePlatform,
+    isMacPlatform,
+    getModifierSymbol,
+    formatShortcut,
+    getSpecialKeySymbol,
+    type ShortcutPlatform,
+} from './pure/utils/keyboardShortcutDisplay'

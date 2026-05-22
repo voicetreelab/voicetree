@@ -15,7 +15,7 @@ import {
   resolveTmuxVaultPath,
   withResolvedTmuxVaultPath,
   withVoicetreeVaultPath,
-} from './tmuxSpawnPlanning';
+} from './tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
 
 export interface TerminalSpawnResult {

@@ -115,6 +115,12 @@ export const DAEMON_ROUTE_SPECS = [
   },
   {
     method: 'POST',
+    path: '/graph/write-markdown-file',
+    exemptionReason:
+      '`/graph/write-markdown-file` is the floating markdown editor save endpoint; it writes body text to disk while preserving daemon-owned frontmatter.',
+  },
+  {
+    method: 'POST',
     path: '/graph/undo',
     exemptionReason:
       '`/graph/undo` reverses the last graph mutation; triggered by the webapp IPC bridge, not a user-facing CLI command.',

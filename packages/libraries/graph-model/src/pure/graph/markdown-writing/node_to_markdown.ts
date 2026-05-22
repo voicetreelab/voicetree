@@ -187,4 +187,3 @@ function buildFrontmatterFromData(data: Record<string, unknown>): string {
     return `---\n${frontmatterContent}---\n`;
 }
 
-

@@ -1,5 +1,5 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '..'
-import {CONTEXT_NODES_FOLDER} from '..'
+import {CONTEXT_NODES_FOLDER} from '../constants'
 import {calculateInitialPositionForChild} from '../positioning/placement/calculateInitialPosition';
 import {DEFAULT_EDGE_LENGTH} from '../positioning/placement/angularPositionSeeding';
 import {addOutgoingEdge} from '../graph-operations/transforms/graph-edge-operations';

@@ -69,6 +69,10 @@ function filterByCollapse(
 
 // ── Pipeline Step 3: projectNodes ────────────────────────────────────────────
 
+function normalizeProjectedContent(content: string): string {
+    return content.replace(/\r\n?/g, '\n')
+}
+
 function projectNodes(
     visibleFolders: readonly FolderProjectionInfo[],
     visibleFolderIds: ReadonlySet<FolderId>,
@@ -97,7 +101,7 @@ function projectNodes(
             basename: info.label,
             folderPath: info.parent ?? '',
             ...(info.parent && visibleFolderIds.has(info.parent) ? { parent: info.parent } : {}),
-            content,
+            content: normalizeProjectedContent(content),
             loadState: info.loadState,
             isWriteTarget: info.isWriteTarget,
             ...(collapsed ? { childCount: info.directChildCount } : {}),
@@ -127,7 +131,7 @@ function projectNodes(
             ...(position !== undefined ? { position } : {}),
             ...(classes.length > 0 ? { classes } : {}),
             ...(O.isSome(node.nodeUIMetadata.color) ? { color: node.nodeUIMetadata.color.value } : {}),
-            content: node.contentWithoutYamlOrLinks,
+            content: normalizeProjectedContent(node.contentWithoutYamlOrLinks),
             ...(additionalYAMLProps.length > 0 ? { additionalYAMLProps } : {}),
             ...(node.nodeUIMetadata.isContextNode === true ? { isContextNode: true } : {}),
             ...(node.nodeUIMetadata.containedNodeIds

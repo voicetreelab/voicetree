@@ -21,8 +21,10 @@ import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsive
 import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {isImageNode} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
-import type {TerminalRecord} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, TerminalRecord, UnclaimedTmuxSession} from '@vt/agent-runtime';
 import {syncFromMain} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
+import {syncUnclaimedTmuxFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore";
+import {syncRecoverySessionsFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
@@ -48,19 +50,25 @@ function hasVisibleRoots(): boolean {
  * Update floating editors from external FS changes
  * Called from main process read path when external edits are detected
  */
-function updateFloatingEditorsFromExternal(delta: GraphDelta): void {
+function updateFloatingEditorsFromExternal(
+    delta: GraphDelta,
+    suppressForSubscribers: readonly string[] = [],
+): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta);
+    updateFloatingEditors(cy, delta, suppressForSubscribers);
 }
 
 /**
  * Update floating editors from daemon SSE deltas.
- * Echo filtering already happened at the SSE layer, so these are always
- * external changes — skip the isFocused guard that would block them.
+ * Echo filtering already happened at the SSE layer, so these are external
+ * changes unless explicitly suppressed for the originating editor.
  */
-function updateFloatingEditorsFromDaemon(delta: GraphDelta): void {
+function updateFloatingEditorsFromDaemon(
+    delta: GraphDelta,
+    suppressForSubscribers: readonly string[] = [],
+): void {
     const cy: Core = getCyInstance();
-    updateFloatingEditors(cy, delta, true);
+    updateFloatingEditors(cy, delta, suppressForSubscribers);
 }
 
 /**
@@ -100,6 +108,14 @@ function syncTerminals(records: TerminalRecord[]): void {
     syncFromMain(records);
     // Update headless agent badge overlays on task nodes
     updateHeadlessBadges();
+}
+
+function syncUnclaimedTmuxSessions(sessions: readonly UnclaimedTmuxSession[]): void {
+    syncUnclaimedTmuxFromMain(sessions);
+}
+
+function syncRecoverySessions(sessions: readonly RecoverableAgentSession[]): void {
+    syncRecoverySessionsFromMain(sessions);
 }
 
 /**
@@ -170,6 +186,8 @@ export const uiAPIHandler = {
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,
+    syncUnclaimedTmuxSessions,
+    syncRecoverySessions,
     logHookResult,
     onSettingsChanged: (): void => {
         for (const cb of settingsChangeListeners) cb();

@@ -125,6 +125,24 @@ describe('handleSessionEvents', () => {
     expect(result.graph.revision).toBe(7)
   })
 
+  test('projects delta event suppression metadata for subscribers', () => {
+    const delta: GraphDelta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: graphNodeFixture(),
+        previousNode: O.none,
+      },
+    ]
+
+    const result = handleProjectDeltaEvent(stateFixture(), {
+      delta,
+      seq: 12,
+      suppressForSubscribers: ['editor-1'],
+    })
+
+    expect(result.graph.suppressForSubscribers).toEqual(['editor-1'])
+  })
+
   test('projects a replay reset snapshot with metadata', () => {
     const result = handleReplayResetSnapshot(stateFixture(), 3, 9, 18)
 

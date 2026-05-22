@@ -7,7 +7,7 @@ export interface GraphModelConfig {
 
 export interface GraphModelCallbacks {
   // Core graph broadcasting
-  onFloatingEditorUpdate?: (delta: GraphDelta) => void  // replaces uiAPI.updateFloatingEditorsFromExternal
+  onFloatingEditorUpdate?: (delta: GraphDelta, suppressForSubscribers?: readonly string[]) => void  // replaces uiAPI.updateFloatingEditorsFromExternal
   onGraphCleared?: () => void  // replaces mainWindow.webContents.send('graph:clear')
 
   // Settings

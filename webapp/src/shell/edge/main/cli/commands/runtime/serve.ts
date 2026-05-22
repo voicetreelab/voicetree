@@ -1,6 +1,9 @@
 import {join, resolve} from 'node:path'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
-import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
+import {
+    ensureGraphDaemonForVault,
+    type EnsureGraphDaemonResult,
+} from '@vt/graph-db-client'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
@@ -20,9 +23,11 @@ import {resolveAppSupportPath} from '@/shell/edge/main/cli/util/appSupportPath'
 type ServeArgs = {
     readonly port?: number
     readonly vault: string
+    readonly exclusive: boolean
 }
 
-const SERVE_USAGE: string = 'Usage: vt serve --vault <path> [--port <n>]\n'
+const SERVE_USAGE: string =
+    'Usage: vt serve --vault <path> [--port <n>] [--exclusive]\n'
 
 function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
     const value: string | undefined = argv[index + 1]
@@ -45,6 +50,7 @@ function parsePort(rawPort: string, flag: string): number {
 function parseServeArgs(argv: readonly string[]): ServeArgs {
     let port: number | undefined
     let vault: string | undefined
+    let exclusive: boolean = false
 
     for (let index: number = 0; index < argv.length; index += 1) {
         const arg: string = argv[index]
@@ -79,6 +85,11 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
             continue
         }
 
+        if (arg === '--exclusive') {
+            exclusive = true
+            continue
+        }
+
         error(`unknown argument: ${arg}`)
     }
 
@@ -86,7 +97,7 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
         error(`missing required --vault <path>\n\n${SERVE_USAGE}`)
     }
 
-    return {port, vault: resolve(vault)}
+    return {port, vault: resolve(vault), exclusive}
 }
 
 function configureHeadlessBridges(appSupportPath: string): void {
@@ -116,23 +127,33 @@ function configureHeadlessBridges(appSupportPath: string): void {
 export async function runServeCommand(argv: string[]): Promise<void> {
     const args: ServeArgs = parseServeArgs(argv)
     const appSupportPath: string = resolveAppSupportPath()
+    // Propagate the resolved app-support path to the vt-graphd child the
+    // owner-aware ensure spawns. The child's own resolver also falls back to
+    // VOICETREE_APP_SUPPORT, so this keeps the CLI and the spawned daemon
+    // pointed at the same Voicetree state directory even when the user did
+    // not set the env var themselves.
+    process.env.VOICETREE_APP_SUPPORT = appSupportPath
 
     configureHeadlessBridges(appSupportPath)
+    await agentRuntime.ensureTmuxAvailable()
+    await agentRuntime.ensureTmuxServer()
 
-    let daemonHandle: DaemonHandle
+    let owner: EnsureGraphDaemonResult
     try {
-        daemonHandle = await startDaemon({
-            vault: args.vault,
-            appSupportPath,
+        owner = await ensureGraphDaemonForVault(args.vault, 'cli', {
+            bin: process.env.VT_GRAPHD_BIN,
         })
     } catch (cause) {
-        error(`failed to start graph-db-server: ${(cause as Error).message}`)
+        error(`failed to ensure graph-db owner: ${(cause as Error).message}`)
     }
 
-    if (daemonHandle.alreadyRunning) {
+    if (args.exclusive && !owner.launched) {
+        // --exclusive refuses to share the vault. The existing owner is left
+        // running untouched per the daemon-ownership spec: exclusive mode
+        // never kills or replaces another owner implicitly.
         error(
-            `graph-db-server already running for ${args.vault} (pid ${daemonHandle.alreadyRunning.pid}). `
-            + 'Stop it before starting vt serve in headless mode.',
+            `--exclusive: vt-graphd owner already exists for ${args.vault} `
+            + `(pid ${owner.pid}, port ${owner.port}). Stop the existing owner first.`,
         )
     }
 
@@ -156,7 +177,9 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         })
         await writeRpcPortFile(args.vault, httpHandle.port)
     } catch (cause) {
-        await daemonHandle.stop().catch(() => undefined)
+        // BF-346: the graph-db owner is shared across processes — vt serve never
+        // kills the daemon on its own exit. Only tear down what this process owns
+        // (the HTTP daemon listener already started above is the only thing).
         error(`failed to start HTTP daemon server: ${(cause as Error).message}`)
     }
 
@@ -165,7 +188,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         vaultStateWatcher = startVaultStateWatcher({vaultPath: args.vault, hub: httpHandle.hub})
     } catch (cause) {
         await httpHandle.stop().catch(() => undefined)
-        await daemonHandle.stop().catch(() => undefined)
         error(`failed to start vault-state watcher: ${(cause as Error).message}`)
     }
 
@@ -186,8 +208,9 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         )
     }
 
+    const ownerVerb: string = owner.launched ? 'launched' : 'reused'
     process.stdout.write(
-        `vt serve: graph-db on http://127.0.0.1:${daemonHandle.port}, `
+        `vt serve: graph-db ${ownerVerb} on http://127.0.0.1:${owner.port} (pid ${owner.pid}), `
         + `daemon on ${httpHandle.url}, vault=${args.vault}\n`,
     )
 
@@ -209,7 +232,11 @@ export async function runServeCommand(argv: string[]): Promise<void> {
                 process.stderr.write(`vt serve: http daemon stop error: ${(cause as Error).message}\n`)
             })
             getTerminalManager().cleanup()
-            await daemonHandle.stop()
+            // The vt-graphd owner is a separately-owned, cross-process resource
+            // (BF-346). Other callers — Electron, sibling CLI processes — may
+            // still be using it, so vt serve never kills the daemon on its own
+            // exit. Operators stop the daemon explicitly via its /shutdown
+            // endpoint or by terminating the recorded owner pid.
             process.exit(0)
         } catch (cause) {
             process.stderr.write(`vt serve: shutdown error: ${(cause as Error).message}\n`)

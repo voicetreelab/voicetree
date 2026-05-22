@@ -1,7 +1,7 @@
 import { esc, fmtDuration, relTime } from './format.js'
 
 // Composition map for known rollup ("Command" category) checks.
-// Each rollup is wrapped by record-run.mjs and writes its own report. The
+// Each rollup is wrapped by record-run.ts and writes its own report. The
 // scripts it transitively invokes also write their own reports — those are the
 // `components`. We render rollup duration alongside the sum of its components,
 // so the dev can see WHERE the time goes (and what fraction is unaccounted).
@@ -14,9 +14,9 @@ const ROLLUPS = [
   {
     id: 'npm-test',
     name: 'npm run test',
-    note: 'npm run health  +  vitest  +  electron-vite build  +  native rebuild  +  playwright tier1  +  playwright tier2 browser',
+    note: 'npm run measures  +  vitest  +  electron-vite build  +  native rebuild  +  playwright tier1  +  playwright tier2 browser',
     components: [
-      { id: 'npm-health',         label: 'npm run health',                  kind: 'rollup' },
+      { id: 'npm-health',         label: 'npm run measures',                kind: 'rollup' },
       { id: 'webapp-unit',        label: 'Webapp Unit (vitest)',            kind: 'leaf' },
       { id: 'webapp-vite-build',  label: 'Webapp electron-vite build',      kind: 'leaf' },
       { id: 'native-rebuild',     label: 'Native module rebuild',           kind: 'leaf' },
@@ -37,7 +37,7 @@ const ROLLUPS = [
   },
   {
     id: 'npm-health',
-    name: 'npm run health',
+    name: 'npm run measures',
     note: 'tier-1 system contracts  +  systems-health vitest  +  static checks  +  duplication',
     components: [
       { id: 'graph-db-client-e2e-system',     label: 'Graph DB Client E2E',       kind: 'leaf' },
@@ -51,8 +51,6 @@ const ROLLUPS = [
       { id: 'systems-health',                 label: 'Systems Health (vitest)',   kind: 'leaf' },
       { id: 'dead-code',                      label: 'Dead Code (knip)',          kind: 'leaf' },
       { id: 'e2e-taxonomy',                   label: 'E2E Taxonomy',              kind: 'leaf' },
-      { id: 'circular-deps',                  label: 'Circular Dependencies',     kind: 'leaf' },
-      { id: 'coupling',                       label: 'Cross-Package Coupling',    kind: 'leaf' },
       { id: 'duplication',                    label: 'Code Duplication (jscpd)',  kind: 'leaf' },
     ],
   },

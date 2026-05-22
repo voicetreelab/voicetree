@@ -3,7 +3,7 @@ import {
     resolveTmuxVaultPath,
     withResolvedTmuxVaultPath,
     withVoicetreeVaultPath,
-} from '../tmuxSpawnPlanning';
+} from '../tmux/tmuxSpawnPlanning';
 
 describe('tmux spawn planning', () => {
     it('prefers the process vault path over the initial env fallback', () => {

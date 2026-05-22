@@ -46,6 +46,7 @@ import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-va
 import {getCallbacks} from '@vt/graph-model';
 import {
     getExpandedFolderPathsForVault,
+    seedActiveViewExpandedFolderStates,
     setActiveViewFolderState,
 } from "../data/watch-folder/folder-visibility-active-view";
 
@@ -137,6 +138,10 @@ export async function setWritePath(
             await setActiveViewFolderState(watchedDir, oldWritePath, 'expanded');
         });
     }
+
+    await traceGraphdSpan('daemon.set-write-path.seed-write-path-folder-visibility', async () => {
+        await seedActiveViewExpandedFolderStates(watchedDir, [normalizePath(vaultPath)]);
+    });
 
     // Save to config only AFTER successful load (atomic operation)
     await traceGraphdSpan('daemon.set-write-path.save-vault-config', async () => {

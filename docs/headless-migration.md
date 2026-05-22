@@ -45,7 +45,7 @@ cd packages/systems/agent-runtime  && npm run test         # 10 files, 152 tests
 cd packages/systems/voicetree-mcp  && npm run typecheck    # own-src clean *
 cd packages/systems/voicetree-mcp  && npm run test         #  5 files,  41 tests pass (incl. boundary guard)
 cd webapp                  && npx tsc --noEmit     # own-src clean *
-npm run lint:blackbox-tests                         # see "Pre-existing" below
+npm run test:t0 -- --only=blackbox-tests-lint      # see "Pre-existing" below
 cd webapp && npx electron-vite build                # exit 0 — fresh dist-electron/{main,preload}/index.js
 ```
 
@@ -178,7 +178,7 @@ the call sites to revisit.
    shape change should split tool registrations (`registerCoreTools.ts`)
    rather than push it past the cap.
 
-4. **Pre-existing `npm run lint:blackbox-tests` failure.** One file —
+4. **Pre-existing `blackbox-tests-lint` failure.** One file —
    `webapp/src/shell/edge/main/runAgentOnSelectedNodes.test.ts` — has 2/3
    mock assertions (66% > 50% threshold). Verified identical to `main`; the
    B2 import-rewrite did not introduce it. Out of scope for the headless

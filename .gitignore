@@ -182,6 +182,8 @@ webapp/workers/share-worker/.wrangler/**
 
 # Markdown (tracked exceptions below)
 **/*.md
+!/CLAUDE.md
+!/AGENTS.md
 !tools/prompts/*.md
 !brain/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
@@ -190,15 +192,16 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-state/**/*.md
 !docker/**/*.md
 !docs/**/*.md
+!packages/measures/README.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
 
 # Codex config (machine-local)
-.codex/config.toml
+**/.codex/config.toml
 
 # Gemini settings (machine-local)
-.gemini/settings.json
+**/.gemini/settings.json
 
 # Wrangler
 **/.wrangler/**
@@ -226,6 +229,14 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+
+# Vestigial root-level files that tools/agents might recreate
+# (progress notes are already covered by **/*.md above)
+/test.db
+/pnpm-lock.yaml
+/opencode.json
+/.obsidianignore
+/.pre-commit-config.yaml
 
 # Codebase health dashboard report state
 /health-dashboard/reports/*.json

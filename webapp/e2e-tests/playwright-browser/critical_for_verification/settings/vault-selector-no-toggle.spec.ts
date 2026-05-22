@@ -241,6 +241,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
       },
 
       // File watching event listeners
@@ -278,6 +279,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
+        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onProjectedGraphUpdate: (callback: (graph: any) => void) => {
           mockElectronAPI.graph._projectedGraphCallback = callback;

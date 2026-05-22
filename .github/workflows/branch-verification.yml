@@ -15,7 +15,9 @@ concurrency:
 jobs:
   static-gates:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
 
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +34,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Codebase health gate
-        run: npm run health
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tier 2 checks
+        run: npm run test:t2
 
   browser-smoke:
     needs: [static-gates]
