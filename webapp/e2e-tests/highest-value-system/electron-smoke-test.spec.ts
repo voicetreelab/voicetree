@@ -11,63 +11,85 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { randomUUID } from 'crypto';
 import type { ChildProcess } from 'child_process';
 import type { NodeSingular } from 'cytoscape';
 import {
   WEBAPP_ROOT, REPO_ROOT, FAKE_AGENT_ENTRYPOINT,
   type ElectronDiagnostics, type ExtendedWindow,
-  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault,
+  resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForVault, stopSmokeTmuxServer,
   waitForMcpServer, mcpRequest, mcpCallTool,
   expectNoCriticalElectronErrors
 } from './electron-smoke-helpers';
+
+const GRACEFUL_QUIT_MS = 3000;
+const ELECTRON_CLOSE_MS = 5000;
+const FORCE_KILL_WAIT_MS = 3000;
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const GRACEFUL_QUIT_MS = 3000;
-const FORCE_KILL_WAIT_MS = 3000;
+function hasProcessExited(processHandle: ChildProcess): boolean {
+  return processHandle.exitCode !== null || processHandle.signalCode !== null;
+}
+
+function isProcessAlive(processHandle: ChildProcess): boolean {
+  if (hasProcessExited(processHandle) || !processHandle.pid) return false;
+
+  try {
+    process.kill(processHandle.pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function signalProcess(processHandle: ChildProcess, signal: NodeJS.Signals): void {
+  if (!isProcessAlive(processHandle) || !processHandle.pid) return;
+
+  try {
+    process.kill(processHandle.pid, signal);
+  } catch {
+    // The process may have exited between the liveness check and signal.
+  }
+}
+
+function waitForProcessExit(processHandle: ChildProcess, timeoutMs: number): Promise<boolean> {
+  if (!isProcessAlive(processHandle)) return Promise.resolve(true);
+
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      processHandle.off('exit', onExit);
+      resolve(!isProcessAlive(processHandle));
+    }, timeoutMs);
+
+    const onExit = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+
+    processHandle.once('exit', onExit);
+  });
+}
 
 async function closeElectronAppForSmoke(
   electronApp: ElectronApplication,
   electronProcess: ChildProcess | null
 ): Promise<void> {
-  try {
-    await Promise.race([
-      electronApp.evaluate(async ({ app }) => {
-        app.quit();
-      }),
-      delay(GRACEFUL_QUIT_MS)
-    ]);
-  } catch {
-    // The app may already be exiting.
-  }
-
-  if (!electronProcess || electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
-    return;
-  }
-
-  await Promise.race([
-    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
-    delay(GRACEFUL_QUIT_MS)
+  const close = electronApp.close().catch(() => undefined);
+  const closed = await Promise.race([
+    close.then(() => true),
+    delay(ELECTRON_CLOSE_MS).then(() => false)
   ]);
+  if (closed || !electronProcess) return;
 
-  if (electronProcess.exitCode !== null || electronProcess.signalCode !== null) {
-    return;
+  signalProcess(electronProcess, 'SIGTERM');
+  if (!(await waitForProcessExit(electronProcess, GRACEFUL_QUIT_MS))) {
+    signalProcess(electronProcess, 'SIGKILL');
+    await waitForProcessExit(electronProcess, FORCE_KILL_WAIT_MS);
   }
-
-  if (electronProcess.pid) {
-    try {
-      process.kill(electronProcess.pid, 'SIGKILL');
-    } catch {
-      // Electron already exited.
-    }
-  }
-
-  await Promise.race([
-    new Promise<void>(resolve => electronProcess.once('exit', () => resolve())),
-    delay(FORCE_KILL_WAIT_MS)
-  ]);
+  await Promise.race([close, delay(FORCE_KILL_WAIT_MS)]);
 }
 
 // Extend test with Electron app
@@ -204,9 +226,10 @@ const test = base.extend<{
     await use(electronApp);
 
     await closeElectronAppForSmoke(electronApp, electronProcess);
+    stopSmokeGraphDaemonForVault(fixtureVaultPath);
+    stopSmokeTmuxServer(tempUserDataPath);
     electronProcess?.stdout?.off('data', stdoutHandler);
     electronProcess?.stderr?.off('data', stderrHandler);
-    stopSmokeGraphDaemonForVault(fixtureVaultPath);
     console.log('[Smoke Test] Electron app closed');
   },
 
@@ -350,7 +373,7 @@ test.describe('Smoke Test', () => {
     });
     console.log(`[Smoke Test] Cytoscape nodes before fake agent: ${cyNodeCountBeforeAgent}`);
 
-    const callerTerminalId = 'e2e-smoke-caller';
+    const callerTerminalId = `e2e-smoke-caller-${randomUUID().slice(0, 8)}`;
     const spawnCallerResult = await appWindow.evaluate(async ({ callerId, parentId }) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api?.terminal) throw new Error('electronAPI.terminal not available');
@@ -452,9 +475,8 @@ test.describe('Smoke Test', () => {
     }).toBeGreaterThanOrEqual(cyNodeCountBeforeAgent + 3);
     console.log('✓ All 3 agent-created nodes rendered in Cytoscape via SSE delta path');
 
-    // Caller terminal cleanup: the legacy `terminal.kill` IPC bridge was
-    // deleted (was a no-op under tmux). The tmux session running `sleep 120`
-    // is torn down when the Electron app teardown kills its process tree.
+    // Caller terminal cleanup is handled by the fixture-owned tmux server
+    // teardown, which is scoped to this test's temporary app-support path.
 
     expectNoCriticalElectronErrors(electronDiagnostics);
     console.log('✅ Fake agent progress-node smoke test passed!');
