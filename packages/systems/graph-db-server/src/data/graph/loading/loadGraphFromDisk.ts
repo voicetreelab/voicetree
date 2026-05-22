@@ -217,6 +217,10 @@ function isSupportedFile(filename: string): boolean {
 // a vault. Hidden directories (names starting with '.') are also skipped — most
 // notably `.voicetree/prompts/`, which would otherwise leak per-project tooling
 // markdown files in as graph nodes when a vault root is scanned.
+//
+// `build` was added so opening a project repo as a vault doesn't pull every
+// .md under build outputs into the graph and trip the file-limit guard on
+// large monorepos.
 function isIgnoredDirectoryName(name: string): boolean {
   switch (name) {
     case 'node_modules':
@@ -228,6 +232,7 @@ function isIgnoredDirectoryName(name: string): boolean {
     case '.venv':
     case 'venv':
     case '.worktrees':
+    case 'build':
       return true
     default:
       return false
@@ -238,7 +243,7 @@ function isIgnoredDirectoryName(name: string): boolean {
  * Scans vault directory recursively for markdown and image files.
  *
  * Skips hidden directories (names starting with '.') and common noise
- * directories (node_modules, dist, etc.), matching the behavior of the
+ * directories (node_modules, dist, build, etc.), matching the behavior of the
  * folder-selector scanner.
  *
  * @param vaultPath - Absolute absolutePath to vault directory

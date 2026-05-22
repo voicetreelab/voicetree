@@ -13,7 +13,7 @@
     "check": "node --no-warnings=ExperimentalWarning --experimental-strip-types ../scripts/record-run.mjs --id=webapp-check --name=\"Webapp TypeCheck + Lint + E2E Taxonomy\" --category=TypeCheck --display=\"npm --workspace webapp run check\" -- npm --workspace webapp run check:run",
     "check:run": "npm run lint && tsc --noEmit && npm run check:e2e-taxonomy",
     "check:e2e-taxonomy": "node scripts/check-e2e-taxonomy.mjs",
-    "postinstall": "../scripts/rebuild-native.sh",
+    "postinstall": "bash ../scripts/rebuild-native.sh",
     "test": "node ../scripts/record-run.mjs --id=webapp-unit --name=\"Webapp Unit (vitest)\" --category=Unit --display=\"vitest run\" -- npm --workspace webapp run test:vitest:run && npm run test:e2e:tier1 && npm run test:e2e:tier2:browser",
     "test:vitest:run": "vitest run",
     "test:listen": "vitest",
