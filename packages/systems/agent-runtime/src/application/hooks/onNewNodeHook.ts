@@ -4,14 +4,22 @@ import {ensureHookTerminal, writeToHookTerminal} from '../spawn/spawnHookTermina
 import {shellQuote} from '../util/shellQuote'
 
 export type HookResultLogger = (message: string) => void
+type TimerHandle = ReturnType<typeof setTimeout>
 export type OnNewNodeHookDeps = {
-    readonly timers: Map<string, ReturnType<typeof setTimeout>>
-    readonly setTimer: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>
-    readonly clearTimer: (timer: ReturnType<typeof setTimeout>) => void
+    readonly timers: Map<string, TimerHandle>
+    readonly setTimer: (callback: () => void, delayMs: number) => TimerHandle
+    readonly clearTimer: (timer: TimerHandle) => void
     readonly ensureHookTerminal: () => Promise<void>
     readonly writeToHookTerminal: (text: string) => void
     readonly quoteArg: (arg: string) => string
 }
+
+export type OnNewNodeHookDepsOptions = Omit<OnNewNodeHookDeps, 'timers'>
+export type OnNewNodeHookDispatcher = (
+    delta: GraphDelta,
+    hookCommand: string,
+    logHookResult: HookResultLogger,
+) => void
 
 /**
  * Max new nodes per delta before hook dispatch is skipped.
@@ -29,16 +37,28 @@ const MAX_NEW_NODES_PER_DELTA: number = 2
  */
 const DEBOUNCE_MS: number = 300
 
-/** Pending debounce timers keyed by node path. */
-const pendingTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
+export function createOnNewNodeHookDeps(
+    overrides: Partial<OnNewNodeHookDepsOptions> = {},
+): OnNewNodeHookDeps {
+    const timers: Map<string, TimerHandle> = new Map()
+    return {
+        timers,
+        setTimer: overrides.setTimer ?? setTimeout,
+        clearTimer: overrides.clearTimer ?? clearTimeout,
+        ensureHookTerminal: overrides.ensureHookTerminal ?? ensureHookTerminal,
+        writeToHookTerminal: overrides.writeToHookTerminal ?? writeToHookTerminal,
+        quoteArg: overrides.quoteArg ?? shellQuote,
+    }
+}
 
-const defaultOnNewNodeHookDeps: OnNewNodeHookDeps = {
-    timers: pendingTimers,
-    setTimer: setTimeout,
-    clearTimer: clearTimeout,
-    ensureHookTerminal,
-    writeToHookTerminal,
-    quoteArg: shellQuote
+export function createOnNewNodeHookDispatcher(
+    deps: OnNewNodeHookDeps = createOnNewNodeHookDeps(),
+): OnNewNodeHookDispatcher {
+    return (
+        delta: GraphDelta,
+        hookCommand: string,
+        logHookResult: HookResultLogger,
+    ): void => dispatchOnNewNodeHooks(delta, hookCommand, logHookResult, deps)
 }
 
 export function getNewNodePathsForHook(delta: GraphDelta): readonly string[] {
@@ -69,7 +89,7 @@ export function dispatchOnNewNodeHooks(
     delta: GraphDelta,
     hookCommand: string,
     logHookResult: HookResultLogger,
-    deps: OnNewNodeHookDeps = defaultOnNewNodeHookDeps
+    deps: OnNewNodeHookDeps,
 ): void {
     const newNodePaths: readonly string[] = getNewNodePathsForHook(delta)
 
@@ -82,12 +102,12 @@ export function dispatchOnNewNodeHooks(
 
     for (const nodePath of newNodePaths) {
         // Cancel any existing timer for this path — restart the debounce window
-        const existing: ReturnType<typeof setTimeout> | undefined = deps.timers.get(nodePath)
+        const existing: TimerHandle | undefined = deps.timers.get(nodePath)
         if (existing) {
             deps.clearTimer(existing)
         }
 
-        const timer: ReturnType<typeof setTimeout> = deps.setTimer(() => {
+        const timer: TimerHandle = deps.setTimer(() => {
             deps.timers.delete(nodePath)
 
             void deps.ensureHookTerminal().then(() => {
