@@ -1,56 +1,45 @@
 export const CHECK_TIERS = [
   {
-    id: 'tier0',
+    id: 'tier_0',
     label: 'Tier 0',
-    scope: 'Every commit',
-    description: 'quick static checks + stop hooks',
+    scope: 'Every commit (pre-commit)',
+    description: 'instant static + lint checks',
   },
   {
-    id: 'tier1',
+    id: 'tier_1',
     label: 'Tier 1',
-    scope: 'Every push',
-    description: 'push-gate E2E smoke checks',
+    scope: 'Every push (pre-push)',
+    description: 'unit + push-gate E2E smoke + health gates',
   },
   {
-    id: 'tier2',
+    id: 'tier_2',
     label: 'Tier 2',
-    scope: 'Merge to main',
-    description: 'full suites and slow/deep checks',
+    scope: 'Every PR (stage1 CI)',
+    description: 'full unit + contract + browser E2E + fuzz',
+  },
+  {
+    id: 'tier_3',
+    label: 'Tier 3',
+    scope: 'Merge to main + nightly',
+    description: 'electron E2E + dead-code + duplication + mutation',
   },
 ]
 
-const TIER0_CHECK_IDS = new Set([
-  'blackbox-tests-lint',
-  'claude-stop-quality',
-  'complexity',
-  'dead-code',
-  'duplication',
-  'e2e-taxonomy',
-  'git-pre-commit',
-  'root-lint',
-  'verify-cytoscape-rules',
-  'webapp-check',
-  'webapp-lint',
-])
-
-const TIER1_CHECK_IDS = new Set([
-  'e2e-tier1',
-  'git-pre-push',
-])
+const TIER_FROM_PATH = /\/checks\/(tier_[0-3])\//
+const UNTIERED = 'untiered'
 
 export function checkTierId(report) {
-  if (report.details?.measureFolder === 'tier_1') return 'tier1'
-  if (TIER0_CHECK_IDS.has(report.checkId)) return 'tier0'
-  if (TIER1_CHECK_IDS.has(report.checkId)) return 'tier1'
-  if (report.category === 'Lint' || report.category === 'TypeCheck') return 'tier0'
-  if (report.category === 'E2E' && report.checkId.includes('tier1')) return 'tier1'
-  return 'tier2'
+  const match = TIER_FROM_PATH.exec(report.details?.measurePath ?? '')
+  return match ? match[1] : UNTIERED
 }
 
 export function bucketizeByTier(reports) {
   const byTier = Object.fromEntries(CHECK_TIERS.map(t => [t.id, []]))
+  byTier[UNTIERED] = []
   for (const report of reports ?? []) {
-    byTier[checkTierId(report)].push(report)
+    const id = checkTierId(report)
+    if (!byTier[id]) byTier[id] = []
+    byTier[id].push(report)
   }
   return byTier
 }
