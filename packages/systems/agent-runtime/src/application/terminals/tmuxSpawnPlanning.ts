@@ -1,15 +1,9 @@
-import type {TerminalId} from './terminal-registry/types';
-
-export type PromptFileWriteRequest = {
-    readonly vaultPath: string;
-    readonly terminalId: TerminalId;
-    readonly prompt: string;
-};
-
-export type HeadfulPromptInjectionRequest = {
-    readonly terminalId: TerminalId;
-    readonly command: string;
-};
+/**
+ * Tmux spawn planning helpers — only the vault-path discovery helpers remain
+ * here. The prompt-file primitive itself (write, env scrub, command rewrite)
+ * lives in `../headless/tmuxPromptFile.ts` as `applyPromptFileToTmuxSpawn`
+ * so the headless and interactive paths share it.
+ */
 
 export function resolveTmuxVaultPath(
     env: {readonly VOICETREE_VAULT_PATH?: string},
@@ -28,34 +22,21 @@ export function withResolvedTmuxVaultPath(
     return {...initialEnvVars, VOICETREE_VAULT_PATH: vaultPath};
 }
 
-export function resolvePromptFileWrite(
+/**
+ * Build the tmux -e env vector from a (possibly already prompt-file-scrubbed)
+ * env map. Drops non-string entries (defensive against bad input from the
+ * IPC boundary, where the TS type can't be enforced) and backfills
+ * VOICETREE_VAULT_PATH if the env doesn't carry one.
+ */
+export function withVoicetreeVaultPath(
+    env: Record<string, string>,
     vaultPath: string | undefined,
-    terminalId: TerminalId,
-    agentPrompt: string | undefined,
-): PromptFileWriteRequest | null {
-    if (!vaultPath || !agentPrompt) return null;
-    return {vaultPath, terminalId, prompt: agentPrompt};
-}
-
-export function buildTmuxEnv(
-    initialEnvVars: Record<string, string>,
-    vaultPath: string | undefined,
-    promptFilePath: string | null,
 ): Record<string, string> {
     const tmuxEnv: Record<string, string> = {};
-    for (const key of Object.keys(initialEnvVars)) {
-        const value: string = initialEnvVars[key];
+    for (const key of Object.keys(env)) {
+        const value: string = env[key];
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
-    if (promptFilePath) tmuxEnv.AGENT_PROMPT_FILE = promptFilePath;
     if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
     return tmuxEnv;
-}
-
-export function resolveHeadfulPromptInjection(
-    terminalId: TerminalId,
-    initialCommand: string | undefined,
-): HeadfulPromptInjectionRequest | null {
-    if (!initialCommand) return null;
-    return {terminalId, command: initialCommand};
 }

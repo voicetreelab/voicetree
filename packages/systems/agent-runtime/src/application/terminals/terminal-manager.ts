@@ -4,7 +4,7 @@ import type {TerminalData, TerminalId} from './terminal-registry/types';
 import {getTerminalId as readTerminalId} from './terminal-registry/types';
 import {clearBuffer, clearAllBuffers} from './terminal-output-buffer';
 import {cleanupHeadlessAgents, spawnTmuxBackedTerminal} from '../headless/headlessAgentManager';
-import {injectAgentCommandHeadful, writePromptFile} from '../headless/tmuxPromptFile';
+import {applyPromptFileToTmuxSpawn, injectAgentCommandHeadful} from '../headless/tmuxPromptFile';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -12,13 +12,9 @@ import {
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
 import {
-  buildTmuxEnv,
-  resolveHeadfulPromptInjection,
-  resolvePromptFileWrite,
   resolveTmuxVaultPath,
   withResolvedTmuxVaultPath,
-  type HeadfulPromptInjectionRequest,
-  type PromptFileWriteRequest,
+  withVoicetreeVaultPath,
 } from './tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
 
@@ -38,11 +34,6 @@ export interface TerminalSpawnOpts {
   getToolsDirectory: () => string;
   onData: (terminalId: string, data: string) => void;
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
-}
-
-function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
-  if (!request) return null;
-  return writePromptFile(request.vaultPath, request.terminalId, request.prompt);
 }
 
 async function resolveRuntimeWritePath(): Promise<string | null> {
@@ -85,14 +76,18 @@ export class TerminalManager {
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
   // ({vault}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
-  // time and never crosses tmux's argv. After the shell is ready, the agent
-  // command is injected via `tmux send-keys` with a short reference to the
-  // prompt file (stdin redirection for claude/gemini, $(cat) for codex,
-  // env-only AGENT_PROMPT_FILE fallback for other CLIs).
+  // time via `applyPromptFileToTmuxSpawn` and never crosses tmux's argv.
+  // AGENT_PROMPT is dropped from the tmux -e env vector (replaced by an
+  // AGENT_PROMPT_FILE pointer) — without this, multi-KB prompts piled into
+  // tmux's command-protocol buffer overflow on macOS (`command too long`).
+  // After the shell is ready, the initialCommand is injected via
+  // `tmux send-keys`. The primitive CLI-rewrites it (stdin redirect for
+  // claude/gemini, $(cat) for codex, stripped for unknown CLIs which must
+  // read AGENT_PROMPT_FILE from env) so the shell consumes the on-disk
+  // prompt instead of expanding `$AGENT_PROMPT`.
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
-  // context; panes inherit from the server. Only AGENT_PROMPT itself is
-  // dropped from the tmux env (replaced by AGENT_PROMPT_FILE pointing at
-  // the on-disk file) — all other initialEnvVars ride along on tmux -e.
+  // context; panes inherit from the server. Apart from AGENT_PROMPT itself,
+  // all other initialEnvVars ride along on tmux -e.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
     const {terminalData, getToolsDirectory} = opts;
     const deps: TerminalManagerDeps = this.deps;
@@ -102,21 +97,22 @@ export class TerminalManager {
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
       const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWritePath());
-      const promptFile: string | null = writeResolvedPromptFile(
-        resolvePromptFileWrite(vaultPath, terminalId, initial.AGENT_PROMPT),
-      );
-      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, vaultPath, promptFile);
+      const plan = vaultPath
+        ? applyPromptFileToTmuxSpawn({
+            vaultPath,
+            terminalId,
+            command: terminalData.initialCommand ?? '',
+            env: initial,
+          })
+        : {command: terminalData.initialCommand ?? '', env: initial, promptFilePath: null};
+      const tmuxEnv: Record<string, string> = withVoicetreeVaultPath(plan.env, vaultPath);
       const terminalDataWithVaultPath: TerminalData = {
         ...terminalData,
         initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
       };
-      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
-      const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
-        terminalId,
-        terminalData.initialCommand,
-      );
-      if (promptInjection) {
-        await injectAgentCommandHeadful(promptInjection);
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, plan.promptFilePath);
+      if (terminalData.initialCommand) {
+        await injectAgentCommandHeadful({terminalId, command: plan.command});
       }
       return {success: true, terminalId};
     } catch (error: unknown) {

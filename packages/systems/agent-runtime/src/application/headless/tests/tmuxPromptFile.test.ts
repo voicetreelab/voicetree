@@ -10,6 +10,7 @@ import {describe, expect, it, beforeEach, afterEach} from 'vitest'
 import type {TerminalId} from '../../terminals/terminal-registry/types'
 import {
     applyPromptFileToHeadlessSpawn,
+    applyPromptFileToTmuxSpawn,
     deletePromptFile,
     deletePromptFileByPath,
     promptFilePath,
@@ -135,8 +136,55 @@ describe('wrapForHeadlessTmux', () => {
     })
 })
 
+describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
+    it('writes the prompt, CLI-rewrites the command (no bash wrap), and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
+        const plan = applyPromptFileToTmuxSpawn({
+            vaultPath: vault,
+            terminalId: tid('Aki'),
+            command: 'claude "$AGENT_PROMPT"',
+            env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(plan.promptFilePath).toBe(promptFilePath(vault, tid('Aki')))
+        expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
+        // No bash wrap — the interactive path send-keys this verbatim into a shell
+        expect(plan.command).toBe(`claude < '${plan.promptFilePath}'`)
+        expect(plan.env.AGENT_PROMPT).toBe('')
+        expect(plan.env.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
+        expect(plan.env.VOICETREE_TERMINAL_ID).toBe('Aki')
+    })
+
+    it('is a no-op when env has no AGENT_PROMPT', () => {
+        const plan = applyPromptFileToTmuxSpawn({
+            vaultPath: vault,
+            terminalId: tid('Aki'),
+            command: 'bash',
+            env: {VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(plan.promptFilePath).toBeNull()
+        expect(plan.command).toBe('bash')
+        expect(plan.env).toEqual({VOICETREE_TERMINAL_ID: 'Aki'})
+    })
+
+    it('handles a 200 KiB AGENT_PROMPT — spilling to file keeps the returned env tiny', () => {
+        const giant: string = 'X'.repeat(200 * 1024)
+        const plan = applyPromptFileToTmuxSpawn({
+            vaultPath: vault,
+            terminalId: tid('Aki'),
+            command: 'claude "$AGENT_PROMPT"',
+            env: {AGENT_PROMPT: giant, VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe(giant)
+        expect(plan.env.AGENT_PROMPT).toBe('')
+        // The returned env's serialized size must be far below tmux's
+        // command-protocol buffer (≈256 KiB) — proving the big string spilled
+        // to disk rather than staying in env.
+        const envBytes: number = JSON.stringify(plan.env).length
+        expect(envBytes).toBeLessThan(2_000)
+    })
+})
+
 describe('applyPromptFileToHeadlessSpawn', () => {
-    it('writes the prompt, rewrites the command, and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
+    it('composes the mode-agnostic primitive with the headless bash-unset wrap', () => {
         const plan = applyPromptFileToHeadlessSpawn({
             vaultPath: vault,
             terminalId: tid('Aki'),

@@ -123,12 +123,28 @@ export type PromptFileSpawnPlan = {
 }
 
 /**
- * For a headless tmux spawn: extract AGENT_PROMPT from env, write to disk,
- * rewrite the command for the CLI, and replace AGENT_PROMPT with
- * AGENT_PROMPT_FILE in env. If there's no AGENT_PROMPT (non-agent spawn),
- * return inputs unchanged.
+ * Mode-agnostic prompt-file primitive. For any tmux spawn that has a vault
+ * context: extract AGENT_PROMPT from env, write to disk, rewrite the command
+ * for the CLI, and replace AGENT_PROMPT with AGENT_PROMPT_FILE in env. If
+ * there's no AGENT_PROMPT (non-agent spawn), return inputs unchanged.
+ *
+ * Used by:
+ *   - headless tmux spawn (composed with `wrapForHeadlessTmux` to defeat OS
+ *     env-inheritance — see `applyPromptFileToHeadlessSpawn`),
+ *   - interactive renderer-driven spawn (the rewritten command is what gets
+ *     send-keys'd into the pane shell; the shell handles the < or $(cat)
+ *     itself, so no bash wrap is needed).
+ *
+ * Output:
+ *   - command: rewritten for the detected CLI (stdin redirect for
+ *     claude/gemini, $(cat) for codex, stripped for unknown CLIs which
+ *     must read AGENT_PROMPT_FILE from env).
+ *   - env: original env minus AGENT_PROMPT (shadowed with '' to defeat OS
+ *     env-inheritance — tmux -e doesn't reliably override inherited values
+ *     across versions) plus AGENT_PROMPT_FILE pointing at the on-disk file.
+ *   - promptFilePath: the disk path so the caller can clean it up.
  */
-export function applyPromptFileToHeadlessSpawn(args: {
+export function applyPromptFileToTmuxSpawn(args: {
     readonly vaultPath: string
     readonly terminalId: TerminalId
     readonly command: string
@@ -140,18 +156,33 @@ export function applyPromptFileToHeadlessSpawn(args: {
     }
     const filePath: string = writePromptFile(args.vaultPath, args.terminalId, prompt)
     const rewritten: string = rewriteCommandForPromptFile(args.command, filePath)
-    const wrapped: string = wrapForHeadlessTmux(rewritten)
     const {AGENT_PROMPT: _drop, ...rest} = args.env
-    // Explicit '' override: deleting the key from the tmux -e list does NOT
-    // unset values inherited via OS env-inheritance through the
-    // electron → tmux server → bash → node chain. Setting AGENT_PROMPT=''
-    // shadows any leaked parent-shell value so the agent reaches the
-    // AGENT_PROMPT_FILE fallback path.
     return {
-        command: wrapped,
+        command: rewritten,
         env: {...rest, AGENT_PROMPT: '', AGENT_PROMPT_FILE: filePath},
         promptFilePath: filePath,
     }
+}
+
+/**
+ * Headless composition: the mode-agnostic primitive plus the `bash -c 'unset
+ * AGENT_PROMPT; ...'` wrap. The wrap is required because the headless tmux
+ * pane process IS the agent CLI: if AGENT_PROMPT leaks via OS inheritance
+ * (electron → tmux server → pane), the agent could read it instead of
+ * AGENT_PROMPT_FILE. The interactive path does not need this wrap because
+ * the pane process is the user shell, and the agent CLI is launched from
+ * inside it with the rewritten command (stdin redirect or `$(cat)`) which
+ * does not consume `$AGENT_PROMPT` from the shell env.
+ */
+export function applyPromptFileToHeadlessSpawn(args: {
+    readonly vaultPath: string
+    readonly terminalId: TerminalId
+    readonly command: string
+    readonly env: Record<string, string>
+}): PromptFileSpawnPlan {
+    const plan: PromptFileSpawnPlan = applyPromptFileToTmuxSpawn(args)
+    if (!plan.promptFilePath) return plan
+    return {...plan, command: wrapForHeadlessTmux(plan.command)}
 }
 
 /**

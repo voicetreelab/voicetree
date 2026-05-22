@@ -1,14 +1,9 @@
 import {describe, expect, it} from 'vitest';
-import type {TerminalId} from '../terminal-registry/types';
 import {
-    buildTmuxEnv,
-    resolveHeadfulPromptInjection,
-    resolvePromptFileWrite,
     resolveTmuxVaultPath,
     withResolvedTmuxVaultPath,
+    withVoicetreeVaultPath,
 } from '../tmuxSpawnPlanning';
-
-const terminalId = 'Aki' as TerminalId;
 
 describe('tmux spawn planning', () => {
     it('prefers the process vault path over the initial env fallback', () => {
@@ -37,44 +32,27 @@ describe('tmux spawn planning', () => {
         expect(withResolvedTmuxVaultPath({}, undefined)).toBeUndefined();
     });
 
-    it('plans a prompt file write only when both vault path and prompt exist', () => {
-        expect(resolvePromptFileWrite('/vault', terminalId, 'task body')).toEqual({
-            vaultPath: '/vault',
-            terminalId,
-            prompt: 'task body',
-        });
-        expect(resolvePromptFileWrite(undefined, terminalId, 'task body')).toBeNull();
-        expect(resolvePromptFileWrite('/vault', terminalId, undefined)).toBeNull();
-    });
-
-    it('passes AGENT_PROMPT through, adds AGENT_PROMPT_FILE alongside, and backfills vault path', () => {
-        const env = buildTmuxEnv({
-            AGENT_PROMPT: 'large prompt',
+    it('backfills VOICETREE_VAULT_PATH and drops non-string runtime values', () => {
+        const env = withVoicetreeVaultPath({
             FOO: 'bar',
-        }, '/vault', '/vault/.voicetree/terminals/Aki-prompt.txt');
+            NUMBERY: 123 as unknown as string,
+        }, '/vault');
 
         expect(env).toEqual({
-            AGENT_PROMPT: 'large prompt',
             FOO: 'bar',
-            AGENT_PROMPT_FILE: '/vault/.voicetree/terminals/Aki-prompt.txt',
             VOICETREE_VAULT_PATH: '/vault',
         });
     });
 
-    it('keeps an explicit initial vault path and drops non-string runtime values', () => {
-        const env = buildTmuxEnv({
+    it('keeps an explicit initial vault path', () => {
+        const env = withVoicetreeVaultPath({
             VOICETREE_VAULT_PATH: '/initial-vault',
-            NUMBERY: 123 as unknown as string,
-        }, '/process-vault', null);
+            FOO: 'bar',
+        }, '/process-vault');
 
         expect(env).toEqual({
             VOICETREE_VAULT_PATH: '/initial-vault',
+            FOO: 'bar',
         });
-    });
-
-    it('plans headful prompt injection whenever there is an initial command', () => {
-        expect(resolveHeadfulPromptInjection(terminalId, 'codex "$AGENT_PROMPT"'))
-            .toEqual({terminalId, command: 'codex "$AGENT_PROMPT"'});
-        expect(resolveHeadfulPromptInjection(terminalId, undefined)).toBeNull();
     });
 });
