@@ -185,6 +185,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
 
         // Project selection operations (required for ProjectSelectionScreen initialization)
         // Return a mock project so tests can select it to proceed to graph view
