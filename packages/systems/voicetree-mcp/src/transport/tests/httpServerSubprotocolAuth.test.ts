@@ -181,3 +181,55 @@ describe('GET /terminals/:id/attach — subprotocol auth also reaches the 9f stu
         })
     })
 })
+
+// Cross-wire renderer smoke (Step 9 Phase 1 gate, ahead of the atomic merge).
+//
+// Test #1 above already exercises subscribe→publish→receive via `new
+// WebSocket(url, ['vt-bearer', token])`, but it uses the Node EventEmitter
+// surface (`ws.on('open', …)`, `ws.on('message', raw: Buffer)`) — which is
+// NOT what the renderer can use under `contextIsolation=on` / `nodeIntegration=off`.
+//
+// This test pins the renderer-side wire shape: pure W3C/browser WebSocket
+// API (`addEventListener`, `MessageEvent.data` as a string, `.protocol` read
+// via the standard property). Proves a client constrained to browser-shape
+// methods authenticates via the subprotocol path and exchanges frames
+// end-to-end against the real startHttpDaemonServer — no internal mocks.
+describe('cross-wire renderer smoke — browser-shape WebSocket against real daemon', (): void => {
+    it('9. renderer (W3C API only) → 101 + subprotocol echo + subscribe → publish → receive', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const ws = new WebSocket(wsUrlFor(handle, '/events'), ['vt-bearer', token])
+        const received: string[] = []
+
+        await new Promise<void>((resolveOpen, rejectOpen): void => {
+            ws.addEventListener('open', (): void => resolveOpen())
+            ws.addEventListener('error', (): void => rejectOpen(new Error('renderer ws errored before open')))
+        })
+
+        // W3C surface: negotiated subprotocol is read via the standard `.protocol`
+        // property — same name and shape as window.WebSocket in the renderer.
+        expect(ws.protocol).toBe('vt-bearer')
+
+        ws.addEventListener('message', (ev: WebSocket.MessageEvent): void => {
+            // Text frames arrive as `ev.data: string` under the W3C API —
+            // identical to what the renderer's window.WebSocket sees.
+            if (typeof ev.data !== 'string') {
+                throw new Error(`renderer text frame should arrive as string, got ${typeof ev.data}`)
+            }
+            received.push(ev.data)
+        })
+
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'vault-state'}]}))
+        await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
+        handle.hub.publish('vault-state', 'file-added', {path: '/v/renderer-smoke.md'})
+        await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
+        ws.close()
+
+        expect(received).toHaveLength(1)
+        const event = JSON.parse(received[0]) as {topic: string; event: string; data: {path: string}}
+        expect(event).toMatchObject({
+            topic: 'vault-state',
+            event: 'file-added',
+            data: {path: '/v/renderer-smoke.md'},
+        })
+    })
+})
