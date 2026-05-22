@@ -18,7 +18,7 @@ import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/s
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
 import { ensureTmuxAvailable } from '../application/terminals/tmux/tmux-preflight'
-import { ensureTmuxLaunchAgent } from '../application/terminals/tmux/tmux-launchagent'
+import { ensureTmuxServer } from '../application/terminals/tmux/tmux-server'
 import { getTerminalManager } from '../application/terminals/terminal-manager-instance'
 import {
     attachUnclaimedTmuxSession,
@@ -52,7 +52,7 @@ export const agentRuntime = {
     configureAgentRuntime,
     dispatchOnNewNodeHooks,
     ensureTmuxAvailable,
-    ensureTmuxLaunchAgent,
+    ensureTmuxServer,
     enqueuePendingMessage,
     getExistingAgentNames,
     getHeadlessAgentOutput,

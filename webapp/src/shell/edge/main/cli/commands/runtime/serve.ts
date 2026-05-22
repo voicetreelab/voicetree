@@ -132,7 +132,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     configureHeadlessBridges(appSupportPath)
     await agentRuntime.ensureTmuxAvailable()
-    await agentRuntime.ensureTmuxLaunchAgent()
+    await agentRuntime.ensureTmuxServer()
 
     let daemonHandle: DaemonHandle
     try {

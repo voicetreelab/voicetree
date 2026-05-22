@@ -10,7 +10,7 @@ export const terminalRuntimeSurface = {
     configureAgentRuntime: agentRuntime.configureAgentRuntime,
     dispatchOnNewNodeHooks: agentRuntime.dispatchOnNewNodeHooks,
     ensureTmuxAvailable: agentRuntime.ensureTmuxAvailable,
-    ensureTmuxLaunchAgent: agentRuntime.ensureTmuxLaunchAgent,
+    ensureTmuxServer: agentRuntime.ensureTmuxServer,
     getExistingAgentNames: agentRuntime.getExistingAgentNames,
     getHeadlessAgentOutput: agentRuntime.getHeadlessAgentOutput,
     getTerminalManager: agentRuntime.getTerminalManager,

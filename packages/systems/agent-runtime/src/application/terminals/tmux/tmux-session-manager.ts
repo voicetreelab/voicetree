@@ -3,10 +3,10 @@ import {createHash} from 'node:crypto'
 import {appendFileSync, statSync} from 'node:fs'
 import {shellQuote} from '@vt/agent-runtime/util/shellQuote.ts'
 import {
-    ensureTmuxLaunchAgent,
+    ensureTmuxServer,
     getTmuxBinaryPath,
     getTmuxCommandArgs,
-} from './tmux-launchagent.ts'
+} from './tmux-server.ts'
 import {ensureTmuxAvailable} from './tmux-preflight.ts'
 
 const tmuxSessionAliases: Map<string, string> = new Map()
@@ -23,7 +23,7 @@ export type TmuxListedSession = {
 }
 
 async function runTmux(args: string[]): Promise<TmuxResult> {
-    await ensureTmuxLaunchAgent()
+    await ensureTmuxServer()
     return new Promise((resolve, reject) => {
         const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(args), {stdio: ['ignore', 'pipe', 'pipe']})
         const stdoutChunks: Buffer[] = []
@@ -102,7 +102,7 @@ export async function killSession(name: string): Promise<void> {
 }
 
 export async function hasSession(name: string): Promise<boolean> {
-    await ensureTmuxLaunchAgent()
+    await ensureTmuxServer()
     const sessionName: string = resolveTmuxSessionName(name)
     return new Promise((resolve, reject) => {
         const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['has-session', '-t', sessionName]), {stdio: ['ignore', 'ignore', 'pipe']})
