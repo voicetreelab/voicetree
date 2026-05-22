@@ -11,7 +11,7 @@ import {
     stopUnclaimedTmuxPolling,
     subscribeToUnclaimedTmuxChanges,
     syncUnclaimedTmuxFromMain,
-} from '@/shell/edge/UI-edge/state/stores/UnclaimedTmuxStore'
+} from '@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore'
 
 type MockMainApi = {
     readonly refreshUnclaimedTmuxSessions: ReturnType<typeof vi.fn>

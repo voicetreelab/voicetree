@@ -25,6 +25,9 @@ import {
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
 } from '../application/terminals/tmux/unclaimed-tmux'
+import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
+import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
+import { captureMissingNativeSessions } from '../application/recovery/captureNativeSessions'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -71,6 +74,9 @@ export const agentRuntime = {
     injectNodesIntoTerminal,
     killUnclaimedTmuxSession,
     listUnclaimedTmuxSessions,
+    discoverRecoverableAgentSessions,
+    resumePersistedAgentSession,
+    captureMissingNativeSessions,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,
