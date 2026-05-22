@@ -241,6 +241,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
       },
 
       // File watching event listeners

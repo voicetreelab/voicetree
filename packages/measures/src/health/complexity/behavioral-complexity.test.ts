@@ -2,15 +2,15 @@ import {readFile} from 'node:fs/promises'
 import {dirname, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discover-packages'
-import {type SourceFile, scanSourceFiles} from '../../_shared/import-graph'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {type SourceFile, scanSourceFiles} from '../../_shared/graph/import-graph'
 import {
     GLOBAL_SIDE_EFFECT_CATEGORIES,
     extractFunctions,
     propagateImpurity,
     type FnEntry,
 } from '../../_shared/purity-analysis'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // --- Per-community behavioral complexity scanner ---
 //

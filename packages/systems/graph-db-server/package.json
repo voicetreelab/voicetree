@@ -13,7 +13,6 @@
     "./application/session/*": "./src/application/session/*.ts",
     "./contract": "./src/daemon/contract.ts",
     "./daemonRouteParity": "./src/routes/daemonRouteParity.ts",
-    "./lock": "./src/daemon/lock.ts",
     "./portFile": "./src/daemon/portFile.ts",
     "./views/*": "./src/data/views/*.ts",
     "./graph/applyGraphDelta": "./src/data/graph/mutations/applyGraphDelta.ts",

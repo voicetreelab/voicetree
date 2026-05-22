@@ -14,8 +14,8 @@ import {
     type SourceFile,
     type VariableDeclaration,
 } from 'ts-morph'
-import { buildCallGraph, type CallGraph } from '../../_shared/call-graph'
-import { recordHealthMetric } from '../../_shared/report-writer'
+import { buildCallGraph, type CallGraph } from '../../_shared/graph/call-graph'
+import { recordHealthMetric } from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')

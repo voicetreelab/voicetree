@@ -1,8 +1,8 @@
 import {readdir, readFile} from 'node:fs/promises'
 import {extname, join, relative} from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discover-packages'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 // Hard design limit set 2026-05-15: a directory with more than 15 children

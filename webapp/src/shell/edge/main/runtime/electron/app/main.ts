@@ -242,7 +242,7 @@ void app.whenReady().then(async () => {
     // Start MCP server in-process (shares graph state with Electron)
     try {
         await terminalRuntimeSurface.ensureTmuxAvailable();
-        await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+        await terminalRuntimeSurface.ensureTmuxServer();
     } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error);
         dialog.showErrorBox('Voicetree cannot start', message);

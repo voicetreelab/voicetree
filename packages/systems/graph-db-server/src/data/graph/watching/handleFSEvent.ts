@@ -2,6 +2,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {FSEvent, GraphDelta, Graph, NodeDelta} from '@vt/graph-model/graph';
 import {mapFSEventsToGraphDelta} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown'
+import {toAbsolutePath} from '@vt/graph-model/folders';
 import {getGraph} from "@vt/graph-db-server/state/graph-store";
 import {getCallbacks} from "@vt/graph-model";
 import {
@@ -10,6 +11,7 @@ import {
 } from "../mutations/applyGraphDelta";
 import {isOurRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import {publish} from "@vt/graph-db-server/state/events/deltaEventBus";
+import {getFolderTreeReadModel} from "../../../state/folder-tree-read-model-store";
 
 /**
  * Handle filesystem events by:
@@ -42,9 +44,26 @@ export function handleFSEventWithStateAndUISides(
         return
     }
 
+    // Structural events (file added or deleted) invalidate the folder-tree
+    // read model so the next sidebar/live-state read sees the new directory
+    // shape. Content-only 'Changed' events do NOT invalidate — the in-memory
+    // graph delta path handles those.
+    invalidateFolderTreeForFSEvent(fsEvent)
+
     // 4. Apply delta to memory state and resolve any new wikilinks
     // Uses void since this is fire-and-forget from FS event handler
     void applyAndBroadcast(delta, suppressBroadcastTo)
+}
+
+function invalidateFolderTreeForFSEvent(fsEvent: FSEvent): void {
+    const isStructuralChange: boolean =
+        ('type' in fsEvent && fsEvent.type === 'Delete') ||
+        ('eventType' in fsEvent && fsEvent.eventType === 'Added')
+    if (!isStructuralChange) return
+    getFolderTreeReadModel().invalidate({
+        kind: 'pathChanged',
+        absolutePath: toAbsolutePath(fsEvent.absolutePath),
+    })
 }
 
 /**

@@ -62,4 +62,5 @@
 .category-tally .t-pass { color: var(--vital); }
 .category-tally .t-fail { color: var(--sig); font-weight: 600; }
 .category-tally .t-skip { color: var(--paper-faint); }
+.category-tally .t-never-run { color: var(--paper-ghost); }
 

@@ -1,8 +1,8 @@
 import {describe, expect, it} from 'vitest'
-import {discoverPackages} from '../../_shared/discover-packages'
-import {discoverSourceFiles} from '../../_shared/function-discovery'
-import {recordHealthMetric} from '../../_shared/report-writer'
-import {buildRuntimeSymbolsByTarget, runtimeFanInRows} from '../../_shared/runtime-fan-in'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import {buildRuntimeSymbolsByTarget, runtimeFanInRows} from '../../_shared/graph/runtime-fan-in'
 
 // Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
 const MAX_RUNTIME_FAN_IN = 110         // observed max: 107 (graph-model receives 107 named symbols)

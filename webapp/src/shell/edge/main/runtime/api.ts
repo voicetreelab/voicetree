@@ -185,6 +185,7 @@ export const mainAPI = {
   updateTerminalMinimized: terminalRuntimeSurface.updateTerminalMinimized,
   updateTerminalActivityState: terminalRuntimeSurface.updateTerminalActivityState,
   removeTerminalFromRegistry: terminalRuntimeSurface.removeTerminalFromRegistry,
+  closeAgent: terminalRuntimeSurface.closeHeadlessAgent,
 
   // Existing tmux sessions not yet claimed by this Electron registry
   listUnclaimedTmuxSessions: terminalRuntimeSurface.listUnclaimedTmuxSessions,

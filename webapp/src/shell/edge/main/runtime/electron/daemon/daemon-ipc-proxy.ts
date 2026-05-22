@@ -57,7 +57,12 @@ let currentRendererSession: {
   readonly sessionId: string
 } | null = null
 
-async function createRendererSession(client: GraphDbClient): Promise<string> {
+export async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
+  if (currentRendererSession?.baseUrl === client.baseUrl) {
+    subscribeRendererSessionToDaemon(client, currentRendererSession.sessionId)
+    return currentRendererSession.sessionId
+  }
+
   const created: { sessionId: string } = await client.createSession()
   currentRendererSession = {
     baseUrl: client.baseUrl,
@@ -67,13 +72,9 @@ async function createRendererSession(client: GraphDbClient): Promise<string> {
   return created.sessionId
 }
 
-async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
-  if (currentRendererSession?.baseUrl === client.baseUrl) {
-    subscribeRendererSessionToDaemon(client, currentRendererSession.sessionId)
-    return currentRendererSession.sessionId
-  }
-
-  return await createRendererSession(client)
+/** Test-only: clear the cached renderer session between test cases. */
+export function __resetRendererSessionForTests(): void {
+  currentRendererSession = null
 }
 
 async function syncRendererFromDaemon(
@@ -107,11 +108,11 @@ async function syncMainGraphFromDaemonClient(client: GraphDbClient): Promise<voi
   await syncRendererFromDaemon(client, nextGraph, vaultState)
 }
 
-async function syncRendererSessionState(
+export async function syncRendererSessionState(
   client: GraphDbClient,
   localState: State,
 ): Promise<string> {
-  const sessionId: string = await createRendererSession(client)
+  const sessionId: string = await getOrCreateRendererSession(client)
 
   if (localState.selection.size > 0) {
     await client.setSelection(sessionId, {
@@ -204,7 +205,7 @@ export async function getGraphFromDaemon(): Promise<Graph> {
 
 export async function getProjectedGraphFromDaemon(): Promise<unknown> {
   return await callDaemon(async (client) => {
-    const sessionId: string = await createRendererSession(client)
+    const sessionId: string = await getOrCreateRendererSession(client)
     return await client.getProjectedGraph(sessionId)
   })
 }
@@ -222,7 +223,7 @@ export async function postDeltaThroughDaemon(
   recordForUndo: boolean = true,
 ): Promise<void> {
   await callDaemon(async (client) => {
-    const sessionId: string = await createRendererSession(client)
+    const sessionId: string = await getOrCreateRendererSession(client)
     await client.applyGraphDelta(delta as unknown[], { recordForUndo, sessionId })
   })
 }

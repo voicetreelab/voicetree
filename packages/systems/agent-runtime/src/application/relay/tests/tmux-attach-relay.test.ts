@@ -3,7 +3,7 @@ import {createServer, type Server} from 'node:http'
 import type {AddressInfo} from 'node:net'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-launchagent.ts'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-server.ts'
 import {killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
 import {mountTmuxAttachRelay, type TmuxAttachRelayHandle} from '../tmux-attach-relay.ts'
 

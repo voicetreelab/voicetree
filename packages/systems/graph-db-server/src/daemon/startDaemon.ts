@@ -4,7 +4,6 @@ import { SpanStatusCode, trace, type Span } from '@opentelemetry/api'
 import { SessionRegistry } from '../application/session/registry.ts'
 import { CONTRACT_VERSION } from './contract.ts'
 import { createDaemonApp } from '../routes/daemonApp.ts'
-import type { LockHandle } from './lock.ts'
 import type { BoundDaemonHttpServer } from './daemonHttpServer.ts'
 import type { DaemonWatcherController } from './lifecycle/daemonWatcherLifecycle.ts'
 import {
@@ -15,7 +14,10 @@ import {
   resolveDaemonClock,
   resolveDaemonLogger,
 } from './daemonTypes.ts'
-import { acquireDaemonLock } from './lifecycle/daemonLockLifecycle.ts'
+import {
+  claimDaemonOwner,
+  type DaemonOwnerHandle,
+} from './lifecycle/daemonOwnerLifecycle.ts'
 import {
   initDaemonGraphModel,
   resetDaemonGraphState,
@@ -37,6 +39,11 @@ import {
   openFolderVisibilityForVault,
 } from '../data/views/folderVisibilityResource.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import {
+  installFolderTreeReadModel,
+  getFolderTreeReadModel,
+  resetFolderTreeReadModel,
+} from '../state/folder-tree-read-model-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -45,6 +52,7 @@ type OwnedDaemonResources = {
   clearIdleSessionTimer: () => void
   httpServer: BoundDaemonHttpServer | null
   parentWatch: ParentWatchHandle | null
+  stopHeartbeat: () => void
 }
 
 type CleanupOptions = {
@@ -53,21 +61,31 @@ type CleanupOptions = {
 }
 
 async function cleanupOwnedDaemon(
-  lockHandle: LockHandle | null,
+  ownerHandle: DaemonOwnerHandle | null,
   resources: OwnedDaemonResources,
   options: CleanupOptions,
 ): Promise<void> {
   try {
+    resources.stopHeartbeat()
     resources.parentWatch?.stop()
     resources.clearIdleSessionTimer()
+    // Drop the owner record + legacy lock sidecar BEFORE tearing down HTTP
+    // so a client that observes /health failing immediately afterwards no
+    // longer sees the discovery artifacts that say "wait for the port".
+    // Without this ordering, graph-db-client's portDiscovery would block
+    // for its full timeout on stale `graphd.lock` between HTTP close and
+    // release. The brief in-window where HTTP is up but owner is gone is
+    // harmless for graceful shutdown — no client should be issuing fresh
+    // RPCs in that window.
+    await ownerHandle?.release()
     await resources.httpServer?.close()
     await closeVaultWorkflow()
   } finally {
-    await lockHandle?.release()
     if (options.resetGraphState) {
       resetDaemonGraphState()
     }
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
     await options.onShutdownComplete?.()
   }
 }
@@ -76,7 +94,7 @@ async function startOwnedDaemon(
   opts: StartDaemonOptions,
   startupVault: string | null,
   startSpan: Span,
-  lockHandle: LockHandle | null,
+  ownerHandle: DaemonOwnerHandle | null,
 ): Promise<DaemonHandle> {
   const clock = resolveDaemonClock(opts)
   const logger = resolveDaemonLogger(opts)
@@ -84,6 +102,7 @@ async function startOwnedDaemon(
     clearIdleSessionTimer: () => {},
     httpServer: null,
     parentWatch: null,
+    stopHeartbeat: () => {},
   }
   let watcher: DaemonWatcherController | null = null
   let portFileVault: string | null = null
@@ -94,6 +113,8 @@ async function startOwnedDaemon(
   try {
     resetDaemonGraphState()
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
+    installFolderTreeReadModel(opts.folderTreeScanner)
     initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
 
     const startMs = clock()
@@ -106,6 +127,16 @@ async function startOwnedDaemon(
     registerVaultResource({
       openForVault: openFolderVisibilityForVault,
       closeForVault: closeFolderVisibilityForVault,
+    })
+    registerVaultResource({
+      async openForVault(): Promise<void> {
+        // A fresh vault means previously cached roots are now irrelevant; clear
+        // everything rather than try to scope by old vs new root.
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
+      async closeForVault(): Promise<void> {
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
     })
     registerVaultResource({
       async openForVault(vaultPath: string): Promise<void> {
@@ -149,6 +180,7 @@ async function startOwnedDaemon(
           startMs,
           clock(),
           registry.size(),
+          ownerHandle?.health() ?? null,
         ),
       onShutdown: () => {
         if (shuttingDown) {
@@ -156,7 +188,7 @@ async function startOwnedDaemon(
         }
         shuttingDown = true
         queueMicrotask(() => {
-          void cleanupOwnedDaemon(lockHandle, resources, {
+          void cleanupOwnedDaemon(ownerHandle, resources, {
             resetGraphState: false,
             onShutdownComplete: opts.onShutdownComplete,
           })
@@ -171,6 +203,10 @@ async function startOwnedDaemon(
     })
     assignedPort = resources.httpServer.port
     startSpan.setAttribute('port', assignedPort)
+    if (ownerHandle) {
+      await ownerHandle.bindPort(assignedPort)
+      resources.stopHeartbeat = ownerHandle.startHeartbeat()
+    }
 
     if (startupVault) {
       await openVaultWorkflow({
@@ -187,7 +223,7 @@ async function startOwnedDaemon(
           queueMicrotask(() => {
             void (async () => {
               try {
-                await cleanupOwnedDaemon(lockHandle, resources, {
+                await cleanupOwnedDaemon(ownerHandle, resources, {
                   resetGraphState: true,
                 })
               } finally {
@@ -207,16 +243,23 @@ async function startOwnedDaemon(
         }
         stopped = true
         shuttingDown = true
-        await cleanupOwnedDaemon(lockHandle, resources, {
+        await cleanupOwnedDaemon(ownerHandle, resources, {
           resetGraphState: true,
         })
       },
     }
   } catch (err) {
-    await cleanupOwnedDaemon(lockHandle, resources, {
+    await cleanupOwnedDaemon(ownerHandle, resources, {
       resetGraphState: false,
     }).catch(() => {})
     throw err
+  }
+}
+
+function commandFingerprintForProcess() {
+  return {
+    executable: process.execPath,
+    args: process.argv.slice(1),
   }
 }
 
@@ -226,23 +269,35 @@ export async function startDaemon(
   return tracer.startActiveSpan('daemon.start', async (startSpan) => {
     try {
       const logger = resolveDaemonLogger(opts)
+      const clock = resolveDaemonClock(opts)
       const startupVault = opts.vault ? resolve(opts.vault) : null
       if (startupVault) {
         startSpan.setAttribute('vault', startupVault)
         await mkdir(join(startupVault, '.voicetree'), { recursive: true })
       }
 
-      const lockResult = startupVault ? await acquireDaemonLock(startupVault, logger) : null
-      if (lockResult?.kind === 'already-running') {
-        return lockResult.handle
-      }
+      const ownerHandle = startupVault
+        ? await claimDaemonOwner({
+            canonicalVaultPath: startupVault,
+            callerKind: 'cli',
+            contractVersion: CONTRACT_VERSION,
+            commandFingerprint: commandFingerprintForProcess(),
+            clock,
+          })
+        : null
 
-      return await startOwnedDaemon(
-        opts,
-        startupVault,
-        startSpan,
-        lockResult?.lockHandle ?? null,
-      )
+      try {
+        return await startOwnedDaemon(opts, startupVault, startSpan, ownerHandle)
+      } catch (err) {
+        await ownerHandle?.release().catch(() => {})
+        // Surface conflict errors so the bin / orchestrator can fail loudly
+        // without silently overwriting a live owner; `logger` is used so the
+        // CLI also has a human-readable line.
+        logger.writeStderr(
+          `vt-graphd: startup failed for ${startupVault ?? '(vaultless)'}: ${(err as Error).message}\n`,
+        )
+        throw err
+      }
     } catch (err) {
       startSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
       throw err

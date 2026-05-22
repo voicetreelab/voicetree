@@ -3,23 +3,24 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every non-test `.ts` file under `packages/measures/src/`
-// (excluding `_*.ts`, except `health/_all.check.ts`) is dynamically imported and must export `check: CheckDef`.
-// Adding a new check = drop a new .ts file anywhere in that tree.
+// Measure inventory is auto-detected from the tiered `checks/` tree.
 
 import {spawn} from 'node:child_process'
 import {mkdir, mkdtemp, readdir, readFile, rm} from 'node:fs/promises'
-import {tmpdir} from 'node:os'
+import {availableParallelism, tmpdir} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
-import {recordCheckReport} from '../_shared/check-report-writer.ts'
+import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
+const CHECKS_DIR = join(MEASURES_DIR, 'checks')
+const MAX_TIER = 3
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
 // ── Auto-detected measure inventory ──────────────────────────────────────────
 
@@ -36,9 +37,8 @@ async function discoverMeasureFiles(dir = MEASURES_DIR) {
     return nested.flat()
 }
 
-async function loadChecks(folder = null) {
-    const files = (await discoverMeasureFiles())
-        .filter(file => folder === null || relativePath(relative(MEASURES_DIR, file)).startsWith(`${folder}/`))
+async function loadChecks(opts) {
+    const files = (await discoverScheduledMeasureFiles(opts.tierMax ?? MAX_TIER))
         .sort((a, b) => relativePath(relative(MEASURES_DIR, a)).localeCompare(relativePath(relative(MEASURES_DIR, b))))
     const checks = []
     for (const file of files) {
@@ -51,15 +51,31 @@ async function loadChecks(folder = null) {
     return checks
 }
 
+async function discoverScheduledMeasureFiles(tierMax) {
+    const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => join(CHECKS_DIR, `tier_${tier}`))
+    return (await Promise.all(tierDirs.map(discoverMeasureFilesIfPresent))).flat()
+}
+
+async function discoverMeasureFilesIfPresent(dir) {
+    try {
+        return await discoverMeasureFiles(dir)
+    } catch (err) {
+        if (err?.code === 'ENOENT') return []
+        throw err
+    }
+}
+
 function relativePath(path) {
     return path.split(sep).join('/')
 }
 
-function normalizeMeasureFolder(folder) {
-    if (!folder) return null
-    const normalized = folder.replace(/^packages\/measures\/src\//, '').replace(/^\/+|\/+$/g, '')
-    if (normalized.includes('..')) throw new Error(`measure folder must stay inside packages/measures/src: ${folder}`)
-    return normalized
+function parseTierMax(raw, flag) {
+    if (!/^\d+$/.test(raw)) throw new Error(`${flag} expects an integer tier from 0 through ${MAX_TIER}`)
+    const tierMax = Number(raw)
+    if (tierMax < 0 || tierMax > MAX_TIER) {
+        throw new Error(`${flag} expects an integer tier from 0 through ${MAX_TIER}`)
+    }
+    return tierMax
 }
 
 function measureFolderFor(measurePath) {
@@ -71,17 +87,43 @@ function measureFolderFor(measurePath) {
 // ── CLI parsing ──────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-    const opts = {quick: false, failFast: false, sequential: false, only: null, folder: null, help: false}
+    const opts = {failFast: false, sequential: false, only: null, tierMax: null, help: false, listJson: false}
     for (const arg of argv) {
-        if (arg === '--quick') opts.quick = true
-        else if (arg === '--fail-fast') opts.failFast = true
+        if (arg === '--fail-fast') opts.failFast = true
         else if (arg === '--sequential') opts.sequential = true
         else if (arg === '-h' || arg === '--help') opts.help = true
+        else if (arg === '--list-json') opts.listJson = true
         else if (arg.startsWith('--only=')) opts.only = new Set(arg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean))
-        else if (arg.startsWith('--folder=')) opts.folder = normalizeMeasureFolder(arg.slice('--folder='.length))
+        else if (arg.startsWith('--tier<=')) opts.tierMax = parseTierMax(arg.slice('--tier<='.length), '--tier<=')
+        else if (arg.startsWith('--tier-max=')) opts.tierMax = parseTierMax(arg.slice('--tier-max='.length), '--tier-max')
+        else if (arg.startsWith('--max-tier=')) opts.tierMax = parseTierMax(arg.slice('--max-tier='.length), '--max-tier')
         else throw new Error(`unknown flag: ${arg}`)
     }
     return opts
+}
+
+const CHECK_PATH = /\/checks\/tier_([0-3])\/([^/]+)\//
+
+function tierFromMeasurePath(measurePath) {
+    const match = CHECK_PATH.exec(measurePath)
+    return match ? Number(match[1]) : null
+}
+
+function concernFromMeasurePath(measurePath) {
+    const match = CHECK_PATH.exec(measurePath)
+    return match ? match[2] : null
+}
+
+function checkManifestEntry(check) {
+    return {
+        id: check.id,
+        name: check.name,
+        category: check.category,
+        display: check.display,
+        measurePath: check.measurePath,
+        tier: tierFromMeasurePath(check.measurePath),
+        concern: concernFromMeasurePath(check.measurePath),
+    }
 }
 
 function printHelp(checks) {
@@ -89,16 +131,18 @@ function printHelp(checks) {
         'capture-ci-checks — run every locally-runnable CI/CD check and record reports.',
         '',
         'Usage:',
-        '  npm run measures:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--sequential] [--fail-fast]',
+        '  npm run measures:capture-ci -- [--only=id1,id2,...] [--tier<=N] [--sequential] [--fail-fast]',
         '',
         'Flags:',
-        '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --folder=<path>   run only checks under packages/measures/src/<path>.',
+        '  --tier<=N         run checks under checks/tier_0 through checks/tier_N.',
+        '  --tier-max=N      shell-safe alias for --tier<=N.',
+        '  --max-tier=N      shell-safe alias for --tier<=N.',
         '  --sequential      run checks sequentially; continue through failures.',
         '  --fail-fast       run sequentially; stop scheduling after the first fail.',
+        '  --list-json       print JSON manifest of every check (no execution).',
         '',
-        'Eligible checks run in parallel unless --sequential or --fail-fast is set.',
+        'Eligible checks run in a bounded parallel pool unless --sequential or --fail-fast is set.',
         '',
         'Check ids:',
         ...checks.map(c => `  ${c.id.padEnd(32)} ${c.category.padEnd(11)} ${c.measurePath}`),
@@ -281,7 +325,6 @@ async function recordOutcome(check, outcome) {
         testsPassed: outcome.testsPassed,
         testsFailed: outcome.testsFailed,
         testsSkipped: outcome.testsSkipped,
-        slow: check.slow,
         errorSummary,
         timestamp: new Date().toISOString(),
         details,
@@ -289,11 +332,16 @@ async function recordOutcome(check, outcome) {
 }
 
 function shouldSkipCheck(check, opts, stopScheduling = false) {
-    return (opts.only && !opts.only.has(check.id)) || (opts.quick && check.slow === true) || stopScheduling
+    return (opts.only && !opts.only.has(check.id)) || stopScheduling
 }
 
 function skippedOutcome() {
     return {status: 'skip', durationMs: 0}
+}
+
+function describeScope(opts) {
+    if (opts.tierMax !== null) return ` at tier <=${opts.tierMax}`
+    return ''
 }
 
 function failedSpawnOutcome(err) {
@@ -317,27 +365,76 @@ async function runCheck(check) {
     }
 }
 
-async function runChecksInParallel(checks, opts) {
-    const shouldRunExclusively = check => check.category === 'Integration' || check.exclusive === true
-    const parallelChecks = checks.filter(check => !shouldRunExclusively(check))
-    const exclusiveChecks = checks.filter(shouldRunExclusively)
-    const parallelResults = await Promise.all(parallelChecks.map(async check => ({
+function checkPhase(check) {
+    const phase = check.phase ?? 'parallel'
+    if (phase !== 'parallel' && phase !== 'isolated') {
+        throw new Error(`check ${check.id} has unsupported phase: ${phase}`)
+    }
+    return phase
+}
+
+function partitionChecksByPhase(checks) {
+    const phases = {parallel: [], isolated: []}
+    for (const check of checks) {
+        phases[checkPhase(check)].push(check)
+    }
+    return phases
+}
+
+function shouldRunExclusivelyWithinParallelPhase(check) {
+    return check.category === 'Integration' || check.exclusive === true
+}
+
+async function runCheckWithSkip(check, opts) {
+    return {
         check,
         outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
-    })))
+    }
+}
+
+async function runChecksWithConcurrency(checks, opts, concurrency = DEFAULT_PARALLELISM) {
+    if (checks.length === 0) return []
+    const results = Array(checks.length)
+    let nextIndex = 0
+    const workerCount = Math.min(Math.max(1, concurrency), checks.length)
+    const workers = Array.from({length: workerCount}, async () => {
+        while (nextIndex < checks.length) {
+            const index = nextIndex
+            nextIndex += 1
+            results[index] = await runCheckWithSkip(checks[index], opts)
+        }
+    })
+    await Promise.all(workers)
+    return results
+}
+
+async function runChecksSerially(checks, opts) {
+    const results = []
+    for (const check of checks) {
+        results.push(await runCheckWithSkip(check, opts))
+    }
+    return results
+}
+
+function restoreDiscoveryOrder(checks, unorderedResults) {
+    const byCheck = new Map(unorderedResults.map(result => [result.check, result]))
+    return checks.map(check => {
+        const result = byCheck.get(check)
+        if (!result) throw new Error(`missing runner result for check ${check.id}`)
+        return result
+    })
+}
+
+async function runChecksInParallel(checks, opts) {
+    const {parallel, isolated} = partitionChecksByPhase(checks)
+    const parallelChecks = parallel.filter(check => !shouldRunExclusivelyWithinParallelPhase(check))
+    const exclusiveChecks = parallel.filter(shouldRunExclusivelyWithinParallelPhase)
+    const parallelResults = await runChecksWithConcurrency(parallelChecks, opts)
     // Some checks spawn global OS resources such as tmux sessions or local daemons.
     // Keep their isolation narrow instead of forcing the whole registry sequential.
-    const exclusiveResults = []
-    for (const check of exclusiveChecks) {
-        exclusiveResults.push({
-            check,
-            outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
-        })
-    }
-    return checks.map(check =>
-        parallelResults.find(result => result.check === check)
-        ?? exclusiveResults.find(result => result.check === check),
-    )
+    const exclusiveResults = await runChecksSerially(exclusiveChecks, opts)
+    const isolatedResults = await runChecksSerially(isolated, opts)
+    return restoreDiscoveryOrder(checks, [...parallelResults, ...exclusiveResults, ...isolatedResults])
 }
 
 async function runChecksSequentially(checks, opts) {
@@ -353,7 +450,12 @@ async function runChecksSequentially(checks, opts) {
 
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
-    const checks = await loadChecks(opts.folder)
+    if (opts.listJson) {
+        const allChecks = await loadChecks({tierMax: MAX_TIER})
+        process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
+        return 0
+    }
+    const checks = await loadChecks(opts)
     if (opts.help) {
         printHelp(checks)
         return 0
@@ -371,8 +473,11 @@ async function main() {
 
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
 
-    const scope = opts.folder ? ` under packages/measures/src/${opts.folder}` : ''
+    const scope = describeScope(opts)
     console.log(`\n  capture-ci-checks · ${checks.length} checks total${scope}\n`)
+    if (opts.tierMax !== null && checks.length === 0) {
+        console.log(`  no checks at tier <=${opts.tierMax}\n`)
+    }
 
     const results = opts.failFast || opts.sequential
         ? await runChecksSequentially(checks, opts)

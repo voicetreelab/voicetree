@@ -18,7 +18,7 @@ import {spawn} from 'node:child_process'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-import {recordCheckReport} from '../_shared/check-report-writer.ts'
+import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')

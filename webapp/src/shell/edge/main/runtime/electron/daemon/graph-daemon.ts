@@ -1,54 +1,15 @@
 import {
+  ensureGraphDaemonForVault,
   GraphDbClient,
-  spawnVaultlessDaemon,
-  type VaultlessDaemonHandle,
+  type EnsureGraphDaemonResult,
 } from '@vt/graph-db-client'
 
-import { getAppSupportPath, getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
+import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
-export type DaemonHandle = VaultlessDaemonHandle & { launched: true }
+export type DaemonHandle = EnsureGraphDaemonResult
 
-const DAEMON_EXIT_GRACE_MS = 1000
-const DAEMON_SIGTERM_GRACE_MS = 500
-
-let activeDaemon: DaemonHandle | null = null
-let inflightDaemon: Promise<DaemonHandle> | null = null
-let shuttingDown = false
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== 'ESRCH'
-  }
-}
-
-async function terminateDaemonPidIfAlive(pid: number | null): Promise<void> {
-  if (pid === null) return
-
-  await sleep(DAEMON_EXIT_GRACE_MS)
-  if (!isProcessAlive(pid)) return
-
-  try {
-    process.kill(pid, 'SIGTERM')
-  } catch {
-    return
-  }
-
-  await sleep(DAEMON_SIGTERM_GRACE_MS)
-  if (!isProcessAlive(pid)) return
-
-  try {
-    process.kill(pid, 'SIGKILL')
-  } catch {
-    // Process already exited or cannot be signalled.
-  }
-}
+let activeVault: string | null = null
+let activeOwner: DaemonHandle | null = null
 
 function pushToRenderer(channel: 'vault:lost', payload: unknown): void {
   const mainWindow: Electron.BrowserWindow | null = getMainWindow()
@@ -69,86 +30,71 @@ function isConnectionFailure(error: unknown): boolean {
 }
 
 function markDaemonLost(error: unknown): void {
-  const previous = activeDaemon
-  activeDaemon = null
-  inflightDaemon = null
+  const previous = activeOwner
+  activeOwner = null
 
-  if (shuttingDown) return
   pushToRenderer('vault:lost', {
     error: error instanceof Error ? error.message : String(error),
     pid: previous?.pid ?? null,
+    vault: activeVault,
   })
 }
 
-async function spawnDaemonForWebapp(): Promise<DaemonHandle> {
-  const handle = await spawnVaultlessDaemon({ appSupportPath: getAppSupportPath() })
-
-  handle.process.on('exit', (code, signal) => {
-    if (activeDaemon?.process === handle.process) {
-      markDaemonLost(new Error(`vt-graphd exited code=${code ?? 'null'} signal=${signal ?? 'null'}`))
-    }
-  })
-
-  handle.process.on('error', (error) => {
-    if (activeDaemon?.process === handle.process || inflightDaemon !== null) {
+/**
+ * Resolve the bound `GraphDbClient` for the currently active vault, ensuring
+ * the owner via {@link ensureGraphDaemonForVault} when no healthy cached
+ * client exists. Throws when no vault has been activated yet — `openVault`
+ * must run first.
+ */
+export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
+  if (activeVault === null) {
+    throw new Error('Cannot ensure graph daemon: no vault is currently open')
+  }
+  if (activeOwner !== null) {
+    try {
+      await activeOwner.client.health()
+      return activeOwner
+    } catch (error) {
+      if (!isConnectionFailure(error)) throw error
       markDaemonLost(error)
     }
-  })
-
-  return {
-    ...handle,
-    launched: true,
   }
+  const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
+  activeOwner = owner
+  return owner
 }
 
-export async function ensureDaemonProcess(): Promise<DaemonHandle> {
-  if (activeDaemon) {
-    try {
-      await activeDaemon.client.health()
-      return activeDaemon
-    } catch (error) {
-      if (isConnectionFailure(error)) {
-        markDaemonLost(error)
-      } else {
-        throw error
-      }
-    }
+/**
+ * Set the active vault and ensure its owner-bound daemon. Called by
+ * {@link openVault} before any vault-routed RPC. Switching vaults drops the
+ * previous client cache; the underlying vt-graphd process is left untouched
+ * (it is a vault-scoped shared resource, not Electron-owned).
+ */
+export async function setActiveVaultAndEnsureDaemon(vault: string): Promise<DaemonHandle> {
+  if (activeVault !== vault) {
+    activeOwner = null
+    activeVault = vault
   }
-
-  if (inflightDaemon) {
-    return await inflightDaemon
-  }
-
-  const pending = spawnDaemonForWebapp()
-  inflightDaemon = pending
-  try {
-    const handle = await pending
-    activeDaemon = handle
-    return handle
-  } finally {
-    if (inflightDaemon === pending) {
-      inflightDaemon = null
-    }
-  }
+  return await ensureDaemonForActiveVault()
 }
 
 export function getDaemonClient(): GraphDbClient {
-  if (!activeDaemon) {
-    throw new Error('Graph daemon process is not running')
+  if (activeOwner === null) {
+    throw new Error('Graph daemon client is not connected. Open a vault first.')
   }
-  return activeDaemon.client
+  return activeOwner.client
 }
 
 export function getActiveDaemonClient(): GraphDbClient | null {
-  return activeDaemon?.client ?? null
+  return activeOwner?.client ?? null
 }
 
 export async function callDaemon<T>(
   fn: (client: GraphDbClient) => Promise<T>,
 ): Promise<T> {
-  await ensureDaemonProcess()
+  const owner = await ensureDaemonForActiveVault()
   try {
-    return await fn(getDaemonClient())
+    return await fn(owner.client)
   } catch (error) {
     if (isConnectionFailure(error)) {
       markDaemonLost(error)
@@ -157,22 +103,18 @@ export async function callDaemon<T>(
   }
 }
 
+/**
+ * Drop Electron's cached client/vault state. Electron is not the daemon
+ * supervisor (per OpenSpec D7/D8): vt-graphd is a vault-scoped, cross-caller
+ * shared resource. Stale daemons are cleaned up by `killOrphanVtGraphdDaemons`
+ * at the next launch and by the owner protocol's stale-reclaim path.
+ */
 export async function shutdownActiveDaemonConnection(): Promise<void> {
-  shuttingDown = true
-  const daemon = activeDaemon ?? (inflightDaemon ? await inflightDaemon.catch(() => null) : null)
-  clearDaemonClientCache()
-
-  if (!daemon) {
-    shuttingDown = false
-    return
-  }
-
-  await daemon.client.shutdown().catch(() => undefined)
-  await terminateDaemonPidIfAlive(daemon.pid)
-  shuttingDown = false
+  activeOwner = null
+  activeVault = null
 }
 
 export function clearDaemonClientCache(): void {
-  activeDaemon = null
-  inflightDaemon = null
+  activeOwner = null
+  activeVault = null
 }

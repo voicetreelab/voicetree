@@ -2,22 +2,47 @@
 
 ### Requirement: Discover resumable persisted agent sessions
 
-The system SHALL discover resumable agent sessions from the current project's `.voicetree/terminals` metadata in addition to live unclaimed tmux sessions. A persisted record is resumable only when its metadata status is `running`, it belongs to the current vault, it is not already represented in the terminal registry, its expected tmux session is not alive, and its persisted terminal data identifies a supported Claude or Codex command.
+The system SHALL discover resumable agent sessions from the current project's `.voicetree/terminals` metadata in addition to live unclaimed tmux sessions. A persisted record is resumable only when its metadata status is `running`, it belongs to the current vault, it is not already represented in the terminal registry, its expected tmux session is not alive, its persisted terminal data identifies a supported Claude or Codex command, and its metadata contains a deterministic native session handle.
 
 #### Scenario: Persisted running Claude record with missing tmux pane is resumable
 - **WHEN** `.voicetree/terminals/A.json` contains a valid running terminal metadata record for terminal `A`
 - **AND** terminal `A` is not present in the in-memory terminal registry
 - **AND** the tmux session referenced by the metadata is not alive
 - **AND** `terminalData.initialCommand` detects as Claude
+- **AND** the metadata contains `recovery.native.cli === "claude"` and `recovery.native.sessionId`
 - **THEN** discovery returns a resumable session for terminal `A`
-- **AND** the session includes terminal id, agent name, CLI type, metadata path, task/context paths, and original spawn directory
+- **AND** the session includes terminal id, agent name, CLI type, native session id, metadata path, task/context paths, and original spawn directory
 
 #### Scenario: Persisted running Codex record with missing tmux pane is resumable
 - **WHEN** `.voicetree/terminals/B.json` contains a valid running terminal metadata record for terminal `B`
 - **AND** terminal `B` is not present in the in-memory terminal registry
 - **AND** the tmux session referenced by the metadata is not alive
 - **AND** `terminalData.initialCommand` detects as Codex
+- **AND** the metadata contains `recovery.native.cli === "codex"` and `recovery.native.sessionId`
 - **THEN** discovery returns a resumable session for terminal `B`
+
+### Requirement: Persist deterministic native resume handles in project terminal metadata
+
+The system SHALL read Claude/Codex provider-global stores as resolver inputs and persist the resolved native session id into the existing project-local `.voicetree/terminals/<terminalId>.json` file. Provider-global stores SHALL NOT be treated as the durable VoiceTree recovery record.
+
+#### Scenario: Claude resolver persists a transcript session id
+- **WHEN** a Claude agent has been spawned for terminal `A`
+- **AND** a recently modified `~/.claude/projects/**/*.jsonl` transcript contains a user message whose string content includes `VOICETREE_TERMINAL_ID = A`, the current `VOICETREE_VAULT_PATH`, and the terminal's `TASK_NODE_PATH`
+- **THEN** VoiceTree writes `recovery.native.cli === "claude"` to `.voicetree/terminals/A.json`
+- **AND** `recovery.native.sessionId` equals the transcript record's `sessionId`
+- **AND** `recovery.native.source === "claude-project-transcript"`
+
+#### Scenario: Codex resolver persists a thread id
+- **WHEN** a Codex agent has been spawned for terminal `B`
+- **AND** `~/.codex/state_5.sqlite` table `threads` contains a recent row whose `first_user_message` includes `VOICETREE_TERMINAL_ID = B`, the current `VOICETREE_VAULT_PATH`, and the terminal's `TASK_NODE_PATH`
+- **THEN** VoiceTree writes `recovery.native.cli === "codex"` to `.voicetree/terminals/B.json`
+- **AND** `recovery.native.sessionId` equals the Codex `threads.id` value
+- **AND** `recovery.native.source === "codex-state-index"`
+
+#### Scenario: Resolver miss is diagnostic, not resumable
+- **WHEN** a Claude or Codex terminal metadata file has no `recovery.native.sessionId`
+- **THEN** discovery does not return an actionable Resume row for that terminal
+- **AND** the non-actionable reason identifies the missing native session handle
 
 ### Requirement: Exclude non-resumable persisted records
 
@@ -65,14 +90,14 @@ When the user resumes a resumable persisted session, the system SHALL launch a n
 #### Scenario: Resume Claude session
 - **WHEN** the user clicks Resume for a resumable Claude session `A`
 - **THEN** the runtime launches a tmux-backed terminal for `A` using a Claude resume command
-- **AND** the command is built from the shared CLI resume-command helper
+- **AND** the command includes `claude --resume <session-id>` using `recovery.native.sessionId`
 - **AND** the process runs from `terminalData.initialSpawnDirectory` when present
 - **AND** the process receives the persisted `terminalData.initialEnvVars`
 
 #### Scenario: Resume Codex session
 - **WHEN** the user clicks Resume for a resumable Codex session `B`
 - **THEN** the runtime launches a tmux-backed terminal for `B` using a Codex resume command
-- **AND** the command is built from the shared CLI resume-command helper
+- **AND** the command includes `codex resume <thread-id>` for interactive terminals or `codex exec resume <thread-id>` for headless terminals using `recovery.native.sessionId`
 - **AND** the process runs from `terminalData.initialSpawnDirectory` when present
 - **AND** the process receives the persisted `terminalData.initialEnvVars`
 

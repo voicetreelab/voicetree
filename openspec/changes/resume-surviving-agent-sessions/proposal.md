@@ -6,10 +6,11 @@ VoiceTree already shows surviving tmux-backed agents when Electron or the MCP pr
 
 - Add a resumable-agent recovery path beside the existing surviving-tmux attach path.
 - Discover persisted terminal metadata in the current project's `.voicetree/terminals/` directory and classify records as attachable-live-tmux, resumable-dead-tmux, exited, unsupported, or invalid.
+- Resolve Claude/Codex native session ids from their provider-global stores and persist the resolved handle back into the project-local `.voicetree/terminals/<terminalId>.json` record.
 - Show resumable Claude and Codex agents in the terminal tree sidebar with a clear Resume action.
-- Resume supported agents by launching a new tmux-backed terminal using CLI-native resume commands (`claude --continue ...` or `codex exec resume --last ...`) from the persisted spawn directory and environment.
+- Resume supported agents by launching a new tmux-backed terminal using exact CLI-native resume commands (`claude --resume <session-id>`, `codex resume <thread-id>`, or `codex exec resume <thread-id>`) from the persisted spawn directory and environment.
 - Rehydrate the resumed process into the terminal registry using the original terminal id, agent name, parent/child relationship, task/context paths, and display metadata.
-- Do not offer resume for terminal metadata that was explicitly marked exited, manually killed, invalid, foreign-vault, unsupported CLI, or already represented by a live registry record.
+- Do not offer resume for terminal metadata that lacks a deterministic native session handle, was explicitly marked exited, manually killed, invalid, foreign-vault, unsupported CLI, or already represented by a live registry record.
 
 ## Capabilities
 
@@ -24,5 +25,5 @@ VoiceTree already shows surviving tmux-backed agents when Electron or the MCP pr
 - **Runtime**: extends `@vt/agent-runtime` around terminal metadata reconciliation, CLI detection/resume command construction, tmux-backed spawn/attach, and current-vault scoping.
 - **Main/renderer bridge**: adds main-process APIs and renderer store state for resumable agent sessions, likely adjacent to `unclaimed-tmux-session-sync.ts` and `UnclaimedTmuxStore.ts`.
 - **UI**: updates `TerminalTreeSidebar` / `SurvivingAgentsSection` to present both attachable live tmux sessions and resumable persisted sessions without mutating the normal terminal tree.
-- **Persistence**: reads existing `.voicetree/terminals/*.json`; no new persistence format should be introduced unless the implementation proves the current metadata cannot distinguish exited/manual states robustly.
+- **Persistence**: extends the existing per-agent `.voicetree/terminals/<terminalId>.json` file with recovery metadata; no separate project store is introduced.
 - **Tests**: adds black-box tests around discovery classification, resume command selection, registry rehydration, sidebar actions, and rejection of unsupported or explicitly exited records.
