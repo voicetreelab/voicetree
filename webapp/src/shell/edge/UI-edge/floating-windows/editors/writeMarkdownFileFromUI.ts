@@ -6,6 +6,6 @@ export async function writeMarkdownFileFromUI(
     nodeId: NodeIdAndFilePath,
     body: string,
     writerId: string,
-): Promise<void> {
-    await window.electronAPI?.main.writeMarkdownFile(nodeId, body, writerId)
+): Promise<{ ok: true; absolutePath: string; preservedSuffix: string | null } | undefined> {
+    return await window.electronAPI?.main.writeMarkdownFile(nodeId, body, writerId)
 }

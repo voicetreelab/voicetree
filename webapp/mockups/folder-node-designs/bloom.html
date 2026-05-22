@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BLOOM — folder-nodes mockup 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,500&family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream:       #f5ecdc;
+    --cream-deep:  #ecdfc7;
+    --terra:       #c25a3a;
+    --terra-deep:  #8b3a23;
+    --oxblood:     #4a1c18;
+    --sage:        #7e8e5e;
+    --sage-deep:   #4f5a3a;
+    --ink:         #2a1a14;
+    --ink-soft:    #6b554a;
+    --gold:        #c89859;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 800px at 20% 10%, rgba(194,90,58,0.10), transparent 60%),
+      radial-gradient(900px 700px at 90% 80%, rgba(126,142,94,0.12), transparent 60%),
+      radial-gradient(700px 500px at 70% 20%, rgba(200,152,89,0.10), transparent 70%),
+      var(--cream);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  /* paper grain */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+  }
+
+  /* a soft hand-drawn motif in the upper right */
+  body::after {
+    content: '';
+    position: fixed; top: 4vh; right: -12vw;
+    width: 60vw; height: 60vw;
+    pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23c25a3a' stroke-width='0.4' opacity='0.18'><circle cx='100' cy='100' r='90'/><circle cx='100' cy='100' r='70'/><circle cx='100' cy='100' r='52'/><circle cx='100' cy='100' r='34'/><circle cx='100' cy='100' r='18'/></g></svg>");
+    background-repeat: no-repeat; background-size: contain;
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 64px 56px 96px;
+  }
+
+  /* masthead */
+  header.mast {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    margin-bottom: 32px;
+  }
+  .kicker {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--terra-deep);
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(72px, 11vw, 168px);
+    line-height: 0.9;
+    margin: 6px 0 0;
+    color: var(--oxblood);
+    letter-spacing: -0.015em;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--terra);
+    font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  }
+  .stamp {
+    text-align: right;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+  .stamp .pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--oxblood);
+    color: var(--cream);
+    margin-top: 6px;
+    letter-spacing: 0.18em;
+  }
+
+  .lede {
+    max-width: 64ch;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 18px 0 32px;
+  }
+  .lede em { color: var(--terra-deep); }
+
+  /* legend */
+  .legend {
+    display: flex; gap: 32px;
+    margin-bottom: 22px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    align-items: center;
+  }
+  .legend .dot {
+    display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+    vertical-align: -3px; margin-right: 8px;
+  }
+  .dot.terra  { background: radial-gradient(circle at 30% 30%, #e08a6c, var(--terra)); }
+  .dot.sage   { background: radial-gradient(circle at 30% 30%, #aabd86, var(--sage)); }
+  .dot.gold   { background: radial-gradient(circle at 30% 30%, #efc78b, var(--gold)); }
+  .dot.member { background: var(--cream-deep); border: 1.5px solid var(--ink); }
+
+  /* canvas */
+  .canvas {
+    position: relative;
+    border-radius: 22px;
+    background:
+      radial-gradient(120px 60px at 10% 10%, rgba(255,255,255,0.55), transparent 70%),
+      radial-gradient(180px 80px at 90% 90%, rgba(255,255,255,0.35), transparent 70%),
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0)),
+      var(--cream);
+    padding: 64px 56px;
+    min-height: 560px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 30px 60px -30px rgba(74,28,24,0.18),
+      0 0 0 1px rgba(74,28,24,0.08);
+    overflow: hidden;
+  }
+
+  /* hand-drawn deckle border */
+  .canvas::after {
+    content: '';
+    position: absolute; inset: 14px;
+    border-radius: 18px;
+    border: 1.5px solid rgba(74,28,24,0.18);
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><circle cx='15' cy='15' r='1' fill='%234a1c18' opacity='0.07'/></svg>");
+  }
+
+  /* member node — small organic blob */
+  .member {
+    position: absolute;
+    padding: 14px 18px 14px;
+    border-radius: 16px 24px 18px 22px / 22px 16px 24px 18px;
+    background: var(--cream-deep);
+    border: 1.5px solid rgba(74,28,24,0.55);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.7) inset,
+      0 8px 20px -8px rgba(74,28,24,0.25);
+    font-family: 'Fraunces', serif;
+    font-variation-settings: 'opsz' 14, 'SOFT' 80;
+    font-size: 13px;
+    line-height: 1.25;
+    color: var(--ink);
+    z-index: 2;
+  }
+  .member .label { display: block; font-weight: 500; }
+  .member .meta {
+    display: block;
+    margin-top: 4px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .member.terra { border-color: var(--terra); color: var(--terra-deep); }
+  .member.sage  { border-color: var(--sage); color: var(--sage-deep); }
+  .member.gold  { border-color: var(--gold); }
+
+  /* expanded folder = soft membrane */
+  .folder {
+    position: absolute;
+    border-radius: 64px 96px 72px 88px / 88px 64px 96px 72px;
+    background:
+      radial-gradient(60% 50% at 35% 30%, rgba(255,247,232,0.85), transparent 70%),
+      radial-gradient(80% 70% at 80% 80%, rgba(194,90,58,0.18), transparent 70%),
+      radial-gradient(60% 70% at 20% 90%, rgba(126,142,94,0.15), transparent 75%),
+      linear-gradient(150deg, rgba(255,255,255,0.5), rgba(255,255,255,0.0) 50%),
+      rgba(255,247,232,0.65);
+    border: 1.8px solid rgba(74,28,24,0.45);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.8) inset,
+      0 -1px 0 rgba(74,28,24,0.06) inset,
+      0 30px 60px -28px rgba(74,28,24,0.22);
+    backdrop-filter: blur(2px);
+    padding: 60px 42px 46px;
+    overflow: visible;
+  }
+  .folder .nameplate {
+    position: absolute;
+    top: -10px; left: 36px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+    font-weight: 400;
+    font-size: 38px;
+    line-height: 1;
+    color: var(--oxblood);
+    padding: 6px 16px 8px;
+    background: var(--cream);
+    border-radius: 999px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.7) inset,
+      0 8px 24px -8px rgba(74,28,24,0.25);
+    border: 1.5px solid rgba(74,28,24,0.4);
+  }
+  .folder .count {
+    position: absolute;
+    top: 4px; right: 36px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--terra-deep);
+    background: var(--cream);
+    border: 1.5px solid var(--terra);
+    border-radius: 999px;
+    padding: 4px 10px 4px;
+  }
+  .folder .desc {
+    position: absolute;
+    bottom: -8px; right: 38px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink-soft);
+    background: var(--cream);
+    padding: 2px 10px;
+    border-radius: 4px;
+  }
+
+  /* collapsed folder = contracted bud */
+  .folder.collapsed {
+    border-radius: 999px / 999px;
+    padding: 22px 36px 22px 30px;
+    min-width: 260px;
+    background:
+      radial-gradient(60% 70% at 30% 30%, rgba(255,247,232,0.9), transparent 70%),
+      radial-gradient(80% 70% at 80% 80%, rgba(194,90,58,0.32), transparent 70%),
+      linear-gradient(150deg, rgba(255,255,255,0.55), rgba(255,255,255,0.0) 50%),
+      rgba(255,237,217,0.85);
+    display: flex; align-items: center; gap: 18px;
+    animation: breathe 5s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.012); }
+  }
+  .folder.collapsed .bud-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+    font-size: 26px;
+    color: var(--oxblood);
+    line-height: 1;
+  }
+  .folder.collapsed .bud-meta {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--terra-deep);
+    margin-top: 4px;
+  }
+  .folder.collapsed .count {
+    position: static;
+    border-color: var(--oxblood);
+    color: var(--oxblood);
+  }
+  .folder.collapsed::after {
+    /* satellite buds, hinting at children inside */
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+    pointer-events: none;
+    background-image:
+      radial-gradient(8px 8px at 8% 50%, rgba(194,90,58,0.4), transparent 70%),
+      radial-gradient(6px 6px at 4% 30%, rgba(126,142,94,0.45), transparent 70%),
+      radial-gradient(6px 6px at 96% 60%, rgba(200,152,89,0.55), transparent 70%),
+      radial-gradient(5px 5px at 92% 40%, rgba(74,28,24,0.4), transparent 70%);
+  }
+
+  /* edges svg */
+  svg.edges {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  svg.edges path {
+    fill: none;
+    stroke: rgba(74,28,24,0.55);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+  svg.edges path.faint { stroke: rgba(74,28,24,0.25); stroke-dasharray: 1.5 4; }
+  svg.edges path.terra { stroke: var(--terra); stroke-width: 1.8; }
+
+  /* notes */
+  .notes {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 36px;
+  }
+  .notes section h4 {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--terra-deep);
+    margin: 0 0 8px;
+  }
+  .notes p {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .footline {
+    margin-top: 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .footline a { color: var(--oxblood); text-decoration: none; border-bottom: 1.5px solid var(--terra); padding-bottom: 1px; }
+</style>
+</head>
+<body>
+  <main>
+    <header class="mast">
+      <div>
+        <div class="kicker">folder-nodes · mockup 02 of 03 · botanical study</div>
+        <h1>bl<em>oo</em>m</h1>
+      </div>
+      <div class="stamp">
+        plate II<br />
+        warm specimen<br />
+        Aki — 2026.05.21<br />
+        <span class="pill">organic membrane</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      A folder is a <em>membrane</em>. Children float inside its breathing wall; edges from the outside meet the membrane, not the cells within. Collapsed, the folder contracts to a sealed <em>bud</em> still surrounded by faint satellite hints of what it carries. The palette is dyed paper — terracotta, sage, gold — never primary, never neon.
+    </p>
+
+    <div class="legend">
+      <span><span class="dot terra"></span>structural · spec</span>
+      <span><span class="dot sage"></span>code · shell</span>
+      <span><span class="dot gold"></span>document · markdown</span>
+      <span><span class="dot member"></span>folder member</span>
+    </div>
+
+    <div class="canvas">
+
+      <!-- expanded folder -->
+      <div class="folder" style="left: 36px; top: 56px; width: 600px; height: 380px;">
+        <div class="nameplate">folder-nodes</div>
+        <div class="count">12 inside · 4 done</div>
+        <div class="desc">an open epic</div>
+
+        <div class="member terra" style="left:  36px; top:  84px;">
+          <span class="label">BF-108 identity</span>
+          <span class="meta">contract · done</span>
+        </div>
+        <div class="member gold"  style="left: 200px; top:  68px;">
+          <span class="label">design.md</span>
+          <span class="meta">openspec · 1.4k</span>
+        </div>
+        <div class="member sage"  style="left: 364px; top: 110px;">
+          <span class="label">BF-110 cross-edges</span>
+          <span class="meta">testing</span>
+        </div>
+        <div class="member sage"  style="left:  62px; top: 212px;">
+          <span class="label">BF-117 unify-state</span>
+          <span class="meta">shipped</span>
+        </div>
+        <div class="member terra" style="left: 244px; top: 238px;">
+          <span class="label">BF-112 file-cap</span>
+          <span class="meta">researching</span>
+        </div>
+        <div class="member gold"  style="left: 414px; top: 232px;">
+          <span class="label">tasks.md</span>
+          <span class="meta">openspec · 73 lines</span>
+        </div>
+      </div>
+
+      <!-- external nodes -->
+      <div class="member sage" style="left: 728px; top: 96px;">
+        <span class="label">graphLint.ts</span>
+        <span class="meta">webapp · shell/edge</span>
+      </div>
+      <div class="member gold" style="left: 752px; top: 196px;">
+        <span class="label">~/brain/types.md</span>
+        <span class="meta">linked spec</span>
+      </div>
+
+      <!-- collapsed folder -->
+      <div class="folder collapsed" style="left: 880px; top: 348px;">
+        <div>
+          <div class="bud-name"><em>arch.refactor</em></div>
+          <div class="bud-meta">BF-116 / 117 / 118 / 119</div>
+        </div>
+        <div class="count">×4 folded</div>
+      </div>
+
+      <div class="member sage" style="left: 740px; top: 412px;">
+        <span class="label">applyGraphDeltaToUI</span>
+        <span class="meta">webapp · shell/edge</span>
+      </div>
+
+      <svg class="edges" viewBox="0 0 1180 560" preserveAspectRatio="none">
+        <path class="terra" d="M 636 160 C 690 160, 710 132, 740 122" />
+        <path class="terra" d="M 636 260 C 700 250, 740 232, 760 222" />
+        <path class="terra" d="M 884 386 C 830 402, 800 416, 768 424" />
+        <path class="faint" d="M 110 220 C 240 240, 360 246, 460 252" />
+        <path class="faint" d="M 250 110 C 280 134, 310 150, 350 162" />
+      </svg>
+    </div>
+
+    <div class="notes">
+      <section>
+        <h4>typography</h4>
+        <p>Display: Fraunces variable italic, opsz 144, soft 100, wonk 1 — gives the inscription a hand-drawn lilt. Body: Cormorant Garamond, light. Labels: Geist Mono in tight all-caps to keep the technical edge.</p>
+      </section>
+      <section>
+        <h4>palette</h4>
+        <p>Dyed paper warmth — cream #F5ECDC, terracotta #C25A3A, sage #7E8E5E, gold #C89859, oxblood ink #4A1C18. Children are tinted by primitive class; the folder membrane is a wash, never a fill.</p>
+      </section>
+      <section>
+        <h4>motion</h4>
+        <p>The collapsed bud breathes at ~5s per cycle, ±1.2% scale. Expanding plays a 320ms ease-out where the membrane unfolds and members "float in" with 50ms stagger. Edges grow last, with a 180ms drift.</p>
+      </section>
+    </div>
+
+    <div class="footline">
+      <span>bloom.html · folder-nodes design 02</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

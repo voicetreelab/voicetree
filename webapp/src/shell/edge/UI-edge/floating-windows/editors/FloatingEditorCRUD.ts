@@ -133,7 +133,7 @@ export async function createFloatingEditor(
     // Note: onChange only fires for user input (typing, paste, etc.) - NOT for programmatic setValue() calls
     // This is handled by CodeMirrorEditorView using CM6's isUserEvent("input") check
     let saveQueue: Promise<void> = Promise.resolve();
-    editor.onChange((newContent: string): void => {
+    editor.onChange((_newContent: string): void => {
         saveQueue = saveQueue
             .catch(() => undefined)
             .then(async (): Promise<void> => {
@@ -142,7 +142,11 @@ export async function createFloatingEditor(
                 if (!writeMarkdownFile) {
                     throw new Error('electronAPI.main.writeMarkdownFile is unavailable');
                 }
-                await writeMarkdownFile(nodeId, newContent, editorId);
+                const result = await writeMarkdownFile(nodeId, editor.getValue(), editorId);
+                const preservedSuffix = result?.preservedSuffix;
+                if (typeof preservedSuffix === 'string' && preservedSuffix.length > 0 && !editor.getValue().endsWith(preservedSuffix)) {
+                    editor.appendAtEnd(preservedSuffix);
+                }
             });
         void saveQueue.catch((error: unknown): void => {
             console.error('[FloatingEditorCRUD] save failed', error);

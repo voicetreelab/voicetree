@@ -130,12 +130,15 @@ export const WritePositionsResponseSchema: Schema<{ written: number }> = {
   },
 }
 
-export const WriteMarkdownFileResponseSchema: Schema<{ ok: true; absolutePath: string }> = {
+export const WriteMarkdownFileResponseSchema: Schema<{ ok: true; absolutePath: string; preservedSuffix: string | null }> = {
   parse(input: unknown) {
     if (!isObject(input) || input.ok !== true || typeof input.absolutePath !== 'string') {
       throw new Error('Invalid write-markdown-file response body')
     }
-    return { ok: true, absolutePath: input.absolutePath }
+    const preservedSuffix = typeof input.preservedSuffix === 'string'
+      ? input.preservedSuffix
+      : null
+    return { ok: true, absolutePath: input.absolutePath, preservedSuffix }
   },
 }
 

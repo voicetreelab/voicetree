@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>STRATA — folder-nodes mockup 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:        #ece2cd;
+    --paper-tint:   #e1d5ba;
+    --ink:          #141414;
+    --ink-soft:     #3a3a3a;
+    --ink-faint:    rgba(20,20,20,0.32);
+    --blueprint:    #1f5d7a;
+    --blueprint-2:  #2e87a8;
+    --warn:         #b8421a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 400;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+    background-position: 0 0, 0 0, 0 0;
+  }
+
+  /* paper grain via noisy SVG */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+  }
+
+  /* page chrome */
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+
+  /* corner brackets on sheet */
+  .sheet::before, .sheet::after,
+  .sheet > .br-tl, .sheet > .br-tr, .sheet > .br-bl, .sheet > .br-br {
+    --b: 28px;
+    position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink);
+  }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+  .sheet::before, .sheet::after { content: none; }
+
+  header.masthead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(48px, 7vw, 96px);
+    letter-spacing: 0.02em;
+    line-height: 0.9;
+    margin: 0;
+    color: var(--ink);
+  }
+  .title-block h1 span.tab {
+    background: var(--ink); color: var(--paper);
+    padding: 0 0.18em;
+    font-size: 0.86em;
+  }
+  .title-block .kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .stamp-block {
+    text-align: right;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block;
+    padding: 4px 8px;
+    border: 1.5px solid var(--ink);
+    margin-top: 6px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .lede {
+    margin-top: 26px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 72ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+
+  /* legend bar */
+  .legend {
+    display: flex; gap: 36px;
+    margin: 28px 0 20px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+  }
+  .legend .swatch {
+    display: inline-block; width: 12px; height: 12px;
+    margin-right: 8px; vertical-align: -1px;
+    border: 1.5px solid var(--ink);
+  }
+  .swatch.ink       { background: var(--ink); }
+  .swatch.bp        { background: var(--blueprint); border-color: var(--blueprint); }
+  .swatch.bp-out    { background: transparent; }
+  .swatch.warn      { background: var(--warn); border-color: var(--warn); }
+
+  /* canvas grid */
+  .canvas {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 48px;
+    min-height: 520px;
+    overflow: hidden;
+  }
+  .canvas .tick-tl, .canvas .tick-tr, .canvas .tick-bl, .canvas .tick-br {
+    position: absolute; font-size: 10px; letter-spacing: 0.2em; color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .canvas .tick-tl { top: 8px; left: 12px; }
+  .canvas .tick-tr { top: 8px; right: 12px; }
+  .canvas .tick-bl { bottom: 8px; left: 12px; }
+  .canvas .tick-br { bottom: 8px; right: 12px; }
+
+  /* nodes */
+  .node {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    padding: 10px 14px 12px;
+    font-size: 12px;
+    line-height: 1.25;
+    box-shadow: 4px 4px 0 -1px rgba(20,20,20,0.85);
+    min-width: 110px;
+  }
+  .node .nm {
+    display: block;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .node .meta {
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .node.code .nm { font-family: 'IBM Plex Mono', monospace; font-weight: 500; }
+  .node.doc .nm::before { content: '◰ '; color: var(--blueprint); }
+  .node.spec .nm::before { content: '◧ '; color: var(--warn); }
+
+  /* folder (expanded) */
+  .folder {
+    position: absolute;
+    border: 2px solid var(--ink);
+    background:
+      repeating-linear-gradient(45deg, transparent 0 9px, rgba(31,93,122,0.06) 9px 10px),
+      var(--paper-tint);
+    padding: 46px 22px 22px;
+  }
+  .folder::before {
+    /* tab/label */
+    content: attr(data-label);
+    position: absolute;
+    top: -1.5px; left: -1.5px;
+    transform: translateY(-100%);
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 6px 14px 5px;
+    border: 1.5px solid var(--ink);
+    border-bottom: 0;
+  }
+  .folder::after {
+    /* count chip */
+    content: attr(data-count);
+    position: absolute;
+    top: -14px; right: 14px;
+    background: var(--paper);
+    border: 1.5px solid var(--blueprint);
+    color: var(--blueprint);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    padding: 3px 8px;
+    text-transform: uppercase;
+  }
+  /* corner brackets inside folder */
+  .folder > .crn {
+    position: absolute; width: 14px; height: 14px; border: 2px solid var(--ink);
+  }
+  .folder > .crn.tl { top: 6px; left: 6px; border-right: 0; border-bottom: 0; }
+  .folder > .crn.tr { top: 6px; right: 6px; border-left: 0; border-bottom: 0; }
+  .folder > .crn.bl { bottom: 6px; left: 6px; border-right: 0; border-top: 0; }
+  .folder > .crn.br { bottom: 6px; right: 6px; border-left: 0; border-top: 0; }
+
+  .folder.collapsed {
+    padding: 18px 22px;
+    min-width: 200px;
+    background:
+      linear-gradient(135deg, var(--blueprint) 0 12px, transparent 12px) top left/24px 24px no-repeat,
+      var(--paper-tint);
+  }
+  .folder.collapsed .stacked {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+  .folder.collapsed .stacked small {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--blueprint);
+    margin-top: 6px;
+  }
+  .folder.collapsed::after {
+    content: attr(data-count);
+    background: var(--blueprint);
+    color: var(--paper);
+    border-color: var(--blueprint);
+  }
+  .folder.collapsed .edge-fan {
+    position: absolute;
+    right: -1.5px; top: 50%;
+    transform: translateY(-50%);
+    width: 28px; height: 48px;
+    background-image:
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 10%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 55%/100% 33%,
+      linear-gradient(90deg, var(--ink) 0 1.5px, transparent 1.5px) 0 100%/100% 33%;
+    background-repeat: no-repeat;
+  }
+
+  /* SVG edges layer */
+  svg.edges {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  svg.edges path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  svg.edges path.bp { stroke: var(--blueprint); stroke-dasharray: 5 4; }
+  svg.edges path.faint { stroke: var(--ink-faint); stroke-dasharray: 2 4; }
+
+  /* footer notes */
+  .notes {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .notes section {
+    border-top: 1.5px solid var(--ink);
+    padding-top: 12px;
+  }
+  .notes h4 {
+    margin: 0 0 6px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .notes p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  .footline {
+    margin-top: 36px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // mockup 01 of 03 // 2026-05-21</div>
+        <h1>STR<span class="tab">ATA</span></h1>
+      </div>
+      <div class="stamp-block">
+        Sheet 01 / 01<br />
+        Scale 1:1<br />
+        Aki · drafting<br />
+        <span class="sn">REV. A</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      A folder is a <strong>labeled enclosure</strong> in the field. Edges meet the enclosure at its border, never the children inside. Collapsed folders publish only their <strong>edge interface</strong> and a fanned count; expanded folders show every member as a stamped plate within a hatched ground. The visual language borrows from architectural plates: corner ticks, double rules, tabs, blueprint cyan as the single living color.
+    </p>
+
+    <div class="legend">
+      <span><span class="swatch ink"></span>regular node</span>
+      <span><span class="swatch bp"></span>folder edge / count</span>
+      <span><span class="swatch bp-out"></span>folder enclosure</span>
+      <span><span class="swatch warn"></span>spec / decision</span>
+    </div>
+
+    <div class="canvas">
+      <span class="tick-tl">+ 000,000</span>
+      <span class="tick-tr">+ 1280,000</span>
+      <span class="tick-bl">+ 000,520</span>
+      <span class="tick-br">+ 1280,520</span>
+
+      <!-- expanded folder -->
+      <div class="folder" data-label="folder-nodes" data-count="× 12 INSIDE" style="left: 40px; top: 64px; width: 540px; height: 360px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+        <div class="node code"        style="left:  28px; top:  62px;">
+          <span class="nm">BF-108 identity</span>
+          <span class="meta">contract · done</span>
+        </div>
+        <div class="node doc"         style="left: 178px; top:  44px;">
+          <span class="nm">design.md</span>
+          <span class="meta">openspec · 1.4k</span>
+        </div>
+        <div class="node code"        style="left: 332px; top:  84px;">
+          <span class="nm">BF-110 cross-edges</span>
+          <span class="meta">testing</span>
+        </div>
+        <div class="node code"        style="left:  52px; top: 188px;">
+          <span class="nm">BF-117 unify-state</span>
+          <span class="meta">shipped</span>
+        </div>
+        <div class="node spec"        style="left: 226px; top: 216px;">
+          <span class="nm">BF-112 file-cap</span>
+          <span class="meta">researching</span>
+        </div>
+        <div class="node doc"         style="left: 372px; top: 200px;">
+          <span class="nm">tasks.md</span>
+          <span class="meta">openspec · 73 lines</span>
+        </div>
+      </div>
+
+      <!-- external node connected to the expanded folder -->
+      <div class="node code" style="left: 660px; top: 88px;">
+        <span class="nm">graphLint.ts</span>
+        <span class="meta">webapp · shell/edge</span>
+      </div>
+      <div class="node doc" style="left: 700px; top: 200px;">
+        <span class="nm">~/brain/types.md</span>
+        <span class="meta">linked spec</span>
+      </div>
+
+      <!-- collapsed folder -->
+      <div class="folder collapsed" data-label="folder-architecture-refactor" data-count="× 4 FOLDED" style="left: 880px; top: 320px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+        <div class="stacked">
+          arch.refactor
+          <small>BF-116 / 117 / 118 / 119</small>
+        </div>
+        <span class="edge-fan"></span>
+      </div>
+
+      <!-- another external -->
+      <div class="node code" style="left: 740px; top: 408px;">
+        <span class="nm">applyGraphDeltaToUI</span>
+        <span class="meta">webapp · shell/edge</span>
+      </div>
+
+      <svg class="edges" viewBox="0 0 1180 520" preserveAspectRatio="none">
+        <!-- expanded folder to graphLint -->
+        <path class="bp" d="M 580 130 C 620 130, 640 110, 660 100" />
+        <!-- expanded folder to types.md -->
+        <path class="bp" d="M 580 240 C 640 230, 680 220, 700 215" />
+        <!-- collapsed folder fan -> applyGraphDeltaToUI -->
+        <path class="bp" d="M 880 360 C 830 380, 800 400, 760 412" />
+        <!-- internal hint lines (faint) -->
+        <path class="faint" d="M 70 200 C 200 220, 320 240, 420 240" />
+        <path class="faint" d="M 230 130 C 260 150, 280 160, 320 168" />
+      </svg>
+    </div>
+
+    <div class="notes">
+      <section>
+        <h4>typography</h4>
+        <p>Display: Major Mono Display, all-lowercase, occasional inverted tab pulled from technical labels. Body: IBM Plex Mono 400/500. Letterforms inherit the drafting plate's rigor.</p>
+      </section>
+      <section>
+        <h4>palette</h4>
+        <p>Paper #ECE2CD, ink #141414, blueprint #1F5D7A as the only chromatic move. Warning red #B8421A reserved for spec-status nodes. No gradients on nodes themselves.</p>
+      </section>
+      <section>
+        <h4>motion</h4>
+        <p>Collapse animation = camera dolly: enclosure contracts to a stamped plate, member plates fold inward and become the fanned right-edge count. No bounce. ~220ms ease-out.</p>
+      </section>
+    </div>
+
+    <div class="footline">
+      <span>strata.html · folder-nodes design 01</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

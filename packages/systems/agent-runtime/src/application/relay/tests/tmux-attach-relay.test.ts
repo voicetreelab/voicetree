@@ -89,6 +89,16 @@ async function waitForOutput(output: () => string, needle: string, timeoutMs: nu
     throw new Error(`timed out waiting for ${needle}; output was:\n${output()}`)
 }
 
+async function waitForTmuxOutput(sessionName: string, needle: string, timeoutMs: number = 10000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-50', '-t', sessionName])
+        if (captured.includes(needle)) return
+        await delay(25)
+    }
+    throw new Error(`timed out waiting for tmux pane output ${needle}`)
+}
+
 async function waitForTmuxPaneSize(sessionName: string, expectedWidth: number, timeoutMs: number = 5000): Promise<void> {
     const start: number = Date.now()
     while (Date.now() - start < timeoutMs) {
@@ -134,6 +144,7 @@ describe('tmux attach relay', () => {
         const sessionName: string = makeSessionName('bridge')
         sessions.push(sessionName)
         await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
 
         await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
         const port: number = (server!.address() as AddressInfo).port

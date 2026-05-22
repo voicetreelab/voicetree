@@ -25,6 +25,45 @@ function contentMatchesForEchoComparison(left: string, right: string): boolean {
     return normalizeContentForEchoComparison(left) === normalizeContentForEchoComparison(right);
 }
 
+function commonPrefixLength(left: string, right: string): number {
+    const limit: number = Math.min(left.length, right.length);
+    let index: number = 0;
+    while (index < limit && left[index] === right[index]) {
+        index += 1;
+    }
+    return index;
+}
+
+function getFocusedEditorAppendSuffix(
+    currentEditorContent: string,
+    prevContent: string,
+    newContent: string,
+): string {
+    if (!currentEditorContent.startsWith(prevContent)) {
+        return getAppendedSuffix(prevContent, newContent);
+    }
+
+    const externalAppend: string = newContent.slice(prevContent.length);
+    const userExtension: string = currentEditorContent.slice(prevContent.length);
+    const overlap: number = commonPrefixLength(userExtension, externalAppend);
+    if (overlap === 0) {
+        return externalAppend;
+    }
+    // An autosave echo manifests as a meaningful run of characters from the
+    // user's saved typing showing up at the head of the daemon's reported
+    // append. Coincidental overlaps (paragraph separators, a lone "#" header
+    // marker that both sides happen to start with) are short / mostly
+    // whitespace and should not be stripped — doing so eats the separator the
+    // external change relies on. Require ≥2 non-whitespace overlap characters
+    // before treating it as a real echo.
+    const overlapStr: string = externalAppend.slice(0, overlap);
+    const nonWhitespaceOverlap: number = overlapStr.replace(/\s/g, '').length;
+    if (nonWhitespaceOverlap < 2) {
+        return externalAppend;
+    }
+    return externalAppend.slice(overlap);
+}
+
 /**
  * Update floating editors based on graph delta
  * For each node upsert, check if there's an open editor and update its content
@@ -81,8 +120,8 @@ export function updateFloatingEditors(
                             ) {
                                 continue;
                             }
-                            const suffix: string = getAppendedSuffix(prevContent, newContent);
-                            if (!currentEditorContent.endsWith(suffix)) {
+                            const suffix: string = getFocusedEditorAppendSuffix(currentEditorContent, prevContent, newContent);
+                            if (suffix.length > 0 && !currentEditorContent.endsWith(suffix)) {
                                 // appendAtEnd inserts the suffix at the doc tail
                                 // without moving the cursor. Using setValue here
                                 // would reset the cursor to end-of-doc, splitting
