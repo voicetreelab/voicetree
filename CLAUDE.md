@@ -11,7 +11,7 @@ functional programming philosophy)
 
 `npm run test` - Runs all important tests
 
-Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work — don't wait to be asked.
+Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work — don't wait to be asked. Push once your task is complete.
 
 The user is EXTREMELY concerned about code quality, much more so than immediate results.
 
