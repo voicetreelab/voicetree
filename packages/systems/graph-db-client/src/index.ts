@@ -20,12 +20,9 @@ export {
   ensureDaemon,
   ensureGraphDaemonForVault,
   resolveDaemonRuntimeCommand,
-  spawnVaultlessDaemon,
   type EnsureDaemonResult,
   type EnsureGraphDaemonOptions,
   type EnsureGraphDaemonResult,
-  type SpawnVaultlessDaemonOptions,
-  type VaultlessDaemonHandle,
 } from './autoLaunch.ts'
 export {
   isVtGraphdProcessForVault,

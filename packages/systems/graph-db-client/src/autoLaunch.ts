@@ -13,11 +13,6 @@ export type {
 } from './autoLaunch/ensureGraphDaemon.ts'
 export { resolveDaemonRuntimeCommand }
 export { ensureGraphDaemonForVault }
-export { spawnVaultlessDaemon } from './autoLaunch/vaultlessSpawn.ts'
-export type {
-  SpawnVaultlessDaemonOptions,
-  VaultlessDaemonHandle,
-} from './autoLaunch/vaultlessSpawn.ts'
 
 /**
  * Thin delegate over {@link ensureGraphDaemonForVault} that returns the
