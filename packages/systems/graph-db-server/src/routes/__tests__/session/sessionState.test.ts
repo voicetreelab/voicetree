@@ -6,7 +6,7 @@ import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import {
   LiveStateSnapshotSchema,
   SessionCreateResponseSchema,
-} from '../../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 
 // Files placed at the vault root are always visible in the projection;
 // files inside subdirectories require explicit folder expansion via

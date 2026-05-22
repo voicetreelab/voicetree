@@ -5,7 +5,7 @@ import {
   setFolderState,
   setFolderStateBatch,
 } from '@vt/graph-state'
-import type { FolderState } from '../../daemon/contract.ts'
+import type { FolderState } from '@vt/graph-db-server/contract'
 import {
   closeFolderVisibilityDb,
   openFolderVisibilityDb,

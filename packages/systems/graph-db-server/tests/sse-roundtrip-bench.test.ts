@@ -16,7 +16,7 @@ import {
   type GraphNode,
 } from '@vt/graph-model/graph'
 import { type DaemonHandle, startDaemon } from '../src/daemon/server.ts'
-import { SessionCreateResponseSchema } from '../src/daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { getGraph, setGraph } from '../src/state/graph-store.ts'
 import { publish } from '../src/state/events/deltaEventBus.ts'

@@ -7,7 +7,7 @@ import {
   HealthResponseSchema,
   SessionCreateResponseSchema,
   SessionInfoSchema,
-} from '../../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sessions-test-'))
