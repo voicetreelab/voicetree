@@ -3,7 +3,7 @@ import {
     writeMetadata,
     type NativeRecoveryHandle,
     type TmuxTerminalMetadata,
-} from '../../terminals/terminal-registry/terminal-metadata'
+} from '../terminals/terminal-registry/terminal-metadata'
 
 export type PersistRecoveryDeps = {
     readonly readMetadata: (path: string) => TmuxTerminalMetadata | null

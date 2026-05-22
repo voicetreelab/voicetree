@@ -13,7 +13,7 @@ import {
     stopRecoverySessionsPolling,
     subscribeToRecoverySessions,
     syncRecoverySessionsFromMain,
-} from '@/shell/edge/UI-edge/state/stores/RecoverySessionsStore'
+} from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore'
 
 type MockMainApi = {
     readonly refreshRecoverySessions: ReturnType<typeof vi.fn>

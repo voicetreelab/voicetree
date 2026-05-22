@@ -3,11 +3,11 @@ import type {RecoverableAgentSession, UnclaimedTmuxSession} from '@vt/agent-runt
 import {
     getUnclaimedTmuxSessions,
     subscribeToUnclaimedTmuxChanges,
-} from '@/shell/edge/UI-edge/state/stores/UnclaimedTmuxStore';
+} from '@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore';
 import {
     getRecoverySessions,
     subscribeToRecoverySessions,
-} from '@/shell/edge/UI-edge/state/stores/RecoverySessionsStore';
+} from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore';
 
 export function useUnclaimedTmuxSessions(): readonly UnclaimedTmuxSession[] {
     const [unclaimed, setUnclaimed] = useState<readonly UnclaimedTmuxSession[]>(

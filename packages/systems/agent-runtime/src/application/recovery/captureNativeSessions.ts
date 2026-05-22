@@ -2,7 +2,7 @@ import path from 'node:path'
 import {detectCliType} from '../spawn/headlessCli'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
 import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
-import {persistRecoveryNative, type PersistRecoveryRequest, type PersistRecoveryResult} from './resolvers/persistRecoveryNative'
+import {persistRecoveryNative, type PersistRecoveryRequest, type PersistRecoveryResult} from './persistRecoveryNative'
 import {resolveClaudeNativeSession, type ResolveClaudeRequest, type ResolveClaudeResult} from './resolvers/resolveClaudeNativeSession'
 import {resolveCodexNativeSession, type ResolveCodexRequest, type ResolveCodexResult} from './resolvers/resolveCodexNativeSession'
 

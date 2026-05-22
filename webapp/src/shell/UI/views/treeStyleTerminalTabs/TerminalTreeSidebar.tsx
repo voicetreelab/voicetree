@@ -83,7 +83,7 @@ import {
     clearUnclaimedTmuxSessions,
     startUnclaimedTmuxPolling,
     stopUnclaimedTmuxPolling,
-} from '@/shell/edge/UI-edge/state/stores/UnclaimedTmuxStore';
+} from '@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore';
 import {
     attachRecoverySession,
     clearRecoverySessions,
@@ -92,7 +92,7 @@ import {
     resumeRecoverySession,
     startRecoverySessionsPolling,
     stopRecoverySessionsPolling,
-} from '@/shell/edge/UI-edge/state/stores/RecoverySessionsStore';
+} from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore';
 import {useRecoverySessions} from './survivingAgentsHooks';
 import {
     syncDisplayOrder,

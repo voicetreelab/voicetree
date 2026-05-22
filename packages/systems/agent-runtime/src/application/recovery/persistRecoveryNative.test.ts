@@ -2,8 +2,8 @@ import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {persistRecoveryNative} from '../persistRecoveryNative'
-import type {TmuxTerminalMetadata} from '../../../terminals/terminal-registry/terminal-metadata'
+import {persistRecoveryNative} from './persistRecoveryNative'
+import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 
 let tmpDir: string
 
