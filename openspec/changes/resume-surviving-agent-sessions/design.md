@@ -12,7 +12,8 @@ That covers Electron/MCP registry loss while the tmux pane is still alive. It do
 **Goals:**
 - Discover resumable agent records from the current project's `.voicetree/terminals` directory.
 - Keep attach-to-live-tmux and resume-from-CLI as distinct recovery states.
-- Resume only supported Claude/Codex agents whose persisted metadata indicates they were not explicitly exited.
+- Resolve exact Claude/Codex native session ids from provider-global stores and save them into the project-local per-agent metadata record before offering Resume.
+- Resume only supported Claude/Codex agents whose persisted metadata indicates they were not explicitly exited and includes a deterministic native session handle.
 - Preserve terminal identity and graph relationships when the resumed process is rehydrated into the registry.
 - Present recovery actions in the existing terminal tree sidebar without polluting normal `TerminalStore` membership.
 
@@ -20,17 +21,18 @@ That covers Electron/MCP registry loss while the tmux pane is still alive. It do
 - Resuming arbitrary custom CLIs or Gemini in this change.
 - Guessing a missing command from an agent name when `terminalData.initialCommand` is absent.
 - Resuming sessions from another vault namespace.
-- Rewriting Claude/Codex local session stores or importing their native session ids into VoiceTree metadata.
+- Rewriting Claude/Codex local session stores. VoiceTree only reads those stores and persists the resolved native id into its own project metadata.
 - Treating every old metadata file as recoverable; exited/manual/invalid records stay non-actionable.
 
 ## Decisions
 
 ### D1. Use `.voicetree/terminals` metadata as the source for dead-pane resume candidates
 
-**Choice:** Add a pure classifier that reads terminal metadata records and live tmux state, then returns recovery candidates. A record is resumable when it belongs to the current vault, has `status: "running"`, is not in the registry, its tmux session is absent, and its `terminalData.initialCommand` detects as Claude or Codex.
+**Choice:** Add a pure classifier that reads terminal metadata records and live tmux state, then returns recovery candidates. A record is resumable when it belongs to the current vault, has `status: "running"`, is not in the registry, its tmux session is absent, its `terminalData.initialCommand` detects as Claude or Codex, and its metadata contains `recovery.native.sessionId`.
 
 **Rationale:**
 - The metadata already contains the terminal id, context/task attachment, parent terminal, initial spawn directory, initial env vars, initial command, agent name, and display metadata needed to rebuild the VoiceTree terminal record.
+- The metadata becomes VoiceTree's durable source for the provider-native session handle after that handle has been resolved from Claude/Codex global state.
 - The current live-tmux scan cannot see dead panes, so metadata must participate.
 - A pure classifier keeps the impure filesystem/tmux work at the shell and makes the important recovery rules testable as black-box input/output.
 
@@ -76,24 +78,55 @@ Non-actionable records can be returned only for diagnostics/tests, or omitted fr
 - Spawn a new terminal id. Rejected because it breaks graph/sidebar continuity and leaves the old metadata ambiguous.
 - Send a resume command into a new plain shell. Rejected because it bypasses the tmux-backed runtime that the rest of agent control assumes.
 
-### D4. Share CLI detection and resume-command construction with stop-gate resume
+### D4. Resolve native provider ids from global stores and persist them project-locally
 
-**Choice:** Move or expose a pure helper near `headlessCli.ts` for `detectCliType` plus resume command construction. For this feature, support only:
+**Choice:** Add provider-specific resolver functions that read Claude/Codex global state shortly after spawn and write the resolved native id into the existing per-agent terminal metadata file:
 
-- Claude: `claude --continue -p "$RESUME_PROMPT" --dangerously-skip-permissions`
-- Codex: `codex exec resume --last -p "$RESUME_PROMPT" --full-auto`
+- Claude: scan recently modified `~/.claude/projects/**/*.jsonl` transcript files. Match user records whose string `message.content` contains `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`; persist the record's `sessionId`, transcript path, cwd, timestamp, and source `claude-project-transcript`.
+- Codex: query `~/.codex/state_5.sqlite` table `threads`. Match `first_user_message` on `VOICETREE_TERMINAL_ID`, `VOICETREE_VAULT_PATH`, and `TASK_NODE_PATH`, constrained by recent `created_at_ms` / `updated_at_ms`; persist `id`, `rollout_path`, cwd, timestamp, and source `codex-state-index`.
 
-The action may set `RESUME_PROMPT` to a small VoiceTree reconnection prompt, or an empty prompt if the CLI accepts it reliably; that behavior should be tested against the actual command builder.
+Write the result under the existing project-local record:
+
+```json
+{
+  "recovery": {
+    "native": {
+      "cli": "claude",
+      "mode": "interactive",
+      "sessionId": "605904d4-8881-4261-adc8-212891622ed2",
+      "capturedAt": "2026-05-22T04:55:00.000Z",
+      "source": "claude-project-transcript",
+      "providerStorePath": "/Users/bobbobby/.claude/projects/.../605904d4-8881-4261-adc8-212891622ed2.jsonl"
+    }
+  }
+}
+```
 
 **Rationale:**
-- The repository already has CLI detection and stop-gate resume semantics; duplicating command strings would drift.
-- Resume command generation is pure and belongs in shared runtime code, not the React sidebar.
-- Keeping Gemini/custom CLIs unsupported is safer than pretending every CLI has compatible resume semantics.
+- The provider stores are good at proving the native id, but they are not VoiceTree project state. Persisting the resolved handle into `.voicetree/terminals/<terminalId>.json` makes future recovery independent of re-running fuzzy lookup.
+- Matching terminal id alone is unsafe because names are reused. Matching terminal id, vault path, task path, and recent timestamps scopes the lookup to the spawn that created the agent.
+- The resolver is impure, but the parser/matcher should be pure and black-box testable with fixture rows/records.
+- This gives Claude and Codex aligned behavior: both resolve from provider-global state, then store the exact native handle in VoiceTree metadata.
 
 **Alternatives considered:**
-- Use the original `initialCommand` with a string replace. Rejected because `claude "$AGENT_PROMPT"` and `codex "$AGENT_PROMPT"` do not resume prior native CLI sessions.
+- Generate and inject Claude `--session-id` at spawn time. Rejected for now because Claude already writes transcript records containing both VoiceTree markers and `sessionId`, so the global-store resolver aligns better with Codex.
+- Read the live agent process environment. Rejected because VoiceTree records the tmux pane shell PID, not necessarily the provider process PID, and process-env scraping is OS-specific.
+- Use `claude --continue`, `codex resume --last`, or `codex exec resume --last`. Rejected because those are cwd-relative guesses and can resume the wrong agent when multiple sessions share a workspace.
 
-### D5. Keep UI state separate from terminal registry state until recovery succeeds
+### D5. Use exact resume-command construction for user-triggered recovery
+
+**Choice:** Add or expose a pure command builder for user-triggered recovery. For this feature, support only:
+
+- Claude interactive/headless resume: `claude --resume <session-id>` plus the existing permission flags appropriate for the spawn mode.
+- Codex interactive resume: `codex resume <thread-id>` plus the existing sandbox/hook flags appropriate for interactive terminals.
+- Codex headless resume: `codex exec resume <thread-id>` plus the existing headless flags.
+
+**Rationale:**
+- Resume command generation is pure and belongs in shared runtime code, not the React sidebar.
+- User-triggered recovery has a stricter correctness bar than stop-gate retries. It must target the exact provider session id persisted in `recovery.native.sessionId`.
+- Keeping Gemini/custom CLIs unsupported is safer than pretending every CLI has compatible exact-session resume semantics.
+
+### D6. Keep UI state separate from terminal registry state until recovery succeeds
 
 **Choice:** The sidebar's recovery list should come from a recovery store adjacent to `UnclaimedTmuxStore`, backed by main-process polling. A resumable record does not enter `TerminalStore` until `resumePersistedAgentSession` succeeds.
 
@@ -107,19 +140,19 @@ The action may set `RESUME_PROMPT` to a small VoiceTree reconnection prompt, or 
 
 ## Risks / Trade-offs
 
+- **Risk: provider global store schemas can change.** -> Keep resolvers isolated, fixture-tested, and diagnostic-only when no exact match is found.
 - **Risk: stale metadata can point at a Claude/Codex session that the external CLI can no longer resume.** -> Re-run discovery before action, surface the CLI spawn failure in the row, and leave metadata unchanged unless a new tmux process is actually registered.
-- **Risk: `codex exec resume --last` may resume the latest session for the working directory rather than the exact old VoiceTree terminal.** -> Keep the first implementation limited to the persisted `initialSpawnDirectory`, document the limitation in tests, and do not claim exact native session-id targeting unless metadata support is added later.
+- **Risk: resolver lookup could match the wrong provider session if scoped too loosely.** -> Require terminal id, vault path, task path, and recent timestamp constraints before persisting `recovery.native.sessionId`.
 - **Risk: a metadata file marked `running` after an intentional UI detach is indistinguishable from a crash if its tmux pane later dies.** -> Treat "running metadata + missing tmux + supported CLI" as user-actionable, not automatic; the user chooses Resume.
 - **Risk: duplicate recovery if another process reclaims the same terminal while the user clicks Resume.** -> The resume API must perform an action-time registry/tmux/metadata check and fail if the terminal is no longer resumable.
 - **Trade-off: unsupported CLIs are not resumable.** This is intentional until each CLI has tested resume semantics.
 
 ## Migration Plan
 
-- No data migration is required. Existing `.voicetree/terminals/*.json` files remain the input.
+- No legacy migration is required. Existing `.voicetree/terminals/*.json` files remain the input, but only records with `recovery.native.sessionId` are actionable resume rows.
 - Existing live-tmux surviving-agent attach behavior remains available.
 - If the feature is rolled back, stale running metadata remains harmless; current reconciliation can still mark missing sessions exited.
 
 ## Open Questions
 
-- Should `RESUME_PROMPT` be empty or a short VoiceTree reconnection prompt for user-triggered resume? The implementation should decide with a black-box CLI-command test and avoid sending a prompt that causes unwanted agent actions.
-- If future metadata can store native Claude/Codex session ids, should the command builder prefer exact-session resume over "continue/latest"? This is out of scope for the first change.
+- Should `providerStorePath` be persisted as diagnostic metadata or only kept in logs? Persisting it helps debugging but records an absolute path outside the vault.
