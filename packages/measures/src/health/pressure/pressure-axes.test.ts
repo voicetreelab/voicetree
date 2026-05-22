@@ -499,13 +499,6 @@ async function measureCyclomaticComplexity(files: readonly SystemFile[]): Promis
     return rows.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file))
 }
 
-function sourceLinesOfCode(text: string): number {
-    return text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*'))
-        .length
-}
-
 function isOperatorToken(kind: ts.SyntaxKind): boolean {
     return (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword)
         || (kind >= ts.SyntaxKind.FirstPunctuation && kind <= ts.SyntaxKind.LastPunctuation)
@@ -541,11 +534,11 @@ function measureHalstead(filePath: string, text: string, cyclomatic: number): Ma
     const vocabulary = n1 + n2
     const length = totalOperators + totalOperands
     const volume = vocabulary === 0 || length === 0 ? 0 : length * Math.log2(vocabulary)
-    const sloc = sourceLinesOfCode(text)
+    // SLOC term intentionally dropped: file-size pressure is gated by the dedicated
+    // max-file-lines axis. Halstead-MI then measures token-level density only.
     const rawMaintainability = 171
         - 5.2 * Math.log(Math.max(1, volume))
         - 0.23 * cyclomatic
-        - 16.2 * Math.log(Math.max(1, sloc))
     const maintainabilityIndex = Math.max(0, Math.min(100, (rawMaintainability * 100) / 171))
 
     return {file: relative(REPO_ROOT, filePath), maintainabilityIndex}
