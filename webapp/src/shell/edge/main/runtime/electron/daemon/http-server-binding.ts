@@ -12,18 +12,16 @@
 
 import {
     buildDefaultToolCatalog,
-    generateAuthToken,
     handleHookEventRequest,
     startHttpDaemonServer,
     startVaultStateWatcher,
-    writeAuthTokenFile,
     type HttpDaemonServerHandle,
     type HookHandler,
     type ToolCatalog,
     type VaultStateWatcherHandle,
 } from '@vt/voicetree-mcp'
 import {agentRuntime} from '@vt/agent-runtime'
-import {writeRpcPortFile} from '@vt/vt-rpc'
+import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 interface BoundState {
     readonly vaultPath: string

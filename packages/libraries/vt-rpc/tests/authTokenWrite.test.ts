@@ -1,14 +1,14 @@
-// Black-box tests for the daemon-side token generator + writer + redactor.
-// Token file mode (0600) is the trust root for the LAN-exposed daemon
-// (design doc §2.4); we assert the bits explicitly.
+// Black-box tests for the daemon-side token generator + writer. The token
+// file mode (0600) is the trust root for the LAN-exposed daemon (design doc
+// §2.4); we assert the bits explicitly.
 
 import {chmod, mkdir, mkdtemp, readFile, stat} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {describe, expect, it} from 'vitest'
 
-import {authTokenFilePath, readAuthTokenFile} from '@vt/vt-rpc'
-import {generateAuthToken, writeAuthTokenFile, redactToken} from '../authToken.ts'
+import {authTokenFilePath, readAuthTokenFile} from '../src/authTokenFile.ts'
+import {generateAuthToken, writeAuthTokenFile} from '../src/authTokenWrite.ts'
 
 async function makeVault(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'vt-authtoken-write-'))
@@ -67,11 +67,5 @@ describe('writeAuthTokenFile', (): void => {
     it('refuses to write an empty token', async (): Promise<void> => {
         const vault: string = await makeVault()
         await expect(writeAuthTokenFile(vault, '')).rejects.toThrow(/empty/)
-    })
-})
-
-describe('redactToken (re-export)', (): void => {
-    it('preserves the last-4 suffix so log lines remain correlatable', (): void => {
-        expect(redactToken('abcdef0123456789')).toBe('****6789')
     })
 })

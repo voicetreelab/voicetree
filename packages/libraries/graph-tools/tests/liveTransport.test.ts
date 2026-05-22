@@ -8,11 +8,10 @@ import {join} from 'node:path'
 
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
-import {writeRpcPortFile} from '@vt/vt-rpc'
+import {writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 import {
     CatalogValidationError,
-    writeAuthTokenFile,
     type Catalog,
     type ToolResult,
 } from '../src/live/headlessServer'

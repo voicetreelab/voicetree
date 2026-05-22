@@ -1,13 +1,19 @@
-// Generate a fresh bearer token at daemon startup, write it atomically to
-// `<vault>/.voicetree/auth-token` with mode 0600. Filesystem permissions are
-// the trust root (design doc §2.4). Daemon-restart invalidates — there's no
-// rotation endpoint and no persistence across restarts (§2.8).
+// Daemon-side generation + atomic write of the bearer auth token. The token
+// is written to `<vault>/.voicetree/auth-token` with mode 0600 at daemon
+// startup; filesystem permissions are the trust root (design doc §2.4).
+// Daemon-restart invalidates — there's no rotation endpoint and no
+// persistence across restarts (§2.8).
+//
+// Lives in @vt/vt-rpc so both `voicetree-mcp`'s full daemon and
+// `graph-tools`'s headless data-layer daemon share the same canonical
+// implementation (consolidated in 9g; previously duplicated per design
+// doc §6 followup).
 
 import {randomBytes} from 'node:crypto'
 import {chmod, mkdir, rename, writeFile} from 'node:fs/promises'
 import {dirname} from 'node:path'
 
-import {authTokenFilePath, redactToken} from '@vt/vt-rpc'
+import {authTokenFilePath} from './authTokenFile.ts'
 
 const TOKEN_BYTE_LENGTH: number = 32
 const TOKEN_FILE_MODE: number = 0o600
@@ -30,5 +36,3 @@ export async function writeAuthTokenFile(vaultPath: string, token: string): Prom
     await rename(tempPath, finalPath)
     await chmod(finalPath, TOKEN_FILE_MODE)
 }
-
-export {redactToken}

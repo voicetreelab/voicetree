@@ -7,17 +7,13 @@
 // Why not import `@vt/voicetree-mcp`'s server here: voicetree-mcp depends on
 // `@vt/graph-tools/node`, so graph-tools cannot import voicetree-mcp at the
 // package level without a runtime cycle. The HTTP server primitives needed
-// for this headless data-layer-only daemon are small enough to live here.
-// `writeAuthTokenFile` + `generateAuthToken` duplicate ~12 LOC from
-// `voicetree-mcp/src/transport/authToken.ts`; consolidation into `@vt/vt-rpc`
-// is logged as a 9g cleanup item.
+// for this headless data-layer-only daemon are small enough to live here;
+// auth-token write + read share the canonical `@vt/vt-rpc` implementations.
 
 import http, {type IncomingMessage, type Server, type ServerResponse} from 'node:http'
-import {randomBytes} from 'node:crypto'
-import {chmod, mkdir, rename, writeFile} from 'node:fs/promises'
-import {dirname, resolve} from 'node:path'
+import {resolve} from 'node:path'
 
-import {authTokenFilePath, ERROR_CODES, writeRpcPortFile} from '@vt/vt-rpc'
+import {ERROR_CODES, generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 import {
     CatalogValidationError,
@@ -37,32 +33,6 @@ export type {
     HeadlessServerOptions,
     ToolResult,
 } from './headlessServerTypes'
-
-// Re-export the token write helpers (used by `vt-headless` bin and by tests
-// that need to put files where the discovery chain looks). Kept private to
-// graph-tools — voicetree-mcp has its own copy (Step 9b); consolidation into
-// @vt/vt-rpc is logged as a 9g cleanup.
-export {generateAuthToken, writeAuthTokenFile}
-
-// ── auth token (write side — duplicated from voicetree-mcp/transport/authToken
-//    pending 9g consolidation into @vt/vt-rpc) ──
-
-const TOKEN_BYTE_LENGTH: number = 32
-const TOKEN_FILE_MODE: number = 0o600
-
-function generateAuthToken(): string {
-    return randomBytes(TOKEN_BYTE_LENGTH).toString('hex')
-}
-
-async function writeAuthTokenFile(vaultPath: string, token: string): Promise<void> {
-    const finalPath: string = authTokenFilePath(vaultPath)
-    const tempPath: string = `${finalPath}.${process.pid}.tmp`
-    await mkdir(dirname(finalPath), {recursive: true})
-    await writeFile(tempPath, `${token}\n`, {encoding: 'utf8', mode: TOKEN_FILE_MODE})
-    await chmod(tempPath, TOKEN_FILE_MODE)
-    await rename(tempPath, finalPath)
-    await chmod(finalPath, TOKEN_FILE_MODE)
-}
 
 // ── wire helpers (single /rpc route, JSON-RPC 2.0, 64 KiB body cap) ──
 

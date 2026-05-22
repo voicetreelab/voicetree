@@ -17,14 +17,12 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {
     buildJsonResponse,
     CatalogValidationError,
-    generateAuthToken,
     startHttpDaemonServer,
-    writeAuthTokenFile,
     type HookHandler,
     type HttpDaemonServerHandle,
     type ToolCatalog,
 } from '@vt/voicetree-mcp'
-import {authTokenFilePath, writeRpcPortFile} from '@vt/vt-rpc'
+import {authTokenFilePath, generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 import {callDaemon, DaemonTimeout, DaemonUnreachable} from './daemon-client.ts'
 

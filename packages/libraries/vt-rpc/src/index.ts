@@ -22,6 +22,11 @@ export {
 } from './authTokenFile.ts'
 
 export {
+    generateAuthToken,
+    writeAuthTokenFile,
+} from './authTokenWrite.ts'
+
+export {
     detectVaultFromCwd,
     discoverDaemonEndpoint,
     type DiscoveryOptions,

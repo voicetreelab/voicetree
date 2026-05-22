@@ -4,17 +4,15 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
-    generateAuthToken,
     handleHookEventRequest,
     registerChildIfMonitored,
     startHttpDaemonServer,
     startVaultStateWatcher,
-    writeAuthTokenFile,
     type HookHandler,
     type HttpDaemonServerHandle,
     type VaultStateWatcherHandle,
 } from '@vt/voicetree-mcp'
-import {writeRpcPortFile} from '@vt/vt-rpc'
+import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {error} from '@/shell/edge/main/cli/output'
 import {emitInvocationStart, setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 import {resolveAppSupportPath} from '@/shell/edge/main/cli/util/appSupportPath'

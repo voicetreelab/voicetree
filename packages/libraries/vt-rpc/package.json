@@ -10,6 +10,7 @@
     "./httpClient": "./src/httpClient.ts",
     "./portFile": "./src/portFile.ts",
     "./authTokenFile": "./src/authTokenFile.ts",
+    "./authTokenWrite": "./src/authTokenWrite.ts",
     "./pathDiscovery": "./src/pathDiscovery.ts",
     "./errorCodes": "./src/errorCodes.ts"
   },

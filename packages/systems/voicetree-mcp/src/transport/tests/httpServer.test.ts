@@ -16,9 +16,10 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import {WebSocket} from 'ws'
 
+import {generateAuthToken} from '@vt/vt-rpc'
+
 import {buildJsonResponse, type McpToolResponse} from '../../tools/toolResponse.ts'
 import {buildAccessLogLine, startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
-import {generateAuthToken} from '../authToken.ts'
 
 const noopHook: HookHandler = (): unknown => ({ok: true})
 

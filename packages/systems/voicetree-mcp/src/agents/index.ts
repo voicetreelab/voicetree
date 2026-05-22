@@ -24,7 +24,6 @@ export type {
 } from '../transport/httpServer'
 export {buildDefaultToolCatalog} from '../transport/toolCatalog'
 export {TOOL_CATALOG, CatalogValidationError, type CatalogEntry, type CatalogHandler} from '../tools/catalog'
-export {generateAuthToken, writeAuthTokenFile} from '../transport/authToken'
 export {
     createEventSubscriptionHub,
     ALLOWED_TOPICS,
