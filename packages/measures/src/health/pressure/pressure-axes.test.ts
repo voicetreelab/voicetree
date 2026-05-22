@@ -1,13 +1,13 @@
 import {execSync} from 'node:child_process'
-import {readdir, readFile, stat} from 'node:fs/promises'
+import {readFile} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
-import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
-const TEST_DIR = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
+const REPO_ROOT = DEFAULT_REPO_ROOT
 const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
 const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
@@ -106,12 +106,6 @@ const PRESSURE_AXIS_CONFIGS = [
 
 type PressureAxisConfig = typeof PRESSURE_AXIS_CONFIGS[number]
 
-type SystemPackage = {
-    readonly name: string
-    readonly dirName: string
-    readonly srcRoot: string
-}
-
 type SystemFile = {
     readonly absolutePath: string
     readonly relativePath: string
@@ -179,47 +173,9 @@ type LegacyPressureReport = {
     }
 }
 
-async function pathExists(path: string): Promise<boolean> {
-    try {
-        await stat(path)
-        return true
-    } catch {
-        return false
-    }
-}
-
-async function discoverSystemPackages(): Promise<SystemPackage[]> {
-    const entries = await readdir(SYSTEMS_ROOT, {withFileTypes: true})
-    const packages = await Promise.all(entries.map(async entry => {
-        if (!entry.isDirectory()) return null
-        const packageJsonPath = join(SYSTEMS_ROOT, entry.name, 'package.json')
-        const srcRoot = join(SYSTEMS_ROOT, entry.name, 'src')
-        if (!(await pathExists(packageJsonPath)) || !(await pathExists(srcRoot))) return null
-        const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8')) as {name?: string}
-        if (!packageJson.name) return null
-        return {name: packageJson.name, dirName: entry.name, srcRoot}
-    }))
-    return packages.filter((pkg): pkg is SystemPackage => pkg !== null).sort((a, b) => a.dirName.localeCompare(b.dirName))
-}
-
-function isProductionSource(path: string): boolean {
-    return path.endsWith('.ts')
-        && !path.endsWith('.test.ts')
-        && !path.endsWith('.spec.ts')
-        && !path.endsWith('.d.ts')
-        && !path.includes('/__tests__/')
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && isProductionSource(path)) return [path]
-        return []
-    }))
-    return nested.flat().sort()
+async function discoverSystemPackages(): Promise<readonly PackageInfo[]> {
+    const all = await discoverPackages(REPO_ROOT)
+    return all.filter(pkg => pkg.absDir.startsWith(`${SYSTEMS_ROOT}/`))
 }
 
 function subdirectoryOf(absolutePath: string, srcRoot: string): string {
@@ -263,7 +219,7 @@ function resolveFileCandidate(basePath: string, knownFiles: ReadonlySet<string>)
 function resolveSpecifier(
     fromAbsPath: string,
     specifier: string,
-    packagesByNpmName: ReadonlyMap<string, SystemPackage>,
+    packagesByNpmName: ReadonlyMap<string, PackageInfo>,
     knownFiles: ReadonlySet<string>,
 ): string | null {
     if (specifier.startsWith('.')) return resolveFileCandidate(join(dirname(fromAbsPath), specifier), knownFiles)
@@ -291,18 +247,27 @@ function collectRuntimeSymbols(declaration: {isTypeOnly: boolean; text: string})
         .filter(Boolean)
 }
 
-async function buildSystemGraph(packages: readonly SystemPackage[]): Promise<SystemGraph> {
-    const files: SystemFile[] = []
-    for (const pkg of packages) {
-        const paths = await listProductionSources(pkg.srcRoot)
-        files.push(...paths.map(absolutePath => ({
-            absolutePath: resolve(absolutePath),
-            relativePath: relative(REPO_ROOT, absolutePath),
-            packageName: pkg.dirName,
+async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<SystemGraph> {
+    const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
+    const packagesByDirName = new Map(packages.map(pkg => [pkg.dirName, pkg]))
+    const filesByPkg = new Map<string, SystemFile[]>()
+    for (const sf of sourceFiles) {
+        const pkg = packagesByDirName.get(sf.packageName)
+        if (!pkg) continue
+        const bucket = filesByPkg.get(sf.packageName) ?? []
+        bucket.push({
+            absolutePath: sf.absolutePath,
+            relativePath: sf.relativePath,
+            packageName: sf.packageName,
             npmName: pkg.name,
-            subdirectory: subdirectoryOf(resolve(absolutePath), pkg.srcRoot),
-        })))
+            subdirectory: subdirectoryOf(sf.absolutePath, pkg.srcRoot),
+        })
+        filesByPkg.set(sf.packageName, bucket)
     }
+    const files: SystemFile[] = packages.flatMap(pkg => {
+        const bucket = filesByPkg.get(pkg.dirName) ?? []
+        return [...bucket].sort((a, b) => a.absolutePath < b.absolutePath ? -1 : a.absolutePath > b.absolutePath ? 1 : 0)
+    })
 
     const filesByPath = new Map(files.map(file => [file.absolutePath, file]))
     const knownFiles = new Set(filesByPath.keys())
