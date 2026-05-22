@@ -5,6 +5,7 @@ export type TerminalManager = ReturnType<typeof agentRuntime.getTerminalManager>
 export type AgentRuntimeConfig = Parameters<typeof agentRuntime.configureAgentRuntime>[0]
 
 export const terminalRuntimeSurface = {
+    attachUnclaimedTmuxSession: agentRuntime.attachUnclaimedTmuxSession,
     closeHeadlessAgent: agentRuntime.closeHeadlessAgent,
     configureAgentRuntime: agentRuntime.configureAgentRuntime,
     dispatchOnNewNodeHooks: agentRuntime.dispatchOnNewNodeHooks,
@@ -16,6 +17,8 @@ export const terminalRuntimeSurface = {
     getTerminalRecords: agentRuntime.getTerminalRecords,
     getUnseenNodesForTerminal: agentRuntime.getUnseenNodesForTerminal,
     injectNodesIntoTerminal: agentRuntime.injectNodesIntoTerminal,
+    killUnclaimedTmuxSession: agentRuntime.killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions: agentRuntime.listUnclaimedTmuxSessions,
     reconcileTmuxHeadlessAgents: agentRuntime.reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
     resetAuditRetryCount: agentRuntime.resetAuditRetryCount,

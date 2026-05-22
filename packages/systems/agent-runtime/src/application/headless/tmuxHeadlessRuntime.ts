@@ -16,7 +16,7 @@ import {
     buildTmuxSessionName,
     registerTmuxSessionAlias,
     sendKeys,
-} from '../terminals/tmux-session-manager'
+} from '../terminals/tmux/tmux-session-manager'
 import {reconcileTmuxTerminalRegistry} from '../terminals/terminal-registry'
 import {shellQuote} from '../util/shellQuote.ts'
 import {applyPromptFileToHeadlessSpawn, deletePromptFile, deletePromptFileByPath} from './tmuxPromptFile'
@@ -190,6 +190,41 @@ export async function spawnTmuxBackedTerminal(
     deps.recordTerminalSpawn(terminalId, terminalData)
     deps.writeLog({level: 'info', message: `[headlessAgentManager] ${sessionExists ? 'Rebound to existing' : 'Spawned'} tmux-backed terminal ${terminalId} (pid=${created.pid}) cwd=${cwd ?? 'HOME'} headless=${terminalData.isHeadless}`})
     return created
+}
+
+export async function attachExistingTmuxBackedTerminal(
+    terminalId: TerminalId,
+    terminalData: TerminalData,
+    sessionName: string,
+    env: Record<string, string>,
+    deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
+): Promise<{readonly pid: number}> {
+    const paths = resolveTmuxPaths(terminalId, env)
+    registerTmuxSessionAlias(terminalId, sessionName)
+    if (!(await hasSession(sessionName))) {
+        throw new Error(`Cannot attach ${terminalId}: tmux session ${sessionName} no longer exists`)
+    }
+
+    const pid: number = await getPanePid(sessionName)
+    await pipePaneToFile(sessionName, paths.logPath)
+    const existingMeta: TmuxTerminalMetadata | null = readTmuxMetadata(paths.metadataPath)
+    writeTmuxMetadata(paths.metadataPath, {
+        name: terminalId,
+        status: 'running',
+        pid,
+        session: sessionName,
+        startedAt: existingMeta?.startedAt ?? new Date().toISOString(),
+        logFile: paths.logPath,
+        exitCodeFile: paths.exitCodePath,
+        terminalData,
+    })
+
+    clearTmuxPoll(terminalId)
+    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)
+    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, promptFilePath: null, pollTimer})
+    deps.recordTerminalSpawn(terminalId, terminalData)
+    deps.writeLog({level: 'info', message: `[headlessAgentManager] Attached existing tmux-backed terminal ${terminalId} (pid=${pid}) session=${sessionName}`})
+    return {pid}
 }
 
 export function spawnTmuxHeadlessAgent(
