@@ -159,6 +159,33 @@ describe('updateFloatingEditors', () => {
         expect(editor.getValue()).toBe('Hello world')
     })
 
+    it('appends only the external suffix when an autosave delta includes newer typed prefix', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'user is typi')
+        const externalSuffix = '\n\n## Agent Section\nagent wrote this\n'
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, 'user')),
+            nodeToUpsert: makeNode(nodeId, `user is ${externalSuffix}`),
+        }])
+
+        expect(editor.getValue()).toBe(`user is typi${externalSuffix}`)
+    })
+
+    it('does not append stale typed characters when an autosave echo lags behind the editor', () => {
+        const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
+        const editor = openEditorForNode(nodeId, 'user is typi')
+
+        updateFloatingEditors({} as Core, [{
+            type: 'UpsertNode',
+            previousNode: O.some(makeNode(nodeId, 'user')),
+            nodeToUpsert: makeNode(nodeId, 'user is '),
+        }])
+
+        expect(editor.getValue()).toBe('user is typi')
+    })
+
     it('uses daemon echo normalization when detecting equivalent save echoes', () => {
         const nodeId: NodeIdAndFilePath = 'target.md' as NodeIdAndFilePath
         const editor = openEditorForNode(nodeId, 'Hello\nworld')

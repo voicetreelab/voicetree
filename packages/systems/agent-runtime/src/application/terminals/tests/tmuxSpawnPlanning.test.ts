@@ -6,7 +6,7 @@ import {
     resolvePromptFileWrite,
     resolveTmuxVaultPath,
     withResolvedTmuxVaultPath,
-} from '../tmuxSpawnPlanning';
+} from '../tmux/tmuxSpawnPlanning';
 
 const terminalId = 'Aki' as TerminalId;
 

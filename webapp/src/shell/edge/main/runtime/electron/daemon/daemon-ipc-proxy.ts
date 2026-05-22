@@ -9,11 +9,7 @@ import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
 import { callDaemon } from './graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
-import {
-  getLatestProjectedGraphForSubscription,
-  rememberLatestProjectedGraphForSubscription,
-  subscribeToDaemonSSE,
-} from './daemon-sse-subscription'
+import { subscribeToDaemonSSE } from './daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from './daemon-folder-tree-sync'
 
@@ -51,7 +47,7 @@ function samePan(
 
 function subscribeRendererSessionToDaemon(client: GraphDbClient, sessionId: string): void {
   const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return
 
   subscribeToDaemonSSE(sessionId, client.baseUrl, mainWindow)
 }
@@ -73,6 +69,7 @@ async function createRendererSession(client: GraphDbClient): Promise<string> {
 
 async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
   if (currentRendererSession?.baseUrl === client.baseUrl) {
+    subscribeRendererSessionToDaemon(client, currentRendererSession.sessionId)
     return currentRendererSession.sessionId
   }
 
@@ -215,11 +212,7 @@ export async function getProjectedGraphFromDaemon(): Promise<unknown> {
 export async function getCurrentProjectedGraphFromDaemon(): Promise<ProjectedGraph> {
   return await callDaemon(async (client) => {
     const sessionId: string = await getOrCreateRendererSession(client)
-    const cachedGraph: ProjectedGraph | null = getLatestProjectedGraphForSubscription(client.baseUrl, sessionId)
-    if (cachedGraph) return cachedGraph
-
     const graph: ProjectedGraph = await client.getProjectedGraph(sessionId) as ProjectedGraph
-    rememberLatestProjectedGraphForSubscription(client.baseUrl, sessionId, graph)
     return graph
   })
 }
@@ -246,9 +239,9 @@ export async function postWriteMarkdownFileThroughDaemon(
   absolutePath: string,
   body: string,
   editorId: string,
-): Promise<void> {
-  await callDaemon(async (client) => {
-    await client.writeMarkdownFile(absolutePath, body, editorId)
+): Promise<{ ok: true; absolutePath: string; preservedSuffix: string | null }> {
+  return await callDaemon(async (client) => {
+    return await client.writeMarkdownFile(absolutePath, body, editorId)
   })
 }
 

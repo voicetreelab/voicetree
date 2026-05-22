@@ -1,6 +1,7 @@
 import {spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
-import {shellQuote} from '../util/shellQuote.ts'
+import {appendFileSync, statSync} from 'node:fs'
+import {shellQuote} from '../../util/shellQuote.ts'
 import {
     ensureTmuxLaunchAgent,
     getTmuxBinaryPath,
@@ -13,6 +14,12 @@ const tmuxSessionAliases: Map<string, string> = new Map()
 type TmuxResult = {
     stdout: string
     stderr: string
+}
+
+export type TmuxListedSession = {
+    readonly sessionName: string
+    readonly createdAtSeconds: number
+    readonly panePid: number
 }
 
 async function runTmux(args: string[]): Promise<TmuxResult> {
@@ -52,13 +59,17 @@ function sanitizeTmuxName(name: string): string {
     return safe.length > 80 ? safe.slice(-80) : safe
 }
 
+export function buildTmuxNamespaceHash(namespace: string): string {
+    return createHash('sha1').update(namespace).digest('hex').slice(0, 10)
+}
+
 export function buildTmuxSessionName(name: string, env: Record<string, string> = {}): string {
     const namespace: string | undefined = env.VOICETREE_TMUX_NAMESPACE
         ?? env.VOICETREE_PROJECT_DIR
         ?? env.VOICETREE_VAULT_PATH
     if (!namespace) return name
 
-    const hash: string = createHash('sha1').update(namespace).digest('hex').slice(0, 10)
+    const hash: string = buildTmuxNamespaceHash(namespace)
     return `vt-${hash}-${sanitizeTmuxName(name)}`
 }
 
@@ -113,6 +124,53 @@ export async function hasSession(name: string): Promise<boolean> {
             reject(new Error(`tmux has-session ${sessionName} failed with exit code ${code}: ${stderr}`))
         })
     })
+}
+
+// tmux 3.6a on macOS strips literal tab characters from -F output and replaces
+// them with '_', so any tab-separated format silently collapses fields into one
+// unparsable string. '|' is safe because sanitizeTmuxName rejects it from
+// session names.
+const LIST_SESSIONS_SEPARATOR: string = '|'
+const LIST_SESSIONS_FORMAT: string = `#{session_name}${LIST_SESSIONS_SEPARATOR}#{session_created}${LIST_SESSIONS_SEPARATOR}#{pane_pid}`
+
+export async function listSessions(): Promise<readonly TmuxListedSession[]> {
+    try {
+        const result: TmuxResult = await runTmux([
+            'list-sessions',
+            '-F',
+            LIST_SESSIONS_FORMAT,
+        ])
+        return result.stdout
+            .split('\n')
+            .map((line: string) => line.trim())
+            .filter((line: string) => line.length > 0)
+            .map((line: string): TmuxListedSession => {
+                const [sessionName, createdRaw, panePidRaw] = line.split(LIST_SESSIONS_SEPARATOR)
+                const createdAtSeconds: number = Number(createdRaw)
+                const panePid: number = Number(panePidRaw)
+                if (!sessionName || !Number.isFinite(createdAtSeconds) || !Number.isInteger(panePid)) {
+                    throw new Error(`Unexpected tmux list-sessions output: ${line}`)
+                }
+                return {sessionName, createdAtSeconds, panePid}
+            })
+    } catch (error) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        if (message.includes('no server running') || message.includes('no sessions')) return []
+        throw error
+    }
+}
+
+export async function getSessionEnvironment(name: string): Promise<Record<string, string>> {
+    const sessionName: string = resolveTmuxSessionName(name)
+    const result: TmuxResult = await runTmux(['show-environment', '-t', sessionName])
+    const env: Record<string, string> = {}
+    for (const line of result.stdout.split('\n')) {
+        if (!line || line.startsWith('-')) continue
+        const equalsIndex: number = line.indexOf('=')
+        if (equalsIndex <= 0) continue
+        env[line.slice(0, equalsIndex)] = line.slice(equalsIndex + 1)
+    }
+    return env
 }
 
 // Write raw bytes to the pane's pty. -l (literal) bypasses tmux's key-name

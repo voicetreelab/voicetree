@@ -13,7 +13,7 @@ import {
 } from '../headlessAgentManager'
 import {createTerminalData, type TerminalData, type TerminalId} from '../../terminals/terminal-registry/types'
 import {clearTerminalRecords, getTerminalRecords} from '../../terminals/terminal-registry'
-import {hasSession, killSession} from '../../terminals/tmux-session-manager'
+import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
 
 type TmuxMetadata = {
     readonly status: 'running' | 'exited'

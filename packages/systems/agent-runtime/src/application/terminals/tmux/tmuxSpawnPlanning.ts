@@ -1,4 +1,4 @@
-import type {TerminalId} from './terminal-registry/types';
+import type {TerminalId} from '../terminal-registry/types';
 
 export type PromptFileWriteRequest = {
     readonly vaultPath: string;

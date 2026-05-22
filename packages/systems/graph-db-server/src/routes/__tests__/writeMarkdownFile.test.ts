@@ -56,7 +56,7 @@ describe('write markdown file route', () => {
     })
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ ok: true, absolutePath: filePath })
+    await expect(response.json()).resolves.toEqual({ ok: true, absolutePath: filePath, preservedSuffix: null })
     await expect(readFile(filePath, 'utf8')).resolves.toBe(
       '---\nposition: {x:1,y:2}\n---\n# New\n\nBody\n',
     )
@@ -98,7 +98,7 @@ describe('write markdown file route', () => {
 
     expect(response.status).toBe(200)
     const indexPath = path.join(folderPath, 'index.md')
-    await expect(response.json()).resolves.toEqual({ ok: true, absolutePath: indexPath })
+    await expect(response.json()).resolves.toEqual({ ok: true, absolutePath: indexPath, preservedSuffix: null })
     await expect(readFile(indexPath, 'utf8')).resolves.toBe('# Folder Index\n')
   })
 })

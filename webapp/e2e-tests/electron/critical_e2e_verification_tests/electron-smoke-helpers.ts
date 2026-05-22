@@ -16,6 +16,7 @@ export const FAKE_AGENT_ENTRYPOINT = path.join(
   "dist",
   "index.js",
 );
+const TMUX_SOCKET_NAME = "tmux.sock";
 
 export type ElectronDiagnostics = {
   mainOutput: string[];
@@ -41,16 +42,32 @@ export interface ExtendedWindow {
   electronAPI?: SmokeElectronAPI;
 }
 
-export function resolveTmuxSessionNameForTest(terminalId: string): string {
-  const matches = resolveTmuxSessionNamesForTest(terminalId);
+export function tmuxCommandArgsForTest(
+  args: readonly string[],
+  appSupportPath?: string,
+): string[] {
+  if (!appSupportPath) return [...args];
+  return ["-S", path.join(appSupportPath, TMUX_SOCKET_NAME), ...args];
+}
+
+export function resolveTmuxSessionNameForTest(
+  terminalId: string,
+  appSupportPath?: string,
+): string {
+  const matches = resolveTmuxSessionNamesForTest(terminalId, appSupportPath);
   return matches.at(-1) ?? terminalId;
 }
 
-export function resolveTmuxSessionNamesForTest(terminalId: string): string[] {
+export function resolveTmuxSessionNamesForTest(
+  terminalId: string,
+  appSupportPath?: string,
+): string[] {
   try {
-    const sessions = execFileSync("tmux", ["list-sessions", "-F", "#S"], {
-      encoding: "utf8",
-    })
+    const sessions = execFileSync(
+      "tmux",
+      tmuxCommandArgsForTest(["list-sessions", "-F", "#S"], appSupportPath),
+      { encoding: "utf8" },
+    )
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);

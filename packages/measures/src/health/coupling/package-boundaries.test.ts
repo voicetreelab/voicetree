@@ -20,7 +20,11 @@ const SCANNED_PACKAGE_NAMES: readonly string[] = [
 // full DI refactor would re-thread vaultLifecycle through every HTTP route and webapp
 // composition site (>3 files touched per the escalation trigger), so the team agreed to
 // accept the bump and revisit when the daemon's composition root is restructured.
-const MODULE_MUTABLE_STATE_BASELINE = 47
+// 2026-05-21: Bumped 47 → 48 for writeMarkdownFile.ts's lastEditorBodyByTargetAndEditor
+// cache, needed to preserve external SSE appends across focused-editor autosaves
+// (tier2-editor-typing-order-regression-fixed.md). Same architectural reason as
+// BF-267 — full DI would re-thread through every HTTP route.
+const MODULE_MUTABLE_STATE_BASELINE = 48
 const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
