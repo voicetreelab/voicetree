@@ -12,6 +12,7 @@
 
 import {spawn, type ChildProcess} from 'node:child_process'
 import {access, mkdir, mkdtemp, readFile, rm, stat} from 'node:fs/promises'
+import {createRequire} from 'node:module'
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -21,12 +22,21 @@ import {GraphDbClient} from '@vt/graph-db-client'
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
-const TSX_BIN: string = join(REPO_ROOT, 'node_modules/.bin/tsx')
+// Resolve the tsx CLI through Node's own module lookup. The worktree layout
+// keeps the bulk of dependencies in the main repo's node_modules and only
+// symlinks a tiny .bin subset under webapp/node_modules, so a hardcoded
+// node_modules/.bin/tsx path is unreliable here.
+const TSX_REQUIRE = createRequire(import.meta.url)
+const TSX_PACKAGE_DIR: string = dirname(TSX_REQUIRE.resolve('tsx/package.json'))
+const TSX_CLI_PATH: string = join(TSX_PACKAGE_DIR, 'dist', 'cli.mjs')
+const NODE_BIN: string = process.execPath
 const WEBAPP_TSCONFIG: string = join(REPO_ROOT, 'webapp/tsconfig.json')
 // Force ensureDaemon to spawn from source rather than the (often stale)
 // dist/vt-graphd.mjs bundle, so the test always exercises current daemon code.
 const GRAPHD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/graph-db-server/bin/vt-graphd.ts')
-const VT_GRAPHD_BIN_OVERRIDE: string = `${TSX_BIN} ${GRAPHD_SOURCE_BIN}`
+// `node <tsx-cli> <script>` is the worktree-portable equivalent of running
+// `tsx <script>` directly — see TSX_CLI_PATH derivation above.
+const VT_GRAPHD_BIN_OVERRIDE: string = `${NODE_BIN} ${TSX_CLI_PATH} ${GRAPHD_SOURCE_BIN}`
 
 const SCENARIO_TIMEOUT_MS: number = 30_000
 const DAEMON_READY_TIMEOUT_MS: number = 10_000
@@ -78,11 +88,15 @@ function spawnCli(
     opts: SpawnOptions = {},
 ): Promise<SpawnResult> {
     return new Promise<SpawnResult>((resolvePromise, rejectPromise) => {
-        const child: ChildProcess = spawn(TSX_BIN, [CLI_ENTRYPOINT, ...args], {
-            cwd: REPO_ROOT,
-            env: buildChildEnv(appSupport, opts.env),
-            stdio: ['ignore', 'pipe', 'pipe'],
-        })
+        const child: ChildProcess = spawn(
+            NODE_BIN,
+            [TSX_CLI_PATH, CLI_ENTRYPOINT, ...args],
+            {
+                cwd: REPO_ROOT,
+                env: buildChildEnv(appSupport, opts.env),
+                stdio: ['ignore', 'pipe', 'pipe'],
+            },
+        )
 
         const stdoutChunks: Buffer[] = []
         const stderrChunks: Buffer[] = []

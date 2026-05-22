@@ -23,15 +23,17 @@ import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-
 import { enableMcpClientIntegrations } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
-import { ensureDaemonProcess, getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
 
-async function loadGraphThroughDaemon(vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
+async function loadGraphThroughDaemon(_vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
+    // Post BF-345: there is no vaultless daemon fallback. Callers that need a
+    // graph must open a vault first; until then this hook returns Left so
+    // graph-state surfaces a clean "no vault" error instead of implicitly
+    // spawning a daemon (the cause of the May 22 vaultless fork storm).
     const activeClient = getActiveDaemonClient()
-    const client = activeClient ?? (vaultPaths[0] ? (await ensureDaemonProcess()).client : null)
-
-    return client
-        ? E.right(await getNormalizedDaemonGraph(client))
+    return activeClient
+        ? E.right(await getNormalizedDaemonGraph(activeClient))
         : E.left(new Error('No daemon client available for graph load'))
 }
 
