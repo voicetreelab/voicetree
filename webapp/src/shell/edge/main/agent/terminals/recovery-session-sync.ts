@@ -27,11 +27,24 @@ export async function refreshRecoverySessions(): Promise<readonly RecoverableAge
     }
 }
 
+function safeCaptureNativeSessions(): void {
+    // Opportunistic capture of recovery.native.sessionId for live Claude/Codex
+    // terminals whose metadata still lacks the handle. Eventually consistent on
+    // the same poll cadence as discovery; no new timer or lifecycle hook.
+    try {
+        terminalRuntimeSurface.captureMissingNativeSessions()
+    } catch (error) {
+        console.warn('[recovery-session-sync] captureMissingNativeSessions failed:', error)
+    }
+}
+
 export function startRecoverySessionPolling(): void {
     if (pollTimer) return
     void refreshRecoverySessions().catch(() => undefined)
+    safeCaptureNativeSessions()
     pollTimer = setInterval(() => {
         void refreshRecoverySessions().catch(() => undefined)
+        safeCaptureNativeSessions()
     }, RECOVERY_POLL_INTERVAL_MS)
 }
 

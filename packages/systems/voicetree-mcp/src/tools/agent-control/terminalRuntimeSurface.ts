@@ -21,6 +21,7 @@ export const terminalRuntimeSurface = {
     listUnclaimedTmuxSessions: agentRuntime.listUnclaimedTmuxSessions,
     discoverRecoverableAgentSessions: agentRuntime.discoverRecoverableAgentSessions,
     resumePersistedAgentSession: agentRuntime.resumePersistedAgentSession,
+    captureMissingNativeSessions: agentRuntime.captureMissingNativeSessions,
     reconcileTmuxHeadlessAgents: agentRuntime.reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry: agentRuntime.removeTerminalFromRegistry,
     resetAuditRetryCount: agentRuntime.resetAuditRetryCount,
