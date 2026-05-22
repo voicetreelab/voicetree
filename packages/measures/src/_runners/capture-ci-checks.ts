@@ -3,13 +3,12 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected: every non-test `.ts` file under `packages/measures/src/`
-// (excluding `_*.ts`, except `health/_all.check.ts`) is dynamically imported and must export `check: CheckDef`.
-// Adding a new check = drop a new .ts file anywhere in that tree.
+// Measure inventory is auto-detected from the tiered `checks/` tree. Legacy
+// folder filtering still walks the wider measures tree until Phase 3 removes it.
 
 import {spawn} from 'node:child_process'
 import {mkdir, mkdtemp, readdir, readFile, rm} from 'node:fs/promises'
-import {tmpdir} from 'node:os'
+import {availableParallelism, tmpdir} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
@@ -22,6 +21,7 @@ const CHECKS_DIR = join(MEASURES_DIR, 'checks')
 const MAX_TIER = 3
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
 // ── Auto-detected measure inventory ──────────────────────────────────────────
 
@@ -53,8 +53,12 @@ async function loadChecks(opts) {
     return checks
 }
 
-async function discoverMeasureFilesForOpts({tierMax}) {
-    if (tierMax === null) return discoverMeasureFiles()
+async function discoverMeasureFilesForOpts({tierMax, folder}) {
+    if (tierMax === null && folder !== null) return discoverMeasureFiles()
+    return discoverScheduledMeasureFiles(tierMax ?? MAX_TIER)
+}
+
+async function discoverScheduledMeasureFiles(tierMax) {
     const tierDirs = Array.from({length: tierMax + 1}, (_, tier) => join(CHECKS_DIR, `tier_${tier}`))
     return (await Promise.all(tierDirs.map(discoverMeasureFilesIfPresent))).flat()
 }
@@ -131,7 +135,7 @@ function printHelp(checks) {
         '  --sequential      run checks sequentially; continue through failures.',
         '  --fail-fast       run sequentially; stop scheduling after the first fail.',
         '',
-        'Eligible checks run in parallel unless --sequential or --fail-fast is set.',
+        'Eligible checks run in a bounded parallel pool unless --sequential or --fail-fast is set.',
         '',
         'Check ids:',
         ...checks.map(c => `  ${c.id.padEnd(32)} ${c.category.padEnd(11)} ${c.measurePath}`),
@@ -355,27 +359,76 @@ async function runCheck(check) {
     }
 }
 
-async function runChecksInParallel(checks, opts) {
-    const shouldRunExclusively = check => check.category === 'Integration' || check.exclusive === true
-    const parallelChecks = checks.filter(check => !shouldRunExclusively(check))
-    const exclusiveChecks = checks.filter(shouldRunExclusively)
-    const parallelResults = await Promise.all(parallelChecks.map(async check => ({
+function checkPhase(check) {
+    const phase = check.phase ?? 'parallel'
+    if (phase !== 'parallel' && phase !== 'isolated') {
+        throw new Error(`check ${check.id} has unsupported phase: ${phase}`)
+    }
+    return phase
+}
+
+function partitionChecksByPhase(checks) {
+    const phases = {parallel: [], isolated: []}
+    for (const check of checks) {
+        phases[checkPhase(check)].push(check)
+    }
+    return phases
+}
+
+function shouldRunExclusivelyWithinParallelPhase(check) {
+    return check.category === 'Integration' || check.exclusive === true
+}
+
+async function runCheckWithSkip(check, opts) {
+    return {
         check,
         outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
-    })))
+    }
+}
+
+async function runChecksWithConcurrency(checks, opts, concurrency = DEFAULT_PARALLELISM) {
+    if (checks.length === 0) return []
+    const results = Array(checks.length)
+    let nextIndex = 0
+    const workerCount = Math.min(Math.max(1, concurrency), checks.length)
+    const workers = Array.from({length: workerCount}, async () => {
+        while (nextIndex < checks.length) {
+            const index = nextIndex
+            nextIndex += 1
+            results[index] = await runCheckWithSkip(checks[index], opts)
+        }
+    })
+    await Promise.all(workers)
+    return results
+}
+
+async function runChecksSerially(checks, opts) {
+    const results = []
+    for (const check of checks) {
+        results.push(await runCheckWithSkip(check, opts))
+    }
+    return results
+}
+
+function restoreDiscoveryOrder(checks, unorderedResults) {
+    const byCheck = new Map(unorderedResults.map(result => [result.check, result]))
+    return checks.map(check => {
+        const result = byCheck.get(check)
+        if (!result) throw new Error(`missing runner result for check ${check.id}`)
+        return result
+    })
+}
+
+async function runChecksInParallel(checks, opts) {
+    const {parallel, isolated} = partitionChecksByPhase(checks)
+    const parallelChecks = parallel.filter(check => !shouldRunExclusivelyWithinParallelPhase(check))
+    const exclusiveChecks = parallel.filter(shouldRunExclusivelyWithinParallelPhase)
+    const parallelResults = await runChecksWithConcurrency(parallelChecks, opts)
     // Some checks spawn global OS resources such as tmux sessions or local daemons.
     // Keep their isolation narrow instead of forcing the whole registry sequential.
-    const exclusiveResults = []
-    for (const check of exclusiveChecks) {
-        exclusiveResults.push({
-            check,
-            outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
-        })
-    }
-    return checks.map(check =>
-        parallelResults.find(result => result.check === check)
-        ?? exclusiveResults.find(result => result.check === check),
-    )
+    const exclusiveResults = await runChecksSerially(exclusiveChecks, opts)
+    const isolatedResults = await runChecksSerially(isolated, opts)
+    return restoreDiscoveryOrder(checks, [...parallelResults, ...exclusiveResults, ...isolatedResults])
 }
 
 async function runChecksSequentially(checks, opts) {
