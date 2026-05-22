@@ -43,7 +43,7 @@ function runCommand(command: string, args: readonly string[]): LintResult {
 }
 
 function runRootLint(): LintResult {
-    return runCommand('npm', ['run', 'lint:run'])
+    return runCommand('npm', ['run', 'lint'])
 }
 
 function runEslintFile(relativePath: string): LintResult {

@@ -1,27 +1,21 @@
-name: "PR CI"
+name: Main CI
 
 on:
-  pull_request:
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'knip.config.ts'
-      - 'packages/**'
-      - 'webapp/**'
-      - 'scripts/**'
-      - 'brain'
-      - '.github/workflows/**'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
+  group: main-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  tier-2:
-    name: PR CI / Tier 2
+  full:
+    name: Main CI / Full
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
 
@@ -44,5 +38,5 @@ jobs:
         working-directory: webapp
         run: npx playwright install --with-deps chromium
 
-      - name: Run tier 2 checks
-        run: npm run test:t2
+      - name: Run full scheduled checks
+        run: npm run test:full

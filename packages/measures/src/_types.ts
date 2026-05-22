@@ -13,7 +13,6 @@ export type CheckDef = {
     readonly display: string
     readonly args: (jsonOut: string | null) => readonly string[]
     readonly parser: ParserKind
-    readonly slow?: boolean
     readonly phase?: 'parallel' | 'isolated'
     readonly timeoutMs?: number
     readonly exclusive?: boolean
@@ -23,6 +22,9 @@ export const E2E_TIMEOUT_MS = 30 * 60 * 1000
 
 export const npmRun = (name: string, extras: readonly string[] = []): string[] =>
     ['npm', 'run', name, ...(extras.length ? ['--', ...extras] : [])]
+
+export const npmExec = (...args: string[]): string[] =>
+    ['npm', 'exec', '--', ...args]
 
 export const npmWorkspaceRun = (ws: string, name: string, extras: readonly string[] = []): string[] =>
     ['npm', '--workspace', ws, 'run', name, ...(extras.length ? ['--', ...extras] : [])]

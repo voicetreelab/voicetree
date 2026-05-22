@@ -30,6 +30,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +48,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
-      - name: Codebase health gate
-        run: |
-          npm run measures
-          npm run measures:capture-ci -- --folder=health --quick
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full scheduled checks
+        run: npm run test:full
 
   check-version:
     needs: [test]

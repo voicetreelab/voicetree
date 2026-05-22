@@ -3,8 +3,7 @@
 // and write a CheckReport per check via recordCheckReport(). Pure orchestration —
 // it never patches existing scripts; everything is invoked through spawn().
 //
-// Measure inventory is auto-detected from the tiered `checks/` tree. Legacy
-// folder filtering still walks the wider measures tree until Phase 3 removes it.
+// Measure inventory is auto-detected from the tiered `checks/` tree.
 
 import {spawn} from 'node:child_process'
 import {mkdir, mkdtemp, readdir, readFile, rm} from 'node:fs/promises'
@@ -39,8 +38,7 @@ async function discoverMeasureFiles(dir = MEASURES_DIR) {
 }
 
 async function loadChecks(opts) {
-    const files = (await discoverMeasureFilesForOpts(opts))
-        .filter(file => opts.folder === null || relativePath(relative(MEASURES_DIR, file)).startsWith(`${opts.folder}/`))
+    const files = (await discoverScheduledMeasureFiles(opts.tierMax ?? MAX_TIER))
         .sort((a, b) => relativePath(relative(MEASURES_DIR, a)).localeCompare(relativePath(relative(MEASURES_DIR, b))))
     const checks = []
     for (const file of files) {
@@ -51,11 +49,6 @@ async function loadChecks(opts) {
         checks.push({...mod.check, measurePath, measureFolder: measureFolderFor(measurePath)})
     }
     return checks
-}
-
-async function discoverMeasureFilesForOpts({tierMax, folder}) {
-    if (tierMax === null && folder !== null) return discoverMeasureFiles()
-    return discoverScheduledMeasureFiles(tierMax ?? MAX_TIER)
 }
 
 async function discoverScheduledMeasureFiles(tierMax) {
@@ -76,13 +69,6 @@ function relativePath(path) {
     return path.split(sep).join('/')
 }
 
-function normalizeMeasureFolder(folder) {
-    if (!folder) return null
-    const normalized = folder.replace(/^packages\/measures\/src\//, '').replace(/^\/+|\/+$/g, '')
-    if (normalized.includes('..')) throw new Error(`measure folder must stay inside packages/measures/src: ${folder}`)
-    return normalized
-}
-
 function parseTierMax(raw, flag) {
     if (!/^\d+$/.test(raw)) throw new Error(`${flag} expects an integer tier from 0 through ${MAX_TIER}`)
     const tierMax = Number(raw)
@@ -101,20 +87,17 @@ function measureFolderFor(measurePath) {
 // ── CLI parsing ──────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-    const opts = {quick: false, failFast: false, sequential: false, only: null, folder: null, tierMax: null, help: false}
+    const opts = {failFast: false, sequential: false, only: null, tierMax: null, help: false}
     for (const arg of argv) {
-        if (arg === '--quick') opts.quick = true
-        else if (arg === '--fail-fast') opts.failFast = true
+        if (arg === '--fail-fast') opts.failFast = true
         else if (arg === '--sequential') opts.sequential = true
         else if (arg === '-h' || arg === '--help') opts.help = true
         else if (arg.startsWith('--only=')) opts.only = new Set(arg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean))
-        else if (arg.startsWith('--folder=')) opts.folder = normalizeMeasureFolder(arg.slice('--folder='.length))
         else if (arg.startsWith('--tier<=')) opts.tierMax = parseTierMax(arg.slice('--tier<='.length), '--tier<=')
         else if (arg.startsWith('--tier-max=')) opts.tierMax = parseTierMax(arg.slice('--tier-max='.length), '--tier-max')
         else if (arg.startsWith('--max-tier=')) opts.tierMax = parseTierMax(arg.slice('--max-tier='.length), '--max-tier')
         else throw new Error(`unknown flag: ${arg}`)
     }
-    if (opts.folder !== null && opts.tierMax !== null) throw new Error('--folder cannot be combined with --tier<=N')
     return opts
 }
 
@@ -123,12 +106,10 @@ function printHelp(checks) {
         'capture-ci-checks — run every locally-runnable CI/CD check and record reports.',
         '',
         'Usage:',
-        '  npm run measures:capture-ci -- [--quick] [--only=id1,id2,...] [--folder=tier_1] [--tier<=N] [--sequential] [--fail-fast]',
+        '  npm run measures:capture-ci -- [--only=id1,id2,...] [--tier<=N] [--sequential] [--fail-fast]',
         '',
         'Flags:',
-        '  --quick           skip checks marked slow:true (Stryker mutation).',
         '  --only=<ids>      run only the listed check ids; others are recorded with status=skip.',
-        '  --folder=<path>   run only checks under packages/measures/src/<path>.',
         '  --tier<=N         run checks under checks/tier_0 through checks/tier_N.',
         '  --tier-max=N      shell-safe alias for --tier<=N.',
         '  --max-tier=N      shell-safe alias for --tier<=N.',
@@ -318,7 +299,6 @@ async function recordOutcome(check, outcome) {
         testsPassed: outcome.testsPassed,
         testsFailed: outcome.testsFailed,
         testsSkipped: outcome.testsSkipped,
-        slow: check.slow,
         errorSummary,
         timestamp: new Date().toISOString(),
         details,
@@ -326,7 +306,7 @@ async function recordOutcome(check, outcome) {
 }
 
 function shouldSkipCheck(check, opts, stopScheduling = false) {
-    return (opts.only && !opts.only.has(check.id)) || (opts.quick && check.slow === true) || stopScheduling
+    return (opts.only && !opts.only.has(check.id)) || stopScheduling
 }
 
 function skippedOutcome() {
@@ -335,7 +315,7 @@ function skippedOutcome() {
 
 function describeScope(opts) {
     if (opts.tierMax !== null) return ` at tier <=${opts.tierMax}`
-    return opts.folder ? ` under packages/measures/src/${opts.folder}` : ''
+    return ''
 }
 
 function failedSpawnOutcome(err) {
