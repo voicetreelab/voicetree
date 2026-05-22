@@ -321,6 +321,13 @@ export default tseslint.config([
   },
   {
     basePath: repoRootDir,
+    files: ['webapp/e2e-tests/electron/for_feature_development_not_LT_verification/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    basePath: repoRootDir,
     files: ['webapp/src/**/integration-tests/**/*.test.{ts,tsx}'],
     plugins: {
       functional
