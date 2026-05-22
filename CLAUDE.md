@@ -11,6 +11,8 @@ functional programming philosophy)
 
 `npm run test` - Runs all important tests
 
+Peer agents are likely working concurrently in this tree, so commit each useful atomic unit of work — don't wait to be asked.
+
 The user is EXTREMELY concerned about code quality, much more so than immediate results.
 
 The user appreciates honestly and they WILL be glad and thankful if you respond a request with "I couldn't complete your request because the repository lacked support for X". They will be even happier if you go ahead and update the repo to provide the necessary support in a well designed, robust way. But they will be VERY ANGRY if, while attempting to implement a feature, you introduce a workaround that will potentially break things later.
