@@ -1,6 +1,6 @@
 import type { RelativePath } from './types'
 import type { Graph, GraphDelta, FSUpdate } from '../graph'
-import { createEmptyGraph } from '../graph/createGraph'
+import { createEmptyGraph } from '../graph/construction/createGraph'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '../graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
 import { applyGraphDeltaToGraph } from '../graph/graphDelta/applyGraphDeltaToGraph'
 

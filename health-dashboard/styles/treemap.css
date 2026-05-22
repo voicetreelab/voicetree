@@ -1,0 +1,238 @@
+/* treemap — treemap-section, tm-canvas, tm-svg, tm-tooltip, tm-legend */
+/* =============================================================================
+   TREEMAP
+   ========================================================================== */
+.treemap-section { margin-bottom: 2.6rem; position: relative; }
+.treemap-section .category-header { align-items: center; }
+
+.tm-mode {
+  display: inline-flex;
+  gap: 0.3rem;
+  margin-left: 0.6rem;
+}
+.tm-mode-btn {
+  background: transparent;
+  color: var(--paper-muted);
+  border: 1px solid var(--rule-strong);
+  padding: 0.22rem 0.65rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.tm-mode-btn:hover { color: var(--paper); border-color: var(--paper-muted); }
+.tm-mode-btn.is-active {
+  color: var(--ink-0);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.tm-help {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--paper-muted);
+  margin-bottom: 0.85rem;
+  max-width: 78ch;
+}
+.tm-help strong { color: var(--paper); font-weight: 600; }
+
+.tm-canvas {
+  position: relative;
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  aspect-ratio: 16 / 9;
+  min-height: 540px;
+  overflow: hidden;
+}
+.tm-canvas::before {
+  content: '◣';
+  position: absolute;
+  top: 0.6rem;
+  left: 0.7rem;
+  font-size: 0.6rem;
+  color: var(--paper-ghost);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tm-svg { width: 100%; height: 100%; display: block; }
+
+rect.tm-cat-bg     { fill: var(--ink-1); stroke: none; }
+rect.tm-cat-frame  { fill: none; stroke: var(--ink-0); stroke-width: 3.5; pointer-events: none; }
+rect.tm-cat-frame.is-fail { stroke: var(--sig); }
+rect.tm-sub-frame  { fill: none; stroke: var(--ink-0); stroke-width: 2; pointer-events: none; }
+rect.tm-sub-frame.is-fail { stroke: var(--sig); }
+
+rect.tm-leaf-rect {
+  stroke: var(--ink-0);
+  stroke-width: 0.75;
+  cursor: default;
+  transition: filter 0.12s;
+}
+.tm-leaf:hover rect.tm-leaf-rect {
+  filter: brightness(1.35);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+text.tm-cat-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  fill: var(--paper);
+  pointer-events: none;
+  letter-spacing: -0.005em;
+}
+text.tm-cat-meta {
+  font-family: var(--mono);
+  font-size: 9px;
+  fill: var(--paper-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+text.tm-sub-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--paper);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  pointer-events: none;
+}
+text.tm-sub-meta {
+  font-family: var(--mono);
+  font-size: 8px;
+  fill: var(--paper-muted);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+text.tm-leaf-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--ink-0);
+  letter-spacing: 0.01em;
+  font-weight: 500;
+  pointer-events: none;
+}
+text.tm-leaf-meta {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  fill: rgba(12, 10, 6, 0.7);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.tm-leaf.is-gate text.tm-leaf-label,
+.tm-leaf.is-gate text.tm-leaf-meta { fill: var(--paper-muted); }
+
+.tm-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 0.6rem 0.75rem;
+  background: var(--ink-0);
+  border: 1px solid var(--rule-strong);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--paper);
+}
+.tm-tooltip[hidden] { display: none; }
+.tm-tt-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--rule-soft);
+}
+.tm-tt-status {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.08rem 0.4rem;
+  border: 1px solid var(--rule-strong);
+}
+.tm-tt-status.tm-status-fail      { color: var(--sig);     border-color: var(--sig-edge);     background: var(--sig-soft); }
+.tm-tt-status.tm-status-caution   { color: var(--caution); border-color: var(--caution-edge); background: var(--caution-soft); }
+.tm-tt-status.tm-status-pass      { color: var(--vital);   border-color: var(--vital-edge);   background: var(--vital-soft); }
+.tm-tt-status.tm-status-gate-pass { color: var(--paper-muted); border-color: var(--rule-strong); }
+.tm-tt-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: -0.005em;
+  flex: 1;
+}
+.tm-tt-row {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 0.5rem;
+}
+.tm-tt-lbl {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
+}
+.tm-tt-val {
+  font-family: var(--mono);
+  color: var(--paper);
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.tm-tt-id {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--rule-soft);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--paper-ghost);
+  letter-spacing: 0.02em;
+}
+.tm-tooltip:has(.tm-tt-status.tm-status-fail)    { border-color: var(--sig-edge); }
+.tm-tooltip:has(.tm-tt-status.tm-status-caution) { border-color: var(--caution-edge); }
+
+.tm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding: 0.7rem 0 0;
+  margin-top: 0.4rem;
+  border-top: 1px dashed var(--rule-soft);
+}
+.tm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--paper-faint);
+  letter-spacing: 0.06em;
+}
+.tm-swatch {
+  width: 56px;
+  height: 8px;
+  display: inline-block;
+  border: 1px solid var(--rule);
+}
+.tm-legend-fail    .tm-swatch { background: linear-gradient(90deg, #5e1a14, #ff4438); }
+.tm-legend-caution .tm-swatch { background: linear-gradient(90deg, #5a3f12, #f5b04a); }
+.tm-legend-pass    .tm-swatch { background: linear-gradient(90deg, #2c4416, #9ce363); }
+.tm-legend-gate    .tm-swatch { background: var(--paper-ghost); }
+
+@media (max-width: 720px) {
+  .tm-canvas { min-height: 420px; aspect-ratio: auto; height: 420px; }
+  .tm-mode-btn { font-size: 0.6rem; padding: 0.18rem 0.5rem; }
+}
+

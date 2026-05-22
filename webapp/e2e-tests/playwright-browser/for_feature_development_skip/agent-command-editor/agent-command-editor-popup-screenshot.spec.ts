@@ -33,7 +33,7 @@ test.describe('Agent Command Editor Popup Screenshot', () => {
     // Import and call showAgentCommandEditor directly from the app
     const dialogPromise = page.evaluate(async () => {
       // Dynamic import of the popup module
-      const module = await import('/src/shell/edge/UI-edge/graph/agentCommandEditorPopup.ts' as string);
+      const module = await import('/src/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup.ts' as string);
 
       // Show the popup with a sample Claude command (no quotes to avoid HTML escaping issues)
       // Don't await - we want to interact with it while it's open
@@ -76,7 +76,7 @@ test.describe('Agent Command Editor Popup Screenshot', () => {
   test('should allow editing command and return modified value on Run click', async ({ page }) => {
     // Create a promise to capture the result
     const resultPromise = page.evaluate(async () => {
-      const module = await import('/src/shell/edge/UI-edge/graph/agentCommandEditorPopup.ts' as string);
+      const module = await import('/src/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup.ts' as string);
       return module.showAgentCommandEditor('claude test command');
     });
 
@@ -100,7 +100,7 @@ test.describe('Agent Command Editor Popup Screenshot', () => {
   test('should add auto-run flag when button clicked', async ({ page }) => {
     // Show popup
     void page.evaluate(async () => {
-      const module = await import('/src/shell/edge/UI-edge/graph/agentCommandEditorPopup.ts' as string);
+      const module = await import('/src/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup.ts' as string);
       void module.showAgentCommandEditor('claude test');
     });
 
@@ -129,7 +129,7 @@ test.describe('Agent Command Editor Popup Screenshot', () => {
   test('should disable auto-run button when flag already present', async ({ page }) => {
     // Show popup with command that already has the flag
     void page.evaluate(async () => {
-      const module = await import('/src/shell/edge/UI-edge/graph/agentCommandEditorPopup.ts' as string);
+      const module = await import('/src/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup.ts' as string);
       void module.showAgentCommandEditor('claude --dangerously-skip-permissions test');
     });
 
@@ -148,7 +148,7 @@ test.describe('Agent Command Editor Popup Screenshot', () => {
   test('should return null when Cancel is clicked', async ({ page }) => {
     // Create a promise to capture the result
     const resultPromise = page.evaluate(async () => {
-      const module = await import('/src/shell/edge/UI-edge/graph/agentCommandEditorPopup.ts' as string);
+      const module = await import('/src/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup.ts' as string);
       return module.showAgentCommandEditor('claude test');
     });
 

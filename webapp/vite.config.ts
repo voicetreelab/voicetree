@@ -5,6 +5,10 @@ import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 import path from "path";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const ciCheckReporter = require.resolve("@vt/ci-reporting/vitest-reporter");
 
 /**
  * Vite configuration for browser-only dev (npm run dev) and Vitest
@@ -80,6 +84,11 @@ export default defineConfig({
     exclude: ["node_modules/**", "dist/**", "e2e-tests/**"],
     reporters: [
       ['default', {summary: false, verbose: false}],
+      [ciCheckReporter, {
+        checkId: 'webapp-unit',
+        checkName: 'Webapp Unit (vitest)',
+        command: 'npm --workspace webapp exec -- vitest run',
+      }],
     ],
     silent: true,
     coverage: {

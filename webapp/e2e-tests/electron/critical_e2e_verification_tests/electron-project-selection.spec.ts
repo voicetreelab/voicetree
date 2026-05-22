@@ -30,6 +30,32 @@ interface ExtendedWindow {
     electronAPI?: ElectronAPI;
 }
 
+async function waitForProjectScannerToSettle(page: Page): Promise<void> {
+    await page.locator('text=Scanning for projects').waitFor({ state: 'hidden', timeout: 10000 })
+        .catch(() => {
+            console.log('Project scanner still visible after 10s; continuing with saved project selection');
+        });
+}
+
+async function savedProjectButton(page: Page, projectName: string) {
+    const button = page.getByTestId('saved-project-button').filter({ hasText: projectName }).first();
+    await expect(button).toBeVisible({ timeout: 10000 });
+    return button;
+}
+
+async function clickSavedProject(page: Page, projectName: string): Promise<void> {
+    await page.waitForSelector('text=Recent Projects', { timeout: 10000 });
+    await waitForProjectScannerToSettle(page);
+    const button = await savedProjectButton(page, projectName);
+    await button.evaluate((element: HTMLElement) => element.click());
+}
+
+async function clickBackToProjectSelection(page: Page): Promise<void> {
+    const backButton = page.locator('button[title="Back to project selection"]');
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await backButton.evaluate((element: HTMLElement) => element.click());
+}
+
 // Base test fixture that creates temp directories for testing
 const test = base.extend<{
     testProjectPath: string;
@@ -124,16 +150,22 @@ test.describe('Project Selection Screen E2E', () => {
 
         console.log('✓ Project selection screen title visible');
 
-        // Should show empty state since no projects are saved
+        // On first launch the screen is in one of four valid states:
+        // 1. "No projects yet" – scanner hasn't found anything yet
+        // 2. "Scanning for projects" – scanner still running
+        // 3. "Recent Projects" – scanner already completed (common in CI where git repos exist)
+        // 4. "Discovered Projects" – scanner found local projects before any are saved
         const emptyStateVisible = await appWindow.locator('text=No projects yet').isVisible()
             .catch(() => false);
-
-        // Or it might be scanning already
         const scanningVisible = await appWindow.locator('text=Scanning for projects').isVisible()
             .catch(() => false);
+        const recentProjectsVisible = await appWindow.locator('text=Recent Projects').isVisible()
+            .catch(() => false);
+        const discoveredProjectsVisible = await appWindow.locator('text=Discovered Projects').isVisible()
+            .catch(() => false);
 
-        expect(emptyStateVisible || scanningVisible).toBe(true);
-        console.log('✓ Empty state or scanning state visible');
+        expect(emptyStateVisible || scanningVisible || recentProjectsVisible || discoveredProjectsVisible).toBe(true);
+        console.log('✓ Project selection content state visible');
 
         // Open existing folder button should be visible
         const browseButton = appWindow.locator('button:has-text("Open existing folder")');
@@ -190,12 +222,11 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Find and click the test project
         const projectName = testProjectPath.split('/').pop() ?? 'test-project';
-        const projectButton = appWindow.locator(`button:has-text("${projectName}")`).first();
-        await expect(projectButton).toBeVisible({ timeout: 5000 });
+        await savedProjectButton(appWindow, projectName);
         console.log('✓ Test project visible in list');
 
         // Click to select the project
-        await projectButton.click();
+        await clickSavedProject(appWindow, projectName);
         console.log('✓ Clicked project to select');
 
         // Wait for graph view to load (cytoscape instance should become available)
@@ -249,15 +280,14 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Select project
         const projectName = testProjectPath.split('/').pop() ?? 'test-project';
-        await appWindow.locator(`button:has-text("${projectName}")`).first().click();
+        await clickSavedProject(appWindow, projectName);
 
         // Wait for graph view
         await pollForCytoscape(appWindow, 15000);
         console.log('✓ In graph view');
 
         // Click back button
-        const backButton = appWindow.locator('button[title="Back to project selection"]');
-        await backButton.click();
+        await clickBackToProjectSelection(appWindow);
         console.log('✓ Clicked back button');
 
         // Wait for project selection screen to reappear
@@ -269,7 +299,7 @@ test.describe('Project Selection Screen E2E', () => {
 
         // Verify the project is still in the list
         await appWindow.waitForSelector('text=Recent Projects', { timeout: 5000 });
-        const projectStillVisible = await appWindow.locator(`button:has-text("${projectName}")`).first().isVisible();
+        const projectStillVisible = await (await savedProjectButton(appWindow, projectName)).isVisible();
         expect(projectStillVisible).toBe(true);
         console.log('✓ Project still in saved list');
 
@@ -336,12 +366,14 @@ test.describe('Project Selection Screen E2E', () => {
             console.log('✓ First app shows Recent Projects');
 
             // Verify project is visible
-            const projectVisibleInApp1 = await window1.locator('button:has-text("persistent-project")').first().isVisible();
+            const projectVisibleInApp1 = await (await savedProjectButton(window1, 'persistent-project')).isVisible();
             expect(projectVisibleInApp1).toBe(true);
             console.log('✓ Project visible in first app instance');
 
-            // Close first app
-            await app1.close();
+            // Close first app. Plain app.close() can hang while background project
+            // scanning is still active, which prevents this restart test from
+            // reaching the second launch.
+            await robustElectronTeardown(app1);
             console.log('✓ Closed first app instance');
 
             // Wait a moment for file system to sync
@@ -374,12 +406,12 @@ test.describe('Project Selection Screen E2E', () => {
             console.log('✓ Second app shows Recent Projects');
 
             // Verify the project is still there
-            const projectVisible = await window2.locator('button:has-text("persistent-project")').first().isVisible();
+            const projectVisible = await (await savedProjectButton(window2, 'persistent-project')).isVisible();
             expect(projectVisible).toBe(true);
             console.log('✓ Project persisted across restart');
 
-            // Cleanup second app
-            await app2.close();
+            // Cleanup second app through the same bounded shutdown path.
+            await robustElectronTeardown(app2);
             console.log('✅ Persistence test passed!');
         } finally {
             // Cleanup temp directories
@@ -450,9 +482,7 @@ test.describe('Watched Folder Panel Regression', () => {
             await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
 
             // Click the project
-            await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-            const projectButton = appWindow.locator('button:has-text("fresh-project")').first();
-            await projectButton.click();
+            await clickSavedProject(appWindow, 'fresh-project');
             console.log('✓ Clicked fresh project');
 
             // Wait for graph
@@ -580,17 +610,28 @@ test.describe('Watched Folder Panel Regression', () => {
 
             await appWindow.waitForLoadState('domcontentloaded');
             await appWindow.waitForSelector('text=Voicetree', { timeout: 10000 });
-            console.log('✓ App launched and project selection screen visible');
+            console.log('✓ App launched');
 
-            // 5. Verify the project appears in Recent Projects
-            await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-            const projectButton = appWindow.locator('button:has-text("existing-config-project")').first();
-            await expect(projectButton).toBeVisible({ timeout: 5000 });
-            console.log('✓ Project visible in Recent Projects');
+            // voicetree-config.json has lastDirectory set, so the app may auto-load before
+            // the project selection screen is shown. Try to detect auto-load first.
+            let graphLoadedViaAutoLoad = false;
+            try {
+                await pollForCytoscape(appWindow, 3000);
+                graphLoadedViaAutoLoad = true;
+                console.log('✓ Graph auto-loaded via lastDirectory config');
+            } catch {
+                // Not auto-loaded — go through project selection
+            }
 
-            // 6. Click to open the project
-            await projectButton.click();
-            console.log('✓ Clicked project to open');
+            if (!graphLoadedViaAutoLoad) {
+                // 5. Verify the project appears in Recent Projects
+                await savedProjectButton(appWindow, 'existing-config-project');
+                console.log('✓ Project visible in Recent Projects');
+
+                // 6. Click to open the project
+                await clickSavedProject(appWindow, 'existing-config-project');
+                console.log('✓ Clicked project to open');
+            }
 
             // 7. Wait for graph view to load
             await pollForCytoscape(appWindow, 15000);
@@ -681,6 +722,7 @@ test.describe('Watched Folder Panel Regression', () => {
         const projectWithoutConfig = path.join(tempProjectPath, 'without-config');
         const voicetreeWithConfig = path.join(projectWithConfig, 'voicetree');
         const voicetreeWithoutConfig = path.join(projectWithoutConfig, 'voicetree');
+        let electronApp: ElectronApplication | undefined;
 
         try {
             // Create both project structures
@@ -739,10 +781,8 @@ test.describe('Watched Folder Panel Regression', () => {
 
             // Helper to check panel visibility
             const checkPanelVisibility = async (appWindow: Page, projectName: string, tempDir: string) => {
-                await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
                 console.log(`[${projectName}] About to click project...`);
-                const projectButton = appWindow.locator(`button:has-text("${projectName}")`).first();
-                await projectButton.click();
+                await clickSavedProject(appWindow, projectName);
                 console.log(`[${projectName}] Clicked, waiting for graph...`);
 
                 await pollForCytoscapeNodes(appWindow, 1, 15000);
@@ -771,8 +811,9 @@ test.describe('Watched Folder Panel Regression', () => {
 
                 // Take screenshot for debugging
                 const screenshotPath = path.join(tempDir, `panel-check-${projectName}.png`);
-                await appWindow.screenshot({ path: screenshotPath });
-                console.log(`[${projectName}] Screenshot saved to: ${screenshotPath}`);
+                await appWindow.screenshot({ path: screenshotPath, timeout: 5000 })
+                    .then(() => console.log(`[${projectName}] Screenshot saved to: ${screenshotPath}`))
+                    .catch(error => console.log(`[${projectName}] Screenshot skipped: ${String(error)}`));
 
                 return {
                     folderNameVisible,
@@ -784,7 +825,7 @@ test.describe('Watched Folder Panel Regression', () => {
             };
 
             // Launch app
-            const electronApp = await electron.launch({
+            electronApp = await electron.launch({
                 args: [
                     ...CI_FLAGS,
                     path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
@@ -814,7 +855,7 @@ test.describe('Watched Folder Panel Regression', () => {
             console.log('Result (with config):', resultWithConfig);
 
             // Go back to project selection
-            await appWindow.locator('button[title="Back to project selection"]').click();
+            await clickBackToProjectSelection(appWindow);
             await appWindow.waitForSelector('text=Select a project to open', { timeout: 10000 });
 
             // Test project WITHOUT existing config
@@ -856,12 +897,17 @@ test.describe('Watched Folder Panel Regression', () => {
 
             console.log('✅ Both project types show watched folder panel correctly!');
 
-            await safeStopFileWatching(electronApp);
-            await robustElectronTeardown(electronApp);
-
         } finally {
-            await fs.rm(tempUserDataPath, { recursive: true, force: true });
-            await fs.rm(tempProjectPath, { recursive: true, force: true });
+            if (electronApp) {
+                await safeStopFileWatching(electronApp).catch(error => {
+                    console.log(`safeStopFileWatching failed during cleanup: ${String(error)}`);
+                });
+                await robustElectronTeardown(electronApp).catch(error => {
+                    console.log(`robustElectronTeardown failed during cleanup: ${String(error)}`);
+                });
+            }
+            await fs.rm(tempUserDataPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+            await fs.rm(tempProjectPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
         }
     });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Graph } from '..'
-import { buildGraphFromFiles } from '../buildGraphFromFiles'
+import { buildGraphFromFiles } from '../construction/buildGraphFromFiles'
 import { getFolderNotePath } from './getFolderNotePath'
 
 function buildTestGraph(files: readonly { readonly absolutePath: string; readonly content: string }[]): Graph {

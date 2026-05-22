@@ -2,30 +2,37 @@
  * Utility functions for displaying keyboard shortcuts with platform-specific symbols
  */
 
-/**
- * Detects if the current platform is macOS
- */
-export function isMacPlatform(): boolean {
-    return typeof process !== 'undefined' && process.platform === 'darwin';
+export type ShortcutPlatform = 'mac' | 'non-mac';
+
+export function platformFromRuntimePlatform(platform: string | undefined): ShortcutPlatform {
+    return /darwin|mac|iphone|ipad|ipod/i.test(platform ?? '') ? 'mac' : 'non-mac';
 }
 
 /**
- * Returns the appropriate modifier key symbol for the current platform
+ * Detects if the explicit shortcut platform is macOS
+ */
+export function isMacPlatform(platform: ShortcutPlatform): boolean {
+    return platform === 'mac';
+}
+
+/**
+ * Returns the appropriate modifier key symbol for the provided platform
  * @returns '⌘' for Mac, 'Ctrl' for Windows/Linux
  */
-export function getModifierSymbol(): string {
-    return isMacPlatform() ? '⌘' : 'Ctrl';
+export function getModifierSymbol(platform: ShortcutPlatform): string {
+    return isMacPlatform(platform) ? '⌘' : 'Ctrl';
 }
 
 /**
  * Formats a keyboard shortcut for display with special key handling
  * @param key - The key (e.g., 'N', 'Enter', 'Backspace', '1', '[', ']')
+ * @param platform - The runtime platform supplied by the UI shell
  * @param modifier - Whether to include the modifier key (default: true)
  * @returns Formatted shortcut string (e.g., '⌘N' on Mac, 'Ctrl+N' on Windows)
  */
-export function formatShortcut(key: string, modifier: boolean = true): string {
-    const isMac = isMacPlatform();
-    const modifierSymbol = getModifierSymbol();
+export function formatShortcut(key: string, platform: ShortcutPlatform, modifier: boolean = true): string {
+    const isMac = isMacPlatform(platform);
+    const modifierSymbol = getModifierSymbol(platform);
     const separator = isMac ? '' : '+';
 
     // Convert special key names to platform-specific symbols
@@ -56,8 +63,8 @@ export function formatShortcut(key: string, modifier: boolean = true): string {
 /**
  * Gets platform-specific symbols for special keys
  */
-export function getSpecialKeySymbol(key: 'backspace' | 'enter' | 'option'): string {
-    const isMac = isMacPlatform();
+export function getSpecialKeySymbol(key: 'backspace' | 'enter' | 'option', platform: ShortcutPlatform): string {
+    const isMac = isMacPlatform(platform);
 
     switch (key) {
         case 'backspace':

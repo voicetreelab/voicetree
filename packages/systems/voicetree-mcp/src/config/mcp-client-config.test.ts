@@ -1,15 +1,22 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { createEmptyGraph } from '@vt/graph-model/graph';
+import { configureMcpServer, type GraphBridge } from './mcp-config';
 import * as mcpClientConfig from './mcp-client-config';
 
 // Hoist testDir so the vi.mock factory can reference it (vi.mock is hoisted above describe)
 const testDir: string = '/tmp/test-voicetree-mcp-opencode';
 
-// Mock the watch folder store
-vi.mock('@vt/graph-db-server/state/watch-folder-store', () => ({
-    getProjectRootWatchedDirectory: vi.fn(() => testDir)
-}));
+function makeGraphBridge(): GraphBridge {
+    return {
+        getGraph: vi.fn(async () => createEmptyGraph()),
+        getVaultPaths: vi.fn(async () => [testDir]),
+        getWritePath: vi.fn(async () => testDir),
+        getProjectRootWatchedDirectory: vi.fn(async () => testDir),
+        applyGraphDelta: vi.fn(async () => undefined),
+    };
+}
 
 describe('mcp-client-config: OpenCode integration', () => {
     const mcpJsonPath: string = path.join(testDir, '.mcp.json');
@@ -17,11 +24,13 @@ describe('mcp-client-config: OpenCode integration', () => {
     const opencodeConfigPath: string = path.join(testDir, 'opencode.jsonc');
 
     // Mock the MCP server port
-    vi.mock('./mcp-server', () => ({
+    vi.mock('../tools/agent-control/mcp-server', () => ({
         getMcpPort: vi.fn(() => 3001)
     }));
 
     beforeEach(async () => {
+        configureMcpServer({graph: makeGraphBridge()});
+
         // Clean up test directory
         try {
             await fs.rm(testDir, { recursive: true, force: true });

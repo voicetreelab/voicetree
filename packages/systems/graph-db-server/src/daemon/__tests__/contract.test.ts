@@ -105,7 +105,7 @@ describe('contract', () => {
     const sample: SessionInfo = {
       id: '550e8400-e29b-41d4-a716-446655440000',
       lastAccessedAt: 42,
-      collapseSetSize: 1,
+      folderStateSize: 1,
       selectionSize: 2,
     }
     const parsed = SessionInfoSchema.parse(sample)
@@ -120,7 +120,7 @@ describe('contract', () => {
       SessionInfoSchema.parse({
         id: '550e8400-e29b-41d4-a716-446655440000',
         lastAccessedAt: -1,
-        collapseSetSize: 0,
+        folderStateSize: 0,
         selectionSize: 0,
       }),
     ).toThrow()

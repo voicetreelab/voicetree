@@ -121,6 +121,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
     vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
     shiftEnterSendsOptionEnter:{ default: true,  section: 'general', label: 'Shift+Enter \u2192 Option+Enter' },
     autoNotifyUnseenNodes:     { default: false, section: 'general', label: 'Auto-notify Unseen Nodes' },
+    notifyOnAgentCompletion:   { default: true,  section: 'general', label: 'Notify on Agent Completion' },
     zoomSensitivity:           { default: 1.0,   section: 'general', label: 'Zoom Sensitivity', number: { min: 0.1, max: 5.0, step: 0.1, slider: true } },
     terminalSpawnPathRelativeToWatchedDirectory: { default: '/', section: 'general', label: 'Terminal Spawn Path' },
     shell:                     { section: 'general', label: 'Shell Override' },
@@ -213,7 +214,7 @@ DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended s
     },
 
     // ── Advanced (default section — no need to specify) ──────────────────
-    contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 20, step: 1 } },
+    contextNodeMaxDistance: { default: 5,   label: 'Context Distance',   number: { min: 1, max: 58, step: 1 } },
     enableSemanticContext:  { default: false, label: 'Semantic Context' },
     contextMaxChars:       { default: 8000, label: 'Context Budget (chars)', number: { min: 2000, max: 100000, step: 2000 } },
     askModeContextDistance: { default: 3,   label: 'Ask Mode Distance',  number: { min: 1, max: 20, step: 1 } },

@@ -1,0 +1,20 @@
+services:
+  voicetree:
+    image: ghcr.io/voicetreelab/voicetree:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: voicetree
+    ports:
+      - "6080:6080"
+    volumes:
+      - vault:/home/vt/vault
+      - claude-config:/home/vt/.config/claude
+    env_file:
+      - .env
+    shm_size: "1gb"
+    restart: unless-stopped
+
+volumes:
+  vault:
+  claude-config:

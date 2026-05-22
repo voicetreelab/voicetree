@@ -18,8 +18,6 @@ export type {
     StateLayout,
     StateMetadata,
     Command,
-    Collapse,
-    Expand,
     Select,
     Deselect,
     AddNode,
@@ -27,8 +25,7 @@ export type {
     AddEdge,
     RemoveEdge,
     Move,
-    LoadRoot,
-    UnloadRoot,
+    SetFolderState,
     SetZoom,
     SetPan,
     SetPositions,
@@ -114,20 +111,6 @@ export type {
 } from './state/layoutStore'
 
 export {
-    getLoadedRoots,
-    isRootLoaded,
-    dispatchLoadRoot,
-    dispatchUnloadRoot,
-    subscribeLoadedRoots,
-    clearLoadedRoots,
-} from './state/loadedRootsStore'
-
-export type {
-    RootsDelta,
-    LoadedRootsSubscriber,
-} from './state/loadedRootsStore'
-
-export {
     ensureTrailingSlash,
     stripTrailingSlash,
 } from './state/folderVisibility/path'
@@ -172,10 +155,6 @@ export {
 export type {
     RootIO,
 } from './rootIO'
-
-export type {
-    SetFolderState,
-} from './apply/folderVisibility'
 
 export type {
     SnapshotDocument,

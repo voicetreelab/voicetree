@@ -1,4 +1,4 @@
-import { applyPositions as applyPositionsImpl } from './applyPositions'
+import { applyPositions as applyPositionsImpl } from './layout/applyPositions'
 import type { Graph } from '..'
 
 // === POSITIONING ===
@@ -6,4 +6,4 @@ import type { Graph } from '..'
 export type ApplyPositions = (graph: Graph) => Graph
 export const applyPositions: ApplyPositions = applyPositionsImpl
 
-export { rebaseNewClusterPositions } from './rebaseNewClusterPositions'
+export { rebaseNewClusterPositions } from './layout/rebaseNewClusterPositions'

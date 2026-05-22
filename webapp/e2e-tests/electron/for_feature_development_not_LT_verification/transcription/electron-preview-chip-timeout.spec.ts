@@ -169,7 +169,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
   ): Promise<boolean> {
     return await page.evaluate(async ({ text, serverEndpoint }) => {
       // Import functions from speech-to-focused module
-      const speechModule = await import('@/shell/edge/UI-edge/floating-windows/speech-to-focused');
+      const speechModule = await import('@/shell/edge/UI-edge/floating-windows/anchoring/speech-to-focused');
       const { getFocusedTarget, showTranscriptionPreview } = speechModule;
 
       const target = getFocusedTarget();
@@ -361,7 +361,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
     // We'll modify the test to use page.exposeFunction for the dismiss handler.
 
     const shown = await appWindow.evaluate(async ({ text, serverEndpoint }) => {
-      const speechModule = await import('@/shell/edge/UI-edge/floating-windows/speech-to-focused');
+      const speechModule = await import('@/shell/edge/UI-edge/floating-windows/anchoring/speech-to-focused');
       const { getFocusedTarget, showTranscriptionPreview } = speechModule;
 
       const target = getFocusedTarget();

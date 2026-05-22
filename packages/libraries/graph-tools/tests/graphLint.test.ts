@@ -12,7 +12,7 @@ import {
     DEFAULT_LINT_CONFIG,
     formatLintReportHuman,
     formatLintReportJson,
-} from '../src/graphLint'
+} from '../src/lint/graphLint'
 import type {
     ContainmentTree,
     ClassifiedEdge,
@@ -20,7 +20,7 @@ import type {
     LintResult,
     GraphLintReport,
     LintConfig,
-} from '../src/graphLint'
+} from '../src/lint/graphLint'
 
 const FIXTURE_ROOT = path.join(
     import.meta.dirname,

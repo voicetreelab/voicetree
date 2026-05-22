@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ClaudeUsage, UsageData } from '@/shell/edge/main/usage/types';
+import type { ClaudeUsage, UsageData } from '@/shell/edge/main/observability/usage/types';
 
 const REFRESH_INTERVAL_MS: number = 60_000;
 
@@ -65,14 +65,35 @@ export function useUsageData(): UseUsageDataReturn {
     return () => { cancelled = true; };
   }, [isElectron, fetchData, refreshClaude]);
 
-  // Keep the cheap fields fresh on an interval (Codex sqlite updates, JSONL
-  // tokens). Headless `/usage` only re-runs on manual refresh.
   useEffect(() => {
     if (!isElectron) return;
-    const intervalId: NodeJS.Timeout = setInterval(() => {
-      void fetchData();
-    }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+
+    let intervalId: NodeJS.Timeout | null = null;
+
+    function startPolling(): void {
+      if (intervalId !== null) clearInterval(intervalId);
+      intervalId = setInterval(() => void fetchData(), REFRESH_INTERVAL_MS);
+    }
+
+    function handleVisibilityChange(): void {
+      if (document.hidden) {
+        if (intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      } else {
+        void fetchData();
+        startPolling();
+      }
+    }
+
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (intervalId !== null) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isElectron, fetchData]);
 
   return { data, isLoading, isClaudeRefreshing, error, refresh: fetchData, refreshClaude };

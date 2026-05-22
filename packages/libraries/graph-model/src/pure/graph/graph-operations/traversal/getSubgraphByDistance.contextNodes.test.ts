@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { getSubgraphByDistance, getUnionSubgraphByDistance } from './getSubgraphByDistance'
 import type { Graph, GraphNode } from '../..'
-import { createGraph } from '../../createGraph'
+import { createGraph } from '../../construction/createGraph'
 import * as O from 'fp-ts/lib/Option.js'
 
 const createTestNode: (id: string, edges?: readonly string[]) => GraphNode = (id: string, edges: readonly string[] = []): GraphNode => ({

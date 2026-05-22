@@ -18,6 +18,15 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
   await page.addInitScript(() => {
     const mockVaultPaths: string[] = ['/mock/watched/directory'];
     let mockWritePath = '/mock/watched/directory';
+    const createEmptyProjectedGraph = () => ({
+      nodes: [],
+      edges: [],
+      rootPath: '',
+      revision: 0,
+      forests: [],
+      arboricity: 0,
+      recentNodeIds: []
+    });
 
     const allFolders: { path: string; modifiedAt: number }[] = [
       { path: '/mock/watched/directory', modifiedAt: Date.now() - 1000 },
@@ -127,6 +136,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         applyGraphDeltaToDBAndMem: async () => ({ success: true }),
         applyGraphDeltaToDBThroughMem: async () => ({ success: true }),
         getGraph: async () => ({ nodes: {}, edges: [] }),
+        getProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         getNode: async () => null,
         loadSettings: async () => ({
           terminalSpawnPathRelativeToWatchedDirectory: '../',
@@ -142,11 +152,40 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         stopFileWatching: async () => ({ success: true }),
         getWatchStatus: async () => ({ isWatching: true, directory: '/mock/watched/directory' }),
         loadPreviousFolder: async () => ({ success: false }),
+        getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock/watched/directory' }),
+        openVault: async (dir: string) => {
+          const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
+          setTimeout(() => {
+            broadcastVaultState();
+            mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
+          }, 10);
+
+          return {
+            sessionId: 'mock-session',
+            writePath: mockWritePath,
+            vaultState: {
+              vaultPath: dir,
+              readPaths: [...mockVaultPaths],
+              writePath: mockWritePath,
+            },
+            initialProjectedGraph: projectedGraph,
+            folderState: [],
+            activeView: {
+              viewId: 'main',
+              name: 'Main',
+            },
+          };
+        },
         getBackendPort: async () => 5001,
         getMetrics: async () => ({ sessions: [] }),
         markFrontendReady: async () => { setTimeout(broadcastVaultState, 10); },
         getLiveStateSnapshot: async () => ({
-          graph: { nodes: [], edges: [] },
+          graph: {
+            nodes: {},
+            incomingEdgesIndex: [],
+            nodeByBaseName: [],
+            unresolvedLinksIndex: [],
+          },
           roots: { loaded: [], folderTree: [{
             name: 'directory',
             absolutePath: '/mock/watched/directory',
@@ -154,11 +193,19 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
             loadState: 'loaded',
             isWriteTarget: true,
           }] },
+          folderState: [],
+          activeView: { viewId: 'main', name: 'Main' },
           collapseSet: [],
           selection: [],
           layout: { positions: [] },
-          meta: { schemaVersion: 1 },
+          meta: { schemaVersion: 1, revision: 0 },
         }),
+        views: {
+          list: async () => [{ viewId: 'main', name: 'Main', isActive: true }],
+          activate: async () => ({ success: true }),
+          clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
+          delete: async () => ({ success: true }),
+        },
         createDatedVoiceTreeFolder: async () => {},
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
         getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
@@ -167,18 +214,18 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         setWritePath: async (path: string) => {
           mockWritePath = path;
           if (!mockVaultPaths.includes(path)) mockVaultPaths.push(path);
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
         addReadPath: async (path: string) => {
           if (!mockVaultPaths.includes(path)) mockVaultPaths.push(path);
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
         removeReadPath: async (path: string) => {
           const index = mockVaultPaths.indexOf(path);
           if (index >= 0) mockVaultPaths.splice(index, 1);
-          setTimeout(broadcastVaultState, 0);
+          broadcastVaultState();
           return { success: true };
         },
         getShowAllPaths: async (): Promise<readonly string[]> => [],
@@ -218,6 +265,10 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       },
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},
+      onVaultSwitching: () => () => {},
+      onVaultReady: () => () => {},
+      onVaultLost: () => () => {},
+      onViewSwitched: () => () => {},
       removeAllListeners: () => {},
       terminal: {
         spawn: async () => ({ success: false }),
@@ -235,8 +286,10 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       graph: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         _graphState: { nodes: {}, edges: [] } as any,
+        _projectedGraph: createEmptyProjectedGraph(),
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
+        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onProjectedGraphUpdate: (callback: (graph: any) => void) => {
           mockElectronAPI.graph._projectedGraphCallback = callback;

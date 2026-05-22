@@ -4,15 +4,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import type { GraphNode } from '@vt/graph-model/graph'
-import {
-    getFolderTreeState,
-    removeCollapsedFolderLocally,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
-import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/VaultPathStore'
-import { resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
-import { O, upsert, applyDeltaToUI } from './applyGraphDeltaToUI.test-utils'
+import type { ProjectedEdge, ProjectedGraph, ProjectedNode } from '@vt/graph-state/contract'
+import { syncVaultStateFromMain } from '@/shell/edge/UI-edge/state/stores/VaultPathStore'
+import { resetTestProjectionState, setTestCollapseSet } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
+import { O, upsert, applyDeltaToUI, applySpecToUI } from './applyGraphDeltaToUI.test-utils'
 
-vi.mock('@/shell/edge/UI-edge/graph/userEngagementPrompts', () => ({
+vi.mock('@/shell/edge/UI-edge/graph/popups/userEngagementPrompts', () => ({
     checkEngagementPrompts: vi.fn()
 }))
 
@@ -26,13 +23,82 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     afterEach(() => {
         cy.destroy()
-        getFolderTreeState().graphCollapsedFolders.forEach((folderId: string) => {
-            removeCollapsedFolderLocally(folderId)
-        })
+        setTestCollapseSet(new Set())
         syncVaultStateFromMain({ readPaths: [], writePath: null, starredFolders: [] })
     })
 
     describe('Edge handling', () => {
+        it('refreshes metadata for existing projected edges', () => {
+            const source: ProjectedNode = {
+                id: '/vault/auth/',
+                kind: 'folder-collapsed',
+                label: 'auth',
+                relPath: 'auth/',
+                basename: 'auth',
+                folderPath: '/vault/',
+                content: '# auth',
+                loadState: 'loaded',
+                isWriteTarget: true,
+                childCount: 4,
+            }
+            const target: ProjectedNode = {
+                id: '/vault/api/gateway.md',
+                kind: 'file',
+                label: 'gateway',
+                relPath: 'api/gateway.md',
+                basename: 'gateway',
+                folderPath: '/vault/api/',
+                content: '# gateway',
+            }
+            const graphWithEdge = (edge: ProjectedEdge): ProjectedGraph => ({
+                nodes: [source, target],
+                edges: [edge],
+                rootPath: '/vault',
+                revision: 1,
+                forests: [],
+                arboricity: 0,
+                recentNodeIds: [],
+            })
+            const edgeBase = {
+                id: 'synthetic:/vault/auth/:out:/vault/api/gateway.md',
+                source: source.id,
+                target: target.id,
+            } as const
+
+            applySpecToUI(cy, graphWithEdge({
+                ...edgeBase,
+                kind: 'synthetic',
+                edgeCount: 2,
+                classes: ['synthetic-folder-edge'],
+            }))
+
+            applySpecToUI(cy, graphWithEdge({
+                ...edgeBase,
+                kind: 'synthetic',
+                edgeCount: 3,
+                classes: ['synthetic-folder-edge', 'updated'],
+            }))
+
+            const updatedEdge: cytoscape.CollectionReturnValue = cy.getElementById(edgeBase.id)
+            expect(updatedEdge.data('kind')).toBe('synthetic')
+            expect(updatedEdge.data('isSyntheticEdge')).toBe(true)
+            expect(updatedEdge.data('edgeCount')).toBe(3)
+            expect(updatedEdge.hasClass('synthetic-folder-edge')).toBe(true)
+            expect(updatedEdge.hasClass('updated')).toBe(true)
+
+            applySpecToUI(cy, graphWithEdge({
+                ...edgeBase,
+                kind: 'real',
+            }))
+
+            const realEdge: cytoscape.CollectionReturnValue = cy.getElementById(edgeBase.id)
+            expect(realEdge.data('kind')).toBe('real')
+            expect(realEdge.data('isSyntheticEdge')).toBeUndefined()
+            expect(realEdge.data('edgeCount')).toBeUndefined()
+            expect(realEdge.hasClass('synthetic-folder-edge')).toBe(false)
+            expect(realEdge.hasClass('updated')).toBe(false)
+        })
+
         it('should not create duplicate edges', () => {
             const parent: GraphNode = {
                 absoluteFilePathIsID: 'parent',

@@ -39,10 +39,3 @@ export function getSpeakerColor(speakerNumber: string | number): string {
 
   return SPEAKER_COLORS[(numericSpeaker - 1) % SPEAKER_COLORS.length];
 }
-
-// Get speaker color as CSS custom property
-function getSpeakerColorCSS(speakerNumber: string | number): string {
-  return `var(--speaker-${speakerNumber}-color, ${getSpeakerColor(
-    speakerNumber
-  )})`;
-}

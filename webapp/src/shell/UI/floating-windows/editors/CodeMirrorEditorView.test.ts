@@ -215,6 +215,55 @@ position:
   });
 });
 
+describe('Autosave debounce', () => {
+  let container: HTMLElement;
+  let editor: CodeMirrorEditorView;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (editor && !editor.isDisposed) {
+      editor.dispose();
+    }
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+  });
+
+  it('emits autosave changes during continuous typing instead of starving until typing stops', async () => {
+    const autosaveDelayMs: number = 150;
+    const maxAutosaveWaitMs: number = 300;
+    const burstDurationMs: number = 1000;
+    const inputCadenceMs: number = 50;
+    const emissions: string[] = [];
+
+    editor = new CodeMirrorEditorView(container, '', { autosaveDelay: autosaveDelayMs });
+    editor.onChange((content: string) => emissions.push(content));
+
+    const contentElement: CodeMirrorElement | null = container.querySelector('.cm-content') as CodeMirrorElement | null;
+    const cmView: CMEditorView | undefined = contentElement?.cmView?.view;
+    expect(cmView).toBeDefined();
+
+    vi.useFakeTimers();
+
+    for (let elapsedMs: number = 0; elapsedMs < burstDurationMs; elapsedMs += inputCadenceMs) {
+      const docLength: number = cmView!.state.doc.length;
+      cmView!.dispatch({
+        changes: { from: docLength, insert: 'x' },
+        selection: { anchor: docLength + 1 },
+        userEvent: 'input.type',
+      });
+      await vi.advanceTimersByTimeAsync(inputCadenceMs);
+    }
+
+    expect(emissions.length).toBeGreaterThanOrEqual(Math.floor(burstDurationMs / maxAutosaveWaitMs) - 1);
+  });
+});
+
 describe('Markdown Table Rendering', () => {
   let container: HTMLElement;
   let editor: CodeMirrorEditorView;

@@ -2,7 +2,7 @@
  * Viewport visibility utilities for checking node visibility within the Cytoscape viewport.
  */
 import type { Core, BoundingBox, BoundingBox12, BoundingBoxWH, NodeCollection } from 'cytoscape';
-import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/spatialIndexSync';
+import { getCurrentIndex } from '@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync';
 import { queryNodesInRect } from '@vt/graph-model/spatial';
 import type { Rect, SpatialIndex, SpatialNodeEntry } from '@vt/graph-model/spatial';
 import { getVisibleViewportExtent } from '@/utils/visibleViewport';
@@ -49,24 +49,4 @@ export function areNodesVisibleInViewport(cy: Core): boolean {
     return !(bb.x2 < extent.x1 || bb.x1 > extent.x2 ||
              bb.y2 < extent.y1 || bb.y1 > extent.y2);
   });
-}
-
-/**
- * Get all non-shadow node IDs visible in the current viewport.
- * Uses R-tree spatial index for O(log n + k) performance.
- * Returns empty array if spatial index is not available.
- */
-function getVisibleNodeIds(cy: Core, spatialIndex: SpatialIndex): string[] {
-  const extent: BoundingBox = getVisibleViewportExtent(cy);
-  const rect: Rect = {
-    minX: extent.x1,
-    minY: extent.y1,
-    maxX: extent.x2,
-    maxY: extent.y2,
-  };
-  const hits: readonly SpatialNodeEntry[] = queryNodesInRect(spatialIndex, rect);
-  // Filter out shadow nodes
-  return hits
-    .filter(entry => !cy.$id(entry.nodeId).data('isShadowNode') && !cy.$id(entry.nodeId).data('isFolderNode'))
-    .map(entry => entry.nodeId);
 }

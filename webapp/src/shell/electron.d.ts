@@ -1,7 +1,7 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
-import type { mainAPI } from '@/shell/edge/main/api';
+import type { mainAPI } from '@/shell/edge/main/runtime/api';
 
 // Re-export TerminalData for use in terminal API
 
@@ -12,7 +12,9 @@ import type { mainAPI } from '@/shell/edge/main/api';
 export type Promisify<T> = {
   [K in keyof T]: T[K] extends (...args: infer A) => infer R
     ? (...args: A) => Promise<Awaited<R>>
-    : T[K];
+    : T[K] extends object
+      ? Promisify<T[K]>
+      : T[K];
 };
 
 export interface WatchStatus {
@@ -28,23 +30,28 @@ export interface ElectronAPI {
 
   // File system event listeners (returns cleanup function)
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => () => void;
+  onVaultSwitching: (callback: (data: { path: string }) => void) => () => void;
+  onVaultReady: (callback: (data: { path: string }) => void) => () => void;
+  onVaultLost: (callback: (data: { path?: string; error?: string; pid?: number | null }) => void) => () => void;
+  onViewSwitched: (callback: (data: { activeViewId: string }) => void) => () => void;
   removeAllListeners: (channel: string) => void;
 
-  // Terminal operations
+  // Terminal operations. Tmux-backed terminals talk to the relay over a
+  // renderer-side WebSocket for input/output; the only IPC needed at spawn
+  // time is session creation. Text injection from non-TerminalVanilla
+  // callers goes through `main.sendTextToTerminal` in mainAPI.
   terminal: {
     spawn: (nodeMetadata?: TerminalData) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
-    write: (terminalId: string, data: string) => Promise<{ success: boolean; error?: string }>;
-    resize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
-    kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
-    onData: (callback: (terminalId: string, data: string) => void) => () => void;
-    onExit: (callback: (terminalId: string, code: number) => void) => () => void;
   };
 
   // Backend log streaming
   onBackendLog: (callback: (log: string) => void) => void;
 
-  // Functional graph API - event listeners only
+  // Functional graph API
   graph: {
+    // Pull the current projected graph after installing live update handlers
+    getCurrentProjectedGraph: () => Promise<ProjectedGraph>;
+
     // Subscribe to projected graph updates from daemon SSE (returns unsubscribe function)
     onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void) => () => void;
 

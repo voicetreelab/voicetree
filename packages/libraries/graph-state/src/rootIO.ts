@@ -18,7 +18,7 @@ export function clearRootIOForTests(): void {
 
 export function getRootIO(): RootIO {
     if (!rootIO) {
-        throw new Error('Root I/O is not configured. Call configureRootIO before using LoadRoot or vault fixture loading.')
+        throw new Error('Root I/O is not configured. Call configureRootIO before using vault fixture loading.')
     }
 
     return rootIO

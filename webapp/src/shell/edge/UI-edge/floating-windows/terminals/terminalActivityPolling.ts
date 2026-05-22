@@ -1,22 +1,26 @@
 /**
  * Terminal Activity Polling - Edge layer module for tracking terminal inactivity
  *
- * Subscribes to terminal data events via IPC and marks terminals as inactive
- * after a period of no output. Uses targeted DOM updates instead of full re-renders
- * to avoid click race conditions caused by DOM destruction mid-click.
+ * Tracks renderer-side terminal output (delivered via the tmux WebSocket
+ * relay) and marks terminals as inactive after a period of no output. Uses
+ * targeted DOM updates instead of full re-renders to avoid click race
+ * conditions caused by DOM destruction mid-click.
+ *
+ * Output notifications come in via `notifyTerminalOutput()` — called from
+ * each TerminalVanilla instance's relay `onData` handler — rather than
+ * through a main-process IPC subscription. The relay client already runs
+ * in the renderer, so a round-trip would be wasteful.
  */
 
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminals, updateTerminalRunningState, getActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
-import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/AgentTabsStore';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { getTerminals, updateTerminalRunningState, getActiveTerminalId } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import { isZoomSuppressed } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
     CHECK_INTERVAL_MS,
     INACTIVITY_THRESHOLD_MS,
     isTerminalInactive,
 } from '@vt/graph-model/agent-tabs';
-import { shouldFlipToActiveOnOutput } from '@vt/agent-runtime/lifecycle/output-transition';
-import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/UIAppState';
-import type {} from '@/shell/electron';
+import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 
 // =============================================================================
@@ -24,7 +28,11 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/termina
 // =============================================================================
 
 let inactivityCheckInterval: ReturnType<typeof setInterval> | null = null;
-let unsubscribeOnData: (() => void) | null = null;
+let visibilityHandler: (() => void) | null = null;
+
+function shouldFlipToActiveOnOutput(lifecycle: TerminalData['lifecycle']): boolean {
+    return lifecycle === 'spawning' || lifecycle === 'idle' || lifecycle === 'awaiting_input';
+}
 
 // =============================================================================
 // Inactivity Checking
@@ -64,40 +72,60 @@ function checkTerminalInactivity(): void {
 // =============================================================================
 
 /**
- * Start polling for terminal activity via IPC events
- * - Subscribes to terminal.onData to detect output
+ * Notify the activity tracker that a terminal received output.
+ * Called from the renderer-side tmux relay client when bytes arrive.
+ *
+ * Updates the store's `lastOutputTime` so the inactivity check can flip
+ * the terminal back to "active" if it had gone quiet, and routes a
+ * lifecycle-aware flip-to-active through main when needed.
+ *
+ * The lifecycle gate consults `lifecycle` — not the legacy `isDone`
+ * boolean — so freshly-spawned terminals (lifecycle='spawning',
+ * isDone=false) transition out of the muted-grey 'spawning' style on
+ * their first output, and so completed/errored terminals don't get
+ * redundant IPC for trailing bytes.
+ */
+export function notifyTerminalOutput(terminalId: TerminalId): void {
+    if (isZoomSuppressed()) return;
+    const terminal: TerminalData | undefined = getTerminals().get(terminalId);
+    if (!terminal) return;
+
+    updateTerminalRunningState(terminalId, { lastOutputTime: Date.now() });
+
+    if (shouldFlipToActiveOnOutput(terminal.lifecycle)) {
+        void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
+    }
+}
+
+/**
+ * Start polling for terminal activity.
  * - Runs periodic check to mark inactive terminals
  * - Uses targeted DOM updates (no full re-render)
+ *
+ * Output-driven flip-to-active is delivered separately via
+ * `notifyTerminalOutput()`, called from each TerminalVanilla instance.
  * @returns cleanup function to stop polling
  */
 export function startTerminalActivityPolling(): () => void {
-    // Subscribe to terminal data events
-    unsubscribeOnData = window.electronAPI?.terminal.onData((terminalId: string, _data: string) => {
-        if (isZoomSuppressed()) {
-            return;
-        }
-        const now: number = Date.now();
-        const terminals: Map<TerminalId, TerminalData> = getTerminals();
-        const terminal: TerminalData | undefined = terminals.get(terminalId as TerminalId);
-        if (!terminal) return;
-
-        // Update local lastOutputTime for inactivity calculation (no IPC, no re-render)
-        updateTerminalRunningState(terminalId as TerminalId, { lastOutputTime: now });
-
-        // Lifecycle-aware flip-to-active. The gate must consult `lifecycle` —
-        // not the legacy `isDone` boolean — so freshly-spawned terminals
-        // (lifecycle='spawning', isDone=false) transition out of the muted-grey
-        // 'spawning' style on their first output, and so completed/errored
-        // terminals don't get redundant IPC for stray PTY bytes.
-        if (shouldFlipToActiveOnOutput(terminal.lifecycle)) {
-            void window.electronAPI?.main.updateTerminalIsDone(terminalId, false);
-        }
-    }) ?? null;
-
     // Start interval to check for inactive terminals
-    inactivityCheckInterval = setInterval(() => {
-        checkTerminalInactivity();
-    }, CHECK_INTERVAL_MS);
+    if (!document.hidden) {
+        inactivityCheckInterval = setInterval(checkTerminalInactivity, CHECK_INTERVAL_MS);
+    }
+
+    visibilityHandler = (): void => {
+        if (document.hidden) {
+            if (inactivityCheckInterval !== null) {
+                clearInterval(inactivityCheckInterval);
+                inactivityCheckInterval = null;
+            }
+        } else {
+            if (inactivityCheckInterval === null) {
+                checkTerminalInactivity();
+                inactivityCheckInterval = setInterval(checkTerminalInactivity, CHECK_INTERVAL_MS);
+            }
+        }
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
 
     // Return cleanup function
     return stopTerminalActivityPolling;
@@ -112,6 +140,8 @@ export function stopTerminalActivityPolling(): void {
         inactivityCheckInterval = null;
     }
 
-    unsubscribeOnData?.();
-    unsubscribeOnData = null;
+    if (visibilityHandler !== null) {
+        document.removeEventListener('visibilitychange', visibilityHandler);
+        visibilityHandler = null;
+    }
 }

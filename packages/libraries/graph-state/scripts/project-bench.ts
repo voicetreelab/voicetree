@@ -38,6 +38,7 @@ function nodePath(index: number): string {
 
 function createNode(nodeId: string, targets: readonly string[]): GraphNode {
     return {
+        kind: 'leaf',
         outgoingEdges: targets.map((targetId, index) => ({
             targetId,
             label: ['links', 'depends-on', 'references'][index] ?? 'links',

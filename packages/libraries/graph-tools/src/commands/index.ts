@@ -1,5 +1,5 @@
-import type { PickOpts } from '../debug/discover'
-import type { Response } from '../debug/Response'
+import type { PickOpts } from '../debug/protocol/discover'
+import type { Response } from '../debug/protocol/Response'
 
 export type Handler = (argv: string[]) => Promise<Response<unknown>>
 

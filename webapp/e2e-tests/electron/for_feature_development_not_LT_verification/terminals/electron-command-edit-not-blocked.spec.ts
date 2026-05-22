@@ -179,7 +179,7 @@ test.describe('Command Edit Not Blocked by Security Validation', () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
 
-            return new Promise<{ success: boolean; terminalId: string; output: string; error?: string }>((resolve, reject) => {
+            return new Promise<{ success: boolean; terminalId: string; output: string; error?: string }>((resolve) => {
                 let output = '';
                 let capturedTerminalId: string | null = null;
                 const timeout = setTimeout(() => {
@@ -299,7 +299,7 @@ test.describe('Command Edit Not Blocked by Security Validation', () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
 
-            return new Promise<{ success: boolean; terminalId: string; output: string; error?: string }>((resolve, reject) => {
+            return new Promise<{ success: boolean; terminalId: string; output: string; error?: string }>((resolve) => {
                 let output = '';
                 let capturedTerminalId: string | null = null;
                 const timeout = setTimeout(() => {

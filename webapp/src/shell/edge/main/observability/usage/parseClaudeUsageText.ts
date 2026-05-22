@@ -1,0 +1,73 @@
+/**
+ * Parse the rendered text of `/usage` (after ANSI strip) into structured
+ * Claude usage data. Pure function — no IO. The shape `/usage` renders is:
+ *
+ *   Opus 4.7 (1M context) · Claude Max
+ *   ...
+ *   Current session
+ *   ███▌  9% used
+ *   Resets 2:10am (Australia/Sydney)
+ *
+ *   Current week (all models)
+ *   █████ 43% used
+ *   Resets May 9 at 6am (Australia/Sydney)
+ *
+ *   Current week (Sonnet only)
+ *   █  2% used
+ *   Resets May 9 at 6am (Australia/Sydney)
+ */
+
+export interface ClaudeUsageWindowParsed {
+  readonly usedPercent: number;
+  readonly resetsAt: string;
+}
+
+export interface ClaudeUsageParsed {
+  readonly planType: string | null;
+  readonly currentSession: ClaudeUsageWindowParsed | null;
+  readonly currentWeek: ClaudeUsageWindowParsed | null;
+  readonly currentWeekSonnet: ClaudeUsageWindowParsed | null;
+}
+
+const ANSI_PATTERN: RegExp = new RegExp(
+  String.raw`\x1B\[[0-9;:?]*[A-Za-z]|\x1B\][^\x07]*\x07|\x1B[()][AB012]|\x1B[=>78cMNDH]`,
+  'g',
+);
+const CONTROL_CHARS: RegExp = new RegExp(String.raw`[\x00-\x08\x0B-\x1F\x7F]`, 'g');
+const PLAN_PATTERN: RegExp = /Claude\s+(Max(?:\s+\d+x)?|Pro(?:\s+X)?|Plus|Team|Enterprise|Free)/i;
+
+function stripAnsi(input: string): string {
+  return input.replace(ANSI_PATTERN, '').replace(CONTROL_CHARS, '');
+}
+
+function extractWindow(text: string, headerPattern: RegExp): ClaudeUsageWindowParsed | null {
+  const headerMatch: RegExpMatchArray | null = text.match(headerPattern);
+  if (!headerMatch || headerMatch.index === undefined) return null;
+  const tail: string = text.slice(headerMatch.index);
+  const percentMatch: RegExpMatchArray | null = tail.match(/(\d{1,3})\s*%\s*used/);
+  if (!percentMatch) return null;
+  const percent: number = parseInt(percentMatch[1], 10);
+  if (!Number.isFinite(percent)) return null;
+
+  const tailAfterPercent: string = tail.slice(
+    (percentMatch.index ?? 0) + percentMatch[0].length,
+  );
+  // Reset times always end in a parenthesised timezone like "(Australia/Sydney)".
+  // Anchor on that closing paren so the match doesn't run past the section.
+  const resetMatch: RegExpMatchArray | null = tailAfterPercent.match(/Resets\s+([^()]*?\([^()]+\))/);
+  const resetsAt: string = resetMatch ? resetMatch[1].replace(/\s+/g, ' ').trim() : '';
+  return { usedPercent: percent, resetsAt };
+}
+
+export function parseClaudeUsageText(rawOutput: string): ClaudeUsageParsed {
+  const cleaned: string = stripAnsi(rawOutput);
+
+  const planMatch: RegExpMatchArray | null = cleaned.match(PLAN_PATTERN);
+  const planType: string | null = planMatch ? planMatch[0].trim() : null;
+
+  const currentSession: ClaudeUsageWindowParsed | null = extractWindow(cleaned, /Current\s+session/i);
+  const currentWeek: ClaudeUsageWindowParsed | null = extractWindow(cleaned, /Current\s+week\s*\(all\s+models\)/i);
+  const currentWeekSonnet: ClaudeUsageWindowParsed | null = extractWindow(cleaned, /Current\s+week\s*\(Sonnet\s+only\)/i);
+
+  return { planType, currentSession, currentWeek, currentWeekSonnet };
+}

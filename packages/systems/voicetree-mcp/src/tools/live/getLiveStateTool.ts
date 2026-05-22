@@ -2,9 +2,9 @@
  * BF-161 · L1-LIVE1 — MCP tool `vt_get_live_state`.
  *
  * Returns the running Electron app's live `@vt/graph-state` State as
- * `SerializedState` JSON so out-of-process consumers (e.g. `vt-graph live
- * view`) can `hydrateState` the payload and project to ASCII / Mermaid —
- * the same data layer the shell renders from.
+ * `SerializedState` JSON, including daemon-owned `folderState` and
+ * `activeView`, so out-of-process consumers can hydrate the same data layer
+ * the shell renders from.
  *
  * State composition is delegated through the graph daemon boundary. Electron
  * main owns renderer session state, then asks vt-graphd for the canonical graph
@@ -14,10 +14,10 @@
  * implementation used by BF-163's CLI live-view adapter.
  */
 import type { SerializedState } from '@vt/graph-state'
-import { getLiveStateBridge } from '../../config/mcp-config'
+import { getLiveStateBridge } from '../mcpConfigDependencies'
 
-import { buildJsonResponse } from '../../core/types'
-import type { McpToolResponse } from '../../core/types'
+import { buildJsonResponse } from '../toolResponse'
+import type { McpToolResponse } from '../toolResponse'
 
 export async function getLiveState(): Promise<SerializedState | null> {
     return await getLiveStateBridge().getLiveStateSnapshot()

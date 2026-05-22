@@ -3,17 +3,17 @@
  * These handle visual feedback and basic interactions.
  */
 import type { Core, NodeSingular, EdgeSingular, CollectionReturnValue, NodeCollection, NodeDefinition } from 'cytoscape';
-import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/StyleService';
+import type { StyleService } from '@/shell/UI/cytoscape-graph-ui/services/styles/StyleService';
 import { CLASS_HOVER, CLASS_CONNECTED_HOVER } from '@/shell/UI/cytoscape-graph-ui/constants';
-import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/RecentlyVisitedStore';
+import { addRecentlyVisited } from '@/shell/edge/UI-edge/state/stores/RecentlyVisitedStore';
 import { highlightContainedNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
-import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/TerminalStore';
+import { setActiveTerminalId } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import { areNodesVisibleInViewport } from '@/utils/viewportVisibility';
 import { showNoVisibleNodesToast, hideNoVisibleNodesToast, isNoVisibleNodesToastShown } from '@/shell/UI/views/components/overlays/noVisibleNodesToast';
 import { cyFitIntoVisibleViewport, getResponsivePadding } from '@/utils/responsivePadding';
 // Import to make Window.electronAPI type available
 import type {} from '@/shell/electron';
-import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/folderCollapse'
+import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse'
 import { dispatchSelect, dispatchDeselect } from '@vt/graph-state/state/selectionStore'
 
 export function setupBasicCytoscapeEventListeners(
@@ -31,6 +31,11 @@ export function setupBasicCytoscapeEventListeners(
     if (!e.target) return;
 
     const node: NodeSingular = e.target;
+
+    // Folder compound nodes are input-inert in the body: no grab cursor, no
+    // auto-select. The corner chip (FolderHandleService) carries the affordances.
+    // Body remains hover-editor eligible via setupCommandHover (separate listener).
+    if (node.data('isFolderNode')) return;
 
     // Show grab cursor to indicate nodes are draggable
     cursorTarget.style.cursor = 'grab';

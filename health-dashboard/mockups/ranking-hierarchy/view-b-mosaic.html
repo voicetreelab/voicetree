@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ranking · B · Mosaic Cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --ink-0:#0c0a06; --ink-1:#15110b; --ink-2:#1d1810; --ink-3:#251d12;
+  --rule:#2c2418; --rule-soft:#1f1810; --rule-strong:#3d3220;
+  --paper:#f4ecda; --paper-muted:#c2b690; --paper-faint:#857a5d; --paper-ghost:#4d4430;
+  --sig:#ff4438; --sig-soft:rgba(255,68,56,.10); --sig-edge:rgba(255,68,56,.34);
+  --vital:#9ce363; --vital-soft:rgba(156,227,99,.10); --vital-edge:rgba(156,227,99,.32);
+  --caution:#f5b04a; --caution-soft:rgba(245,176,74,.10); --caution-edge:rgba(245,176,74,.34);
+  --accent:#f7e3a6;
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);color:var(--paper);background:var(--ink-0);min-height:100vh;
+  background-image:radial-gradient(at 12% 8%,rgba(247,227,166,.025),transparent 40%),radial-gradient(at 88% 92%,rgba(255,68,56,.018),transparent 42%);
+  background-attachment:fixed;line-height:1.5;padding:2.2rem clamp(1.1rem,3vw,2rem) 4rem}
+.wrap{max-width:1320px;margin:0 auto}
+
+/* ── Bulletin header ────────────────────────────────────────── */
+.bulletin{display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:1.4rem;padding-bottom:.9rem;border-bottom:1px solid var(--rule-strong);margin-bottom:1.8rem}
+.bulletin-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-faint)}
+.bulletin h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3vw,2.25rem);line-height:1;color:var(--paper);font-variation-settings:"opsz" 96,"SOFT" 30}
+.bulletin h1 em{font-style:italic;color:var(--accent);font-weight:300}
+.bulletin .right{font-family:var(--mono);font-size:.7rem;color:var(--paper-muted);text-align:right;letter-spacing:.04em}
+.bulletin .right b{color:var(--paper);font-weight:500}
+.bulletin .right .fail-tally{color:var(--sig)}
+
+/* ── Section head ───────────────────────────────────────────── */
+.section-head{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:.9rem;margin-bottom:1.2rem}
+.section-name{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.05rem;color:var(--paper)}
+.section-rule{height:1px;background:var(--rule);align-self:center;margin-top:.2em}
+.section-tally{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;color:var(--paper-faint);text-transform:uppercase}
+
+/* ── Mosaic grid: 8 category panels ─────────────────────────── */
+.mosaic{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:1px;background:var(--rule);
+  border:1px solid var(--rule-strong)}
+.panel{background:var(--ink-1);padding:0;display:flex;flex-direction:column;min-height:230px}
+
+/* Panel masthead — typographic + heavy summary bar */
+.panel-head{padding:1rem 1rem .8rem;border-bottom:1px dashed var(--rule);position:relative;display:grid;grid-template-columns:1fr auto;gap:.7rem;align-items:end}
+.panel-cat-no{font-family:var(--mono);font-size:.6rem;letter-spacing:.22em;color:var(--paper-faint);text-transform:uppercase;display:block;margin-bottom:.18rem}
+.panel-cat-name{font-family:var(--serif);font-style:normal;font-weight:300;font-size:1.55rem;line-height:1;color:var(--paper);letter-spacing:-.005em;font-variation-settings:"opsz" 96,"SOFT" 50}
+.panel-cat-name em{font-style:italic;color:var(--accent);font-weight:400}
+
+.panel-readout{text-align:right;font-family:var(--mono)}
+.panel-readout .multi{font-size:1.65rem;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:block;font-weight:500}
+.panel-readout .multi[data-status="fail"]{color:var(--sig)}
+.panel-readout .multi[data-status="pass"]{color:var(--vital)}
+.panel-readout .multi[data-status="caution"]{color:var(--caution)}
+.panel-readout .multi[data-status="gate-pass"]{color:var(--paper-ghost)}
+.panel-readout .label{font-size:.55rem;letter-spacing:.2em;color:var(--paper-ghost);text-transform:uppercase;display:block;margin-top:.2rem}
+
+/* The category-aggregate bar — heavy line */
+.panel-headbar{height:3px;background:var(--rule);position:relative;margin:.55rem -1rem 0}
+.panel-headbar-fill{position:absolute;inset:0 auto 0 0;background:var(--vital)}
+.panel-headbar-fill[data-status="fail"]{background:var(--sig)}
+.panel-headbar-fill[data-status="pass"]{background:var(--vital)}
+.panel-headbar-fill[data-status="caution"]{background:var(--caution)}
+.panel-headbar-fill[data-status="gate-pass"]{background:var(--paper-ghost)}
+.panel-headbar::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--sig-edge)}
+
+/* Subgroup row */
+.panel-body{padding:.85rem 1rem 1rem;display:flex;flex-direction:column;gap:.78rem;flex:1}
+.subgroup{display:grid;grid-template-columns:120px 1fr 56px;gap:.7rem;align-items:center}
+.subgroup-name{font-family:var(--mono);font-size:.66rem;letter-spacing:.04em;color:var(--paper);text-transform:uppercase;font-weight:500;line-height:1.2}
+.subgroup-name span.tilde{color:var(--paper-ghost);margin-right:.25rem}
+.subgroup-count{font-family:var(--mono);font-size:.55rem;color:var(--paper-faint);letter-spacing:.16em;text-transform:uppercase;text-align:right}
+
+/* The composite bar — vertical segments, one per leaf */
+.composite{display:flex;width:100%;height:18px;background:var(--ink-2);border:1px solid var(--rule);position:relative;overflow:hidden}
+.composite::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--sig-edge);z-index:2}
+.composite-seg{height:100%;border-right:1px solid var(--ink-0);position:relative;flex:1 1 0;background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,0))}
+.composite-seg:last-child{border-right:0}
+.composite-seg-fill{position:absolute;left:0;right:0;bottom:0;top:auto;height:100%;transform-origin:left;background:var(--vital)}
+.composite-seg-fill[data-status="fail"]{background:var(--sig)}
+.composite-seg-fill[data-status="pass"]{background:var(--vital)}
+.composite-seg-fill[data-status="caution"]{background:var(--caution)}
+.composite-seg-fill[data-status="gate-pass"]{background:var(--paper-ghost)}
+.composite-seg .hover-card{display:none;position:absolute;left:0;bottom:calc(100% + 4px);
+  background:var(--ink-0);border:1px solid var(--rule-strong);padding:.4rem .6rem;font-family:var(--mono);font-size:.62rem;
+  white-space:nowrap;z-index:10;color:var(--paper);letter-spacing:.02em}
+.composite-seg:hover .hover-card{display:block}
+.composite-seg:hover{outline:1px solid var(--paper)}
+
+/* Direct leaves (no subgroup) — listed below subgroups */
+.direct{display:grid;grid-template-columns:120px 1fr 56px;gap:.7rem;align-items:center;padding-top:.2rem}
+.direct-name{font-family:var(--mono);font-size:.66rem;letter-spacing:.01em;color:var(--paper-muted);text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.direct .bar{height:8px;background:var(--ink-2);border:1px solid var(--rule-soft);position:relative}
+.direct .bar::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--sig-edge)}
+.direct .bar-fill{position:absolute;inset:0 auto 0 0;background:var(--vital)}
+.direct .bar-fill[data-status="fail"]{background:var(--sig)}
+.direct .bar-fill[data-status="caution"]{background:var(--caution)}
+.direct .bar-fill[data-status="gate-pass"]{background:var(--paper-ghost)}
+.direct-multi{font-family:var(--mono);font-size:.66rem;text-align:right;color:var(--paper);font-variant-numeric:tabular-nums}
+.direct-multi[data-status="fail"]{color:var(--sig)}
+.direct-multi[data-status="gate-pass"]{color:var(--paper-ghost)}
+
+.divider{height:1px;background:var(--rule-soft);margin:.18rem -1rem;}
+
+/* Caption + key */
+.legend{margin-top:1.3rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.7rem 0;border-top:1px solid var(--rule);font-family:var(--mono);font-size:.6rem;color:var(--paper-ghost);letter-spacing:.04em}
+.legend em{font-family:var(--serif);font-style:italic;color:var(--paper-faint);letter-spacing:0}
+.legend .key{display:inline-flex;gap:.35rem;align-items:center;margin-right:1rem}
+.legend .key::before{content:"";display:inline-block;width:12px;height:6px;background:currentColor}
+.legend .k-pass{color:var(--vital)}
+.legend .k-fail{color:var(--sig)}
+.legend .k-caution{color:var(--caution)}
+.legend .k-gate{color:var(--paper-ghost)}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bulletin">
+    <div>
+      <div class="bulletin-eyebrow">View B · Mockup</div>
+      <h1>The <em>Mosaic</em> Bulletin</h1>
+    </div>
+    <div></div>
+    <div class="right">
+      <div>composite-bar mosaic</div>
+      <div><b>49</b> metrics · <span class="fail-tally"><b id="fail-count">…</b> failing</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-name">Metric Ranking — Categories at a Glance</span>
+    <span class="section-rule"></span>
+    <span class="section-tally" id="tally">…</span>
+  </div>
+
+  <div class="mosaic" id="mosaic"></div>
+
+  <div class="legend">
+    <div>
+      <span class="key k-pass">pass</span>
+      <span class="key k-caution">approaching (≥ .85×)</span>
+      <span class="key k-fail">fail</span>
+      <span class="key k-gate">gate · budget = 0</span>
+    </div>
+    <div><em>composite bars</em> · each segment is one metric, fill = its utilization · category-level bar = max(children)</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { buildTree, fmtUtil, fmtNum, METRICS } from './_data.js'
+
+const tree = buildTree(METRICS)
+const mosaicEl = document.getElementById('mosaic')
+
+const isCautionLeaf = (n) => n.kind === 'leaf' && n.passed && n.util >= .85 && n.metric.budget !== 0
+const leafStatus = (n) => isCautionLeaf(n) ? 'caution' : n.status
+
+function segmentHTML (leaf) {
+  const w = (leaf.utilCapped / 2) * 100
+  const stat = leafStatus(leaf)
+  const u = leaf.util === Infinity ? '∞×' : `${leaf.util.toFixed(2)}×`
+  const cmp = leaf.metric.comparison === 'lte' ? '≤' : '≥'
+  return `
+    <div class="composite-seg" title="${leaf.name}">
+      <div class="composite-seg-fill" data-status="${stat}" style="height:${w}%"></div>
+      <div class="hover-card">
+        <b>${leaf.name}</b> · ${u} · ${cmp} ${leaf.metric.budget} · ${stat.toUpperCase()}
+      </div>
+    </div>`
+}
+
+function subgroupHTML (sg) {
+  const stat = sg.passed ? 'pass' : 'fail'
+  const mult = sg.util === Infinity ? '∞×' : `${sg.util.toFixed(2)}×`
+  // Order leaves worst-first within subgroup, so the composite bar reads left-to-right
+  const ordered = [...sg.children].sort((a,b) => b.util - a.util)
+  return `
+    <div class="subgroup">
+      <div class="subgroup-name"><span class="tilde">⌐</span>${sg.name}</div>
+      <div class="composite">${ordered.map(segmentHTML).join('')}</div>
+      <div class="subgroup-count">${mult}<br>n=${sg.count}</div>
+    </div>`
+}
+
+function directHTML (leaf) {
+  const w = (leaf.utilCapped / 2) * 100
+  const stat = leafStatus(leaf)
+  const u = leaf.util === Infinity ? '∞×' : `${leaf.util.toFixed(2)}×`
+  return `
+    <div class="direct">
+      <div class="direct-name">${leaf.name}</div>
+      <div class="bar"><div class="bar-fill" style="width:${w}%" data-status="${stat}"></div></div>
+      <div class="direct-multi" data-status="${stat}">${u}</div>
+    </div>`
+}
+
+function panelHTML (cat, idx) {
+  const num = String(idx + 1).padStart(2, '0')
+  const stat = cat.passed ? 'pass' : 'fail'
+  const mult = cat.util === Infinity ? '∞×' : `${cat.util.toFixed(2)}×`
+  const headPct = (cat.utilCapped / 2) * 100
+
+  const subgroups = cat.children.filter(c => c.kind === 'subgroup')
+  const directs   = cat.children.filter(c => c.kind === 'leaf')
+                                .sort((a,b) => b.util - a.util)
+
+  const subHTML = subgroups.map(subgroupHTML).join('')
+  const dirHTML = directs.map(directHTML).join('')
+  const divider = subgroups.length > 0 && directs.length > 0 ? `<div class="divider"></div>` : ''
+
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-cat-no">§${num} · n=${cat.count}</span>
+          <span class="panel-cat-name">${cat.name === 'Other' ? '<em>Gates</em>' : cat.name}</span>
+        </div>
+        <div class="panel-readout">
+          <span class="multi" data-status="${stat}">${mult}</span>
+          <span class="label">worst-of-children</span>
+        </div>
+        <div class="panel-headbar" style="grid-column:1/-1">
+          <div class="panel-headbar-fill" data-status="${stat}" style="width:${headPct}%"></div>
+        </div>
+      </div>
+      <div class="panel-body">
+        ${subHTML}
+        ${divider}
+        ${dirHTML}
+      </div>
+    </section>`
+}
+
+mosaicEl.innerHTML = tree.map(panelHTML).join('')
+
+// Tally
+let total = 0, fail = 0
+for (const c of tree) for (const x of c.children) {
+  if (x.kind === 'leaf') { total++; if (!x.passed) fail++ }
+  else for (const l of x.children) { total++; if (!l.passed) fail++ }
+}
+document.getElementById('tally').textContent = `${tree.length} categories · ${total} metrics · ${fail} failing`
+document.getElementById('fail-count').textContent = String(fail)
+</script>
+</body>
+</html>

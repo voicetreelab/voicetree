@@ -17,7 +17,7 @@ import {
     openFolderVisibilityDb,
     resolveFolderVisibilityDbPath,
     runSchemaMigrations,
-} from '../../src/views/folderVisibilitySqlite'
+} from '../../src/data/views/folderVisibilitySqlite'
 
 const tmpVaults: string[] = []
 

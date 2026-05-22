@@ -8,8 +8,8 @@
  *   they are all current children of the same parent folder.
  * - Guard: action is disabled or no-op when the supported selection count is fewer than 2.
  * - Output shape: create one new folder under that same parent folder.
- * - Inside the new folder, create one empty hub note.
- * - The hub note should have soft links to each extracted child item.
+ * - Inside the new folder, create one `index.md` folder note containing the count of
+ *   contained nodes and no wikilinks.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -83,16 +83,52 @@ function readWikilinks(markdown: string): string[] {
     return Array.from(matches, (match: RegExpMatchArray) => match[1] ?? '');
 }
 
-function normalizeLinkTarget(target: string): string {
-    const withoutAlias = target.split('|')[0]?.trim() ?? target;
-    const withoutTrailingSlash = withoutAlias.replace(/\/$/, '');
-    return path.basename(withoutTrailingSlash).replace(/\.md$/, '');
-}
-
 function getExtractMenuItem(appWindow: Page): Locator {
     return appWindow.locator('.ctxmenu li').filter({
         hasText: /Extract.*Folder/i,
     }).first();
+}
+
+type ExtractedFolderCollapseState = {
+    projectedKind: string | null;
+    cytoscapeCollapsed: boolean | null;
+};
+
+type ExtractProjectedGraphCaptureWindow = ExtendedWindow & {
+    __extractLastProjectedGraph?: { nodes?: readonly { id: string; kind: string }[] };
+    __extractUnsubscribeProjectedGraph?: () => void;
+};
+
+async function startProjectedGraphCapture(appWindow: Page): Promise<void> {
+    await appWindow.evaluate(() => {
+        const extendedWindow = window as unknown as ExtractProjectedGraphCaptureWindow;
+        extendedWindow.__extractUnsubscribeProjectedGraph?.();
+        extendedWindow.__extractLastProjectedGraph = undefined;
+        extendedWindow.__extractUnsubscribeProjectedGraph = extendedWindow.electronAPI?.graph?.onProjectedGraphUpdate(
+            (graph: { nodes?: readonly { id: string; kind: string }[] }) => {
+                extendedWindow.__extractLastProjectedGraph = graph;
+            }
+        );
+    });
+}
+
+async function getExtractedFolderCollapseState(
+    appWindow: Page,
+    folderPath: string
+): Promise<ExtractedFolderCollapseState> {
+    const folderId = `${folderPath}/`;
+
+    return appWindow.evaluate(async (id: string) => {
+        const extendedWindow = window as unknown as ExtractProjectedGraphCaptureWindow;
+        const projectedGraph = extendedWindow.__extractLastProjectedGraph;
+        const projectedNode = projectedGraph?.nodes?.find((node: { id: string; kind: string }) => node.id === id) ?? null;
+        const cyFolder = extendedWindow.cytoscapeInstance?.getElementById(id);
+
+        return {
+            projectedKind: projectedNode?.kind ?? null,
+            cytoscapeCollapsed: cyFolder?.length ? (cyFolder.data('collapsed') as boolean | undefined) ?? false : null,
+        };
+    }, folderId);
 }
 
 async function selectGraphNodes(appWindow: Page, nodeIds: readonly string[]): Promise<void> {
@@ -138,6 +174,36 @@ async function openCanvasContextMenu(appWindow: Page): Promise<void> {
     });
 
     await expect(appWindow.locator('.ctxmenu')).toBeVisible({ timeout: 5000 });
+}
+
+async function openProjectFromRecentProjects(appWindow: Page): Promise<void> {
+    await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
+    const projectButton = appWindow.locator('button:has-text("extract-folder-test-vault")').first();
+    await expect(projectButton).toBeVisible({ timeout: 10000 });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const clickError = await projectButton.click({ timeout: 10000 }).then(
+            () => null,
+            (error: unknown) => error
+        );
+        const graphLoaded = await appWindow.waitForFunction(
+            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
+            undefined,
+            { timeout: 5000 }
+        ).then(
+            () => true,
+            () => false
+        );
+
+        if (graphLoaded) return;
+        if (attempt === 3 && clickError) throw clickError;
+    }
+
+    await appWindow.waitForFunction(
+        () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
+        undefined,
+        { timeout: 30000 }
+    );
 }
 
 async function triggerExtractIntoFolder(appWindow: Page): Promise<void> {
@@ -190,7 +256,7 @@ const test = base.extend<{
                 ...process.env,
                 NODE_ENV: 'test',
                 HEADLESS_TEST: '1',
-                MINIMIZE_TEST: '1',
+                MINIMIZE_TEST: '0',
                 VOICETREE_PERSIST_STATE: '1',
             },
             timeout: 15000,
@@ -235,13 +301,7 @@ const test = base.extend<{
         });
 
         await appWindow.waitForLoadState('domcontentloaded');
-        await appWindow.waitForSelector('text=Recent Projects', { timeout: 10000 });
-        await appWindow.locator('button:has-text("extract-folder-test-vault")').first().click();
-
-        await appWindow.waitForFunction(
-            () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
-            { timeout: 30000 }
-        );
+        await openProjectFromRecentProjects(appWindow);
         await appWindow.waitForTimeout(3000);
 
         await use(appWindow);
@@ -249,7 +309,7 @@ const test = base.extend<{
 });
 
 test.describe('Extract Into Folder Node', () => {
-    test('extracts two same-parent file nodes into one new folder with a linked hub note', async ({ appWindow, vaultPath }) => {
+    test('extracts two same-parent file nodes into one new folder with an index.md note', async ({ appWindow, vaultPath }) => {
         test.setTimeout(90000);
         await waitForGraphLoaded(appWindow, 5);
 
@@ -258,6 +318,7 @@ test.describe('Extract Into Folder Node', () => {
         const rootEntriesBefore = await listRootEntries(vaultPath);
 
         await selectGraphNodes(appWindow, [alphaId, betaId]);
+        await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
@@ -281,16 +342,22 @@ test.describe('Extract Into Folder Node', () => {
             .map((entry: import('fs').Dirent) => entry.name)
             .sort();
 
-        expect(newFolderFileNames).toEqual(expect.arrayContaining(['alpha.md', 'beta.md']));
+        expect(newFolderFileNames).toEqual(['alpha.md', 'beta.md', 'index.md']);
         expect(await fs.access(path.join(vaultPath, 'alpha.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(vaultPath, 'beta.md')).then(() => true).catch(() => false)).toBe(false);
 
-        const hubNoteNames = newFolderFileNames.filter((name: string) => !['alpha.md', 'beta.md'].includes(name));
-        expect(hubNoteNames).toHaveLength(1);
+        await expect.poll(async () => getExtractedFolderCollapseState(appWindow, newFolderPath), {
+            message: 'Waiting for the extracted folder to be collapsed in the projected graph',
+            timeout: 10000,
+            intervals: [250, 500, 1000],
+        }).toMatchObject({
+            projectedKind: 'folder-collapsed',
+            cytoscapeCollapsed: true,
+        });
 
-        const hubNoteContent = await fs.readFile(path.join(newFolderPath, hubNoteNames[0]), 'utf8');
-        const normalizedLinks = readWikilinks(hubNoteContent).map(normalizeLinkTarget).sort();
-        expect(normalizedLinks).toEqual(expect.arrayContaining(['alpha', 'beta']));
+        const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
+        expect(readWikilinks(indexNoteContent)).toEqual([]);
+        expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
     test('extracts a same-parent folder node and file node into one new folder', async ({ appWindow, vaultPath }) => {
@@ -302,6 +369,7 @@ test.describe('Extract Into Folder Node', () => {
         const rootEntriesBefore = await listRootEntries(vaultPath);
 
         await selectGraphNodes(appWindow, [docsFolderId, overviewId]);
+        await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
@@ -321,14 +389,25 @@ test.describe('Extract Into Folder Node', () => {
         const newFolderPath = path.join(vaultPath, newFolderName!);
         const newFolderEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
         const childNames = newFolderEntries.map((entry: import('fs').Dirent) => entry.name).sort();
-        const hubNoteNames = childNames.filter((name: string) => name.endsWith('.md') && name !== 'overview.md');
 
-        expect(childNames).toEqual(expect.arrayContaining(['docs', 'overview.md']));
-        expect(hubNoteNames).toHaveLength(1);
+        expect(childNames).toEqual(['docs', 'index.md', 'overview.md']);
         expect(await fs.access(path.join(vaultPath, 'docs')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(vaultPath, 'overview.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(true);
+
+        await expect.poll(async () => getExtractedFolderCollapseState(appWindow, newFolderPath), {
+            message: 'Waiting for the extracted folder to be collapsed in the projected graph',
+            timeout: 10000,
+            intervals: [250, 500, 1000],
+        }).toMatchObject({
+            projectedKind: 'folder-collapsed',
+            cytoscapeCollapsed: true,
+        });
+
+        const indexNoteContent = await fs.readFile(path.join(newFolderPath, 'index.md'), 'utf8');
+        expect(readWikilinks(indexNoteContent)).toEqual([]);
+        expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
     test('shows the extract action disabled when fewer than two same-parent items are selected', async ({ appWindow, vaultPath }) => {

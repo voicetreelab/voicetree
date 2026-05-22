@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
     paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'knip.config.ts'
       - 'webapp/package.json'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -28,14 +31,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Tests skipped
-        run: |
-          echo "Tests disabled - pass locally but fail in CI due to environment differences:"
-          echo "- vitest: AgentStatsPanel.test.tsx (15), folder-loading.test.ts (5), positioning-spacing.test.ts (1)"
-          echo "- test:smoke: OOM crash during electron-vite build"
-          echo "- test:browser: search-navigation (2), undo-redo-scope (1), editor-cmd-a-select-all (1)"
-          echo ""
-          echo "TODO: Debug CI environment issues or increase CI resources"
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Codebase health gate
+        run: npm run health
 
   check-version:
     needs: [test]
@@ -332,10 +343,20 @@ jobs:
           npx electron-builder --win --publish=always
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  build-linux-x64:
+  build-linux:
     needs: [check-version]
     if: ${{ needs.check-version.outputs.should_build == 'true' && (github.event_name == 'push' || inputs.build_linux) }}
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x64 is the critical path — if it fails the release fails.
+          - { arch: x64,   runs-on: ubuntu-latest,    soft_fail: false }
+          # arm64 is new; allowed to fail until proven stable. Flip
+          # soft_fail to false once a few releases ship cleanly.
+          - { arch: arm64, runs-on: ubuntu-24.04-arm, soft_fail: true  }
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: ${{ matrix.soft_fail }}
 
     steps:
       - uses: actions/checkout@v4
@@ -393,10 +414,24 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           npx electron-vite build
-          npx electron-builder --linux --publish=always
+          npx electron-builder --linux --${{ matrix.arch }} --publish=always
+
+      # Backward-compat alias: keep `voicetree.AppImage` (no arch suffix)
+      # pointing at the x64 build so existing consumers (the docker.yml
+      # workflow on main, hand-downloaders, anyone with a bookmarked URL)
+      # don't 404. Remove once all consumers are on the arch-suffixed names.
+      - name: Publish legacy AppImage alias (x64 only)
+        if: matrix.arch == 'x64'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          cp out/electron/voicetree-x64.AppImage out/electron/voicetree.AppImage
+          gh release upload "v${VERSION}" out/electron/voicetree.AppImage \
+            --clobber --repo voicetreelab/voicetree
 
   publish-release:
-    needs: [check-version, build-mac, build-windows, build-linux-x64, merge-mac-manifests]
+    needs: [check-version, build-mac, build-windows, build-linux, merge-mac-manifests]
     if: ${{ needs.check-version.outputs.should_build == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -471,4 +506,3 @@ jobs:
           git add -A
           git commit -m "Update Voicetree to v$VERSION" || echo "No changes"
           git push
-

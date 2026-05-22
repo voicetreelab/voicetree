@@ -10,11 +10,10 @@ import { getLiveStateTool } from './getLiveStateTool'
 
 const DISPATCH_DESCRIPTION: string = [
     'SerializedCommand payload. Shape per command.type:',
-    '- Collapse/Expand: {type, folder}',
+    '- SetFolderState: {type, viewId, path, state}',
     '- Select: {type, ids[], additive?}',
     '- Deselect: {type, ids[]}',
     '- Move: {type, id, to:{x,y}}',
-    '- LoadRoot/UnloadRoot: {type, root}',
     '- AddEdge: {type, source, edge:{targetId,label}}',
     '- RemoveEdge: {type, source, targetId}',
     '- RemoveNode: {type, id}',
@@ -26,7 +25,7 @@ export function registerLiveTools(server: McpServer): void {
         'vt_get_live_state',
         {
             title: 'Get Live VoiceTree State',
-            description: 'Return a SerializedState snapshot of the running app (graph, collapseSet, selection, revision). Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
+            description: 'Return a SerializedState snapshot of the running app with graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.',
             inputSchema: {},
         },
         async () => getLiveStateTool(),
@@ -36,7 +35,7 @@ export function registerLiveTools(server: McpServer): void {
         'vt_dispatch_live_command',
         {
             title: 'Dispatch Live VoiceTree Command',
-            description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}. For L1, only Collapse/Expand/Select/Deselect are wired — other commands return {error:"not-yet-wired"}.',
+            description: 'Apply a SerializedCommand to the running app. Returns {delta, revision}.',
             inputSchema: {
                 command: z.record(z.string(), z.unknown()).describe(DISPATCH_DESCRIPTION),
             },

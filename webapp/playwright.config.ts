@@ -1,4 +1,11 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+
+const CI_CHECK_REPORTER = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../health-dashboard/reporters/playwright-ci-check-reporter.mjs',
+);
 
 const browserTestPort = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 const browserTestBaseURL = `http://127.0.0.1:${browserTestPort}`;
@@ -10,7 +17,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 5, // Limit to 5 workers locally to prevent CPU overload
-  reporter: 'line',
+  reporter: [
+    ['line'],
+    [CI_CHECK_REPORTER, {
+      checkId: 'e2e-tier2-browser',
+      checkName: 'E2E Tier 2 (Browser)',
+      command: 'npm run test:e2e:tier2:browser',
+    }],
+  ],
   use: {
     baseURL: browserTestBaseURL,
     trace: 'on-first-retry',

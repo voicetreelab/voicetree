@@ -39,9 +39,8 @@ async function lintText(
 describe('daemon mutation import lint rule', () => {
   it('allows daemon package callers to import daemon-owned mutation functions', async () => {
     const messages: readonly string[] = await lintText(
-      `
+        `
         import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-model'
-        import { dispatchCollapse, dispatchExpand } from '@vt/graph-state/state/collapseSetStore'
       `,
       'packages/systems/graph-db-server/src/__generated__/allowed-daemon-imports.ts',
     )
@@ -51,30 +50,26 @@ describe('daemon mutation import lint rule', () => {
 
   it('rejects direct imports and re-exports outside the daemon package', async () => {
     const messages: readonly string[] = await lintText(
-      `
+        `
         import { addReadPath } from '@vt/graph-model'
-        export { dispatchCollapse } from '@vt/graph-state/state/collapseSetStore'
         void addReadPath
       `,
-      'webapp/src/__generated__/bad-daemon-imports.ts',
+      'packages/systems/agent-runtime/src/__generated__/bad-daemon-imports.ts',
     )
 
     expect(messages).toEqual([
       'addReadPath is daemon-owned. Route it through packages/systems/graph-db-server or a daemon/session-backed main API path.',
-      'dispatchCollapse is daemon-owned. Route it through packages/systems/graph-db-server or a daemon/session-backed main API path.',
     ])
   }, ESLINT_INTEGRATION_TIMEOUT_MS)
 
   it('allows explicitly annotated low-level tests', async () => {
     const messages: readonly string[] = await lintText(
-      `
+        `
         /* vt-allow-direct-daemon-mutation-import: exercising primitive behaviour directly */
         import { setWritePath } from '@vt/graph-model'
-        import { dispatchExpand } from '@vt/graph-state/state/collapseSetStore'
         void setWritePath
-        void dispatchExpand
       `,
-      'webapp/src/__generated__/primitive-boundary.test.ts',
+      'packages/systems/agent-runtime/src/__generated__/primitive-boundary.test.ts',
     )
 
     expect(messages).toEqual([])
@@ -86,7 +81,7 @@ describe('daemon mutation import lint rule', () => {
         import { removeReadPath } from '@vt/graph-model'
         void removeReadPath
       `,
-      'webapp/src/__fixtures__/allowed-daemon-mutation-imports/sample.ts',
+      'packages/systems/agent-runtime/src/__fixtures__/allowed-daemon-mutation-imports/sample.ts',
     )
 
     expect(messages).toEqual([])

@@ -9,7 +9,7 @@ import { acceptCompletion } from '@codemirror/autocomplete';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { Disposable } from '@/shell/UI/views/Disposable';
+import { Disposable } from '@/shell/UI/views/infra/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/shell/UI/floating-windows/extensions/mermaidRender';
 import { videoRender } from '@/shell/UI/floating-windows/extensions/videoRender';

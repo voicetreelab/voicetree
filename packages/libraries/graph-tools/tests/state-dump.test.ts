@@ -46,14 +46,14 @@ describe('vt-graph state dump CLI', () => {
         const stdout = runStateDumpCli([vaultPath])
         const parsed = JSON.parse(stdout) as {
             meta: {schemaVersion: number; revision: number}
-            roots: {loaded: string[]}
+            folderState: readonly (readonly [string, string])[]
             graph: {nodes: Record<string, unknown>}
             layout: {positions: readonly unknown[]}
         }
 
         expect(parsed.meta.schemaVersion).toBe(1)
         expect(parsed.meta.revision).toBe(0)
-        expect(parsed.roots.loaded).toEqual([vaultPath])
+        expect(parsed.folderState).toEqual([[vaultPath, 'expanded']])
         expect(Object.keys(parsed.graph.nodes)).toHaveLength(3)
         expect(parsed.layout.positions.length).toBeGreaterThan(0)
         expect(stdout).toContain('\n  "meta": {')

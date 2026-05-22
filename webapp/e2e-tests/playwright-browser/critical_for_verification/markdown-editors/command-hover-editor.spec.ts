@@ -212,7 +212,7 @@ test.describe('Hover Editor (Browser)', () => {
     await sendGraphDelta(page, graphDelta);
     await page.waitForTimeout(50);
 
-    const countEditors = async () => page.evaluate(() => document.querySelectorAll('[id^="window-"][id$="-editor"]').length);
+    const countEditors = async () => page.evaluate(() => document.querySelectorAll('.cy-floating-window[id^="window-"][id$="-editor"]').length);
     const nodeAEditorSelector = '#window-node-a\\.md-editor';
     const nodeBEditorSelector = '#window-node-b\\.md-editor';
 

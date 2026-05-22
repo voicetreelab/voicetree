@@ -3,8 +3,7 @@
  *
  * Exercises the full spawnAgentTool path with REAL loadSettings, terminal-registry,
  * and global-budget-registry. Only stubs the boundary effects: spawnTerminalWithContextNode
- * (would spawn child_process), getWritePath (needs vault config), and the graph-delta apply
- * (would write to disk).
+ * (would spawn child_process) and the configured graph bridge (would talk to the daemon).
  *
  * Designed to catch integration-glue regressions like the Tier 1 smoke failure where
  * spawnAgentTool calls postDeltaThroughDaemonWithEditors without importing it: every
@@ -22,47 +21,30 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SETTINGS} from '@vt/graph-model/settings'
 import {initGraphModel} from '@vt/graph-model'
-import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearSettingsCache} from '@vt/app-config/settings'
-import {
-    recordTerminalSpawn,
-    clearTerminalRecords,
-    clearAllBudgets,
-    setTerminalBudget,
-} from '@vt/agent-runtime'
+import {recordTerminalSpawn} from '@vt/agent-runtime/terminals/terminal-registry/spawn.ts'
+import {clearTerminalRecords} from '@vt/agent-runtime/terminals/terminal-registry/queries.ts'
+import {clearAllBudgets, setTerminalBudget} from '@vt/agent-runtime/terminals/global-budget-registry.ts'
 import type {TerminalData, TerminalId} from '@vt/agent-runtime'
-import {createTerminalData} from '@vt/agent-runtime'
-
-vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/watch-folder/vault-allowlist') = await importOriginal()
-    return {
-        ...actual,
-        getWritePath: vi.fn(),
-    }
-})
-
-vi.mock('@vt/graph-db-server/graph/applyGraphDelta', async (importOriginal) => {
-    const actual: typeof import('@vt/graph-db-server/graph/applyGraphDelta') = await importOriginal()
-    return {
-        ...actual,
-        applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
-    }
-})
+import {createTerminalData} from '@vt/agent-runtime/types'
 
 vi.mock('@vt/agent-runtime', async (importOriginal) => {
     const actual: typeof import('@vt/agent-runtime') = await importOriginal()
     let spawnCounter: number = 0
     return {
         ...actual,
-        spawnTerminalWithContextNode: vi.fn().mockImplementation(async () => {
-            spawnCounter += 1
-            return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
-        }),
+        agentRuntime: {
+            ...actual.agentRuntime,
+            spawnTerminalWithContextNode: vi.fn().mockImplementation(async () => {
+                spawnCounter += 1
+                return {terminalId: `child-${spawnCounter}`, contextNodeId: `/ctx/child-${spawnCounter}.md`}
+            }),
+        },
     }
 })
 
 import {spawnAgentTool} from '../src/tools/agent-control/spawnAgentTool'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {configureMcpServer, type GraphBridge} from '../src/config/mcp-config'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
 
@@ -87,9 +69,21 @@ function buildGraphWithParent(): Graph {
     return {
         nodes: {[PARENT_NODE_ID]: buildParentGraphNode()},
         incomingEdgesIndex: new Map(),
-        nodeByBaseName: new Map([['parent.md', PARENT_NODE_ID]]),
+        nodeByBaseName: new Map([['parent.md', [PARENT_NODE_ID]]]),
         unresolvedLinksIndex: new Map(),
     }
+}
+
+function configureGraphBridge(writePath: string): void {
+    const bridge: GraphBridge = {
+        getGraph: vi.fn(async () => buildGraphWithParent()),
+        getVaultPaths: vi.fn(async () => [writePath]),
+        getWritePath: vi.fn(async () => writePath),
+        getProjectRootWatchedDirectory: vi.fn(async () => writePath),
+        getUnseenNodesAroundContextNode: vi.fn(async () => []),
+        applyGraphDelta: vi.fn(async () => undefined),
+    }
+    configureMcpServer({graph: bridge})
 }
 
 async function writeSettingsFile(appSupportPath: string, settings: VTSettings): Promise<void> {
@@ -125,8 +119,7 @@ describe('spawnAgentTool real-deps integration', () => {
         clearSettingsCache()
         clearTerminalRecords()
         clearAllBudgets()
-        setGraph(buildGraphWithParent())
-        vi.mocked(getWritePath).mockResolvedValue(O.some(testTmpDir))
+        configureGraphBridge(testTmpDir)
     })
 
     it('resolves a custom agent name from a written settings.json (catches settings cache/path regressions)', async () => {

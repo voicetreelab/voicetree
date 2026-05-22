@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ranking Hierarchy · Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --ink-0:#0c0a06; --ink-1:#15110b; --ink-2:#1d1810; --ink-3:#251d12;
+  --rule:#2c2418; --rule-soft:#1f1810; --rule-strong:#3d3220;
+  --paper:#f4ecda; --paper-muted:#c2b690; --paper-faint:#857a5d; --paper-ghost:#4d4430;
+  --sig:#ff4438; --vital:#9ce363; --caution:#f5b04a; --accent:#f7e3a6;
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);color:var(--paper);background:var(--ink-0);min-height:100vh;
+  background-image:radial-gradient(at 12% 8%,rgba(247,227,166,.025),transparent 40%),radial-gradient(at 88% 92%,rgba(255,68,56,.018),transparent 42%);
+  background-attachment:fixed;padding:3rem clamp(1.1rem,3vw,2rem) 4rem;line-height:1.55;font-size:15px}
+.wrap{max-width:1200px;margin:0 auto}
+
+/* Masthead */
+.mast{padding-bottom:1.4rem;border-bottom:1px solid var(--rule-strong);margin-bottom:2.4rem;display:grid;grid-template-columns:1fr auto;align-items:end;gap:1rem}
+.eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;color:var(--paper-faint);text-transform:uppercase;margin-bottom:.4rem}
+.mast h1{font-family:var(--serif);font-weight:300;font-size:clamp(2rem,5vw,3.4rem);line-height:.95;letter-spacing:-.01em;color:var(--paper);font-variation-settings:"opsz" 144,"SOFT" 50}
+.mast h1 em{font-style:italic;color:var(--accent);font-weight:200}
+.mast .sub{font-family:var(--mono);font-size:.72rem;color:var(--paper-muted);text-align:right;letter-spacing:.04em;max-width:280px}
+.mast .sub b{color:var(--paper);font-weight:500}
+
+/* Intro */
+.intro{font-family:var(--serif);font-weight:300;font-style:italic;font-size:1.15rem;line-height:1.55;color:var(--paper-muted);max-width:780px;margin-bottom:2.6rem;padding-left:1.2rem;border-left:1px solid var(--rule-strong)}
+.intro b{font-family:var(--mono);font-style:normal;font-size:.78em;letter-spacing:.06em;color:var(--paper);font-weight:500;background:var(--ink-2);padding:.05em .35em}
+.intro a{color:var(--accent);text-decoration:none;border-bottom:1px dashed var(--rule-strong)}
+.intro a:hover{border-bottom-color:var(--accent)}
+
+/* Card grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule-strong)}
+.card{background:var(--ink-1);padding:0;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:background .12s;position:relative;overflow:hidden}
+.card:hover{background:var(--ink-2)}
+.card:hover .preview-svg .accent{stroke:var(--accent)}
+.card-head{padding:1.2rem 1.4rem 1rem;border-bottom:1px dashed var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.card-no{font-family:var(--mono);font-size:.6rem;letter-spacing:.22em;color:var(--paper-faint);text-transform:uppercase;margin-bottom:.3rem;display:block}
+.card-name{font-family:var(--serif);font-weight:300;font-size:1.6rem;line-height:1;color:var(--paper);letter-spacing:-.005em;font-variation-settings:"opsz" 96,"SOFT" 40}
+.card-name em{font-style:italic;color:var(--accent);font-weight:200}
+.card-tag{font-family:var(--mono);font-size:.55rem;letter-spacing:.18em;color:var(--paper-ghost);text-transform:uppercase;border:1px solid var(--rule);padding:.28rem .55rem;align-self:flex-start;flex-shrink:0;white-space:nowrap}
+
+.card-body{padding:1rem 1.4rem;flex:1;display:flex;flex-direction:column;gap:1rem}
+.card-desc{font-family:var(--sans);font-size:.86rem;color:var(--paper-muted);line-height:1.55}
+.preview{padding:.4rem;background:var(--ink-0);border:1px solid var(--rule);height:120px;display:flex;align-items:center;justify-content:center}
+.preview-svg{width:100%;height:100%}
+
+.card-traits{display:flex;flex-direction:column;gap:.25rem;font-family:var(--mono);font-size:.66rem;color:var(--paper-faint);letter-spacing:.02em}
+.card-traits .trait{display:grid;grid-template-columns:80px 1fr;gap:.7rem;align-items:baseline}
+.card-traits .trait b{color:var(--paper);font-weight:500;text-transform:uppercase;letter-spacing:.14em;font-size:.6rem}
+
+.card-foot{padding:.85rem 1.4rem;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);display:flex;justify-content:space-between;align-items:center}
+.card-foot::after{content:"→";font-family:var(--serif);font-style:normal;font-size:.95rem;color:var(--accent)}
+
+/* Bottom note */
+.note{margin-top:2.4rem;padding:1.4rem 1.6rem;border:1px solid var(--rule);background:var(--ink-1);font-family:var(--mono);font-size:.76rem;color:var(--paper-muted);line-height:1.7;letter-spacing:.01em}
+.note h3{font-family:var(--serif);font-weight:300;font-style:italic;font-size:1.1rem;color:var(--paper);margin-bottom:.5rem;letter-spacing:.005em}
+.note code{background:var(--ink-2);padding:.05em .35em;color:var(--accent);font-size:.95em}
+.note .key{display:inline-flex;gap:.35rem;align-items:center;margin:0 .9rem .2rem 0}
+.note .key::before{content:"";display:inline-block;width:14px;height:6px;background:currentColor}
+.note .k-pass{color:var(--vital)} .note .k-fail{color:var(--sig)} .note .k-caution{color:var(--caution)} .note .k-gate{color:var(--paper-ghost)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div>
+      <div class="eyebrow">health dashboard · ranking-hierarchy mockups</div>
+      <h1>Four ways to see the<br><em>worst-first</em> stack.</h1>
+    </div>
+    <div class="sub">
+      <b>49</b> metrics<br>
+      <b>8</b> categories<br>
+      <b>13</b> semantic subgroups<br>
+      <span style="color:var(--sig)"><b>4</b> failing</span>
+    </div>
+  </div>
+
+  <p class="intro">
+    The current <em>Metric Ranking — Worst First</em> is one long flat bar list. Each of the views below proposes a different way to express the recursive hierarchy that would live at <b>scripts/measures/&lt;category&gt;/&lt;subgroup&gt;/</b>, with parent rows aggregating <em>worst-of-children</em>. All three render from the actual reports in <a href="../../reports/latest.json">reports/latest.json</a>.
+  </p>
+
+  <div class="cards">
+
+    <!-- View A -->
+    <a href="view-a-cascade.html" class="card">
+      <div class="card-head">
+        <div>
+          <span class="card-no">View A · 01</span>
+          <span class="card-name">The <em>Cascade</em></span>
+        </div>
+        <span class="card-tag">Indented Tree</span>
+      </div>
+      <div class="card-body">
+        <div class="preview">
+          <svg class="preview-svg" viewBox="0 0 280 110">
+            <!-- Indented bars -->
+            <line x1="10" y1="10" x2="270" y2="10" stroke="#2c2418" stroke-width=".5"/>
+            <text x="14" y="22" font-family="'IBM Plex Mono',monospace" font-size="8" fill="#857a5d" letter-spacing=".15em">▾ COUPLING</text>
+            <rect x="100" y="16" width="80" height="10" fill="#9ce363" opacity=".8"/>
+            <line x1="180" y1="14" x2="180" y2="28" stroke="#ff4438" opacity=".6"/>
+
+            <text x="22" y="42" font-family="'IBM Plex Mono',monospace" font-size="7" fill="#c2b690">├─⌐ HYPERGRAPH</text>
+            <rect x="100" y="37" width="62" height="8" fill="#9ce363" opacity=".85"/>
+
+            <text x="36" y="58" font-family="'IBM Plex Mono',monospace" font-size="7" fill="#c2b690">  ├ bci</text>
+            <rect x="100" y="53" width="60" height="5" fill="#9ce363"/>
+
+            <text x="36" y="70" font-family="'IBM Plex Mono',monospace" font-size="7" fill="#c2b690">  └ pair-tw</text>
+            <rect x="100" y="65" width="55" height="5" fill="#9ce363"/>
+
+            <text x="22" y="88" font-family="'IBM Plex Mono',monospace" font-size="7" fill="#c2b690">└─ change-coupling</text>
+            <rect x="100" y="83" width="130" height="5" fill="#ff4438" class="accent"/>
+
+            <!-- Budget line -->
+            <line x1="160" y1="10" x2="160" y2="98" stroke="#ff4438" opacity=".4" stroke-dasharray="1 2"/>
+            <text x="162" y="106" font-family="'IBM Plex Mono',monospace" font-size="6" fill="#ff4438" letter-spacing=".1em">1.0×</text>
+          </svg>
+        </div>
+        <div class="card-traits">
+          <div class="trait"><b>shape</b><span>vertical · indent + caret · collapsible</span></div>
+          <div class="trait"><b>scan</b><span>top-down through the worst chain</span></div>
+          <div class="trait"><b>density</b><span>49 rows visible, all expanded</span></div>
+          <div class="trait"><b>best for</b><span>drilling into a specific failing leaf</span></div>
+        </div>
+      </div>
+      <div class="card-foot">Open view A</div>
+    </a>
+
+    <!-- View B -->
+    <a href="view-b-mosaic.html" class="card">
+      <div class="card-head">
+        <div>
+          <span class="card-no">View B · 02</span>
+          <span class="card-name">The <em>Mosaic</em></span>
+        </div>
+        <span class="card-tag">Card Grid</span>
+      </div>
+      <div class="card-body">
+        <div class="preview">
+          <svg class="preview-svg" viewBox="0 0 280 110">
+            <!-- Four mini-panels -->
+            <g transform="translate(8,8)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Coupling</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="20" height="6" fill="#9ce363"/>
+              <rect x="24" y="20" width="14" height="6" fill="#9ce363"/>
+              <rect x="39" y="20" width="18" height="6" fill="#9ce363"/>
+              <rect x="3" y="30" width="34" height="3" fill="#ff4438" class="accent"/>
+              <rect x="3" y="36" width="22" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(76,8)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Purity</text>
+              <rect x="0" y="14" width="60" height="2" fill="#ff4438"/>
+              <rect x="3" y="20" width="14" height="6" fill="#9ce363"/>
+              <rect x="18" y="20" width="14" height="6" fill="#9ce363"/>
+              <rect x="33" y="20" width="22" height="6" fill="#ff4438"/>
+              <rect x="3" y="30" width="20" height="3" fill="#9ce363"/>
+              <rect x="3" y="36" width="55" height="3" fill="#ff4438"/>
+            </g>
+            <g transform="translate(144,8)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Structure</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="14" height="6" fill="#9ce363"/>
+              <rect x="18" y="20" width="20" height="6" fill="#9ce363"/>
+              <rect x="39" y="20" width="14" height="6" fill="#9ce363"/>
+              <rect x="3" y="30" width="20" height="3" fill="#9ce363"/>
+              <rect x="3" y="36" width="14" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(212,8)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Behavioral</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="55" height="6" fill="#9ce363"/>
+              <rect x="3" y="30" width="20" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(8,58)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Shape</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="40" height="6" fill="#9ce363"/>
+              <rect x="3" y="30" width="20" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(76,58)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Complexity</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="38" height="3" fill="#9ce363"/>
+              <rect x="3" y="26" width="20" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(144,58)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Churn</text>
+              <rect x="0" y="14" width="60" height="2" fill="#9ce363"/>
+              <rect x="3" y="20" width="60" height="3" fill="#9ce363"/>
+            </g>
+            <g transform="translate(212,58)">
+              <rect x="0" y="0" width="60" height="44" fill="none" stroke="#2c2418"/>
+              <text x="4" y="9" font-family="Fraunces,serif" font-size="9" fill="#f4ecda" font-style="italic">Core</text>
+              <rect x="0" y="14" width="60" height="2" fill="#ff4438"/>
+              <rect x="3" y="20" width="55" height="3" fill="#ff4438" class="accent"/>
+              <rect x="3" y="26" width="6" height="3" fill="#4d4430"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-traits">
+          <div class="trait"><b>shape</b><span>2D card grid · one panel per category</span></div>
+          <div class="trait"><b>scan</b><span>peripheral · find the red panel</span></div>
+          <div class="trait"><b>density</b><span>composite bars condense child status</span></div>
+          <div class="trait"><b>best for</b><span>at-a-glance category triage</span></div>
+        </div>
+      </div>
+      <div class="card-foot">Open view B</div>
+    </a>
+
+    <!-- View C -->
+    <a href="view-c-strata.html" class="card">
+      <div class="card-head">
+        <div>
+          <span class="card-no">View C · 03</span>
+          <span class="card-name">The <em>Strata</em></span>
+        </div>
+        <span class="card-tag">Icicle Bracket</span>
+      </div>
+      <div class="card-body">
+        <div class="preview">
+          <svg class="preview-svg" viewBox="0 0 280 110">
+            <!-- Category brackets at top -->
+            <g stroke="#c2b690" stroke-width=".8" fill="none">
+              <path d="M 14 14 L 14 8 L 80 8 L 80 14"/>
+              <path d="M 92 14 L 92 8 L 156 8 L 156 14"/>
+              <path d="M 168 14 L 168 8 L 218 8 L 218 14"/>
+              <path d="M 230 14 L 230 8 L 268 8 L 268 14"/>
+            </g>
+            <text x="47" y="6" font-family="Fraunces,serif" font-style="italic" font-size="8" text-anchor="middle" fill="#f4ecda">Coupling</text>
+            <text x="124" y="6" font-family="Fraunces,serif" font-style="italic" font-size="8" text-anchor="middle" fill="#f4ecda">Purity</text>
+            <text x="193" y="6" font-family="Fraunces,serif" font-style="italic" font-size="8" text-anchor="middle" fill="#f4ecda">Structure</text>
+            <text x="249" y="6" font-family="Fraunces,serif" font-style="italic" font-size="8" text-anchor="middle" fill="#f4ecda">Shape</text>
+
+            <!-- Subgroup brackets -->
+            <g stroke="#4d4430" stroke-width=".5" fill="none">
+              <path d="M 14 22 L 14 18 L 40 18 L 40 22"/>
+              <path d="M 44 22 L 44 18 L 80 18 L 80 22"/>
+              <path d="M 92 22 L 92 18 L 124 18 L 124 22"/>
+              <path d="M 128 22 L 128 18 L 156 18 L 156 22"/>
+              <path d="M 168 22 L 168 18 L 200 18 L 200 22"/>
+            </g>
+
+            <!-- 1.0 budget line -->
+            <line x1="10" y1="56" x2="276" y2="56" stroke="#ff4438" opacity=".55" stroke-dasharray="1 2"/>
+            <text x="6" y="58" font-family="'IBM Plex Mono',monospace" font-size="5" fill="#ff4438">1.0×</text>
+
+            <!-- Leaf bars: stacked vertically downward from y=98 -->
+            <g>
+              <rect x="14" y="68" width="6" height="30" fill="#9ce363"/>
+              <rect x="22" y="78" width="6" height="20" fill="#9ce363"/>
+              <rect x="30" y="60" width="6" height="38" fill="#9ce363"/>
+              <rect x="44" y="40" width="6" height="58" fill="#ff4438" class="accent"/>
+              <rect x="52" y="80" width="6" height="18" fill="#9ce363"/>
+              <rect x="60" y="74" width="6" height="24" fill="#9ce363"/>
+              <rect x="74" y="70" width="6" height="28" fill="#9ce363"/>
+
+              <rect x="92" y="65" width="6" height="33" fill="#9ce363"/>
+              <rect x="100" y="68" width="6" height="30" fill="#9ce363"/>
+              <rect x="108" y="78" width="6" height="20" fill="#9ce363"/>
+              <rect x="116" y="36" width="6" height="62" fill="#ff4438"/>
+              <rect x="128" y="36" width="6" height="62" fill="#ff4438"/>
+              <rect x="136" y="78" width="6" height="20" fill="#9ce363"/>
+              <rect x="144" y="62" width="6" height="36" fill="#9ce363"/>
+              <rect x="152" y="56" width="6" height="42" fill="#9ce363"/>
+
+              <rect x="168" y="74" width="6" height="24" fill="#9ce363"/>
+              <rect x="176" y="68" width="6" height="30" fill="#9ce363"/>
+              <rect x="184" y="80" width="6" height="18" fill="#9ce363"/>
+              <rect x="192" y="62" width="6" height="36" fill="#9ce363"/>
+              <rect x="200" y="56" width="6" height="42" fill="#9ce363"/>
+              <rect x="208" y="76" width="6" height="22" fill="#9ce363"/>
+
+              <rect x="230" y="68" width="6" height="30" fill="#9ce363"/>
+              <rect x="238" y="76" width="6" height="22" fill="#9ce363"/>
+              <rect x="246" y="56" width="6" height="42" fill="#9ce363"/>
+              <rect x="254" y="64" width="6" height="34" fill="#9ce363"/>
+              <rect x="262" y="78" width="6" height="20" fill="#9ce363"/>
+            </g>
+            <line x1="10" y1="98" x2="276" y2="98" stroke="#3d3220" stroke-width=".5"/>
+          </svg>
+        </div>
+        <div class="card-traits">
+          <div class="trait"><b>shape</b><span>icicle bar chart · bracketed by hierarchy</span></div>
+          <div class="trait"><b>scan</b><span>silhouette of the codebase at a glance</span></div>
+          <div class="trait"><b>density</b><span>all 49 leaves in one plot</span></div>
+          <div class="trait"><b>best for</b><span>seeing distribution + spotting outliers</span></div>
+        </div>
+      </div>
+      <div class="card-foot">Open view C</div>
+    </a>
+
+    <!-- View D -->
+    <a href="view-d-treemap.html" class="card">
+      <div class="card-head">
+        <div>
+          <span class="card-no">View D · 04</span>
+          <span class="card-name">The <em>Treemap</em></span>
+        </div>
+        <span class="card-tag">WinDirStat</span>
+      </div>
+      <div class="card-body">
+        <div class="preview">
+          <svg class="preview-svg" viewBox="0 0 280 110">
+            <!-- big rect = Purity (fail) -->
+            <rect x="2" y="2" width="116" height="62" fill="#5e1a14" stroke="#0c0a06"/>
+            <rect x="4" y="4" width="40" height="58" fill="#ff4438" stroke="#0c0a06" class="accent"/>
+            <rect x="46" y="4" width="36" height="28" fill="#7ab85a" stroke="#0c0a06"/>
+            <rect x="46" y="34" width="36" height="28" fill="#7ab85a" stroke="#0c0a06"/>
+            <rect x="84" y="4" width="32" height="58" fill="#7ab85a" stroke="#0c0a06"/>
+            <text x="6" y="14" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Purity</text>
+
+            <!-- Core (failing) -->
+            <rect x="120" y="2" width="68" height="40" fill="#5e1a14" stroke="#0c0a06"/>
+            <rect x="122" y="4" width="40" height="36" fill="#ff4438" stroke="#0c0a06"/>
+            <rect x="164" y="4" width="22" height="36" fill="#4d4430" stroke="#0c0a06"/>
+            <text x="124" y="14" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Core</text>
+
+            <!-- Structure -->
+            <rect x="120" y="44" width="68" height="36" fill="#15110b" stroke="#0c0a06"/>
+            <rect x="122" y="46" width="30" height="32" fill="#f5b04a" stroke="#0c0a06"/>
+            <rect x="154" y="46" width="32" height="20" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="154" y="68" width="32" height="10" fill="#7ab85a" stroke="#0c0a06"/>
+            <text x="124" y="56" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Structure</text>
+
+            <!-- Coupling -->
+            <rect x="190" y="2" width="88" height="50" fill="#15110b" stroke="#0c0a06"/>
+            <rect x="192" y="4" width="34" height="46" fill="#ff4438" stroke="#0c0a06"/>
+            <rect x="228" y="4" width="24" height="22" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="254" y="4" width="22" height="22" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="228" y="28" width="48" height="22" fill="#9ce363" stroke="#0c0a06"/>
+            <text x="194" y="14" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Coupling</text>
+
+            <!-- Behavioral -->
+            <rect x="2" y="66" width="116" height="42" fill="#15110b" stroke="#0c0a06"/>
+            <rect x="4" y="68" width="22" height="38" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="28" y="68" width="22" height="38" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="52" y="68" width="22" height="38" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="76" y="68" width="22" height="38" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="100" y="68" width="16" height="38" fill="#7ab85a" stroke="#0c0a06"/>
+            <text x="6" y="78" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Behavioral</text>
+
+            <!-- Shape / Complexity / Churn -->
+            <rect x="190" y="54" width="88" height="54" fill="#15110b" stroke="#0c0a06"/>
+            <rect x="192" y="56" width="42" height="24" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="236" y="56" width="40" height="24" fill="#9ce363" stroke="#0c0a06"/>
+            <rect x="192" y="82" width="40" height="24" fill="#7ab85a" stroke="#0c0a06"/>
+            <rect x="234" y="82" width="42" height="24" fill="#7ab85a" stroke="#0c0a06"/>
+            <text x="194" y="66" font-family="Fraunces,serif" font-style="italic" font-size="8" fill="#f4ecda">Shape</text>
+          </svg>
+        </div>
+        <div class="card-traits">
+          <div class="trait"><b>shape</b><span>nested rectangles · area-weighted</span></div>
+          <div class="trait"><b>scan</b><span>biggest red blob = where to look first</span></div>
+          <div class="trait"><b>density</b><span>49 leaves packed efficiently</span></div>
+          <div class="trait"><b>best for</b><span>"what's eating my budget" gestalt</span></div>
+        </div>
+      </div>
+      <div class="card-foot">Open view D</div>
+    </a>
+
+  </div>
+
+  <div class="note">
+    <h3>Notes for the picker</h3>
+    <p>All four pull from the live <code>reports/latest.json</code>. Aggregation rule is identical: <b>parent · util = max(child · util)</b> — the worst-first principle. Subgroups exist only where ≥ 2 metrics share a semantic prefix (<code>globals-</code>, <code>dsm-</code>, <code>hypergraph-</code>, etc.); single-metric subgroups attach directly to their category to keep depth honest. Categories themselves are sorted worst-first too — Purity (∞×, gate fail) tops the list.</p>
+    <p style="margin-top:.7rem">
+      <span class="key k-pass">pass</span>
+      <span class="key k-caution">approaching (≥ .85×)</span>
+      <span class="key k-fail">fail</span>
+      <span class="key k-gate">gate · budget = 0</span>
+    </p>
+    <p style="margin-top:.7rem;color:var(--paper-faint)">All views share <code>_data.js</code> — change <code>SUBGROUPS</code> there to test other groupings without touching three files.</p>
+  </div>
+
+</div>
+</body>
+</html>

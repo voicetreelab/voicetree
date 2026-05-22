@@ -101,13 +101,6 @@ describe('pending-writes suppression over daemon HTTP API', () => {
       appSupportPath: path.join(root, 'app-support'),
     })
     baseUrl = `http://127.0.0.1:${handle.port}`
-
-    const watchResponse = await fetch(`${baseUrl}/vault/read-paths`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path: docs }),
-    })
-    expect(watchResponse.status).toBe(200)
   })
 
   afterEach(async () => {

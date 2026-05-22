@@ -22,15 +22,15 @@ import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
-import { deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/handleUIActions'
-import { mergeSelectedNodesFromUI } from '@/shell/edge/UI-edge/graph/mergeSelectedNodesFromUI'
+import { deleteNodesFromUI } from '@/shell/edge/UI-edge/graph/actions/handleUIActions'
+import { mergeSelectedNodesFromUI } from '@/shell/edge/UI-edge/graph/actions/mergeSelectedNodesFromUI'
 import type { Graph, GraphDelta, GraphNode } from '@vt/graph-model/graph'
 import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI'
+import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
 import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
@@ -149,7 +149,7 @@ vi.mock('@/shell/edge/main/graph/watchFolder', () => {
 let handlersImported: boolean = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
-        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/terminals/ipc-terminal-handlers')
+        const { registerTerminalIpcHandlers } = await import('@/shell/edge/main/agent/terminals/ipc-terminal-handlers')
         registerTerminalIpcHandlers(
             {} as any, // terminalManager
             () => '' // getToolsDirectory

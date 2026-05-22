@@ -1,17 +1,14 @@
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph'
 import { getSelection } from '@vt/graph-state/state/selectionStore'
 
-import { applyLiveCommandToRenderer } from '@/shell/edge/UI-edge/graph/applyLiveCommandToRenderer'
-import { getGraphCollapseSet } from '@/shell/edge/UI-edge/state/FolderTreeStore'
+import { applyLiveCommandToRenderer } from '@/shell/edge/UI-edge/graph/actions/applyLiveCommandToRenderer'
 
 export interface RendererLiveStateSnapshot {
-    collapseSet: string[]
     selection: NodeIdAndFilePath[]
 }
 
 export function snapshotRendererLiveState(): RendererLiveStateSnapshot {
     return {
-        collapseSet: [...getGraphCollapseSet()],
         selection: [...getSelection()],
     }
 }

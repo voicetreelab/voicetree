@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { parseMarkdownToGraphNode } from './'
+import { parseMarkdownToGraphNode } from '.'
 import type { Graph, GraphNode } from '..'
-import { createGraph } from '../createGraph'
+import { createGraph } from '../construction/createGraph'
 
 const emptyGraph: Graph = createGraph({})
 

@@ -5,12 +5,29 @@ import * as O from 'fp-ts/lib/Option.js';
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {isImageNode} from '@vt/graph-model/graph';
 import { getLayout } from '@vt/graph-state/state/layoutStore';
-import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView';
+import type {Position} from '@/shell/UI/views/graph-view/IVoiceTreeGraphView';
 import {openHoverImageViewer} from '@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD';
-import {type EditorData} from '@/shell/edge/UI-edge/state/UIAppState';
-import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/EditorStore";
+import {type EditorData} from '@/shell/edge/UI-edge/state/stores/UIAppState';
+import {getEditorByNodeId, getHoverEditor} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {createFloatingEditor, closeEditor} from './FloatingEditorCRUD';
 import {createAnchoredFloatingEditor} from './AnchoredEditor';
+
+/**
+ * Predicate used by hover-editor mouseleave logic to decide whether the
+ * editor should stay open. Receives current mouse client coords and the
+ * editor's window element. Returning true keeps the editor open.
+ *
+ * Defaults to {@link isMouseInHoverZone} bound to the originating node — i.e.
+ * the editor stays open while the mouse is over the source node, the editor
+ * itself, the horizontal menu, or the distance slider. Folder VIEW-chip
+ * hovers (FolderHandleService) override this with a tighter chip+editor zone
+ * so the editor closes once you leave the chip.
+ */
+export type HoverZonePredicate = (
+    mouseX: number,
+    mouseY: number,
+    editorWindow: HTMLElement | null,
+) => boolean;
 
 // =============================================================================
 // Hover Zone Detection
@@ -107,12 +124,17 @@ export function closeHoverEditor(cy: Core): void {
 // =============================================================================
 
 /**
- * Open a hover editor at the given position
+ * Open a hover editor at the given position.
+ *
+ * @param hoverZone - Optional predicate to decide whether the editor stays
+ *   open as the mouse moves. Defaults to {@link isMouseInHoverZone} on the
+ *   originating node.
  */
-async function openHoverEditor(
+export async function openHoverEditor(
     cy: Core,
     nodeId: NodeIdAndFilePath,
-    nodePos: Position
+    nodePos: Position,
+    hoverZone?: HoverZonePredicate,
 ): Promise<void> {
     // Skip if this node already has an editor open (hover or permanent)
     const existingEditor: O.Option<EditorData> = getEditorByNodeId(nodeId);
@@ -191,13 +213,15 @@ async function openHoverEditor(
 
         // Close on mouse leave (when mouse exits the hover zone)
         const handleMouseLeave: (e: MouseEvent) => void = (e: MouseEvent): void => {
-            const stillInZone: boolean = isMouseInHoverZone(
-                e.clientX,
-                e.clientY,
-                cy,
-                nodeId,
-                editor.ui?.windowElement ?? null
-            );
+            const stillInZone: boolean = hoverZone
+                ? hoverZone(e.clientX, e.clientY, editor.ui?.windowElement ?? null)
+                : isMouseInHoverZone(
+                    e.clientX,
+                    e.clientY,
+                    cy,
+                    nodeId,
+                    editor.ui?.windowElement ?? null
+                );
             if (!stillInZone) {
                 closeHoverEditor(cy);
                 document.removeEventListener('mousedown', handleClickOutside);
@@ -235,33 +259,31 @@ async function openHoverEditor(
  * Non-presentation nodes: existing hover editor behavior (editor below node).
  */
 export function setupCommandHover(cy: Core): void {
+    // Folders never trigger auto-hover here: the empty space inside an expanded
+    // compound and the body of a collapsed pill are NOT folder-note hover
+    // affordances. The eye chip in the TL affordance strip is — handled in
+    // FolderHandleService.setupFolderHandles via cy mousemove hit-testing.
     // [L2-seam-residual] cy-only: cy event binding for node hover detection
-    cy.on('mouseover', 'node', (event: cytoscape.EventObject): void => {
+    cy.on('mouseover', 'node[!isFolderNode]', (event: cytoscape.EventObject): void => {
         void (async (): Promise<void> => {
-            //console.log('[HoverEditor-v2] GraphNode mouseover');
-
             const node: cytoscape.NodeSingular = event.target;
-            const nodeId: string = node.id();
+            const cyNodeId: string = node.id();
 
             // Only open hover for nodes with file extensions
             // Terminal nodes, shadow nodes, etc. don't have file extensions
-            const hasFileExtension: boolean = /\.\w+$/.test(nodeId);
-            if (!hasFileExtension) {
-                //console.log('[HoverEditor-v2] Skipping non-file node:', nodeId);
-                return;
-            }
+            const hasFileExtension: boolean = /\.\w+$/.test(cyNodeId);
+            if (!hasFileExtension) return;
 
             // Check if this is an image node - open image viewer instead of editor
-            if (isImageNode(nodeId)) {
-                //console.log('[HoverEditor-v2] Opening image viewer for:', nodeId);
+            if (isImageNode(cyNodeId)) {
                 // Close any open hover editor first
                 closeHoverEditor(cy);
-                await openHoverImageViewer(cy, nodeId, node.position());
+                await openHoverImageViewer(cy, cyNodeId as NodeIdAndFilePath, node.position());
                 return;
             }
 
             // Open hover editor for markdown files (non-presentation nodes)
-            await openHoverEditor(cy, nodeId, node.position());
+            await openHoverEditor(cy, cyNodeId as NodeIdAndFilePath, node.position());
         })();
     });
 }

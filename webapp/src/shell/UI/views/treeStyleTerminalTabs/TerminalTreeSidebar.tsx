@@ -11,11 +11,12 @@
 import { createElement, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
-import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/types';
+import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
+import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 // =============================================================================
 // Collapse / expand
@@ -77,16 +78,17 @@ import {
     getTerminals,
     getActiveTerminalId,
     clearTerminals,
-} from '@/shell/edge/UI-edge/state/TerminalStore';
+} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {
     syncDisplayOrder,
-} from '@/shell/edge/UI-edge/state/AgentTabsStore';
+} from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
     startTerminalActivityPolling,
     stopTerminalActivityPolling,
 } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalActivityPolling';
 import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
+import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -230,12 +232,14 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
         if (terminal.isHeadless) {
-            void window.electronAPI?.terminal.kill(terminalId);
+            void window.electronAPI?.main.closeHeadlessAgent(terminalId);
             return;
         }
         const terminalElement: Element | null = document.querySelector(`[data-floating-window-id="${terminalId}"]`);
         if (terminalElement) {
             terminalElement.dispatchEvent(new CustomEvent('traffic-light-close', { bubbles: true }));
+        } else {
+            closeTerminalById(terminalId);
         }
     }, [terminalId, terminal.isHeadless]);
 
@@ -349,6 +353,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     );
 
     const totalTabs: number = displayOrder.length;
+    const shortcutPlatform = useMemo(() => getShortcutPlatform(), []);
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
         if (!terminal.isHeadless && terminal.isMinimized) {
@@ -370,7 +375,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                 {treeNodes.map((treeNode: TerminalTreeNode) => {
                     const terminalId: TerminalId = treeNode.terminal.terminalId;
                     const tabIndex: number = displayOrder.indexOf(terminalId);
-                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs, shortcutPlatform);
                     const collapsed: boolean = treeNode.hasChildren
                         && collapse.isCollapsed(terminalId, treeNode.directChildCount);
 

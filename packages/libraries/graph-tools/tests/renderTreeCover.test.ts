@@ -2,7 +2,7 @@ import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
-import {buildAutoViewGraph, renderTreeCover, renderAutoView} from '../src/autoView'
+import {buildAutoViewGraph, renderTreeCover, renderAutoView} from '../src/view/autoView'
 
 describe('renderTreeCover', () => {
     const tempDirs: string[] = []
@@ -120,5 +120,93 @@ describe('renderTreeCover', () => {
         expect(output).toContain('# budget: 3 visible entities')
         expect(output).toContain('[collapsed:')
         expect(output).toContain('# hint: to expand a collapsed')
+    })
+
+    it('uses explicit title and view-applied marker for daemon-rendered views', () => {
+        const vaultPath = makeFixtureVault()
+        const root = path.resolve(vaultPath)
+        const graph = buildAutoViewGraph(root)
+        const output = renderTreeCover(graph, {
+            budget: 1000,
+            title: 'docs',
+            viewApplied: true,
+        })
+
+        expect(output.split('\n')[0]).toBe('═══ STRUCTURE docs (view applied) ═══')
+    })
+
+    it('normalizes daemon projected folder paths under the render root', () => {
+        const graph = {
+            nodes: [
+                {
+                    id: '/vault/alpha.md',
+                    kind: 'file' as const,
+                    label: 'Alpha',
+                    relPath: 'alpha.md',
+                    basename: 'alpha.md',
+                    folderPath: '/vault/',
+                    content: 'Alpha',
+                },
+                {
+                    id: '/vault/docs/beta.md',
+                    kind: 'file' as const,
+                    label: 'Beta',
+                    relPath: 'docs/beta.md',
+                    basename: 'beta.md',
+                    folderPath: '/vault/docs/',
+                    content: 'Beta',
+                },
+            ],
+            edges: [],
+            rootPath: '/vault',
+            revision: 0,
+            forests: [],
+            arboricity: 0,
+        }
+
+        const output = renderTreeCover(graph, {title: 'vault', viewApplied: true})
+
+        expect(output).toContain('▢ vault/')
+        expect(output).toContain('├── ▢ docs/')
+        expect(output).not.toContain('▢ vault/\n└── ▢ vault/')
+    })
+
+    it('forces user-collapsed folders to render as collapsed clusters', () => {
+        const graph = {
+            nodes: [
+                {
+                    id: '/vault/docs/a.md',
+                    kind: 'file' as const,
+                    label: 'A',
+                    relPath: 'docs/a.md',
+                    basename: 'a.md',
+                    folderPath: '/vault/docs/',
+                    content: 'A',
+                },
+                {
+                    id: '/vault/docs/b.md',
+                    kind: 'file' as const,
+                    label: 'B',
+                    relPath: 'docs/b.md',
+                    basename: 'b.md',
+                    folderPath: '/vault/docs/',
+                    content: 'B',
+                },
+            ],
+            edges: [],
+            rootPath: '/vault',
+            revision: 0,
+            forests: [],
+            arboricity: 0,
+        }
+
+        const output = renderTreeCover(graph, {
+            collapsed: new Set(['/vault/docs']),
+            title: 'vault',
+            viewApplied: true,
+        })
+
+        expect(output).toContain('▢ docs/ [collapsed:user 2 nodes')
+        expect(output).not.toContain('· A @[docs/a.md]')
     })
 })

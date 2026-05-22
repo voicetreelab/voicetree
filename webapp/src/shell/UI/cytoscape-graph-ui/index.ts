@@ -1,3 +1,3 @@
 //console.log('[GraphCore] Module loading...');
 
-export { AnimationType } from './services/BreathingAnimationService';
+export { AnimationType } from './services/animation/BreathingAnimationService';

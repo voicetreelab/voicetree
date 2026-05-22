@@ -1,4 +1,11 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
+
+const CI_CHECK_REPORTER = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../health-dashboard/reporters/playwright-ci-check-reporter.mjs',
+);
 
 /**
  * Tier 2 Playwright configuration for Electron subsystem verification tests.
@@ -17,7 +24,12 @@ export default defineConfig({
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [
     ['list', { printSteps: false }], // Suppress internal step errors
-    ['html', { outputFolder: 'playwright-report-electron', open: 'never' }]
+    ['html', { outputFolder: 'playwright-report-electron', open: 'never' }],
+    [CI_CHECK_REPORTER, {
+      checkId: 'e2e-tier2-electron',
+      checkName: 'E2E Tier 2 (Electron)',
+      command: 'npm run test:e2e:tier2:electron',
+    }],
   ],
   use: {
     trace: 'on-first-retry',

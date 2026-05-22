@@ -1,14 +1,22 @@
-import { createInterface } from 'readline'
+import { existsSync, readFileSync } from 'node:fs'
 import { connectToMcp } from './mcp-client.js'
 import { executeScript } from './executor.js'
+import { createCeremonyStdinDecoder } from './stdin-decoder.js'
 import { extractScript, type Action, type FakeAgentScript } from './types.js'
 
-/** Strip ANSI escape sequences that sendTextToTerminal may inject via PTY */
-function stripAnsi(s: string): string {
-  // Covers CSI sequences like bracketed paste (\x1b[200~ / \x1b[201~),
-  // 2-char ESC sequences, and the control bytes sendTextToTerminal uses.
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|\x00|\x15/g, '')
+/**
+ * Phase 6 prompt delivery: AGENT_PROMPT_FILE is authoritative when set.
+ * Parent-shell AGENT_PROMPT can leak through OS env-inheritance
+ * (electron → tmux server → bash → node) and otherwise mask the file
+ * delivery path. Fall back to AGENT_PROMPT only when no file is present.
+ */
+function resolveAgentPrompt(env: NodeJS.ProcessEnv): string {
+  const file = env.AGENT_PROMPT_FILE
+  if (file && existsSync(file)) {
+    try { return readFileSync(file, 'utf8') } catch { /* fall through to env */ }
+  }
+  if (env.AGENT_PROMPT && env.AGENT_PROMPT.length > 0) return env.AGENT_PROMPT
+  return ''
 }
 
 function parseActionMessage(msg: string): Action | null {
@@ -71,7 +79,7 @@ async function main() {
   const terminalId = process.env.VOICETREE_TERMINAL_ID
   const mcpPort = process.env.VOICETREE_MCP_PORT ?? '3001'
   const taskNodePath = process.env.TASK_NODE_PATH ?? ''
-  const agentPrompt = process.env.AGENT_PROMPT ?? ''
+  const agentPrompt = resolveAgentPrompt(process.env)
 
   if (!terminalId) { console.error('Missing VOICETREE_TERMINAL_ID'); process.exit(1) }
 
@@ -80,7 +88,7 @@ async function main() {
 
   const mcpClient = await connectToMcp(mcpPort)
 
-  // Mutable abort ref so readline handler can always interrupt the active delay
+  // Mutable abort ref so the stdin decoder can always interrupt the active delay
   let currentAbort = new AbortController()
   const inbox = createMessageInbox()
 
@@ -88,21 +96,26 @@ async function main() {
   const script = extractScript(agentPrompt)
   console.log(`[fake-agent] Script has ${script.actions.length} actions`)
 
-  // Set up readline for incoming messages (from send_message via PTY stdin)
-  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: false })
+  // Read PTY stdin as a raw byte stream and decode it with the ceremony
+  // decoder. The decoder only emits a message on Alt+Enter (\x1b\r), which
+  // mirrors how real coding-agent TUIs (Codex, OpenCode) treat submit and
+  // tightly couples the test path to the inject ceremony in
+  // packages/systems/agent-runtime/.../send-text-to-terminal.ts. A naive
+  // injector that ends with plain Enter (the regression class introduced
+  // by commit 6fc41313) will accumulate bytes forever and the surrounding
+  // test will time out — exactly the failure signal we want.
+  if (process.stdin.isTTY) process.stdin.setRawMode(true)
 
-  // Message queue: incoming messages are queued and processed after current action
-  rl.on('line', (raw: string) => {
-    const trimmed = stripAnsi(raw).trim()
-    if (!trimmed) return
-    console.log(`[fake-agent] Received message: ${trimmed.slice(0, 100)}`)
-    if (parseActionMessage(trimmed)) {
+  const decode = createCeremonyStdinDecoder((message: string) => {
+    console.log(`[fake-agent] Received message: ${message.slice(0, 100)}`)
+    if (parseActionMessage(message)) {
       // Abort current delay if one is active when a control action arrives.
       currentAbort.abort()
       currentAbort = new AbortController()
     }
-    inbox.push(trimmed)
+    inbox.push(message)
   })
+  process.stdin.on('data', (chunk: Buffer) => decode(chunk))
 
   // Execute initial script
   await executeScript(
@@ -148,13 +161,13 @@ async function main() {
     // Go quiet again → isDone=true after 5s inactivity
   }
 
-  // Check for messages periodically (readline events fire asynchronously)
+  // Check for messages periodically (stdin 'data' events fire asynchronously)
   const checkInterval = setInterval(async () => {
     if (inbox.size() > 0) await processMessages()
   }, 500)
 
-  // Clean exit on stdin close
-  rl.on('close', async () => {
+  // Clean exit on stdin EOF.
+  process.stdin.on('end', async () => {
     clearInterval(checkInterval)
     await mcpClient.disconnect()
     process.exit(0)

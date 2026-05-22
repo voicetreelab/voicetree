@@ -10,15 +10,15 @@
 export type { Graph, GraphNode, GraphDelta, NodeDelta, UpsertNodeDelta, DeleteNode, Edge, NodeUIMetadata, NodeIdAndFilePath, FilePath, Position, FSEvent, FSUpdate, FSDelete, Env } from './pure/graph'
 export { CONTEXT_NODES_FOLDER, NODE_UI_METADATA_YAML_KEYS, applyGraphDeltaToGraph, mapNewGraphToDelta, stripDeltaForReplay, mapFSEventsToGraphDelta, setOutgoingEdges, reverseGraphEdges, makeBidirectionalEdges, getSubgraphByDistance, getUnionSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder, prettyPrintGraphDelta, deleteNodeSimple, removeContextNodes, createGraph, createEmptyGraph, buildGraphFromFiles, getFolderNotePath, isImageNode, IMAGE_EXTENSIONS, getNodesByAgentName } from './pure/graph'
 export { getNodeTitle, parseMarkdownToGraphNode } from './pure/graph/markdown-parsing'
-export { calculateInitialPositionForChild } from './pure/graph/positioning/calculateInitialPosition'
-export { ensureUniqueNodeId } from './pure/graph/ensureUniqueNodeId'
+export { calculateInitialPositionForChild } from './pure/graph/positioning/placement/calculateInitialPosition'
+export { ensureUniqueNodeId } from './pure/graph/nodes/ensureUniqueNodeId'
 export { fromCreateChildToUpsertNode } from './pure/graph/graphDelta/uiInteractionsToGraphDeltas'
 export { nodeIdToFilePathWithExtension } from './pure/graph/markdown-parsing/filename-utils'
 export { fromNodeToMarkdownContent } from './pure/graph/markdown-writing/node_to_markdown'
 export { linkMatchScore } from './pure/graph/markdown-parsing/extract-edges'
 export { applyPositions, rebaseNewClusterPositions } from './pure/graph/positioning'
 export { addNodeToGraphWithEdgeHealingFromFSEvent } from './pure/graph/graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
-export { stripBracketedContent } from './pure/graph/contentChangeDetection'
+export { stripBracketedContent, normalizeContentForEchoComparison } from './pure/graph/nodes/contentChangeDetection'
 
 // Pure settings types
 export type { VTSettings } from './pure/settings/types'
@@ -33,5 +33,5 @@ export type { DirectoryEntry, ParsedQuery } from './pure/folders/transforms'
 export type { SavedProject, DiscoveredProject } from './pure/project/types'
 
 // DI initialization
-export { initGraphModel, getConfig, getCallbacks } from './types'
-export type { GraphModelConfig, GraphModelCallbacks } from './types'
+export { initGraphModel, getConfig, getCallbacks } from './pure/runtime/types'
+export type { GraphModelConfig, GraphModelCallbacks } from './pure/runtime/types'

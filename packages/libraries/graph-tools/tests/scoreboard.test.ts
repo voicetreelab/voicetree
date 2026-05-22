@@ -8,8 +8,8 @@ import {
   buildScoreboardRow,
   createScoreboard,
   evaluateRunResult,
-} from '../src/debug/scoreboard'
-import type { JudgeVerdict } from '../src/debug/judge'
+} from '../src/debug/flow/scoreboard'
+import type { JudgeVerdict } from '../src/debug/flow/judge'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
 

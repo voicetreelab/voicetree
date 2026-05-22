@@ -177,17 +177,19 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
           // 1. File to be written to disk
           // 2. Chokidar to detect the change
           // 3. Event to propagate back to renderer
-          setTimeout(async () => {
-            const feedbackDelta: GraphDelta = [
-              {
-                type: 'UpsertNode',
-                nodeToUpsert: graphState.nodes[nodeId!],
-                previousNode: { _tag: 'Some', value: graphState.nodes[nodeId!] } as const
-              }
-            ];
-            console.log('[Mock] Triggering filesystem feedback for node:', nodeId);
-            const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
-            updateCallback(projectDelta(feedbackDelta));
+          setTimeout(() => {
+            void (async () => {
+              const feedbackDelta: GraphDelta = [
+                {
+                  type: 'UpsertNode',
+                  nodeToUpsert: graphState.nodes[nodeId!],
+                  previousNode: { _tag: 'Some', value: graphState.nodes[nodeId!] } as const
+                }
+              ];
+              console.log('[Mock] Triggering filesystem feedback for node:', nodeId);
+              const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
+              updateCallback(projectDelta(feedbackDelta));
+            })();
           }, 100); // Small delay to simulate filesystem I/O and event propagation
         }
 

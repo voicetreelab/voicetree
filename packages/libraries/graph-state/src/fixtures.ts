@@ -11,7 +11,7 @@ import {
     toAbsolutePath,
 } from '@vt/graph-model'
 
-import type { Command, ElementSpec, State } from './contract'
+import type { Command, ProjectedGraph, State } from './contract'
 import {
     collectLayoutPositions,
     hydrateCommand,
@@ -71,7 +71,7 @@ export interface ProjectionDocument {
     readonly $schema: 'graph-state/projection@1'
     readonly id: string
     readonly sourceSnapshot: string
-    readonly elementSpec: ElementSpec
+    readonly elementSpec: ProjectedGraph
 }
 
 export interface SnapshotFixture {
@@ -250,7 +250,7 @@ export function loadSequence(nameOrPath: string): {
     }
 }
 
-export function loadProjection(nameOrPath: string): ElementSpec {
+export function loadProjection(nameOrPath: string): ProjectedGraph {
     return readProjectionDocument(nameOrPath).elementSpec
 }
 

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ranking · A · Cascade Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --ink-0:#0c0a06; --ink-1:#15110b; --ink-2:#1d1810; --ink-3:#251d12;
+  --rule:#2c2418; --rule-soft:#1f1810; --rule-strong:#3d3220;
+  --paper:#f4ecda; --paper-muted:#c2b690; --paper-faint:#857a5d; --paper-ghost:#4d4430;
+  --sig:#ff4438; --sig-soft:rgba(255,68,56,.10); --sig-edge:rgba(255,68,56,.34);
+  --vital:#9ce363; --vital-soft:rgba(156,227,99,.10); --vital-edge:rgba(156,227,99,.32);
+  --caution:#f5b04a; --caution-soft:rgba(245,176,74,.10); --caution-edge:rgba(245,176,74,.34);
+  --accent:#f7e3a6;
+  --serif:'Fraunces','Iowan Old Style',Georgia,serif;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);color:var(--paper);background:var(--ink-0);min-height:100vh;
+  background-image:radial-gradient(at 12% 8%,rgba(247,227,166,.025),transparent 40%),radial-gradient(at 88% 92%,rgba(255,68,56,.018),transparent 42%);
+  background-attachment:fixed;line-height:1.5;padding:2.2rem clamp(1.1rem,3vw,2rem) 4rem}
+::selection{background:var(--accent);color:var(--ink-0)}
+
+.wrap{max-width:1180px;margin:0 auto}
+
+/* ── Bulletin header (matches diagnostic style) ─────────────────────── */
+.bulletin{display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:1.4rem;padding-bottom:.9rem;border-bottom:1px solid var(--rule-strong);margin-bottom:1.8rem}
+.bulletin-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-faint)}
+.bulletin h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3vw,2.25rem);line-height:1;color:var(--paper);font-variation-settings:"opsz" 96,"SOFT" 30}
+.bulletin h1 em{font-style:italic;color:var(--accent);font-weight:300}
+.bulletin .right{font-family:var(--mono);font-size:.7rem;color:var(--paper-muted);text-align:right;letter-spacing:.04em}
+.bulletin .right b{color:var(--paper);font-weight:500}
+.bulletin .right .fail-tally{color:var(--sig)}
+
+/* ── Section header ─────────────────────────────────────────────────── */
+.section-head{display:grid;grid-template-columns:auto 1fr auto auto;align-items:baseline;gap:.9rem;margin-bottom:1rem}
+.section-name{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.05rem;color:var(--paper);letter-spacing:.01em}
+.section-rule{height:1px;background:var(--rule);align-self:center;margin-top:.2em}
+.section-tally{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;color:var(--paper-faint);text-transform:uppercase}
+.section-controls{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase}
+.section-controls button{background:transparent;color:var(--paper-muted);border:1px solid var(--rule);padding:.32rem .65rem;font:inherit;cursor:pointer;letter-spacing:.18em}
+.section-controls button:hover{color:var(--paper);border-color:var(--rule-strong)}
+
+/* ── The cascade table ──────────────────────────────────────────────── */
+.cascade{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.cascade-col-head{display:grid;grid-template-columns:minmax(0,1fr) 460px 88px 56px;align-items:center;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--paper-ghost);
+  padding:.7rem .4rem;border-bottom:1px solid var(--rule)}
+.cascade-col-head .h-bar{text-align:left;padding-left:.8rem}
+.cascade-col-head .h-mult{text-align:right}
+.cascade-col-head .h-count{text-align:right;padding-right:.2rem}
+
+/* Row — three levels share the grid, depth changes label indent + bar height */
+.row{display:grid;grid-template-columns:minmax(0,1fr) 460px 88px 56px;align-items:center;
+  border-bottom:1px solid var(--rule-soft);padding:.18rem .4rem;position:relative}
+.row:last-child{border-bottom:none}
+.row[data-depth="0"]{padding:.62rem .4rem;background:linear-gradient(180deg,rgba(247,227,166,.015),rgba(247,227,166,0))}
+.row[data-depth="1"]{padding:.36rem .4rem}
+.row[data-depth="2"]{padding:.16rem .4rem .16rem .4rem}
+
+/* Tree gutter — typographic */
+.label{display:flex;align-items:baseline;gap:.45rem;min-width:0}
+.gutter{font-family:var(--mono);color:var(--paper-ghost);user-select:none;white-space:pre;font-size:.72rem;letter-spacing:.06em;flex-shrink:0}
+.row[data-depth="0"] .gutter{color:var(--paper-faint)}
+.row[data-depth="2"] .gutter{color:var(--rule-strong)}
+
+/* Caret button (collapses depth-0 / depth-1) */
+.caret{appearance:none;background:transparent;border:0;color:var(--paper-ghost);font-family:var(--mono);
+  font-size:.62rem;cursor:pointer;padding:0 .2rem;letter-spacing:0}
+.row[data-depth="0"] .caret{color:var(--paper-muted)}
+.row.is-closed .caret{transform:rotate(0)}
+.caret:hover{color:var(--accent)}
+
+/* Label text */
+.name-0{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.18rem;color:var(--paper);line-height:1.1;letter-spacing:.005em}
+.name-1{font-family:var(--mono);font-weight:500;font-size:.78rem;letter-spacing:.02em;color:var(--paper);text-transform:none}
+.name-1::before{content:"⌐ ";color:var(--rule-strong);font-weight:300}
+.name-2{font-family:var(--mono);font-weight:400;font-size:.72rem;letter-spacing:.01em;color:var(--paper-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+.count{font-family:var(--mono);font-size:.62rem;color:var(--paper-faint);letter-spacing:.04em;padding-left:.2rem}
+.count::before{content:"["}.count::after{content:"]"}
+
+/* Bars */
+.bar{position:relative;height:14px;background:var(--ink-1);border:1px solid var(--rule);overflow:hidden}
+.row[data-depth="0"] .bar{height:20px;border-color:var(--rule-strong);background:var(--ink-2)}
+.row[data-depth="1"] .bar{height:12px}
+.row[data-depth="2"] .bar{height:8px;background:transparent;border-color:var(--rule-soft)}
+
+.bar-fill{position:absolute;inset:0 auto 0 0;background:var(--vital-edge)}
+.bar-fill[data-status="fail"]{background:var(--sig)}
+.bar-fill[data-status="pass"]{background:var(--vital)}
+.bar-fill[data-status="caution"]{background:var(--caution)}
+.bar-fill[data-status="gate-pass"]{background:var(--paper-ghost)}
+
+/* Aggregated bars on parent rows get a translucent treatment so the parent
+   reads as a "summary" while leaves are solid */
+.row[data-depth="0"] .bar-fill{opacity:.78}
+.row[data-depth="1"] .bar-fill{opacity:.86}
+
+/* Tick at 1.0× — the budget line */
+.bar::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--sig-edge)}
+.bar-axis-note{font-family:var(--mono);font-size:.56rem;color:var(--paper-ghost);letter-spacing:.18em;text-transform:uppercase;text-align:center;padding-top:.45rem}
+
+/* Mult readout */
+.mult{font-family:var(--mono);font-size:.78rem;text-align:right;color:var(--paper);letter-spacing:.02em;padding-right:.2rem;font-variant-numeric:tabular-nums}
+.mult[data-status="fail"]{color:var(--sig);font-weight:500}
+.mult[data-status="gate-pass"]{color:var(--paper-ghost)}
+.row[data-depth="2"] .mult{color:var(--paper-muted);font-size:.7rem}
+
+/* Status pill */
+.pill{font-family:var(--mono);font-size:.56rem;letter-spacing:.18em;color:var(--paper);text-align:right;padding-right:.2rem;text-transform:uppercase}
+.pill[data-status="pass"]{color:var(--vital)}
+.pill[data-status="fail"]{color:var(--sig)}
+.pill[data-status="gate-pass"]{color:var(--paper-ghost)}
+.pill[data-status="caution"]{color:var(--caution)}
+
+/* Hide collapsed children */
+.row[hidden]{display:none}
+
+/* Footer note */
+.footnote{display:flex;justify-content:space-between;gap:1rem;margin-top:.9rem;padding:.55rem .4rem;
+  font-family:var(--mono);font-size:.6rem;color:var(--paper-ghost);letter-spacing:.04em;flex-wrap:wrap}
+.footnote em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--paper-faint);letter-spacing:0}
+.footnote .key{display:inline-flex;gap:.35rem;align-items:center}
+.footnote .key::before{content:"";display:inline-block;width:10px;height:6px;background:currentColor}
+.footnote .k-pass{color:var(--vital)}
+.footnote .k-fail{color:var(--sig)}
+.footnote .k-gate{color:var(--paper-ghost)}
+
+@media (max-width:780px){
+  .cascade-col-head,.row{grid-template-columns:minmax(0,1fr) 1fr 60px 44px}
+  .name-2{white-space:normal}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bulletin">
+    <div>
+      <div class="bulletin-eyebrow">View A · Mockup</div>
+      <h1>The <em>Cascade</em> Tree</h1>
+    </div>
+    <div></div>
+    <div class="right">
+      <div>worst-first hierarchy</div>
+      <div><b>49</b> metrics · <span class="fail-tally"><b id="fail-count">…</b> failing</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-name">Metric Ranking — Worst First</span>
+    <span class="section-rule"></span>
+    <span class="section-tally" id="tally">…</span>
+    <span class="section-controls">
+      <button id="btn-collapse">collapse all</button>
+      <button id="btn-expand">expand all</button>
+    </span>
+  </div>
+
+  <div class="cascade" id="cascade">
+    <div class="cascade-col-head">
+      <div>tier · subgroup · metric</div>
+      <div class="h-bar">budget utilization &nbsp;·&nbsp; 0 ────── 1.0× ────── 2×+ cap</div>
+      <div class="h-mult">multi</div>
+      <div class="h-count">n</div>
+    </div>
+    <div id="rows"><!-- generated --></div>
+  </div>
+
+  <div class="bar-axis-note">parent rows aggregate <em style="font-family:var(--serif);font-style:italic;letter-spacing:0">max</em> of children · ratchet line at 1.0× shown red</div>
+
+  <div class="footnote">
+    <div>
+      <span class="key k-pass">pass</span> &nbsp;
+      <span class="key k-fail">fail</span> &nbsp;
+      <span class="key k-gate">gate-pass · budget = 0</span>
+    </div>
+    <div><em>folders informed by</em> scripts/measures/&lt;category&gt;/&lt;subgroup&gt;/</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { buildTree, fmtUtil, fmtNum, METRICS } from './_data.js'
+
+const tree = buildTree(METRICS)
+const rowsEl = document.getElementById('rows')
+
+const isCautionLeaf = (n) => n.kind === 'leaf' && n.passed && n.util >= .85 && n.metric.budget !== 0
+
+function paintBar (node) {
+  const w = (node.utilCapped / 2) * 100 // cap 2 → 100%
+  const status = node.kind === 'leaf'
+    ? (isCautionLeaf(node) ? 'caution' : node.status)
+    : (node.passed ? 'pass' : 'fail')
+  return `<div class="bar-fill" style="width:${w.toFixed(2)}%" data-status="${status}"></div>`
+}
+
+function rowHTML (node, idx, parentKey, lastInLevel) {
+  const depth = node.depth
+  const key = `${parentKey}${idx}/`
+  const status = node.kind === 'leaf'
+    ? (isCautionLeaf(node) ? 'caution' : node.status)
+    : (node.passed ? 'pass' : 'fail')
+
+  // Tree gutter strings (typographic)
+  let gutter = ''
+  if (depth === 1) gutter = lastInLevel ? '└─' : '├─'
+  if (depth === 2) gutter = lastInLevel ? '   └' : '   ├'
+
+  const nameClass = `name-${depth}`
+  const showCaret = node.kind !== 'leaf'
+  const caret = showCaret ? `<button class="caret" data-key="${key}" aria-label="toggle">▾</button>` : ''
+  const countTag = node.kind !== 'leaf' ? `<span class="count">${node.count}</span>` : ''
+
+  const multTxt = node.util === Infinity ? '∞×' : `${node.util.toFixed(2)}×`
+  const pillTxt = node.kind === 'leaf'
+    ? (node.status === 'gate-pass' ? 'GATE' : node.status === 'fail' ? 'FAIL' : (isCautionLeaf(node) ? 'WARN' : 'PASS'))
+    : (node.passed ? 'PASS' : 'FAIL')
+
+  return `
+    <div class="row" data-depth="${depth}" data-key="${key}">
+      <div class="label">
+        <span class="gutter">${gutter}</span>
+        ${caret}
+        <span class="${nameClass}">${node.name}</span>
+        ${countTag}
+      </div>
+      <div class="bar">${paintBar(node)}</div>
+      <div class="mult" data-status="${status}">${multTxt}</div>
+      <div class="pill" data-status="${status}">${pillTxt}</div>
+    </div>`
+}
+
+function render () {
+  const out = []
+  tree.forEach((cat, ci) => {
+    out.push(rowHTML(cat, ci, '', false))
+    cat.children.forEach((child, si) => {
+      const lastSub = si === cat.children.length - 1
+      out.push(rowHTML(child, si, `${ci}/`, lastSub))
+      if (child.kind === 'subgroup') {
+        child.children.forEach((leaf, li) => {
+          const lastLeaf = li === child.children.length - 1
+          out.push(rowHTML(leaf, li, `${ci}/${si}/`, lastLeaf))
+        })
+      }
+    })
+  })
+  rowsEl.innerHTML = out.join('')
+
+  rowsEl.querySelectorAll('.caret').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key
+      const closed = btn.closest('.row').classList.toggle('is-closed')
+      btn.textContent = closed ? '▸' : '▾'
+      rowsEl.querySelectorAll('.row').forEach(r => {
+        if (r.dataset.key !== key && r.dataset.key.startsWith(key)) r.hidden = closed
+      })
+    })
+  })
+
+  // Header tallies
+  let total = 0, fail = 0
+  for (const c of tree) for (const x of c.children) {
+    if (x.kind === 'leaf') { total++; if (!x.passed) fail++ }
+    else for (const l of x.children) { total++; if (!l.passed) fail++ }
+  }
+  document.getElementById('tally').textContent = `${total} metrics · ${fail} failing`
+  document.getElementById('fail-count').textContent = String(fail)
+}
+
+document.getElementById('btn-collapse').onclick = () => {
+  rowsEl.querySelectorAll('.row[data-depth="0"] .caret').forEach(b => b.click())
+}
+document.getElementById('btn-expand').onclick = () => {
+  rowsEl.querySelectorAll('.row.is-closed .caret').forEach(b => b.click())
+}
+
+render()
+</script>
+</body>
+</html>

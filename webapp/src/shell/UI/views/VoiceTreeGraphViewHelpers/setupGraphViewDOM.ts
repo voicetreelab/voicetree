@@ -9,11 +9,11 @@ import {
     createStatsOverlay,
     createTitleBarDragRegion
 } from '@/shell/UI/views/components/overlays/graphOverlays';
-import {createSpeedDialMenu, type SpeedDialCallbacks} from '@/shell/UI/views/SpeedDialMenu';
+import {createSpeedDialMenu, type SpeedDialCallbacks} from '@/shell/UI/views/ui-controls/SpeedDialMenu';
 import {
     initGraphViewOverlays,
     setLoadingState
-} from '@/shell/edge/UI-edge/state/GraphViewUIStore';
+} from '@/shell/edge/UI-edge/state/stores/GraphViewUIStore';
 
 export interface GraphViewDOMConfig {
     container: HTMLElement;

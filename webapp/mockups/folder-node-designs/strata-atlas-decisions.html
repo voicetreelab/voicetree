@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>STRATA · ATLAS — decision sheet · filetree + compound graph merge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:        #ece2cd;
+    --paper-2:      #e1d5ba;
+    --paper-3:      #d7c9a8;
+    --paper-4:      #cebe98;
+    --ink:          #141414;
+    --ink-soft:     #3a3a3a;
+    --ink-faint:    rgba(20,20,20,0.32);
+    --bp:           #1f5d7a;
+    --bp-2:         #2e87a8;
+    --gold:         #a07628;
+    --warn:         #b8421a;
+    --pick:         #2a7a2a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply; opacity: 0.55;
+  }
+
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1320px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+  .br-tl, .br-tr, .br-bl, .br-br { --b: 28px; position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink); }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+  header.masthead {
+    display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px;
+    padding-bottom: 24px; border-bottom: 2px solid var(--ink);
+  }
+  .title-block .kicker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em; color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(40px, 6vw, 76px);
+    letter-spacing: 0.02em; line-height: 0.9; margin: 0;
+  }
+  .title-block h1 .tab { background: var(--ink); color: var(--paper); padding: 0 0.18em; font-size: 0.86em; }
+  .title-block .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--gold);
+    letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px;
+  }
+  .stamp-block {
+    text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+    line-height: 1.7; color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block; padding: 4px 8px; border: 1.5px solid var(--ink);
+    margin-top: 6px; color: var(--ink); font-weight: 500;
+  }
+
+  .lede {
+    margin-top: 26px; font-size: 14px; line-height: 1.65; color: var(--ink-soft); max-width: 86ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+
+  .glyphs {
+    margin: 24px 0 18px;
+    display: flex; flex-wrap: wrap; gap: 22px;
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .glyphs span b {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink); font-weight: 600;
+    margin-right: 6px;
+  }
+  .glyphs .marker {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink);
+    font-size: 14px;
+    margin-right: 4px;
+    vertical-align: -1px;
+  }
+
+  /* section divider */
+  .section-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+    margin: 48px 0 22px;
+  }
+  .section-bar .id {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 22px;
+    background: var(--ink); color: var(--paper);
+    padding: 4px 12px 3px;
+  }
+  .section-bar .label {
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .section-bar .label .q {
+    color: var(--gold);
+  }
+  .section-bar .rule {
+    border-top: 1.5px solid var(--ink);
+    height: 1px;
+  }
+
+  .section-desc {
+    font-size: 12px; line-height: 1.55; color: var(--ink-soft);
+    max-width: 84ch;
+    margin-bottom: 20px;
+  }
+  .section-desc strong { color: var(--ink); font-weight: 500; }
+
+  /* recommended composition canvas */
+  .canvas {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 24px;
+    overflow: hidden;
+  }
+  .canvas.tall { min-height: 600px; }
+  .tick { position: absolute; font-size: 10px; letter-spacing: 0.2em; color: var(--ink-soft); text-transform: uppercase; }
+  .tick.tl { top: 6px; left: 10px; }
+  .tick.br { bottom: 6px; right: 10px; }
+
+  /* compass mini */
+  .compass {
+    position: absolute;
+    bottom: 18px; right: 18px;
+    width: 64px; height: 64px;
+    color: var(--gold);
+    opacity: 0.95;
+  }
+
+  /* leaf node */
+  .node {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    padding: 8px 12px 10px;
+    font-size: 11.5px;
+    line-height: 1.25;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.85);
+    min-width: 110px;
+    z-index: 4;
+  }
+  .node .nm { display: block; font-weight: 500; }
+  .node .meta { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+  .node.doc  .nm::before { content: '◰ '; color: var(--bp); }
+  .node.spec .nm::before { content: '◧ '; color: var(--warn); }
+
+  /* folder */
+  .folder {
+    position: absolute;
+    border: 2px solid var(--ink);
+    padding: 38px 18px 18px;
+  }
+  .folder.lvl-1 {
+    background: repeating-linear-gradient(45deg, transparent 0 11px, rgba(31,93,122,0.06) 11px 12px), var(--paper-2);
+  }
+  .folder.lvl-2 {
+    background: repeating-linear-gradient(-45deg, transparent 0 9px, rgba(160,118,40,0.10) 9px 10px), var(--paper-3);
+  }
+  .folder.lvl-3 {
+    background: repeating-linear-gradient(90deg, transparent 0 8px, rgba(20,20,20,0.06) 8px 9px), var(--paper-4);
+  }
+
+  /* control bar */
+  .folder .controls {
+    position: absolute;
+    top: -1.5px; left: -1.5px; right: -1.5px;
+    display: flex; align-items: stretch;
+    height: 28px;
+  }
+  .folder .tab {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 5px 10px 4px;
+    border-right: 1.5px solid var(--ink);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .folder .tab .lvl {
+    color: var(--gold);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .folder .bearing {
+    flex: 1;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 6px 10px;
+    display: flex; align-items: center;
+  }
+  .folder .bearing b { color: var(--gold); font-weight: 500; }
+  .folder .count {
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--bp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    display: flex; align-items: center;
+  }
+  .btn {
+    width: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper);
+    border-right: 1.5px solid var(--ink);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn:last-child { border-right: 0; }
+  .btn.toggle {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 16px;
+    line-height: 1;
+    padding-bottom: 2px;
+  }
+  .btn.toggle.on { background: var(--ink); color: var(--paper); }
+  .btn.note svg { color: var(--bp); }
+
+  /* corner brackets */
+  .crn { position: absolute; width: 10px; height: 10px; border: 2px solid var(--ink); }
+  .crn.tl { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+  .crn.tr { top: 4px; right: 4px; border-left: 0; border-bottom: 0; }
+  .crn.bl { bottom: 4px; left: 4px; border-right: 0; border-top: 0; }
+  .crn.br { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+
+  /* FILETREE DRAWER (the load-bearing new component) */
+  .ftree {
+    position: relative;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-top: 2px solid var(--ink);
+    margin-top: 18px;
+    padding: 22px 14px 12px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .ftree::before {
+    /* drawer label tab pulled from drafting */
+    content: 'UNLOADED · arrow-nav';
+    position: absolute;
+    top: -1.5px; left: 14px;
+    transform: translateY(-100%);
+    background: var(--paper); color: var(--ink-soft);
+    border: 1.5px solid var(--ink);
+    border-bottom: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 4px 10px 3px;
+  }
+  .ftree::after {
+    /* count chip on the right */
+    content: attr(data-count);
+    position: absolute;
+    top: -10px; right: 14px;
+    background: var(--paper);
+    color: var(--bp);
+    border: 1.5px solid var(--bp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+  }
+  .ftree .row {
+    display: flex; align-items: center; gap: 0;
+    padding: 1px 2px;
+    white-space: pre;
+  }
+  .ftree .row.focus {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .ftree .row.focus .meta { color: var(--gold); }
+  .ftree .row.focus .glyph { color: var(--paper); }
+  .ftree .indent {
+    color: var(--ink-faint);
+    font-weight: 300;
+  }
+  .ftree .row.focus .indent { color: rgba(255,255,255,0.4); }
+  .ftree .glyph {
+    width: 18px;
+    color: var(--bp);
+  }
+  .ftree .name {
+    flex: 1;
+  }
+  .ftree .meta {
+    color: var(--ink-soft);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-left: 12px;
+  }
+  .ftree .row.loaded .glyph { color: var(--gold); }
+  .ftree .row.loaded .name::before {
+    content: '✓ ';
+    color: var(--gold);
+    font-size: 10px;
+  }
+
+  /* keyboard cursor hint */
+  .ftree .cursor {
+    position: absolute;
+    left: 2px;
+    font-family: 'Major Mono Display', monospace;
+    color: var(--gold);
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* annotated callouts */
+  .callout {
+    position: absolute;
+    pointer-events: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold);
+    z-index: 10;
+  }
+  .callout .pin {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--paper);
+    padding: 2px 6px 1px;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .callout .line {
+    position: absolute;
+    background: var(--gold);
+    height: 1px;
+    transform-origin: left center;
+  }
+
+  /* PLATE GRID for alternatives */
+  .plates {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .plate {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 18px 16px 16px;
+  }
+  .plate .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  .plate .head .alt {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+  }
+  .plate .head .alt b {
+    color: var(--gold);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1px 6px;
+    margin-right: 4px;
+  }
+  .plate .head .verdict {
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .plate.pick {
+    border-color: var(--pick);
+    box-shadow: 0 0 0 1.5px var(--pick) inset, 4px 4px 0 -1px rgba(20,20,20,0.6);
+  }
+  .plate.pick .head { border-color: var(--pick); }
+  .plate.pick .head .verdict {
+    background: var(--pick);
+    color: var(--paper);
+    padding: 3px 8px;
+    letter-spacing: 0.22em;
+    font-weight: 500;
+  }
+  .plate.pick .head .alt b { background: var(--pick); }
+  .plate .demo {
+    position: relative;
+    height: 220px;
+    border: 1px solid var(--ink-faint);
+    margin-bottom: 12px;
+    overflow: hidden;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.10) 1px, transparent 1px) 0 0/20px 20px,
+      linear-gradient(90deg, rgba(20,20,20,0.10) 1px, transparent 1px) 0 0/20px 20px;
+  }
+  .plate .pros {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .plate .pros b { color: var(--ink); }
+  .plate .cons {
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .plate .cons::before {
+    content: 'tradeoff — ';
+    font-weight: 500;
+    color: var(--warn);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-size: 9.5px;
+  }
+
+  /* in-plate mini compositions */
+  .mini-folder {
+    position: absolute;
+    background: var(--paper-2);
+    border: 1.5px solid var(--ink);
+  }
+  .mini-folder.lvl-1 {
+    background: repeating-linear-gradient(45deg, transparent 0 7px, rgba(31,93,122,0.10) 7px 8px), var(--paper-2);
+  }
+  .mini-folder .ctrl {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 9px;
+    padding: 3px 6px 2px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .mini-folder .ctrl .lvl {
+    color: var(--gold);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+  }
+  .mini-folder .ctrl .toggle {
+    background: var(--paper); color: var(--ink);
+    padding: 0 4px;
+    font-family: 'Major Mono Display', monospace;
+    font-size: 10px;
+  }
+  .mini-node {
+    position: absolute;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    font-size: 8.5px;
+    padding: 3px 5px;
+    line-height: 1.15;
+    box-shadow: 1.5px 1.5px 0 -0.5px rgba(20,20,20,0.7);
+    color: var(--ink);
+  }
+  .mini-ftree {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    line-height: 1.4;
+    color: var(--ink);
+    padding: 4px 5px;
+  }
+  .mini-ftree .row { white-space: pre; padding: 0 2px; }
+  .mini-ftree .row.focus { background: var(--ink); color: var(--paper); }
+  .mini-ftree .row .glyph { color: var(--bp); }
+  .mini-ftree .row.focus .glyph { color: var(--paper); }
+  .mini-ftree .row.loaded .glyph { color: var(--gold); }
+
+  /* keyboard map */
+  .key {
+    display: inline-block;
+    min-width: 22px;
+    padding: 3px 7px 2px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 2px 2px 0 -0.5px rgba(20,20,20,0.7);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 12px;
+    text-align: center;
+    color: var(--ink);
+    margin: 0 4px;
+  }
+  .key.gold { background: var(--gold); color: var(--paper); border-color: var(--gold); }
+
+  table.keys {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+  }
+  table.keys th, table.keys td {
+    border: 1px solid var(--ink-faint);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11.5px;
+    vertical-align: middle;
+  }
+  table.keys th {
+    background: var(--paper-2);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  table.keys td .col-tag {
+    display: inline-block;
+    background: var(--ink); color: var(--paper);
+    padding: 1px 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-right: 8px;
+  }
+  table.keys td.context {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: var(--paper-2);
+    width: 28%;
+  }
+  table.keys td.context b { color: var(--ink); }
+
+  /* footer */
+  .footline {
+    margin-top: 56px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+    border-top: 1.5px solid var(--ink);
+    padding-top: 14px;
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+
+  /* decision summary box at the very end */
+  .summary {
+    margin-top: 28px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    padding: 22px 26px;
+    position: relative;
+  }
+  .summary::before {
+    content: 'RECOMMENDED · all picks bundled';
+    position: absolute;
+    top: -10px; left: 18px;
+    background: var(--pick); color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    padding: 3px 10px;
+  }
+  .summary ol {
+    margin: 0; padding: 0;
+    list-style: none;
+    counter-reset: pick;
+  }
+  .summary li {
+    counter-increment: pick;
+    padding: 8px 0 8px 44px;
+    position: relative;
+    font-size: 12.5px;
+    line-height: 1.55;
+    border-bottom: 1px dotted var(--ink-faint);
+  }
+  .summary li:last-child { border-bottom: 0; }
+  .summary li::before {
+    content: 'D' counter(pick);
+    position: absolute;
+    left: 0; top: 8px;
+    background: var(--pick); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 11px;
+    padding: 2px 7px;
+    letter-spacing: 0.04em;
+  }
+  .summary li b { color: var(--ink); }
+  .summary li em { color: var(--gold); font-style: normal; }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // strata · atlas / decision sheet // 2026-05-21</div>
+        <h1>str<span class="tab">ata</span> / <span style="color:var(--gold)">decisions</span></h1>
+        <div class="sub">filetree + compound graph — pick the merge model</div>
+      </div>
+      <div class="stamp-block">
+        Sheet 04.D / 06<br />
+        Working drawing<br />
+        Aki · drafting<br />
+        <span class="sn">5 DECISIONS</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      You're choosing how the filetree sidebar and the compound graph fuse. The decisions below are <strong>not independent</strong> — picks on D1 narrow D2's options, picks on D2 shape D4's keyboard story. Each plate renders the alternatives in this drafting idiom so you can react. The recommended bundle is summarised at the bottom; <strong>treat any single ★ as a counter-proposal to argue with, not a decree</strong>.
+    </p>
+
+    <div class="glyphs">
+      <span><span class="marker">▣</span> loaded — has a graph node</span>
+      <span><span class="marker">□</span> unloaded — list-only</span>
+      <span><span class="marker">◰</span> doc / markdown</span>
+      <span><span class="marker">▶</span> arrow-key focus</span>
+      <span><b>★</b> recommended pick</span>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- RECOMMENDED COMPOSITION -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">R</div>
+      <div class="label">recommended composition — <span class="q">how the pieces fit, all together</span></div>
+      <div class="rule"></div>
+    </div>
+
+    <p class="section-desc">
+      Graph is the outer container. A folder node holds <strong>loaded children</strong> in its body (full Atlas treatment, spatial layout, edges) and an <strong>unloaded filetree drawer</strong> at the bottom of the body. Arrow keys navigate the drawer; <span class="key" style="font-size:10px;padding:1px 5px;">↵</span> loads the focused entry into the graph as a child node. Annotated callouts <b>D1–D5</b> mark the decisions each part embodies.
+    </p>
+
+    <div class="canvas tall">
+      <span class="tick tl">+ 000,000 · N</span>
+      <span class="tick br">+ 1200,580 · S</span>
+
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M50 8 L54 50 L50 92 L46 50 Z" fill="currentColor" opacity="0.9"/>
+        <path d="M8 50 L50 54 L92 50 L50 46 Z" fill="currentColor" opacity="0.4"/>
+        <text x="50" y="6" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">N</text>
+      </svg>
+
+      <!-- L1 folder -->
+      <div class="folder lvl-1" style="left: 30px; top: 40px; width: 760px; height: 500px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+        <div class="controls">
+          <div class="tab"><span class="lvl">L1</span> folder-nodes</div>
+          <div class="bearing">bearing <b>N 045°</b> · region 01 · loaded ×3 · unloaded ×5</div>
+          <div class="count">×8 total</div>
+          <a class="btn note" title="folder note">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+              <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+              <line x1="5" y1="6" x2="11" y2="6"/>
+              <line x1="5" y1="9" x2="11" y2="9"/>
+            </svg>
+          </a>
+          <a class="btn toggle on">−</a>
+        </div>
+
+        <!-- LOADED children (spatial body) -->
+        <div class="node doc"  style="left: 22px; top: 56px;">
+          <span class="nm">design.md</span>
+          <span class="meta">openspec · 1.4k</span>
+        </div>
+        <div class="node spec" style="left: 200px; top: 80px;">
+          <span class="nm">BF-112 file-cap</span>
+          <span class="meta">researching</span>
+        </div>
+
+        <!-- L2 folder loaded -->
+        <div class="folder lvl-2" style="left: 380px; top: 56px; width: 350px; height: 170px;">
+          <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+          <div class="controls">
+            <div class="tab"><span class="lvl">L2</span> openspec</div>
+            <div class="bearing"><b>N 088°</b> · ×8</div>
+            <a class="btn note">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/>
+                <path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+                <line x1="5" y1="6" x2="11" y2="6"/>
+              </svg>
+            </a>
+            <a class="btn toggle on">−</a>
+          </div>
+          <div class="node doc" style="left: 14px; top: 52px;">
+            <span class="nm">proposal.md</span>
+            <span class="meta">openspec · 928 B</span>
+          </div>
+          <div class="node" style="left: 170px; top: 52px;">
+            <span class="nm">BF-110</span>
+            <span class="meta">cross-edges · open</span>
+          </div>
+        </div>
+
+        <!-- UNLOADED FILETREE DRAWER inside L1 -->
+        <div class="ftree" data-count="× 5 UNLOADED" style="position: absolute; left: 14px; right: 14px; bottom: 14px;">
+          <div class="row loaded">
+            <span class="indent">├ </span><span class="glyph">▣</span><span class="name">openspec/</span><span class="meta">loaded · ×8 inside</span>
+          </div>
+          <div class="row focus">
+            <span class="indent">├ </span><span class="glyph">□</span><span class="name">folder-architecture-refactor/</span><span class="meta">×4 inside · ↵ to load</span>
+          </div>
+          <div class="row">
+            <span class="indent">├ </span><span class="glyph">□</span><span class="name">folder-interaction-improvements/</span><span class="meta">×3 inside</span>
+          </div>
+          <div class="row">
+            <span class="indent">├ </span><span class="glyph">□</span><span class="name">specs/</span><span class="meta">×6 inside</span>
+          </div>
+          <div class="row">
+            <span class="indent">├ </span><span class="glyph">□</span><span class="name">CHANGELOG.md</span><span class="meta">doc · 240 B</span>
+          </div>
+          <div class="row">
+            <span class="indent">└ </span><span class="glyph">□</span><span class="name">README.md</span><span class="meta">doc · 1.1k</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- callouts -->
+      <div class="callout" style="top: 20px; right: 30px; width: 240px;">
+        <div><span class="pin">D1</span>graph is outer · always</div>
+        <div style="color:var(--ink-soft); margin-top:4px;">no sidebar; folder nodes own the world</div>
+      </div>
+
+      <div class="callout" style="top: 100px; right: 30px; width: 240px;">
+        <div><span class="pin">D2</span>filetree = bottom drawer</div>
+        <div style="color:var(--ink-soft); margin-top:4px;">inside every expanded folder body</div>
+      </div>
+
+      <div class="callout" style="top: 180px; right: 30px; width: 240px;">
+        <div><span class="pin">D3</span>▣ vs □ glyph</div>
+        <div style="color:var(--ink-soft); margin-top:4px;">filled = loaded · outlined = list-only</div>
+      </div>
+
+      <div class="callout" style="top: 260px; right: 30px; width: 240px;">
+        <div><span class="pin">D4</span>arrows in drawer only</div>
+        <div style="color:var(--ink-soft); margin-top:4px;">spatial keys never collide with list keys</div>
+      </div>
+
+      <div class="callout" style="top: 340px; right: 30px; width: 240px;">
+        <div><span class="pin">D5</span><span class="key" style="font-size:10px; padding:1px 5px; box-shadow:none;">↵</span> loads from drawer</div>
+        <div style="color:var(--ink-soft); margin-top:4px;">explicit, never auto-load on scroll</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- DECISION 01 -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D1</div>
+      <div class="label">outer container — <span class="q">what view does the user "live in"?</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      The outer container settles three things the inner one can't: <strong>motion</strong> (scroll vs pan/zoom), <strong>stability</strong> (filetree always shows full structure; graph only shows loaded), and <strong>keyboard scope</strong> (global arrows vs focused arrows). This is the architectural call — every other decision is downstream.
+    </p>
+
+    <div class="plates">
+      <!-- A: filetree outer -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>A</b> filetree outer</span>
+          <span class="verdict">rejected</span>
+        </div>
+        <div class="demo">
+          <!-- vertical filetree dominates -->
+          <div class="mini-ftree" style="left: 6px; top: 6px; width: 130px; height: calc(100% - 12px);">
+            <div class="row loaded"><span class="glyph">▣</span> nodes/</div>
+            <div class="row loaded" style="padding-left:8px;"><span class="glyph">▣</span> openspec/</div>
+            <div class="row" style="padding-left:16px;"><span class="glyph">◰</span> proposal.md</div>
+            <div class="row" style="padding-left:16px;"><span class="glyph">◰</span> design.md</div>
+            <div class="row focus" style="padding-left:8px;"><span class="glyph">▣</span> refactor/</div>
+            <div class="row" style="padding-left:8px;"><span class="glyph">□</span> specs/</div>
+            <div class="row"><span class="glyph">□</span> webapp/</div>
+          </div>
+          <!-- squashed inline graph -->
+          <div class="mini-folder lvl-1" style="left: 152px; top: 50px; width: 100px; height: 70px;">
+            <div class="ctrl"><span><span class="lvl">L1</span> refactor</span><span class="toggle">−</span></div>
+            <div class="mini-node" style="left: 6px; top: 24px;">BF-116</div>
+            <div class="mini-node" style="left: 50px; top: 36px;">BF-117</div>
+          </div>
+          <div style="position:absolute; left:152px; top:130px; right:6px; font-size:8px; color:var(--warn); letter-spacing:0.18em; text-transform:uppercase; line-height:1.4;">
+            ⚠ graph squashed to fit one row in the scrolling list
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> arrow keys are always global; filesystem is your home base; "see whole disk" works.</div>
+        <div class="cons">1D scroll list trying to host 2D spatial regions; every STRATA folder node collapses into a glorified accordion row. The compound-graph idea dies here.</div>
+      </div>
+
+      <!-- B: graph outer (recommended) -->
+      <div class="plate pick">
+        <div class="head">
+          <span class="alt"><b>B</b> graph outer</span>
+          <span class="verdict">★ pick</span>
+        </div>
+        <div class="demo">
+          <div class="mini-folder lvl-1" style="left: 12px; top: 16px; width: calc(100% - 24px); height: calc(100% - 32px);">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes <span class="lvl" style="color:#a07628; margin-left:4px;">N 045°</span></span><span class="toggle">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-folder" style="left: 78px; top: 22px; width: 88px; height: 56px;">
+              <div class="ctrl" style="font-size:7px"><span><span class="lvl">L2</span> openspec</span><span class="toggle" style="font-size:8px">−</span></div>
+              <div class="mini-node" style="left:6px; top:18px; font-size:7px;">proposal</div>
+              <div class="mini-node" style="left:42px; top:30px; font-size:7px;">BF-110</div>
+            </div>
+            <div class="mini-ftree" style="left: 8px; bottom: 8px; right: 8px; height: 72px; padding: 4px 6px;">
+              <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED · arrow-nav</div>
+              <div class="row focus"><span class="glyph">□</span> arch-refactor/</div>
+              <div class="row"><span class="glyph">□</span> specs/</div>
+              <div class="row"><span class="glyph">□</span> README.md</div>
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> spatial reasoning stays primary; STRATA folder language untouched; one mental model; loaded ↔ unloaded boundary is local to each folder.</div>
+        <div class="cons">"see the whole disk without loading anything" stops being a default — it becomes "drill from root, arrow through the drawer." Slight friction for first-time orientation.</div>
+      </div>
+
+      <!-- C: sidebar + graph (current) -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>C</b> sidebar + graph</span>
+          <span class="verdict">current · keep?</span>
+        </div>
+        <div class="demo">
+          <div class="mini-ftree" style="left: 6px; top: 6px; width: 70px; height: calc(100% - 12px);">
+            <div class="row loaded"><span class="glyph">▣</span> nodes/</div>
+            <div class="row loaded" style="padding-left:6px;"><span class="glyph">▣</span> osp/</div>
+            <div class="row focus" style="padding-left:6px;"><span class="glyph">▣</span> rfct/</div>
+            <div class="row" style="padding-left:6px;"><span class="glyph">□</span> spc/</div>
+          </div>
+          <div class="mini-folder lvl-1" style="left: 88px; top: 16px; width: calc(100% - 100px); height: calc(100% - 32px);">
+            <div class="ctrl"><span><span class="lvl">L1</span> refactor</span><span class="toggle">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 24px;">BF-116</div>
+            <div class="mini-node" style="left: 70px; top: 24px;">BF-117</div>
+            <div class="mini-node" style="left: 8px; top: 56px;">BF-118</div>
+            <div class="mini-node" style="left: 70px; top: 56px;">BF-119</div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> already shipped (BF-114 sync); both views available; familiar pattern from IDEs.</div>
+        <div class="cons">Two mental models in sync. Sidebar duplicates graph nesting info. "What's loaded" is hidden — sidebar shows everything regardless. Pays maintenance forever.</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- DECISION 02 -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D2</div>
+      <div class="label">where the unloaded filetree lives inside a folder — <span class="q">drawer? side strip? mode?</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Assumes D1 = B (graph outer). The unloaded-children filetree needs a home inside the expanded folder body. Three honest options.
+    </p>
+
+    <div class="plates">
+      <!-- A: bottom drawer (recommended) -->
+      <div class="plate pick">
+        <div class="head">
+          <span class="alt"><b>A</b> bottom drawer</span>
+          <span class="verdict">★ pick</span>
+        </div>
+        <div class="demo">
+          <div class="mini-folder lvl-1" style="left: 12px; top: 16px; width: calc(100% - 24px); height: calc(100% - 32px);">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 78px; top: 22px;">BF-112</div>
+            <div class="mini-node" style="left: 8px; top: 60px;">BF-117</div>
+            <div class="mini-ftree" style="left: 8px; bottom: 8px; right: 8px; height: 60px; padding: 4px 6px;">
+              <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED — arrow-nav</div>
+              <div class="row focus"><span class="glyph">□</span> arch-refactor/</div>
+              <div class="row"><span class="glyph">□</span> specs/</div>
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> body keeps spatial layout; drawer is collapsible (max-height + scroll); arrow-nav scope is unambiguous when you click into the drawer.</div>
+        <div class="cons">Drawer can grow long in big directories. Needs a max-height with overflow-scroll, plus filter/search at &gt;30 entries.</div>
+      </div>
+
+      <!-- B: side strip -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>B</b> side strip (right)</span>
+          <span class="verdict">considered</span>
+        </div>
+        <div class="demo">
+          <div class="mini-folder lvl-1" style="left: 12px; top: 16px; width: calc(100% - 24px); height: calc(100% - 32px);">
+            <div class="ctrl"><span><span class="lvl">L1</span> folder-nodes</span><span class="toggle">−</span></div>
+            <div class="mini-node" style="left: 8px; top: 22px;">design.md</div>
+            <div class="mini-node" style="left: 8px; top: 50px;">BF-112</div>
+            <div class="mini-node" style="left: 70px; top: 36px;">BF-117</div>
+            <div class="mini-ftree" style="right: 8px; top: 22px; bottom: 8px; width: 90px; padding: 4px 6px;">
+              <div style="font-size:7px; letter-spacing:0.2em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:2px;">UNLOADED</div>
+              <div class="row focus"><span class="glyph">□</span> arch/</div>
+              <div class="row"><span class="glyph">□</span> spec/</div>
+              <div class="row"><span class="glyph">□</span> README</div>
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> doesn't push loaded children down; vertical narrow strip mirrors a sidebar — familiar mental model.</div>
+        <div class="cons">Long filenames get truncated. Edge interface (the fan port) lives on the right too — they compete for the same edge. Cramped at L2/L3.</div>
+      </div>
+
+      <!-- C: mode toggle -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>C</b> mode toggle</span>
+          <span class="verdict">rejected</span>
+        </div>
+        <div class="demo">
+          <div class="mini-folder lvl-1" style="left: 12px; top: 16px; width: calc(100% - 24px); height: calc(100% - 32px);">
+            <div class="ctrl">
+              <span><span class="lvl">L1</span> folder-nodes</span>
+              <span style="display:flex; gap:3px;">
+                <span class="toggle" style="background:var(--ink); color:var(--paper);">graph</span>
+                <span class="toggle">list</span>
+              </span>
+            </div>
+            <div class="mini-ftree" style="left: 8px; top: 22px; right: 8px; bottom: 8px; padding: 6px 8px; border: 0;">
+              <div class="row loaded"><span class="glyph">▣</span> design.md</div>
+              <div class="row loaded"><span class="glyph">▣</span> BF-112</div>
+              <div class="row loaded"><span class="glyph">▣</span> openspec/</div>
+              <div class="row focus"><span class="glyph">□</span> arch-refactor/</div>
+              <div class="row"><span class="glyph">□</span> specs/</div>
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> filetree gets the full body; consistent list across loaded + unloaded; cleanest keyboard story.</div>
+        <div class="cons">Hides spatial info per toggle — defeats the whole compound-graph value proposition. Every folder becomes a context-switch decision. STRATA layout never gets to do its job.</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- DECISION 03 -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D3</div>
+      <div class="label">loaded vs unloaded visual — <span class="q">how does the eye tell a graph-backed child from a list-only one?</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Whatever you pick gets used hundreds of times per session — it has to be unambiguous at a glance and not depend on color alone.
+    </p>
+
+    <div class="plates">
+      <!-- A: glyph (recommended) -->
+      <div class="plate pick">
+        <div class="head">
+          <span class="alt"><b>A</b> ▣ vs □ glyph</span>
+          <span class="verdict">★ pick</span>
+        </div>
+        <div class="demo">
+          <div class="mini-ftree" style="left: 18px; top: 18px; right: 18px; padding: 10px 12px; font-size: 11px;">
+            <div class="row loaded" style="line-height: 1.7;"><span class="glyph">▣</span> openspec/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">loaded · ×8 inside</span></div>
+            <div class="row loaded" style="line-height: 1.7;"><span class="glyph">▣</span> arch-refactor/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">loaded · ×4</span></div>
+            <div class="row" style="line-height: 1.7;"><span class="glyph">□</span> specs/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">unloaded · ×6</span></div>
+            <div class="row" style="line-height: 1.7;"><span class="glyph">□</span> README.md <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">unloaded · doc</span></div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> works in print, works for colorblind users, fits the drafting glyph vocabulary. Loaded gets a gold ▣ (filled), unloaded gets a blueprint □ (outline).</div>
+        <div class="cons">Two glyphs to learn. Once learned, irreversible — but the first hour of use you'll squint.</div>
+      </div>
+
+      <!-- B: paper weight -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>B</b> paper weight</span>
+          <span class="verdict">considered</span>
+        </div>
+        <div class="demo">
+          <div class="mini-ftree" style="left: 18px; top: 18px; right: 18px; padding: 10px 12px; font-size: 11px;">
+            <div class="row" style="line-height: 1.7;"><span style="color:var(--ink); font-weight:500;">▢</span> openspec/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">×8 inside</span></div>
+            <div class="row" style="line-height: 1.7;"><span style="color:var(--ink); font-weight:500;">▢</span> arch-refactor/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">×4</span></div>
+            <div class="row" style="line-height: 1.7; opacity: 0.45;"><span>▢</span> specs/ <span style="color:var(--ink-soft); font-size:8px; letter-spacing:0.18em; text-transform:uppercase; margin-left:8px;">×6</span></div>
+            <div class="row" style="line-height: 1.7; opacity: 0.45;"><span>▢</span> README.md</div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> single glyph; loaded = full opacity, unloaded = 45% ghost. Subtle and clean.</div>
+        <div class="cons">Reads as "disabled" rather than "different kind of thing." Users will assume they shouldn't click unloaded entries — bad signal for the load action.</div>
+      </div>
+
+      <!-- C: separator -->
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>C</b> position split</span>
+          <span class="verdict">rejected</span>
+        </div>
+        <div class="demo">
+          <div class="mini-ftree" style="left: 18px; top: 18px; right: 18px; padding: 10px 12px; font-size: 11px;">
+            <div style="font-size:7px; letter-spacing:0.18em; color:var(--gold); text-transform:uppercase; margin-bottom:3px;">— LOADED —</div>
+            <div class="row loaded" style="line-height: 1.6;"><span class="glyph">▣</span> openspec/</div>
+            <div class="row loaded" style="line-height: 1.6;"><span class="glyph">▣</span> arch-refactor/</div>
+            <div style="font-size:7px; letter-spacing:0.18em; color:var(--ink-soft); text-transform:uppercase; margin: 6px 0 3px; border-top: 1px solid var(--ink-faint); padding-top: 4px;">— UNLOADED —</div>
+            <div class="row" style="line-height: 1.6;"><span class="glyph">□</span> specs/</div>
+            <div class="row" style="line-height: 1.6;"><span class="glyph">□</span> README.md</div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> two distinct regions; no per-row discrimination needed.</div>
+        <div class="cons">Breaks alphabetical/filesystem order. Reordering a single file's load state moves it across the divider — disorienting. Also: loaded children already live in the spatial body, so this duplicates them in the drawer for no reason.</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- DECISION 04 -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D4</div>
+      <div class="label">arrow-key scope — <span class="q">when do arrows mean "next sibling" vs "pan canvas"?</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      The arrow-key keyboard is precious real estate. Two patterns are honest; the third is too clever. Recommendation: arrows are <strong>focus-contextual</strong> — they do whatever the focused element wants. The filetree drawer claims them when focused; the canvas claims them otherwise.
+    </p>
+
+    <table class="keys">
+      <thead>
+        <tr>
+          <th style="width: 28%;">focus context</th>
+          <th style="width: 14%;"><span class="key">↓</span> / <span class="key">↑</span></th>
+          <th style="width: 14%;"><span class="key">→</span></th>
+          <th style="width: 14%;"><span class="key">←</span></th>
+          <th><span class="key">↵</span></th>
+          <th><span class="key" style="font-size:9px;">Space</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="context"><span class="col-tag">drawer</span><b>filetree drawer</b><br/><span style="color:var(--ink-soft); font-size:10px;">user clicked into the drawer</span></td>
+          <td>next / prev sibling row</td>
+          <td>expand row into sub-drawer</td>
+          <td>collapse / move to parent</td>
+          <td>load focused entry into graph</td>
+          <td>preview folder note (peek)</td>
+        </tr>
+        <tr>
+          <td class="context"><span class="col-tag">node</span><b>graph node</b><br/><span style="color:var(--ink-soft); font-size:10px;">a leaf node is selected</span></td>
+          <td>next / prev sibling in compound</td>
+          <td>follow outgoing edge</td>
+          <td>follow incoming edge / parent</td>
+          <td>open node content</td>
+          <td>toggle selection / preview</td>
+        </tr>
+        <tr>
+          <td class="context"><span class="col-tag">canvas</span><b>canvas (nothing focused)</b><br/><span style="color:var(--ink-soft); font-size:10px;">click background</span></td>
+          <td>pan vertical</td>
+          <td>pan right</td>
+          <td>pan left</td>
+          <td>—</td>
+          <td>fit-to-view</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="section-desc" style="margin-top: 14px;">
+      <span class="key" style="font-size:10px; padding:1px 6px;">Esc</span> always escapes one level (drawer → folder → parent folder → canvas). <span class="key" style="font-size:10px; padding:1px 6px;">⌘P</span> / <span class="key" style="font-size:10px; padding:1px 6px;">Ctrl+P</span> opens a fuzzy filename search over the <em>entire</em> filesystem (loaded or not) — this is the answer to "I just want to find a file fast, anywhere."
+    </p>
+
+    <!-- ====================================================== -->
+    <!-- DECISION 05 -->
+    <!-- ====================================================== -->
+    <div class="section-bar">
+      <div class="id">D5</div>
+      <div class="label">load trigger — <span class="q">when does an unloaded entry become a graph node?</span></div>
+      <div class="rule"></div>
+    </div>
+    <p class="section-desc">
+      Three honest trigger options. The recommendation is <strong>explicit only</strong> — never auto-load on scroll or hover; every load is a deliberate, undo-able action.
+    </p>
+
+    <div class="plates">
+      <div class="plate pick">
+        <div class="head">
+          <span class="alt"><b>A</b> ↵ on focused entry</span>
+          <span class="verdict">★ pick</span>
+        </div>
+        <div class="demo">
+          <div style="position:absolute; left:18px; top:18px; right:18px; font-size:11px; line-height:1.6; color:var(--ink);">
+            <div style="margin-bottom:8px;">
+              <span class="key" style="font-size:11px; padding:2px 7px;">↓</span>
+              <span class="key" style="font-size:11px; padding:2px 7px;">↓</span>
+              <span style="color:var(--ink-soft); margin-left:8px;">walk to entry</span>
+            </div>
+            <div style="margin-bottom:8px;">
+              <span class="key" style="font-size:11px; padding:2px 7px;">↵</span>
+              <span style="color:var(--ink-soft); margin-left:8px;">load into graph</span>
+            </div>
+            <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--ink-faint); font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold);">
+              entry leaves drawer · becomes graph node
+            </div>
+            <div style="font-size:10px; color:var(--ink-soft); margin-top:8px; line-height:1.5;">
+              <span class="key" style="font-size:9px; padding:1px 4px; box-shadow:none;">⌘Z</span> unloads cleanly. Mouse: single click on the row does the same.
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> deliberate, undo-able, works keyboard or mouse. Loading is always a user decision.</div>
+        <div class="cons">No "browse with auto-preview" experience — but that's by design (auto-load is how you get 600 stale nodes).</div>
+      </div>
+
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>B</b> hover preview, click loads</span>
+          <span class="verdict">considered</span>
+        </div>
+        <div class="demo">
+          <div style="position:absolute; left:18px; top:18px; right:18px; font-size:11px; line-height:1.6; color:var(--ink);">
+            <div>Hover row → ghost graph node appears at parent.</div>
+            <div style="margin: 10px 0;">Click → promote ghost to real loaded node.</div>
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ink-faint); font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--warn);">
+              ghost nodes flicker on rapid hover
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> see-before-load; can scrub entries; nice for exploratory browsing.</div>
+        <div class="cons">Ghost render cost; flicker on mouse drift; what's loaded vs not becomes ambiguous mid-hover. Sneaks complexity into the load-state machine.</div>
+      </div>
+
+      <div class="plate">
+        <div class="head">
+          <span class="alt"><b>C</b> auto-load on scroll-into-view</span>
+          <span class="verdict">rejected</span>
+        </div>
+        <div class="demo">
+          <div style="position:absolute; left:18px; top:18px; right:18px; font-size:11px; line-height:1.6; color:var(--ink);">
+            <div>Scroll drawer past entry → entry auto-loads.</div>
+            <div style="margin: 10px 0; color: var(--warn);">No explicit user action.</div>
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ink-faint); font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--warn);">
+              hits the 600-file safety cap immediately
+            </div>
+          </div>
+        </div>
+        <div class="pros"><b>pro:</b> zero-input — graph grows as you browse.</div>
+        <div class="cons">This is exactly the failure mode BF-112 (the 600-file cap) is fighting. Auto-load is how the old "&gt;300 files" bug came back. Never.</div>
+      </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- SUMMARY -->
+    <!-- ====================================================== -->
+    <div class="summary">
+      <ol>
+        <li><b>Outer container:</b> graph is outer. No sidebar. <em>(D1 = B)</em></li>
+        <li><b>Filetree home:</b> bottom drawer inside each expanded folder body. Max-height + scroll + filter at &gt;30 entries. <em>(D2 = A)</em></li>
+        <li><b>Loaded vs unloaded:</b> ▣ (gold, filled) vs □ (cyan, outlined). Glyph + color, never color alone. <em>(D3 = A)</em></li>
+        <li><b>Arrow keys:</b> focus-contextual. Drawer claims them when focused; otherwise canvas pan. <span class="key" style="font-size:10px; padding:1px 6px;">⌘P</span> for global fuzzy filename search. <em>(D4 = focus-scoped)</em></li>
+        <li><b>Load trigger:</b> explicit only — <span class="key" style="font-size:10px; padding:1px 6px;">↵</span> on focused row, or single click. Never hover, never scroll. <em>(D5 = A)</em></li>
+      </ol>
+    </div>
+
+    <div class="footline">
+      <span>strata-atlas-decisions.html · folder-nodes design 04.D · merge-model decision sheet</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

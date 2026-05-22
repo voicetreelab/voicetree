@@ -9,10 +9,9 @@ import { project } from '@vt/graph-state/project'
 import { getSelection } from '@vt/graph-state/state/selectionStore'
 
 import {
-    getGraphCollapseSet,
     getFolderTreeState,
     subscribeFolderTree,
-} from '@/shell/edge/UI-edge/state/FolderTreeStore'
+} from '@/shell/edge/UI-edge/state/stores/FolderTreeStore'
 
 interface TestProjectionState {
     graph: Graph
@@ -28,6 +27,7 @@ const state: TestProjectionState = {
 
 let lastSyncedFolderTree: FolderTreeNode | null = getFolderTreeState().tree
 let hasFreshFolderTree: boolean = lastSyncedFolderTree !== null
+let testCollapseSet: ReadonlySet<string> = new Set()
 
 function emptyRoots(): State['roots'] {
     return {
@@ -58,7 +58,7 @@ function buildProjectionState(): State {
         ...base,
         graph: state.graph,
         roots: buildRootsFromFolderTree(),
-        collapseSet: getGraphCollapseSet(),
+        collapseSet: testCollapseSet,
         selection: getSelection(),
         layout: {
             ...base.layout,
@@ -99,6 +99,11 @@ export function resetTestProjectionState(): void {
     state.positions = new Map()
     hasFreshFolderTree = false
     lastSyncedFolderTree = null
+    testCollapseSet = new Set()
+}
+
+export function setTestCollapseSet(folderIds: ReadonlySet<string>): void {
+    testCollapseSet = folderIds
 }
 
 export function projectTestProjectionState(): ProjectedGraph {

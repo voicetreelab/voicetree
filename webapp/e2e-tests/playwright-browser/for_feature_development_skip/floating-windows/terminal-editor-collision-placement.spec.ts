@@ -172,9 +172,9 @@ test.describe('Terminal/Editor Collision Placement (Browser E2E)', () => {
 
       // Dynamic import of required modules
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const floatingWindowsModule = await import('/src/shell/edge/UI-edge/floating-windows/cytoscape-floating-windows.ts' as any);
+      const floatingWindowsModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows.ts' as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typesModule = await import('/src/shell/edge/UI-edge/floating-windows/types.ts' as any);
+      const typesModule = await import('/src/shell/edge/UI-edge/floating-windows/anchoring/types.ts' as any);
 
       // Create terminal data using the types module
       // IMPORTANT: anchoredToNodeId must be set for anchorToNode to work

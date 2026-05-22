@@ -24,8 +24,8 @@ const REQUIRED_COUPLING_SURFACES: readonly string[] = [
 
 function runAuditCli(): string {
     return execFileSync(
-        'zsh',
-        ['-lc', 'npx tsx packages/libraries/graph-tools/scripts/audit-cytoscape-coupling.ts'],
+        'npx',
+        ['tsx', 'packages/libraries/graph-tools/scripts/audit-cytoscape-coupling.ts'],
         {
             cwd: repoRoot,
             encoding: 'utf-8',

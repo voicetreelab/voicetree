@@ -2,7 +2,7 @@
 // Called via page.evaluate(() => window.__vtDebug__.cy()) from the CLI.
 // Installed by main.tsx after the ring buffer hooks (consoleBuffer.ts).
 
-import { getCyInstance, isCyInitialized } from '@/shell/edge/UI-edge/state/cytoscape-state'
+import { getCyInstance, isCyInitialized } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state'
 import type { Core } from 'cytoscape'
 
 type CyNodeData = {

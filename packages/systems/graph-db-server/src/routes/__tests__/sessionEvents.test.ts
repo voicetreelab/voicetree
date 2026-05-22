@@ -11,12 +11,12 @@ import {
   type GraphNode,
 } from '@vt/graph-model/graph'
 import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionRegistry } from '../../session/registry.ts'
+import { SessionRegistry } from '../../application/session/registry.ts'
 import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import { getGraph, setGraph } from '../../state/graph-store.ts'
 import { publish } from '../../state/events/deltaEventBus.ts'
-import { mountSessionEventsRoute } from '../sessionEvents.ts'
+import { mountSessionEventsRoute } from '../session-endpoints/sessionEvents.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sse-test-'))

@@ -1,0 +1,65 @@
+/* sections — shared scaffolding for category headers/tally */
+/* =============================================================================
+   SECTION SCAFFOLDING
+   ========================================================================== */
+.gates-section,
+.ranking-section,
+.axis-banner,
+.axis-section,
+.category-section,
+.checks-section,
+.filetree-section {
+  margin-bottom: 2.2rem;
+  position: relative;
+}
+
+.category-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+
+.category-name {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper);
+  white-space: nowrap;
+  position: relative;
+  padding-left: 1.2rem;
+}
+.category-name::before {
+  content: '§';
+  position: absolute;
+  left: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.95rem;
+  color: var(--sig);
+  letter-spacing: 0;
+  top: -0.08em;
+}
+
+.category-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--rule), transparent);
+}
+.category-tally {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.category-tally .t-pass { color: var(--vital); }
+.category-tally .t-fail { color: var(--sig); font-weight: 600; }
+.category-tally .t-skip { color: var(--paper-faint); }
+

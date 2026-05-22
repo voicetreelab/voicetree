@@ -17,15 +17,23 @@ export type {BuildMarkdownBodyParams, ComplexityScore}
  * to the parser's supported diagram type names.
  * Types not in this map are unsupported by @mermaid-js/parser — skip validation.
  */
-const MERMAID_TYPE_TO_PARSER_TYPE: ReadonlyMap<string, string> = new Map([
-    ['pie', 'pie'],
-    ['gitGraph', 'gitGraph'],
-    ['info', 'info'],
-    ['packet-beta', 'packet'],
-    ['architecture-beta', 'architecture'],
-    ['radar-beta', 'radar'],
-    ['treemap', 'treemap'],
-])
+function getMermaidParserType(diagramType: string): string | undefined {
+    switch (diagramType) {
+        case 'pie':
+        case 'gitGraph':
+        case 'info':
+        case 'treemap':
+            return diagramType
+        case 'packet-beta':
+            return 'packet'
+        case 'architecture-beta':
+            return 'architecture'
+        case 'radar-beta':
+            return 'radar'
+        default:
+            return undefined
+    }
+}
 
 export function slugify(text: string): string {
     return text
@@ -54,7 +62,7 @@ export function extractMermaidBlocks(content: string): readonly MermaidBlock[] {
         const firstLine: string = (lines[0] ?? '').trim()
         const diagramType: string | undefined = firstLine.split(/\s+/)[0]
         const parserType: string | undefined = diagramType
-            ? MERMAID_TYPE_TO_PARSER_TYPE.get(diagramType)
+            ? getMermaidParserType(diagramType)
             : undefined
         const textWithoutFirstLine: string = lines.slice(1).join('\n')
         blocks.push({index, diagramType, parserType, textWithoutFirstLine})
@@ -73,7 +81,7 @@ export function parseDiagramParam(diagramSource: string): MermaidBlock {
     const firstLine: string = (lines[0] ?? '').trim()
     const diagramType: string | undefined = firstLine.split(/\s+/)[0]
     const parserType: string | undefined = diagramType
-        ? MERMAID_TYPE_TO_PARSER_TYPE.get(diagramType)
+        ? getMermaidParserType(diagramType)
         : undefined
     const textWithoutFirstLine: string = lines.slice(1).join('\n')
     return {index: 0, diagramType, parserType, textWithoutFirstLine}

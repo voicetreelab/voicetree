@@ -4,11 +4,8 @@
  * Accepts a `SerializedCommand` from an MCP client, hydrates it, and applies
  * it to the main-side live State store. Returns `{ delta, revision }`.
  *
- * L3-BF-186: all 15 Command variants (Collapse/Expand/Select/Deselect,
- * AddNode/RemoveNode/AddEdge/RemoveEdge/Move, LoadRoot/UnloadRoot,
- * SetZoom/SetPan/SetPositions/RequestFit) now pass through
- * `applyCommandWithDelta`/`applyCommandAsyncWithDelta` — no more
- * `not-yet-wired` sentinel. LoadRoot is the only async case (disk I/O).
+ * L3-BF-186: live command variants pass through `applyCommandWithDelta` with
+ * no `not-yet-wired` sentinel.
  */
 import {
     hydrateCommand,
@@ -18,10 +15,10 @@ import {
 } from '@vt/graph-state'
 import type { NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
 
-import { getLiveStateBridge } from '../../config/mcp-config'
+import { getLiveStateBridge } from '../mcpConfigDependencies'
 
-import { buildJsonResponse } from '../../core/types'
-import type { McpToolResponse } from '../../core/types'
+import { buildJsonResponse } from '../toolResponse'
+import type { McpToolResponse } from '../toolResponse'
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand
