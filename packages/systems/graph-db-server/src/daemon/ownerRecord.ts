@@ -9,66 +9,28 @@
  * whether to wait (live owner), reclaim (dead pid), or fail (live owner
  * with a different identity).
  *
- * Pure builders live here too so the lifecycle module composes
- * record-shaping + record-IO without leaking JSON layout details into
- * lifecycle code.
- *
- * BF-343: the server's half of the single-owner protocol. The shape is
- * imported from `@vt/graph-db-protocol` so the daemon and every client
- * share one source of truth (relocated from BF-342 in the same change).
+ * The on-disk format (path, decode, encode, claim builder) is shared with
+ * the client through `ownerRecordFile` in `@vt/graph-db-protocol`. The
+ * server adds the atomic file-system primitives on top: exclusive-create,
+ * atomic replace, idempotent delete, and the pid-liveness predicate used
+ * by the conflict/reclaim decision.
  */
 
-import { randomUUID } from 'node:crypto'
+import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import {
-  readFile,
-  rename,
-  unlink,
-  writeFile,
-} from 'node:fs/promises'
-import { join } from 'node:path'
-import {
-  isOwnerRecord,
-  OWNER_RECORD_SCHEMA_VERSION,
-  type CallerKind,
-  type CommandFingerprint,
+  ownerRecordFile,
+  type CreateOwnerRecordInput,
   type OwnerRecord,
 } from '@vt/graph-db-protocol'
 
-export const OWNER_RECORD_FILENAME = 'graphd.owner.json'
-
-export type CreateInitialRecordInput = {
-  readonly canonicalVaultPath: string
-  readonly pid: number
-  readonly ppid: number
-  readonly callerKind: CallerKind
-  readonly contractVersion: string
-  readonly commandFingerprint: CommandFingerprint
-  readonly nowMs: number
-  readonly ownerNonce?: string
-}
+export type CreateInitialRecordInput = CreateOwnerRecordInput
 
 /**
  * Build the initial owner record at claim time. Port is `null` until the
  * daemon binds its loopback socket; that field is finalised by
  * {@link withBoundPort} once the assigned port is known.
  */
-export function createInitialRecord(
-  input: CreateInitialRecordInput,
-): OwnerRecord {
-  return {
-    schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
-    canonicalVaultPath: input.canonicalVaultPath,
-    pid: input.pid,
-    ppid: input.ppid,
-    port: null,
-    ownerNonce: input.ownerNonce ?? randomUUID(),
-    startedAtMs: input.nowMs,
-    heartbeatAtMs: input.nowMs,
-    callerKind: input.callerKind,
-    contractVersion: input.contractVersion,
-    commandFingerprint: input.commandFingerprint,
-  }
-}
+export const createInitialRecord = ownerRecordFile.create
 
 export function withBoundPort(record: OwnerRecord, port: number): OwnerRecord {
   return { ...record, port }
@@ -78,23 +40,7 @@ export function withHeartbeat(record: OwnerRecord, nowMs: number): OwnerRecord {
   return { ...record, heartbeatAtMs: nowMs }
 }
 
-export function ownerRecordPathFor(vaultDir: string): string {
-  return join(vaultDir, '.voicetree', OWNER_RECORD_FILENAME)
-}
-
-function serializeOwnerRecord(record: OwnerRecord): string {
-  return `${JSON.stringify(record, null, 2)}\n`
-}
-
-function parseOwnerRecord(raw: string): OwnerRecord | null {
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return null
-  }
-  return isOwnerRecord(value) ? value : null
-}
+export const ownerRecordPathFor = ownerRecordFile.pathFor
 
 export type AtomicCreateOutcome =
   | { readonly kind: 'created' }
@@ -110,7 +56,7 @@ export async function tryAtomicCreate(
   record: OwnerRecord,
 ): Promise<AtomicCreateOutcome> {
   try {
-    await writeFile(path, serializeOwnerRecord(record), { flag: 'wx' })
+    await writeFile(path, ownerRecordFile.encode(record), { flag: 'wx' })
     return { kind: 'created' }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
@@ -124,7 +70,7 @@ export async function tryAtomicCreate(
     // create exactly once. A second EEXIST means a competitor recreated it,
     // which we surface to the caller as a normal `exists` outcome.
     try {
-      await writeFile(path, serializeOwnerRecord(record), { flag: 'wx' })
+      await writeFile(path, ownerRecordFile.encode(record), { flag: 'wx' })
       return { kind: 'created' }
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
@@ -135,9 +81,7 @@ export async function tryAtomicCreate(
   return { kind: 'exists', existingRaw }
 }
 
-export function decodeOwnerRecord(raw: string): OwnerRecord | null {
-  return parseOwnerRecord(raw)
-}
+export const decodeOwnerRecord = ownerRecordFile.decode
 
 export async function readOwnerRecord(path: string): Promise<OwnerRecord | null> {
   let raw: string
@@ -147,7 +91,7 @@ export async function readOwnerRecord(path: string): Promise<OwnerRecord | null>
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
   }
-  return parseOwnerRecord(raw)
+  return ownerRecordFile.decode(raw)
 }
 
 /**
@@ -161,7 +105,7 @@ export async function atomicReplaceOwnerRecord(
   tempSuffix: string,
 ): Promise<void> {
   const tmp = `${path}.tmp.${tempSuffix}`
-  await writeFile(tmp, serializeOwnerRecord(record), 'utf8')
+  await writeFile(tmp, ownerRecordFile.encode(record), 'utf8')
   try {
     await rename(tmp, path)
   } catch (err) {

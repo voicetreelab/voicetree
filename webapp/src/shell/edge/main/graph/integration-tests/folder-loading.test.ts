@@ -39,7 +39,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
-import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 
 // Track IPC broadcasts
 interface BroadcastCall {

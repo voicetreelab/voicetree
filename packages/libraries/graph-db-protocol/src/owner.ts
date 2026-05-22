@@ -1,19 +1,32 @@
 /**
  * Vault-scoped vt-graphd ownership contract.
  *
+ * The on-disk owner record at `<vault>/.voicetree/graphd.owner.json` is the
+ * cross-process arbiter for "which vt-graphd process owns this vault".
  * Both the graph-db-server daemon (BF-343) and the graph-db-client launcher
- * (BF-344) read and write this shape under `<vault>/.voicetree/`. The types
- * live in the protocol package because they are the on-disk format shared by
- * every caller: a single shape lets pure decision functions (BF-342's
- * `decideOwnerAction`) coordinate reuse / wait / claim / reclaim across
- * processes without either side inventing a parallel shape.
+ * (BF-344) read and write the same shape, so the *format* is the shared
+ * contract — not a parallel pile of validators and constants.
  *
- * Originally introduced by BF-342 inside graph-db-client; relocated here in
- * BF-343 once graph-db-server needed to read/write the same record without a
- * circular package dependency.
+ * The package exposes:
+ *
+ *   - Four types: `OwnerRecord`, `OwnerHealthIdentity`, `CallerKind`,
+ *     `CommandFingerprint`. Free at the coupling gate (type-only imports).
+ *   - One value: `ownerRecordFile`, a small facade with `pathFor`, `decode`,
+ *     `encode`, and `create`. Everything callers need to read/write the
+ *     record on disk goes through that one symbol.
+ *
+ * Validators (`isOwnerRecord`, `isCallerKind`), constants
+ * (`OWNER_RECORD_SCHEMA_VERSION`, `CALLER_KINDS`), and small helpers
+ * (`commandFingerprintsEqual` — only ever needed by the stale-reclaim path
+ * inside the client) are intentionally NOT exported. They are
+ * implementation details of `decode` / `create` / `isOwnerRecord` and have
+ * no caller use case outside this module.
  */
 
-export const OWNER_RECORD_SCHEMA_VERSION = 1
+import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+
+const OWNER_RECORD_SCHEMA_VERSION = 1 as const
 
 export type OwnerRecordSchemaVersion = typeof OWNER_RECORD_SCHEMA_VERSION
 
@@ -24,7 +37,7 @@ export type CallerKind =
   | 'graph-db-client'
   | 'test'
 
-export const CALLER_KINDS: readonly CallerKind[] = [
+const CALLER_KINDS: readonly CallerKind[] = [
   'electron',
   'cli',
   'mcp',
@@ -75,46 +88,13 @@ export type OwnerHealthIdentity = {
   readonly contractVersion: string
 }
 
-export function commandFingerprintsEqual(
-  a: CommandFingerprint,
-  b: CommandFingerprint,
-): boolean {
-  if (a.executable !== b.executable) return false
-  if (a.args.length !== b.args.length) return false
-  for (let i = 0; i < a.args.length; i++) {
-    if (a.args[i] !== b.args[i]) return false
-  }
-  return true
-}
+const OWNER_RECORD_FILENAME = 'graphd.owner.json'
 
-export function isOwnerRecord(value: unknown): value is OwnerRecord {
-  if (!isObject(value)) return false
-  if (value.schemaVersion !== OWNER_RECORD_SCHEMA_VERSION) return false
-  if (typeof value.canonicalVaultPath !== 'string') return false
-  if (!isPositiveInteger(value.pid)) return false
-  if (!isNonNegativeInteger(value.ppid)) return false
-  if (value.port !== null && !isPort(value.port)) return false
-  if (!isNonEmptyString(value.ownerNonce)) return false
-  if (!isNonNegativeFiniteNumber(value.startedAtMs)) return false
-  if (!isNonNegativeFiniteNumber(value.heartbeatAtMs)) return false
-  if (!isCallerKind(value.callerKind)) return false
-  if (typeof value.contractVersion !== 'string') return false
-  if (!isCommandFingerprint(value.commandFingerprint)) return false
-  return true
-}
-
-export function isCallerKind(value: unknown): value is CallerKind {
+function isCallerKind(value: unknown): value is CallerKind {
   return (
     typeof value === 'string' &&
     (CALLER_KINDS as readonly string[]).includes(value)
   )
-}
-
-function isCommandFingerprint(value: unknown): value is CommandFingerprint {
-  if (!isObject(value)) return false
-  if (typeof value.executable !== 'string') return false
-  if (!Array.isArray(value.args)) return false
-  return value.args.every((arg) => typeof arg === 'string')
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -145,3 +125,90 @@ function isNonEmptyString(value: unknown): value is string {
 function isNonNegativeFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
+
+function isCommandFingerprint(value: unknown): value is CommandFingerprint {
+  if (!isObject(value)) return false
+  if (typeof value.executable !== 'string') return false
+  if (!Array.isArray(value.args)) return false
+  return value.args.every((arg) => typeof arg === 'string')
+}
+
+function isOwnerRecord(value: unknown): value is OwnerRecord {
+  if (!isObject(value)) return false
+  if (value.schemaVersion !== OWNER_RECORD_SCHEMA_VERSION) return false
+  if (typeof value.canonicalVaultPath !== 'string') return false
+  if (!isPositiveInteger(value.pid)) return false
+  if (!isNonNegativeInteger(value.ppid)) return false
+  if (value.port !== null && !isPort(value.port)) return false
+  if (!isNonEmptyString(value.ownerNonce)) return false
+  if (!isNonNegativeFiniteNumber(value.startedAtMs)) return false
+  if (!isNonNegativeFiniteNumber(value.heartbeatAtMs)) return false
+  if (!isCallerKind(value.callerKind)) return false
+  if (typeof value.contractVersion !== 'string') return false
+  if (!isCommandFingerprint(value.commandFingerprint)) return false
+  return true
+}
+
+function pathFor(vaultDir: string): string {
+  return join(vaultDir, '.voicetree', OWNER_RECORD_FILENAME)
+}
+
+function decode(raw: string): OwnerRecord | null {
+  let value: unknown
+  try {
+    value = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  return isOwnerRecord(value) ? value : null
+}
+
+function encode(record: OwnerRecord): string {
+  return `${JSON.stringify(record, null, 2)}\n`
+}
+
+export type CreateOwnerRecordInput = {
+  readonly canonicalVaultPath: string
+  readonly pid: number
+  readonly ppid: number
+  readonly callerKind: CallerKind
+  readonly contractVersion: string
+  readonly commandFingerprint: CommandFingerprint
+  readonly nowMs: number
+  readonly ownerNonce?: string
+}
+
+/**
+ * Build the initial owner record at claim time. Port is `null` until the
+ * daemon binds its loopback socket. The schema version is stamped here so
+ * callers never reach for the constant directly.
+ */
+function create(input: CreateOwnerRecordInput): OwnerRecord {
+  return {
+    schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
+    canonicalVaultPath: input.canonicalVaultPath,
+    pid: input.pid,
+    ppid: input.ppid,
+    port: null,
+    ownerNonce: input.ownerNonce ?? randomUUID(),
+    startedAtMs: input.nowMs,
+    heartbeatAtMs: input.nowMs,
+    callerKind: input.callerKind,
+    contractVersion: input.contractVersion,
+    commandFingerprint: input.commandFingerprint,
+  }
+}
+
+/**
+ * The single runtime surface of the owner protocol. Both client and server
+ * import this one symbol; individual helpers are not re-exported because
+ * the on-disk format and its validators are a single capability that must
+ * not be reached around (Pattern P2 falsifier: callers reach around the
+ * narrow boundary — revert if observed).
+ */
+export const ownerRecordFile = {
+  pathFor,
+  decode,
+  encode,
+  create,
+} as const

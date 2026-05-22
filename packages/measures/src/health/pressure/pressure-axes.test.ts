@@ -8,97 +8,120 @@ import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = DEFAULT_REPO_ROOT
-const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
 const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
+// Tiered budgets (Option A from task_ndq4d4):
+//
+//   budget       = errorBudget — ratchet that gates CI. Calibrated to keep
+//                  each axis at debtRatio ≈ 0.75 against today's whole-repo
+//                  worst observation, so RSCD ≈ 0.95 ≤ 1.0 with headroom for
+//                  small regressions. A fresh worst-offender appearing past
+//                  the ratchet breaks the build.
+//   targetBudget = aspirational ceiling. Surfaced via the sidecar `-target`
+//                  metrics with severity:'warning' (visible on the dashboard,
+//                  never blocks CI). Drives gradual refactor work.
 const PRESSURE_AXIS_CONFIGS = [
-    // Aspirational function readability target from the legacy pressure rollup.
     {
         name: 'max cognitive complexity',
         metricKey: 'maxCognitiveComplexity',
         metricId: 'complexity-pressure-cognitive-max',
-        budget: 18,
+        budget: 140,
+        targetBudget: 18,
         comparison: 'lte',
         unit: 'score',
     },
-    // Stricter systems-only pressure target than the whole-repo split test.
     {
         name: 'max cyclomatic complexity',
         metricKey: 'maxCyclomaticComplexity',
         metricId: 'complexity-pressure-cyclomatic-max',
-        budget: 20,
+        budget: 60,
+        targetBudget: 20,
         comparison: 'lte',
         unit: 'score',
     },
-    // Aspirational MI quality target; distinct from the Phase 4 floor gate.
+    // Halstead-MI without SLOC term — target debtRatio for gte axes inverts:
+    // errorBudget = current × 0.75 (lower-is-worse → ratchet sits below today's worst).
     {
         name: 'min maintainability index',
         metricKey: 'minMaintainabilityIndex',
         metricId: 'complexity-pressure-maintainability-min',
-        budget: 60,
+        budget: 35,
+        targetBudget: 60,
         comparison: 'gte',
         unit: 'index',
     },
-    // Stricter systems-only zero-coverage risk target than the whole-repo split test.
     {
         name: 'max CRAP0 risk',
         metricKey: 'maxCrapZeroCoverage',
         metricId: 'complexity-pressure-crap0-max',
-        budget: 300,
+        budget: 2800,
+        targetBudget: 300,
         comparison: 'lte',
         unit: 'score',
     },
-    // Systems graph target for files touching package boundaries.
+    {
+        name: 'max file lines',
+        metricKey: 'maxFileLines',
+        metricId: 'complexity-pressure-file-lines-max',
+        budget: 1200,
+        targetBudget: 400,
+        comparison: 'lte',
+        unit: 'lines',
+    },
     {
         name: 'max boundary ratio',
         metricKey: 'maxBoundaryRatio',
         metricId: 'complexity-pressure-boundary-ratio-max',
-        budget: 0.30,
+        budget: 0.91,
+        targetBudget: 0.30,
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Systems graph target for intra-package imports that cross source subdirectories.
+    // Ratio axis: semantic ceiling is 1.0, so 0.75 headroom isn't achievable.
+    // Ratchet at 0.95 (tight) — debtRatio ≈ 0.80 today is the load-bearing
+    // axis in the RSCD rollup; further widening would defeat the gate.
     {
         name: 'max subdirectory cross-edge ratio',
         metricKey: 'maxSubdirCrossRatio',
         metricId: 'complexity-pressure-subdir-cross-ratio-max',
-        budget: 0.60,
+        budget: 0.95,
+        targetBudget: 0.60,
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Systems graph aggregate BCI target carried from the script.
     {
         name: 'aggregate boundary complexity',
         metricKey: 'aggregateBoundaryComplexity',
         metricId: 'complexity-pressure-boundary-complexity-aggregate',
-        budget: 16.0,
+        budget: 270,
+        targetBudget: 16.0,
         comparison: 'lte',
         unit: 'bci',
     },
-    // Systems-only runtime fan-in target from the legacy pressure rollup.
     {
         name: 'max runtime fan-in',
         metricKey: 'maxRuntimeFanIn',
         metricId: 'complexity-pressure-runtime-fan-in-max',
-        budget: 10,
+        budget: 145,
+        targetBudget: 10,
         comparison: 'lte',
         unit: 'symbols',
     },
-    // Churn multiplied by structural complexity target for individual systems files.
     {
         name: 'max file turbulence',
         metricKey: 'maxFileTurbulence',
         metricId: 'complexity-pressure-file-turbulence-max',
-        budget: 250,
+        budget: 1700,
+        targetBudget: 250,
         comparison: 'lte',
         unit: 'turbulence',
     },
-    // Churn multiplied by structural complexity target for systems package averages.
     {
         name: 'max package avg turbulence',
         metricKey: 'maxPackageAverageTurbulence',
         metricId: 'complexity-pressure-package-turbulence-avg-max',
-        budget: 35,
+        budget: 65,
+        targetBudget: 35,
         comparison: 'lte',
         unit: 'turbulence',
     },
@@ -143,6 +166,11 @@ type MaintainabilityRow = {
     readonly maintainabilityIndex: number
 }
 
+type FileLinesRow = {
+    readonly file: string
+    readonly lineCount: number
+}
+
 type TurbulenceRow = {
     readonly packageName: string
     readonly file: string
@@ -156,6 +184,7 @@ type PressureAxis = {
     readonly metricKey: PressureAxisConfig['metricKey']
     readonly current: number
     readonly budget: number
+    readonly targetBudget: number
     readonly comparison: 'lte' | 'gte'
     readonly passed: boolean
     readonly debtRatio: number
@@ -173,15 +202,24 @@ type LegacyPressureReport = {
     }
 }
 
-async function discoverSystemPackages(): Promise<readonly PackageInfo[]> {
-    const all = await discoverPackages(REPO_ROOT)
-    return all.filter(pkg => pkg.absDir.startsWith(`${SYSTEMS_ROOT}/`))
-}
-
 function subdirectoryOf(absolutePath: string, srcRoot: string): string {
     const srcRelative = relative(srcRoot, absolutePath)
     const firstSlash = srcRelative.indexOf('/')
     return firstSlash >= 0 ? srcRelative.slice(0, firstSlash) : '.'
+}
+
+async function materializeSystemFiles(packages: readonly PackageInfo[]): Promise<SystemFile[]> {
+    const nested = await Promise.all(packages.map(async pkg => {
+        const sourceFiles = await discoverSourceFiles([pkg], REPO_ROOT)
+        return sourceFiles.map(sf => ({
+            absolutePath: sf.absolutePath,
+            relativePath: sf.relativePath,
+            packageName: sf.packageName,
+            npmName: pkg.name,
+            subdirectory: subdirectoryOf(sf.absolutePath, pkg.srcRoot),
+        }))
+    }))
+    return nested.flat()
 }
 
 function extractImportDeclarations(filePath: string, text: string): {specifier: string; isTypeOnly: boolean; text: string}[] {
@@ -248,21 +286,12 @@ function collectRuntimeSymbols(declaration: {isTypeOnly: boolean; text: string})
 }
 
 async function buildSystemGraph(packages: readonly PackageInfo[]): Promise<SystemGraph> {
-    const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
-    const packagesByDirName = new Map(packages.map(pkg => [pkg.dirName, pkg]))
+    const materialized = await materializeSystemFiles(packages)
     const filesByPkg = new Map<string, SystemFile[]>()
-    for (const sf of sourceFiles) {
-        const pkg = packagesByDirName.get(sf.packageName)
-        if (!pkg) continue
-        const bucket = filesByPkg.get(sf.packageName) ?? []
-        bucket.push({
-            absolutePath: sf.absolutePath,
-            relativePath: sf.relativePath,
-            packageName: sf.packageName,
-            npmName: pkg.name,
-            subdirectory: subdirectoryOf(sf.absolutePath, pkg.srcRoot),
-        })
-        filesByPkg.set(sf.packageName, bucket)
+    for (const file of materialized) {
+        const bucket = filesByPkg.get(file.packageName) ?? []
+        bucket.push(file)
+        filesByPkg.set(file.packageName, bucket)
     }
     const files: SystemFile[] = packages.flatMap(pkg => {
         const bucket = filesByPkg.get(pkg.dirName) ?? []
@@ -500,13 +529,6 @@ async function measureCyclomaticComplexity(files: readonly SystemFile[]): Promis
     return rows.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file))
 }
 
-function sourceLinesOfCode(text: string): number {
-    return text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*'))
-        .length
-}
-
 function isOperatorToken(kind: ts.SyntaxKind): boolean {
     return (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword)
         || (kind >= ts.SyntaxKind.FirstPunctuation && kind <= ts.SyntaxKind.LastPunctuation)
@@ -542,14 +564,23 @@ function measureHalstead(filePath: string, text: string, cyclomatic: number): Ma
     const vocabulary = n1 + n2
     const length = totalOperators + totalOperands
     const volume = vocabulary === 0 || length === 0 ? 0 : length * Math.log2(vocabulary)
-    const sloc = sourceLinesOfCode(text)
+    // SLOC term intentionally dropped: file-size pressure is gated by the dedicated
+    // max-file-lines axis. Halstead-MI then measures token-level density only.
     const rawMaintainability = 171
         - 5.2 * Math.log(Math.max(1, volume))
         - 0.23 * cyclomatic
-        - 16.2 * Math.log(Math.max(1, sloc))
     const maintainabilityIndex = Math.max(0, Math.min(100, (rawMaintainability * 100) / 171))
 
     return {file: relative(REPO_ROOT, filePath), maintainabilityIndex}
+}
+
+async function measureFileLines(files: readonly SystemFile[]): Promise<FileLinesRow[]> {
+    const rows: FileLinesRow[] = []
+    for (const file of files) {
+        const text = await readFile(file.absolutePath, 'utf8')
+        rows.push({file: file.relativePath, lineCount: text.split('\n').length})
+    }
+    return rows.sort((a, b) => b.lineCount - a.lineCount || a.file.localeCompare(b.file))
 }
 
 async function measureMaintainability(files: readonly SystemFile[], cyclomaticRows: readonly FunctionComplexity[]): Promise<MaintainabilityRow[]> {
@@ -589,18 +620,21 @@ function countSimpleComplexity(filePath: string, text: string): number {
 
 function tryRunGit(args: string): string | null {
     try {
-        return execSync(`git ${args}`, {cwd: REPO_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']})
+        // 64 MB cap: whole-repo `git log --name-only --since=6mo` is ~1.4 MB
+        // today and grows with history. The default 1 MB limit silently truncates
+        // → churn map empty → file-turbulence axis falsely reports 0.
+        return execSync(`git ${args}`, {cwd: REPO_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024})
     } catch {
         return null
     }
 }
 
 function collectGitChurn(): ReadonlyMap<string, number> {
-    const output = tryRunGit("log --since='6 months ago' --format=%H --name-only -- packages/systems") ?? ''
+    const output = tryRunGit("log --since='6 months ago' --format=%H --name-only") ?? ''
     const churn = new Map<string, number>()
     for (const line of output.split('\n')) {
         const file = line.trim()
-        if (!file || !file.startsWith('packages/systems/')) continue
+        if (!file) continue
         churn.set(file, (churn.get(file) ?? 0) + 1)
     }
     return churn
@@ -743,6 +777,7 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
         metricKey: config.metricKey,
         current,
         budget: config.budget,
+        targetBudget: config.targetBudget,
         comparison: config.comparison,
         passed: axisPassed(current, config.budget, config.comparison),
         debtRatio: debtRatio(current, config.budget, config.comparison),
@@ -751,12 +786,14 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
 }
 
 async function computePressureAxes(): Promise<PressureAxis[]> {
-    const packages = await discoverSystemPackages()
+    const packages = await discoverPackages(REPO_ROOT)
     const packageNames = packages.map(pkg => pkg.dirName)
     const graph = await buildSystemGraph(packages)
+
     const cognitive = await measureCognitiveComplexity(graph.files)
     const cyclomatic = await measureCyclomaticComplexity(graph.files)
     const maintainability = await measureMaintainability(graph.files, cyclomatic)
+    const fileLines = await measureFileLines(graph.files)
     const turbulence = await measureTurbulence(graph.files)
     const packageTurbulence = aggregateTurbulence(turbulence)
     const boundaries = measureBoundaries(graph.files, graph.edges, packageNames)
@@ -768,12 +805,13 @@ async function computePressureAxes(): Promise<PressureAxis[]> {
         axis(PRESSURE_AXIS_CONFIGS[1], cyclomatic[0]?.score ?? 0, cyclomatic[0] ? `${cyclomatic[0].file}:${cyclomatic[0].line} ${cyclomatic[0].name}` : 'n/a'),
         axis(PRESSURE_AXIS_CONFIGS[2], maintainability[0]?.maintainabilityIndex ?? 100, maintainability[0]?.file ?? 'n/a'),
         axis(PRESSURE_AXIS_CONFIGS[3], maxCrap?.crapZeroCoverage ?? 0, maxCrap ? `${maxCrap.file}:${maxCrap.line} ${maxCrap.name}` : 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[4], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[5], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[6], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[7], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[8], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
-        axis(PRESSURE_AXIS_CONFIGS[9], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[4], fileLines[0]?.lineCount ?? 0, fileLines[0]?.file ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[5], boundaries.boundaryProfiles[0]?.ratio ?? 0, boundaries.boundaryProfiles[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[6], boundaries.subdirProfiles[0]?.ratio ?? 0, boundaries.subdirProfiles[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[7], boundaries.aggregateBci, boundaries.pairMetrics[0]?.pair ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[8], runtimeFanIn[0]?.runtimeSymbols ?? 0, runtimeFanIn[0]?.packageName ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[9], turbulence[0]?.turbulence ?? 0, turbulence[0]?.file ?? 'n/a'),
+        axis(PRESSURE_AXIS_CONFIGS[10], packageTurbulence[0]?.average ?? 0, packageTurbulence[0]?.packageName ?? 'n/a'),
     ]
 }
 
@@ -823,6 +861,35 @@ function failureMessage(axes: readonly PressureAxis[], rscd: number, sanityMisma
     ].join('\n')
 }
 
+// Sidecar `-target` metrics surface each axis's aspirational targetBudget
+// alongside the CI-gating errorBudget. severity:'warning' keeps them off the
+// CI gate while marking the corresponding dashboard tile as off-target. Lets
+// reviewers track refactor pressure on individual axes without holding up
+// merges.
+async function recordSidecarTargets(axes: readonly PressureAxis[]): Promise<void> {
+    for (const axisData of axes) {
+        const config = PRESSURE_AXIS_CONFIGS.find(c => c.name === axisData.name)
+        if (!config) continue
+        if (config.budget === config.targetBudget) continue
+        await recordHealthMetric({
+            metricId: `${config.metricId}-target`,
+            metricName: `${config.name} (aspirational target)`,
+            description: `Warning-only sidecar for ${config.name}. Reports the axis value against the aspirational target budget rather than the CI-gating ratchet. Never blocks CI.`,
+            category: 'Complexity',
+            current: axisData.current,
+            budget: config.targetBudget,
+            comparison: config.comparison,
+            severity: 'warning',
+            unit: config.unit,
+            details: {
+                errorBudget: config.budget,
+                targetBudget: config.targetBudget,
+                worstOffender: axisData.worstOffender,
+            },
+        })
+    }
+}
+
 describe('complexity pressure axes', () => {
     it('preserves the legacy script pressure rollup semantics', async () => {
         const axes = await computePressureAxes()
@@ -842,6 +909,7 @@ describe('complexity pressure axes', () => {
             unit: 'rscd',
             details: {axes, failingAxes, topFiveRatiosForRscd, rscd},
         })
+        await recordSidecarTargets(axes)
 
         expect(sanityMismatches, sanityMismatches.join('\n')).toEqual([])
         for (const pressureAxis of axes) {

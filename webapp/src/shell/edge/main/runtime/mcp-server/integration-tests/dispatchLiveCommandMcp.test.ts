@@ -97,7 +97,7 @@ vi.mock('@vt/voicetree-mcp/mcp-client-config', () => ({
     setMcpIntegration: vi.fn(),
 }))
 
-vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
+vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => ({
     getLiveStateSnapshotFromDaemon: vi.fn(),
 }))
 
@@ -109,7 +109,7 @@ import {
     applyLiveCommand,
     getCurrentLiveState,
 } from '@/shell/edge/main/runtime/state/live-state-store'
-import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
+import { getLiveStateSnapshotFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
 function emptyGraph(): Graph {
     return {

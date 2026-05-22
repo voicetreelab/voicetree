@@ -1,8 +1,8 @@
-import {randomUUID} from 'node:crypto'
-import {existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs'
+import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxReconciliationResult} from '../terminals/terminal-registry'
+import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import {
     captureOutput,
     getOutput,
@@ -42,19 +42,6 @@ type TmuxHeadlessState = {
     readonly logReadOffsets: Map<TerminalId, number>
 }
 
-type TmuxTerminalMetadata = {
-    readonly name: string
-    readonly status: 'running' | 'exited'
-    readonly pid: number
-    readonly session: string
-    readonly startedAt: string
-    readonly endedAt?: string
-    readonly exitCode?: number | null
-    readonly exitCodeFile?: string
-    readonly logFile: string
-    readonly terminalData: TerminalData
-}
-
 const tmuxHeadlessState: TmuxHeadlessState = {
     sessions: new Map(),
     logReadOffsets: new Map(),
@@ -75,20 +62,6 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
         logPath: join(terminalDir, `${terminalId}.log`),
         metadataPath: join(terminalDir, `${terminalId}.json`),
         exitCodePath: join(terminalDir, `${terminalId}.exitcode`),
-    }
-}
-
-function writeTmuxMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
-    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
-    renameSync(tempPath, path)
-}
-
-function readTmuxMetadata(path: string): TmuxTerminalMetadata | null {
-    try {
-        return JSON.parse(readFileSync(path, 'utf8')) as TmuxTerminalMetadata
-    } catch {
-        return null
     }
 }
 
@@ -121,9 +94,9 @@ function clearTmuxPoll(terminalId: TerminalId): void {
 function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null = null): void {
     const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!session) return
-    const existing: TmuxTerminalMetadata | null = readTmuxMetadata(session.metadataPath)
+    const existing: TmuxTerminalMetadata | null = readMetadata(session.metadataPath)
     if (!existing || existing.status === 'exited') return
-    writeTmuxMetadata(session.metadataPath, {
+    writeMetadata(session.metadataPath, {
         ...existing,
         status: 'exited',
         exitCode,
@@ -172,8 +145,8 @@ export async function spawnTmuxBackedTerminal(
         )
 
     await pipePaneToFile(sessionName, paths.logPath)
-    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readTmuxMetadata(paths.metadataPath) : null
-    writeTmuxMetadata(paths.metadataPath, {
+    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readMetadata(paths.metadataPath) : null
+    writeMetadata(paths.metadataPath, {
         name: terminalId,
         status: 'running',
         pid: created.pid,
@@ -207,8 +180,8 @@ export async function attachExistingTmuxBackedTerminal(
 
     const pid: number = await getPanePid(sessionName)
     await pipePaneToFile(sessionName, paths.logPath)
-    const existingMeta: TmuxTerminalMetadata | null = readTmuxMetadata(paths.metadataPath)
-    writeTmuxMetadata(paths.metadataPath, {
+    const existingMeta: TmuxTerminalMetadata | null = readMetadata(paths.metadataPath)
+    writeMetadata(paths.metadataPath, {
         name: terminalId,
         status: 'running',
         pid,
