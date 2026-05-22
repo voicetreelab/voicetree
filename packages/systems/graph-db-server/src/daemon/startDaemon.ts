@@ -37,6 +37,11 @@ import {
   openFolderVisibilityForVault,
 } from '../data/views/folderVisibilityResource.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import {
+  installFolderTreeReadModel,
+  getFolderTreeReadModel,
+  resetFolderTreeReadModel,
+} from '../state/folder-tree-read-model-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -68,6 +73,7 @@ async function cleanupOwnedDaemon(
       resetDaemonGraphState()
     }
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
     await options.onShutdownComplete?.()
   }
 }
@@ -94,6 +100,8 @@ async function startOwnedDaemon(
   try {
     resetDaemonGraphState()
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
+    installFolderTreeReadModel(opts.folderTreeScanner)
     initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
 
     const startMs = clock()
@@ -106,6 +114,16 @@ async function startOwnedDaemon(
     registerVaultResource({
       openForVault: openFolderVisibilityForVault,
       closeForVault: closeFolderVisibilityForVault,
+    })
+    registerVaultResource({
+      async openForVault(): Promise<void> {
+        // A fresh vault means previously cached roots are now irrelevant; clear
+        // everything rather than try to scope by old vs new root.
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
+      async closeForVault(): Promise<void> {
+        getFolderTreeReadModel().invalidate({ kind: 'all' })
+      },
     })
     registerVaultResource({
       async openForVault(vaultPath: string): Promise<void> {
