@@ -1,31 +1,32 @@
 #!/usr/bin/env -S node --import tsx
 // vt-mcpd: headless VoiceTree daemon. Embeds graph-db-server + the lifted
-// tool catalog in one Node process, with no Electron dependency. Lifecycle:
-//   1. Parse --vault (required) and --hook-port (optional pin for the hook HTTP
-//      server; default ephemeral).
-//   2. Wire @vt/agent-runtime + @vt/voicetree-mcp late-bound bridges for headless mode.
-//   3. Start graph-db-server in-process via startDaemon (loads graph, mounts watcher,
-//      publishes graphd.port, owns the per-vault lock).
-//   4. Start the UDS JSON-RPC server (per-vault socket file; design doc §2.3).
-//   5. Start the dedicated hook HTTP server and publish <vault>/.voicetree/hook.port.
-//   6. Install the lifecycle JSONL telemetry sink.
-//   7. Wait for SIGINT/SIGTERM, then tear down: hook → UDS → terminals → graph-db.
+// tool catalog in one Node process, with no Electron dependency. Lifecycle
+// (Step 9b — unified HTTP transport):
+//   1. Parse --vault (required) and --port (optional bind pin; default 0).
+//   2. Wire @vt/agent-runtime + @vt/voicetree-mcp late-bound bridges for
+//      headless mode.
+//   3. Start graph-db-server in-process via startDaemon (loads graph,
+//      mounts watcher, publishes graphd.port, owns the per-vault lock).
+//   4. Start the unified HTTP daemon server (single http.createServer, four
+//      routes — design doc §2.5). Atomic publish of rpc.port and a fresh
+//      bearer auth-token (mode 0600) into <vault>/.voicetree/.
+//   5. Install the lifecycle JSONL telemetry sink.
+//   6. Wait for SIGINT/SIGTERM, then tear down:
+//      HTTP daemon → terminals → graph-db.
 //
 // Headless contract (decided in Phase E; see docs/headless-migration.md):
-//   - READ path:  CLI agents call any read tool over the UDS wire (graph_structure,
-//                 get_unseen_nodes_nearby, …). These do not require a terminal
-//                 record on the daemon side.
-//   - WRITE path: CLI agents write new nodes by raw filesystem Write into the
-//                 watched vault; the chokidar mount inside startDaemon
+//   - READ path:  CLI agents call any read tool over the HTTP wire. These do
+//                 not require a terminal record on the daemon side.
+//   - WRITE path: CLI agents write new nodes by raw filesystem Write into
+//                 the watched vault; the chokidar mount inside startDaemon
 //                 reconciles them into the graph-store singleton.
-// `create_graph` (and other write tools) validate `callerTerminalId` against
-// getTerminalRecords(), which vt-mcpd intentionally seeds empty in headless
-// mode — so a CLI agent invoking create_graph receives a clean
+// `create_graph` (and other write tools) validate `callerTerminalId`
+// against getTerminalRecords(), which vt-mcpd intentionally seeds empty in
+// headless mode — so a CLI agent invoking create_graph receives a clean
 // "Unknown caller terminal: <id>" tool error rather than silent corruption.
-// Bootstrapping a synthetic terminal record was rejected: the registry models
-// real PTY/agent processes with budget + lifecycle; a synthetic terminal has
-// no real owner. Phase D (phase-d-headless-e2e-result.md) verified the
-// Write→watcher path end-to-end.
+// Bootstrapping a synthetic terminal record was rejected: the registry
+// models real PTY/agent processes with budget + lifecycle; a synthetic
+// terminal has no real owner.
 
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
@@ -33,19 +34,22 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
+    generateAuthToken,
+    handleHookEventRequest,
     registerChildIfMonitored,
-    resolveVaultSocketPath,
-    startHookHttpServer,
-    startUdsServer,
-    writeHookPortFile,
-    type HookHttpServerHandle,
-    type UdsServerHandle,
+    startHttpDaemonServer,
+    startVaultStateWatcher,
+    writeAuthTokenFile,
+    type HookHandler,
+    type HttpDaemonServerHandle,
+    type VaultStateWatcherHandle,
 } from '@vt/voicetree-mcp'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
+import {writeRpcPortFile} from '@vt/vt-rpc'
 
 interface Args {
     readonly vault: string
-    readonly hookPort?: number
+    readonly port?: number
 }
 
 function die(msg: string): never {
@@ -55,27 +59,27 @@ function die(msg: string): never {
 
 function parseArgs(argv: readonly string[]): Args {
     let vault: string | null = null
-    let hookPort: number | undefined
+    let port: number | undefined
     for (let i: number = 0; i < argv.length; i++) {
         const a: string = argv[i]
         if (a === '--vault') {
             vault = argv[++i] ?? null
-        } else if (a === '--hook-port') {
+        } else if (a === '--port') {
             const v: string | undefined = argv[++i]
             const n: number = Number.parseInt(v ?? '', 10)
             if (!Number.isInteger(n) || n < 0 || n > 65535) {
-                die(`invalid --hook-port: ${v}`)
+                die(`invalid --port: ${v}`)
             }
-            hookPort = n
+            port = n
         } else if (a === '--help' || a === '-h') {
-            process.stdout.write('Usage: vt-mcpd --vault <path> [--hook-port <n>]\n')
+            process.stdout.write('Usage: vt-mcpd --vault <path> [--port <n>]\n')
             process.exit(0)
         } else {
             die(`unknown argument: ${a}`)
         }
     }
     if (!vault) die('missing required --vault <path>')
-    return {vault: resolve(vault!), hookPort}
+    return {vault: resolve(vault!), port}
 }
 
 function defaultAppSupportPath(): string {
@@ -147,28 +151,37 @@ async function main(): Promise<void> {
         )
     }
 
-    let udsHandle: UdsServerHandle
+    const token: string = generateAuthToken()
+    await writeAuthTokenFile(args.vault, token)
+
+    const hookHandler: HookHandler = (input): unknown =>
+        handleHookEventRequest(
+            {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
+            {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
+        )
+
+    let httpHandle: HttpDaemonServerHandle
     try {
-        udsHandle = await startUdsServer({
-            socketPath: resolveVaultSocketPath(args.vault),
+        httpHandle = await startHttpDaemonServer({
             catalog: buildDefaultToolCatalog(),
+            hookHandler,
+            token,
+            bindHost: process.env.VOICETREE_DAEMON_BIND ?? '0.0.0.0',
+            port: args.port,
         })
+        await writeRpcPortFile(args.vault, httpHandle.port)
     } catch (err) {
         await daemonHandle.stop().catch(() => undefined)
-        die(`failed to start UDS server: ${(err as Error).message}`)
+        die(`failed to start HTTP daemon server: ${(err as Error).message}`)
     }
 
-    let hookHandle: HookHttpServerHandle
+    let vaultStateWatcher: VaultStateWatcherHandle
     try {
-        hookHandle = await startHookHttpServer({
-            port: args.hookPort,
-            updateAgentEvent: agentRuntime.updateTerminalAgentEvent,
-        })
-        await writeHookPortFile(args.vault, hookHandle.port)
+        vaultStateWatcher = startVaultStateWatcher({vaultPath: args.vault, hub: httpHandle.hub})
     } catch (err) {
-        await udsHandle.stop().catch(() => undefined)
+        await httpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
-        die(`failed to start hook HTTP server: ${(err as Error).message}`)
+        die(`failed to start vault-state watcher: ${(err as Error).message}`)
     }
 
     // Lifecycle JSONL telemetry sink.
@@ -190,8 +203,7 @@ async function main(): Promise<void> {
 
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
-        + `vault=${args.vault}\n`,
+        + `daemon on ${httpHandle.url}, vault=${args.vault}\n`,
     )
 
     let shuttingDown: boolean = false
@@ -199,13 +211,12 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: hook → UDS server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
         try {
-            await hookHandle.stop().catch((err: unknown) => {
-                process.stderr.write(`vt-mcpd: hook stop error: ${(err as Error).message}\n`)
+            await vaultStateWatcher.stop().catch((err: unknown) => {
+                process.stderr.write(`vt-mcpd: vault-state watcher stop error: ${(err as Error).message}\n`)
             })
-            await udsHandle.stop().catch((err: unknown) => {
-                process.stderr.write(`vt-mcpd: uds stop error: ${(err as Error).message}\n`)
+            await httpHandle.stop().catch((err: unknown) => {
+                process.stderr.write(`vt-mcpd: http daemon stop error: ${(err as Error).message}\n`)
             })
             agentRuntime.getTerminalManager().cleanup()
             await daemonHandle.stop()

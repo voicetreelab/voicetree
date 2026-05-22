@@ -156,9 +156,10 @@ describe('graph create batch reporting (filesystem mode)', () => {
     })
 })
 
-describe('graph create batch reporting (live mode + UDS daemon)', () => {
+describe('graph create batch reporting (live mode + HTTP daemon)', () => {
     let originalStdoutIsTTY: PropertyDescriptor | undefined
-    let originalSockPath: string | undefined
+    let originalDaemonUrl: string | undefined
+    let originalVaultPath: string | undefined
     let vaultRoot: string
     let parentNodeId: string
     let stub: StubDaemon
@@ -178,16 +179,16 @@ describe('graph create batch reporting (live mode + UDS daemon)', () => {
         vaultRoot = await setupGatedVault()
         parentNodeId = join(vaultRoot, 'work', 'parent.md')
         await writeFile(parentNodeId, '# Parent\n\nNeeded marker.\n', 'utf8')
-        originalSockPath = process.env.VOICETREE_SOCK_PATH
+        originalDaemonUrl = process.env.VOICETREE_DAEMON_URL
+        originalVaultPath = process.env.VOICETREE_VAULT_PATH
     })
 
     afterEach(async () => {
         if (stub) await stub.stop()
-        if (originalSockPath === undefined) {
-            delete process.env.VOICETREE_SOCK_PATH
-        } else {
-            process.env.VOICETREE_SOCK_PATH = originalSockPath
-        }
+        if (originalDaemonUrl === undefined) delete process.env.VOICETREE_DAEMON_URL
+        else process.env.VOICETREE_DAEMON_URL = originalDaemonUrl
+        if (originalVaultPath === undefined) delete process.env.VOICETREE_VAULT_PATH
+        else process.env.VOICETREE_VAULT_PATH = originalVaultPath
         clearLoadSchemaPluginCacheForTest()
         await rm(vaultRoot, {recursive: true, force: true})
     })
@@ -204,7 +205,8 @@ describe('graph create batch reporting (live mode + UDS daemon)', () => {
                 },
             ],
         })
-        process.env.VOICETREE_SOCK_PATH = stub.socketPath
+        process.env.VOICETREE_DAEMON_URL = stub.url
+        process.env.VOICETREE_VAULT_PATH = stub.vaultPath
 
         const result: CapturedRun = await captureGraphCreate(
             [
@@ -237,7 +239,8 @@ describe('graph create batch reporting (live mode + UDS daemon)', () => {
                 },
             ],
         })
-        process.env.VOICETREE_SOCK_PATH = stub.socketPath
+        process.env.VOICETREE_DAEMON_URL = stub.url
+        process.env.VOICETREE_VAULT_PATH = stub.vaultPath
 
         const result: CapturedRun = await captureGraphCreate(
             [

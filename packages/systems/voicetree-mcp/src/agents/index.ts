@@ -12,14 +12,31 @@ export type {
     SearchSimilarResult,
 } from '../config/mcp-config'
 
-export {startUdsServer} from '../transport/udsServer'
-export type {UdsServerHandle, StartUdsServerOptions, ToolCatalog, ToolHandler} from '../transport/udsServer'
+export {startHttpDaemonServer, isAuthorized, buildAccessLogLine} from '../transport/httpServer'
+export type {
+    HttpDaemonServerHandle,
+    StartHttpDaemonOptions,
+    ToolCatalog,
+    ToolHandler,
+    HookHandler,
+    HookHandlerInvocation,
+    AccessLogger,
+} from '../transport/httpServer'
 export {buildDefaultToolCatalog} from '../transport/toolCatalog'
 export {TOOL_CATALOG, CatalogValidationError, type CatalogEntry, type CatalogHandler} from '../tools/catalog'
-export {resolveVaultSocketPath, resolveHomeSocketPath, VOICETREE_DIRNAME, SOCKET_FILENAME} from '../transport/socketPath'
-export {startHookHttpServer} from '../hooks/hookHttpServer'
-export type {HookHttpServerHandle, StartHookHttpServerOptions} from '../hooks/hookHttpServer'
-export {writeHookPortFile, hookPortFilePath} from '../hooks/hookPortFile'
+export {generateAuthToken, writeAuthTokenFile} from '../transport/authToken'
+export {
+    createEventSubscriptionHub,
+    ALLOWED_TOPICS,
+    type EventSubscriptionHub,
+    type TopicName,
+    type Subscriber,
+    type SubscriberHandle,
+    type SubscribeRequest,
+    type PublishedEvent,
+} from '../transport/eventSubscriptionHub'
+export {handleHookEventRequest, resolveHookEventName, type HookHandlerResponse, type HookHandlerInput} from '../hooks/hookEventHandler'
+export {startVaultStateWatcher, type VaultStateWatcherHandle, type StartVaultStateWatcherOptions} from '../transport/vaultStateWatcher'
 export {terminalRuntimeSurface} from '../tools/agent-control/terminalRuntimeSurface'
 export type {
     AgentRuntimeConfig,

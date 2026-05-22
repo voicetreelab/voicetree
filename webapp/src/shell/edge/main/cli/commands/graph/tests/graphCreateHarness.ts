@@ -4,11 +4,15 @@ import {join} from 'node:path'
 import {vi, type MockInstance} from 'vitest'
 import {
     buildJsonResponse,
-    startUdsServer,
+    generateAuthToken,
+    startHttpDaemonServer,
+    writeAuthTokenFile,
+    type HookHandler,
+    type HttpDaemonServerHandle,
     type McpToolResponse,
     type ToolCatalog,
-    type UdsServerHandle,
 } from '@vt/voicetree-mcp'
+import {writeRpcPortFile} from '@vt/vt-rpc'
 import {graphCreate} from '@/shell/edge/main/cli/commands/graph/core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '@/shell/edge/main/cli/commands/graph/core/loadSchemaPlugin'
 
@@ -136,28 +140,39 @@ export async function setupGatedVault(
     return vaultRoot
 }
 
-// Spins up a real UDS daemon with a fixed catalog so daemon-client.ts exercises
-// the actual wire (NDJSON + JSON-RPC + framing) instead of a mocked fetch.
-// Mocking globalThis.fetch hid the wire format and was incompatible with the
-// post-7b UDS transport.
+// Spins up a real HTTP daemon with a fixed catalog so daemon-client.ts
+// exercises the actual wire (JSON-RPC over HTTP + bearer auth) instead of
+// a mocked fetch. Step 9b transport.
 export interface StubDaemon {
-    readonly socketPath: string
+    readonly vaultPath: string
+    readonly url: string
     readonly stop: () => Promise<void>
 }
 
+const noopHookHandler: HookHandler = (): unknown => ({ok: true})
+
 export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> {
-    const dir: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-uds-stub-')))
-    const socketPath: string = join(dir, 'vt.sock')
+    const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-http-stub-')))
+    await mkdir(join(vaultPath, '.voicetree'), {recursive: true})
+
+    const token: string = generateAuthToken()
+    await writeAuthTokenFile(vaultPath, token)
+
     const catalog: ToolCatalog = new Map([
         ['create_graph', async (): Promise<McpToolResponse> => buildJsonResponse(toolResult)],
     ])
-    const handle: UdsServerHandle = await startUdsServer({
-        socketPath,
+    const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog,
-        logger: {log: (): void => {}, error: (): void => {}},
+        hookHandler: noopHookHandler,
+        token,
+        bindHost: '127.0.0.1',
+        logger: {logRequest: (): void => {}, logError: (): void => {}},
     })
+    await writeRpcPortFile(vaultPath, handle.port)
+
     return {
-        socketPath: handle.socketPath,
+        vaultPath,
+        url: handle.url,
         stop: handle.stop,
     }
 }

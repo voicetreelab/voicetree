@@ -4,24 +4,27 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
+    generateAuthToken,
+    handleHookEventRequest,
     registerChildIfMonitored,
-    resolveVaultSocketPath,
-    startHookHttpServer,
-    startUdsServer,
-    writeHookPortFile,
-    type HookHttpServerHandle,
-    type UdsServerHandle,
+    startHttpDaemonServer,
+    startVaultStateWatcher,
+    writeAuthTokenFile,
+    type HookHandler,
+    type HttpDaemonServerHandle,
+    type VaultStateWatcherHandle,
 } from '@vt/voicetree-mcp'
+import {writeRpcPortFile} from '@vt/vt-rpc'
 import {error} from '@/shell/edge/main/cli/output'
 import {emitInvocationStart, setErrorClass} from '@/shell/edge/main/cli/telemetry/recordCliInvocation'
 import {resolveAppSupportPath} from '@/shell/edge/main/cli/util/appSupportPath'
 
 type ServeArgs = {
-    readonly hookPort?: number
+    readonly port?: number
     readonly vault: string
 }
 
-const SERVE_USAGE: string = 'Usage: vt serve --vault <path> [--hook-port <n>]\n'
+const SERVE_USAGE: string = 'Usage: vt serve --vault <path> [--port <n>]\n'
 
 function readRequiredValue(argv: readonly string[], index: number, flag: string): string {
     const value: string | undefined = argv[index + 1]
@@ -42,7 +45,7 @@ function parsePort(rawPort: string, flag: string): number {
 }
 
 function parseServeArgs(argv: readonly string[]): ServeArgs {
-    let hookPort: number | undefined
+    let port: number | undefined
     let vault: string | undefined
 
     for (let index: number = 0; index < argv.length; index += 1) {
@@ -67,14 +70,14 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
             continue
         }
 
-        if (arg === '--hook-port') {
-            hookPort = parsePort(readRequiredValue(argv, index, '--hook-port'), '--hook-port')
+        if (arg === '--port') {
+            port = parsePort(readRequiredValue(argv, index, '--port'), '--port')
             index += 1
             continue
         }
 
-        if (arg.startsWith('--hook-port=')) {
-            hookPort = parsePort(arg.slice('--hook-port='.length), '--hook-port')
+        if (arg.startsWith('--port=')) {
+            port = parsePort(arg.slice('--port='.length), '--port')
             continue
         }
 
@@ -85,7 +88,7 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
         error(`missing required --vault <path>\n\n${SERVE_USAGE}`)
     }
 
-    return {hookPort, vault: resolve(vault)}
+    return {port, vault: resolve(vault)}
 }
 
 function configureHeadlessBridges(appSupportPath: string): void {
@@ -135,28 +138,37 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         )
     }
 
-    let udsHandle: UdsServerHandle
+    const token: string = generateAuthToken()
+    await writeAuthTokenFile(args.vault, token)
+
+    const hookHandler: HookHandler = (input): unknown =>
+        handleHookEventRequest(
+            {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
+            {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
+        )
+
+    let httpHandle: HttpDaemonServerHandle
     try {
-        udsHandle = await startUdsServer({
-            socketPath: resolveVaultSocketPath(args.vault),
+        httpHandle = await startHttpDaemonServer({
             catalog: buildDefaultToolCatalog(),
+            hookHandler,
+            token,
+            bindHost: process.env.VOICETREE_DAEMON_BIND ?? '0.0.0.0',
+            port: args.port,
         })
+        await writeRpcPortFile(args.vault, httpHandle.port)
     } catch (cause) {
         await daemonHandle.stop().catch(() => undefined)
-        error(`failed to start UDS server: ${(cause as Error).message}`)
+        error(`failed to start HTTP daemon server: ${(cause as Error).message}`)
     }
 
-    let hookHandle: HookHttpServerHandle
+    let vaultStateWatcher: VaultStateWatcherHandle
     try {
-        hookHandle = await startHookHttpServer({
-            port: args.hookPort,
-            updateAgentEvent: agentRuntime.updateTerminalAgentEvent,
-        })
-        await writeHookPortFile(args.vault, hookHandle.port)
+        vaultStateWatcher = startVaultStateWatcher({vaultPath: args.vault, hub: httpHandle.hub})
     } catch (cause) {
-        await udsHandle.stop().catch(() => undefined)
+        await httpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
-        error(`failed to start hook HTTP server: ${(cause as Error).message}`)
+        error(`failed to start vault-state watcher: ${(cause as Error).message}`)
     }
 
     // Lifecycle JSONL telemetry sink.
@@ -178,8 +190,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     process.stdout.write(
         `vt serve: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
-        + `vault=${args.vault}\n`,
+        + `daemon on ${httpHandle.url}, vault=${args.vault}\n`,
     )
 
     // Emit phase="start" telemetry record. Long-running command — without
@@ -193,11 +204,11 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         process.stderr.write(`vt serve: ${signal} received, shutting down\n`)
 
         try {
-            await hookHandle.stop().catch((cause: unknown) => {
-                process.stderr.write(`vt serve: hook stop error: ${(cause as Error).message}\n`)
+            await vaultStateWatcher.stop().catch((cause: unknown) => {
+                process.stderr.write(`vt serve: vault-state watcher stop error: ${(cause as Error).message}\n`)
             })
-            await udsHandle.stop().catch((cause: unknown) => {
-                process.stderr.write(`vt serve: uds stop error: ${(cause as Error).message}\n`)
+            await httpHandle.stop().catch((cause: unknown) => {
+                process.stderr.write(`vt serve: http daemon stop error: ${(cause as Error).message}\n`)
             })
             getTerminalManager().cleanup()
             await daemonHandle.stop()

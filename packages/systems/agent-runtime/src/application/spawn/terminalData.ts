@@ -8,7 +8,7 @@ import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjection'
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
-import {readHookPortFromVault} from './hookPortFile'
+import {readDaemonPortFromVault} from './daemonUrlFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
@@ -110,22 +110,25 @@ export async function prepareTerminalDataInMain(
 
     // Auto-install lifecycle hooks per agent type. Each pure injector is a
     // no-op for non-matching commands, so the same pipeline handles every
-    // agent. Claude: settings JSON in APP_SUPPORT (uses $VOICETREE_HOOK_PORT
-    // shell-var expansion at fire time). Codex: TOML inline `-c` flags with
-    // hookPort + terminalId baked in at spawn time. Both target the dedicated
-    // hook HTTP server (Step 7e) published per-vault at
-    // `<vault>/.voicetree/hook.port`.
+    // agent. Claude: settings JSON in APP_SUPPORT (uses $VOICETREE_DAEMON_URL
+    // + $VOICETREE_VAULT_PATH shell-var expansion at fire time). Codex: TOML
+    // inline `-c` flags with the daemon URL + terminalId baked in at spawn
+    // time. Both target the unified HTTP daemon (Step 9b) published per-vault
+    // at `<vault>/.voicetree/rpc.port`. The bearer token is NEVER passed via
+    // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
+    // `$VOICETREE_VAULT_PATH/.voicetree/auth-token` at fire time.
     const env = getRuntimeEnv()
     const appSupportPath: string = env.getAppSupportPath()
     const projectRoot: string | null = env.getProjectRootWatchedDirectory
         ? await env.getProjectRootWatchedDirectory()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
-    const hookPort: number | null = await readHookPortFromVault(voicetreeProjectDir)
+    const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
+    const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
     const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(appSupportPath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
-    const finalCommand: string = hookPort !== null
-        ? injectCodexHookFlags(claudeInjected, hookPort, terminalId)
+    const finalCommand: string = daemonUrl !== null
+        ? injectCodexHookFlags(claudeInjected, daemonUrl, terminalId)
         : claudeInjected
 
     return createTerminalData({

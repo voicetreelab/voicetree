@@ -1,0 +1,513 @@
+// Unified HTTP daemon server. Single http.createServer bound to 0.0.0.0 (or
+// $VOICETREE_DAEMON_BIND). Four routes per design doc §2.5 / §4:
+//   POST /rpc                        — JSON-RPC tool dispatch (catalog)
+//   POST /hook/:source               — agent lifecycle ingestion
+//   GET  /events                     — WebSocket subscription channel
+//   GET  /terminals/:id/attach       — tmux relay (STUBBED 503 in 9b; 9f wires)
+//
+// Auth: bearer token in `Authorization: Bearer <token>`. 401, empty body on
+// missing/wrong token. Same gate covers the WS upgrade — bad tokens are
+// rejected BEFORE the WS handshake completes (design doc §4.3).
+//
+// Body caps: 64 KiB on /rpc and /hook (§4.1). WS inbound frame cap 256 KiB
+// (close 1009, §8.6). Per-subscriber outbound buffer cap 1 MiB / 1000 frames
+// (close 1011, §2.6 — enforced in eventSubscriptionHub).
+//
+// Access log: every request logged WITH the Authorization header redacted
+// via @vt/vt-rpc#redactAuthorizationHeader. Unit-tested.
+
+import http, {type IncomingMessage, type Server, type ServerResponse} from 'node:http'
+import type {Duplex} from 'node:stream'
+import {WebSocket, WebSocketServer, type RawData} from 'ws'
+
+import {ERROR_CODES, redactAuthorizationHeader} from '@vt/vt-rpc'
+import {CatalogValidationError} from '../tools/catalog.ts'
+import type {McpToolResponse} from '../tools/toolResponse.ts'
+import {
+    createEventSubscriptionHub,
+    isTopicName,
+    type EventSubscriptionHub,
+    type SubscribeRequest,
+    type Subscriber,
+    type SubscriberHandle,
+    type TopicName,
+} from './eventSubscriptionHub.ts'
+
+export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
+export type ToolCatalog = ReadonlyMap<string, ToolHandler>
+
+export interface HookHandlerInvocation {
+    readonly source: string
+    readonly terminalId: string | undefined
+    readonly eventName: string | undefined
+}
+
+export type HookHandler = (invocation: HookHandlerInvocation) => unknown
+
+export interface AccessLogger {
+    readonly logRequest: (line: string) => void
+    readonly logError: (line: string, error?: unknown) => void
+}
+
+export interface HttpDaemonServerHandle {
+    readonly port: number
+    readonly url: string
+    readonly hub: EventSubscriptionHub
+    readonly stop: () => Promise<void>
+}
+
+export interface StartHttpDaemonOptions {
+    readonly catalog: ToolCatalog
+    readonly hookHandler: HookHandler
+    readonly token: string
+    readonly bindHost?: string
+    readonly port?: number
+    readonly logger?: AccessLogger
+}
+
+const BODY_LIMIT_BYTES: number = 64 * 1024
+const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
+const RPC_PATH: string = '/rpc'
+const HOOK_PATH_PREFIX: string = '/hook/'
+const EVENTS_PATH: string = '/events'
+const TERMINALS_ATTACH_PATTERN: RegExp = /^\/terminals\/[^/]+\/attach$/
+
+function defaultLogger(): AccessLogger {
+    return {
+        logRequest: (line: string): void => { process.stderr.write(`${line}\n`) },
+        logError: (line: string, err?: unknown): void => {
+            process.stderr.write(`${line}${err ? `: ${err instanceof Error ? err.message : String(err)}` : ''}\n`)
+        },
+    }
+}
+
+function authorizationHeaderOf(req: IncomingMessage): string | undefined {
+    const raw: string | string[] | undefined = req.headers.authorization
+    if (Array.isArray(raw)) return raw[0]
+    return raw
+}
+
+export function isAuthorized(req: IncomingMessage, token: string): boolean {
+    const value: string | undefined = authorizationHeaderOf(req)
+    if (!value) return false
+    const expected: string = `Bearer ${token}`
+    return value === expected
+}
+
+export function buildAccessLogLine(req: IncomingMessage, status: number): string {
+    const authHeader: string | undefined = authorizationHeaderOf(req)
+    const redacted: string = authHeader ? redactAuthorizationHeader(authHeader) : '<none>'
+    return `[httpDaemon] ${req.method ?? '-'} ${req.url ?? '-'} ${status} authorization="${redacted}"`
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function unauthorized(req: IncomingMessage, res: ServerResponse, logger: AccessLogger): void {
+    res.statusCode = 401
+    res.end()
+    logger.logRequest(buildAccessLogLine(req, 401))
+}
+
+function notFound(req: IncomingMessage, res: ServerResponse, logger: AccessLogger): void {
+    res.statusCode = 404
+    res.end()
+    logger.logRequest(buildAccessLogLine(req, 404))
+}
+
+function methodNotAllowed(req: IncomingMessage, res: ServerResponse, logger: AccessLogger): void {
+    res.statusCode = 405
+    res.end()
+    logger.logRequest(buildAccessLogLine(req, 405))
+}
+
+function readBodyWithCap(req: IncomingMessage): Promise<string | {readonly tooLarge: true}> {
+    return new Promise<string | {readonly tooLarge: true}>((resolveBody, rejectBody): void => {
+        const chunks: Buffer[] = []
+        let total: number = 0
+        let settled: boolean = false
+        req.on('data', (chunk: Buffer): void => {
+            if (settled) return
+            total += chunk.length
+            if (total > BODY_LIMIT_BYTES) {
+                settled = true
+                resolveBody({tooLarge: true})
+                return
+            }
+            chunks.push(chunk)
+        })
+        req.on('end', (): void => {
+            if (settled) return
+            settled = true
+            resolveBody(Buffer.concat(chunks).toString('utf8'))
+        })
+        req.on('error', (cause: Error): void => {
+            if (settled) return
+            settled = true
+            rejectBody(cause)
+        })
+    })
+}
+
+function rpcErrorEnvelope(id: number | string | null, code: number, message: string, data?: unknown): unknown {
+    return data === undefined
+        ? {jsonrpc: '2.0', id, error: {code, message}}
+        : {jsonrpc: '2.0', id, error: {code, message, data}}
+}
+
+function unwrapToolResponse(response: McpToolResponse): {ok: true; payload: unknown} | {ok: false; payload: unknown} {
+    const text: string = response.content[0]?.text ?? ''
+    let payload: unknown
+    try {
+        payload = text === '' ? null : JSON.parse(text)
+    } catch {
+        payload = text
+    }
+    return response.isError === true ? {ok: false, payload} : {ok: true, payload}
+}
+
+async function dispatchRpcRequest(
+    rawBody: string,
+    catalog: ToolCatalog,
+): Promise<{readonly status: 200 | 400; readonly body: unknown}> {
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(rawBody)
+    } catch (cause) {
+        return {
+            status: 200,
+            body: rpcErrorEnvelope(null, ERROR_CODES.parse_error, cause instanceof Error ? cause.message : 'Malformed JSON'),
+        }
+    }
+    if (!isRecord(parsed) || parsed.jsonrpc !== '2.0') {
+        return {status: 200, body: rpcErrorEnvelope(null, ERROR_CODES.invalid_request, 'Request must be a JSON-RPC 2.0 envelope')}
+    }
+    const id: number | string | null = (typeof parsed.id === 'number' || typeof parsed.id === 'string') ? parsed.id : null
+    const method: unknown = parsed.method
+    if (typeof method !== 'string' || method.length === 0) {
+        return {status: 200, body: rpcErrorEnvelope(id, ERROR_CODES.invalid_request, 'Request missing "method"')}
+    }
+    const handler: ToolHandler | undefined = catalog.get(method)
+    if (!handler) {
+        return {status: 200, body: rpcErrorEnvelope(id, ERROR_CODES.tool_not_found, `Unknown method: ${method}`)}
+    }
+    const params: Record<string, unknown> = isRecord(parsed.params) ? parsed.params : {}
+
+    let response: McpToolResponse
+    try {
+        response = await handler(params)
+    } catch (cause) {
+        if (cause instanceof CatalogValidationError) {
+            return {
+                status: 200,
+                body: rpcErrorEnvelope(id, ERROR_CODES.validation_failed, cause.message, {
+                    kind: 'validation_failed', tool: cause.toolName, issues: cause.issues,
+                }),
+            }
+        }
+        return {
+            status: 200,
+            body: rpcErrorEnvelope(id, ERROR_CODES.internal_error, cause instanceof Error ? cause.message : String(cause)),
+        }
+    }
+
+    const unwrapped: {ok: boolean; payload: unknown} = unwrapToolResponse(response)
+    if (unwrapped.ok) {
+        return {status: 200, body: {jsonrpc: '2.0', id, result: unwrapped.payload}}
+    }
+    return {
+        status: 200,
+        body: rpcErrorEnvelope(id, ERROR_CODES.tool_handler_failed, 'Tool handler returned an error response', unwrapped.payload),
+    }
+}
+
+async function handleRpc(
+    req: IncomingMessage,
+    res: ServerResponse,
+    catalog: ToolCatalog,
+    logger: AccessLogger,
+): Promise<void> {
+    const body: string | {tooLarge: true} = await readBodyWithCap(req)
+    if (typeof body !== 'string') {
+        res.statusCode = 413
+        res.end()
+        logger.logRequest(buildAccessLogLine(req, 413))
+        return
+    }
+    const {status, body: payload} = await dispatchRpcRequest(body, catalog)
+    res.statusCode = status
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(payload))
+    logger.logRequest(buildAccessLogLine(req, status))
+}
+
+async function handleHook(
+    req: IncomingMessage,
+    res: ServerResponse,
+    hookHandler: HookHandler,
+    hub: EventSubscriptionHub,
+    logger: AccessLogger,
+): Promise<void> {
+    const url: URL = new URL(req.url ?? '/', 'http://127.0.0.1')
+    const source: string = url.pathname.slice(HOOK_PATH_PREFIX.length)
+    const terminalId: string | undefined = url.searchParams.get('terminal') ?? undefined
+    const queryEvent: string | undefined = url.searchParams.get('event') ?? undefined
+
+    const body: string | {tooLarge: true} = await readBodyWithCap(req)
+    if (typeof body !== 'string') {
+        res.statusCode = 413
+        res.end()
+        logger.logRequest(buildAccessLogLine(req, 413))
+        return
+    }
+
+    let parsedBody: Record<string, unknown> | undefined
+    if (body.length > 0) {
+        try {
+            const raw: unknown = JSON.parse(body)
+            parsedBody = isRecord(raw) ? raw : undefined
+        } catch {
+            parsedBody = undefined
+        }
+    }
+    const bodyEvent: string | undefined = parsedBody && typeof parsedBody.hook_event_name === 'string'
+        ? parsedBody.hook_event_name
+        : undefined
+    const eventName: string | undefined = bodyEvent ?? queryEvent
+
+    const result: unknown = hookHandler({source, terminalId, eventName})
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(result))
+    logger.logRequest(buildAccessLogLine(req, 200))
+
+    // The body is parsed only to extract `hook_event_name` (already done
+    // above); we don't forward `parsedBody` to the handler because the
+    // handler contract takes the resolved event name.
+    void parsedBody
+
+    // Publish agent-lifecycle event regardless of whether the hook handler
+    // ignored or mapped it — subscribers learn about every hook ingestion.
+    // Source typing kept loose intentionally; subscriber decides what to do.
+    if (terminalId && eventName) {
+        hub.publish('agent-lifecycle', eventName, {
+            terminalId,
+            source,
+            at: Date.now(),
+            handlerResult: result,
+        })
+    }
+}
+
+function isWebsocketUpgrade(req: IncomingMessage): boolean {
+    return req.headers.upgrade?.toLowerCase() === 'websocket'
+}
+
+function rejectUpgradeUnauthorized(socket: Duplex): void {
+    socket.write('HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
+    socket.destroy()
+}
+
+function rejectUpgradeNotFound(socket: Duplex): void {
+    socket.write('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
+    socket.destroy()
+}
+
+function rejectUpgradeUnavailable(socket: Duplex): void {
+    socket.write('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
+    socket.destroy()
+}
+
+interface WsSubscriberContext {
+    readonly handle: SubscriberHandle
+    readonly ws: WebSocket
+}
+
+function parseSubscribeRequests(value: unknown): SubscribeRequest[] {
+    if (!Array.isArray(value)) return []
+    const out: SubscribeRequest[] = []
+    for (const item of value) {
+        if (!isRecord(item)) continue
+        if (!isTopicName(item.topic)) continue
+        const resumeSeq: number | undefined = typeof item.resumeSeq === 'number' ? item.resumeSeq : undefined
+        out.push({topic: item.topic, resumeSeq})
+    }
+    return out
+}
+
+function parseUnsubscribeTopics(value: unknown): TopicName[] {
+    if (!Array.isArray(value)) return []
+    const out: TopicName[] = []
+    for (const item of value) {
+        if (isTopicName(item)) out.push(item)
+    }
+    return out
+}
+
+function handleClientFrame(ctx: WsSubscriberContext, raw: RawData): void {
+    const text: string = raw.toString()
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(text)
+    } catch {
+        return
+    }
+    if (!isRecord(parsed)) return
+    if (parsed.op === 'subscribe') {
+        ctx.handle.subscribe(parseSubscribeRequests(parsed.topics))
+    } else if (parsed.op === 'unsubscribe') {
+        ctx.handle.unsubscribe(parseUnsubscribeTopics(parsed.topics))
+    }
+}
+
+function wireWebSocketSubscriber(ws: WebSocket, hub: EventSubscriptionHub): void {
+    const subscriber: Subscriber = {
+        send: (frame: string): void => {
+            if (ws.readyState === ws.OPEN) ws.send(frame)
+        },
+        overflow: (): void => {
+            try { ws.close(1011, 'overflow') } catch { /* socket may already be torn down */ }
+        },
+    }
+    const handle: SubscriberHandle = hub.addSubscriber(subscriber)
+    const ctx: WsSubscriberContext = {handle, ws}
+
+    ws.on('message', (raw: RawData): void => handleClientFrame(ctx, raw))
+    ws.on('close', (): void => handle.close())
+    ws.on('error', (): void => handle.close())
+}
+
+function buildRequestHandler(
+    catalog: ToolCatalog,
+    hookHandler: HookHandler,
+    hub: EventSubscriptionHub,
+    token: string,
+    logger: AccessLogger,
+): (req: IncomingMessage, res: ServerResponse) => void {
+    return (req: IncomingMessage, res: ServerResponse): void => {
+        const method: string = req.method ?? 'GET'
+        const url: string = req.url ?? '/'
+
+        if (method === 'OPTIONS') {
+            res.statusCode = 204
+            res.end()
+            logger.logRequest(buildAccessLogLine(req, 204))
+            return
+        }
+        if (!isAuthorized(req, token)) {
+            unauthorized(req, res, logger)
+            return
+        }
+
+        if (method === 'POST' && url === RPC_PATH) {
+            void handleRpc(req, res, catalog, logger).catch((err: unknown): void => {
+                logger.logError('rpc handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+        if (method === 'POST' && url.startsWith(HOOK_PATH_PREFIX)) {
+            void handleHook(req, res, hookHandler, hub, logger).catch((err: unknown): void => {
+                logger.logError('hook handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+        if (
+            method !== 'POST'
+            && (url === RPC_PATH || url.startsWith(HOOK_PATH_PREFIX))
+        ) {
+            methodNotAllowed(req, res, logger)
+            return
+        }
+        // /events and /terminals/:id/attach are GET-upgrade only; reaching
+        // here means a non-upgrade GET to the WS routes (or genuine 404).
+        notFound(req, res, logger)
+    }
+}
+
+function buildUpgradeHandler(
+    wss: WebSocketServer,
+    hub: EventSubscriptionHub,
+    token: string,
+    logger: AccessLogger,
+): (req: IncomingMessage, socket: Duplex, head: Buffer) => void {
+    return (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
+        if (!isWebsocketUpgrade(req)) {
+            rejectUpgradeNotFound(socket)
+            logger.logRequest(buildAccessLogLine(req, 400))
+            return
+        }
+        if (!isAuthorized(req, token)) {
+            rejectUpgradeUnauthorized(socket)
+            logger.logRequest(buildAccessLogLine(req, 401))
+            return
+        }
+
+        const url: string = req.url ?? '/'
+        if (url === EVENTS_PATH) {
+            wss.handleUpgrade(req, socket, head, (ws: WebSocket): void => {
+                logger.logRequest(buildAccessLogLine(req, 101))
+                wireWebSocketSubscriber(ws, hub)
+            })
+            return
+        }
+        if (TERMINALS_ATTACH_PATTERN.test(url)) {
+            // 9f wires the real tmux relay onto this route. Until then, the
+            // route is gated and STUBBED — explicit 503 so callers get a
+            // clear signal that the feature isn't on yet.
+            rejectUpgradeUnavailable(socket)
+            logger.logRequest(buildAccessLogLine(req, 503))
+            return
+        }
+        rejectUpgradeNotFound(socket)
+        logger.logRequest(buildAccessLogLine(req, 404))
+    }
+}
+
+export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Promise<HttpDaemonServerHandle> {
+    const logger: AccessLogger = options.logger ?? defaultLogger()
+    const hub: EventSubscriptionHub = createEventSubscriptionHub()
+
+    const wss: WebSocketServer = new WebSocketServer({
+        noServer: true,
+        maxPayload: WS_INBOUND_FRAME_LIMIT_BYTES,
+    })
+
+    const server: Server = http.createServer(buildRequestHandler(
+        options.catalog, options.hookHandler, hub, options.token, logger,
+    ))
+    server.on('upgrade', buildUpgradeHandler(wss, hub, options.token, logger))
+
+    const bindHost: string = options.bindHost ?? '0.0.0.0'
+    const port: number = await new Promise<number>((resolveListen, rejectListen): void => {
+        server.once('error', rejectListen)
+        server.listen(options.port ?? 0, bindHost, (): void => {
+            server.removeListener('error', rejectListen)
+            const addr = server.address()
+            if (!addr || typeof addr === 'string') {
+                rejectListen(new Error('httpDaemonServer: no address after listen'))
+                return
+            }
+            resolveListen(addr.port)
+        })
+    })
+
+    const url: string = `http://${bindHost === '0.0.0.0' ? '127.0.0.1' : bindHost}:${port}`
+    logger.logRequest(`[httpDaemon] listening on ${url} (bind=${bindHost})`)
+
+    return {
+        port,
+        url,
+        hub,
+        stop: (): Promise<void> => new Promise<void>((resolveStop, rejectStop): void => {
+            wss.close((): void => {
+                server.close((cause?: Error): void => {
+                    if (cause) rejectStop(cause)
+                    else resolveStop()
+                })
+            })
+        }),
+    }
+}

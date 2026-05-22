@@ -9,7 +9,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
-import {readHookPortFromVault} from './hookPortFile'
+import {readDaemonPortFromVault} from './daemonUrlFile'
 import path from 'path'
 
 type SelectEnvVarValueIndex = (values: readonly string[]) => number
@@ -49,7 +49,8 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getProjectRootWatchedDirectory()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
-    const hookPort: number | null = await readHookPortFromVault(voicetreeProjectDir)
+    const daemonPort: number | null = await readDaemonPortFromVault(voicetreeProjectDir)
+    const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
@@ -61,7 +62,11 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
         AGENT_NAME: params.agentName,
-        ...(hookPort !== null ? {VOICETREE_HOOK_PORT: String(hookPort)} : {}),
+        // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which the
+        // hook subprocess reads via `cat` from disk to avoid `ps` leak, §3.3).
+        // Spawned agents always run inside WSL alongside the daemon, so
+        // 127.0.0.1 works in both WSL mirrored and NAT networking modes.
+        ...(daemonUrl !== null ? {VOICETREE_DAEMON_URL: daemonUrl} : {}),
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }

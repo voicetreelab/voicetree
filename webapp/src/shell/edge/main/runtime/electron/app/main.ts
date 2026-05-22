@@ -18,6 +18,7 @@ import {
     startTmuxRelayServer,
     stopTmuxRelayServer,
 } from '@/shell/edge/main/runtime/electron/daemon/tmux-relay-binding';
+import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -60,10 +61,6 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
-import {
-    startElectronHookHttpServer,
-    stopElectronHookHttpServer,
-} from '@/shell/edge/main/runtime/electron/daemon/hook-server-binding';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -239,10 +236,8 @@ void app.whenReady().then(async () => {
     // ws://localhost:${port}/terminals/:id/attach.
     await startTmuxRelayServer();
 
-    // Start the dedicated hook HTTP server (Step 7e). One ephemeral port for
-    // the lifetime of the app; the port is published to each opened vault via
-    // openVault's publishHookPortForVault call.
-    await startElectronHookHttpServer();
+    // The unified HTTP daemon (Step 9b) is started per-opened-vault by
+    // openVault → bindHttpDaemonForVault; nothing app-wide to start here.
 
     // Install the lifecycle JSONL telemetry sink.
     try {
@@ -380,7 +375,7 @@ app.on('will-quit', () => {
     unsubscribeFromDaemonSSE();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
-    void stopElectronHookHttpServer();
+    void unbindHttpDaemon();
     void stopTmuxRelayServer();
 });
 
