@@ -1,7 +1,8 @@
-import {readFile, readdir} from 'node:fs/promises'
-import {dirname, join, relative, resolve, sep} from 'node:path'
+import {readFile} from 'node:fs/promises'
+import {basename, dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
+import {listGitTrackedFiles} from '../../_shared/git-tracked-files'
 import {recordHealthMetric} from '../../_shared/report-writer'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
@@ -9,28 +10,13 @@ const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
 const README_LINE_LIMIT_EXCLUSIVE = 150
 const README_LINE_BUDGET = README_LINE_LIMIT_EXCLUSIVE - 1
 
-const EXCLUDED_DIRECTORY_NAMES: ReadonlySet<string> = new Set([
-    '.git',
-    '.worktrees',
-    'brain',
-    'node_modules',
-])
-
 type ReadmeLineCount = {
     readonly file: string
     readonly lineCount: number
 }
 
-function isExcludedDirectoryName(name: string): boolean {
-    return EXCLUDED_DIRECTORY_NAMES.has(name)
-}
-
 function isReadmeFileName(name: string): boolean {
     return name.toLowerCase() === 'readme.md'
-}
-
-function normalizePath(path: string): string {
-    return path.split(sep).join('/')
 }
 
 function countLines(text: string): number {
@@ -40,26 +26,13 @@ function countLines(text: string): number {
         : text.split(/\r\n|\n|\r/).length
 }
 
-async function scanReadmeLineCounts(root: string): Promise<ReadmeLineCount[]> {
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const absolutePath = join(root, entry.name)
-
-        if (entry.isDirectory()) {
-            if (isExcludedDirectoryName(entry.name)) return []
-            return scanReadmeLineCounts(absolutePath)
-        }
-
-        if (!entry.isFile() || !isReadmeFileName(entry.name)) return []
-
-        const text = await readFile(absolutePath, 'utf8')
-        return [{
-            file: normalizePath(relative(REPO_ROOT, absolutePath)),
-            lineCount: countLines(text),
-        }]
-    }))
-
-    return nested.flat().sort((a, b) => a.file.localeCompare(b.file))
+async function readmeLineCounts(repoRoot: string): Promise<ReadmeLineCount[]> {
+    const readmes = listGitTrackedFiles(repoRoot).filter(path => isReadmeFileName(basename(path)))
+    const counted = await Promise.all(readmes.map(async file => ({
+        file,
+        lineCount: countLines(await readFile(join(repoRoot, file), 'utf8')),
+    })))
+    return counted.sort((a, b) => a.file.localeCompare(b.file))
 }
 
 function formatReadmeLineViolation(violation: ReadmeLineCount): string {
@@ -67,8 +40,8 @@ function formatReadmeLineViolation(violation: ReadmeLineCount): string {
 }
 
 describe('README line budget', () => {
-    it('keeps every README shorter than the line limit', async () => {
-        const readmes = await scanReadmeLineCounts(REPO_ROOT)
+    it('keeps every tracked README shorter than the line limit', async () => {
+        const readmes = await readmeLineCounts(REPO_ROOT)
         const violations = readmes
             .filter(readme => readme.lineCount >= README_LINE_LIMIT_EXCLUSIVE)
             .sort((a, b) => b.lineCount - a.lineCount || a.file.localeCompare(b.file))
@@ -77,7 +50,7 @@ describe('README line budget', () => {
         await recordHealthMetric({
             metricId: 'readme-line-budget',
             metricName: 'README Line Budget',
-            description: 'Largest README line count in the repository.',
+            description: 'Largest tracked README line count in the repository.',
             category: 'Structure',
             current: maxLineCount,
             budget: README_LINE_BUDGET,
@@ -88,7 +61,6 @@ describe('README line budget', () => {
                 readmeCount: readmes.length,
                 violations,
                 largestReadmes: readmes.slice().sort((a, b) => b.lineCount - a.lineCount).slice(0, 20),
-                excludedDirectoryNames: [...EXCLUDED_DIRECTORY_NAMES],
             },
         })
 
