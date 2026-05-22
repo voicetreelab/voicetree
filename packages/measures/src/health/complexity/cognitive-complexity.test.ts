@@ -1,8 +1,8 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {join, relative} from 'node:path'
+import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles, type SourceFileInfo} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 import {scoreFunction} from '../../_shared/complexity/cogcx-scorer'
 
@@ -28,38 +28,6 @@ type PackageAggregate = {
     readonly max: number
     readonly highCount: number
     readonly functionCount: number
-}
-
-async function pathExists(path: string): Promise<boolean> {
-    try {
-        await stat(path)
-        return true
-    } catch {
-        return false
-    }
-}
-
-function isProductionTypeScriptSource(path: string): boolean {
-    return path.endsWith('.ts')
-        && !path.endsWith('.test.ts')
-        && !path.endsWith('.spec.ts')
-        && !path.endsWith('.d.ts')
-        && !path.endsWith('/__audit_seed__.ts')
-        && !path.includes('/__tests__/')
-        && !path.includes('/__fixtures__/')
-        && !path.includes('/__generated__/')
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && isProductionTypeScriptSource(path)) return [path]
-        return []
-    }))
-    return nested.flat().sort()
 }
 
 function propertyNameText(name: ts.PropertyName, sourceFile: ts.SourceFile): string {
@@ -88,8 +56,8 @@ function isFunctionLikeBoundary(node: ts.Node): node is ts.FunctionLikeDeclarati
         || ts.isConstructorDeclaration(node)
 }
 
-function findFunctionComplexities(packageName: string, file: string, text: string): FunctionComplexity[] {
-    const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+function findFunctionComplexities(sf: SourceFileInfo, text: string): FunctionComplexity[] {
+    const sourceFile = ts.createSourceFile(sf.absolutePath, text, ts.ScriptTarget.Latest, true)
     const results: FunctionComplexity[] = []
 
     function visit(node: ts.Node): void {
@@ -97,8 +65,8 @@ function findFunctionComplexities(packageName: string, file: string, text: strin
             const name = functionName(node, sourceFile)
             const {line} = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
             results.push({
-                packageName,
-                file: relative(REPO_ROOT, file),
+                packageName: sf.packageName,
+                file: sf.relativePath,
                 line: line + 1,
                 name,
                 score: scoreFunction(node, name, sourceFile),
@@ -112,27 +80,22 @@ function findFunctionComplexities(packageName: string, file: string, text: strin
     return results
 }
 
-async function scanPackage(packageInfo: PackageInfo): Promise<FunctionComplexity[]> {
-    const files = await listProductionSources(packageInfo.srcRoot)
-    const nested = await Promise.all(files.map(async file => {
-        try {
-            const text = await readFile(file, 'utf8')
-            return findFunctionComplexities(packageInfo.dirName, file, text)
-        } catch (error) {
-            if (isErrnoException(error) && error.code === 'ENOENT') return []
-            throw error
-        }
-    }))
-    return nested.flat()
-}
-
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
     return error instanceof Error && 'code' in error
 }
 
 async function scanAllFunctions(): Promise<FunctionComplexity[]> {
     const packages = await discoverPackages()
-    const nested = await Promise.all(packages.map(scanPackage))
+    const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
+    const nested = await Promise.all(sourceFiles.map(async sf => {
+        try {
+            const text = await readFile(sf.absolutePath, 'utf8')
+            return findFunctionComplexities(sf, text)
+        } catch (error) {
+            if (isErrnoException(error) && error.code === 'ENOENT') return []
+            throw error
+        }
+    }))
     return nested.flat()
 }
 

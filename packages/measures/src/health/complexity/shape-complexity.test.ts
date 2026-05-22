@@ -1,8 +1,8 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {join, relative} from 'node:path'
+import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {extractFunctions, type FnEntry} from '../../_shared/purity-analysis'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
@@ -32,32 +32,6 @@ type FileShapeReport = {
     readonly maxLoc: number
     readonly exports: number
     readonly score: number
-}
-
-// --- Discovery ---
-
-async function pathExists(p: string): Promise<boolean> {
-    try { await stat(p); return true } catch { return false }
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && path.endsWith('.ts')
-            && !path.endsWith('/__audit_seed__.ts')
-            && !path.endsWith('.test.ts')
-            && !path.endsWith('.spec.ts')
-            && !path.endsWith('.d.ts')
-            && !path.endsWith('.config.ts')
-            && !path.includes('/__tests__/')
-            && !path.includes('/__generated__/'))
-            return [path]
-        return []
-    }))
-    return nested.flat().sort()
 }
 
 // --- LOC helpers (duplicated from purity-ratio-ast.test.ts) ---
@@ -221,17 +195,14 @@ const ORANGE_P90_FILE_P75_LOC  = 48      // tail of file-p75 distribution
 describe('shape complexity', () => {
     it('reports per-file function shape and export surface area', async () => {
         const packages = await discoverPackages()
-        const files = (await Promise.all(packages.map(async pkg => {
-            const list = await listProductionSources(pkg.srcRoot)
-            return list.map(file => ({file, packageName: pkg.dirName}))
-        }))).flat().sort((a, b) => a.file.localeCompare(b.file))
+        const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
 
-        const reports: FileShapeReport[] = await Promise.all(files.map(async ({file, packageName}) => {
-            const text = await readFile(file, 'utf8')
-            const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
-            const fns = extractFunctions(file, sf)
+        const reports: FileShapeReport[] = await Promise.all(sourceFiles.map(async sourceFile => {
+            const text = await readFile(sourceFile.absolutePath, 'utf8')
+            const sf = ts.createSourceFile(sourceFile.absolutePath, text, ts.ScriptTarget.Latest, true)
+            const fns = extractFunctions(sourceFile.absolutePath, sf)
             const exports = countExports(sf)
-            return buildFileShapeReport(relative(REPO_ROOT, file), packageName, fns, exports)
+            return buildFileShapeReport(sourceFile.relativePath, sourceFile.packageName, fns, exports)
         }))
 
         // No-fn files (pure type/re-export modules) are not shape-meaningful; exclude.
