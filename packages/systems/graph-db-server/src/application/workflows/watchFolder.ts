@@ -246,12 +246,10 @@ async function loadExpandedPaths(
     return null;
 }
 
-export async function loadFolder(
+async function prepareForFolderSwitch(
+    env: WatchFolderEnv,
     watchedFolderPath: FilePath,
-    options: WatchFolderLoadOptions = {},
-): Promise<{ success: boolean }> {
-    const env: WatchFolderEnv = defaultWatchFolderEnv;
-
+): Promise<void> {
     const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
     if (previousRoot) {
         savePositionsSync(getGraph(), previousRoot);
@@ -267,13 +265,16 @@ export async function loadFolder(
         setWatcher(null);
     }
 
-    const folderCleanup: (() => void) | null = getOnFolderSwitchCleanup();
-    if (folderCleanup) {
-        folderCleanup();
-    }
+    getOnFolderSwitchCleanup()?.();
 
     env.callbacks().onGraphCleared?.();
+}
 
+async function resolveConfigAndPositions(
+    env: WatchFolderEnv,
+    watchedFolderPath: FilePath,
+    options: WatchFolderLoadOptions,
+): Promise<{ readonly config: WatchFolderConfig; readonly positions: ReadonlyMap<string, Position> }> {
     const config: WatchFolderConfig = await resolveOrCreateConfig(env, watchedFolderPath, options);
 
     await env.callbacks().ensureProjectSetup?.(watchedFolderPath).catch((error: unknown) => {
@@ -285,26 +286,33 @@ export async function loadFolder(
     setGraph(createEmptyGraph());
 
     const positions: ReadonlyMap<string, Position> = await loadPositions(watchedFolderPath);
+    return { config, positions };
+}
 
-    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
-    const writeRecoveryResult: { success: boolean } | null = await handleVaultLoadOutcome(
-        env,
-        writeOutcome,
-        watchedFolderPath,
-        config,
-        options,
-    );
-    if (writeRecoveryResult) return writeRecoveryResult;
-
-    const expandedRecoveryResult: { success: boolean } | null = await loadExpandedPaths(
-        env,
-        config,
+async function loadAllVaultPaths(
+    env: WatchFolderEnv,
+    watchedFolderPath: FilePath,
+    config: WatchFolderConfig,
+    positions: ReadonlyMap<string, Position>,
+    options: WatchFolderLoadOptions,
+): Promise<{ success: boolean } | null> {
+    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(
+        config.writePath,
+        { isWritePath: true },
         positions,
-        watchedFolderPath,
-        options,
     );
-    if (expandedRecoveryResult) return expandedRecoveryResult;
+    const writeRecovery = await handleVaultLoadOutcome(env, writeOutcome, watchedFolderPath, config, options);
+    if (writeRecovery) return writeRecovery;
 
+    return loadExpandedPaths(env, config, positions, watchedFolderPath, options);
+}
+
+async function mountWatcherAndFinalize(
+    env: WatchFolderEnv,
+    watchedFolderPath: FilePath,
+    config: WatchFolderConfig,
+    options: WatchFolderLoadOptions,
+): Promise<void> {
     if (options.mountWatcher !== false) {
         const watcherOptions: WatcherOptions = await resolveWatcherOptions();
         await setupWatcher(config.allowlist, watchedFolderPath, watcherOptions);
@@ -322,6 +330,19 @@ export async function loadFolder(
     if (options.broadcastVaultState !== false) {
         await broadcastVaultState();
     }
+}
+
+export async function loadFolder(
+    watchedFolderPath: FilePath,
+    options: WatchFolderLoadOptions = {},
+): Promise<{ success: boolean }> {
+    const env: WatchFolderEnv = defaultWatchFolderEnv;
+
+    await prepareForFolderSwitch(env, watchedFolderPath);
+    const { config, positions } = await resolveConfigAndPositions(env, watchedFolderPath, options);
+    const recovery = await loadAllVaultPaths(env, watchedFolderPath, config, positions, options);
+    if (recovery) return recovery;
+    await mountWatcherAndFinalize(env, watchedFolderPath, config, options);
 
     return { success: true };
 }
