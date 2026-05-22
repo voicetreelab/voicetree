@@ -181,6 +181,8 @@ webapp/workers/share-worker/.wrangler/**
 
 # Markdown (tracked exceptions below)
 **/*.md
+!/CLAUDE.md
+!/AGENTS.md
 !tools/prompts/*.md
 !brain/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
