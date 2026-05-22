@@ -225,6 +225,14 @@ webapp/workers/share-worker/.wrangler/**
 test_output/*
 .claude/settings.local.json
 
+# Vestigial root-level files that tools/agents might recreate
+# (progress notes are already covered by **/*.md above)
+/test.db
+/pnpm-lock.yaml
+/opencode.json
+/.obsidianignore
+/.pre-commit-config.yaml
+
 # Codebase health dashboard report state
 /health-dashboard/reports/*.json
 /health-dashboard/reports/*.json.tmp.*
