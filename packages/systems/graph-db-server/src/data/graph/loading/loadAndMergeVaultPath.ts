@@ -23,16 +23,32 @@ export interface LoadVaultPathOptions {
   createStarterIfEmpty?: boolean;
 }
 
-export type LoadVaultPathResult = {
-    success: boolean;
-    error?: string;
+export type FileLimitDetails = {
+    readonly fileCount: number;
+    readonly maxFiles: number;
 };
+
+export type VaultLoadOutcome =
+    | { readonly kind: 'ok' }
+    | { readonly kind: 'fileLimit'; readonly details: FileLimitDetails }
+    | { readonly kind: 'failed'; readonly reason: string };
+
+export function describeVaultLoadFailure(
+    outcome: Exclude<VaultLoadOutcome, { kind: 'ok' }>,
+): string {
+    switch (outcome.kind) {
+        case 'fileLimit':
+            return `File limit exceeded: ${outcome.details.fileCount} files (max: ${outcome.details.maxFiles})`;
+        case 'failed':
+            return outcome.reason;
+    }
+}
 
 export async function loadAndMergeVaultPath(
     vaultPath: FilePath,
     options: LoadVaultPathOptions = { isWritePath: false },
     positions?: ReadonlyMap<string, Position>
-): Promise<LoadVaultPathResult> {
+): Promise<VaultLoadOutcome> {
     const existingGraph: Graph = getGraph();
     const watchedFolderPath: FilePath | null = getProjectRootWatchedDirectory();
 
@@ -44,8 +60,11 @@ export async function loadAndMergeVaultPath(
 
     if (E.isLeft(loadResult)) {
         return {
-            success: false,
-            error: `File limit exceeded: ${loadResult.left.fileCount} files (max: ${loadResult.left.maxFiles})`
+            kind: 'fileLimit',
+            details: {
+                fileCount: loadResult.left.fileCount,
+                maxFiles: loadResult.left.maxFiles,
+            },
         };
     }
 
@@ -107,5 +126,5 @@ export async function loadAndMergeVaultPath(
         }
     });
 
-    return { success: true };
+    return { kind: 'ok' };
 }

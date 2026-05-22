@@ -12,14 +12,20 @@ import normalizePath from "normalize-path";
 export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject } from '../data/watch-folder/paths/resolve-vault-config';
 export {
     loadAndMergeVaultPath,
+    describeVaultLoadFailure,
     type LoadVaultPathOptions,
-    type LoadVaultPathResult,
+    type VaultLoadOutcome,
+    type FileLimitDetails,
 } from '../data/graph/loading/loadAndMergeVaultPath';
 import {
     logIgnoredLegacyReadPathsIfPresent,
     resolveWritePath,
 } from '../data/watch-folder/paths/resolve-vault-config';
-import { loadAndMergeVaultPath, type LoadVaultPathResult } from '../data/graph/loading/loadAndMergeVaultPath';
+import {
+    loadAndMergeVaultPath,
+    describeVaultLoadFailure,
+    type VaultLoadOutcome,
+} from '../data/graph/loading/loadAndMergeVaultPath';
 import { traceGraphdSpan } from "../data/watch-folder/paths/traceGraphdSpan";
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
@@ -119,13 +125,13 @@ export async function setWritePath(
     ]);
 
     // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
-    const result: LoadVaultPathResult = await traceGraphdSpan('daemon.set-write-path.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
+    const outcome: VaultLoadOutcome = await traceGraphdSpan('daemon.set-write-path.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
         vaultPath,
         { isWritePath: true, createStarterIfEmpty: options.createStarterIfEmpty },
         positions,
     ));
-    if (!result.success) {
-        return result;
+    if (outcome.kind !== 'ok') {
+        return { success: false, error: describeVaultLoadFailure(outcome) };
     }
 
     // Demote old write path to the active view's expanded paths before overwriting
@@ -199,14 +205,15 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
 
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWritePath: false means no starter node and no backend notification
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
-    if (!result.success) {
+    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
+    if (outcome.kind === 'fileLimit') {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
-        if (result.error?.includes('File limit exceeded')) {
-            await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
-            await broadcastVaultState();
-        }
-        return result;
+        await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
+        await broadcastVaultState();
+        return { success: false, error: describeVaultLoadFailure(outcome) };
+    }
+    if (outcome.kind === 'failed') {
+        return { success: false, error: outcome.reason };
     }
 
     // Only save visibility and add to watcher AFTER successful load

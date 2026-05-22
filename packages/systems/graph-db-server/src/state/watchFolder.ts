@@ -40,14 +40,14 @@ import {
 import {
     resolveAllowlistForProject,
     loadAndMergeVaultPath,
-    type LoadVaultPathResult,
+    type VaultLoadOutcome,
+    type FileLimitDetails,
 } from "./vaultAllowlist";
 import { setActiveViewFolderState } from "../data/watch-folder/folder-visibility-active-view";
 import { setupWatcher } from "../data/watch-folder/watching/file-watcher-setup";
 import { setupStateChangeSubscriptions } from "../data/views/watcherRebuild";
 import type { WatcherOptions } from "../data/watch-folder/watching/file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "../data/watch-folder/watching/watcher-options.shared";
-import { MAX_MARKDOWN_FILES_PER_VAULT_PATH } from "../data/graph/loading/fileLimitEnforce";
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
@@ -66,7 +66,6 @@ export interface WatchFolderEffects {
 }
 
 type WatchFolderConfig = { writePath: string; allowlist: readonly string[] };
-type FileLimitDetails = { readonly fileCount: number; readonly maxFiles: number };
 
 const defaultWatchFolderEffects: WatchFolderEffects = {
     warn(message?: unknown, ...optionalParams: unknown[]): void {
@@ -79,15 +78,6 @@ const defaultWatchFolderEffects: WatchFolderEffects = {
 
 function getWatchFolderEffects(options: WatchFolderLoadOptions): WatchFolderEffects {
     return options.effects ?? defaultWatchFolderEffects;
-}
-
-function extractFileLimitDetails(error: string | undefined): FileLimitDetails | null {
-    if (!error?.includes('File limit exceeded')) return null;
-    const match: RegExpMatchArray | null = error.match(/(\d+) files \(max: (\d+)\)/);
-    return {
-        fileCount: match ? parseInt(match[1], 10) : 0,
-        maxFiles: match ? parseInt(match[2], 10) : MAX_MARKDOWN_FILES_PER_VAULT_PATH,
-    };
 }
 
 function buildWatchingStartedPayload(
@@ -245,25 +235,25 @@ function getExpandedPaths(config: WatchFolderConfig): readonly string[] {
     return config.allowlist.filter((folderPath: string) => folderPath !== config.writePath);
 }
 
-async function handleVaultLoadResult(
-    result: LoadVaultPathResult,
+async function handleVaultLoadOutcome(
+    outcome: VaultLoadOutcome,
     watchedFolderPath: FilePath,
     config: WatchFolderConfig,
     options: WatchFolderLoadOptions,
 ): Promise<{ success: boolean } | null> {
-    if (result.success) return null;
-
-    const fileLimitDetails: FileLimitDetails | null = extractFileLimitDetails(result.error);
-    if (fileLimitDetails !== null) {
-        return createNewWorkspaceOnFileLimitExceeded(
-            watchedFolderPath,
-            fileLimitDetails,
-            getExpandedPaths(config),
-            options,
-        );
+    switch (outcome.kind) {
+        case 'ok':
+            return null;
+        case 'fileLimit':
+            return createNewWorkspaceOnFileLimitExceeded(
+                watchedFolderPath,
+                outcome.details,
+                getExpandedPaths(config),
+                options,
+            );
+        case 'failed':
+            return { success: false };
     }
-
-    return { success: false };
 }
 
 async function loadExpandedPaths(
@@ -274,24 +264,20 @@ async function loadExpandedPaths(
     effects: WatchFolderEffects,
 ): Promise<{ success: boolean } | null> {
     for (const expandedPath of getExpandedPaths(config)) {
-        const expandedResult: LoadVaultPathResult = await loadAndMergeVaultPath(
+        const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(
             expandedPath,
             { isWritePath: false },
-            positions
+            positions,
         );
 
-        if (expandedResult.success) continue;
-
-        if (extractFileLimitDetails(expandedResult.error) !== null) {
-            return handleVaultLoadResult(
-                expandedResult,
-                watchedFolderPath,
-                config,
-                options,
-            );
+        switch (outcome.kind) {
+            case 'ok':
+                continue;
+            case 'fileLimit':
+                return handleVaultLoadOutcome(outcome, watchedFolderPath, config, options);
+            case 'failed':
+                effects.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${outcome.reason}`);
         }
-
-        effects.warn(`[loadFolder] Failed to load expanded path ${expandedPath}: ${expandedResult.error}`);
     }
 
     return null;
@@ -351,9 +337,9 @@ export async function loadFolder(
     const positions: ReadonlyMap<string, Position> = await loadPositions(watchedFolderPath);
 
     // Load write path first (handles all side effects internally)
-    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
-    const writeRecoveryResult: { success: boolean } | null = await handleVaultLoadResult(
-        writeResult,
+    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(config.writePath, { isWritePath: true }, positions);
+    const writeRecoveryResult: { success: boolean } | null = await handleVaultLoadOutcome(
+        writeOutcome,
         watchedFolderPath,
         config,
         options,
@@ -428,8 +414,8 @@ async function createNewWorkspaceOnFileLimitExceeded(
     setGraph(createEmptyGraph());
 
     // Load from the new subfolder (handles all side effects internally, including starter node)
-    const writeResult: LoadVaultPathResult = await loadAndMergeVaultPath(newSubfolderPath, { isWritePath: true });
-    if (!writeResult.success) {
+    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(newSubfolderPath, { isWritePath: true });
+    if (writeOutcome.kind !== 'ok') {
         // Should not happen with empty folder, but handle gracefully
         return { success: false };
     }
