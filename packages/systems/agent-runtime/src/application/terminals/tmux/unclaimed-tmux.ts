@@ -1,7 +1,7 @@
 import path from 'node:path'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {attachExistingTmuxBackedTerminal} from '../../headless/tmuxHeadlessRuntime'
-import {getRuntimeEnv} from '../../runtime/runtime-config'
+import {attachExistingTmuxBackedTerminal} from '@vt/agent-runtime/headless/tmuxHeadlessRuntime.ts'
+import {getRuntimeEnv} from '@vt/agent-runtime/runtime/runtime-config'
 import {
     getTerminalRecords,
     type TerminalRecord,
