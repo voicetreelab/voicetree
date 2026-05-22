@@ -16,12 +16,18 @@ type FakeLaunchctlCall = {
 
 function makeDeps(files: Map<string, string>, launchctlLoaded: {value: boolean}): TmuxLaunchAgentDeps & {
     readonly calls: FakeLaunchctlCall[]
+    readonly errorLogs: string[]
+    readonly warnLogs: string[]
     readonly writes: string[]
 } {
     const calls: FakeLaunchctlCall[] = []
+    const errorLogs: string[] = []
+    const warnLogs: string[] = []
     const writes: string[] = []
-    const deps: TmuxLaunchAgentDeps & {calls: FakeLaunchctlCall[], writes: string[]} = {
+    const deps: TmuxLaunchAgentDeps & {calls: FakeLaunchctlCall[], errorLogs: string[], warnLogs: string[], writes: string[]} = {
         calls,
+        errorLogs,
+        warnLogs,
         writes,
         env: {},
         platform: 'darwin',
@@ -59,6 +65,14 @@ function makeDeps(files: Map<string, string>, launchctlLoaded: {value: boolean})
                 launchctlLoaded.value = false
             }
             callback(null, '', '')
+        },
+        logger: {
+            error: (message: string): void => {
+                errorLogs.push(message)
+            },
+            warn: (message: string): void => {
+                warnLogs.push(message)
+            },
         },
         sleep: async () => undefined,
     }
@@ -119,6 +133,27 @@ describe('tmux-launchagent', () => {
             ['launchctl', 'bootstrap', 'gui/501', plistPath],
             ['launchctl', 'print', 'gui/501/com.voicetree.tmux'],
         ])
+    })
+
+    it('emits loud diagnostics before rewriting and booting out a loaded mismatched plist', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const plistPath: string = join('/Users/test/Library/LaunchAgents', 'com.voicetree.tmux.plist')
+        const files = new Map<string, string>([[plistPath, 'old plist content']])
+        const loaded = {value: true}
+        const deps = makeDeps(files, loaded)
+
+        await ensureTmuxLaunchAgent({appSupportPath, deps, forceInTests: true})
+
+        expect(deps.errorLogs).toHaveLength(2)
+        expect(deps.errorLogs[0]).toContain('[tmux-launchagent] PLIST_MISMATCH_REWRITE_WILL_BOOTOUT')
+        expect(deps.errorLogs[0]).toContain('"currentPlistSha256"')
+        expect(deps.errorLogs[0]).toContain('"renderedPlistSha256"')
+        expect(deps.errorLogs[0]).toContain(`"plistPath":"${plistPath}"`)
+        expect(deps.errorLogs[0]).toContain('"launchAgentLoaded":true')
+        expect(deps.errorLogs[0]).toContain('"stack":"')
+        expect(deps.errorLogs[1]).toContain('[tmux-launchagent] BOOTOUT_LOADED_SERVICE')
+        expect(deps.warnLogs).toHaveLength(1)
+        expect(deps.warnLogs[0]).toContain('[tmux-launchagent] BOOTSTRAP_AFTER_PLIST_REWRITE')
     })
 
     it('builds socket-scoped tmux args from the app support path', () => {

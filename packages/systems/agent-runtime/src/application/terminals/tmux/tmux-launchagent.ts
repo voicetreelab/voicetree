@@ -10,9 +10,19 @@ import {homedir, tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {setTimeout as delay} from 'node:timers/promises'
 import {getRuntimeEnv} from '@vt/agent-runtime/runtime/runtime-config'
+import {
+    buildTmuxLaunchAgentDiagnostics,
+    logTmuxLaunchAgentEvent,
+    type TmuxLaunchAgentLogger,
+} from './tmux-launchagent-diagnostics.ts'
+import {
+    renderPlist,
+    TMUX_LAUNCH_AGENT_LABEL,
+} from './tmux-launchagent-plist.ts'
 
-const LABEL: string = 'com.voicetree.tmux'
-const ROOT_SESSION: string = '__voicetree_root__'
+export {renderPlist, type RenderPlistOptions} from './tmux-launchagent-plist.ts'
+
+const LABEL: string = TMUX_LAUNCH_AGENT_LABEL
 const SOCKET_NAME: string = 'tmux.sock'
 const SOCKET_WAIT_MS: number = 3000
 const SOCKET_POLL_MS: number = 50
@@ -31,6 +41,7 @@ export interface TmuxLaunchAgentDeps {
     readonly rmSync: typeof rmSync
     readonly execFileSync: typeof execFileSync
     readonly execFile: (file: string, args: readonly string[], callback: ExecFileCallback) => void
+    readonly logger: TmuxLaunchAgentLogger
     readonly sleep: (ms: number) => Promise<void>
 }
 
@@ -41,13 +52,6 @@ export interface EnsureTmuxLaunchAgentOptions {
     readonly plistPath?: string
     readonly socketPath?: string
     readonly tmuxBin?: string
-}
-
-export interface RenderPlistOptions {
-    readonly label?: string
-    readonly logDir?: string
-    readonly socketPath: string
-    readonly tmuxBin: string
 }
 
 const defaultDeps: TmuxLaunchAgentDeps = {
@@ -66,6 +70,10 @@ const defaultDeps: TmuxLaunchAgentDeps = {
     execFileSync,
     execFile: (file: string, args: readonly string[], callback: ExecFileCallback): void => {
         execFile(file, [...args], {encoding: 'utf8'}, callback)
+    },
+    logger: {
+        error: (message: string): void => console.error(message),
+        warn: (message: string): void => console.warn(message),
     },
     sleep: delay,
 }
@@ -112,15 +120,6 @@ function readTextIfExists(path: string, deps: TmuxLaunchAgentDeps): string | nul
     } catch {
         return null
     }
-}
-
-function escapeXml(value: string): string {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;')
 }
 
 function execFilePromise(deps: TmuxLaunchAgentDeps, file: string, args: readonly string[]): Promise<void> {
@@ -221,33 +220,6 @@ export function getLaunchAgentPlistPath(home: string = defaultDeps.homedir()): s
     return join(home, 'Library', 'LaunchAgents', `${LABEL}.plist`)
 }
 
-export function renderPlist(options: RenderPlistOptions): string {
-    const label: string = options.label ?? LABEL
-    const logDir: string = options.logDir ?? dirname(options.socketPath)
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>${escapeXml(label)}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>${escapeXml(options.tmuxBin)}</string>
-    <string>-S</string><string>${escapeXml(options.socketPath)}</string>
-    <string>-f</string><string>/dev/null</string>
-    <string>new-session</string><string>-d</string>
-    <string>-s</string><string>${escapeXml(ROOT_SESSION)}</string>
-    <string>--</string><string>sleep</string><string>infinity</string>
-  </array>
-  <key>ProcessType</key><string>Interactive</string>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>${escapeXml(join(logDir, 'tmux-server.out.log'))}</string>
-  <key>StandardErrorPath</key><string>${escapeXml(join(logDir, 'tmux-server.err.log'))}</string>
-</dict>
-</plist>
-`
-}
-
 async function ensureTmuxLaunchAgentOnce(options: EnsureTmuxLaunchAgentOptions): Promise<void> {
     const deps: TmuxLaunchAgentDeps = resolveDeps(options.deps)
     const appSupportPath: string = options.appSupportPath ?? defaultAppSupportPath(deps)
@@ -272,10 +244,40 @@ async function ensureTmuxLaunchAgentOnce(options: EnsureTmuxLaunchAgentOptions):
 
     const loaded: boolean = await isLaunchAgentLoaded(deps)
     if (!plistMatches) {
+        const details: Record<string, unknown> = buildTmuxLaunchAgentDiagnostics({
+            appSupportPath,
+            existingPlist,
+            launchAgentLoaded: loaded,
+            logDir,
+            plist,
+            plistPath,
+            socketPath,
+            tmuxBin,
+        })
+        logTmuxLaunchAgentEvent(
+            deps.logger,
+            loaded ? 'error' : 'warn',
+            loaded ? 'PLIST_MISMATCH_REWRITE_WILL_BOOTOUT' : 'PLIST_MISMATCH_REWRITE',
+            details,
+        )
         deps.writeFileSync(plistPath, plist, 'utf8')
-        if (loaded) await bootoutLaunchAgent(deps)
+        if (loaded) {
+            logTmuxLaunchAgentEvent(deps.logger, 'error', 'BOOTOUT_LOADED_SERVICE', details)
+            await bootoutLaunchAgent(deps)
+        }
+        logTmuxLaunchAgentEvent(deps.logger, 'warn', 'BOOTSTRAP_AFTER_PLIST_REWRITE', details)
         await bootstrapLaunchAgent(plistPath, deps)
     } else if (!loaded) {
+        logTmuxLaunchAgentEvent(deps.logger, 'warn', 'BOOTSTRAP_MATCHING_UNLOADED_SERVICE', buildTmuxLaunchAgentDiagnostics({
+            appSupportPath,
+            existingPlist,
+            launchAgentLoaded: loaded,
+            logDir,
+            plist,
+            plistPath,
+            socketPath,
+            tmuxBin,
+        }))
         await bootstrapLaunchAgent(plistPath, deps)
     }
 
