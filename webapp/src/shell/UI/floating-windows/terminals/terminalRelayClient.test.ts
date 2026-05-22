@@ -125,6 +125,28 @@ describe('TerminalRelayClient', () => {
     client.dispose();
   });
 
+  it('passes configured subprotocols to createWebSocket (vt-bearer auth wire shape)', () => {
+    const recorded: Array<{url: string; subprotocols: readonly string[] | undefined}> = [];
+    const client = new TerminalRelayClient({
+      url: 'ws://localhost:3002/terminals/Timi/attach',
+      subprotocols: ['vt-bearer', 'TKN'],
+      createWebSocket: (url: string, subprotocols?: readonly string[]): WebSocket => {
+        recorded.push({url, subprotocols});
+        return new FakeWebSocket(url) as unknown as WebSocket;
+      },
+      onData: (): void => {},
+      onStatus: (): void => {},
+    });
+
+    client.connect();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].url).toBe('ws://localhost:3002/terminals/Timi/attach');
+    expect(recorded[0].subprotocols).toEqual(['vt-bearer', 'TKN']);
+
+    client.dispose();
+  });
+
   it('default setTimeoutFn fallback survives browser-style host-binding check on setTimeout', () => {
     // Browsers throw "Illegal invocation" when setTimeout is invoked with a `this`
     // other than `window`/`globalThis`. Node's setTimeout has no such check, so we

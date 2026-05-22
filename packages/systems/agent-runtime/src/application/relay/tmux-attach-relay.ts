@@ -1,8 +1,7 @@
 import {execFileSync} from 'node:child_process'
-import type {IncomingMessage, Server} from 'node:http'
-import type {Duplex} from 'node:stream'
+import type {IncomingMessage} from 'node:http'
 import pty, {type IPty} from 'node-pty'
-import {WebSocket, WebSocketServer} from 'ws'
+import {WebSocket} from 'ws'
 import {resolveTmuxSessionName} from '../terminals/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
@@ -15,10 +14,6 @@ const ATTACH_ROUTE: RegExp = /^\/terminals\/([^/]+)\/attach\/?$/
 export interface TmuxAttachRelayOptions {
     readonly cwd?: string
     readonly env?: NodeJS.ProcessEnv
-}
-
-export interface TmuxAttachRelayHandle {
-    readonly close: () => void
 }
 
 type ParsedAttachRequest = {
@@ -179,25 +174,4 @@ export function attachTmuxSessionToWebSocket(
     ws.on('close', (): void => {
         term.kill()
     })
-}
-
-export function mountTmuxAttachRelay(server: Server, options: TmuxAttachRelayOptions = {}): TmuxAttachRelayHandle {
-    const wss: WebSocketServer = new WebSocketServer({noServer: true})
-    const upgradeListener = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
-        if (!parseAttachRequest(request)) {
-            socket.destroy()
-            return
-        }
-        wss.handleUpgrade(request, socket, head, (ws: WebSocket): void => {
-            attachTmuxSessionToWebSocket(ws, request, options)
-        })
-    }
-
-    server.on('upgrade', upgradeListener)
-
-    return {
-        close: (): void => {
-            server.off('upgrade', upgradeListener)
-        },
-    }
 }

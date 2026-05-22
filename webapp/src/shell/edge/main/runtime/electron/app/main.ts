@@ -14,10 +14,6 @@ import {
     registerChildIfMonitored,
 } from '@vt/voicetree-mcp';
 import {agentRuntime} from '@vt/agent-runtime';
-import {
-    startTmuxRelayServer,
-    stopTmuxRelayServer,
-} from '@/shell/edge/main/runtime/electron/daemon/tmux-relay-binding';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
     terminalRuntimeSurface,
@@ -229,15 +225,10 @@ void app.whenReady().then(async () => {
     setupRPCHandlers();
     setupApplicationMenu();
 
-    // Start the renderer-facing tmux WebSocket relay server (Electron-only;
-    // replaces the relay formerly mounted on the HTTP MCP server in 7f). One
-    // ephemeral port for the lifetime of the app; the renderer reads it via
-    // mainAPI.getTmuxRelayPort() before opening
-    // ws://localhost:${port}/terminals/:id/attach.
-    await startTmuxRelayServer();
-
     // The unified HTTP daemon (Step 9b) is started per-opened-vault by
     // openVault → bindHttpDaemonForVault; nothing app-wide to start here.
+    // The tmux WS relay (Step 9f) is folded into that daemon — no separate
+    // electron-side relay server.
 
     // Install the lifecycle JSONL telemetry sink.
     try {
@@ -376,7 +367,6 @@ app.on('will-quit', () => {
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     void unbindHttpDaemon();
-    void stopTmuxRelayServer();
 });
 
 app.on('window-all-closed', () => {

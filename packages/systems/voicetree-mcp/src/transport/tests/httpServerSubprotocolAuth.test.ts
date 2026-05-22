@@ -163,22 +163,29 @@ describe('GET /events — vt-bearer subprotocol auth (Step 9b.1)', (): void => {
     })
 })
 
-describe('GET /terminals/:id/attach — subprotocol auth also reaches the 9f stub', (): void => {
-    it('8. valid subprotocol on the stubbed attach route → 503 (auth passes, route gated)', async (): Promise<void> => {
+describe('GET /terminals/:id/attach — subprotocol auth on wired tmux relay (Step 9f)', (): void => {
+    it('8. valid subprotocol → 101 + vt-bearer echoed on the wired attach route', async (): Promise<void> => {
+        // Renderer-shape contract pin: ws upgrade via `new WebSocket(url,
+        // ['vt-bearer', token])` succeeds with 101 + subprotocol echo, same
+        // wire shape as test #1 (/events). Bytes flow + paste tested in
+        // tmuxAttachWiring.test.ts (needs a real tmux binary).
         const {handle, token} = await bring()
-        const wsUrl: string = wsUrlFor(handle, '/terminals/T1/attach')
+        const wsUrl: string = wsUrlFor(handle, '/terminals/T1/attach?cols=120&rows=40')
         await new Promise<void>((resolveTest, rejectTest): void => {
             const ws = new WebSocket(wsUrl, ['vt-bearer', token])
-            ws.on('open', (): void => rejectTest(new Error('expected the upgrade to be rejected, not completed')))
-            ws.on('unexpected-response', (_req, res): void => {
+            ws.on('open', (): void => {
                 try {
-                    expect(res.statusCode).toBe(503)
+                    expect(ws.protocol).toBe('vt-bearer')
+                    ws.close()
                     resolveTest()
                 } catch (cause) {
                     rejectTest(cause as Error)
                 }
             })
-            ws.on('error', (): void => { /* unexpected-response decides */ })
+            ws.on('unexpected-response', (_req, res): void => {
+                rejectTest(new Error(`expected 101 upgrade, got ${res.statusCode}`))
+            })
+            ws.on('error', (cause: Error): void => rejectTest(cause))
         })
     })
 })

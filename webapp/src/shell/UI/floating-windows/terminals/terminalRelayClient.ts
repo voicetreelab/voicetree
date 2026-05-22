@@ -2,7 +2,8 @@ export type RelayConnectionStatus = 'connecting' | 'connected' | 'reconnecting' 
 
 export interface TerminalRelayClientConfig {
   readonly url: string;
-  readonly createWebSocket?: (url: string) => WebSocket;
+  readonly subprotocols?: readonly string[];
+  readonly createWebSocket?: (url: string, subprotocols?: readonly string[]) => WebSocket;
   readonly setTimeoutFn?: typeof setTimeout;
   readonly clearTimeoutFn?: typeof clearTimeout;
   readonly onData: (data: string) => void;
@@ -35,12 +36,14 @@ export class TerminalRelayClient {
   private reconnectDelayMs: number = INITIAL_RECONNECT_DELAY_MS;
   private disposed: boolean = false;
 
-  private readonly createWebSocket: (url: string) => WebSocket;
+  private readonly createWebSocket: (url: string, subprotocols?: readonly string[]) => WebSocket;
   private readonly setTimeoutFn: typeof setTimeout;
   private readonly clearTimeoutFn: typeof clearTimeout;
 
   constructor(private readonly config: TerminalRelayClientConfig) {
-    this.createWebSocket = config.createWebSocket ?? ((url: string): WebSocket => new WebSocket(url));
+    this.createWebSocket = config.createWebSocket
+      ?? ((url: string, subprotocols?: readonly string[]): WebSocket =>
+            subprotocols ? new WebSocket(url, [...subprotocols]) : new WebSocket(url));
     this.setTimeoutFn = config.setTimeoutFn ?? (setTimeout.bind(globalThis) as typeof setTimeout);
     this.clearTimeoutFn = config.clearTimeoutFn ?? (clearTimeout.bind(globalThis) as typeof clearTimeout);
   }
@@ -50,7 +53,7 @@ export class TerminalRelayClient {
     this.clearReconnectTimer();
     this.config.onStatus(this.socket ? 'reconnecting' : 'connecting');
 
-    const socket: WebSocket = this.createWebSocket(this.config.url);
+    const socket: WebSocket = this.createWebSocket(this.config.url, this.config.subprotocols);
     this.socket = socket;
 
     socket.addEventListener('open', () => {

@@ -20,7 +20,6 @@ import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCre
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
 import {getUsageData, refreshClaudeUsageHeadless} from '@/shell/edge/main/observability/usage/getUsageData';
 import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/usage/openUsageInTerminal';
-import {getTmuxRelayPort} from '@/shell/edge/main/runtime/electron/daemon/tmux-relay-binding';
 import {getDaemonUrl, getAuthToken} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
@@ -200,14 +199,11 @@ export const mainAPI = {
   openClaudeUsage,
   openCodexStatus,
 
-  // Tmux WebSocket relay port — renderer-facing accessor used by
-  // TerminalVanilla.ts to open ws://localhost:${port}/terminals/:id/attach.
-  getTmuxRelayPort,
-
   // Daemon HTTP URL + bearer token (Step 9 §2.7 discovery chain).
-  // Renderer reads these to open the /events WebSocket and to authorise
-  // its /rpc calls. Both throw `daemon_unreachable` when the daemon hasn't
-  // published port/token files yet — caller treats as transient.
+  // Renderer reads these to open the /events WebSocket, the
+  // /terminals/:id/attach WebSocket (Step 9f), and to authorise its /rpc
+  // calls. Both throw `daemon_unreachable` when the daemon hasn't published
+  // port/token files yet — caller treats as transient.
   getDaemonUrl,
   getAuthToken,
 

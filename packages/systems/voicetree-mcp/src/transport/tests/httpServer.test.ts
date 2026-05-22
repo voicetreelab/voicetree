@@ -225,22 +225,42 @@ describe('access log redaction (design doc §3.3, R5)', (): void => {
     })
 })
 
-describe('GET /terminals/:id/attach — 9f STUB (returns 503 on upgrade)', (): void => {
-    it('rejects the WS upgrade with 503 until 9f wires the real relay', async (): Promise<void> => {
-        const {handle, token} = await bring(new Map())
+describe('GET /terminals/:id/attach — wired tmux relay (Step 9f)', (): void => {
+    it('rejects the WS upgrade with 401 BEFORE handshake on bad bearer (auth gate)', async (): Promise<void> => {
+        const {handle} = await bring(new Map())
         const wsUrl: string = handle.url.replace(/^http/, 'ws') + '/terminals/T1/attach'
         await new Promise<void>((resolveTest, rejectTest): void => {
-            const ws = new WebSocket(wsUrl, {headers: {Authorization: `Bearer ${token}`}})
-            ws.on('open', (): void => rejectTest(new Error('expected the upgrade to be rejected, not completed')))
+            const ws = new WebSocket(wsUrl, {headers: {Authorization: 'Bearer wrong'}})
+            ws.on('open', (): void => rejectTest(new Error('upgrade should be rejected before handshake')))
             ws.on('unexpected-response', (_req, res): void => {
                 try {
-                    expect(res.statusCode).toBe(503)
+                    expect(res.statusCode).toBe(401)
                     resolveTest()
                 } catch (cause) {
                     rejectTest(cause as Error)
                 }
             })
-            ws.on('error', (): void => { /* unexpected-response handler decides */ })
+            ws.on('error', (): void => {})
+        })
+    })
+
+    it('accepts the upgrade (101) on a valid Authorization header — end-to-end exercised in tmuxAttachWiring.test.ts', async (): Promise<void> => {
+        // This anchor pins ONLY the route-flip from 503→101 with header auth.
+        // The end-to-end bytes-flow contract (real tmux session + paste + resize)
+        // lives in tmuxAttachWiring.test.ts so this suite stays fast and free
+        // of a tmux binary dependency.
+        const {handle, token} = await bring(new Map())
+        const wsUrl: string = handle.url.replace(/^http/, 'ws') + '/terminals/nonexistent-session/attach?cols=120&rows=40'
+        await new Promise<void>((resolveTest, rejectTest): void => {
+            const ws = new WebSocket(wsUrl, {headers: {Authorization: `Bearer ${token}`}})
+            ws.on('open', (): void => {
+                ws.close()
+                resolveTest()
+            })
+            ws.on('unexpected-response', (_req, res): void => {
+                rejectTest(new Error(`expected 101 upgrade, got ${res.statusCode}`))
+            })
+            ws.on('error', (cause: Error): void => rejectTest(cause))
         })
     })
 })

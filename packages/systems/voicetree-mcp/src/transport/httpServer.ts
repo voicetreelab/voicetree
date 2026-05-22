@@ -3,7 +3,7 @@
 //   POST /rpc                        — JSON-RPC tool dispatch (catalog)
 //   POST /hook/:source               — agent lifecycle ingestion
 //   GET  /events                     — WebSocket subscription channel
-//   GET  /terminals/:id/attach       — tmux relay (STUBBED 503 in 9b; 9f wires)
+//   GET  /terminals/:id/attach       — tmux relay (wired in Step 9f)
 //
 // Auth — design doc §4.3 + the §4.3 subprotocol override carried in
 // ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md (Gus, 2026-05-22):
@@ -37,6 +37,7 @@ import {
     type WsUpgradeAuthMode,
 } from './wsUpgradeAuth.ts'
 import {wireWebSocketSubscriber} from './wsSubscriberWiring.ts'
+import {createTmuxAttachWiring, type TmuxAttachWiring} from './tmuxAttachWiring.ts'
 
 export {isAuthorized} from './wsUpgradeAuth.ts'
 
@@ -77,7 +78,6 @@ const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
 const RPC_PATH: string = '/rpc'
 const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
-const TERMINALS_ATTACH_PATTERN: RegExp = /^\/terminals\/[^/]+\/attach$/
 
 function defaultLogger(): AccessLogger {
     return {
@@ -308,11 +308,6 @@ function rejectUpgradeNotFound(socket: Duplex): void {
     socket.destroy()
 }
 
-function rejectUpgradeUnavailable(socket: Duplex): void {
-    socket.write('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
-    socket.destroy()
-}
-
 function buildRequestHandler(
     catalog: ToolCatalog,
     hookHandler: HookHandler,
@@ -364,6 +359,7 @@ function buildRequestHandler(
 
 function buildUpgradeHandler(
     wss: WebSocketServer,
+    tmuxAttach: TmuxAttachWiring,
     hub: EventSubscriptionHub,
     token: string,
     logger: AccessLogger,
@@ -386,20 +382,21 @@ function buildUpgradeHandler(
             delete req.headers['sec-websocket-protocol']
         }
 
-        const url: string = req.url ?? '/'
-        if (url === EVENTS_PATH) {
+        // Parse pathname first — req.url carries any query string (e.g. the
+        // renderer's ?cols=120&rows=40 on attach), so matching against req.url
+        // directly would miss anchored route patterns. Mirrors handleHook.
+        const pathname: string = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
+        if (pathname === EVENTS_PATH) {
             wss.handleUpgrade(req, socket, head, (ws: WebSocket): void => {
                 logger.logRequest(buildAccessLogLine(req, 101))
                 wireWebSocketSubscriber(ws, hub)
             })
             return
         }
-        if (TERMINALS_ATTACH_PATTERN.test(url)) {
-            // 9f wires the real tmux relay onto this route. Until then, the
-            // route is gated and STUBBED — explicit 503 so callers get a
-            // clear signal that the feature isn't on yet.
-            rejectUpgradeUnavailable(socket)
-            logger.logRequest(buildAccessLogLine(req, 503))
+        if (tmuxAttach.matchesPathname(pathname)) {
+            tmuxAttach.acceptUpgrade(req, socket, head, (): void => {
+                logger.logRequest(buildAccessLogLine(req, 101))
+            })
             return
         }
         rejectUpgradeNotFound(socket)
@@ -422,10 +419,12 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
             protocols.has(VT_BEARER_SUBPROTOCOL) ? VT_BEARER_SUBPROTOCOL : false,
     })
 
+    const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring()
+
     const server: Server = http.createServer(buildRequestHandler(
         options.catalog, options.hookHandler, hub, options.token, logger,
     ))
-    server.on('upgrade', buildUpgradeHandler(wss, hub, options.token, logger))
+    server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 
     const bindHost: string = options.bindHost ?? '0.0.0.0'
     const port: number = await new Promise<number>((resolveListen, rejectListen): void => {
@@ -449,10 +448,12 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
         url,
         hub,
         stop: (): Promise<void> => new Promise<void>((resolveStop, rejectStop): void => {
-            wss.close((): void => {
-                server.close((cause?: Error): void => {
-                    if (cause) rejectStop(cause)
-                    else resolveStop()
+            void tmuxAttach.close().then((): void => {
+                wss.close((): void => {
+                    server.close((cause?: Error): void => {
+                        if (cause) rejectStop(cause)
+                        else resolveStop()
+                    })
                 })
             })
         }),

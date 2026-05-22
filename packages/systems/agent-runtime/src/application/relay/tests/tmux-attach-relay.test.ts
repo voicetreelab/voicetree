@@ -1,10 +1,26 @@
 import {execFileSync} from 'node:child_process'
-import {createServer, type Server} from 'node:http'
+import {createServer, type IncomingMessage, type Server} from 'node:http'
 import type {AddressInfo} from 'node:net'
+import type {Duplex} from 'node:stream'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {WebSocket} from 'ws'
+import {WebSocket, WebSocketServer} from 'ws'
 import {killSession, createSession, hasSession} from '../../terminals/tmux-session-manager.ts'
-import {mountTmuxAttachRelay, type TmuxAttachRelayHandle} from '../tmux-attach-relay.ts'
+import {attachTmuxSessionToWebSocket} from '../tmux-attach-relay.ts'
+
+// Bridge-level black-box test. The daemon-side wiring lives in
+// voicetree-mcp/transport/tmuxAttachWiring.ts; here we drive the primitive
+// directly via a tiny test-local mount helper so the bridge can be verified
+// in isolation from daemon auth.
+function mountForTest(server: Server): {readonly close: () => void} {
+    const wss: WebSocketServer = new WebSocketServer({noServer: true})
+    const listener = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
+        wss.handleUpgrade(request, socket, head, (ws: WebSocket): void => {
+            attachTmuxSessionToWebSocket(ws, request)
+        })
+    }
+    server.on('upgrade', listener)
+    return {close: (): void => { server.off('upgrade', listener) }}
+}
 
 const TEST_TIMEOUT_MS: 20000 = 20000
 
@@ -88,7 +104,7 @@ async function waitForTmuxPaneSize(sessionName: string, expectedWidth: number, t
 
 describe('tmux attach relay', () => {
     let server: Server | undefined
-    let relay: TmuxAttachRelayHandle | undefined
+    let relay: {readonly close: () => void} | undefined
     const sessions: string[] = []
 
     beforeEach(() => {
@@ -96,7 +112,7 @@ describe('tmux attach relay', () => {
             res.writeHead(404)
             res.end('not found')
         })
-        relay = mountTmuxAttachRelay(server)
+        relay = mountForTest(server)
     })
 
     afterEach(async () => {

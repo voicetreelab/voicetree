@@ -262,13 +262,17 @@ export class TerminalVanilla {
     this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
     this.createRelayStatusIndicator();
 
-    const relayPort: number = await window.electronAPI!.main.getTmuxRelayPort();
+    const [daemonUrl, token]: [string, string] = await Promise.all([
+      window.electronAPI!.main.getDaemonUrl(),
+      window.electronAPI!.main.getAuthToken(),
+    ]);
     const encodedTerminalId: string = encodeURIComponent(this.terminalId);
-    const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
+    const url: string = `${daemonUrl.replace(/^http/, 'ws')}/terminals/${encodedTerminalId}/attach`;
 
     const activityTerminalId: TerminalId = this.terminalId as TerminalId;
     this.relayClient = new TerminalRelayClient({
       url,
+      subprotocols: ['vt-bearer', token],
       onData: (data: string): void => {
         this.term?.write(data);
         notifyTerminalOutput(activityTerminalId);
