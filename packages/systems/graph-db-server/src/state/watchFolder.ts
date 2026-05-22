@@ -52,24 +52,6 @@ import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 
-// Re-export vault-allowlist functions for api.ts and tests
-export {
-    getVaultPaths,
-    getReadPaths,
-    getWritePath,
-    setWritePath,
-    addReadPath,
-    removeReadPath,
-    getVaultPath,
-    setVaultPath,
-    clearVaultPath,
-    createDatedVoiceTreeFolder,
-    createSubfolder,
-} from "./vaultAllowlist";
-
-// Re-export folder-scanner functions for api.ts
-export { getAvailableFoldersForSelector } from "../data/graph/loading/folderScanner";
-
 export interface WatchFolderLoadOptions {
     broadcastVaultState?: boolean;
     mountWatcher?: boolean;

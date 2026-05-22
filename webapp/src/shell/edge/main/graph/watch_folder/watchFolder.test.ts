@@ -21,15 +21,19 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { initGraphModel } from '@vt/graph-model'
-import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import * as O from 'fp-ts/lib/Option.js'
 import {
+  addReadPath,
+  removeReadPath,
+  setWritePath,
   getVaultPaths,
   getWritePath,
-  loadFolder,
-  stopFileWatching,
   getVaultPath,
   clearVaultPath,
+} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import * as O from 'fp-ts/lib/Option.js'
+import {
+  loadFolder,
+  stopFileWatching,
 } from '@vt/graph-db-server/watch-folder/watchFolder'
 import { setGraph, getGraph } from '@vt/graph-db-server/state/graph-store'
 import type { GraphDelta, Graph } from '@vt/graph-model/graph'
