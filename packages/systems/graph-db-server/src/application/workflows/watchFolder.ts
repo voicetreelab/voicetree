@@ -17,8 +17,6 @@ import {
     setWatcher,
     getProjectRootWatchedDirectory,
     setProjectRootWatchedDirectory,
-    getStartupFolderOverride,
-    getOnFolderSwitchCleanup,
 } from "../../state/watch-folder-store";
 import {
     getLastDirectory,
@@ -51,6 +49,7 @@ import {
     defaultWatchFolderEnv,
     type WatchFolderEnv,
 } from "./watchFolderEnv";
+import type { FolderAction } from "./projectState";
 
 export interface WatchFolderLoadOptions {
     broadcastVaultState?: boolean;
@@ -98,12 +97,6 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
 
 export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise<void> {
     if (getProjectRootWatchedDirectory() !== null) {
-        return;
-    }
-
-    const startupFolder: string | null = getStartupFolderOverride();
-    if (startupFolder !== null) {
-        await loadFolder(startupFolder, options);
         return;
     }
 
@@ -264,8 +257,6 @@ async function prepareForFolderSwitch(
         await oldWatcher.close();
         setWatcher(null);
     }
-
-    getOnFolderSwitchCleanup()?.();
 
     env.callbacks().onGraphCleared?.();
 }
