@@ -11,6 +11,7 @@ const METRIC_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 const CATEGORIES = ['Coupling', 'Complexity', 'Purity', 'Behavioral', 'Shape', 'Churn', 'Structure', 'Other'] as const
 const COMPARISONS = ['lte', 'gte'] as const
+const SEVERITIES = ['gate', 'warning'] as const
 
 export type HealthReport = {
     readonly metricId: string
@@ -21,6 +22,7 @@ export type HealthReport = {
     readonly budget: number
     readonly comparison: typeof COMPARISONS[number]
     readonly passed: boolean
+    readonly severity?: typeof SEVERITIES[number]
     readonly unit?: string
     readonly timestamp: string
     readonly details?: Record<string, unknown>
@@ -49,6 +51,7 @@ function assertHealthReport(report: HealthReport): void {
     if (!Number.isFinite(report.current)) throw new Error(`current must be finite for ${report.metricId}`)
     if (!Number.isFinite(report.budget)) throw new Error(`budget must be finite for ${report.metricId}`)
     if (!COMPARISONS.includes(report.comparison)) throw new Error(`unsupported comparison for ${report.metricId}: ${report.comparison}`)
+    if (report.severity !== undefined && !SEVERITIES.includes(report.severity)) throw new Error(`unsupported severity for ${report.metricId}: ${report.severity}`)
     if (Number.isNaN(Date.parse(report.timestamp))) throw new Error(`timestamp must be ISO-like for ${report.metricId}: ${report.timestamp}`)
     if (report.passed !== passStatus(report)) throw new Error(`passed does not match ${report.comparison} comparison for ${report.metricId}`)
 }
