@@ -125,6 +125,7 @@ describe('folderState routes', () => {
         vault,
         uptimeSeconds: 0,
         sessionCount: registry.size(),
+        owner: null,
       }),
       onShutdown: () => {},
     })

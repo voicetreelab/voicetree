@@ -27,12 +27,33 @@ describe('contract', () => {
     expect(CONTRACT_VERSION).toBe('0.2.0')
   })
 
-  test('HealthResponse round-trips a valid sample', () => {
+  test('HealthResponse round-trips a valid sample with owner=null (vaultless)', () => {
     const sample: HealthResponse = {
       version: CONTRACT_VERSION,
       vault: '/tmp/vault',
       uptimeSeconds: 42,
       sessionCount: 0,
+      owner: null,
+    }
+    const parsed = HealthResponseSchema.parse(sample)
+    expect(parsed).toEqual(sample)
+  })
+
+  test('HealthResponse round-trips a valid sample with full owner identity', () => {
+    const sample: HealthResponse = {
+      version: CONTRACT_VERSION,
+      vault: '/tmp/vault',
+      uptimeSeconds: 42,
+      sessionCount: 0,
+      owner: {
+        schemaVersion: 1,
+        canonicalVaultPath: '/tmp/vault',
+        pid: 1234,
+        ppid: 1,
+        port: 65123,
+        ownerNonce: 'nonce-xyz',
+        contractVersion: CONTRACT_VERSION,
+      },
     }
     const parsed = HealthResponseSchema.parse(sample)
     expect(parsed).toEqual(sample)
@@ -47,6 +68,14 @@ describe('contract', () => {
         uptimeSeconds: 1,
       }),
     ).toThrow()
+    expect(() =>
+      HealthResponseSchema.parse({
+        version: '0.1.0',
+        vault: '/tmp/v',
+        uptimeSeconds: 1,
+        sessionCount: 0,
+      }),
+    ).toThrow()
   })
 
   test('HealthResponse rejects wrong types', () => {
@@ -56,6 +85,7 @@ describe('contract', () => {
         vault: '/tmp/v',
         uptimeSeconds: 'forty',
         sessionCount: 0,
+        owner: null,
       }),
     ).toThrow()
   })
@@ -67,6 +97,7 @@ describe('contract', () => {
         vault: '/tmp/v',
         uptimeSeconds: -1,
         sessionCount: 0,
+        owner: null,
       }),
     ).toThrow()
     expect(() =>
@@ -75,6 +106,27 @@ describe('contract', () => {
         vault: '/tmp/v',
         uptimeSeconds: 1,
         sessionCount: -1,
+        owner: null,
+      }),
+    ).toThrow()
+  })
+
+  test('HealthResponse rejects owner block with bad schema version', () => {
+    expect(() =>
+      HealthResponseSchema.parse({
+        version: '0.1.0',
+        vault: '/tmp/v',
+        uptimeSeconds: 1,
+        sessionCount: 0,
+        owner: {
+          schemaVersion: 2,
+          canonicalVaultPath: '/tmp/v',
+          pid: 1,
+          ppid: 0,
+          port: 1,
+          ownerNonce: 'n',
+          contractVersion: 'c',
+        },
       }),
     ).toThrow()
   })
