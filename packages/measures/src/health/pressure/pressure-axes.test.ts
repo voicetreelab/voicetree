@@ -861,6 +861,35 @@ function failureMessage(axes: readonly PressureAxis[], rscd: number, sanityMisma
     ].join('\n')
 }
 
+// Sidecar `-target` metrics surface each axis's aspirational targetBudget
+// alongside the CI-gating errorBudget. severity:'warning' keeps them off the
+// CI gate while marking the corresponding dashboard tile as off-target. Lets
+// reviewers track refactor pressure on individual axes without holding up
+// merges.
+async function recordSidecarTargets(axes: readonly PressureAxis[]): Promise<void> {
+    for (const axisData of axes) {
+        const config = PRESSURE_AXIS_CONFIGS.find(c => c.name === axisData.name)
+        if (!config) continue
+        if (config.budget === config.targetBudget) continue
+        await recordHealthMetric({
+            metricId: `${config.metricId}-target`,
+            metricName: `${config.name} (aspirational target)`,
+            description: `Warning-only sidecar for ${config.name}. Reports the axis value against the aspirational target budget rather than the CI-gating ratchet. Never blocks CI.`,
+            category: 'Complexity',
+            current: axisData.current,
+            budget: config.targetBudget,
+            comparison: config.comparison,
+            severity: 'warning',
+            unit: config.unit,
+            details: {
+                errorBudget: config.budget,
+                targetBudget: config.targetBudget,
+                worstOffender: axisData.worstOffender,
+            },
+        })
+    }
+}
+
 describe('complexity pressure axes', () => {
     it('preserves the legacy script pressure rollup semantics', async () => {
         const axes = await computePressureAxes()
@@ -880,6 +909,7 @@ describe('complexity pressure axes', () => {
             unit: 'rscd',
             details: {axes, failingAxes, topFiveRatiosForRscd, rscd},
         })
+        await recordSidecarTargets(axes)
 
         expect(sanityMismatches, sanityMismatches.join('\n')).toEqual([])
         for (const pressureAxis of axes) {
