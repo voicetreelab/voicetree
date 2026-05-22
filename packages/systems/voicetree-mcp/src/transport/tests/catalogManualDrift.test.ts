@@ -1,6 +1,6 @@
 /**
  * Drift check between `tools/catalog.ts` (load-bearing data; consumed by the
- * UDS server for input validation + dispatch) and `tools/prompts/cli-manual.md`
+ * HTTP daemon for input validation + dispatch) and `tools/prompts/cli-manual.md`
  * (load-bearing canonical docs; spawn-prompt injection source).
  *
  * Replaces the deleted byte-for-byte parity lint

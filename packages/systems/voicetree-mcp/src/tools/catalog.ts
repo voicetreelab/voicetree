@@ -1,20 +1,15 @@
 // Tool catalog — pure data. Single source of truth for tool descriptions,
-// input schemas, and handler bindings. Consumed by `transport/udsServer.ts`
-// for input validation + dispatch, and by `transport/toolCatalog.ts` for the
-// dispatcher map shape the UDS server accepts. The CLI manual
+// input schemas, and handler bindings. Consumed by the unified HTTP daemon
+// (`transport/httpServer.ts`) for input validation + dispatch, and by
+// `transport/toolCatalog.ts` for the dispatcher map shape. The CLI manual
 // (`tools/prompts/cli-manual.md`) is the user-facing description surface;
 // `transport/tests/catalogManualDrift.test.ts` asserts each description
 // substring is present in that manual.
 //
 // Functional design: this file is data + thin adapters that delegate to the
 // existing pure tool functions under `src/tools/`, `src/create-graph/`. No
-// transport concerns live here.
-//
-// Why we lift the descriptions and schemas off `mcp-server.ts` (deleted in
-// 7f): the old file mixed catalog data with HTTP transport bootstrap. The
-// UDS server (design doc §2.3) needs the same data to validate input and
-// dispatch — so the catalog becomes transport-agnostic data, and each
-// transport reads it.
+// transport concerns live here — the catalog is transport-agnostic data, and
+// each transport reads it.
 //
 // Twelve catalog entries match the spec set (design doc §4.1): the eleven
 // from the former `registerAllTools` plus the formerly-unregistered
@@ -262,8 +257,8 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = [
 ] as const
 
 /**
- * Build the dispatcher map consumed by the UDS server. The returned map keys
- * by tool name and yields a validating handler that:
+ * Build the dispatcher map consumed by the HTTP daemon's /rpc route. The
+ * returned map keys by tool name and yields a validating handler that:
  *   1. Parses input through the entry's zod object (built from `inputShape`).
  *   2. On rejection, throws a `CatalogValidationError` carrying the structured
  *      zod issues so the transport can emit a JSON-RPC `validation_failed`

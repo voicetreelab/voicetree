@@ -1,14 +1,14 @@
-// Electron-side lifecycle for the unified HTTP daemon server. Step 9b
-// replaces the trio of UDS server + dedicated hook HTTP server + tmux-relay
-// HTTP server with a single http.createServer-backed daemon (design doc §2.5).
-// 9f folds the tmux relay onto the /terminals/:id/attach route; until then
-// that route returns HTTP 503 on upgrade.
+// Electron-side lifecycle for the unified HTTP daemon server (design doc
+// §2.5). One http.createServer per opened vault, replacing the pre-Step-9
+// trio of separate transports. 9f folds the tmux relay onto the
+// /terminals/:id/attach route; until then that route returns HTTP 503 on
+// upgrade.
 //
-// Unlike the prior UDS path discovery, the per-vault binding remains
-// per-vault: the auth token + port file are written under each opened
-// vault's `.voicetree/` so spawned-agent shells discover the correct daemon.
-// Concurrency: openVault may be invoked in parallel; serialize through a
-// pending promise chain (mirrors the old `uds-server-binding.ts` shape).
+// Per-vault binding: the auth token + port file are written under each
+// opened vault's `.voicetree/` so spawned-agent shells (which discover the
+// daemon via cwd up-walk) hit the correct one. Concurrency: openVault may
+// be invoked in parallel; serialize through a pending promise chain so a
+// rebind never races a teardown.
 
 import {
     buildDefaultToolCatalog,
