@@ -28,7 +28,7 @@ import {
 } from '@vt/graph-db-client'
 import {
     HealthResponseSchema,
-    isOwnerRecord,
+    ownerRecordFile,
     type HealthResponse,
     type OwnerRecord,
 } from '@vt/graph-db-protocol'
@@ -182,9 +182,8 @@ async function stopServe(handle: ServeHandle): Promise<{code: number | null; sig
 
 async function readOwnerRecord(vault: string): Promise<OwnerRecord | null> {
     try {
-        const raw: string = await readFile(join(vault, '.voicetree', 'graphd.owner.json'), 'utf8')
-        const value: unknown = JSON.parse(raw)
-        return isOwnerRecord(value) ? value : null
+        const raw: string = await readFile(ownerRecordFile.pathFor(vault), 'utf8')
+        return ownerRecordFile.decode(raw)
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
         throw err

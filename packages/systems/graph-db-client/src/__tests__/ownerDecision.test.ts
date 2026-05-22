@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import {
-  OWNER_RECORD_SCHEMA_VERSION,
-  type CommandFingerprint,
-  type OwnerRecord,
-} from '@vt/graph-db-protocol'
+import type { CommandFingerprint, OwnerRecord } from '@vt/graph-db-protocol'
 import {
   decideOwnerAction,
   type Cooldown,
@@ -29,7 +25,7 @@ function fingerprint(
 
 function record(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return {
-    schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
+    schemaVersion: 1,
     canonicalVaultPath: VAULT,
     pid: 4242,
     ppid: 1,
