@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { HealthResponse } from './contract.ts'
+import type { HealthOwner, HealthResponse } from './contract.ts'
 
 export type DaemonHandle = {
   port: number
@@ -91,11 +91,13 @@ export function buildHealthResponse(
   startMs: number,
   nowMs: number,
   sessionCount: number,
+  owner: HealthOwner | null,
 ): HealthResponse {
   return {
     version,
     vault,
     uptimeSeconds: Math.floor((nowMs - startMs) / 1000),
     sessionCount,
+    owner,
   }
 }

@@ -4,11 +4,38 @@ export * from './owner.ts'
 
 export const CONTRACT_VERSION = '0.2.0'
 
+/**
+ * Owner-identifying block surfaced by `/health`. Mirrors the seven fields
+ * BF-343 must expose so a client can prove "is this the daemon I am allowed
+ * to use?": canonical vault path, owner nonce, contract version, pid, ppid,
+ * bound port, schema version.
+ *
+ * This is the response-shape projection of OwnerRecord. The pure decision
+ * input uses the narrower OwnerHealthIdentity; both are derived from the
+ * same on-disk record.
+ */
+export const HealthOwnerSchema = z.object({
+  schemaVersion: z.literal(1),
+  canonicalVaultPath: z.string().min(1),
+  pid: z.number().int().positive(),
+  ppid: z.number().int().nonnegative(),
+  port: z.number().int().min(0).max(65535),
+  ownerNonce: z.string().min(1),
+  contractVersion: z.string().min(1),
+})
+export type HealthOwner = z.infer<typeof HealthOwnerSchema>
+
 export const HealthResponseSchema = z.object({
   version: z.string(),
   vault: z.string(),
   uptimeSeconds: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
+  /**
+   * Owner identity for the canonical vault this daemon serves. `null`
+   * during the vaultless startup window (no claim yet) and on legacy
+   * vaultless daemons (Electron's pre-BF-345 path).
+   */
+  owner: HealthOwnerSchema.nullable(),
 })
 export type HealthResponse = z.infer<typeof HealthResponseSchema>
 
