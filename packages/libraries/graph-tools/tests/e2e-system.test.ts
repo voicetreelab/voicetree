@@ -22,16 +22,20 @@ function runCli(args: readonly string[], env?: NodeJS.ProcessEnv) {
 function makeVault(tempDirs: string[]): string {
   const vault = mkdtempSync(path.join(tmpdir(), 'vt-tools-system-'))
   tempDirs.push(vault)
+  mkdirSync(path.join(vault, '.voicetree'))
   mkdirSync(path.join(vault, 'work'))
   writeFileSync(path.join(vault, 'index.md'), '# Index\n\n[[work/task]]\n')
   writeFileSync(path.join(vault, 'work', 'task.md'), '# Task\n\n[[index]]\n')
   return vault
 }
 
-async function startHeadless(vault: string, socketPath: string): Promise<{
+interface HeadlessHandle {
+  readonly url: string
+  readonly vaultPath: string
   close(): Promise<void>
-  socketPath: string
-}> {
+}
+
+async function startHeadless(vault: string): Promise<HeadlessHandle> {
   const child = spawn(
     process.execPath,
     [
@@ -39,10 +43,10 @@ async function startHeadless(vault: string, socketPath: string): Promise<{
       'tsx',
       'packages/libraries/graph-tools/bin/vt-headless.ts',
       'serve',
-      '--socket',
-      socketPath,
       '--vault',
       vault,
+      '--port',
+      '0',
     ],
     { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] },
   )
@@ -54,15 +58,16 @@ async function startHeadless(vault: string, socketPath: string): Promise<{
   child.stdout.on('data', (chunk) => { stdout += chunk })
   child.stderr.on('data', (chunk) => { stderr += chunk })
 
-  await new Promise<void>((resolve, reject) => {
+  const url = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => {
       child.kill('SIGINT')
-      reject(new Error(`vt-headless did not announce a socket. stdout=${stdout} stderr=${stderr}`))
+      reject(new Error(`vt-headless did not announce a URL. stdout=${stdout} stderr=${stderr}`))
     }, HEADLESS_START_TIMEOUT_MS)
     child.stdout.on('data', () => {
-      if (!stdout.includes('Listening on ')) return
+      const match = stdout.match(/Listening on (http:\/\/\S+)/)
+      if (!match) return
       clearTimeout(timeout)
-      resolve()
+      resolve(match[1].trim())
     })
     child.once('exit', (code) => {
       clearTimeout(timeout)
@@ -71,7 +76,8 @@ async function startHeadless(vault: string, socketPath: string): Promise<{
   })
 
   return {
-    socketPath,
+    url,
+    vaultPath: vault,
     close: async () => {
       if (child.exitCode !== null) return
       child.kill('SIGINT')
@@ -128,25 +134,24 @@ describe('@vt/graph-tools system contract', () => {
       await Promise.all(servers.splice(0).map((server) => server.close()))
     })
 
-    function vaultSocketDir(): string {
-      const dir = mkdtempSync(path.join(tmpdir(), 'vt-headless-sock-'))
-      tempDirs.push(dir)
-      return path.join(dir, 'vt.sock')
+    function daemonEnv(server: HeadlessHandle): NodeJS.ProcessEnv {
+      return {
+        VOICETREE_DAEMON_URL: server.url,
+        VOICETREE_VAULT_PATH: server.vaultPath,
+      }
     }
 
-    it('live state dump returns the snapshot via UDS', { timeout: 30_000 }, async () => {
-      const socket = vaultSocketDir()
-      const server = await startHeadless(vault, socket)
+    it('live state dump returns the snapshot via HTTP', { timeout: 30_000 }, async () => {
+      const server = await startHeadless(vault)
       servers.push(server)
 
-      const result = runCli(['live', 'state', 'dump'], {VOICETREE_SOCK_PATH: server.socketPath})
+      const result = runCli(['live', 'state', 'dump'], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout).folderState).toEqual([[vault, 'expanded']])
     })
 
     it('live apply SetFolderState mutates session state', { timeout: 30_000 }, async () => {
-      const socket = vaultSocketDir()
-      const server = await startHeadless(vault, socket)
+      const server = await startHeadless(vault)
       servers.push(server)
       const collapseFolder = `${vault}/work/`
 
@@ -159,7 +164,7 @@ describe('@vt/graph-tools system contract', () => {
           path: collapseFolder.slice(0, -1),
           state: 'collapsed',
         }),
-      ], {VOICETREE_SOCK_PATH: server.socketPath})
+      ], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout)).toMatchObject({
         collapseAdded: [collapseFolder],
@@ -167,11 +172,10 @@ describe('@vt/graph-tools system contract', () => {
     })
 
     it('live view prints node titles', { timeout: 30_000 }, async () => {
-      const socket = vaultSocketDir()
-      const server = await startHeadless(vault, socket)
+      const server = await startHeadless(vault)
       servers.push(server)
 
-      const result = runCli(['live', 'view'], {VOICETREE_SOCK_PATH: server.socketPath})
+      const result = runCli(['live', 'view'], daemonEnv(server))
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('index')
     })

@@ -1,263 +1,230 @@
-/**
- * BF-188 — data-layer-only daemon (headless).
- *
- * No Electron, no cytoscape, no UI. Hosts vt_get_live_state +
- * vt_dispatch_live_command on a Unix domain socket (Step 7c). Used by
- * `vt-headless serve` and as a test fixture for the live tooling.
- *
- * The UDS framing here is the same NDJSON JSON-RPC the daemon speaks; we
- * duplicate the server-side bytes because graph-tools cannot import
- * @vt/voicetree-mcp without creating a runtime dependency cycle. 7g may
- * consolidate the transport primitives into a shared package.
- */
-import net from 'node:net'
-import {existsSync, unlinkSync} from 'node:fs'
-import {mkdir} from 'node:fs/promises'
+// Headless HTTP daemon for graph-tools' live tooling. A minimal cousin of
+// `@vt/voicetree-mcp`'s `startHttpDaemonServer` (no `/hook/:source`, no
+// `/events` WS, no tmux relay). Serves `POST /rpc` with bearer-token auth and
+// writes `<vault>/.voicetree/rpc.port` + `auth-token` atomically so a sibling
+// `liveTransport` client can discover it via the standard chain.
+//
+// Why not import `@vt/voicetree-mcp`'s server here: voicetree-mcp depends on
+// `@vt/graph-tools/node`, so graph-tools cannot import voicetree-mcp at the
+// package level without a runtime cycle. The HTTP server primitives needed
+// for this headless data-layer-only daemon are small enough to live here.
+// `writeAuthTokenFile` + `generateAuthToken` duplicate ~12 LOC from
+// `voicetree-mcp/src/transport/authToken.ts`; consolidation into `@vt/vt-rpc`
+// is logged as a 9g cleanup item.
+
+import http, {type IncomingMessage, type Server, type ServerResponse} from 'node:http'
+import {randomBytes} from 'node:crypto'
+import {chmod, mkdir, rename, writeFile} from 'node:fs/promises'
 import {dirname, resolve} from 'node:path'
+
+import {authTokenFilePath, ERROR_CODES, writeRpcPortFile} from '@vt/vt-rpc'
+
 import {
-    emptyState,
-    buildStateFromVault,
-    serializeState,
-    hydrateCommand,
-    applyCommandWithDelta,
-    type SerializedCommand,
-} from '@vt/graph-state'
-import type {State, Delta} from '@vt/graph-state/contract'
-import {configureGraphToolsRootIO} from './rootIO'
+    CatalogValidationError,
+    type Catalog,
+    type CatalogHandler,
+    type HeadlessServer,
+    type HeadlessServerOptions,
+    type ToolResult,
+} from './headlessServerTypes'
+import {buildVaultLiveCatalog} from './vaultLiveCatalog'
 
-// ── delta serialization (shape liveTransport.ts DispatchResult expects) ───────
+export {buildVaultLiveCatalog, CatalogValidationError}
+export type {
+    Catalog,
+    CatalogHandler,
+    HeadlessServer,
+    HeadlessServerOptions,
+    ToolResult,
+} from './headlessServerTypes'
 
-interface SerializableDelta {
-    readonly revision: number
-    readonly cause: unknown
-    readonly collapseAdded?: readonly string[]
-    readonly collapseRemoved?: readonly string[]
-    readonly selectionAdded?: readonly string[]
-    readonly selectionRemoved?: readonly string[]
-    readonly rootsLoaded?: readonly string[]
-    readonly rootsUnloaded?: readonly string[]
+// Re-export the token write helpers (used by `vt-headless` bin and by tests
+// that need to put files where the discovery chain looks). Kept private to
+// graph-tools — voicetree-mcp has its own copy (Step 9b); consolidation into
+// @vt/vt-rpc is logged as a 9g cleanup.
+export {generateAuthToken, writeAuthTokenFile}
+
+// ── auth token (write side — duplicated from voicetree-mcp/transport/authToken
+//    pending 9g consolidation into @vt/vt-rpc) ──
+
+const TOKEN_BYTE_LENGTH: number = 32
+const TOKEN_FILE_MODE: number = 0o600
+
+function generateAuthToken(): string {
+    return randomBytes(TOKEN_BYTE_LENGTH).toString('hex')
 }
 
-function toSerializableDelta(delta: Delta, cause: SerializedCommand): SerializableDelta {
-    return {
-        revision: delta.revision,
-        cause,
-        ...(delta.collapseAdded ? {collapseAdded: [...delta.collapseAdded]} : {}),
-        ...(delta.collapseRemoved ? {collapseRemoved: [...delta.collapseRemoved]} : {}),
-        ...(delta.selectionAdded ? {selectionAdded: [...delta.selectionAdded]} : {}),
-        ...(delta.selectionRemoved ? {selectionRemoved: [...delta.selectionRemoved]} : {}),
-        ...(delta.rootsLoaded ? {rootsLoaded: [...delta.rootsLoaded]} : {}),
-        ...(delta.rootsUnloaded ? {rootsUnloaded: [...delta.rootsUnloaded]} : {}),
-    }
+async function writeAuthTokenFile(vaultPath: string, token: string): Promise<void> {
+    const finalPath: string = authTokenFilePath(vaultPath)
+    const tempPath: string = `${finalPath}.${process.pid}.tmp`
+    await mkdir(dirname(finalPath), {recursive: true})
+    await writeFile(tempPath, `${token}\n`, {encoding: 'utf8', mode: TOKEN_FILE_MODE})
+    await chmod(tempPath, TOKEN_FILE_MODE)
+    await rename(tempPath, finalPath)
+    await chmod(finalPath, TOKEN_FILE_MODE)
 }
 
-// ── JSON-RPC envelope helpers ─────────────────────────────────────────────────
+// ── wire helpers (single /rpc route, JSON-RPC 2.0, 64 KiB body cap) ──
 
-type JsonRpcResponse =
-    | {jsonrpc: '2.0'; id: number | string | null; result: unknown}
-    | {jsonrpc: '2.0'; id: number | string | null; error: {code: number; message: string; data?: unknown}}
+const BODY_LIMIT_BYTES: number = 64 * 1024
+const RPC_PATH: string = '/rpc'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function writeFrame(socket: net.Socket, envelope: JsonRpcResponse): void {
-    socket.write(`${JSON.stringify(envelope)}\n`)
+function isAuthorized(req: IncomingMessage, token: string): boolean {
+    const header: string | undefined = req.headers.authorization
+    if (!header || !header.startsWith('Bearer ')) return false
+    return header.slice('Bearer '.length).trim() === token
 }
 
-// ── tool handlers ─────────────────────────────────────────────────────────────
-
-type ToolResult = {ok: true; payload: unknown} | {ok: false; payload: unknown}
-
-function runGetLiveState(getState: () => State): ToolResult {
-    try {
-        return {ok: true, payload: serializeState(getState())}
-    } catch (error) {
-        return {ok: false, payload: {error: error instanceof Error ? error.message : String(error)}}
-    }
-}
-
-function runDispatchLiveCommand(
-    getState: () => State,
-    setState: (state: State) => void,
-    args: Record<string, unknown>,
-): ToolResult {
-    try {
-        const serializedCommand = args.command as SerializedCommand
-        const cmd = hydrateCommand(serializedCommand)
-        const {state, delta} = applyCommandWithDelta(getState(), cmd)
-        setState(state)
-        return {
-            ok: true,
-            payload: {
-                delta: toSerializableDelta(delta, serializedCommand),
-                revision: delta.revision,
-            },
-        }
-    } catch (error) {
-        return {ok: false, payload: {error: error instanceof Error ? error.message : String(error)}}
-    }
-}
-
-async function dispatch(
-    method: string,
-    params: Record<string, unknown>,
-    getState: () => State,
-    setState: (state: State) => void,
-): Promise<ToolResult | null> {
-    if (method === 'vt_get_live_state') return runGetLiveState(getState)
-    if (method === 'vt_dispatch_live_command') return runDispatchLiveCommand(getState, setState, params)
-    return null
-}
-
-// ── connection handler ────────────────────────────────────────────────────────
-
-function handleConnection(
-    socket: net.Socket,
-    getState: () => State,
-    setState: (state: State) => void,
-): void {
-    socket.setEncoding('utf8')
-    let buffer: string = ''
-
-    const handleFrame = async (frame: string): Promise<void> => {
-        let request: {method?: unknown; params?: unknown; id?: unknown}
-        const idOrNull = (raw: unknown): number | string | null =>
-            (typeof raw === 'number' || typeof raw === 'string') ? raw : null
-
-        try {
-            const parsed: unknown = JSON.parse(frame)
-            if (!isRecord(parsed)) {
-                writeFrame(socket, {jsonrpc: '2.0', id: null, error: {code: -32600, message: 'Invalid request'}})
-                socket.end()
+function readBodyWithCap(req: IncomingMessage): Promise<string | null> {
+    return new Promise<string | null>((resolveBody, rejectBody): void => {
+        const chunks: Buffer[] = []
+        let total: number = 0
+        let settled: boolean = false
+        req.on('data', (chunk: Buffer): void => {
+            if (settled) return
+            total += chunk.length
+            if (total > BODY_LIMIT_BYTES) {
+                settled = true
+                resolveBody(null)
                 return
             }
-            request = parsed
-        } catch (cause) {
-            writeFrame(socket, {
-                jsonrpc: '2.0', id: null,
-                error: {code: -32700, message: cause instanceof Error ? cause.message : 'Malformed JSON'},
-            })
-            socket.end()
-            return
-        }
+            chunks.push(chunk)
+        })
+        req.on('end', (): void => {
+            if (settled) return
+            settled = true
+            resolveBody(Buffer.concat(chunks).toString('utf8'))
+        })
+        req.on('error', (cause: Error): void => {
+            if (settled) return
+            settled = true
+            rejectBody(cause)
+        })
+    })
+}
 
-        const id = idOrNull(request.id)
-        const method = typeof request.method === 'string' ? request.method : ''
-        if (!method) {
-            writeFrame(socket, {jsonrpc: '2.0', id, error: {code: -32600, message: 'Missing method'}})
-            socket.end()
-            return
-        }
+function envelope(id: number | string | null, code: number, message: string, data?: unknown): unknown {
+    return data === undefined
+        ? {jsonrpc: '2.0', id, error: {code, message}}
+        : {jsonrpc: '2.0', id, error: {code, message, data}}
+}
 
-        const params: Record<string, unknown> = isRecord(request.params) ? request.params : {}
-        const result = await dispatch(method, params, getState, setState)
-        if (result === null) {
-            writeFrame(socket, {jsonrpc: '2.0', id, error: {code: -32601, message: `Unknown method: ${method}`}})
-            socket.end()
-            return
-        }
-
-        if (result.ok) {
-            writeFrame(socket, {jsonrpc: '2.0', id, result: result.payload})
-        } else {
-            writeFrame(socket, {
-                jsonrpc: '2.0', id,
-                error: {code: -32003, message: 'Tool handler returned an error response', data: result.payload},
-            })
-        }
-        socket.end()
+async function dispatchRpcRequest(rawBody: string, catalog: Catalog): Promise<unknown> {
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(rawBody)
+    } catch (cause) {
+        return envelope(null, ERROR_CODES.parse_error, cause instanceof Error ? cause.message : 'Malformed JSON')
     }
-
-    socket.on('data', (chunk: string): void => {
-        buffer += chunk
-        let newlineIndex: number = buffer.indexOf('\n')
-        while (newlineIndex >= 0) {
-            const frame: string = buffer.slice(0, newlineIndex)
-            buffer = buffer.slice(newlineIndex + 1)
-            void handleFrame(frame)
-            newlineIndex = buffer.indexOf('\n')
+    if (!isRecord(parsed) || parsed.jsonrpc !== '2.0') {
+        return envelope(null, ERROR_CODES.invalid_request, 'Request must be a JSON-RPC 2.0 envelope')
+    }
+    const id: number | string | null = (typeof parsed.id === 'number' || typeof parsed.id === 'string') ? parsed.id : null
+    const method: unknown = parsed.method
+    if (typeof method !== 'string' || method.length === 0) {
+        return envelope(id, ERROR_CODES.invalid_request, 'Request missing "method"')
+    }
+    const handler: CatalogHandler | undefined = catalog.get(method)
+    if (!handler) {
+        return envelope(id, ERROR_CODES.tool_not_found, `Unknown method: ${method}`)
+    }
+    const params: Record<string, unknown> = isRecord(parsed.params) ? parsed.params : {}
+    let result: ToolResult
+    try {
+        result = await handler(params)
+    } catch (cause) {
+        if (cause instanceof CatalogValidationError) {
+            return envelope(id, ERROR_CODES.validation_failed, cause.message, {
+                kind: 'validation_failed', tool: cause.toolName, issues: cause.issues,
+            })
         }
-    })
+        return envelope(id, ERROR_CODES.internal_error, cause instanceof Error ? cause.message : String(cause))
+    }
+    if (result.ok) {
+        return {jsonrpc: '2.0', id, result: result.payload}
+    }
+    return envelope(id, ERROR_CODES.tool_handler_failed, 'Tool handler returned an error response', result.payload)
+}
 
-    socket.on('error', (cause: NodeJS.ErrnoException): void => {
-        if (cause.code !== 'EPIPE' && cause.code !== 'ECONNRESET') {
-            process.stderr.write(`[vt-headless] socket error: ${cause.message}\n`)
+async function handleRpc(req: IncomingMessage, res: ServerResponse, catalog: Catalog): Promise<void> {
+    const body: string | null = await readBodyWithCap(req)
+    if (body === null) {
+        res.statusCode = 413
+        res.end()
+        return
+    }
+    const response: unknown = await dispatchRpcRequest(body, catalog)
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(response))
+}
+
+function buildRequestHandler(catalog: Catalog, token: string): http.RequestListener {
+    return (req: IncomingMessage, res: ServerResponse): void => {
+        if (req.method === 'OPTIONS') {
+            res.statusCode = 204
+            res.end()
+            return
         }
-    })
+        if (!isAuthorized(req, token)) {
+            res.statusCode = 401
+            res.end()
+            return
+        }
+        if (req.method === 'POST' && req.url === RPC_PATH) {
+            void handleRpc(req, res, catalog).catch((cause: unknown): void => {
+                process.stderr.write(`[vt-headless] /rpc handler error: ${cause instanceof Error ? cause.message : String(cause)}\n`)
+                if (!res.headersSent) {
+                    res.statusCode = 500
+                    res.end()
+                }
+            })
+            return
+        }
+        res.statusCode = req.method === 'POST' ? 404 : 405
+        res.end()
+    }
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-export interface HeadlessServerOptions {
-    readonly socketPath: string
-    readonly vaultPath?: string
-}
+export async function createHeadlessServer(options: HeadlessServerOptions): Promise<HeadlessServer> {
+    const vaultPath: string = resolve(options.vaultPath)
+    const catalog: Catalog = options.catalog ?? await buildVaultLiveCatalog(vaultPath)
+    const token: string = generateAuthToken()
+    const host: string = options.host ?? '127.0.0.1'
 
-export interface HeadlessServer {
-    readonly socketPath: string
-    readonly close: () => Promise<void>
-}
+    await writeAuthTokenFile(vaultPath, token)
 
-async function clearStaleSocket(socketPath: string): Promise<void> {
-    if (!existsSync(socketPath)) return
-    await new Promise<void>((resolveCheck, rejectCheck): void => {
-        const probe: net.Socket = net.createConnection({path: socketPath})
-        probe.once('connect', (): void => {
-            probe.end()
-            rejectCheck(new Error(`Another process is already listening on ${socketPath}.`))
-        })
-        probe.once('error', (cause: NodeJS.ErrnoException): void => {
-            if (cause.code === 'ECONNREFUSED' || cause.code === 'ENOENT' || cause.code === 'ENOTSOCK') {
-                try {
-                    unlinkSync(socketPath)
-                    resolveCheck()
-                } catch (unlinkCause) {
-                    rejectCheck(unlinkCause instanceof Error ? unlinkCause : new Error(String(unlinkCause)))
-                }
+    const server: Server = http.createServer(buildRequestHandler(catalog, token))
+    const port: number = await new Promise<number>((resolveListen, rejectListen): void => {
+        server.once('error', rejectListen)
+        server.listen(options.port ?? 0, host, (): void => {
+            server.removeListener('error', rejectListen)
+            const addr = server.address()
+            if (!addr || typeof addr === 'string') {
+                rejectListen(new Error('createHeadlessServer: no address after listen'))
                 return
             }
-            rejectCheck(cause)
+            resolveListen(addr.port)
         })
     })
-}
 
-export async function createHeadlessServer(options: HeadlessServerOptions): Promise<HeadlessServer> {
-    configureGraphToolsRootIO()
-
-    let state: State = emptyState()
-    if (options.vaultPath) {
-        const resolved = resolve(options.vaultPath)
-        state = await buildStateFromVault(resolved, resolved)
-    }
-
-    await mkdir(dirname(options.socketPath), {recursive: true})
-    await clearStaleSocket(options.socketPath)
-
-    const server: net.Server = net.createServer((socket: net.Socket): void => {
-        handleConnection(socket, () => state, (s: State) => { state = s })
-    })
-
-    await new Promise<void>((resolveListen, rejectListen): void => {
-        server.once('error', rejectListen)
-        server.listen(options.socketPath, (): void => {
-            server.removeListener('error', rejectListen)
-            resolveListen()
-        })
-    })
+    await writeRpcPortFile(vaultPath, port)
 
     return {
-        socketPath: options.socketPath,
+        url: `http://${host}:${port}`,
+        port,
+        token,
+        vaultPath,
         close: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
             server.close((cause?: Error): void => {
-                if (cause) {
-                    rejectClose(cause)
-                    return
-                }
-                if (existsSync(options.socketPath)) {
-                    try { unlinkSync(options.socketPath) } catch { /* best effort */ }
-                }
-                resolveClose()
+                if (cause) rejectClose(cause)
+                else resolveClose()
             })
         }),
     }

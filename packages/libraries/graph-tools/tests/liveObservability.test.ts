@@ -1,13 +1,11 @@
 /**
- * BF-200 — integration tests for live focus/neighbors/path (Step 7c, UDS).
+ * BF-200 — integration tests for live focus/neighbors/path (Step 9d, HTTP).
  *
- * Boots the headless UDS daemon with a fixture vault, then calls
+ * Boots the headless HTTP daemon with a fixture vault, then calls
  * liveFocus / liveNeighbors / livePath via the transport layer.
  */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
-import {mkdirSync, mkdtempSync, writeFileSync, rmSync} from 'fs'
-import {tmpdir} from 'os'
-import {join} from 'path'
+import {mkdirSync, writeFileSync, rmSync} from 'fs'
 import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
 import {liveFocus, liveNeighbors, livePath} from '../src/live/live'
 
@@ -18,27 +16,31 @@ const C = `${VAULT}/c.md`
 const D = `${VAULT}/d.md`
 
 let server: HeadlessServer
-let savedSockEnv: string | undefined
+let savedVaultEnv: string | undefined
+let savedUrlEnv: string | undefined
 
 beforeAll(async () => {
     mkdirSync(VAULT, {recursive: true})
+    mkdirSync(`${VAULT}/.voicetree`, {recursive: true})
     writeFileSync(A, '# A\n[[b]]\n')
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n') // isolated
 
-    const sockDir = mkdtempSync(join(tmpdir(), 'vt-bf200-obs-'))
-    const socketPath = join(sockDir, 'vt.sock')
-    server = await createHeadlessServer({socketPath, vaultPath: VAULT})
+    server = await createHeadlessServer({vaultPath: VAULT})
 
-    savedSockEnv = process.env.VOICETREE_SOCK_PATH
-    process.env.VOICETREE_SOCK_PATH = server.socketPath
+    savedVaultEnv = process.env.VOICETREE_VAULT_PATH
+    savedUrlEnv = process.env.VOICETREE_DAEMON_URL
+    process.env.VOICETREE_VAULT_PATH = server.vaultPath
+    delete process.env.VOICETREE_DAEMON_URL
 })
 
 afterAll(async () => {
     await server.close()
-    if (savedSockEnv === undefined) delete process.env.VOICETREE_SOCK_PATH
-    else process.env.VOICETREE_SOCK_PATH = savedSockEnv
+    if (savedVaultEnv === undefined) delete process.env.VOICETREE_VAULT_PATH
+    else process.env.VOICETREE_VAULT_PATH = savedVaultEnv
+    if (savedUrlEnv === undefined) delete process.env.VOICETREE_DAEMON_URL
+    else process.env.VOICETREE_DAEMON_URL = savedUrlEnv
     rmSync(VAULT, {recursive: true, force: true})
 })
 

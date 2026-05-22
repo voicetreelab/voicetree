@@ -1,43 +1,63 @@
-/**
- * BF-188 — integration test for vt-headless serve (Step 7c, UDS).
- *
- * Boots the headless UDS daemon in-process on a temp socket and verifies
- * createLiveTransport round-trips state + commands. No HTTP port.
- */
+// Step 9d — in-process integration for vt-headless serve.
+//
+// Boots `createHeadlessServer` against a per-test temp vault (where it
+// writes `rpc.port` + `auth-token` atomically), then drives
+// `createLiveTransport` through real HTTP.
+
 import {mkdtemp, realpath, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {describe, it, expect, afterEach, beforeEach} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createHeadlessServer, type HeadlessServer} from '../src/live/headlessServer'
 import {createLiveTransport} from '../src/live/liveTransport'
 
-describe('vt-headless serve (UDS)', () => {
-    let workDir: string
-    let envSock: string | undefined
+const TRACKED_ENV_KEYS: readonly string[] = ['VOICETREE_DAEMON_URL', 'VOICETREE_VAULT_PATH']
 
-    beforeEach(async () => {
-        envSock = process.env.VOICETREE_SOCK_PATH
-        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-headless-')))
+function snapshotEnv(): Record<string, string | undefined> {
+    const snap: Record<string, string | undefined> = {}
+    for (const key of TRACKED_ENV_KEYS) snap[key] = process.env[key]
+    return snap
+}
+
+function restoreEnv(snap: Record<string, string | undefined>): void {
+    for (const key of TRACKED_ENV_KEYS) {
+        const value = snap[key]
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+    }
+}
+
+describe('vt-headless serve (HTTP)', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let vaults: string[]
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        vaults = []
     })
 
     afterEach(async () => {
-        await rm(workDir, {recursive: true, force: true})
-        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
-        else process.env.VOICETREE_SOCK_PATH = envSock
+        restoreEnv(envSnapshot)
+        for (const vault of vaults.splice(0)) {
+            await rm(vault, {recursive: true, force: true})
+        }
     })
 
-    async function startServer(name: string): Promise<HeadlessServer> {
-        return createHeadlessServer({socketPath: join(workDir, `${name}.sock`)})
+    async function startServer(): Promise<HeadlessServer> {
+        const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-headless-')))
+        vaults.push(vaultPath)
+        return createHeadlessServer({vaultPath})
     }
 
-    it('boots on a UDS socket and responds to vt_get_live_state', async () => {
-        const server = await startServer('server')
+    it('boots on an HTTP port and responds to vt_get_live_state', async () => {
+        const server = await startServer()
         try {
-            expect(server.socketPath.endsWith('.sock')).toBe(true)
+            expect(server.url.startsWith('http://')).toBe(true)
+            expect(server.port).toBeGreaterThan(0)
+            expect(server.token.length).toBeGreaterThan(0)
 
-            process.env.VOICETREE_SOCK_PATH = server.socketPath
-            const transport = createLiveTransport()
-            const state = await transport.getLiveState()
+            process.env.VOICETREE_VAULT_PATH = server.vaultPath
+            const state = await createLiveTransport().getLiveState()
 
             expect(state.meta.schemaVersion).toBe(1)
             expect(state.meta.revision).toBe(0)
@@ -49,9 +69,9 @@ describe('vt-headless serve (UDS)', () => {
     })
 
     it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded + bumped revision', async () => {
-        const server = await startServer('server')
+        const server = await startServer()
         try {
-            process.env.VOICETREE_SOCK_PATH = server.socketPath
+            process.env.VOICETREE_VAULT_PATH = server.vaultPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
@@ -69,16 +89,15 @@ describe('vt-headless serve (UDS)', () => {
         }
     })
 
-    it('round-trip: SetFolderState → getLiveState reflects collapse and bumped revision', async () => {
-        const server = await startServer('server')
+    it('round-trip: SetFolderState → getLiveState reflects collapse + bumped revision', async () => {
+        const server = await startServer()
         try {
-            process.env.VOICETREE_SOCK_PATH = server.socketPath
+            process.env.VOICETREE_VAULT_PATH = server.vaultPath
             const transport = createLiveTransport()
             const FOLDER = '/tmp/test-headless/tasks/'
 
-            const stateBefore = await transport.getLiveState()
-            expect(stateBefore.collapseSet.size).toBe(0)
-            const revBefore = stateBefore.meta.revision
+            const before = await transport.getLiveState()
+            expect(before.collapseSet.size).toBe(0)
 
             await transport.dispatchLiveCommand({
                 type: 'SetFolderState',
@@ -87,23 +106,24 @@ describe('vt-headless serve (UDS)', () => {
                 state: 'collapsed',
             })
 
-            const stateAfter = await transport.getLiveState()
-            expect(stateAfter.collapseSet.has(FOLDER)).toBe(true)
-            expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
+            const after = await transport.getLiveState()
+            expect(after.collapseSet.has(FOLDER)).toBe(true)
+            expect(after.meta.revision).toBeGreaterThan(before.meta.revision)
         } finally {
             await server.close()
         }
     })
 
-    it('two concurrent servers bind distinct sockets — mutations are isolated', async () => {
-        const srv1 = await startServer('one')
-        const srv2 = await startServer('two')
+    it('two concurrent servers bind distinct ports — mutations are isolated', async () => {
+        const srv1 = await startServer()
+        const srv2 = await startServer()
         try {
-            expect(srv1.socketPath).not.toBe(srv2.socketPath)
+            expect(srv1.port).not.toBe(srv2.port)
+            expect(srv1.token).not.toBe(srv2.token)
 
-            process.env.VOICETREE_SOCK_PATH = srv1.socketPath
+            process.env.VOICETREE_VAULT_PATH = srv1.vaultPath
             const t1 = createLiveTransport()
-            process.env.VOICETREE_SOCK_PATH = srv2.socketPath
+            process.env.VOICETREE_VAULT_PATH = srv2.vaultPath
             const t2 = createLiveTransport()
 
             const [s1, s2] = await Promise.all([t1.getLiveState(), t2.getLiveState()])

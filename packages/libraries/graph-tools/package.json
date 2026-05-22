@@ -20,7 +20,8 @@
     "vt-debug": "bin/vt-debug.ts"
   },
   "dependencies": {
-    "@vt/graph-state": "*"
+    "@vt/graph-state": "*",
+    "@vt/vt-rpc": "*"
   },
   "scripts": {
     "test": "vitest run",

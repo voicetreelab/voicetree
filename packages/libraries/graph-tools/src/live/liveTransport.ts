@@ -1,32 +1,36 @@
-// UDS JSON-RPC client for the daemon's live tools (vt_get_live_state,
-// vt_dispatch_live_command). Same `LiveTransport` interface as before; only the
-// wire changed (was MCP-over-HTTP, now NDJSON JSON-RPC over a Unix domain
-// socket — design doc §3, §4).
+// JSON-RPC over HTTP client for the daemon's live tools
+// (`vt_get_live_state`, `vt_dispatch_live_command`). The public contract is
+// unchanged from Step 7c — callers still receive a `LiveTransport` with
+// `getLiveState()` and `dispatchLiveCommand(cmd)`. Only the wire moved (UDS
+// NDJSON → HTTP JSON-RPC + bearer auth, design doc §2.1 + §4.2).
 //
-// Path-discovery and NDJSON framing intentionally mirror the convention used
-// by webapp/src/shell/edge/main/cli/daemon-client.ts. The shared primitives
-// live in `@vt/voicetree-mcp/src/transport/socketPath.ts`, but `graph-tools`
-// cannot import that package without creating a dependency cycle
-// (voicetree-mcp already imports `@vt/graph-tools/node`). 7g may consolidate
-// the conventions into a deeper transport library; until then this duplication
-// is the honest cycle-free option.
-import net from 'node:net'
-import {existsSync, statSync} from 'node:fs'
-import {dirname, join, resolve} from 'node:path'
+// Endpoint resolution follows design doc §2.7, augmented for the graph-tools
+// API which lets callers pass an explicit `vaultPath`:
+//   1. `$VOICETREE_DAEMON_URL` (+ `$VOICETREE_VAULT_PATH` for the token file).
+//   2. Explicit `vaultPath` argument.
+//   3. cwd up-walk for `.voicetree/rpc.port`.
+//   4. `$VOICETREE_VAULT_PATH`.
+//   5. Throw `DaemonUnreachable`.
+//
+// Error mapping harmonized with the CLI client (`webapp/.../daemon-client.ts`):
+// `-32003 tool_handler_failed` and `-32602 validation_failed` both surface as
+// `Error(JSON.stringify(error.data))` — the data envelope already includes a
+// `kind` discriminator for callers that want to branch on it. Transport
+// failures and 401 map to `DaemonUnreachable` / `DaemonAuthRequired`.
+
+import {
+    createRpcClient,
+    DaemonAuthRequired,
+    DaemonUnreachable,
+    ERROR_CODES,
+    type DaemonRpcClient,
+    type JsonRpcResponse,
+} from '@vt/vt-rpc'
 
 import {hydrateState, serializeCommand, type SerializedState} from '@vt/graph-state'
 import type {Command, Delta, State} from '@vt/graph-state/contract'
 
-const VOICETREE_DIRNAME: string = '.voicetree'
-const SOCKET_FILENAME: string = 'vt.sock'
-const DEFAULT_RESPONSE_TIMEOUT_MS: number = 30_000
-
-export class DaemonUnreachable extends Error {
-    constructor(message: string) {
-        super(message)
-        this.name = 'DaemonUnreachable'
-    }
-}
+export {DaemonAuthRequired, DaemonUnreachable}
 
 interface SerializableDelta {
     readonly revision: number
@@ -56,183 +60,87 @@ export interface LiveTransport {
     readonly dispatchLiveCommand: (cmd: Command) => Promise<Delta>
 }
 
-// ── Path discovery (design doc §3.2 fallback order) ────────────────────────
-
-function vaultSocketPath(vaultPath: string): string {
-    return join(resolve(vaultPath), VOICETREE_DIRNAME, SOCKET_FILENAME)
-}
-
-function hasVoicetreeMarker(candidatePath: string): boolean {
-    try {
-        return statSync(join(candidatePath, VOICETREE_DIRNAME)).isDirectory()
-    } catch {
-        return false
-    }
-}
-
-function detectVaultFromCwd(cwd: string = process.cwd()): string | null {
-    let current: string = resolve(cwd)
-    for (;;) {
-        if (hasVoicetreeMarker(current)) return current
-        const parent: string = dirname(current)
-        if (parent === current) return null
-        current = parent
-    }
-}
-
-function resolveSocketPath(explicitVault?: string): string {
-    const envSock: string | undefined = process.env.VOICETREE_SOCK_PATH
-    if (envSock !== undefined && envSock.length > 0) {
-        if (!existsSync(envSock)) {
-            throw new DaemonUnreachable(
-                `VOICETREE_SOCK_PATH=${envSock} does not exist. The override means "trust me, this is where it should be" — start the daemon there or unset the var.`,
-            )
-        }
-        return envSock
-    }
-
-    if (explicitVault !== undefined && explicitVault.length > 0) {
-        return vaultSocketPath(explicitVault)
-    }
-
-    const detected: string | null = detectVaultFromCwd()
-    if (detected !== null) return vaultSocketPath(detected)
-
-    const vaultEnv: string | undefined = process.env.VOICETREE_VAULT_PATH
-    if (vaultEnv !== undefined && vaultEnv.length > 0) {
-        return vaultSocketPath(vaultEnv)
-    }
-
-    throw new DaemonUnreachable(
-        'Cannot resolve daemon socket: no vault found via up-walk and no $VOICETREE_VAULT_PATH set. Pass a vault path or set $VOICETREE_SOCK_PATH.',
-    )
-}
-
-// ── NDJSON framing (isolated per design doc §4.2) ──────────────────────────
-
-function writeNdjsonFrame(socket: net.Socket, envelope: object): void {
-    socket.write(`${JSON.stringify(envelope)}\n`)
-}
-
-interface JsonRpcSuccess {readonly jsonrpc: '2.0'; readonly id: number | string | null; readonly result: unknown}
-interface JsonRpcFailure {readonly jsonrpc: '2.0'; readonly id: number | string | null; readonly error: {readonly code: number; readonly message: string; readonly data?: unknown}}
-type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function parseFrame(frame: string): JsonRpcResponse {
-    const parsed: unknown = JSON.parse(frame)
-    if (!isRecord(parsed) || parsed.jsonrpc !== '2.0') {
-        throw new Error('Daemon returned a non-JSON-RPC response')
-    }
-    return parsed as unknown as JsonRpcResponse
-}
-
-function getTimeoutMs(): number {
-    const raw: string | undefined = process.env.VOICETREE_DAEMON_TIMEOUT_MS
-    if (raw === undefined) return DEFAULT_RESPONSE_TIMEOUT_MS
-    const parsed: number = Number.parseInt(raw, 10)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RESPONSE_TIMEOUT_MS
-}
-
 let requestSequence: number = 0
 function nextRequestId(): number {
     requestSequence += 1
     return requestSequence
 }
 
-async function sendRpc(
-    socketPath: string,
-    method: string,
-    params: Record<string, unknown>,
-): Promise<JsonRpcResponse> {
-    const request: object = {jsonrpc: '2.0', method, params, id: nextRequestId()}
-
-    return new Promise<JsonRpcResponse>((resolveCall, rejectCall): void => {
-        const socket: net.Socket = net.createConnection({path: socketPath})
-        let buffer: string = ''
-        let settled: boolean = false
-
-        const timer: NodeJS.Timeout = setTimeout((): void => {
-            if (settled) return
-            settled = true
-            socket.destroy()
-            rejectCall(new DaemonUnreachable(
-                `Daemon did not respond within ${getTimeoutMs()}ms (socket ${socketPath}). Override with $VOICETREE_DAEMON_TIMEOUT_MS.`,
-            ))
-        }, getTimeoutMs())
-
-        const finish = (outcome: JsonRpcResponse | Error): void => {
-            if (settled) return
-            settled = true
-            clearTimeout(timer)
-            socket.destroy()
-            if (outcome instanceof Error) rejectCall(outcome)
-            else resolveCall(outcome)
-        }
-
-        socket.setEncoding('utf8')
-        socket.on('connect', (): void => {
-            writeNdjsonFrame(socket, request)
-        })
-        socket.on('data', (chunk: string): void => {
-            buffer += chunk
-            const newlineIndex: number = buffer.indexOf('\n')
-            if (newlineIndex >= 0) {
-                try {
-                    finish(parseFrame(buffer.slice(0, newlineIndex)))
-                } catch (cause) {
-                    finish(cause instanceof Error ? cause : new Error(String(cause)))
-                }
-            }
-        })
-        socket.on('end', (): void => {
-            if (settled) return
-            if (buffer.trimEnd().length > 0) {
-                try {
-                    finish(parseFrame(buffer.trimEnd()))
-                } catch (cause) {
-                    finish(cause instanceof Error ? cause : new Error(String(cause)))
-                }
-                return
-            }
-            finish(new Error(`Daemon closed connection without responding (socket ${socketPath})`))
-        })
-        socket.on('error', (cause: NodeJS.ErrnoException): void => {
-            if (cause.code === 'ENOENT' || cause.code === 'ECONNREFUSED' || cause.code === 'ENOTSOCK') {
-                finish(new DaemonUnreachable(
-                    `No daemon listening at ${socketPath}. Start vt-mcpd or open the vault in Voicetree.`,
-                ))
-                return
-            }
-            finish(cause)
-        })
-    })
+// Defer the (async) endpoint resolution until the first call so the
+// constructor stays synchronous (existing positional-arg call sites in
+// `live.ts`, `commands/capture/*`, etc. expect a `LiveTransport`, not a
+// Promise of one). First failure caches its error so subsequent calls return
+// the same DaemonUnreachable without re-probing — graph-tools' callers are
+// scripted one-shots.
+//
+// `env` is captured at construction time. Two transports created back-to-back
+// against different vaults must not share a destination just because the
+// caller mutated `process.env` between the construction and the first
+// `.call()`. The `vtHeadlessServe` "two concurrent servers" test encodes this
+// contract.
+function buildClientFactory(vaultPath: string | undefined): () => Promise<DaemonRpcClient> {
+    const env: Record<string, string | undefined> = {...process.env}
+    const cwd: string = process.cwd()
+    let pending: Promise<DaemonRpcClient> | null = null
+    return (): Promise<DaemonRpcClient> => {
+        if (pending === null) pending = resolveClient(vaultPath, env, cwd)
+        return pending
+    }
 }
 
-// Tool-handler failures (code -32003) carry the original `{error: "..."}`
-// payload in `data`; surface that string so callers see the operational
-// reason (e.g. "No vault loaded yet").
-function toolErrorMessage(failure: JsonRpcFailure, method: string): string {
-    const data: unknown = failure.error.data
-    if (failure.error.code === -32003 && isRecord(data) && typeof data.error === 'string') {
-        return `${method} returned error: ${data.error}`
+async function resolveClient(
+    vaultPath: string | undefined,
+    env: Record<string, string | undefined>,
+    cwd: string,
+): Promise<DaemonRpcClient> {
+    // Env URL wins regardless of explicit vault — design doc §2.7.
+    if (env.VOICETREE_DAEMON_URL && env.VOICETREE_DAEMON_URL.length > 0) {
+        return createRpcClient({env, cwd})
     }
-    return `${method} failed (code ${failure.error.code}): ${failure.error.message}`
+    if (vaultPath !== undefined && vaultPath.length > 0) {
+        // Force vt-rpc's discovery onto the `env_vault_path` leg so this exact
+        // vault is used for rpc.port + auth-token (no cwd up-walk). cwd='/'
+        // makes the up-walk leg find nothing and fall through.
+        return createRpcClient({
+            cwd: '/',
+            env: {
+                ...env,
+                VOICETREE_DAEMON_URL: undefined,
+                VOICETREE_VAULT_PATH: vaultPath,
+            },
+        })
+    }
+    return createRpcClient({env, cwd})
+}
+
+function mapRpcError(response: JsonRpcResponse): never {
+    if (!('error' in response)) {
+        throw new Error('mapRpcError called on success response')
+    }
+    const {code, message, data} = response.error
+    if (code === ERROR_CODES.auth_required) {
+        throw new DaemonAuthRequired(message)
+    }
+    if (code === ERROR_CODES.daemon_unreachable) {
+        throw new DaemonUnreachable(message)
+    }
+    if (code === ERROR_CODES.tool_handler_failed || code === ERROR_CODES.validation_failed) {
+        // Both envelopes carry a `data` payload that downstream callers want
+        // structured access to — stringify so JSON.parse(err.message) round-
+        // trips it. Mirrors the CLI shim (`daemon-client.ts`).
+        throw new Error(JSON.stringify(data))
+    }
+    throw new Error(message)
 }
 
 async function callTool<T>(
-    socketPath: string,
+    client: DaemonRpcClient,
     method: string,
     params: Record<string, unknown>,
 ): Promise<T> {
-    const response: JsonRpcResponse = await sendRpc(socketPath, method, params)
-    if ('error' in response) {
-        throw new Error(toolErrorMessage(response, method))
-    }
-    return response.result as T
+    const response: JsonRpcResponse = await client.call(method, params, nextRequestId())
+    if ('error' in response) mapRpcError(response)
+    return (response as {result: unknown}).result as T
 }
 
 function hydrateDelta(serialized: SerializableDelta, cause: Command): Delta {
@@ -261,24 +169,23 @@ function hydrateDelta(serialized: SerializableDelta, cause: Command): Delta {
     }
 }
 
-// ── public API ─────────────────────────────────────────────────────────────
-
 export function createLiveTransport(vaultPath?: string): LiveTransport {
-    const socketPath: string = resolveSocketPath(vaultPath)
+    const getClient: () => Promise<DaemonRpcClient> = buildClientFactory(vaultPath)
     return {
         async getLiveState(): Promise<State> {
+            const client: DaemonRpcClient = await getClient()
             const serialized: SerializedState = await callTool<SerializedState>(
-                socketPath,
+                client,
                 'vt_get_live_state',
                 {},
             )
             return hydrateState(serialized)
         },
-
         async dispatchLiveCommand(cmd: Command): Promise<Delta> {
+            const client: DaemonRpcClient = await getClient()
             const serialized = serializeCommand(cmd)
             const result: DispatchResult = await callTool<DispatchResult>(
-                socketPath,
+                client,
                 'vt_dispatch_live_command',
                 {command: serialized},
             )

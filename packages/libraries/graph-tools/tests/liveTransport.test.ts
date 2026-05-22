@@ -1,176 +1,62 @@
-/**
- * Step 7c — UDS round-trip for createLiveTransport.
- *
- * Spins up a tiny in-process UDS JSON-RPC server using udsServer.ts from
- * voicetree-mcp, registers mock vt_get_live_state / vt_dispatch_live_command
- * tools, then exercises createLiveTransport against it. Same wire as
- * production after 7c.
- */
-import {mkdtemp, realpath, rm} from 'node:fs/promises'
+// Step 9d — HTTP round-trip for createLiveTransport (client side).
+// Bin integration lives in liveTransport.bin.test.ts (separate file so each
+// stays under the file-size hook). Shared fixtures: _fixtures/liveTransportHarness.
+
+import {mkdir, mkdtemp, realpath, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
+
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
-// Relative path import (not package alias) breaks an ESM circular-init cycle:
-// @vt/voicetree-mcp imports @vt/graph-tools, so loading voicetree-mcp from
-// inside graph-tools' own test set leaves voicetree-mcp's exports undefined.
-// filesystemAuthoring.test.ts uses the same pattern.
-import {buildJsonResponse} from '../../../systems/voicetree-mcp/src/tools/toolResponse'
+import {writeRpcPortFile} from '@vt/vt-rpc'
+
 import {
-    startUdsServer,
-    type ToolCatalog,
-    type UdsServerHandle,
-} from '../../../systems/voicetree-mcp/src/transport/udsServer'
-import {createLiveTransport} from '../src/live/liveTransport'
+    CatalogValidationError,
+    writeAuthTokenFile,
+    type Catalog,
+    type ToolResult,
+} from '../src/live/headlessServer'
+import {
+    createLiveTransport,
+    DaemonAuthRequired,
+    DaemonUnreachable,
+} from '../src/live/liveTransport'
 
-// ── fixture state ──────────────────────────────────────────────────────────
+import {
+    FIXTURE_SERIALIZED_STATE,
+    SAMPLE_NODE,
+    TASKS_FOLDER,
+    VAULT_ROOT,
+    buildHappyCatalog,
+    initialMockServer,
+    restoreEnv,
+    snapshotEnv,
+    startStubDaemon,
+    type MockServer,
+    type StubDaemon,
+} from './_fixtures/liveTransportHarness'
 
-const VAULT_ROOT = '/tmp/vault'
-const SAMPLE_NODE = `${VAULT_ROOT}/sample.md`
-const TASKS_FOLDER = `${VAULT_ROOT}/tasks/`
+// ── happy path ─────────────────────────────────────────────────────────────
 
-const FIXTURE_SERIALIZED_STATE = {
-    graph: {
-        nodes: {
-            [SAMPLE_NODE]: {
-                outgoingEdges: [],
-                absoluteFilePathIsID: SAMPLE_NODE,
-                contentWithoutYamlOrLinks: 'hello',
-                nodeUIMetadata: {
-                    color: {_tag: 'None'},
-                    position: {_tag: 'Some', value: {x: 1, y: 2}},
-                    additionalYAMLProps: [],
-                },
-            },
-        },
-        incomingEdgesIndex: [],
-        nodeByBaseName: [['sample.md', [SAMPLE_NODE]]],
-        unresolvedLinksIndex: [],
-    },
-    roots: {
-        loaded: [VAULT_ROOT],
-        folderTree: [
-            {
-                name: 'vault',
-                absolutePath: VAULT_ROOT,
-                children: [],
-                loadState: 'loaded' as const,
-                isWriteTarget: true,
-            },
-        ],
-    },
-    collapseSet: [] as string[],
-    selection: [] as string[],
-    layout: {positions: [[SAMPLE_NODE, {x: 1, y: 2}]] as [string, {x: number; y: number}][]},
-    meta: {schemaVersion: 1 as const, revision: 3, mutatedAt: '2026-04-17T00:00:00.000Z'},
-}
-
-// ── mock catalog backing the daemon ────────────────────────────────────────
-
-interface MockServer {
-    collapseSet: string[]
-    revision: number
-    rootsLoaded: string[]
-    zoom: number | undefined
-}
-
-function buildCurrentState(mock: MockServer) {
-    return {
-        ...FIXTURE_SERIALIZED_STATE,
-        roots: {
-            ...FIXTURE_SERIALIZED_STATE.roots,
-            loaded: [...mock.rootsLoaded],
-        },
-        collapseSet: [...mock.collapseSet],
-        layout: {
-            ...FIXTURE_SERIALIZED_STATE.layout,
-            ...(mock.zoom !== undefined ? {zoom: mock.zoom} : {}),
-        },
-        meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: mock.revision},
-    }
-}
-
-interface DispatchedCommand {
-    readonly type: string
-    readonly path?: string
-    readonly state?: string
-    readonly zoom?: number
-}
-
-function buildCatalog(mock: MockServer): ToolCatalog {
-    return new Map([
-        ['vt_get_live_state', async () => buildJsonResponse(buildCurrentState(mock))],
-        ['vt_dispatch_live_command', async (args: Record<string, unknown>) => {
-            const command = args.command as DispatchedCommand
-            const delta: {
-                revision: number
-                cause: unknown
-                collapseAdded?: string[]
-                rootsUnloaded?: string[]
-                layoutChanged?: {zoom?: number}
-            } = {revision: mock.revision, cause: command}
-
-            if (command.type === 'SetFolderState'
-                && command.state === 'collapsed'
-                && typeof command.path === 'string'
-            ) {
-                const folder = `${command.path}/`
-                if (!mock.collapseSet.includes(folder)) {
-                    mock.collapseSet.push(folder)
-                }
-                mock.revision += 1
-                delta.revision = mock.revision
-                delta.collapseAdded = [folder]
-            }
-
-            if (command.type === 'SetZoom' && typeof command.zoom === 'number') {
-                mock.zoom = command.zoom
-                mock.revision += 1
-                delta.revision = mock.revision
-                delta.layoutChanged = {zoom: command.zoom}
-            }
-
-            return buildJsonResponse({delta, revision: mock.revision})
-        }],
-    ])
-}
-
-// ── tests ──────────────────────────────────────────────────────────────────
-
-describe('createLiveTransport — UDS round-trip', () => {
-    let workDir: string
-    let socketPath: string
-    let handle: UdsServerHandle | null
-    let envSock: string | undefined
+describe('createLiveTransport — happy path over HTTP', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon
     let mock: MockServer
 
     beforeEach(async () => {
-        envSock = process.env.VOICETREE_SOCK_PATH
-        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-')))
-        socketPath = join(workDir, 'vt.sock')
-        handle = null
-        mock = {
-            collapseSet: [],
-            revision: FIXTURE_SERIALIZED_STATE.meta.revision,
-            rootsLoaded: [...FIXTURE_SERIALIZED_STATE.roots.loaded],
-            zoom: undefined,
-        }
-        handle = await startUdsServer({
-            socketPath,
-            catalog: buildCatalog(mock),
-            logger: {log: () => {}, error: () => {}},
-        })
-        process.env.VOICETREE_SOCK_PATH = socketPath
+        envSnapshot = snapshotEnv()
+        mock = initialMockServer()
+        daemon = await startStubDaemon(buildHappyCatalog(mock))
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
     })
 
     afterEach(async () => {
-        if (handle) await handle.stop()
-        await rm(workDir, {recursive: true, force: true})
-        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
-        else process.env.VOICETREE_SOCK_PATH = envSock
+        await daemon.stop()
+        await rm(daemon.vaultPath, {recursive: true, force: true})
+        restoreEnv(envSnapshot)
     })
 
-    it('getLiveState() returns a hydrated State via UDS JSON-RPC', async () => {
+    it('getLiveState() returns a hydrated State via HTTP JSON-RPC', async () => {
         const transport = createLiveTransport()
         const state = await transport.getLiveState()
 
@@ -178,12 +64,11 @@ describe('createLiveTransport — UDS round-trip', () => {
         expect(state.meta.schemaVersion).toBe(1)
         expect(state.roots.loaded.has(VAULT_ROOT)).toBe(true)
         expect(state.collapseSet.size).toBe(0)
-        expect(state.selection.size).toBe(0)
         expect(Object.keys(state.graph.nodes)).toContain(SAMPLE_NODE)
         expect(state.layout.positions.get(SAMPLE_NODE)).toEqual({x: 1, y: 2})
     })
 
-    it('dispatchLiveCommand() sends SetFolderState and returns a Delta', async () => {
+    it('dispatchLiveCommand(SetFolderState) returns Delta with collapseAdded', async () => {
         const transport = createLiveTransport()
         const delta = await transport.dispatchLiveCommand({
             type: 'SetFolderState',
@@ -202,24 +87,19 @@ describe('createLiveTransport — UDS round-trip', () => {
         })
     })
 
-    it('dispatchLiveCommand() preserves layoutChanged from the daemon delta', async () => {
+    it('dispatchLiveCommand preserves layoutChanged from the daemon delta', async () => {
         const transport = createLiveTransport()
-        const delta = await transport.dispatchLiveCommand({
-            type: 'SetZoom',
-            zoom: 1.45,
-        })
+        const delta = await transport.dispatchLiveCommand({type: 'SetZoom', zoom: 1.45})
 
         expect(delta.revision).toBe(4)
         expect(delta.layoutChanged).toEqual({zoom: 1.45})
         expect(delta.cause).toEqual({type: 'SetZoom', zoom: 1.45})
     })
 
-    it('round-trip: SetFolderState → getLiveState shows folder in collapseSet + revision bumped', async () => {
+    it('round-trip: dispatch then re-read sees the mutation', async () => {
         const transport = createLiveTransport()
-
-        const stateBefore = await transport.getLiveState()
-        expect(stateBefore.collapseSet.size).toBe(0)
-        const revBefore = stateBefore.meta.revision
+        const before = await transport.getLiveState()
+        expect(before.collapseSet.size).toBe(0)
 
         await transport.dispatchLiveCommand({
             type: 'SetFolderState',
@@ -228,58 +108,236 @@ describe('createLiveTransport — UDS round-trip', () => {
             state: 'collapsed',
         })
 
-        const stateAfter = await transport.getLiveState()
-        expect(stateAfter.collapseSet.has(TASKS_FOLDER)).toBe(true)
-        expect(stateAfter.meta.revision).toBeGreaterThan(revBefore)
+        const after = await transport.getLiveState()
+        expect(after.collapseSet.has(TASKS_FOLDER)).toBe(true)
+        expect(after.meta.revision).toBeGreaterThan(before.meta.revision)
+    })
+
+    it('honors an explicit vaultPath argument (no cwd up-walk needed)', async () => {
+        delete process.env.VOICETREE_VAULT_PATH
+        const transport = createLiveTransport(daemon.vaultPath)
+        const state = await transport.getLiveState()
+        expect(state.meta.revision).toBe(3)
     })
 })
 
-describe('createLiveTransport — error surfaces', () => {
-    let workDir: string
-    let socketPath: string
-    let handle: UdsServerHandle | null
-    let envSock: string | undefined
+// ── error envelopes (mapping harmonized with 9c daemon-client) ─────────────
 
-    beforeEach(async () => {
-        envSock = process.env.VOICETREE_SOCK_PATH
-        workDir = await realpath(await mkdtemp(join(tmpdir(), 'vt-live-transport-errs-')))
-        socketPath = join(workDir, 'vt.sock')
-        handle = null
+describe('createLiveTransport — error envelopes', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        daemon = null
     })
 
     afterEach(async () => {
-        if (handle) await handle.stop()
-        await rm(workDir, {recursive: true, force: true})
-        if (envSock === undefined) delete process.env.VOICETREE_SOCK_PATH
-        else process.env.VOICETREE_SOCK_PATH = envSock
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
     })
 
-    it('surfaces a renderer-required-style error from the tool handler', async () => {
-        // Simulates `vt serve` (headless) — getLiveStateBridge returning no
-        // bridge causes the live tool to respond with isError + the operational
-        // reason in the JSON payload. Our client must surface that reason
-        // intelligibly, not as a generic fetch-style failure.
-        const catalog: ToolCatalog = new Map([
-            ['vt_get_live_state', async () =>
-                buildJsonResponse({error: 'Requires an Electron renderer'}, true),
-            ],
+    it('-32003 tool_handler_failed → Error with JSON.stringify(error.data)', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({
+                ok: false,
+                payload: {error: 'Requires an Electron renderer'},
+            })],
         ])
-        handle = await startUdsServer({
-            socketPath,
-            catalog,
-            logger: {log: () => {}, error: () => {}},
-        })
-        process.env.VOICETREE_SOCK_PATH = socketPath
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
 
         const transport = createLiveTransport()
-        await expect(transport.getLiveState())
-            .rejects.toThrow(/Requires an Electron renderer/)
+        await expect(transport.getLiveState()).rejects.toThrow(
+            /\{"error":"Requires an Electron renderer"\}/,
+        )
     })
 
-    it('throws DaemonUnreachable when the socket path env var points nowhere', async () => {
-        process.env.VOICETREE_SOCK_PATH = join(workDir, 'missing.sock')
+    it('-32602 validation_failed → Error whose message parses back to kind:validation_failed', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async () => {
+                throw new CatalogValidationError('vt_get_live_state', [
+                    {path: 'viewId', message: 'Required', code: 'invalid_type'},
+                ])
+            }],
+        ])
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
 
-        const transport = (): ReturnType<typeof createLiveTransport> => createLiveTransport()
-        expect(transport).toThrow(/VOICETREE_SOCK_PATH/)
+        const transport = createLiveTransport()
+        try {
+            await transport.getLiveState()
+            expect.unreachable('should have thrown')
+        } catch (err) {
+            expect(err).toBeInstanceOf(Error)
+            const parsed: unknown = JSON.parse((err as Error).message)
+            expect(parsed).toMatchObject({kind: 'validation_failed', tool: 'vt_get_live_state'})
+        }
+    })
+
+    it('other JSON-RPC errors surface error.message (unknown method)', async () => {
+        daemon = await startStubDaemon(new Map())
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState()).rejects.toThrow(
+            /Unknown method: vt_get_live_state/,
+        )
+    })
+})
+
+// ── transport failures ─────────────────────────────────────────────────────
+
+describe('createLiveTransport — transport failures', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        daemon = null
+    })
+
+    afterEach(async () => {
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
+    })
+
+    it("401 bad token → DaemonAuthRequired (no retry — 9c's concern)", async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({ok: true, payload: FIXTURE_SERIALIZED_STATE})],
+        ])
+        daemon = await startStubDaemon(catalog)
+        // Stale the on-disk token so the client sends a mismatched bearer
+        // and the daemon (which still holds the original) rejects with 401.
+        await writeAuthTokenFile(daemon.vaultPath, 'wrong-token-not-the-real-one')
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const transport = createLiveTransport()
+        await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonAuthRequired)
+    })
+
+    it('timeout exceeded → DaemonUnreachable; underlying fetch aborts', async () => {
+        // Daemon stalls 5s; client times out at 100ms. If abort works, the
+        // assertion resolves well before the 2s vitest timeout below.
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => {
+                await new Promise<void>((r) => {
+                    const t = setTimeout(r, 5_000)
+                    t.unref()
+                })
+                return {ok: true, payload: FIXTURE_SERIALIZED_STATE}
+            }],
+        ])
+        daemon = await startStubDaemon(catalog)
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+        process.env.VOICETREE_DAEMON_TIMEOUT_MS = '100'
+
+        const transport = createLiveTransport()
+        const startedAt: number = Date.now()
+        await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        expect(Date.now() - startedAt).toBeLessThan(1_000) // proves abort, not 5s wait
+    }, 2_000)
+
+    it('ECONNREFUSED → DaemonUnreachable', async () => {
+        const vaultPath: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-noport-')))
+        await mkdir(join(vaultPath, '.voicetree'), {recursive: true})
+        await writeAuthTokenFile(vaultPath, 'irrelevant-no-listener-anyway')
+        // Port 1 is reserved on most OSes — TCP connect rejects with ECONNREFUSED.
+        await writeRpcPortFile(vaultPath, 1)
+        process.env.VOICETREE_VAULT_PATH = vaultPath
+
+        try {
+            const transport = createLiveTransport()
+            await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        } finally {
+            await rm(vaultPath, {recursive: true, force: true})
+        }
+    })
+})
+
+// ── discovery chain (design doc §2.7) ──────────────────────────────────────
+
+describe('createLiveTransport — discovery chain', () => {
+    let envSnapshot: Record<string, string | undefined>
+    let daemon: StubDaemon | null
+    let cwdSnapshot: string
+
+    beforeEach(() => {
+        envSnapshot = snapshotEnv()
+        cwdSnapshot = process.cwd()
+        daemon = null
+    })
+
+    afterEach(async () => {
+        process.chdir(cwdSnapshot)
+        if (daemon) {
+            await daemon.stop()
+            await rm(daemon.vaultPath, {recursive: true, force: true})
+        }
+        restoreEnv(envSnapshot)
+    })
+
+    it('VOICETREE_DAEMON_URL wins over a stale vault rpc.port', async () => {
+        // Live daemon at A; misleading rpc.port at B pointing at port 2.
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({
+                ok: true,
+                payload: {
+                    ...FIXTURE_SERIALIZED_STATE,
+                    meta: {...FIXTURE_SERIALIZED_STATE.meta, revision: 99},
+                },
+            })],
+        ])
+        daemon = await startStubDaemon(catalog)
+
+        const fakeVault: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-fake-')))
+        await mkdir(join(fakeVault, '.voicetree'), {recursive: true})
+        await writeRpcPortFile(fakeVault, 2)
+        await writeAuthTokenFile(fakeVault, 'stale-token')
+
+        try {
+            // Env URL aimed at the real daemon; VAULT_PATH at the real vault
+            // (so the client reads the *correct* token, not the stale one).
+            process.env.VOICETREE_DAEMON_URL = daemon.url
+            process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+            const state = await createLiveTransport().getLiveState()
+            expect(state.meta.revision).toBe(99)
+        } finally {
+            await rm(fakeVault, {recursive: true, force: true})
+        }
+    })
+
+    it('vault rpc.port resolves when VOICETREE_DAEMON_URL is absent', async () => {
+        const catalog: Catalog = new Map([
+            ['vt_get_live_state', async (): Promise<ToolResult> => ({ok: true, payload: FIXTURE_SERIALIZED_STATE})],
+        ])
+        daemon = await startStubDaemon(catalog)
+
+        delete process.env.VOICETREE_DAEMON_URL
+        process.env.VOICETREE_VAULT_PATH = daemon.vaultPath
+
+        const state = await createLiveTransport().getLiveState()
+        expect(state.meta.revision).toBe(3)
+    })
+
+    it('throws DaemonUnreachable when nothing resolves', async () => {
+        const isolated: string = await realpath(await mkdtemp(join(tmpdir(), 'vt-no-vault-')))
+        try {
+            delete process.env.VOICETREE_DAEMON_URL
+            delete process.env.VOICETREE_VAULT_PATH
+            process.chdir(isolated)
+
+            const transport = createLiveTransport()
+            await expect(transport.getLiveState()).rejects.toBeInstanceOf(DaemonUnreachable)
+        } finally {
+            await rm(isolated, {recursive: true, force: true})
+        }
     })
 })
