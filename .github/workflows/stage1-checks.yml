@@ -384,10 +384,93 @@ jobs:
             webapp/playwright-report/
           retention-days: 7
 
+  mutation-gate:
+    # Cheap precheck (~30s) that decides whether the 45-min mutation-testing
+    # job runs on this PR. Decision is load-shedding, not coverage precision:
+    #
+    #   added_lines < 1000           → skip
+    #   added_lines >= 10000         → run
+    #   1000 <= added_lines < 10000  → run iff last successful Mutation
+    #                                  Testing on main is older than 7 days
+    #
+    # Equivalent boolean:
+    #   should_run = ((added_lines >= 10000) OR (stale_days > 7))
+    #                AND NOT (added_lines < 1000)
+    name: Mutation Gate
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      reason: ${{ steps.decide.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          LARGE_FLOOR: 1000
+          LARGE_CEILING: 10000
+          STALE_DAYS: 7
+        run: |
+          set -euo pipefail
+          ADDED=$(git diff --shortstat "$BASE_SHA...$HEAD_SHA" \
+                  | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)
+          ADDED=${ADDED:-0}
+          echo "PR added $ADDED lines"
+
+          if [ "$ADDED" -lt "$LARGE_FLOOR" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=PR is small ($ADDED < $LARGE_FLOOR lines)" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Mutation skipped::PR adds $ADDED lines (< $LARGE_FLOOR floor)"
+            exit 0
+          fi
+
+          if [ "$ADDED" -ge "$LARGE_CEILING" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=huge PR ($ADDED >= $LARGE_CEILING lines)" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Mutation running::huge PR ($ADDED lines)"
+            exit 0
+          fi
+
+          # Walk recent main commits looking for the most recent successful
+          # Mutation Testing check-run. Stops at first hit (typically <5 calls).
+          LAST=""
+          for sha in $(git rev-list -n 100 origin/main); do
+            LAST=$(gh api "repos/$REPO/commits/$sha/check-runs" \
+                   --jq '.check_runs[] | select(.name=="Mutation Testing" and .conclusion=="success") | .completed_at' \
+                   | head -n1)
+            [ -n "$LAST" ] && break
+          done
+
+          if [ -z "$LAST" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no successful Mutation Testing found on main in last 100 commits" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Mutation running::no prior successful run found"
+            exit 0
+          fi
+
+          AGE_DAYS=$(( ( $(date +%s) - $(date -d "$LAST" +%s) ) / 86400 ))
+          echo "last successful Mutation Testing on main: $LAST (${AGE_DAYS}d ago)"
+
+          if [ "$AGE_DAYS" -gt "$STALE_DAYS" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=stale (${AGE_DAYS}d > ${STALE_DAYS}d) and PR is $ADDED lines" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Mutation running::stale (${AGE_DAYS}d > ${STALE_DAYS}d)"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=mutation fresh (${AGE_DAYS}d <= ${STALE_DAYS}d) and PR under huge threshold" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Mutation skipped::fresh (${AGE_DAYS}d old)"
+          fi
+
   mutation-testing:
     name: Mutation Testing
-    if: github.base_ref == 'main'
-    needs: [lint-typecheck, unit-tests-aggregate]
+    if: needs.mutation-gate.outputs.should_run == 'true'
+    needs: [mutation-gate, lint-typecheck, unit-tests-aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
