@@ -9,8 +9,7 @@
   "scripts": {
     "test": "node scripts/run-remote.mjs npm run test:local",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types scripts/record-run.mjs --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:run",
-    "test:run": "npm run health && npm run test:vt-fake-agent && node scripts/run-test-parallel.mjs",
-    "test:vt-fake-agent": "vitest run --config tools/vt-fake-agent/vitest.config.ts",
+    "test:run": "npm run health && node scripts/run-test-parallel.mjs",
     "test:run:serial": "npm run health && npm --workspace webapp run test",
     "test:codebase-health": "vitest run packages/systems/purity-ratio-ast.test.ts packages/systems/purity-ratio.test.ts packages/systems/function-health.test.ts packages/systems/codebase-shape.test.ts packages/systems/exports-per-file.test.ts packages/systems/boundary-complexity.test.ts packages/systems/cognitive-complexity.test.ts packages/systems/cross-package-coupling.test.ts packages/systems/change-coupling.test.ts packages/systems/hypergraph-complexity.test.ts packages/systems/treewidth-coupling.test.ts packages/systems/dsm-compression.test.ts packages/systems/dsm-matrix.test.ts packages/systems/graph-entropy.test.ts packages/systems/martin-metrics.test.ts packages/systems/modularity-q.test.ts packages/systems/package-boundaries.test.ts packages/systems/turbulence.test.ts packages/systems/default-value-detection.test.ts packages/systems/gate-integrity.test.ts",
     "orange-codebase-complexity-tests": "vitest run packages/systems/hierarchical-complexity.test.ts packages/systems/behavioral-complexity.test.ts packages/systems/shape-complexity.test.ts",

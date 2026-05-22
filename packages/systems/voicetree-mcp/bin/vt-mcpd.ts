@@ -1,17 +1,18 @@
 #!/usr/bin/env -S node --import tsx
-// vt-mcpd: headless MCP daemon. Embeds graph-db-server + voicetree-mcp in one
-// Node process, with no Electron dependency. Lifecycle:
+// vt-mcpd: headless VoiceTree daemon. Embeds graph-db-server + the lifted
+// tool catalog in one Node process, with no Electron dependency. Lifecycle:
 //   1. Parse --vault (required) and --hook-port (optional pin for the hook HTTP
 //      server; default ephemeral).
 //   2. Wire @vt/agent-runtime + @vt/voicetree-mcp late-bound bridges for headless mode.
 //   3. Start graph-db-server in-process via startDaemon (loads graph, mounts watcher,
 //      publishes graphd.port, owns the per-vault lock).
-//   4. Start MCP HTTP server (publishes .mcp.json with the assigned port).
+//   4. Start the UDS JSON-RPC server (per-vault socket file; design doc §2.3).
 //   5. Start the dedicated hook HTTP server and publish <vault>/.voicetree/hook.port.
-//   6. Wait for SIGINT/SIGTERM, then tear down: hook → UDS → MCP → terminals → graph-db.
+//   6. Install the lifecycle JSONL telemetry sink.
+//   7. Wait for SIGINT/SIGTERM, then tear down: hook → UDS → terminals → graph-db.
 //
 // Headless contract (decided in Phase E; see docs/headless-migration.md):
-//   - READ path:  CLI agents call any read tool over MCP (graph_structure,
+//   - READ path:  CLI agents call any read tool over the UDS wire (graph_structure,
 //                 get_unseen_nodes_nearby, …). These do not require a terminal
 //                 record on the daemon side.
 //   - WRITE path: CLI agents write new nodes by raw filesystem Write into the
@@ -20,7 +21,7 @@
 // `create_graph` (and other write tools) validate `callerTerminalId` against
 // getTerminalRecords(), which vt-mcpd intentionally seeds empty in headless
 // mode — so a CLI agent invoking create_graph receives a clean
-// "Unknown caller terminal: <id>" MCP error rather than silent corruption.
+// "Unknown caller terminal: <id>" tool error rather than silent corruption.
 // Bootstrapping a synthetic terminal record was rejected: the registry models
 // real PTY/agent processes with budget + lifecycle; a synthetic terminal has
 // no real owner. Phase D (phase-d-headless-e2e-result.md) verified the
@@ -32,15 +33,12 @@ import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
-    getMcpPort,
     registerChildIfMonitored,
     resolveVaultSocketPath,
     startHookHttpServer,
-    startMcpServer,
     startUdsServer,
     writeHookPortFile,
     type HookHttpServerHandle,
-    type McpServerHandle,
     type UdsServerHandle,
 } from '@vt/voicetree-mcp'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
@@ -116,7 +114,6 @@ function configureHeadlessBridges(appSupportPath: string): void {
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => appSupportPath,
-            getMcpPort,
             getCliManualPath: (): string => join(appSupportPath, 'tools', 'prompts', 'cli-manual.md'),
         },
         // No interactive terminals in headless mode; only registerChildIfMonitored
@@ -150,14 +147,6 @@ async function main(): Promise<void> {
         )
     }
 
-    let mcpHandle: McpServerHandle
-    try {
-        mcpHandle = await startMcpServer()
-    } catch (err) {
-        await daemonHandle.stop().catch(() => undefined)
-        die(`failed to start MCP server: ${(err as Error).message}`)
-    }
-
     let udsHandle: UdsServerHandle
     try {
         udsHandle = await startUdsServer({
@@ -165,7 +154,6 @@ async function main(): Promise<void> {
             catalog: buildDefaultToolCatalog(),
         })
     } catch (err) {
-        await mcpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
         die(`failed to start UDS server: ${(err as Error).message}`)
     }
@@ -179,9 +167,19 @@ async function main(): Promise<void> {
         await writeHookPortFile(args.vault, hookHandle.port)
     } catch (err) {
         await udsHandle.stop().catch(() => undefined)
-        await mcpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
         die(`failed to start hook HTTP server: ${(err as Error).message}`)
+    }
+
+    // Lifecycle JSONL telemetry sink. Previously bootstrapped inside
+    // startMcpServer; now installed directly at daemon start so the sink
+    // survives MCP server removal (design doc §2.1).
+    try {
+        agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+    } catch (err) {
+        process.stderr.write(
+            `vt-mcpd: telemetry sink install skipped: ${(err as Error).message}\n`,
+        )
     }
 
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
@@ -194,7 +192,6 @@ async function main(): Promise<void> {
 
     process.stdout.write(
         `vt-mcpd: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
         + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
         + `vault=${args.vault}\n`,
     )
@@ -204,16 +201,13 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: hook → UDS server → MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
+        // Order: hook → UDS server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
         try {
             await hookHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: hook stop error: ${(err as Error).message}\n`)
             })
             await udsHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: uds stop error: ${(err as Error).message}\n`)
-            })
-            await mcpHandle.stop().catch((err: unknown) => {
-                process.stderr.write(`vt-mcpd: mcp stop error: ${(err as Error).message}\n`)
             })
             agentRuntime.getTerminalManager().cleanup()
             await daemonHandle.stop()

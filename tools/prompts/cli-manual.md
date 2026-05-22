@@ -1,13 +1,11 @@
 # vt CLI Manual
 
 This is the canonical reference for the `vt` CLI surface. Every tool description
-below is held in lock-step with the MCP server's zod schema descriptions by the
-parity lint at `webapp/src/shell/edge/main/cli/manual/cliManualParity.test.ts`.
-
-The lint extracts descriptions at runtime from the MCP server (`registerAllTools`
-in `packages/systems/voicetree-mcp/src/tools/agent-control/mcp-server.ts`) and
-asserts byte-for-byte equality with this file. If you change one, you must
-change the other or the test will fail with a diff.
+below mirrors the tool catalog's zod schema descriptions in
+`packages/systems/voicetree-mcp/src/tools/catalog.ts`. A lightweight drift test
+(`packages/systems/voicetree-mcp/src/transport/tests/catalogManualDrift.test.ts`)
+asserts each catalog description substring is present in this file. If you
+change one, change the other or the test will fail.
 
 ## Format
 
@@ -163,6 +161,15 @@ Read .md files from a folder on disk and render the graph structure as ASCII. Sm
 
 - `folderPath`: Absolute path to folder containing .md files
 - `withSummaries`: Tri-state summary control: `true` forces the context-style tree plus `## Node Contents`, `false` forces topology-only output, and omitting it auto-enables summaries only for folders with 30 or fewer nodes.
+
+### `search_nodes` — `vt search`
+
+Semantic search across the active vault. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.
+
+**Parameters:**
+
+- `query`: Natural-language search query
+- `top_k`: Maximum number of results to return (default: 10)
 
 ### `vt_get_live_state` — `vt graph live state`
 

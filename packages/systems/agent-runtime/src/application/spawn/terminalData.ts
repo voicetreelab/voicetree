@@ -8,8 +8,9 @@ import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
 import {injectClaudeSettingsFlag, injectCodexHookFlags} from './agentHookInjection'
 import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
+import {readHookPortFromVault} from './hookPortFile'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getRuntimeGraph, getRuntimeWatchStatus} from '../runtime/graph-bridge'
+import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
  * Extract worktree directory name from a spawn path, if it's inside a .worktrees/ directory.
@@ -109,14 +110,23 @@ export async function prepareTerminalDataInMain(
 
     // Auto-install lifecycle hooks per agent type. Each pure injector is a
     // no-op for non-matching commands, so the same pipeline handles every
-    // agent. Claude: settings JSON in APP_SUPPORT. Codex: TOML inline `-c`
-    // flags with mcpPort + terminalId baked in at spawn time.
+    // agent. Claude: settings JSON in APP_SUPPORT (uses $VOICETREE_HOOK_PORT
+    // shell-var expansion at fire time). Codex: TOML inline `-c` flags with
+    // hookPort + terminalId baked in at spawn time. Both target the dedicated
+    // hook HTTP server (Step 7e) published per-vault at
+    // `<vault>/.voicetree/hook.port`.
     const env = getRuntimeEnv()
     const appSupportPath: string = env.getAppSupportPath()
-    const mcpPort: number = env.getMcpPort()
+    const projectRoot: string | null = env.getProjectRootWatchedDirectory
+        ? await env.getProjectRootWatchedDirectory()
+        : await getRuntimeProjectRoot()
+    const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
+    const hookPort: number | null = await readHookPortFromVault(voicetreeProjectDir)
     const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(appSupportPath)
     const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
-    const finalCommand: string = injectCodexHookFlags(claudeInjected, mcpPort, terminalId)
+    const finalCommand: string = hookPort !== null
+        ? injectCodexHookFlags(claudeInjected, hookPort, terminalId)
+        : claudeInjected
 
     return createTerminalData({
         terminalId,

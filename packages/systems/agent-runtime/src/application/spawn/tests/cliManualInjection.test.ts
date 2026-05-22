@@ -83,7 +83,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getAppSupportPath: (): string => tempDir,
-                getMcpPort: (): number => 3001,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWritePath: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
@@ -111,7 +110,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getAppSupportPath: (): string => tempDir,
-                getMcpPort: (): number => 3001,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWritePath: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,
@@ -137,7 +135,6 @@ describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {
         configureAgentRuntime({
             env: {
                 getAppSupportPath: (): string => tempDir,
-                getMcpPort: (): number => 3001,
                 getVaultPaths: async (): Promise<readonly string[]> => [tempDir],
                 getWritePath: async (): Promise<string | null> => tempDir,
                 getProjectRootWatchedDirectory: async (): Promise<string | null> => tempDir,

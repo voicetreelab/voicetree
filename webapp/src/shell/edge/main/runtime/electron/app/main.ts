@@ -11,10 +11,13 @@ import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
     configureMcpServer,
-    getMcpPort,
     registerChildIfMonitored,
-    startMcpServer,
 } from '@vt/voicetree-mcp';
+import {agentRuntime} from '@vt/agent-runtime';
+import {
+    startTmuxRelayServer,
+    stopTmuxRelayServer,
+} from '@/shell/edge/main/runtime/electron/daemon/tmux-relay-binding';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
@@ -118,7 +121,6 @@ configureMcpServer({
 terminalRuntimeSurface.configureAgentRuntime({
     env: {
         getAppSupportPath,
-        getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
         getProjectRootWatchedDirectory,
         getVaultPaths,
@@ -230,13 +232,29 @@ void app.whenReady().then(async () => {
     setupRPCHandlers();
     setupApplicationMenu();
 
-    // Start MCP server in-process (shares graph state with Electron)
-    await startMcpServer();
+    // Start the renderer-facing tmux WebSocket relay server (Electron-only;
+    // replaces the relay formerly mounted on the HTTP MCP server in 7f). One
+    // ephemeral port for the lifetime of the app; the renderer reads it via
+    // mainAPI.getTmuxRelayPort() before opening
+    // ws://localhost:${port}/terminals/:id/attach.
+    await startTmuxRelayServer();
 
     // Start the dedicated hook HTTP server (Step 7e). One ephemeral port for
     // the lifetime of the app; the port is published to each opened vault via
     // openVault's publishHookPortForVault call.
     await startElectronHookHttpServer();
+
+    // Install the lifecycle JSONL telemetry sink. Previously bootstrapped
+    // inside startMcpServer; now installed directly on app start so the sink
+    // survives MCP server removal.
+    try {
+        const appSupportPath: string = getAppSupportPath();
+        if (appSupportPath) {
+            agentRuntime.installJsonlTelemetrySink(path.join(appSupportPath, 'lifecycle-telemetry.jsonl'));
+        }
+    } catch (err) {
+        log.warn(`[Startup] telemetry sink install skipped: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     if (process.env.VOICETREE_VAULT_PATH) {
         const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(process.env.VOICETREE_VAULT_PATH);
@@ -365,6 +383,7 @@ app.on('will-quit', () => {
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
     void stopElectronHookHttpServer();
+    void stopTmuxRelayServer();
 });
 
 app.on('window-all-closed', () => {

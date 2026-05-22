@@ -3,14 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Voicetree MCP server. Hosts the MCP tool catalog (spawn_agent, create_graph, list_agents, …) over HTTP. Embedded in Electron and consumed by the vt-mcpd headless binary.",
+  "description": "Voicetree tool catalog + UDS JSON-RPC server. Hosts the per-vault catalog (spawn_agent, create_graph, list_agents, …) over a Unix domain socket. Embedded in Electron and consumed by the vt-mcpd headless binary. Renamed to @vt/tool-catalog in Step 7g.",
   "main": "src/agents/index.ts",
   "bin": {
     "vt-mcpd": "bin/vt-mcpd.ts"
   },
   "exports": {
     ".": "./src/agents/index.ts",
-    "./tools/mcp-server": "./src/tools/agent-control/mcp-server.ts",
     "./tools/*": "./src/tools/*",
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",

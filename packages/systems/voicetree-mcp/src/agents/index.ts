@@ -12,11 +12,10 @@ export type {
     SearchSimilarResult,
 } from '../config/mcp-config'
 
-export {createMcpServer, startMcpServer, getMcpPort} from '../tools/agent-control/mcp-server'
-export type {McpServerHandle, StartMcpServerOptions} from '../tools/agent-control/mcp-server'
 export {startUdsServer} from '../transport/udsServer'
 export type {UdsServerHandle, StartUdsServerOptions, ToolCatalog, ToolHandler} from '../transport/udsServer'
 export {buildDefaultToolCatalog} from '../transport/toolCatalog'
+export {TOOL_CATALOG, CatalogValidationError, type CatalogEntry, type CatalogHandler} from '../tools/catalog'
 export {resolveVaultSocketPath, resolveHomeSocketPath, VOICETREE_DIRNAME, SOCKET_FILENAME} from '../transport/socketPath'
 export {startHookHttpServer} from '../hooks/hookHttpServer'
 export type {HookHttpServerHandle, StartHookHttpServerOptions} from '../hooks/hookHttpServer'

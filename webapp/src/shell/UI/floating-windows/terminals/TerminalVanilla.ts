@@ -262,7 +262,7 @@ export class TerminalVanilla {
     this.terminalId = spawnResult.terminalId ?? this.terminalData.terminalId;
     this.createRelayStatusIndicator();
 
-    const relayPort: number = await window.electronAPI!.main.getMcpPort();
+    const relayPort: number = await window.electronAPI!.main.getTmuxRelayPort();
     const encodedTerminalId: string = encodeURIComponent(this.terminalId);
     const url: string = `ws://localhost:${relayPort}/terminals/${encodedTerminalId}/attach`;
 

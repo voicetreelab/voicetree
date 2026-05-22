@@ -9,6 +9,7 @@ import {mkdir} from 'node:fs/promises'
 import {dirname} from 'node:path'
 
 import type {McpToolResponse} from '../tools/toolResponse'
+import {CatalogValidationError} from '../tools/catalog'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 export type ToolCatalog = ReadonlyMap<string, ToolHandler>
@@ -31,6 +32,7 @@ const ERROR_CODES = {
     parse_error: -32700,
     invalid_request: -32600,
     tool_not_found: -32601,
+    validation_failed: -32602,
     internal_error: -32603,
     tool_handler_failed: -32003,
 } as const
@@ -102,6 +104,17 @@ async function dispatchRequest(
     try {
         response = await handler(params)
     } catch (cause) {
+        if (cause instanceof CatalogValidationError) {
+            return {
+                jsonrpc: '2.0',
+                id,
+                error: {
+                    code: ERROR_CODES.validation_failed,
+                    message: cause.message,
+                    data: {kind: 'validation_failed', tool: cause.toolName, issues: cause.issues},
+                },
+            }
+        }
         return {
             jsonrpc: '2.0',
             id,

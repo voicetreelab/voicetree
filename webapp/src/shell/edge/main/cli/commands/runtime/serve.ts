@@ -1,18 +1,15 @@
-import {resolve} from 'node:path'
+import {join, resolve} from 'node:path'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
     configureMcpServer,
-    getMcpPort,
     registerChildIfMonitored,
     resolveVaultSocketPath,
     startHookHttpServer,
-    startMcpServer,
     startUdsServer,
     writeHookPortFile,
     type HookHttpServerHandle,
-    type McpServerHandle,
     type UdsServerHandle,
 } from '@vt/voicetree-mcp'
 import {error} from '@/shell/edge/main/cli/output'
@@ -108,7 +105,6 @@ function configureHeadlessBridges(appSupportPath: string): void {
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => appSupportPath,
-            getMcpPort,
         },
         ui: {
             registerChildIfMonitored,
@@ -139,14 +135,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         )
     }
 
-    let mcpHandle: McpServerHandle
-    try {
-        mcpHandle = await startMcpServer()
-    } catch (cause) {
-        await daemonHandle.stop().catch(() => undefined)
-        error(`failed to start MCP server: ${(cause as Error).message}`)
-    }
-
     let udsHandle: UdsServerHandle
     try {
         udsHandle = await startUdsServer({
@@ -154,7 +142,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
             catalog: buildDefaultToolCatalog(),
         })
     } catch (cause) {
-        await mcpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
         error(`failed to start UDS server: ${(cause as Error).message}`)
     }
@@ -168,9 +155,19 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         await writeHookPortFile(args.vault, hookHandle.port)
     } catch (cause) {
         await udsHandle.stop().catch(() => undefined)
-        await mcpHandle.stop().catch(() => undefined)
         await daemonHandle.stop().catch(() => undefined)
         error(`failed to start hook HTTP server: ${(cause as Error).message}`)
+    }
+
+    // Lifecycle JSONL telemetry sink. Previously bootstrapped inside
+    // startMcpServer; now installed directly so the sink survives MCP
+    // server removal (design doc §2.1).
+    try {
+        agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
+    } catch (cause) {
+        process.stderr.write(
+            `vt serve: telemetry sink install skipped: ${(cause as Error).message}\n`,
+        )
     }
 
     const reconciliation = await agentRuntime.reconcileTmuxHeadlessAgents(args.vault)
@@ -183,7 +180,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
 
     process.stdout.write(
         `vt serve: graph-db on http://127.0.0.1:${daemonHandle.port}, `
-        + `mcp on http://127.0.0.1:${mcpHandle.port}/mcp, `
         + `uds on ${udsHandle.socketPath}, hook on http://127.0.0.1:${hookHandle.port}, `
         + `vault=${args.vault}\n`,
     )
@@ -204,9 +200,6 @@ export async function runServeCommand(argv: string[]): Promise<void> {
             })
             await udsHandle.stop().catch((cause: unknown) => {
                 process.stderr.write(`vt serve: uds stop error: ${(cause as Error).message}\n`)
-            })
-            await mcpHandle.stop().catch((cause: unknown) => {
-                process.stderr.write(`vt serve: mcp stop error: ${(cause as Error).message}\n`)
             })
             getTerminalManager().cleanup()
             await daemonHandle.stop()
