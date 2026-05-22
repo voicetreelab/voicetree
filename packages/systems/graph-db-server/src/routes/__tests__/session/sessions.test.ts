@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import {
   HealthResponseSchema,
   SessionCreateResponseSchema,
   SessionInfoSchema,
-} from '../../daemon/contract.ts'
+} from '../../../daemon/contract.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-sessions-test-'))

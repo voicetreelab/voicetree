@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { Hono } from 'hono'
-import { SessionRegistry } from '../../application/session/registry.ts'
-import { mountViewRoutes } from '../graph-endpoints/view.ts'
+import { SessionRegistry } from '../../../application/session/registry.ts'
+import { mountViewRoutes } from '../../graph-endpoints/view.ts'
 
 describe('view routes', () => {
   afterEach(() => {

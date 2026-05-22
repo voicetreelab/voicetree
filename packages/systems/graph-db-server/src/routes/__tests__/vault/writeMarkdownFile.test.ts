@@ -3,13 +3,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { createDaemonApp } from '../daemonApp.ts'
-import { SessionRegistry } from '../../application/session/registry.ts'
+import { createDaemonApp } from '../../daemonApp.ts'
+import { SessionRegistry } from '../../../application/session/registry.ts'
 import {
   clearWatchFolderState,
   setProjectRootWatchedDirectory,
-} from '../../state/watch-folder-store.ts'
-import { consumeBroadcastSuppression } from '../../data/watch-folder/pending-writes.ts'
+} from '../../../state/watch-folder-store.ts'
+import { consumeBroadcastSuppression } from '../../../data/watch-folder/pending-writes.ts'
 
 describe('write markdown file route', () => {
   let root: string

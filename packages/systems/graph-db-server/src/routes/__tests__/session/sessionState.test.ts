@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 import {
   LiveStateSnapshotSchema,
   SessionCreateResponseSchema,
-} from '../../daemon/contract.ts'
+} from '../../../daemon/contract.ts'
 
 // Files placed at the vault root are always visible in the projection;
 // files inside subdirectories require explicit folder expansion via

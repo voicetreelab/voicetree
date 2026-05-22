@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionRegistry } from '../../application/session/registry.ts'
-import { createDaemonApp } from '../daemonApp.ts'
+import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
+import { SessionRegistry } from '../../../application/session/registry.ts'
+import { createDaemonApp } from '../../daemonApp.ts'
 import {
   closeFolderVisibilityForVault,
   openFolderVisibilityForVault,
   updateCurrentFolderState,
-} from '../../data/views/folderVisibilityResource.ts'
+} from '../../../data/views/folderVisibilityResource.ts'
 import {
   clearWatchFolderState,
   setProjectRootWatchedDirectory,
-} from '../../state/watch-folder-store.ts'
+} from '../../../state/watch-folder-store.ts'
 
 async function createTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-folder-state-test-'))

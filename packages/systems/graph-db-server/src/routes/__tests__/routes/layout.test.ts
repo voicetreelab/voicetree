@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import {
   LayoutResponseSchema,
   SessionCreateResponseSchema,
-} from '../../daemon/contract.ts'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
+} from '../../../daemon/contract.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-layout-test-'))

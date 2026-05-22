@@ -19,8 +19,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { GraphDbClient } from '@vt/graph-db-client'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { resetUndoState } from '../../state/undo-store.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
+import { resetUndoState } from '../../../state/undo-store.ts'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-agentname-test-'))

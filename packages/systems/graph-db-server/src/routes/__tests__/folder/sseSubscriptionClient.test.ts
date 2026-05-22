@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
+import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 
 async function withTempVault(): Promise<string> {

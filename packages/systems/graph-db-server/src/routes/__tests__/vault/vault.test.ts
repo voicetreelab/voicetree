@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createEmptyGraph } from '@vt/graph-model'
-import { clearWatchFolderState } from '../../state/watch-folder-store.ts'
-import { setGraph } from '../../state/graph-store.ts'
-import { startDaemon, type DaemonHandle } from '../../daemon/server.ts'
+import { clearWatchFolderState } from '../../../state/watch-folder-store.ts'
+import { setGraph } from '../../../state/graph-store.ts'
+import { startDaemon, type DaemonHandle } from '../../../daemon/server.ts'
 
 async function makeTempDir(prefix: string): Promise<string> {
   return await mkdtemp(join(tmpdir(), prefix))

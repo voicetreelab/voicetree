@@ -13,9 +13,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { AbsolutePath, DirectoryEntry } from '@vt/graph-model/folders'
 import { toAbsolutePath } from '@vt/graph-model/folders'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
-import { handleFSEventWithStateAndUISides } from '../../data/graph/watching/handleFSEvent.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
+import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
+import { handleFSEventWithStateAndUISides } from '../../../data/graph/watching/handleFSEvent.ts'
 
 type CountingScanner = {
   readonly fn: (root: AbsolutePath, maxDepth: number) => Promise<DirectoryEntry | null>

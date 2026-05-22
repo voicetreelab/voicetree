@@ -14,11 +14,11 @@ import {
   type GraphDelta,
   type GraphNode,
 } from '@vt/graph-model/graph'
-import { type DaemonHandle, startDaemon } from '../../daemon/server.ts'
-import { SessionCreateResponseSchema } from '../../daemon/contract.ts'
+import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
+import { SessionCreateResponseSchema } from '../../../daemon/contract.ts'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
-import { getGraph, setGraph } from '../../state/graph-store.ts'
-import { publish } from '../../state/events/deltaEventBus.ts'
+import { getGraph, setGraph } from '../../../state/graph-store.ts'
+import { publish } from '../../../state/events/deltaEventBus.ts'
 
 type CountingScanner = {
   readonly fn: (root: AbsolutePath, maxDepth: number) => Promise<DirectoryEntry | null>
