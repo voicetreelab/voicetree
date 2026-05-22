@@ -112,10 +112,15 @@ function listJsonFiles(dirPath: string): readonly string[] {
         return []
     }
 
-    return fs.readdirSync(dirPath)
-        .filter((entry) => entry.endsWith('.json'))
-        .sort((left, right) => left.localeCompare(right))
-        .map((entry) => path.join(dirPath, entry))
+    const collect = (currentPath: string): readonly string[] =>
+        fs.readdirSync(currentPath, { withFileTypes: true }).flatMap((entry) => {
+            const fullPath = path.join(currentPath, entry.name)
+            if (entry.isDirectory()) return collect(fullPath)
+            if (entry.name.endsWith('.json')) return [fullPath]
+            return []
+        })
+
+    return collect(dirPath).slice().sort((left, right) => left.localeCompare(right))
 }
 
 function fixtureIdFromPath(filePath: string): string {
