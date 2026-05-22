@@ -24,8 +24,6 @@
     "measures:duplication": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=duplication --name=\"Code Duplication (jscpd)\" --category=Static --display=\"npm run measures:duplication\" -- npm run measures:duplication:run",
     "measures:duplication:run": "jscpd --config .jscpd.json backend cloud_functions packages scripts tools webapp/src",
     "measures:duplication:report": "jscpd --config .jscpd.json --threshold 100 backend cloud_functions packages scripts tools webapp/src",
-    "measures:mutation": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=mutation --name=\"Mutation Testing (Stryker)\" --category=Other --display=\"npm run measures:mutation\" --slow -- npm run measures:mutation:run",
-    "measures:mutation:run": "npm --workspace @vt/graph-state run test:mutation:smoke",
     "lint": "./webapp/node_modules/.bin/eslint --no-error-on-unmatched-pattern --config webapp/eslint.config.js \"packages/libraries/graph-model/**/*.{ts,tsx}\" \"packages/libraries/graph-tools/**/*.{ts,tsx}\" \"webapp/src/**/business/**/*.{ts,tsx}\"",
     "test:fuzz": "vitest run --config vitest.config.fuzz.ts",
     "test:brain": "NODE_OPTIONS=--disable-warning=ExperimentalWarning node --experimental-strip-types --test brain/automation/*.test.ts",
