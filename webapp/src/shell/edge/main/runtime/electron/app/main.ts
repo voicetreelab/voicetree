@@ -34,6 +34,11 @@ import {
     startUnclaimedTmuxSessionPolling,
     stopUnclaimedTmuxSessionPolling,
 } from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync';
+import {
+    refreshRecoverySessions,
+    startRecoverySessionPolling,
+    stopRecoverySessionPolling,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
@@ -223,6 +228,7 @@ terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
     void refreshUnclaimedTmuxSessions().catch(() => undefined);
+    void refreshRecoverySessions().catch(() => undefined);
 });
 
 // Register terminal cleanup for when folders are switched
@@ -306,6 +312,7 @@ void app.whenReady().then(async () => {
     console.time('[Startup] createWindow');
     createWindow({terminalManager, isQuitting: () => isQuitting});
     startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
@@ -368,6 +375,7 @@ app.on('before-quit', () => {
     // Clean up all terminals
     terminalManager.cleanup();
     stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
     void cleanupOrphanedContextNodes().catch((error: unknown) => {
@@ -404,6 +412,7 @@ app.on('window-all-closed', () => {
     // when the window closes, so terminals lose their renderer connection anyway
     terminalManager.cleanup();
     stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     if (process.platform !== 'darwin') {
         app.quit();
@@ -424,6 +433,7 @@ app.on('activate', () => {
             }
             createWindow({terminalManager, isQuitting: () => isQuitting});
             startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();

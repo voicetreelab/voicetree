@@ -87,11 +87,12 @@ function measureFolderFor(measurePath) {
 // ── CLI parsing ──────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-    const opts = {failFast: false, sequential: false, only: null, tierMax: null, help: false}
+    const opts = {failFast: false, sequential: false, only: null, tierMax: null, help: false, listJson: false}
     for (const arg of argv) {
         if (arg === '--fail-fast') opts.failFast = true
         else if (arg === '--sequential') opts.sequential = true
         else if (arg === '-h' || arg === '--help') opts.help = true
+        else if (arg === '--list-json') opts.listJson = true
         else if (arg.startsWith('--only=')) opts.only = new Set(arg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean))
         else if (arg.startsWith('--tier<=')) opts.tierMax = parseTierMax(arg.slice('--tier<='.length), '--tier<=')
         else if (arg.startsWith('--tier-max=')) opts.tierMax = parseTierMax(arg.slice('--tier-max='.length), '--tier-max')
@@ -99,6 +100,30 @@ function parseArgs(argv) {
         else throw new Error(`unknown flag: ${arg}`)
     }
     return opts
+}
+
+const CHECK_PATH = /\/checks\/tier_([0-3])\/([^/]+)\//
+
+function tierFromMeasurePath(measurePath) {
+    const match = CHECK_PATH.exec(measurePath)
+    return match ? Number(match[1]) : null
+}
+
+function concernFromMeasurePath(measurePath) {
+    const match = CHECK_PATH.exec(measurePath)
+    return match ? match[2] : null
+}
+
+function checkManifestEntry(check) {
+    return {
+        id: check.id,
+        name: check.name,
+        category: check.category,
+        display: check.display,
+        measurePath: check.measurePath,
+        tier: tierFromMeasurePath(check.measurePath),
+        concern: concernFromMeasurePath(check.measurePath),
+    }
 }
 
 function printHelp(checks) {
@@ -115,6 +140,7 @@ function printHelp(checks) {
         '  --max-tier=N      shell-safe alias for --tier<=N.',
         '  --sequential      run checks sequentially; continue through failures.',
         '  --fail-fast       run sequentially; stop scheduling after the first fail.',
+        '  --list-json       print JSON manifest of every check (no execution).',
         '',
         'Eligible checks run in a bounded parallel pool unless --sequential or --fail-fast is set.',
         '',
@@ -424,6 +450,11 @@ async function runChecksSequentially(checks, opts) {
 
 async function main() {
     const opts = parseArgs(process.argv.slice(2))
+    if (opts.listJson) {
+        const allChecks = await loadChecks({tierMax: MAX_TIER})
+        process.stdout.write(JSON.stringify(allChecks.map(checkManifestEntry)))
+        return 0
+    }
     const checks = await loadChecks(opts)
     if (opts.help) {
         printHelp(checks)

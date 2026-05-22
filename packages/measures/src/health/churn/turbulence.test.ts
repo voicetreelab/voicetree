@@ -1,9 +1,9 @@
 import {execSync} from 'node:child_process'
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {join, relative} from 'node:path'
+import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles, type SourceFileInfo} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
@@ -29,36 +29,6 @@ function isNotFoundError(error: unknown): boolean {
     return error instanceof Error
         && 'code' in error
         && (error as {readonly code?: string}).code === 'ENOENT'
-}
-
-async function pathExists(p: string): Promise<boolean> {
-    try {
-        await stat(p)
-        return true
-    } catch {
-        return false
-    }
-}
-
-function isProductionSource(path: string): boolean {
-    return path.endsWith('.ts')
-        && !path.endsWith('/__audit_seed__.ts')
-        && !path.endsWith('.test.ts')
-        && !path.endsWith('.spec.ts')
-        && !path.endsWith('.d.ts')
-        && !path.includes('/__tests__/')
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    if (!(await pathExists(root))) return []
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && isProductionSource(path)) return [path]
-        return []
-    }))
-    return nested.flat().sort()
 }
 
 function collectGitChurn(): ReadonlyMap<string, number> {
@@ -101,37 +71,32 @@ function countComplexity(filePath: string, text: string): number {
 }
 
 async function measureFile(
-    pkg: PackageInfo,
-    filePath: string,
+    sf: SourceFileInfo,
     churnByFile: ReadonlyMap<string, number>,
 ): Promise<FileTurbulence | null> {
     let text: string
     try {
-        text = await readFile(filePath, 'utf8')
+        text = await readFile(sf.absolutePath, 'utf8')
     } catch (error) {
         if (isNotFoundError(error)) return null
         throw error
     }
 
-    const file = relative(REPO_ROOT, filePath)
-    const churn = churnByFile.get(file) ?? 0
-    const complexity = countComplexity(filePath, text)
+    const churn = churnByFile.get(sf.relativePath) ?? 0
+    const complexity = countComplexity(sf.absolutePath, text)
     return {
-        packageName: pkg.dirName,
-        file,
+        packageName: sf.packageName,
+        file: sf.relativePath,
         churn,
         complexity,
         turbulence: churn * complexity,
     }
 }
 
-async function measureTurbulence(packages: readonly PackageInfo[]): Promise<FileTurbulence[]> {
+async function measureTurbulence(sourceFiles: readonly SourceFileInfo[]): Promise<FileTurbulence[]> {
     const churnByFile = collectGitChurn()
-    const nested = await Promise.all(packages.map(async pkg => {
-        const files = await listProductionSources(pkg.srcRoot)
-        return Promise.all(files.map(file => measureFile(pkg, file, churnByFile)))
-    }))
-    return nested.flat().filter((row): row is FileTurbulence => row !== null).sort((a, b) =>
+    const rows = await Promise.all(sourceFiles.map(sf => measureFile(sf, churnByFile)))
+    return rows.filter((row): row is FileTurbulence => row !== null).sort((a, b) =>
         b.turbulence - a.turbulence
         || b.churn - a.churn
         || b.complexity - a.complexity
@@ -214,7 +179,8 @@ function formatPackageAggregates(aggregates: readonly PackageAggregate[]): strin
 describe('systems turbulence diagnostics', () => {
     it('reports churn multiplied by complexity for production source files', async () => {
         const packages = await discoverPackages()
-        const rows = await measureTurbulence(packages)
+        const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
+        const rows = await measureTurbulence(sourceFiles)
         const aggregates = aggregateByPackage(rows)
 
         console.info([

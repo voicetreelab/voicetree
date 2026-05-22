@@ -1,8 +1,8 @@
-import {randomUUID} from 'node:crypto'
-import {readdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs'
+import {readdirSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from './types'
 import {createTerminalData} from './types'
+import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from './terminal-metadata'
 import {
     notificationStateByTerminal,
     terminalRecords,
@@ -11,19 +11,6 @@ import {
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
 import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux/tmux-session-manager'
-
-type TmuxTerminalMetadata = {
-    readonly name: string
-    readonly status: 'running' | 'exited'
-    readonly pid?: number
-    readonly session?: string
-    readonly startedAt?: string
-    readonly endedAt?: string
-    readonly exitCode?: number | null
-    readonly exitCodeFile?: string
-    readonly logFile?: string
-    readonly terminalData?: TerminalData
-}
 
 export type TmuxReconciliationResult = {
     readonly imported: string[]
@@ -43,20 +30,6 @@ export type TmuxReconciliationDeps = {
 }
 
 const defaultClock: TerminalRegistryClock = {now: Date.now}
-
-function readMetadata(path: string): TmuxTerminalMetadata | null {
-    try {
-        return JSON.parse(readFileSync(path, 'utf8')) as TmuxTerminalMetadata
-    } catch {
-        return null
-    }
-}
-
-function writeMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
-    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
-    renameSync(tempPath, path)
-}
 
 function fallbackTerminalData(metadata: TmuxTerminalMetadata, vaultPath: string): TerminalData {
     const terminalId: TerminalId = metadata.name as TerminalId

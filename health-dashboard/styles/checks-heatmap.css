@@ -84,6 +84,14 @@
 .sq-fail  { background: var(--sig);   border-color: rgba(255,68,56,0.55); }
 .sq-stale { background: var(--caution); border-color: rgba(245,176,74,0.55); }
 .sq-skip  { background: var(--paper-ghost); border-color: var(--rule); opacity: 0.55; }
+/* never-run: defined in packages/measures/ but no captured report on this checkout.
+   Dashed border + transparent fill distinguishes from solid-grey 'skip' (= filtered by --only). */
+.sq-never-run {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--paper-ghost);
+  opacity: 0.85;
+}
 
 /* Inline legend squares (non-interactive) */
 .hm-legend-item .sq {
@@ -189,10 +197,12 @@
 }
 .hm-tally .t-pass { color: var(--vital); font-weight: 600; }
 .hm-tally .t-fail { color: var(--sig); font-weight: 700; }
+.hm-tally .t-never-run { color: var(--paper-ghost); font-weight: 600; }
 .hm-tally.is-pass  { color: var(--paper-muted); }
 .hm-tally.is-fail  { color: var(--sig); }
 .hm-tally.is-stale { color: var(--caution); }
 .hm-tally.is-skip  { color: var(--paper-faint); }
+.hm-tally.is-never-run { color: var(--paper-ghost); }
 
 /* ── Layout B: Dense grid ─────────────────────────────────────────────────── */
 .hm-grid {
@@ -297,6 +307,18 @@
 .hm-detail-meta .t-skip { color: var(--paper-ghost); }
 .hm-detail-meta .t-sep  { color: var(--paper-ghost); margin: 0 0.18rem; }
 .hm-d-sep { color: var(--paper-ghost); opacity: 0.65; }
+.hm-detail-hint {
+  font-family: var(--mono); font-size: 0.68rem;
+  color: var(--paper-muted);
+  letter-spacing: 0.02em;
+}
+.hm-detail-hint code {
+  color: var(--paper);
+  background: var(--ink-0);
+  border: 1px solid var(--rule);
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.35rem;
+}
 .hm-detail-source {
   font-family: var(--mono); font-size: 0.6rem;
   color: var(--paper-faint);

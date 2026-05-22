@@ -38,6 +38,29 @@ async function gitOr(args, fallback) {
   try { return await git(args) } catch { return fallback }
 }
 
+const MANIFEST_TTL_MS = 30_000
+const TSX_BIN = join(REPO_ROOT, 'node_modules', '.bin', 'tsx')
+const CHECK_RUNNER = join(REPO_ROOT, 'packages', 'measures', 'src', '_runners', 'capture-ci-checks.ts')
+let manifestCache = { fetchedAt: 0, payload: null }
+
+async function loadCheckManifest() {
+  const { stdout } = await execFileAsync(TSX_BIN, [CHECK_RUNNER, '--list-json'], {
+    cwd: REPO_ROOT,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  return JSON.parse(stdout)
+}
+
+async function buildCheckManifest({ fresh } = {}) {
+  const now = Date.now()
+  if (!fresh && manifestCache.payload && now - manifestCache.fetchedAt < MANIFEST_TTL_MS) {
+    return manifestCache.payload
+  }
+  const checks = await loadCheckManifest()
+  manifestCache = { fetchedAt: now, payload: { checks, generatedAt: new Date(now).toISOString() } }
+  return manifestCache.payload
+}
+
 function topDir(p) {
   const i = p.indexOf('/')
   return i === -1 ? p : p.slice(0, i)
@@ -208,6 +231,12 @@ const server = createServer(async (req, res) => {
   try {
     if (req.url === '/api/git' || req.url?.startsWith('/api/git?')) {
       const data = await buildGitStatus()
+      sendJson(res, 200, data)
+      return
+    }
+    if (req.url === '/api/checks/manifest' || req.url?.startsWith('/api/checks/manifest?')) {
+      const fresh = new URL(req.url, 'http://x').searchParams.has('fresh')
+      const data = await buildCheckManifest({ fresh })
       sendJson(res, 200, data)
       return
     }
