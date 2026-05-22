@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { ExtendedWindow } from './graph/folder-test-helpers';
+import type { ExtendedWindow } from '../graph/folder/folder-test-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const SCREENSHOT_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');

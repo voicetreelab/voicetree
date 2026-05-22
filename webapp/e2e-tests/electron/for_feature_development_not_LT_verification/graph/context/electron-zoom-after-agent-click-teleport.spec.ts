@@ -19,8 +19,8 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import { createFolderTestVault, waitForGraphLoaded } from './folder-test-helpers';
-import { captureViewportDiagnostic, type ExtendedWindow } from './pan-zoom-diagnostic-helpers';
+import { createFolderTestVault, waitForGraphLoaded } from '../folder/folder-test-helpers';
+import { captureViewportDiagnostic, type ExtendedWindow } from '../perf/pan-zoom-diagnostic-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 

@@ -14,7 +14,7 @@ import * as path from 'path';
 import {
     type ExtendedWindow,
     waitForGraphLoaded,
-} from './graph/folder-test-helpers';
+} from '../graph/folder/folder-test-helpers';
 import {
     captureStateScreenshot,
     clickVisibleElementCenter,

@@ -9,7 +9,7 @@ import * as os from 'os'
 import {
     createFolderTestVault,
     waitForGraphLoaded,
-} from './graph/folder-test-helpers'
+} from '../graph/folder/folder-test-helpers'
 
 const PROJECT_ROOT: string = path.resolve(process.cwd())
 
