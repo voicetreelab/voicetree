@@ -2,7 +2,7 @@ import {defineConfig} from 'vitest/config'
 import {createRequire} from 'node:module'
 
 const require = createRequire(import.meta.url)
-const ciCheckReporter = require.resolve('@vt/ci-reporting/vitest-reporter')
+const ciCheckReporter = require.resolve('@vt/measures/vitest-reporter')
 
 export default defineConfig({
     test: {

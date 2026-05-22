@@ -8,7 +8,7 @@ import path from "path";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const ciCheckReporter = require.resolve("@vt/ci-reporting/vitest-reporter");
+const ciCheckReporter = require.resolve("@vt/measures/vitest-reporter");
 
 /**
  * Vite configuration for browser-only dev (npm run dev) and Vitest

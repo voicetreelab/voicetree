@@ -44,17 +44,19 @@ jobs:
         run: npm ci
 
       - name: Correctness lint checks
-        run: npm run health:capture-ci -- --folder=correctness/lint
+        run: npm run measures:capture-ci -- --folder=correctness/lint
 
       - name: Typecheck
         working-directory: webapp
         run: npx tsc --noEmit
 
       - name: Codebase health gate
-        run: npm run health
+        run: |
+          npm run measures
+          npm run measures:capture-ci -- --folder=health --quick
 
       - name: Codebase health tier 2
-        run: npm run health:tier2
+        run: npm run measures:tier2
 
   discover-units:
     name: PR CI / Discover Unit Measures
@@ -66,7 +68,7 @@ jobs:
 
       - id: list
         run: |
-          ids=$(ls scripts/measures/src/correctness/unit/*.ts \
+          ids=$(ls packages/measures/src/correctness/unit/*.ts \
                 | xargs -n1 basename | sed 's/\.ts$//' \
                 | jq -R -s -c 'split("\n")|map(select(.!=""))')
           echo "ids=$ids" >> $GITHUB_OUTPUT
@@ -97,7 +99,7 @@ jobs:
         run: npm ci
 
       - name: Run ${{ matrix.measure }}
-        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
+        run: npm run measures:capture-ci -- --only=${{ matrix.measure }}
 
   unit-tests-aggregate:
     name: PR CI / Unit & Integration Tests
@@ -145,7 +147,7 @@ jobs:
       - name: Run browser Tier 1 smoke
         timeout-minutes: 10
         working-directory: webapp
-        run: cd .. && npm run health:capture-ci -- --only=e2e-browser-smoke
+        run: cd .. && npm run measures:capture-ci -- --only=e2e-browser-smoke
 
       - name: Upload Playwright artifacts on failure
         if: failure()
@@ -213,7 +215,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_QUIET: 'false'
-        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier1
+        run: cd .. && xvfb-run --auto-servernum npm run measures:capture-ci -- --only=e2e-tier1
 
       - name: Upload Electron test artifacts on failure
         if: failure()
@@ -238,7 +240,7 @@ jobs:
 
       - id: list
         run: |
-          ids=$(ls scripts/measures/src/correctness/slow/fuzz/*.ts \
+          ids=$(ls packages/measures/src/correctness/slow/fuzz/*.ts \
                 | xargs -n1 basename | sed 's/\.ts$//' \
                 | jq -R -s -c 'split("\n")|map(select(.!=""))')
           echo "ids=$ids" >> $GITHUB_OUTPUT
@@ -273,7 +275,7 @@ jobs:
         run: npm rebuild better-sqlite3
 
       - name: Run ${{ matrix.measure }}
-        run: npm run health:capture-ci -- --only=${{ matrix.measure }}
+        run: npm run measures:capture-ci -- --only=${{ matrix.measure }}
 
   browser-tier2:
     name: Browser Tier 2 E2E
@@ -306,7 +308,7 @@ jobs:
       - name: Run browser Tier 2 tests
         timeout-minutes: 20
         working-directory: webapp
-        run: cd .. && npm run health:capture-ci -- --only=e2e-tier2-browser
+        run: cd .. && npm run measures:capture-ci -- --only=e2e-tier2-browser
 
       - name: Upload browser Tier 2 artifacts on failure
         if: failure()
@@ -375,7 +377,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_QUIET: 'false'
-        run: cd .. && xvfb-run --auto-servernum npm run health:capture-ci -- --only=e2e-tier2-electron
+        run: cd .. && xvfb-run --auto-servernum npm run measures:capture-ci -- --only=e2e-tier2-electron
 
       - name: Upload Electron Tier 2 artifacts on failure
         if: failure()

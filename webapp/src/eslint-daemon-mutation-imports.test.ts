@@ -1,4 +1,3 @@
-import { mkdir, rm, rmdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,24 +15,14 @@ async function lintText(
   relativeFilePath: string,
 ): Promise<readonly string[]> {
   const absoluteFilePath: string = path.join(repoRootDir, relativeFilePath)
-  const containingDir: string = path.dirname(absoluteFilePath)
   const eslint: ESLint = new ESLint({
     cwd: repoRootDir,
     overrideConfigFile: configPath,
   })
 
-  await mkdir(containingDir, { recursive: true })
-  await writeFile(absoluteFilePath, code)
-
-  try {
-    const [result] = await eslint.lintFiles([absoluteFilePath])
-    return result.messages.map(message => message.message)
-  } finally {
-    await rm(absoluteFilePath, { force: true })
-    if (path.basename(containingDir) === '__generated__') {
-      await rmdir(containingDir).catch(() => {})
-    }
-  }
+  const results = await eslint.lintText(code, { filePath: absoluteFilePath })
+  const [first] = results
+  return first ? first.messages.map(message => message.message) : []
 }
 
 describe('daemon mutation import lint rule', () => {

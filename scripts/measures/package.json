@@ -1,6 +1,0 @@
-{
-    "name": "@vt/measures",
-    "private": true,
-    "type": "module",
-    "description": "CI check registry: thin stub files declaring what capture-ci-checks.mjs runs and how to parse the output. Auto-discovered by discoverPackages() so the codebase-health metrics can police directory shape."
-}
