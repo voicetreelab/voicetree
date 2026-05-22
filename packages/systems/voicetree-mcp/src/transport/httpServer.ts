@@ -5,9 +5,14 @@
 //   GET  /events                     — WebSocket subscription channel
 //   GET  /terminals/:id/attach       — tmux relay (STUBBED 503 in 9b; 9f wires)
 //
-// Auth: bearer token in `Authorization: Bearer <token>`. 401, empty body on
-// missing/wrong token. Same gate covers the WS upgrade — bad tokens are
-// rejected BEFORE the WS handshake completes (design doc §4.3).
+// Auth — design doc §4.3 + the §4.3 subprotocol override carried in
+// ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md (Gus, 2026-05-22):
+//   - HTTP routes accept `Authorization: Bearer <token>` only.
+//   - WS upgrade routes accept EITHER `Authorization: Bearer <token>` (ws-lib
+//     clients) OR `Sec-WebSocket-Protocol: vt-bearer, <token>` (browser/
+//     renderer WebSocket clients). See ./wsUpgradeAuth.ts.
+// The same gate covers the WS upgrade — bad tokens are rejected BEFORE the
+// WS handshake completes.
 //
 // Body caps: 64 KiB on /rpc and /hook (§4.1). WS inbound frame cap 256 KiB
 // (close 1009, §8.6). Per-subscriber outbound buffer cap 1 MiB / 1000 frames
@@ -18,20 +23,22 @@
 
 import http, {type IncomingMessage, type Server, type ServerResponse} from 'node:http'
 import type {Duplex} from 'node:stream'
-import {WebSocket, WebSocketServer, type RawData} from 'ws'
+import {WebSocket, WebSocketServer} from 'ws'
 
 import {ERROR_CODES, redactAuthorizationHeader} from '@vt/vt-rpc'
 import {CatalogValidationError} from '../tools/catalog.ts'
 import type {McpToolResponse} from '../tools/toolResponse.ts'
+import {createEventSubscriptionHub, type EventSubscriptionHub} from './eventSubscriptionHub.ts'
 import {
-    createEventSubscriptionHub,
-    isTopicName,
-    type EventSubscriptionHub,
-    type SubscribeRequest,
-    type Subscriber,
-    type SubscriberHandle,
-    type TopicName,
-} from './eventSubscriptionHub.ts'
+    authorizationHeaderOf,
+    authorizeWsUpgrade,
+    isAuthorized,
+    VT_BEARER_SUBPROTOCOL,
+    type WsUpgradeAuthMode,
+} from './wsUpgradeAuth.ts'
+import {wireWebSocketSubscriber} from './wsSubscriberWiring.ts'
+
+export {isAuthorized} from './wsUpgradeAuth.ts'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 export type ToolCatalog = ReadonlyMap<string, ToolHandler>
@@ -79,19 +86,6 @@ function defaultLogger(): AccessLogger {
             process.stderr.write(`${line}${err ? `: ${err instanceof Error ? err.message : String(err)}` : ''}\n`)
         },
     }
-}
-
-function authorizationHeaderOf(req: IncomingMessage): string | undefined {
-    const raw: string | string[] | undefined = req.headers.authorization
-    if (Array.isArray(raw)) return raw[0]
-    return raw
-}
-
-export function isAuthorized(req: IncomingMessage, token: string): boolean {
-    const value: string | undefined = authorizationHeaderOf(req)
-    if (!value) return false
-    const expected: string = `Bearer ${token}`
-    return value === expected
 }
 
 export function buildAccessLogLine(req: IncomingMessage, status: number): string {
@@ -319,65 +313,6 @@ function rejectUpgradeUnavailable(socket: Duplex): void {
     socket.destroy()
 }
 
-interface WsSubscriberContext {
-    readonly handle: SubscriberHandle
-    readonly ws: WebSocket
-}
-
-function parseSubscribeRequests(value: unknown): SubscribeRequest[] {
-    if (!Array.isArray(value)) return []
-    const out: SubscribeRequest[] = []
-    for (const item of value) {
-        if (!isRecord(item)) continue
-        if (!isTopicName(item.topic)) continue
-        const resumeSeq: number | undefined = typeof item.resumeSeq === 'number' ? item.resumeSeq : undefined
-        out.push({topic: item.topic, resumeSeq})
-    }
-    return out
-}
-
-function parseUnsubscribeTopics(value: unknown): TopicName[] {
-    if (!Array.isArray(value)) return []
-    const out: TopicName[] = []
-    for (const item of value) {
-        if (isTopicName(item)) out.push(item)
-    }
-    return out
-}
-
-function handleClientFrame(ctx: WsSubscriberContext, raw: RawData): void {
-    const text: string = raw.toString()
-    let parsed: unknown
-    try {
-        parsed = JSON.parse(text)
-    } catch {
-        return
-    }
-    if (!isRecord(parsed)) return
-    if (parsed.op === 'subscribe') {
-        ctx.handle.subscribe(parseSubscribeRequests(parsed.topics))
-    } else if (parsed.op === 'unsubscribe') {
-        ctx.handle.unsubscribe(parseUnsubscribeTopics(parsed.topics))
-    }
-}
-
-function wireWebSocketSubscriber(ws: WebSocket, hub: EventSubscriptionHub): void {
-    const subscriber: Subscriber = {
-        send: (frame: string): void => {
-            if (ws.readyState === ws.OPEN) ws.send(frame)
-        },
-        overflow: (): void => {
-            try { ws.close(1011, 'overflow') } catch { /* socket may already be torn down */ }
-        },
-    }
-    const handle: SubscriberHandle = hub.addSubscriber(subscriber)
-    const ctx: WsSubscriberContext = {handle, ws}
-
-    ws.on('message', (raw: RawData): void => handleClientFrame(ctx, raw))
-    ws.on('close', (): void => handle.close())
-    ws.on('error', (): void => handle.close())
-}
-
 function buildRequestHandler(
     catalog: ToolCatalog,
     hookHandler: HookHandler,
@@ -439,10 +374,16 @@ function buildUpgradeHandler(
             logger.logRequest(buildAccessLogLine(req, 400))
             return
         }
-        if (!isAuthorized(req, token)) {
+        const authMode: WsUpgradeAuthMode | null = authorizeWsUpgrade(req, token)
+        if (authMode === null) {
             rejectUpgradeUnauthorized(socket)
             logger.logRequest(buildAccessLogLine(req, 401))
             return
+        }
+        if (authMode === 'header') {
+            // No subprotocol was negotiated; strip any client-sent value so
+            // ws won't echo it back in the 101 (per override-doc handshake).
+            delete req.headers['sec-websocket-protocol']
         }
 
         const url: string = req.url ?? '/'
@@ -473,6 +414,12 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const wss: WebSocketServer = new WebSocketServer({
         noServer: true,
         maxPayload: WS_INBOUND_FRAME_LIMIT_BYTES,
+        // The upgrade handler has already stripped Sec-WebSocket-Protocol when
+        // auth came via Authorization header, so this hook only fires for the
+        // subprotocol-auth path — where authorizeWsUpgrade has already verified
+        // that vt-bearer is the first value of the requested set.
+        handleProtocols: (protocols: Set<string>): string | false =>
+            protocols.has(VT_BEARER_SUBPROTOCOL) ? VT_BEARER_SUBPROTOCOL : false,
     })
 
     const server: Server = http.createServer(buildRequestHandler(
