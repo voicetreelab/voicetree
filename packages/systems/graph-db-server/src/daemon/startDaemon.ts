@@ -37,6 +37,11 @@ import {
   openFolderVisibilityForVault,
 } from '../data/views/folderVisibilityResource.ts'
 import { getProjectRootWatchedDirectory } from '../state/watch-folder-store.ts'
+import {
+  installFolderTreeReadModel,
+  getFolderTreeReadModel,
+  resetFolderTreeReadModel,
+} from '../state/folder-tree-read-model-store.ts'
 
 const tracer = trace.getTracer('vt-graphd')
 const DEFAULT_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -68,6 +73,7 @@ async function cleanupOwnedDaemon(
       resetDaemonGraphState()
     }
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
     await options.onShutdownComplete?.()
   }
 }
@@ -94,6 +100,8 @@ async function startOwnedDaemon(
   try {
     resetDaemonGraphState()
     resetVaultLifecycle()
+    resetFolderTreeReadModel()
+    installFolderTreeReadModel(opts.folderTreeScanner)
     initDaemonGraphModel(resolveDaemonAppSupportPath(opts))
 
     const startMs = clock()
