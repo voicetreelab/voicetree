@@ -21,10 +21,8 @@ export const CHECK_TIERS = [
 
 const TIER0_CHECK_IDS = new Set([
   'blackbox-tests-lint',
-  'circular-deps',
   'claude-stop-quality',
   'complexity',
-  'coupling',
   'dead-code',
   'duplication',
   'e2e-taxonomy',

@@ -10,11 +10,12 @@
 //   VT_REMOTE_EXEC=1 recursion guard: skip routing, just exec locally
 //
 // Assumes a mutagen sync session named `vt-remote` exists and maps the local
-// repo to /root/voicetree-public on the remote. Blocks on the sync reaching
-// `Status: Watching for changes` before invoking ssh.
+// main repo to /root/voicetree-public on the remote. Linked worktrees under
+// `.worktrees/` are mapped to the matching remote worktree path. Blocks on the
+// sync reaching `Status: Watching for changes` before invoking ssh.
 
 import {readFileSync, existsSync} from 'node:fs'
-import {spawn, execFile} from 'node:child_process'
+import {spawn, execFile, execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {dirname, resolve as pathResolve, relative as pathRelative} from 'node:path'
 import {posix as ppath} from 'node:path'
@@ -44,6 +45,18 @@ function loadEnvFile() {
 
 function shq(s) {
   return `'${String(s).replace(/'/g, `'\\''`)}'`
+}
+
+function localSyncRoot() {
+  try {
+    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    }).trim()
+    return dirname(pathResolve(REPO_ROOT, commonDir))
+  } catch {
+    return REPO_ROOT
+  }
 }
 
 function runLocal(cmd, args) {
@@ -79,9 +92,10 @@ async function waitMutagenIdle({timeoutMs = 60_000} = {}) {
 }
 
 function runRemote(host, cmd, args) {
-  const rel = pathRelative(REPO_ROOT, process.cwd())
+  const syncRoot = localSyncRoot()
+  const rel = pathRelative(syncRoot, process.cwd())
   if (rel.startsWith('..')) {
-    throw new Error(`cwd ${process.cwd()} is outside repo root ${REPO_ROOT}; cannot map to remote path`)
+    throw new Error(`cwd ${process.cwd()} is outside sync root ${syncRoot}; cannot map to remote path`)
   }
   const remoteCwd = ppath.join(REMOTE_ROOT, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')

@@ -9,7 +9,7 @@ sync:
         - "**/node_modules"
         - ".worktrees"
         - "out"
-        - "meta"
+        - "/meta"
         - "voicetree-evals"
         - "vt-website-quartz"
         - "old"

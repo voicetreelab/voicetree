@@ -33,7 +33,9 @@ jobs:
         run: npm ci
 
       - name: Codebase health gate
-        run: npm run health
+        run: |
+          npm run measures
+          npm run measures:capture-ci -- --folder=health --quick
 
   browser-smoke:
     needs: [static-gates]

@@ -48,7 +48,7 @@ const nestedGitRootExcludes = (root: string): string[] => {
   walk(root, '')
   return found
 }
-const ciCheckReporter = require.resolve('@vt/ci-reporting/vitest-reporter')
+const ciCheckReporter = require.resolve('@vt/measures/vitest-reporter')
 const isOrangeGate = process.argv.some(arg =>
   arg.includes('hierarchical-complexity.test.ts')
   || arg.includes('behavioral-complexity.test.ts')
@@ -62,7 +62,7 @@ const ciCheck = isOrangeGate
   : {
       checkId: 'systems-health',
       checkName: 'Systems Health Suite',
-      command: 'npm run test:codebase-health',
+      command: 'npm run test:measures',
     }
 
 export default defineConfig({

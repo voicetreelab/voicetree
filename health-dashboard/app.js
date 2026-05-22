@@ -366,7 +366,7 @@ function renderEmpty() {
   <div class="state-empty-icon">📊</div>
   <h2>No health reports found</h2>
   <p>Run the test suite to generate reports:</p>
-  <code>npm run test:codebase-health</code>
+  <code>npm run test:measures</code>
 </div>`
 }
 
