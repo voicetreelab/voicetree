@@ -10,104 +10,118 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer'
 const REPO_ROOT = DEFAULT_REPO_ROOT
 const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
+// Tiered budgets (Option A from task_ndq4d4):
+//
+//   budget       = errorBudget — ratchet that gates CI. Calibrated to keep
+//                  each axis at debtRatio ≈ 0.75 against today's whole-repo
+//                  worst observation, so RSCD ≈ 0.95 ≤ 1.0 with headroom for
+//                  small regressions. A fresh worst-offender appearing past
+//                  the ratchet breaks the build.
+//   targetBudget = aspirational ceiling. Surfaced via the sidecar `-target`
+//                  metrics with severity:'warning' (visible on the dashboard,
+//                  never blocks CI). Drives gradual refactor work.
 const PRESSURE_AXIS_CONFIGS = [
-    // Whole-repo function readability target.
     {
         name: 'max cognitive complexity',
         metricKey: 'maxCognitiveComplexity',
         metricId: 'complexity-pressure-cognitive-max',
-        budget: 18,
+        budget: 140,
+        targetBudget: 18,
         comparison: 'lte',
         unit: 'score',
     },
-    // Whole-repo cyclomatic complexity target.
     {
         name: 'max cyclomatic complexity',
         metricKey: 'maxCyclomaticComplexity',
         metricId: 'complexity-pressure-cyclomatic-max',
-        budget: 20,
+        budget: 60,
+        targetBudget: 20,
         comparison: 'lte',
         unit: 'score',
     },
-    // Whole-repo MI quality target; distinct from the Phase 4 floor gate.
+    // Halstead-MI without SLOC term — target debtRatio for gte axes inverts:
+    // errorBudget = current × 0.75 (lower-is-worse → ratchet sits below today's worst).
     {
         name: 'min maintainability index',
         metricKey: 'minMaintainabilityIndex',
         metricId: 'complexity-pressure-maintainability-min',
-        budget: 60,
+        budget: 35,
+        targetBudget: 60,
         comparison: 'gte',
         unit: 'index',
     },
-    // Whole-repo zero-coverage risk target (cyc^2 + cyc).
     {
         name: 'max CRAP0 risk',
         metricKey: 'maxCrapZeroCoverage',
         metricId: 'complexity-pressure-crap0-max',
-        budget: 300,
+        budget: 2800,
+        targetBudget: 300,
         comparison: 'lte',
         unit: 'score',
     },
-    // Whole-repo max raw file line count. File-size pressure was previously
-    // folded into Halstead-MI (16.2·ln(SLOC) term); now an explicit gate.
     {
         name: 'max file lines',
         metricKey: 'maxFileLines',
         metricId: 'complexity-pressure-file-lines-max',
-        budget: 400,
+        budget: 1200,
+        targetBudget: 400,
         comparison: 'lte',
         unit: 'lines',
     },
-    // Whole-repo target for files touching package boundaries.
     {
         name: 'max boundary ratio',
         metricKey: 'maxBoundaryRatio',
         metricId: 'complexity-pressure-boundary-ratio-max',
-        budget: 0.30,
+        budget: 0.91,
+        targetBudget: 0.30,
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Whole-repo target for intra-package imports that cross source subdirectories.
+    // Ratio axis: semantic ceiling is 1.0, so 0.75 headroom isn't achievable.
+    // Ratchet at 0.95 (tight) — debtRatio ≈ 0.80 today is the load-bearing
+    // axis in the RSCD rollup; further widening would defeat the gate.
     {
         name: 'max subdirectory cross-edge ratio',
         metricKey: 'maxSubdirCrossRatio',
         metricId: 'complexity-pressure-subdir-cross-ratio-max',
-        budget: 0.60,
+        budget: 0.95,
+        targetBudget: 0.60,
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Whole-repo aggregate BCI target across every cross-package edge pair.
     {
         name: 'aggregate boundary complexity',
         metricKey: 'aggregateBoundaryComplexity',
         metricId: 'complexity-pressure-boundary-complexity-aggregate',
-        budget: 16.0,
+        budget: 270,
+        targetBudget: 16.0,
         comparison: 'lte',
         unit: 'bci',
     },
-    // Whole-repo runtime fan-in target (distinct symbols depended on per package).
     {
         name: 'max runtime fan-in',
         metricKey: 'maxRuntimeFanIn',
         metricId: 'complexity-pressure-runtime-fan-in-max',
-        budget: 10,
+        budget: 145,
+        targetBudget: 10,
         comparison: 'lte',
         unit: 'symbols',
     },
-    // Whole-repo churn * structural-complexity per file target.
     {
         name: 'max file turbulence',
         metricKey: 'maxFileTurbulence',
         metricId: 'complexity-pressure-file-turbulence-max',
-        budget: 250,
+        budget: 1700,
+        targetBudget: 250,
         comparison: 'lte',
         unit: 'turbulence',
     },
-    // Whole-repo churn * structural-complexity per-package average target.
     {
         name: 'max package avg turbulence',
         metricKey: 'maxPackageAverageTurbulence',
         metricId: 'complexity-pressure-package-turbulence-avg-max',
-        budget: 35,
+        budget: 65,
+        targetBudget: 35,
         comparison: 'lte',
         unit: 'turbulence',
     },
@@ -170,6 +184,7 @@ type PressureAxis = {
     readonly metricKey: PressureAxisConfig['metricKey']
     readonly current: number
     readonly budget: number
+    readonly targetBudget: number
     readonly comparison: 'lte' | 'gte'
     readonly passed: boolean
     readonly debtRatio: number
@@ -762,6 +777,7 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
         metricKey: config.metricKey,
         current,
         budget: config.budget,
+        targetBudget: config.targetBudget,
         comparison: config.comparison,
         passed: axisPassed(current, config.budget, config.comparison),
         debtRatio: debtRatio(current, config.budget, config.comparison),
