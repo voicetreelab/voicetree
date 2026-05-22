@@ -125,6 +125,86 @@ export async function ensureScreenshotDir(): Promise<void> {
     await fs.mkdir(SCREENSHOT_DIR, {recursive: true});
 }
 
+export type FakeClaudeInstall = {
+    readonly binDir: string;
+    readonly invocationLogPath: string;
+};
+
+/**
+ * Materialize a fake `claude` binary that records its argv to a log file
+ * and then sleeps, so spawning `claude --resume <id>` in tests works without
+ * depending on the real Claude CLI being installed.
+ *
+ * The argv-log lets the e2e assert on the EXACT command the runtime spawned
+ * (e.g. that resume produced `--resume <expected-session-id>`, not `--continue`
+ * or some other variant). Each invocation appends a JSON line:
+ *   {"argv":["--resume","sess-..."],"pid":12345,"env_terminalId":"Mira"}
+ *
+ * Returns the bin dir to prepend to PATH and the absolute path of the
+ * invocation log.
+ */
+export async function installFakeClaudeOnPath(tempRoot: string): Promise<FakeClaudeInstall> {
+    const binDir: string = path.join(tempRoot, 'bin');
+    await fs.mkdir(binDir, {recursive: true});
+    const fakeClaudePath: string = path.join(binDir, 'claude');
+    const invocationLogPath: string = path.join(tempRoot, 'fake-claude-invocations.log');
+    // Use Node (not sh) for the fake binary: JSON-serialising argv from a
+    // shell script means double-escaping backslashes and quotes through three
+    // layers (JS template → shell script literal → sed pattern), which is
+    // fragile and was producing argv:["",""] in the first attempt. Node's
+    // process.argv + JSON.stringify is unambiguous.
+    const script: string = [
+        '#!/usr/bin/env node',
+        '// fake-claude for e2e — records argv to a log and sleeps so the tmux pane stays alive.',
+        "const fs = require('fs');",
+        `const LOG = ${JSON.stringify(invocationLogPath)};`,
+        'const argv = process.argv.slice(2);',
+        'const entry = {',
+        '    argv,',
+        '    pid: process.pid,',
+        "    env_terminalId: process.env.VOICETREE_TERMINAL_ID ?? '',",
+        "    env_agent: process.env.AGENT_NAME ?? '',",
+        '};',
+        "fs.appendFileSync(LOG, JSON.stringify(entry) + '\\n');",
+        "console.log('[fake-claude] argv:', argv.join(' '));",
+        '// Keep the pane alive so the runtime sees a live tmux session after spawn.',
+        '// Polling sleep instead of setTimeout(..., 600_000) so SIGTERM is responsive.',
+        'setInterval(() => {}, 1000);',
+        '',
+    ].join('\n');
+    await fs.writeFile(fakeClaudePath, script, {mode: 0o755});
+    return {binDir, invocationLogPath};
+}
+
+export type FakeClaudeInvocation = {
+    readonly argv: readonly string[];
+    readonly pid: number;
+    readonly env_terminalId: string;
+    readonly env_agent: string;
+};
+
+/**
+ * Read back every invocation of the fake `claude` binary recorded by
+ * installFakeClaudeOnPath. Returns [] if the log doesn't exist yet.
+ */
+export async function readFakeClaudeInvocations(invocationLogPath: string): Promise<readonly FakeClaudeInvocation[]> {
+    let raw: string;
+    try {
+        raw = await fs.readFile(invocationLogPath, 'utf8');
+    } catch {
+        return [];
+    }
+    const out: FakeClaudeInvocation[] = [];
+    for (const line of raw.split('\n')) {
+        const trimmed: string = line.trim();
+        if (!trimmed) continue;
+        try {
+            out.push(JSON.parse(trimmed) as FakeClaudeInvocation);
+        } catch { /* skip malformed */ }
+    }
+    return out;
+}
+
 export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void> {
     await waitForGraphLoaded(appWindow, 1);
 }
