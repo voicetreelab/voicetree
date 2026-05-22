@@ -18,6 +18,9 @@
   },
   "concurrency": 3,
   "timeoutMS": 60000,
+  "thresholds": {
+    "break": 65
+  },
   "reporters": ["clear-text", "json"],
   "jsonReporter": {
     "fileName": "../../../stryker-graph-state.json"

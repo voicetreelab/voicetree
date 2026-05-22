@@ -54,7 +54,6 @@ const RUNNER_FILES: readonly string[] = [
     'packages/measures/src/_runners/capture-ci-checks.ts',
     'packages/measures/src/_runners/record-result.ts',
     'packages/measures/src/_runners/record-run.ts',
-    'packages/measures/src/_runners/run-test-parallel.ts',
     'packages/measures/src/_runners/run-with-xvfb-if-needed.ts',
 ]
 
