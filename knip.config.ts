@@ -39,6 +39,10 @@ const config: KnipConfig = {
                 'e2e-tests/**',
             ],
         },
+        'packages/measures': {
+            entry: ['src/**/*.ts', 'src/**/*.test.ts'],
+            project: ['src/**/*.ts'],
+        },
         'packages/libraries/*': {
             entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],
             project: ['src/**/*.ts'],

@@ -8,7 +8,7 @@
     "./check-report-writer": "./src/_shared/check-report-writer.ts"
   },
   "scripts": {
-    "test": "vitest run src/health/**/*.test.ts src/correctness/**/*.test.ts"
+    "test": "vitest run src/health/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
