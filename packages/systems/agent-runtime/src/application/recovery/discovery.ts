@@ -105,9 +105,24 @@ export async function discoverRecoverableAgentSessions(
         currentNamespaceHash,
     })
     const actionable: RecoverableAgentSession[] = []
+    const sessionsFromMetadata: Set<string> = new Set()
     for (const classification of classifications) {
         const row: RecoverableAgentSession | null = toActionable(classification, liveByName)
-        if (row) actionable.push(row)
+        if (row) {
+            actionable.push(row)
+            if (row.kind === 'attachable-tmux') sessionsFromMetadata.add(row.session.sessionName)
+        }
+    }
+    // Surface live unclaimed sessions that have no matching metadata file.
+    // This preserves the pre-OpenSpec listUnclaimedTmuxSessions behavior:
+    // a tmux session can outlive its metadata (deleted vault, app crash
+    // before writeMetadata, manual `tmux new-session` for testing) but
+    // remain attachable. Without this, the sidebar would only show sessions
+    // we have on-disk metadata for.
+    for (const session of liveUnclaimed) {
+        if (!sessionsFromMetadata.has(session.sessionName)) {
+            actionable.push({kind: 'attachable-tmux', session})
+        }
     }
     return sortRecoveryRows(dedupeAttachableOverResumable(actionable))
 }

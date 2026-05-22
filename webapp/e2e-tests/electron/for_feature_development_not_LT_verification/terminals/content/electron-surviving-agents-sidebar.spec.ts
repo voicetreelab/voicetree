@@ -37,7 +37,6 @@ import {
     test,
     type ExtendedWindow,
     type RecoverableAgentSessionShape,
-    type UnclaimedTmuxSessionShape,
 } from './electron-surviving-agents-helpers';
 
 test.describe('Surviving Agents Sidebar', () => {
@@ -63,16 +62,25 @@ test.describe('Surviving Agents Sidebar', () => {
             CONTEXT_NODE_PATH: vault.contextNodePath,
         });
 
+        // Use the unified recovery IPC: it feeds the RecoverySessionsStore that
+        // the sidebar now reads from. The legacy refreshUnclaimedTmuxSessions
+        // IPC only pushes to UnclaimedTmuxStore which the sidebar stopped
+        // consuming in the resume-surviving-agent-sessions OpenSpec.
         const refreshed = await appWindow.evaluate(async () => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.refreshUnclaimedTmuxSessions();
+            return await api.main.refreshRecoverySessions();
         });
 
-        const seededRow = refreshed.find((s: UnclaimedTmuxSessionShape) => s.sessionName === seededSessionName);
+        const seededRow = refreshed.find(
+            (s: RecoverableAgentSessionShape) => s.kind === 'attachable-tmux' && s.session.sessionName === seededSessionName,
+        );
         expect(seededRow, `seeded session ${seededSessionName} should be detected`).toBeDefined();
-        expect(seededRow!.classification).toBe('this-vault');
-        expect(seededRow!.attachable).toBe(true);
+        if (!seededRow || seededRow.kind !== 'attachable-tmux') {
+            throw new Error('expected attachable-tmux kind after defined check');
+        }
+        expect(seededRow.session.classification).toBe('this-vault');
+        expect(seededRow.session.attachable).toBe(true);
 
         const section = appWindow.locator('[data-testid="surviving-agents-section"]');
         await expect(section).toBeVisible({timeout: 10000});

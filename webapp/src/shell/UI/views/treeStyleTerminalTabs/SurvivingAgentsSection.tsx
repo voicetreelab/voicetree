@@ -208,6 +208,7 @@ export function SurvivingAgentsSection({
                                     type="button"
                                     onClick={() => runAction(key, () => onResume(row.terminalId))}
                                     title={`Resume ${row.cliType} session`}
+                                    aria-label={`Resume ${row.cliType} session`}
                                     disabled={isBusy}
                                 >
                                     <Play size={12} aria-hidden="true" />

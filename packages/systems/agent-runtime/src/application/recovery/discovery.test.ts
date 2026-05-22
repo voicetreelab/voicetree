@@ -125,6 +125,39 @@ describe('discoverRecoverableAgentSessions — attachable rows', () => {
         expect(rows.filter((r) => r.kind === 'resumable-cli')).toHaveLength(0)
     })
 
+    it('surfaces a live unclaimed tmux session that has no matching metadata file (preserves pre-OpenSpec attach behavior)', async () => {
+        const orphan: UnclaimedTmuxSession = makeUnclaimed({
+            sessionName: `vt-${VAULT_HASH}-Orphan`,
+            terminalId: 'Orphan',
+            agentName: 'Orphan',
+        })
+        const rows = await discoverRecoverableAgentSessions(
+            makeDeps({
+                readVaultMetadataDir: async () => [],   // no metadata at all
+                listLiveTmuxSessionNames: async () => new Set([orphan.sessionName]),
+                listLiveUnclaimedTmuxSessions: async () => [orphan],
+            }),
+        )
+        expect(rows).toHaveLength(1)
+        const row: RecoverableAgentSession = rows[0]
+        expect(row.kind).toBe('attachable-tmux')
+        if (row.kind === 'attachable-tmux') {
+            expect(row.session).toBe(orphan)
+        }
+    })
+
+    it('does not duplicate a session that appears in both metadata classification and live unclaimed list', async () => {
+        const unclaimed: UnclaimedTmuxSession = makeUnclaimed()
+        const rows = await discoverRecoverableAgentSessions(
+            makeDeps({
+                readVaultMetadataDir: async () => [metadataRecord(makeRunningClaudeMetadata())],
+                listLiveTmuxSessionNames: async () => new Set([SESSION_A]),
+                listLiveUnclaimedTmuxSessions: async () => [unclaimed],
+            }),
+        )
+        expect(rows.filter((r) => r.kind === 'attachable-tmux')).toHaveLength(1)
+    })
+
     it('drops attachable-live-tmux rows whose unclaimed-session entry has disappeared between calls (race)', async () => {
         const rows = await discoverRecoverableAgentSessions(
             makeDeps({
