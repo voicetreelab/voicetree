@@ -4,13 +4,13 @@
 // `getLiveState()` and `dispatchLiveCommand(cmd)`. Only the wire moved (UDS
 // NDJSON → HTTP JSON-RPC + bearer auth, design doc §2.1 + §4.2).
 //
-// Endpoint resolution follows design doc §2.7, augmented for the graph-tools
-// API which lets callers pass an explicit `vaultPath`:
-//   1. `$VOICETREE_DAEMON_URL` (+ `$VOICETREE_VAULT_PATH` for the token file).
-//   2. Explicit `vaultPath` argument.
-//   3. cwd up-walk for `.voicetree/rpc.port`.
-//   4. `$VOICETREE_VAULT_PATH`.
-//   5. Throw `DaemonUnreachable`.
+// Endpoint resolution:
+//   - With an explicit `vaultPath`: `createRpcClientForVault` reads rpc.port +
+//     auth-token directly from that vault. `$VOICETREE_DAEMON_URL` still
+//     overrides the URL (per-process override) but the token comes from the
+//     named vault.
+//   - Without `vaultPath`: full design doc §2.7 chain via `createRpcClient`
+//     (env URL → cwd up-walk → `$VOICETREE_VAULT_PATH` → throw).
 //
 // Error mapping harmonized with the CLI client (`webapp/.../daemon-client.ts`):
 // `-32003 tool_handler_failed` and `-32602 validation_failed` both surface as
@@ -20,6 +20,7 @@
 
 import {
     createRpcClient,
+    createRpcClientForVault,
     DaemonAuthRequired,
     DaemonUnreachable,
     ERROR_CODES,
@@ -93,22 +94,12 @@ async function resolveClient(
     env: Record<string, string | undefined>,
     cwd: string,
 ): Promise<DaemonRpcClient> {
-    // Env URL wins regardless of explicit vault — design doc §2.7.
-    if (env.VOICETREE_DAEMON_URL && env.VOICETREE_DAEMON_URL.length > 0) {
-        return createRpcClient({env, cwd})
-    }
     if (vaultPath !== undefined && vaultPath.length > 0) {
-        // Force vt-rpc's discovery onto the `env_vault_path` leg so this exact
-        // vault is used for rpc.port + auth-token (no cwd up-walk). cwd='/'
-        // makes the up-walk leg find nothing and fall through.
-        return createRpcClient({
-            cwd: '/',
-            env: {
-                ...env,
-                VOICETREE_DAEMON_URL: undefined,
-                VOICETREE_VAULT_PATH: vaultPath,
-            },
-        })
+        // Explicit vault: bypass cwd up-walk; vt-rpc reads rpc.port + token
+        // straight from this vault. `$VOICETREE_DAEMON_URL` still wins inside
+        // `createRpcClientForVault` (per-process override), and the token
+        // always comes from the named vault — no env-var juggling required.
+        return createRpcClientForVault(vaultPath, {env})
     }
     return createRpcClient({env, cwd})
 }

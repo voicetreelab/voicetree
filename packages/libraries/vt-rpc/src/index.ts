@@ -29,15 +29,19 @@ export {
 export {
     detectVaultFromCwd,
     discoverDaemonEndpoint,
+    discoverDaemonEndpointForVault,
     type DiscoveryOptions,
+    type VaultDiscoveryOptions,
     type ResolvedDaemonEndpoint,
 } from './pathDiscovery.ts'
 
 export {
     createRpcClient,
+    createRpcClientForVault,
     DaemonAuthRequired,
     DaemonUnreachable,
     type DaemonRpcClient,
     type CreateRpcClientOptions,
+    type CreateRpcClientForVaultOptions,
     type JsonRpcResponse,
 } from './httpClient.ts'

@@ -9,7 +9,12 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
 
-import {DaemonAuthRequired, DaemonUnreachable, createRpcClient} from '../src/httpClient.ts'
+import {
+    createRpcClient,
+    createRpcClientForVault,
+    DaemonAuthRequired,
+    DaemonUnreachable,
+} from '../src/httpClient.ts'
 import {authTokenFilePath} from '../src/authTokenFile.ts'
 import {writeRpcPortFile} from '../src/portFile.ts'
 
@@ -124,5 +129,43 @@ describe('createRpcClient + call', (): void => {
     it('createRpcClient throws DaemonUnreachable when no endpoint resolves', async (): Promise<void> => {
         const isolated: string = await mkdtemp(join(tmpdir(), 'vt-rpc-no-endpoint-'))
         await expect(createRpcClient({cwd: isolated, env: {}})).rejects.toBeInstanceOf(DaemonUnreachable)
+    })
+})
+
+describe('createRpcClientForVault', (): void => {
+    it('round-trips against the explicit vault, ignoring cwd', async (): Promise<void> => {
+        const token: string = 'tok_vault_only_zzzz'
+        const fake: FakeDaemon = await startFakeDaemon(token, (_req, body): unknown => {
+            const parsed = JSON.parse(body)
+            return {jsonrpc: '2.0', id: parsed.id, result: {ok: true}}
+        })
+        active.push(fake)
+        const vault: string = await makeVaultWith(token, fake.port)
+
+        // Pass env={} — no $VOICETREE_VAULT_PATH and no $VOICETREE_DAEMON_URL.
+        // The standard `createRpcClient` would fail here (no discovery hits);
+        // `createRpcClientForVault` succeeds because vault is explicit.
+        const client = await createRpcClientForVault(vault, {env: {}})
+        const res = await client.call('any_method', {a: 1}, 7)
+        expect(res).toEqual({jsonrpc: '2.0', id: 7, result: {ok: true}})
+        expect(client.endpoint.vaultPath).toBe(vault)
+    })
+
+    it('throws DaemonUnreachable when the vault has no rpc.port and no env URL', async (): Promise<void> => {
+        const vault: string = await mkdtemp(join(tmpdir(), 'vt-rpc-vault-noport-'))
+        await mkdir(join(vault, '.voicetree'), {recursive: true})
+        await expect(createRpcClientForVault(vault, {env: {}}))
+            .rejects.toBeInstanceOf(DaemonUnreachable)
+    })
+
+    it('throws when the vault has rpc.port but no auth-token', async (): Promise<void> => {
+        const fake: FakeDaemon = await startFakeDaemon('tok_unused', (): unknown => ({jsonrpc: '2.0', id: 1, result: 'ok'}))
+        active.push(fake)
+        const vault: string = await mkdtemp(join(tmpdir(), 'vt-rpc-vault-notoken-'))
+        await mkdir(join(vault, '.voicetree'), {recursive: true})
+        await writeRpcPortFile(vault, fake.port)
+        // Deliberately do NOT write the auth-token file.
+        await expect(createRpcClientForVault(vault, {env: {}}))
+            .rejects.toBeInstanceOf(DaemonUnreachable)
     })
 })

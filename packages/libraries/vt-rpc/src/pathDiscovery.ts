@@ -93,3 +93,31 @@ export async function discoverDaemonEndpoint(
 
     return null
 }
+
+export interface VaultDiscoveryOptions {
+    readonly env?: Record<string, string | undefined>
+}
+
+// Explicit-vault resolution. Used when the caller already knows which vault
+// to talk to (e.g. graph-tools' `createLiveTransport(vaultPath)`) and wants
+// to bypass the cwd up-walk entirely. `$VOICETREE_DAEMON_URL` still wins —
+// it's a per-process override — but the token always comes from the
+// explicit vault, not from `$VOICETREE_VAULT_PATH`. Replaces the
+// `discoverDaemonEndpoint({cwd: '/'})` trick 9d used.
+export async function discoverDaemonEndpointForVault(
+    vaultPath: string,
+    options: VaultDiscoveryOptions = {},
+): Promise<ResolvedDaemonEndpoint | null> {
+    if (vaultPath.length === 0) return null
+    const env: Record<string, string | undefined> = options.env ?? process.env
+    const resolvedVault: string = resolve(vaultPath)
+
+    const explicit: string | undefined = envOr(env, 'VOICETREE_DAEMON_URL')
+    if (explicit) {
+        return {url: explicit, vaultPath: resolvedVault, source: 'env_url'}
+    }
+
+    const port: number | null = await readRpcPortFile(resolvedVault)
+    if (port === null) return null
+    return {url: urlForLocalhostPort(port), vaultPath: resolvedVault, source: 'env_vault_path'}
+}

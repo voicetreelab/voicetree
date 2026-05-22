@@ -3,7 +3,11 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {describe, expect, it} from 'vitest'
 
-import {detectVaultFromCwd, discoverDaemonEndpoint} from '../src/pathDiscovery.ts'
+import {
+    detectVaultFromCwd,
+    discoverDaemonEndpoint,
+    discoverDaemonEndpointForVault,
+} from '../src/pathDiscovery.ts'
 
 async function makeVault(): Promise<string> {
     const dir: string = await mkdtemp(join(tmpdir(), 'vt-rpc-disco-'))
@@ -70,6 +74,51 @@ describe('discoverDaemonEndpoint chain', (): void => {
     it('returns null when nothing resolves', async (): Promise<void> => {
         const isolated: string = await mkdtemp(join(tmpdir(), 'vt-rpc-nothing-'))
         const endpoint = await discoverDaemonEndpoint({cwd: isolated, env: {}})
+        expect(endpoint).toBe(null)
+    })
+})
+
+describe('discoverDaemonEndpointForVault', (): void => {
+    it('reads rpc.port from the explicit vault, ignoring cwd', async (): Promise<void> => {
+        const vault: string = await makeVault()
+        await writeFile(join(vault, '.voicetree', 'rpc.port'), '60606\n', 'utf8')
+        const isolated: string = await mkdtemp(join(tmpdir(), 'vt-rpc-explicit-iso-'))
+
+        const endpoint = await discoverDaemonEndpointForVault(vault, {
+            env: {},
+        })
+        expect(endpoint?.url).toBe('http://127.0.0.1:60606')
+        expect(endpoint?.vaultPath).toBe(vault)
+        expect(endpoint?.source).toBe('env_vault_path')
+
+        // Sanity: the discovery doesn't depend on cwd at all (we passed env={},
+        // so cwd up-walk wouldn't have helped anyway, but the implementation
+        // doesn't even consult `process.cwd()` for explicit-vault discovery).
+        expect(isolated).not.toBe(vault)
+    })
+
+    it('honors $VOICETREE_DAEMON_URL over the vault rpc.port', async (): Promise<void> => {
+        const vault: string = await makeVault()
+        await writeFile(join(vault, '.voicetree', 'rpc.port'), '60606\n', 'utf8')
+
+        const endpoint = await discoverDaemonEndpointForVault(vault, {
+            env: {VOICETREE_DAEMON_URL: 'http://192.168.1.50:51337'},
+        })
+        expect(endpoint?.url).toBe('http://192.168.1.50:51337')
+        expect(endpoint?.source).toBe('env_url')
+        // Token vault is always the explicit vault, never $VOICETREE_VAULT_PATH.
+        expect(endpoint?.vaultPath).toBe(vault)
+    })
+
+    it('returns null when rpc.port is missing and no env URL', async (): Promise<void> => {
+        const vault: string = await makeVault()
+        // No rpc.port file written.
+        const endpoint = await discoverDaemonEndpointForVault(vault, {env: {}})
+        expect(endpoint).toBe(null)
+    })
+
+    it('returns null for an empty vault path', async (): Promise<void> => {
+        const endpoint = await discoverDaemonEndpointForVault('', {env: {}})
         expect(endpoint).toBe(null)
     })
 })

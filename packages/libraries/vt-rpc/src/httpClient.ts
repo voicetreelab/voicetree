@@ -12,7 +12,11 @@
 
 import {readAuthTokenFile, redactToken} from './authTokenFile.ts'
 import {ERROR_CODES} from './errorCodes.ts'
-import {discoverDaemonEndpoint, type ResolvedDaemonEndpoint} from './pathDiscovery.ts'
+import {
+    discoverDaemonEndpoint,
+    discoverDaemonEndpointForVault,
+    type ResolvedDaemonEndpoint,
+} from './pathDiscovery.ts'
 
 const DEFAULT_TIMEOUT_MS: number = 30_000
 
@@ -82,7 +86,39 @@ export async function createRpcClient(options: CreateRpcClientOptions = {}): Pro
             'Cannot resolve VoiceTree daemon URL. Set $VOICETREE_DAEMON_URL, open a vault, or set $VOICETREE_VAULT_PATH.',
         )
     }
+    return buildClientFromEndpoint(endpoint, env)
+}
 
+export interface CreateRpcClientForVaultOptions {
+    readonly env?: Record<string, string | undefined>
+}
+
+// Explicit-vault client construction. Skips the cwd up-walk and reads
+// rpc.port + auth-token directly from the named vault. `$VOICETREE_DAEMON_URL`
+// still wins (per-process override), but the token always comes from the
+// explicit vault. Used by graph-tools' `createLiveTransport(vaultPath)`;
+// replaces the 9d `createRpcClient({cwd: '/'})` workaround.
+export async function createRpcClientForVault(
+    vaultPath: string,
+    options: CreateRpcClientForVaultOptions = {},
+): Promise<DaemonRpcClient> {
+    if (vaultPath.length === 0) {
+        throw new DaemonUnreachable('createRpcClientForVault: vaultPath must be a non-empty path.')
+    }
+    const env: Record<string, string | undefined> = options.env ?? process.env
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForVault(vaultPath, {env})
+    if (!endpoint) {
+        throw new DaemonUnreachable(
+            `No daemon for vault ${vaultPath}: rpc.port not found at ${vaultPath}/.voicetree/rpc.port and $VOICETREE_DAEMON_URL is unset.`,
+        )
+    }
+    return buildClientFromEndpoint(endpoint, env)
+}
+
+async function buildClientFromEndpoint(
+    endpoint: ResolvedDaemonEndpoint,
+    env: Record<string, string | undefined>,
+): Promise<DaemonRpcClient> {
     const tokenSource: string | null = endpoint.vaultPath
     const token: string | null = tokenSource ? await readAuthTokenFile(tokenSource) : null
     if (token === null) {
@@ -90,7 +126,6 @@ export async function createRpcClient(options: CreateRpcClientOptions = {}): Pro
             `No auth token at ${tokenSource ?? '<unknown vault>'}/.voicetree/auth-token. Daemon may not be running, or vault path is wrong.`,
         )
     }
-
     return {
         call: (method, params, id) => callDaemon(endpoint.url, token, method, params, id, env),
         endpoint,
