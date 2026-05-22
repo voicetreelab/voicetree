@@ -43,7 +43,8 @@
     "check:dead-code": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=dead-code --name=\"Dead Code (knip)\" --category=Static --display=\"npm run check:dead-code\" -- npm run check:dead-code:run",
     "check:dead-code:run": "knip --no-progress --no-config-hints --include files,exports",
     "measures:dashboard": "node health-dashboard/server.mjs",
-    "measures:capture-ci": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
+    "measures:capture-ci": "node scripts/run-remote.mjs npm run measures:capture-ci:local",
+    "measures:capture-ci:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
     "devops": "(sleep 1 && open http://localhost:8765) & node health-dashboard/server.mjs"
   },
   "devDependencies": {
