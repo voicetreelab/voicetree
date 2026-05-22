@@ -8,7 +8,6 @@ import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = DEFAULT_REPO_ROOT
-const SYSTEMS_ROOT = join(REPO_ROOT, 'packages', 'systems')
 const REPORTS_DIR = join(REPO_ROOT, 'health-dashboard', 'reports')
 
 const PRESSURE_AXIS_CONFIGS = [
@@ -48,7 +47,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'score',
     },
-    // Systems graph target for files touching package boundaries.
+    // Whole-repo target for files touching package boundaries.
     {
         name: 'max boundary ratio',
         metricKey: 'maxBoundaryRatio',
@@ -57,7 +56,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Systems graph target for intra-package imports that cross source subdirectories.
+    // Whole-repo target for intra-package imports that cross source subdirectories.
     {
         name: 'max subdirectory cross-edge ratio',
         metricKey: 'maxSubdirCrossRatio',
@@ -66,7 +65,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'ratio',
     },
-    // Systems graph aggregate BCI target carried from the script.
+    // Whole-repo aggregate BCI target across every cross-package edge pair.
     {
         name: 'aggregate boundary complexity',
         metricKey: 'aggregateBoundaryComplexity',
@@ -75,7 +74,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'bci',
     },
-    // Systems-only runtime fan-in target from the legacy pressure rollup.
+    // Whole-repo runtime fan-in target (distinct symbols depended on per package).
     {
         name: 'max runtime fan-in',
         metricKey: 'maxRuntimeFanIn',
@@ -84,7 +83,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'symbols',
     },
-    // Churn multiplied by structural complexity target for individual systems files.
+    // Whole-repo churn * structural-complexity per file target.
     {
         name: 'max file turbulence',
         metricKey: 'maxFileTurbulence',
@@ -93,7 +92,7 @@ const PRESSURE_AXIS_CONFIGS = [
         comparison: 'lte',
         unit: 'turbulence',
     },
-    // Churn multiplied by structural complexity target for systems package averages.
+    // Whole-repo churn * structural-complexity per-package average target.
     {
         name: 'max package avg turbulence',
         metricKey: 'maxPackageAverageTurbulence',
@@ -171,11 +170,6 @@ type LegacyPressureReport = {
         readonly debtRatio?: number
         readonly worstOffender?: string
     }
-}
-
-async function discoverSystemPackages(): Promise<readonly PackageInfo[]> {
-    const all = await discoverPackages(REPO_ROOT)
-    return all.filter(pkg => pkg.absDir.startsWith(`${SYSTEMS_ROOT}/`))
 }
 
 function subdirectoryOf(absolutePath: string, srcRoot: string): string {
@@ -601,11 +595,11 @@ function tryRunGit(args: string): string | null {
 }
 
 function collectGitChurn(): ReadonlyMap<string, number> {
-    const output = tryRunGit("log --since='6 months ago' --format=%H --name-only -- packages/systems") ?? ''
+    const output = tryRunGit("log --since='6 months ago' --format=%H --name-only") ?? ''
     const churn = new Map<string, number>()
     for (const line of output.split('\n')) {
         const file = line.trim()
-        if (!file || !file.startsWith('packages/systems/')) continue
+        if (!file) continue
         churn.set(file, (churn.get(file) ?? 0) + 1)
     }
     return churn
@@ -756,26 +750,17 @@ function axis(config: PressureAxisConfig, current: number, worstOffender: string
 }
 
 async function computePressureAxes(): Promise<PressureAxis[]> {
-    const systemsPackages = await discoverSystemPackages()
-    const allPackages = await discoverPackages(REPO_ROOT)
-    const packageNames = systemsPackages.map(pkg => pkg.dirName)
+    const packages = await discoverPackages(REPO_ROOT)
+    const packageNames = packages.map(pkg => pkg.dirName)
+    const graph = await buildSystemGraph(packages)
 
-    // Boundary, subdir-cross, BCI, runtime-fan-in: stay systems-scoped (they're about
-    // packages/systems/ architecture). Turbulence: stay systems-scoped (git-log filter
-    // is already --packages/systems).
-    const systemsGraph = await buildSystemGraph(systemsPackages)
-
-    // Function-level axes (cog, cyc, MI, CRAP0): whole-repo. Without this, real worst
-    // offenders in webapp/, graph-tools/, libraries/ stay invisible to these gates.
-    const allFiles = await materializeSystemFiles(allPackages)
-
-    const cognitive = await measureCognitiveComplexity(allFiles)
-    const cyclomatic = await measureCyclomaticComplexity(allFiles)
-    const maintainability = await measureMaintainability(allFiles, cyclomatic)
-    const turbulence = await measureTurbulence(systemsGraph.files)
+    const cognitive = await measureCognitiveComplexity(graph.files)
+    const cyclomatic = await measureCyclomaticComplexity(graph.files)
+    const maintainability = await measureMaintainability(graph.files, cyclomatic)
+    const turbulence = await measureTurbulence(graph.files)
     const packageTurbulence = aggregateTurbulence(turbulence)
-    const boundaries = measureBoundaries(systemsGraph.files, systemsGraph.edges, packageNames)
-    const runtimeFanIn = runtimeFanInRows(systemsGraph.runtimeSymbolsByTarget)
+    const boundaries = measureBoundaries(graph.files, graph.edges, packageNames)
+    const runtimeFanIn = runtimeFanInRows(graph.runtimeSymbolsByTarget)
     const maxCrap = [...cyclomatic].sort((a, b) => b.crapZeroCoverage - a.crapZeroCoverage)[0]
 
     return [
