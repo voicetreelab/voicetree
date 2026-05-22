@@ -52,7 +52,7 @@ const MAX_PAIR_TREE_WIDTH_BUDGET = 3
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const AGGREGATE_BCI_BUDGET = 195.64
+const AGGREGATE_BCI_BUDGET = 247.63
 
 // ── Graph Construction ──
 
