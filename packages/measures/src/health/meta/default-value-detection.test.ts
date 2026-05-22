@@ -5,9 +5,9 @@ import {
     listSourceFiles,
     detectSideEffectsAST,
 } from '../../_shared/purity-analysis'
-import {discoverPackages} from '../../_shared/discover-packages'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
 import { readFile } from 'node:fs/promises'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // ---------------------------------------------------------------------------
 // Known impure object.method pairs (mirrors IMPURE_OBJ_METHODS in purity-analysis)

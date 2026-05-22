@@ -3,8 +3,8 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import {recordHealthMetric} from '../../_shared/report-writer'
-import { discoverPackages, DEFAULT_REPO_ROOT } from '../../_shared/discover-packages'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
+import { discoverPackages, DEFAULT_REPO_ROOT } from '../../_shared/discovery/discover-packages'
 import { listSourceFiles } from '../../_shared/purity-analysis'
 
 const REPO_ROOT: string = resolve(DEFAULT_REPO_ROOT)

@@ -4,7 +4,7 @@ import {
     GLOBAL_SIDE_EFFECT_CATEGORIES,
     analyze, classifyLayer, median, pct, percentile,
 } from '../../_shared/purity-analysis'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 type FunctionHealthMetrics = {
     readonly medianPureLoc: number

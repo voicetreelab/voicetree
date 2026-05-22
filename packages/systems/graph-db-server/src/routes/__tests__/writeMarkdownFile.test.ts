@@ -36,6 +36,7 @@ describe('write markdown file route', () => {
         vault,
         uptimeSeconds: 0,
         sessionCount: 0,
+        owner: null,
       }),
       registry: new SessionRegistry(),
     })

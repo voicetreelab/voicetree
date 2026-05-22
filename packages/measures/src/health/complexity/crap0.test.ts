@@ -1,9 +1,9 @@
 import {describe, expect, it} from 'vitest'
-import {measureCyclomaticComplexity} from '../../_shared/cyclomatic'
-import {discoverPackages} from '../../_shared/discover-packages'
-import {discoverSourceFiles} from '../../_shared/function-discovery'
-import {formatFunctionRows} from '../../_shared/function-row-formatters'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {measureCyclomaticComplexity} from '../../_shared/complexity/cyclomatic'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
+import {formatFunctionRows} from '../../_shared/complexity/function-row-formatters'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
 const MAX_CRAP_ZERO_COVERAGE = 2500    // observed max: 2070 (same offender as cyclomatic); ratchet down

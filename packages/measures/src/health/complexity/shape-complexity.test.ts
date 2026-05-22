@@ -2,9 +2,9 @@ import {readdir, readFile, stat} from 'node:fs/promises'
 import {join, relative} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import {extractFunctions, type FnEntry} from '../../_shared/purity-analysis'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // --- Per-file shape complexity ---
 //

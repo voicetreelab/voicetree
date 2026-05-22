@@ -4,7 +4,7 @@ import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../..')

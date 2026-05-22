@@ -176,20 +176,6 @@ export function readSnapshotDocument(nameOrPath: string): SnapshotDocument {
     return doc
 }
 
-export function readSequenceDocument(nameOrPath: string): SequenceDocument {
-    const filePath = resolveFixturePath(nameOrPath, SEQUENCES_DIR)
-    const doc = readJsonDocument<SequenceDocument>(filePath)
-    assertSchema(doc.$schema, 'graph-state/sequence@')
-    return doc
-}
-
-export function readProjectionDocument(nameOrPath: string): ProjectionDocument {
-    const filePath = resolveFixturePath(nameOrPath, PROJECTIONS_DIR)
-    const doc = readJsonDocument<ProjectionDocument>(filePath)
-    assertSchema(doc.$schema, 'graph-state/projection@')
-    return doc
-}
-
 export function listSnapshotDocuments(): readonly SnapshotFixture[] {
     return listJsonFiles(SNAPSHOTS_DIR).map((filePath) => {
         const doc = readJsonDocument<SnapshotDocument>(filePath)
@@ -239,7 +225,9 @@ export function loadSequence(nameOrPath: string): {
     readonly commands: readonly Command[]
     readonly expected?: SequenceDocument['expected']
 } {
-    const doc = readSequenceDocument(nameOrPath)
+    const filePath = resolveFixturePath(nameOrPath, SEQUENCES_DIR)
+    const doc = readJsonDocument<SequenceDocument>(filePath)
+    assertSchema(doc.$schema, 'graph-state/sequence@')
     const initial = doc.initialState
         ? hydrateState(doc.initialState)
         : doc.initial
@@ -256,7 +244,10 @@ export function loadSequence(nameOrPath: string): {
 }
 
 export function loadProjection(nameOrPath: string): ProjectedGraph {
-    return readProjectionDocument(nameOrPath).elementSpec
+    const filePath = resolveFixturePath(nameOrPath, PROJECTIONS_DIR)
+    const doc = readJsonDocument<ProjectionDocument>(filePath)
+    assertSchema(doc.$schema, 'graph-state/projection@')
+    return doc.elementSpec
 }
 
 export function loadFixture(name: string): { readonly state: State; readonly commands?: readonly Command[] } {

@@ -1,7 +1,7 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
 import {join} from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT} from '../../_shared/discover-packages'
+import {DEFAULT_REPO_ROOT} from '../../_shared/discovery/discover-packages'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
 

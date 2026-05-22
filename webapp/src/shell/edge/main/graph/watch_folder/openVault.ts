@@ -14,7 +14,7 @@ import type { OpenVaultResponse } from '@vt/graph-db-client'
 
 import { markLoadTiming, startLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
-import { ensureDaemonProcess, callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
 import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
@@ -91,22 +91,33 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
     }
 
     startLoadTiming(vaultPath)
-    await ensureDaemonProcess()
     pushToRenderer('vault:switching', { path: vaultPath })
 
     try {
+        // D6: stop SSE/watch-sync loops bound to the prior owner's base URL
+        // before any new owner-mediated work begins, so reconnect pollers
+        // can never see a stale daemon and fork-spawn replacements.
         onFolderSwitchCleanup?.()
         getCallbacks().onGraphCleared?.()
         unsubscribeFromDaemonSSE()
         await stopDaemonGraphSync()
 
+        // Persist writePath BEFORE the daemon claims the vault: vt-graphd's
+        // startup vault-open reads saved config, and the daemon's
+        // `openVaultWorkflow` short-circuits on a re-open with the same path
+        // — so the writePath we pass below must already be on disk for the
+        // first ensure to pick it up.
         const writePath: string = await resolveOrCreateWritePath(vaultPath)
         await getCallbacks().ensureProjectSetup?.(vaultPath).catch((error: unknown) => {
             console.warn('[openVault] Failed to set up .voicetree/ defaults:', error)
         })
 
         markLoadTiming('main:daemon-open-vault-start')
-        const response = await callDaemon((client) => client.openVault(vaultPath, { writePath }))
+        const owner = await setActiveVaultAndEnsureDaemon(vaultPath)
+        // The owner-aware spawn already opened the vault at startup using
+        // the saved writePath. This call is the idempotent confirmation
+        // that returns the daemon's authoritative `OpenVaultResponse`.
+        const response = await owner.client.openVault(vaultPath, { writePath })
         markLoadTiming('main:daemon-open-vault-end')
 
         await startDaemonGraphSync(vaultPath)

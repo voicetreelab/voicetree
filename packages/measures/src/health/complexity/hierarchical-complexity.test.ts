@@ -1,9 +1,9 @@
 import {dirname} from 'node:path'
 import {describe, it} from 'vitest'
-import {discoverPackages} from '../../_shared/discover-packages'
-import {computeDsm, computeModularityQ, computeNormalizedEntropy, computeTreeWidth} from '../../_shared/hierarchical-complexity-measures'
-import {type Edge, type SourceFile, buildImportGraph} from '../../_shared/import-graph'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {computeDsm, computeModularityQ, computeNormalizedEntropy, computeTreeWidth} from '../../_shared/complexity/hierarchical-complexity-measures'
+import {type Edge, type SourceFile, buildImportGraph} from '../../_shared/graph/import-graph'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 type CommunityReport = {
     readonly id: string
