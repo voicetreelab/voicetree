@@ -20,7 +20,6 @@ import '../src/commands/session/nodeClick' // registers 'node-click'
 import '../src/commands/session/pageAx'    // registers 'page-ax'
 import '../src/commands/capture/run'       // registers 'run'
 import '../src/commands/session/screenshot' // registers 'screenshot'
-import '../src/commands/session/smoke'     // registers 'smoke'
 import '../src/commands/session/whyBlank'  // registers 'why-blank'
 import { commandRegistry } from '../src/commands/index'
 import type { Response } from '../src/debug/protocol/Response'
@@ -83,11 +82,8 @@ function usageError(msg: string): never {
 }
 
 if (!subcommand) {
-  // Default: run smoke test (prettySetup + fake agent node creation)
-  const smokeHandler = commandRegistry.get('smoke')!
-  const smokeResult = await smokeHandler(argv)
-  process.stdout.write(JSON.stringify(smokeResult) + '\n')
-  process.exit(smokeResult.ok ? 0 : 1)
+  process.stdout.write(`${helpText()}\n`)
+  process.exit(0)
 }
 
 const handler = commandRegistry.get(subcommand)

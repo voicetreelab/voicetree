@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Voicetree tool catalog + UDS JSON-RPC server. Hosts the per-vault catalog (spawn_agent, create_graph, list_agents, …) over a Unix domain socket. Embedded in Electron and consumed by the vt-mcpd headless binary. Renamed to @vt/tool-catalog in Step 7g.",
+  "description": "Voicetree tool catalog + UDS JSON-RPC server. Hosts the per-vault catalog (spawn_agent, create_graph, list_agents, …) over a Unix domain socket. Embedded in Electron and consumed by the vt-mcpd headless binary.",
   "main": "src/agents/index.ts",
   "bin": {
     "vt-mcpd": "bin/vt-mcpd.ts"
@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@mermaid-js/parser": "^0.6.2",
-    "@modelcontextprotocol/sdk": "^1.22.0",
     "@vt/agent-runtime": "*",
     "@vt/app-config": "*",
     "@vt/graph-db-protocol": "*",

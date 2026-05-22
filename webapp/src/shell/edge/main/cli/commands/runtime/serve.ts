@@ -159,9 +159,7 @@ export async function runServeCommand(argv: string[]): Promise<void> {
         error(`failed to start hook HTTP server: ${(cause as Error).message}`)
     }
 
-    // Lifecycle JSONL telemetry sink. Previously bootstrapped inside
-    // startMcpServer; now installed directly so the sink survives MCP
-    // server removal (design doc §2.1).
+    // Lifecycle JSONL telemetry sink.
     try {
         agentRuntime.installJsonlTelemetrySink(join(appSupportPath, 'lifecycle-telemetry.jsonl'))
     } catch (cause) {

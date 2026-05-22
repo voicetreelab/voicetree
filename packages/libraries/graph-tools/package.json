@@ -20,8 +20,7 @@
     "vt-debug": "bin/vt-debug.ts"
   },
   "dependencies": {
-    "@vt/graph-state": "*",
-    "@modelcontextprotocol/sdk": "*"
+    "@vt/graph-state": "*"
   },
   "scripts": {
     "test": "vitest run",

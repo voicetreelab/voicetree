@@ -70,13 +70,12 @@ export async function stopTmuxRelayServer(): Promise<void> {
 }
 
 /**
- * Renderer-facing accessor (exposed via mainAPI.getTmuxRelayPort). Replaces
- * `getMcpPort()` for the WebSocket-relay discovery path. The renderer calls
- * this immediately before opening `ws://localhost:${port}/terminals/:id/attach`.
+ * Renderer-facing accessor (exposed via mainAPI.getTmuxRelayPort). The renderer
+ * calls this immediately before opening
+ * `ws://localhost:${port}/terminals/:id/attach`.
  *
  * Returns 0 when the relay has not yet bound; the renderer treats 0 as
- * "not ready" and retries — matching today's startup-race tolerance against
- * `getMcpPort()` before the MCP server bound.
+ * "not ready" and retries.
  */
 export function getTmuxRelayPort(): number {
     return bound?.port ?? 0

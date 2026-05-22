@@ -244,9 +244,7 @@ void app.whenReady().then(async () => {
     // openVault's publishHookPortForVault call.
     await startElectronHookHttpServer();
 
-    // Install the lifecycle JSONL telemetry sink. Previously bootstrapped
-    // inside startMcpServer; now installed directly on app start so the sink
-    // survives MCP server removal.
+    // Install the lifecycle JSONL telemetry sink.
     try {
         const appSupportPath: string = getAppSupportPath();
         if (appSupportPath) {

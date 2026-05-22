@@ -69,7 +69,6 @@
     "@codemirror/view": "^6.38.6",
     "@lezer/markdown": "^1.6.3",
     "@markdoc/markdoc": "^0.5.4",
-    "@modelcontextprotocol/sdk": "^1.22.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-navigation-menu": "^1.2.14",
     "@radix-ui/react-slot": "^1.2.3",

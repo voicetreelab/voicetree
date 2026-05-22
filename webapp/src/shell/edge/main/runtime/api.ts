@@ -201,8 +201,6 @@ export const mainAPI = {
 
   // Tmux WebSocket relay port — renderer-facing accessor used by
   // TerminalVanilla.ts to open ws://localhost:${port}/terminals/:id/attach.
-  // Replaces the former getMcpPort entry (the HTTP MCP server is gone in 7f;
-  // the relay now binds its own Electron-only port).
   getTmuxRelayPort,
 
   // Clipboard operations

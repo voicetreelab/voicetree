@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-21T11:34:33.900Z",
-  "sourceFileCount": 813,
+  "generatedAt": "2026-05-22T01:16:50.205Z",
+  "sourceFileCount": 816,
   "scope": {
     "requestedRoots": [
       "webapp/src",
@@ -35,16 +35,16 @@
     ]
   },
   "totals": {
-    "relativeImports": 1332,
-    "samePackageRelativeImports": 1332,
+    "relativeImports": 1298,
+    "samePackageRelativeImports": 1298,
     "crossPackageRelativeImports": 0,
-    "deepSamePackageRelativeImports": 1,
-    "bannedRelativeImports": 1
+    "deepSamePackageRelativeImports": 0,
+    "bannedRelativeImports": 0
   },
   "samePackageByDepth": {
-    "./x": 775,
-    "../x": 556,
-    "../../x": 1,
+    "./x": 766,
+    "../x": 532,
+    "../../x": 0,
     "../../../+x": 0
   },
   "perPackageTotals": [
@@ -90,12 +90,12 @@
     {
       "package": "@vt/agent-runtime",
       "packageRoot": "packages/systems/agent-runtime",
-      "relativeImports": 187,
-      "samePackageRelativeImports": 187,
+      "relativeImports": 190,
+      "samePackageRelativeImports": 190,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 66,
-        "../x": 121,
+        "./x": 68,
+        "../x": 122,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -103,25 +103,25 @@
     {
       "package": "@vt/voicetree-mcp",
       "packageRoot": "packages/systems/voicetree-mcp",
-      "relativeImports": 162,
-      "samePackageRelativeImports": 162,
+      "relativeImports": 126,
+      "samePackageRelativeImports": 126,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
-        "./x": 62,
-        "../x": 99,
-        "../../x": 1,
+        "./x": 51,
+        "../x": 75,
+        "../../x": 0,
         "../../../+x": 0
       }
     },
     {
       "package": "@vt/graph-tools",
       "packageRoot": "packages/libraries/graph-tools",
-      "relativeImports": 106,
-      "samePackageRelativeImports": 106,
+      "relativeImports": 105,
+      "samePackageRelativeImports": 105,
       "crossPackageRelativeImports": 0,
       "samePackageByDepth": {
         "./x": 65,
-        "../x": 41,
+        "../x": 40,
         "../../x": 0,
         "../../../+x": 0
       }
@@ -181,21 +181,15 @@
   ],
   "worstOffenders": [
     {
-      "file": "packages/systems/voicetree-mcp/src/tools/agent-control/mcp-server.ts",
+      "file": "packages/systems/voicetree-mcp/src/agents/index.ts",
       "package": "@vt/voicetree-mcp",
-      "relativeImports": 39,
+      "relativeImports": 36,
       "crossPackageRelativeImports": 0
     },
     {
       "file": "packages/libraries/graph-model/src/pure/graph/index.ts",
       "package": "@vt/graph-model",
       "relativeImports": 34,
-      "crossPackageRelativeImports": 0
-    },
-    {
-      "file": "packages/systems/voicetree-mcp/src/agents/index.ts",
-      "package": "@vt/voicetree-mcp",
-      "relativeImports": 33,
       "crossPackageRelativeImports": 0
     },
     {
@@ -247,7 +241,7 @@
       "crossPackageRelativeImports": 0
     },
     {
-      "file": "packages/systems/voicetree-mcp/src/transport/toolCatalog.ts",
+      "file": "packages/systems/voicetree-mcp/src/tools/catalog.ts",
       "package": "@vt/voicetree-mcp",
       "relativeImports": 14,
       "crossPackageRelativeImports": 0
@@ -299,21 +293,14 @@
       "package": "voicetree-webapp",
       "relativeImports": 10,
       "crossPackageRelativeImports": 0
-    }
-  ],
-  "bannedRelatives": [
+    },
     {
-      "importer": "packages/systems/voicetree-mcp/src/tools/agent-control/mcp-server.ts",
-      "line": 31,
-      "specifier": "../../create-graph/createGraphValidation",
-      "kind": "static",
-      "classification": "relative-same-package",
-      "depth": "../../x",
-      "importerPackage": "@vt/voicetree-mcp",
-      "targetPackage": "@vt/voicetree-mcp",
-      "resolvedPath": "packages/systems/voicetree-mcp/src/create-graph/createGraphValidation.ts",
-      "statement": "import {OVERRIDABLE_RULE_IDS} from '../../create-graph/createGraphValidation'"
+      "file": "packages/systems/agent-runtime/src/application/spawn/launchTerminalSpawn.ts",
+      "package": "@vt/agent-runtime",
+      "relativeImports": 9,
+      "crossPackageRelativeImports": 0
     }
   ],
+  "bannedRelatives": [],
   "crossPackageRelatives": []
 }
