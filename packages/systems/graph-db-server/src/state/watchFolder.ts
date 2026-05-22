@@ -51,6 +51,14 @@ import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "../data/watch-fol
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
+import {
+    decideVaultConfig,
+    type WatchFolderConfig,
+} from "../application/core/vault-config/decideVaultConfig";
+import {
+    buildPatternAllowlist as buildPatternAllowlistPure,
+    type PatternProbe,
+} from "../application/core/vault-config/buildPatternAllowlist";
 
 export interface WatchFolderLoadOptions {
     broadcastVaultState?: boolean;
@@ -64,8 +72,6 @@ export interface WatchFolderEffects {
     readonly warn: (message?: unknown, ...optionalParams: unknown[]) => void;
     readonly nowIso: () => string;
 }
-
-type WatchFolderConfig = { writePath: string; allowlist: readonly string[] };
 
 const defaultWatchFolderEffects: WatchFolderEffects = {
     warn(message?: unknown, ...optionalParams: unknown[]): void {
@@ -155,28 +161,26 @@ async function resolveOrCreateConfig(
     watchedFolderPath: string,
     options: WatchFolderLoadOptions = {},
 ): Promise<WatchFolderConfig> {
-    // Try to resolve from saved vaultConfig first
     const savedConfig: WatchFolderConfig | null =
         await resolveAllowlistForProject(watchedFolderPath, {
             includeActiveViewExpandedPaths: options.includeActiveViewExpandedPaths,
         });
-
     if (savedConfig) {
-        return savedConfig;
+        return decideVaultConfig(savedConfig, '', []).config;
     }
 
     const subfolderPath: string = await findOrCreateSubfolder(watchedFolderPath);
-    const allowlist: string[] = await buildPatternAllowlist(watchedFolderPath, subfolderPath, options);
+    const allowlist: readonly string[] = await resolveDefaultPatternAllowlist(
+        watchedFolderPath,
+        subfolderPath,
+        options.persistDefaultExpandedPaths !== false,
+    );
 
-    // Save config with subfolder as writePath
-    await saveVaultConfigForDirectory(watchedFolderPath, {
-        writePath: subfolderPath,
-    });
-
-    return {
-        allowlist,
-        writePath: subfolderPath,
-    };
+    const plan = decideVaultConfig(null, subfolderPath, allowlist);
+    if (plan.shouldPersist) {
+        await saveVaultConfigForDirectory(watchedFolderPath, { writePath: plan.config.writePath });
+    }
+    return plan.config;
 }
 
 async function findOrCreateSubfolder(watchedFolderPath: string): Promise<string> {
@@ -202,33 +206,31 @@ async function findOrCreateSubfolder(watchedFolderPath: string): Promise<string>
     return subfolderPath;
 }
 
-async function buildPatternAllowlist(
+async function resolveDefaultPatternAllowlist(
     watchedFolderPath: string,
     subfolderPath: string,
-    options: WatchFolderLoadOptions,
-): Promise<string[]> {
-    // Build allowlist with the new subfolder as write path
-    const allowlist: string[] = [subfolderPath];
-
-    // Add global patterns
+    persistDefaultExpandedPaths: boolean,
+): Promise<readonly string[]> {
     const settings: VTSettings = await loadSettings();
     const patterns: readonly string[] = settings.defaultAllowlistPatterns ?? [];
-    for (const pattern of patterns) {
-        const patternPath: string = path.join(watchedFolderPath, pattern);
-        try {
-            await fs.access(patternPath);
-            if (!allowlist.includes(patternPath)) {
-                allowlist.push(patternPath);
-                if (options.persistDefaultExpandedPaths !== false) {
-                    await setActiveViewFolderState(watchedFolderPath, patternPath, 'expanded');
-                }
-            }
-        } catch {
-            // Pattern folder doesn't exist, skip
-        }
-    }
 
-    return allowlist;
+    const probes: readonly PatternProbe[] = await Promise.all(
+        patterns.map(async (pattern: string): Promise<PatternProbe> => {
+            const patternPath: string = path.join(watchedFolderPath, pattern);
+            try {
+                await fs.access(patternPath);
+                return { patternPath, exists: true };
+            } catch {
+                return { patternPath, exists: false };
+            }
+        }),
+    );
+
+    const plan = buildPatternAllowlistPure(subfolderPath, probes, persistDefaultExpandedPaths);
+    for (const expandedPath of plan.pathsToMarkExpanded) {
+        await setActiveViewFolderState(watchedFolderPath, expandedPath, 'expanded');
+    }
+    return plan.allowlist;
 }
 
 function getExpandedPaths(config: WatchFolderConfig): readonly string[] {
