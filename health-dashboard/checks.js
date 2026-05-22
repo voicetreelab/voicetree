@@ -201,7 +201,7 @@ export function renderChecksSection(checksData) {
       </div>
       <div class="checks-empty">
         <p>No CI check reports yet.</p>
-        <p>Run <code>npm run measures:capture-ci</code> to populate, or <code>npm run measures:capture-ci -- --quick</code> to skip slow checks.</p>
+        <p>Run <code>npm run test:t1</code> for the local push gate, or <code>npm run test:full</code> for every scheduled check.</p>
       </div>
     </section>`
   }

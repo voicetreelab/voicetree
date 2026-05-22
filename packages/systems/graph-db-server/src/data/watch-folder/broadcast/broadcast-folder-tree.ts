@@ -8,7 +8,7 @@ import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-
 import { getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist';
 import { getStarredFolders } from '../starred-folders';
 import { getGraph } from '@vt/graph-db-server/state/graph-store';
-import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner';
+import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store';
 import { buildFolderTree, getExternalReadPaths } from '@vt/graph-model/folders';
 import type { DirectoryEntry } from '@vt/graph-model/folders';
 import type { FolderTreeNode, AbsolutePath } from '@vt/graph-model/folders';
@@ -17,6 +17,8 @@ import type { Graph, NodeIdAndFilePath } from '@vt/graph-model/graph';
 import * as O from 'fp-ts/lib/Option.js';
 import type { FilePath } from '@vt/graph-model/graph';
 import {getCallbacks} from '@vt/graph-model';
+
+const STARRED_AND_EXTERNAL_MAX_DEPTH: number = 3;
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS: number = 300;
@@ -37,34 +39,37 @@ async function doBroadcast(): Promise<void> {
     const loadedPaths: Set<string> = new Set<string>(vaultPaths);
     if (writePath) loadedPaths.add(writePath);
 
-    const entry: DirectoryEntry = await getDirectoryTree(projectRoot);
-    const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writePath, graphFilePaths);
+    const readModel = getFolderTreeReadModel();
 
-    getCallbacks().syncFolderTree?.(tree);
+    const entry: DirectoryEntry | null = await readModel.readRootTree({
+        root: toAbsolutePath(projectRoot),
+    });
+    if (entry) {
+        const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writePath, graphFilePaths);
+        getCallbacks().syncFolderTree?.(tree);
+    }
 
-    // Scan starred folders and broadcast their trees (depth-limited to 3 for performance)
     const starredFolders: readonly string[] = await getStarredFolders();
     const starredTrees: Record<string, FolderTreeNode> = {};
     for (const folder of starredFolders) {
-        try {
-            const starredEntry: DirectoryEntry = await getDirectoryTree(folder, 3);
-            starredTrees[folder] = buildFolderTree(starredEntry, loadedPaths, writePath, graphFilePaths);
-        } catch {
-            // Starred folder doesn't exist or can't be read — skip
-        }
+        const starredEntry: DirectoryEntry | null = await readModel.readDepthLimitedTree({
+            root: toAbsolutePath(folder),
+            maxDepth: STARRED_AND_EXTERNAL_MAX_DEPTH,
+        });
+        if (!starredEntry) continue;
+        starredTrees[folder] = buildFolderTree(starredEntry, loadedPaths, writePath, graphFilePaths);
     }
     getCallbacks().syncStarredFolderTrees?.(starredTrees);
 
-    // Scan external loaded paths (not under project root) and broadcast their trees
     const externalPaths: readonly string[] = getExternalReadPaths([...vaultPaths], projectRoot);
     const externalTrees: Record<string, FolderTreeNode> = {};
     for (const extPath of externalPaths) {
-        try {
-            const extEntry: DirectoryEntry = await getDirectoryTree(extPath, 3);
-            externalTrees[extPath] = buildFolderTree(extEntry, loadedPaths, writePath, graphFilePaths);
-        } catch {
-            // External folder doesn't exist or can't be read — skip
-        }
+        const extEntry: DirectoryEntry | null = await readModel.readDepthLimitedTree({
+            root: toAbsolutePath(extPath),
+            maxDepth: STARRED_AND_EXTERNAL_MAX_DEPTH,
+        });
+        if (!extEntry) continue;
+        externalTrees[extPath] = buildFolderTree(extEntry, loadedPaths, writePath, graphFilePaths);
     }
     getCallbacks().syncExternalFolderTrees?.(externalTrees);
 }

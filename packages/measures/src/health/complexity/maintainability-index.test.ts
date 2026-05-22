@@ -1,10 +1,10 @@
 import {describe, expect, it} from 'vitest'
-import {measureCyclomaticComplexity} from '../../_shared/cyclomatic'
-import {discoverPackages} from '../../_shared/discover-packages'
-import {discoverSourceFiles} from '../../_shared/function-discovery'
-import {formatMaintainabilityRows} from '../../_shared/function-row-formatters'
-import {measureMaintainability} from '../../_shared/maintainability'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {measureCyclomaticComplexity} from '../../_shared/complexity/cyclomatic'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles} from '../../_shared/discovery/function-discovery'
+import {formatMaintainabilityRows} from '../../_shared/complexity/function-row-formatters'
+import {measureMaintainability} from '../../_shared/complexity/maintainability'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // Captured 2026-05-15 after widening discovery to whole repo via discoverPackages(); ratchet down over time.
 const MIN_MAINTAINABILITY_INDEX = 0    // observed min: 0 (graph-tools/collapseBoundary.ts); ratchet up

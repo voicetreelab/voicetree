@@ -1,6 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { HealthOwner, HealthResponse } from './contract.ts'
+import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
 export type DaemonHandle = {
   port: number
@@ -34,6 +35,11 @@ export type StartDaemonOptions = {
   // doesn't leak orphaned daemons. Disabled by default because launchd-owned
   // daemons (e.g. the future LaunchAgent path) have ppid=1 from the start.
   exitOnParentDeath?: boolean
+  // Test seam: inject a folder-tree scanner so route/SSE tests can prove the
+  // workflows do not re-invoke filesystem discovery on every read. Production
+  // leaves this unset and the daemon installs a scanner that wraps
+  // `getDirectoryTree` (returning null on missing/unreadable roots).
+  folderTreeScanner?: FolderTreeScanner
 }
 
 function defaultClock(): number {

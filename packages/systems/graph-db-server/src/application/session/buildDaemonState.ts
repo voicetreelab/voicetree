@@ -1,11 +1,11 @@
 import type { State } from '@vt/graph-state'
+import { toAbsolutePath } from '@vt/graph-model'
 import type { FolderTreeNode } from '@vt/graph-model'
-import { buildFolderTree, toAbsolutePath } from '@vt/graph-model'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
 import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
-import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
 import type { VaultState } from '@vt/graph-db-server/contract'
+import { projectGraphDerivedFolderTree } from '../projection/graphDerivedFolderTree.ts'
 import type { Session } from './types.ts'
 import { projectSessionState } from './project.ts'
 
@@ -23,20 +23,13 @@ export async function buildDaemonState(session: Session): Promise<State> {
   const readPaths = [...(await getReadPaths())]
   const vaultPaths = await getVaultPaths()
 
-  let folderTree: FolderTreeNode | null = null
-  if (projectRoot) {
-    try {
-      const directoryEntry = await getDirectoryTree(projectRoot)
-      folderTree = buildFolderTree(
-        directoryEntry,
-        new Set<string>([...readPaths, ...vaultPaths]),
-        writePath ? toAbsolutePath(writePath) : null,
-        new Set<string>(Object.keys(graph.nodes)),
-      )
-    } catch {
-      folderTree = null
-    }
-  }
+  const folderTree: FolderTreeNode | null = projectGraphDerivedFolderTree({
+    graph,
+    projectRoot: projectRoot ? toAbsolutePath(projectRoot) : null,
+    readPaths,
+    vaultPaths,
+    writePath: writePath ? toAbsolutePath(writePath) : null,
+  })
 
   const vault: VaultState = {
     vaultPath: projectRoot ?? '',

@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
-import {discoverPackages} from '../../_shared/discover-packages'
-import {buildImportGraph} from '../../_shared/import-graph'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {discoverPackages} from '../../_shared/discovery/discover-packages'
+import {buildImportGraph} from '../../_shared/graph/import-graph'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 // ── Types ──
 

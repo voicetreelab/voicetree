@@ -160,12 +160,16 @@ if [ -n "$reason" ]; then
       echo "    PATH to circumvent this gate. If you cannot get the password,"
       echo "    surface the blocked command to the user and stop."
       echo ""
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (no TTY, no GIT_GATE_PASS_ATTEMPT)"
     } >&2
     exit 1
   fi
 
   if [ "$pass" != "$expected" ]; then
-    echo "    wrong password — aborted." >&2
+    {
+      echo "    wrong password — aborted."
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (wrong password)"
+    } >&2
     exit 1
   fi
   # one-shot: clear the attempt so re-invocations require fresh authorization

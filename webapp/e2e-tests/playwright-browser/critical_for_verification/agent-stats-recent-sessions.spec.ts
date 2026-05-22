@@ -161,6 +161,7 @@ async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMet
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
       },
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},

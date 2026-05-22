@@ -1,9 +1,9 @@
 import {dirname, relative, resolve} from 'node:path'
 import {Node, SyntaxKind, type SourceFile} from 'ts-morph'
 import {describe, expect, it} from 'vitest'
-import {buildCallGraph, type CallGraph} from '../../_shared/call-graph'
-import {discoverPackages, type PackageInfo} from '../../_shared/discover-packages'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {buildCallGraph, type CallGraph} from '../../_shared/graph/call-graph'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../../..')
 // Captured 2026-05-15 after widening discovery to whole repo and measuring
