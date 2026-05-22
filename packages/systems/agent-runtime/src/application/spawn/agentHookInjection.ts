@@ -7,11 +7,11 @@
  *   `claude` token. The JSON file (written by the edge helper) merges with
  *   the user's existing config and only adds VoiceTree's hook commands.
  *
- * Codex path: insert `-c hooks.<Event>=...` flags right after the `codex`
- *   token. The TOML inline-table value bakes in mcpPort + terminalId at spawn
- *   time (no shell-var expansion needed), and is wrapped in single quotes at
- *   the shell level so embedded TOML basic-string escapes reach Codex's parser
- *   unmodified.
+ * Codex path: insert three `-c hooks.<Event>=[{...}]` flags right after the
+ *   `codex` token. The TOML inline-table value bakes in mcpPort + terminalId
+ *   at spawn time (no shell-var expansion needed), and is wrapped in single
+ *   quotes at the shell level so the embedded TOML basic-string `\"` escapes
+ *   reach Codex's TOML parser unmodified.
  */
 
 import {shellQuote} from '../util/shellQuote'
@@ -63,46 +63,8 @@ export function injectClaudeSettingsFlag(command: string, settingsPath: string):
     return insertAfterToken(command, 'claude', `--settings ${shellQuote(settingsPath)}`)
 }
 
-function tomlBasicString(value: string): string {
-    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
-function codexCommandHook(command: string, options: {timeout?: number; statusMessage?: string} = {}): string {
-    const fields: string[] = [
-        'type="command"',
-        `command=${tomlBasicString(command)}`,
-    ]
-    if (options.timeout !== undefined) {
-        fields.push(`timeout=${options.timeout}`)
-    }
-    if (options.statusMessage !== undefined) {
-        fields.push(`statusMessage=${tomlBasicString(options.statusMessage)}`)
-    }
-    return `{${fields.join(',')}}`
-}
-
-function codexMatcherGroup(
-    hooks: readonly string[],
-    options: {matcher?: string} = {},
-): string {
-    const fields: string[] = []
-    if (options.matcher !== undefined) {
-        fields.push(`matcher=${tomlBasicString(options.matcher)}`)
-    }
-    fields.push(`hooks=[${hooks.join(',')}]`)
-    return `{${fields.join(',')}}`
-}
-
-function buildCodexRelayCommand(mcpPort: number, terminalId: string, event: string): string {
-    const url: string = `http://localhost:${mcpPort}/hook/codex?terminal=${encodeURIComponent(terminalId)}&event=${event}`
-    return (
-        `curl -fsS -X POST -H "Content-Type: application/json" --max-time 2 --data-binary @- "${url}" ` +
-        '>/dev/null 2>&1 || true'
-    )
-}
-
 /**
- * Build Codex `-c hooks.<Event>=...` flags as a single space-joined
+ * Build the three Codex `-c hooks.<Event>=...` flags as a single space-joined
  * shell string. Each flag's TOML inline-table value is wrapped in single
  * quotes at the shell level — inside, TOML basic-string `\"` escapes reach
  * Codex's parser unmodified. The mcpPort + terminalId are baked in at spawn
@@ -112,28 +74,19 @@ function buildCodexRelayCommand(mcpPort: number, terminalId: string, event: stri
  * `codex` token (see `injectCodexHookFlags`).
  */
 export function buildCodexHookFlags(mcpPort: number, terminalId: string): string {
-    const relayEvents: readonly string[] = ['Stop', 'PermissionRequest', 'UserPromptSubmit']
-    const relayFlags: string[] = relayEvents.map(event => {
-        const group: string = codexMatcherGroup([
-            codexCommandHook(buildCodexRelayCommand(mcpPort, terminalId, event)),
-        ])
-        return `-c 'hooks.${event}=[${group}]'`
-    })
-
-    const postToolUseRelay: string = codexMatcherGroup([
-        codexCommandHook(buildCodexRelayCommand(mcpPort, terminalId, 'PostToolUse')),
-    ], {matcher: 'AskUserQuestion'})
-    const fileSizeCheck: string = codexMatcherGroup([
-        codexCommandHook('node "$(git rev-parse --show-toplevel)/webapp/.claude/hooks/file-size-check.cjs"', {
-            timeout: 30,
-            statusMessage: 'Checking edited file sizes',
-        }),
-    ], {matcher: '^(apply_patch|Edit|Write|MultiEdit)$'})
-
-    return [
-        ...relayFlags,
-        `-c 'hooks.PostToolUse=[${postToolUseRelay},${fileSizeCheck}]'`,
-    ].join(' ')
+    const events: readonly string[] = ['Stop', 'PermissionRequest', 'UserPromptSubmit']
+    return events.map(event => {
+        // Bake the event name into the URL as `?event=<Name>` so the endpoint
+        // works even if Codex's hook subprocess sends the JSON payload without
+        // an application/json Content-Type (which Express's body parser would
+        // then silently drop). The `Content-Type` header is also set, but
+        // the query-param fallback makes the path robust to future curl-shape
+        // surprises.
+        const url: string = `http://localhost:${mcpPort}/hook/codex?terminal=${encodeURIComponent(terminalId)}&event=${event}`
+        const curl: string =
+            `curl -fsS -X POST -H \\"Content-Type: application/json\\" --max-time 2 --data-binary @- \\"${url}\\" >/dev/null 2>&1 || true`
+        return `-c 'hooks.${event}=[{type=\"command\",command=\"${curl}\"}]'`
+    }).join(' ')
 }
 
 /**

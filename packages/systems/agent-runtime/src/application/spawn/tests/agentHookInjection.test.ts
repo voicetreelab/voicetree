@@ -114,13 +114,12 @@ describe('injectClaudeSettingsFlag', () => {
 })
 
 describe('buildCodexHookFlags', () => {
-    it('produces four -c flags, including PostToolUse', () => {
+    it('produces three -c flags, one per hook event', () => {
         const flags = buildCodexHookFlags(3002, 'Jin')
-        expect(flags.match(/-c /g)?.length).toBe(4)
+        expect(flags.match(/-c /g)?.length).toBe(3)
         expect(flags).toContain('hooks.Stop=')
         expect(flags).toContain('hooks.PermissionRequest=')
         expect(flags).toContain('hooks.UserPromptSubmit=')
-        expect(flags).toContain('hooks.PostToolUse=')
     })
 
     it('bakes in mcpPort and terminalId (no shell-var refs)', () => {
@@ -136,12 +135,13 @@ describe('buildCodexHookFlags', () => {
         expect(flags).toContain('terminal=agent%20with%20spaces')
     })
 
-    it('wraps each -c value in single quotes and uses Codex hook groups', () => {
+    it('wraps each -c value in single quotes (so embedded `\\"` reaches Codex unmodified)', () => {
         const flags = buildCodexHookFlags(3002, 'Jin')
-        // Each flag like `-c 'hooks.Stop=[{hooks=[{type="command",...}]}]'`
-        expect(flags).toMatch(/-c 'hooks\.Stop=\[\{hooks=\[\{type="command"/)
+        // Each flag like `-c 'hooks.Stop=[{type=\"command\",...}]'`
+        expect(flags).toMatch(/-c 'hooks\.Stop=\[/)
         expect(flags).toMatch(/\]'(\s|$)/)
-        expect(flags).toContain('\\"Content-Type: application/json\\"')
+        // TOML basic-string escape for double-quote
+        expect(flags).toContain('\\"')
     })
 
     it('targets /hook/codex on the right port', () => {
@@ -159,15 +159,6 @@ describe('buildCodexHookFlags', () => {
         expect(flags).toContain('event=Stop')
         expect(flags).toContain('event=PermissionRequest')
         expect(flags).toContain('event=UserPromptSubmit')
-        expect(flags).toContain('event=PostToolUse')
-    })
-
-    it('adds a blocking PostToolUse file-size check for Codex edits', () => {
-        const flags = buildCodexHookFlags(3002, 'Jin')
-        expect(flags).toContain('matcher="^(apply_patch|Edit|Write|MultiEdit)$"')
-        expect(flags).toContain('webapp/.claude/hooks/file-size-check.cjs')
-        expect(flags).toContain('timeout=30')
-        expect(flags).toContain('statusMessage="Checking edited file sizes"')
     })
 })
 
@@ -175,7 +166,7 @@ describe('injectCodexHookFlags', () => {
     it('inserts the flags right after the codex token', () => {
         const result = injectCodexHookFlags('codex "$AGENT_PROMPT"', 3002, 'Jin')
         // After codex, before "$AGENT_PROMPT"
-        expect(result).toMatch(/^codex -c 'hooks\.Stop=.+ -c 'hooks\.PermissionRequest=.+ -c 'hooks\.UserPromptSubmit=.+ -c 'hooks\.PostToolUse=.+ "\$AGENT_PROMPT"$/)
+        expect(result).toMatch(/^codex -c 'hooks\.Stop=.+ -c 'hooks\.PermissionRequest=.+ -c 'hooks\.UserPromptSubmit=.+ "\$AGENT_PROMPT"$/)
     })
 
     it('inserts after codex when other flags follow', () => {

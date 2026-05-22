@@ -36,11 +36,3 @@ Core values:
 Never reward hack or verification hack. Think about what the underlying measurement is trying to achieve, and work towards that, with the verifier as your feedback loop.
 
 After every change you make, provide a clear, honest report on ANY change that you are not confident about and that could be considered a fragile hack, or could be considered reward hacking, or verification hacking.
-
-## Shared Agent Hooks
-
-Claude Code and Codex both enforce the 500-line source-file limit through `webapp/.claude/hooks/file-size-check.cjs`.
-
-- Claude Code loads it from `.claude/settings.local.json` as a `PostToolUse` hook for `Write|Edit|MultiEdit`.
-- Codex direct repo sessions can load it from `.codex/hooks.json` as a `PostToolUse` hook for `apply_patch` plus the `Edit|Write|MultiEdit` matcher aliases. Codex project hooks require the project `.codex/` layer to be trusted.
-- VoiceTree-spawned Codex agent sessions inject the same hook with inline `-c hooks.PostToolUse=...` flags in `packages/systems/agent-runtime/src/application/spawn/agentHookInjection.ts`, so worktree agents do not depend on local project-hook trust.
