@@ -5,8 +5,19 @@ import {
 } from '@vt/graph-db-client'
 
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
+import {
+  attemptBoundedRecovery,
+  resetRecoveryHistory,
+} from './graph-daemon-recovery'
+import { unsubscribeFromDaemonSSE } from './daemon-sse-subscription'
+import { stopDaemonGraphSync } from './daemon-watch-sync'
 
 export type DaemonHandle = EnsureGraphDaemonResult
+
+async function stopOwnerRecoveryLoops(): Promise<void> {
+  unsubscribeFromDaemonSSE()
+  await stopDaemonGraphSync()
+}
 
 let activeVault: string | null = null
 let activeOwner: DaemonHandle | null = null
@@ -45,6 +56,13 @@ function markDaemonLost(error: unknown): void {
  * the owner via {@link ensureGraphDaemonForVault} when no healthy cached
  * client exists. Throws when no vault has been activated yet — `openVault`
  * must run first.
+ *
+ * BF-347: when the cached client is lost (connection failure), recovery
+ * goes through {@link attemptBoundedRecovery}: SSE + watch-sync loops are
+ * stopped BEFORE the ensure call, and the recovery is bounded
+ * (3 attempts in any 30s window per vault). The first-time ensure path
+ * (no cached client yet) calls `ensureGraphDaemonForVault` directly — it
+ * is the user-driven open, not a recovery.
  */
 export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
   if (activeVault === null) {
@@ -57,6 +75,11 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
     } catch (error) {
       if (!isConnectionFailure(error)) throw error
       markDaemonLost(error)
+      const recovered = await attemptBoundedRecovery(activeVault, 'electron-main', {
+        stopLoops: stopOwnerRecoveryLoops,
+      })
+      activeOwner = recovered
+      return recovered
     }
   }
   const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
@@ -72,6 +95,7 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
  */
 export async function setActiveVaultAndEnsureDaemon(vault: string): Promise<DaemonHandle> {
   if (activeVault !== vault) {
+    if (activeVault !== null) resetRecoveryHistory(activeVault)
     activeOwner = null
     activeVault = vault
   }
@@ -110,11 +134,13 @@ export async function callDaemon<T>(
  * at the next launch and by the owner protocol's stale-reclaim path.
  */
 export async function shutdownActiveDaemonConnection(): Promise<void> {
+  if (activeVault !== null) resetRecoveryHistory(activeVault)
   activeOwner = null
   activeVault = null
 }
 
 export function clearDaemonClientCache(): void {
+  if (activeVault !== null) resetRecoveryHistory(activeVault)
   activeOwner = null
   activeVault = null
 }
