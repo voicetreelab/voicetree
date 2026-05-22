@@ -126,19 +126,26 @@ export async function hasSession(name: string): Promise<boolean> {
     })
 }
 
+// tmux 3.6a on macOS strips literal tab characters from -F output and replaces
+// them with '_', so any tab-separated format silently collapses fields into one
+// unparsable string. '|' is safe because sanitizeTmuxName rejects it from
+// session names.
+const LIST_SESSIONS_SEPARATOR: string = '|'
+const LIST_SESSIONS_FORMAT: string = `#{session_name}${LIST_SESSIONS_SEPARATOR}#{session_created}${LIST_SESSIONS_SEPARATOR}#{pane_pid}`
+
 export async function listSessions(): Promise<readonly TmuxListedSession[]> {
     try {
         const result: TmuxResult = await runTmux([
             'list-sessions',
             '-F',
-            '#{session_name}\t#{session_created}\t#{pane_pid}',
+            LIST_SESSIONS_FORMAT,
         ])
         return result.stdout
             .split('\n')
             .map((line: string) => line.trim())
             .filter((line: string) => line.length > 0)
             .map((line: string): TmuxListedSession => {
-                const [sessionName, createdRaw, panePidRaw] = line.split('\t')
+                const [sessionName, createdRaw, panePidRaw] = line.split(LIST_SESSIONS_SEPARATOR)
                 const createdAtSeconds: number = Number(createdRaw)
                 const panePid: number = Number(panePidRaw)
                 if (!sessionName || !Number.isFinite(createdAtSeconds) || !Number.isInteger(panePid)) {

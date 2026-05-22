@@ -15,20 +15,29 @@ type RendererAttachUnclaimedTmuxResult = {
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let refreshInFlight: Promise<readonly UnclaimedTmuxSession[]> | null = null
 
 function publishUnclaimedTmuxSessions(sessions: readonly UnclaimedTmuxSession[]): void {
     uiAPI.syncUnclaimedTmuxSessions(sessions)
 }
 
 export async function refreshUnclaimedTmuxSessions(): Promise<readonly UnclaimedTmuxSession[]> {
-    try {
-        const sessions: readonly UnclaimedTmuxSession[] = await terminalRuntimeSurface.listUnclaimedTmuxSessions()
-        publishUnclaimedTmuxSessions(sessions)
-        return sessions
-    } catch (error) {
-        console.warn('[unclaimed-tmux] Failed to refresh sessions:', error)
-        throw error
-    }
+    if (refreshInFlight) return refreshInFlight
+
+    refreshInFlight = terminalRuntimeSurface.listUnclaimedTmuxSessions()
+        .then((sessions: readonly UnclaimedTmuxSession[]) => {
+            publishUnclaimedTmuxSessions(sessions)
+            return sessions
+        })
+        .catch((error: unknown) => {
+            console.warn('[unclaimed-tmux] Failed to refresh sessions:', error)
+            throw error
+        })
+        .finally(() => {
+            refreshInFlight = null
+        })
+
+    return refreshInFlight
 }
 
 export function startUnclaimedTmuxSessionPolling(): void {

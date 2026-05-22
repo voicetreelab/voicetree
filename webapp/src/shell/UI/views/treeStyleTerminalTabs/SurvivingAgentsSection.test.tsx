@@ -14,7 +14,7 @@ function makeSession(overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTm
         hash: 'aaaaaaaaaa',
         classification: 'this-vault',
         attachable: true,
-        createdAt: 1_779_365_910_000,
+        createdAt: Date.now() - 12_000,
         panePid: 84231,
         agentName: 'Ari',
         vaultPath: '/vault/current',

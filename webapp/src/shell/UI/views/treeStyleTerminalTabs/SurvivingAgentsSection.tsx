@@ -19,6 +19,19 @@ function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+function formatAge(createdAt: number, now: number = Date.now()): string {
+    const ageSeconds: number = Math.max(0, Math.floor((now - createdAt) / 1000));
+    if (ageSeconds < 60) return `${ageSeconds}s ago`;
+
+    const ageMinutes: number = Math.floor(ageSeconds / 60);
+    if (ageMinutes < 60) return `${ageMinutes}m ago`;
+
+    const ageHours: number = Math.floor(ageMinutes / 60);
+    if (ageHours < 24) return `${ageHours}h ago`;
+
+    return `${Math.floor(ageHours / 24)}d ago`;
+}
+
 function sessionTooltip(session: UnclaimedTmuxSession): string {
     const parts: string[] = [
         `tmux: ${session.sessionName}`,
@@ -111,7 +124,7 @@ export function SurvivingAgentsSection({
                                     </span>
                                 </div>
                                 <div className="surviving-agent-meta">
-                                    pid {session.panePid}
+                                    {formatAge(session.createdAt)} | pid {session.panePid}
                                 </div>
                             </div>
 

@@ -2,33 +2,28 @@ import type {UnclaimedTmuxSession} from '@vt/agent-runtime'
 
 type UnclaimedTmuxCallback = (sessions: readonly UnclaimedTmuxSession[]) => void
 
-const UNCLAIMED_TMUX_EVENT = 'vt:unclaimed-tmux-sessions'
-const UNCLAIMED_TMUX_STATE_KEY = '__vtUnclaimedTmuxSessions'
+let sessions: readonly UnclaimedTmuxSession[] = []
+const subscribers: Set<UnclaimedTmuxCallback> = new Set()
 
-type UnclaimedTmuxWindow = Window & {
-    [UNCLAIMED_TMUX_STATE_KEY]?: readonly UnclaimedTmuxSession[]
-}
-
-function tmuxWindow(): UnclaimedTmuxWindow {
-    return window as UnclaimedTmuxWindow
+function notifySubscribers(): void {
+    for (const callback of subscribers) {
+        callback(sessions)
+    }
 }
 
 export function getUnclaimedTmuxSessions(): readonly UnclaimedTmuxSession[] {
-    return tmuxWindow()[UNCLAIMED_TMUX_STATE_KEY] ?? []
+    return sessions
 }
 
 export function syncUnclaimedTmuxFromMain(nextSessions: readonly UnclaimedTmuxSession[]): void {
-    tmuxWindow()[UNCLAIMED_TMUX_STATE_KEY] = nextSessions
-    window.dispatchEvent(new CustomEvent(UNCLAIMED_TMUX_EVENT, {detail: nextSessions}))
+    sessions = nextSessions
+    notifySubscribers()
 }
 
 export function subscribeToUnclaimedTmuxChanges(callback: UnclaimedTmuxCallback): () => void {
-    const listener = (event: Event): void => {
-        callback((event as CustomEvent<readonly UnclaimedTmuxSession[]>).detail)
-    }
-    window.addEventListener(UNCLAIMED_TMUX_EVENT, listener)
+    subscribers.add(callback)
     return () => {
-        window.removeEventListener(UNCLAIMED_TMUX_EVENT, listener)
+        subscribers.delete(callback)
     }
 }
 
@@ -58,7 +53,7 @@ export function stopUnclaimedTmuxPolling(): void {
 
 export function removeUnclaimedTmuxSession(sessionName: string): void {
     syncUnclaimedTmuxFromMain(
-        getUnclaimedTmuxSessions().filter((session: UnclaimedTmuxSession) => session.sessionName !== sessionName),
+        sessions.filter((session: UnclaimedTmuxSession) => session.sessionName !== sessionName),
     )
 }
 
