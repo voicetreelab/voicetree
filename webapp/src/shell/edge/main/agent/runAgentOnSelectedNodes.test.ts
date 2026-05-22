@@ -17,14 +17,14 @@ vi.mock('@/shell/edge/main/agent/terminals/terminalRuntimeSurface', () => ({
   }
 }))
 
-vi.mock('@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy', () => ({
+vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => ({
   getGraphFromDaemon: vi.fn(),
   postDeltaThroughDaemonWithEditors: vi.fn().mockResolvedValue(undefined)
 }))
 
 import { runAgentOnSelectedNodes, type RunAgentOnSelectedResult } from './runAgentOnSelectedNodes'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
+import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
 function createNode(id: NodeIdAndFilePath, content: string): GraphNode {
   return {

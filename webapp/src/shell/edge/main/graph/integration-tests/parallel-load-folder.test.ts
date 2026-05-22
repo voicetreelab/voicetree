@@ -29,7 +29,7 @@ import {
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
 import { createGraph } from '@vt/graph-model/graph'

@@ -1,4 +1,4 @@
-import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
+import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';

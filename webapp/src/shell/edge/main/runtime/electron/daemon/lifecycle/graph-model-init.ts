@@ -23,8 +23,8 @@ import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-
 import { enableMcpClientIntegrations } from '@vt/voicetree-mcp'
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
-import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
-import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
+import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 
 async function loadGraphThroughDaemon(_vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
     // Post BF-345: there is no vaultless daemon fallback. Callers that need a

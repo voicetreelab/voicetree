@@ -9,8 +9,8 @@ import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup/debug-auto-setup';
-import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
-import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
+import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
+import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
