@@ -21,6 +21,10 @@ export * from '../application/terminals/tmux/tmux-preflight'
 export * from '../application/terminals/tmux/tmux-server'
 export * from '../application/terminals/tmux/unclaimed-tmux'
 
+export * from '../application/recovery/types'
+export {discoverRecoverableAgentSessions, defaultDiscoverRecoveryDeps, type DiscoverRecoveryDeps} from '../application/recovery/discovery'
+export {resumePersistedAgentSession, defaultResumePersistedDeps, type ResumePersistedDeps, type ResumePersistedResult} from '../application/recovery/resumePersistedAgentSession'
+
 export * from '../application/headless/headlessAgentManager'
 
 export * from '../application/spawn/spawnHookTerminal'

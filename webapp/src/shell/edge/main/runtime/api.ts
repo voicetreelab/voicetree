@@ -20,6 +20,10 @@ import {
   killUnclaimedTmuxSession,
   refreshUnclaimedTmuxSessions,
 } from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync'
+import {
+  refreshRecoverySessions,
+  resumeRecoverySession,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
@@ -191,6 +195,10 @@ export const mainAPI = {
   refreshUnclaimedTmuxSessions,
   attachUnclaimedTmuxSession,
   killUnclaimedTmuxSession,
+
+  // Unified recovery feed: live-tmux attach rows + dead-pane resumable rows
+  refreshRecoverySessions,
+  resumeRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

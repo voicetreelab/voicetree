@@ -4,11 +4,12 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import type {Mock} from 'vitest';
 import {cleanup, fireEvent, render, screen, within} from '@testing-library/react';
 import type {RenderResult} from '@testing-library/react';
-import type {UnclaimedTmuxSession} from '@vt/agent-runtime';
+import * as O from 'fp-ts/lib/Option.js';
+import type {RecoverableAgentSession, TerminalData, UnclaimedTmuxSession} from '@vt/agent-runtime';
 import {SurvivingAgentsSection} from './SurvivingAgentsSection';
 
-function makeSession(overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTmuxSession {
-    return {
+function makeAttachable(overrides: Partial<UnclaimedTmuxSession> = {}): RecoverableAgentSession {
+    const session: UnclaimedTmuxSession = {
         sessionName: 'vt-aaaaaaaaaa-Ari',
         terminalId: 'Ari',
         hash: 'aaaaaaaaaa',
@@ -22,18 +23,63 @@ function makeSession(overrides: Partial<UnclaimedTmuxSession> = {}): UnclaimedTm
         taskNodePath: '/vault/current/task.md',
         ...overrides,
     };
+    return {kind: 'attachable-tmux', session};
+}
+
+function makeResumable(overrides: Partial<Extract<RecoverableAgentSession, {kind: 'resumable-cli'}>> = {}): RecoverableAgentSession {
+    const terminalData: TerminalData = {
+        type: 'Terminal',
+        terminalId: 'Bob' as TerminalData['terminalId'],
+        attachedToContextNodeId: '/vault/ctx.md' as TerminalData['attachedToContextNodeId'],
+        terminalCount: 0,
+        anchoredToNodeId: O.none,
+        title: 'Bob',
+        resizable: true,
+        shadowNodeDimensions: {width: 395, height: 380},
+        isPinned: true,
+        isDone: false,
+        lifecycle: 'idle',
+        lastOutputTime: 0,
+        activityCount: 0,
+        parentTerminalId: null,
+        agentName: 'Bob',
+        worktreeName: undefined,
+        isHeadless: false,
+        isMinimized: false,
+        contextContent: '',
+        agentTypeName: '',
+        initialCommand: 'claude',
+        initialEnvVars: {VOICETREE_VAULT_PATH: '/vault/current'},
+    };
+    return {
+        kind: 'resumable-cli',
+        terminalId: 'Bob' as TerminalData['terminalId'],
+        agentName: 'Bob',
+        cliType: 'claude',
+        metadataPath: '/vault/current/.voicetree/terminals/Bob.json',
+        terminalData,
+        nativeSessionId: 'sess-uuid-bob',
+        reason: 'missing-tmux-session',
+        ...overrides,
+    };
 }
 
 function renderSection(
-    sessions: readonly UnclaimedTmuxSession[],
+    sessions: readonly RecoverableAgentSession[],
+    overrides: {
+        readonly onAttachResult?: {readonly success: boolean; readonly error?: string};
+        readonly onResumeResult?: {readonly success: boolean; readonly error?: string};
+    } = {},
 ): RenderResult & {
     readonly onRefresh: Mock;
     readonly onAttach: Mock;
     readonly onKill: Mock;
+    readonly onResume: Mock;
 } {
     const onRefresh: Mock = vi.fn(() => Promise.resolve());
-    const onAttach: Mock = vi.fn(() => Promise.resolve({success: true}));
+    const onAttach: Mock = vi.fn(() => Promise.resolve(overrides.onAttachResult ?? {success: true}));
     const onKill: Mock = vi.fn(() => Promise.resolve({success: true}));
+    const onResume: Mock = vi.fn(() => Promise.resolve(overrides.onResumeResult ?? {success: true}));
 
     const result: RenderResult = render(
         <SurvivingAgentsSection
@@ -41,34 +87,33 @@ function renderSection(
             onRefresh={onRefresh}
             onAttach={onAttach}
             onKill={onKill}
-        />
+            onResume={onResume}
+        />,
     );
 
-    return {...result, onRefresh, onAttach, onKill};
+    return {...result, onRefresh, onAttach, onKill, onResume};
 }
 
-describe('SurvivingAgentsSection', () => {
+describe('SurvivingAgentsSection — attachable-tmux rows', () => {
     afterEach(() => {
         cleanup();
     });
 
-    it('renders same-vault sessions with an explicit Attach action', () => {
-        const session: UnclaimedTmuxSession = makeSession();
-        const {container, onAttach} = renderSection([session]);
+    it('renders same-vault attachable rows with an Attach action', () => {
+        const {container, onAttach} = renderSection([makeAttachable()]);
 
         expect(screen.getByText('Surviving agents (1)')).toBeTruthy();
-        const row: Element | null = container.querySelector('[data-session-name="vt-aaaaaaaaaa-Ari"]');
+        const row: Element | null = container.querySelector('[data-row-kind="attachable-tmux"][data-session-name="vt-aaaaaaaaaa-Ari"]');
         expect(row).not.toBeNull();
         expect(within(row as HTMLElement).getByText('This vault')).toBeTruthy();
 
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /attach/i}));
 
-        expect(onAttach).toHaveBeenCalledTimes(1);
         expect(onAttach).toHaveBeenCalledWith('vt-aaaaaaaaaa-Ari');
     });
 
-    it('renders foreign-vault sessions as kill-only', () => {
-        const session: UnclaimedTmuxSession = makeSession({
+    it('renders foreign-vault attachable rows as kill-only', () => {
+        const foreign: RecoverableAgentSession = makeAttachable({
             sessionName: 'vt-bbbbbbbbbb-Beth',
             terminalId: 'Beth',
             hash: 'bbbbbbbbbb',
@@ -77,7 +122,7 @@ describe('SurvivingAgentsSection', () => {
             agentName: 'Beth',
             vaultPath: '/vault/other',
         });
-        const {container, onKill} = renderSection([session]);
+        const {container, onKill} = renderSection([foreign]);
 
         const row: Element | null = container.querySelector('[data-session-name="vt-bbbbbbbbbb-Beth"]');
         expect(row).not.toBeNull();
@@ -86,21 +131,77 @@ describe('SurvivingAgentsSection', () => {
 
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /kill beth/i}));
 
-        expect(onKill).toHaveBeenCalledTimes(1);
         expect(onKill).toHaveBeenCalledWith('vt-bbbbbbbbbb-Beth');
     });
+});
 
-    it('calls refresh from the section header', () => {
-        const {onRefresh} = renderSection([makeSession()]);
+describe('SurvivingAgentsSection — resumable-cli rows', () => {
+    afterEach(() => {
+        cleanup();
+    });
 
+    it('renders a resumable-cli row with a Resume action (not Attach)', () => {
+        const {container, onResume} = renderSection([makeResumable()]);
+
+        const row: Element | null = container.querySelector('[data-row-kind="resumable-cli"][data-terminal-id="Bob"]');
+        expect(row).not.toBeNull();
+        expect(within(row as HTMLElement).getByText(/Resumable \(claude\)/)).toBeTruthy();
+        expect(within(row as HTMLElement).queryByRole('button', {name: /attach/i})).toBeNull();
+
+        fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /resume claude session/i}));
+
+        expect(onResume).toHaveBeenCalledWith('Bob');
+    });
+
+    it('renders the resumable native sessionId in the row meta', () => {
+        const {container} = renderSection([makeResumable({nativeSessionId: 'sess-visible-id'})]);
+        const row: Element | null = container.querySelector('[data-row-kind="resumable-cli"]');
+        expect(row).not.toBeNull();
+        expect((row as HTMLElement).textContent).toContain('sess-visible-id');
+    });
+});
+
+describe('SurvivingAgentsSection — mixed rows', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('renders both attachable and resumable rows simultaneously, each with their distinct action', () => {
+        const {container} = renderSection([makeAttachable(), makeResumable()]);
+
+        expect(screen.getByText('Surviving agents (2)')).toBeTruthy();
+        const attachableRow: Element | null = container.querySelector('[data-row-kind="attachable-tmux"]');
+        const resumableRow: Element | null = container.querySelector('[data-row-kind="resumable-cli"]');
+        expect(attachableRow).not.toBeNull();
+        expect(resumableRow).not.toBeNull();
+        expect(within(attachableRow as HTMLElement).getByRole('button', {name: /attach/i})).toBeTruthy();
+        expect(within(resumableRow as HTMLElement).getByRole('button', {name: /resume claude session/i})).toBeTruthy();
+    });
+
+    it('does not render the section when there are no sessions and no error', () => {
+        renderSection([]);
+        expect(screen.queryByTestId('surviving-agents-section')).toBeNull();
+    });
+});
+
+describe('SurvivingAgentsSection — refresh and error handling', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('calls onRefresh when the refresh button is clicked', () => {
+        const {onRefresh} = renderSection([makeAttachable()]);
         fireEvent.click(screen.getByRole('button', {name: /refresh surviving agents/i}));
-
         expect(onRefresh).toHaveBeenCalledTimes(1);
     });
 
-    it('does not render when there are no surviving sessions', () => {
-        renderSection([]);
-
-        expect(screen.queryByTestId('surviving-agents-section')).toBeNull();
+    it('surfaces a failed resume error inline so the row stays visible', async () => {
+        const {findByText} = renderSection([makeResumable()], {
+            onResumeResult: {success: false, error: 'tmux server unreachable'},
+        });
+        fireEvent.click(screen.getByRole('button', {name: /resume claude session/i}));
+        const errorNode: HTMLElement = await findByText('tmux server unreachable');
+        expect(errorNode).toBeTruthy();
+        expect(screen.getByTestId('surviving-agents-section')).toBeTruthy();
     });
 });
