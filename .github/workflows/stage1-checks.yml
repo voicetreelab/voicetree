@@ -2,9 +2,6 @@ name: "PR CI"
 
 on:
   pull_request:
-    branches:
-      - dev
-      - main
     paths:
       - 'package.json'
       - 'package-lock.json'
