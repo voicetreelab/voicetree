@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>folder-nodes — design gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:     #0d0c0a;
+    --bg-2:   #181612;
+    --text:   #eee5d0;
+    --text-2: rgba(238,229,208,0.6);
+    --rule:   rgba(238,229,208,0.18);
+    --accent: #e0c98a;
+    --accent-2:#c25a3a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body {
+    font-family: 'Geist Mono', monospace;
+    background:
+      radial-gradient(900px 600px at 12% 0%, rgba(224,201,138,0.07), transparent 60%),
+      radial-gradient(900px 600px at 88% 100%, rgba(194,90,58,0.08), transparent 65%),
+      var(--bg);
+  }
+
+  /* film grain */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: screen;
+    opacity: 0.5;
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 64px 56px 96px;
+  }
+
+  /* header */
+  .hdr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hdr .kicker {
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .hdr h1 {
+    font-family: 'Fraunces', serif;
+    font-variation-settings: 'opsz' 144, 'SOFT' 30, 'WONK' 0;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(60px, 9vw, 132px);
+    line-height: 0.92;
+    margin: 0;
+    color: var(--text);
+    letter-spacing: -0.015em;
+  }
+  .hdr h1 em {
+    color: var(--accent-2);
+    font-style: italic;
+  }
+  .hdr .meta {
+    text-align: right;
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    line-height: 2;
+  }
+  .hdr .meta .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 4px 10px;
+    margin-top: 4px;
+    letter-spacing: 0.2em;
+  }
+
+  .intro {
+    max-width: 64ch;
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--text);
+    margin: 28px 0 8px;
+    font-weight: 400;
+  }
+  .intro em { color: var(--accent); font-style: italic; }
+
+  .brief {
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-2);
+    max-width: 76ch;
+    margin: 16px 0 48px;
+  }
+  .brief strong { color: var(--text); font-weight: 500; }
+
+  /* cards grid */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .cards.cards-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+  }
+  @media (max-width: 1000px) {
+    .cards { grid-template-columns: 1fr; }
+    .cards.cards-4 { grid-template-columns: 1fr; }
+  }
+  .card {
+    position: relative;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    padding: 0;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    transition: transform 280ms ease, border-color 280ms ease;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+  }
+  .card .preview {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+  }
+  .card .preview .label-overlay {
+    position: absolute;
+    bottom: 12px; left: 12px;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: rgba(13,12,10,0.7);
+    padding: 4px 10px;
+  }
+
+  /* card 1 — strata preview */
+  .preview.strata {
+    background:
+      linear-gradient(#ece2cd 1px, transparent 1px) 0 0/24px 24px,
+      linear-gradient(90deg, #ece2cd 1px, transparent 1px) 0 0/24px 24px,
+      #ece2cd;
+  }
+  .preview.strata::before, .preview.strata::after {
+    position: absolute;
+    border: 1.5px solid #141414;
+    box-shadow: 4px 4px 0 -1px rgba(20,20,20,0.85);
+    background: repeating-linear-gradient(45deg, transparent 0 9px, rgba(31,93,122,0.06) 9px 10px), #e1d5ba;
+  }
+  .preview.strata::before {
+    content: 'folder-nodes';
+    padding: 24px 14px 14px;
+    top: 30%; left: 20%; width: 56%; height: 50%;
+    color: transparent;
+  }
+  .strata .tab-overlay {
+    position: absolute;
+    top: 30%; left: 20%;
+    transform: translateY(-100%);
+    background: #141414; color: #ece2cd;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em;
+    padding: 4px 10px 3px;
+    border: 1.5px solid #141414;
+  }
+  .strata .chip-overlay {
+    position: absolute;
+    top: 28%; left: calc(20% + 56% - 80px);
+    background: #ece2cd;
+    color: #1f5d7a;
+    border: 1.5px solid #1f5d7a;
+    font-family: 'Geist Mono', monospace;
+    font-size: 8.5px; letter-spacing: 0.14em;
+    padding: 3px 8px;
+    text-transform: uppercase;
+  }
+  .strata .child {
+    position: absolute;
+    background: #ece2cd;
+    border: 1.5px solid #141414;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.7);
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    padding: 4px 8px;
+    color: #141414;
+  }
+
+  /* card 2 — bloom preview */
+  .preview.bloom {
+    background:
+      radial-gradient(120px 80px at 70% 30%, rgba(194,90,58,0.25), transparent 70%),
+      radial-gradient(160px 100px at 30% 80%, rgba(126,142,94,0.22), transparent 70%),
+      #f5ecdc;
+  }
+  .preview.bloom::after {
+    content: '';
+    position: absolute;
+    top: 28%; left: 18%; width: 64%; height: 56%;
+    border-radius: 64px 96px 72px 88px / 88px 64px 96px 72px;
+    background:
+      radial-gradient(60% 50% at 35% 30%, rgba(255,247,232,0.85), transparent 70%),
+      radial-gradient(80% 70% at 80% 80%, rgba(194,90,58,0.22), transparent 70%),
+      rgba(255,247,232,0.55);
+    border: 1.8px solid rgba(74,28,24,0.45);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 20px 40px -20px rgba(74,28,24,0.22);
+  }
+  .bloom .plate {
+    position: absolute;
+    top: calc(28% - 14px); left: calc(18% + 24px);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: #4a1c18;
+    background: #f5ecdc;
+    border: 1.5px solid rgba(74,28,24,0.4);
+    border-radius: 999px;
+    padding: 4px 12px 6px;
+  }
+  .bloom .blob {
+    position: absolute;
+    border-radius: 16px 24px 18px 22px / 22px 16px 24px 18px;
+    background: #ecdfc7;
+    border: 1.5px solid rgba(74,28,24,0.5);
+    font-family: 'Fraunces', serif;
+    font-size: 11px; color: #2a1a14;
+    padding: 6px 10px;
+    z-index: 2;
+    box-shadow: 0 6px 14px -6px rgba(74,28,24,0.25);
+  }
+
+  /* card 3 — press preview */
+  .preview.press {
+    background: #f7f4ea;
+  }
+  .preview.press::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(14,13,10,0.18);
+  }
+  .press .masthead-bar {
+    position: absolute;
+    top: 16%; left: 14%; right: 14%;
+    height: 1px;
+    background: #0e0d0a;
+  }
+  .press .title-overlay {
+    position: absolute;
+    top: calc(16% - 30px); left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: #0e0d0a;
+    background: #f7f4ea;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+  .press .section {
+    position: absolute;
+    top: 24%; left: 14%; right: 14%; bottom: 18%;
+    border-top: 4px double #0e0d0a;
+    border-bottom: 4px double #0e0d0a;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 14px, rgba(14,13,10,0.05) 14px 15px),
+      #efe9d4;
+  }
+  .press .col {
+    position: absolute;
+    background: #f7f4ea;
+    border-top: 1.5px solid #0e0d0a;
+    border-bottom: 1px solid rgba(14,13,10,0.45);
+    padding: 4px 6px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 9px;
+    color: #0e0d0a;
+    line-height: 1.1;
+  }
+  .press .col .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-style: normal;
+    font-size: 6.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #b8281c;
+  }
+
+  /* card body */
+  .card .body {
+    padding: 20px 22px 24px;
+    border-top: 1px solid var(--rule);
+  }
+  .card .num {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .card h2 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 38px;
+    line-height: 1;
+    margin: 4px 0 10px;
+  }
+  .card .tag {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 12px;
+  }
+  .card p {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-2);
+    margin: 0 0 14px;
+  }
+  .card .open {
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .card .open::after {
+    content: '→';
+    transition: transform 220ms ease;
+  }
+  .card:hover .open::after { transform: translateX(4px); }
+
+  /* section divider */
+  .section-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 18px;
+    margin: 36px 0 22px;
+  }
+  .section-bar .line {
+    border-top: 1px solid var(--rule);
+    height: 1px;
+  }
+  .section-bar .label {
+    font-size: 10.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .section-bar.dim .label { color: var(--text-2); }
+
+  /* preview shared internals — nested level boxes */
+  .preview .lvl-1, .preview .lvl-2, .preview .lvl-3 {
+    position: absolute;
+    color: #141414;
+    font-family: 'Geist Mono', monospace;
+    font-size: 7px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .preview .ctrl {
+    background: #141414;
+    color: #ece2cd;
+    padding: 3px 5px;
+    line-height: 1;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 4px;
+  }
+  .preview .bearing,
+  .preview .bom,
+  .preview .desig {
+    color: #ece2cd;
+    background: rgba(255,255,255,0.12);
+    padding: 1px 4px;
+    font-size: 6px;
+  }
+  .preview .desig {
+    color: #2e87a8;
+    background: rgba(31,93,122,0.25);
+  }
+
+  /* ATLAS preview */
+  .preview.atlas { background: #ece2cd; }
+  .preview.atlas::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px,
+      linear-gradient(90deg, rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px;
+  }
+  .preview.atlas .compass-mini {
+    position: absolute;
+    bottom: 12px; right: 14px;
+    width: 26px; height: 26px;
+    background: var(--paper);
+    border: 1px solid #a07628;
+    border-radius: 50%;
+    background-image:
+      linear-gradient(#a07628 0 1px, transparent 1px) center/2px 22px no-repeat,
+      linear-gradient(90deg, #a07628 0 1px, transparent 1px) center/22px 2px no-repeat;
+  }
+  .preview.atlas .lvl-1 {
+    top: 14%; left: 8%; width: 64%; height: 70%;
+    border: 1.5px solid #141414;
+    background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(31,93,122,0.10) 8px 9px), #e1d5ba;
+  }
+  .preview.atlas .lvl-2 {
+    position: absolute;
+    top: 22%; left: 30%; width: 64%; height: 70%;
+    background: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(160,118,40,0.16) 6px 7px), #d7c9a8;
+    border: 1.5px solid #141414;
+  }
+  .preview.atlas .lvl-3 {
+    position: absolute;
+    top: 26%; left: 36%; width: 60%; height: 70%;
+    background: repeating-linear-gradient(90deg, transparent 0 5px, rgba(20,20,20,0.08) 5px 6px), #cebe98;
+    border: 1.5px solid #141414;
+  }
+
+  /* BENCH preview */
+  .preview.bench { background: #ece2cd; }
+  .preview.bench::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px,
+      linear-gradient(90deg, rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px;
+  }
+  .preview.bench .lvl-1.bench-solid {
+    top: 12%; left: 6%; width: 70%; height: 72%;
+    border: 4px double #141414;
+    background: #e1d5ba;
+  }
+  .preview.bench .lvl-2.bench-phantom {
+    position: absolute;
+    top: 22%; left: 30%; width: 64%; height: 72%;
+    background: #cfc09c;
+    outline: 1.5px dashed #141414; outline-offset: -2px;
+    border: 0;
+  }
+  .preview.bench .lvl-3.bench-dotted {
+    position: absolute;
+    top: 26%; left: 36%; width: 60%; height: 72%;
+    background: #c0ad7c;
+    outline: 1.5px dotted #141414; outline-offset: -2px;
+    border: 0;
+  }
+  .preview.bench .roundel {
+    position: absolute;
+    width: 18px; height: 18px;
+    background: #ece2cd;
+    border: 1.5px solid #141414;
+    border-radius: 50%;
+    font-family: 'Geist Mono', monospace;
+    font-weight: 600;
+    font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+    color: #141414;
+    box-shadow: 1.5px 1.5px 0 -0.5px rgba(20,20,20,0.7);
+    z-index: 3;
+  }
+
+  /* BUS preview */
+  .preview.bus { background: #ece2cd; }
+  .preview.bus::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/18px 18px,
+      linear-gradient(90deg, rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/18px 18px;
+  }
+  .preview.bus .lvl-1.bus-cyan {
+    top: 14%; left: 6%; width: 70%; height: 70%;
+    border: 1.5px solid #141414;
+    background: #e1d5ba;
+    box-shadow:
+      0 -3px 0 -1px transparent;
+  }
+  .preview.bus .lvl-1.bus-cyan::before,
+  .preview.bus .lvl-1.bus-cyan::after {
+    content: ''; position: absolute; left: 10px; right: 10px; height: 4px;
+    background-image: linear-gradient(90deg, #1f5d7a 0 1px, transparent 1px) 0 0/10px 100%;
+    background-repeat: repeat-x;
+  }
+  .preview.bus .lvl-1.bus-cyan::before { top: -3px; }
+  .preview.bus .lvl-1.bus-cyan::after  { bottom: -3px; }
+
+  .preview.bus .lvl-2.bus-tan {
+    position: absolute;
+    top: 26%; left: 30%; width: 64%; height: 70%;
+    border: 1.5px solid #141414;
+    background: #d2c298;
+  }
+  .preview.bus .lvl-2.bus-tan::before,
+  .preview.bus .lvl-2.bus-tan::after {
+    content: ''; position: absolute; left: 8px; right: 8px; height: 3px;
+    background-image: linear-gradient(90deg, #141414 0 1px, transparent 1px) 0 0/8px 100%;
+    background-repeat: repeat-x;
+  }
+  .preview.bus .lvl-2.bus-tan::before { top: -2px; }
+  .preview.bus .lvl-2.bus-tan::after  { bottom: -2px; }
+
+  .preview.bus .lvl-3.bus-tan-2 {
+    position: absolute;
+    top: 30%; left: 38%; width: 58%; height: 70%;
+    border: 1.5px solid #141414;
+    background: #c6b58a;
+  }
+  .preview.bus .lvl-3.bus-tan-2::before,
+  .preview.bus .lvl-3.bus-tan-2::after {
+    content: ''; position: absolute; left: 8px; right: 8px; height: 3px;
+    background-image: linear-gradient(90deg, #141414 0 1px, transparent 1px) 0 0/8px 100%;
+    background-repeat: repeat-x;
+  }
+  .preview.bus .lvl-3.bus-tan-2::before { top: -2px; }
+  .preview.bus .lvl-3.bus-tan-2::after  { bottom: -2px; }
+
+  .preview.bus .trace {
+    position: absolute;
+    top: 22%; right: 8%; width: 24%; height: 1.6px;
+    background: #a85a1c;
+    z-index: 4;
+  }
+  .preview.bus .pad {
+    position: absolute;
+    width: 6px; height: 6px;
+    background: #a85a1c;
+    border: 1px solid #141414;
+    border-radius: 50%;
+    z-index: 5;
+  }
+  .preview.bus .fid-corner {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: #ece2cd;
+    border: 1.5px solid #c8141c;
+    border-radius: 50%;
+    z-index: 5;
+  }
+  .preview.bus .fid-corner.tl { top: 6px; left: 6px; }
+  .preview.bus .fid-corner.tr { top: 6px; right: 6px; }
+
+  /* footer */
+  footer.foot {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  footer.foot strong { color: var(--text); font-weight: 500; }
+
+  /* ATLAS sub-variant previews (DRILL / SURFACE / LENS / HYBRID) */
+  .preview.atlas-sub { background: #ece2cd; position: relative; }
+  .preview.atlas-sub::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px,
+      linear-gradient(90deg, rgba(20,20,20,0.18) 1px, transparent 1px) 0 0/22px 22px;
+  }
+  .atlas-sub .sealed-mini {
+    position: absolute;
+    top: 18%; left: 10%; right: 18%; bottom: 22%;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 8px, rgba(31,93,122,0.10) 8px 9px),
+      #e1d5ba;
+    border: 1.5px solid #141414;
+    box-shadow: 4px 4px 0 -1px rgba(20,20,20,0.7);
+  }
+  .atlas-sub .ctrl-mini {
+    display: flex; align-items: stretch;
+    background: #141414;
+    border-bottom: 1.5px solid #141414;
+  }
+  .atlas-sub .ctrl-mini .lbl {
+    color: #ece2cd; font-family: 'Geist Mono', monospace;
+    font-size: 7.5px; letter-spacing: 0.14em;
+    padding: 3px 6px;
+  }
+  .atlas-sub .ctrl-mini .lbl .lvl {
+    color: #a07628; font-size: 6.5px;
+  }
+  .atlas-sub .ctrl-mini .mode {
+    margin-left: auto;
+    background: #a07628; color: #141414;
+    font-family: 'Geist Mono', monospace;
+    font-size: 7px; letter-spacing: 0.10em;
+    padding: 3px 6px;
+  }
+  .atlas-sub.surface .ctrl-mini .mode { background: #c44a1a; color: #ece2cd; }
+  .atlas-sub.lens .ctrl-mini .mode    { background: #0e6f8c; color: #ece2cd; }
+  .atlas-sub.hybrid .ctrl-mini .mode  {
+    background: linear-gradient(90deg, #a07628 0 33%, #c44a1a 33% 66%, #0e6f8c 66% 100%);
+    color: #ece2cd;
+    padding-right: 8px;
+  }
+  .atlas-sub .tree-mini {
+    padding: 3px 0;
+  }
+  .atlas-sub .tree-mini .trow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 6.5px; letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-bottom: 1px dashed rgba(20,20,20,0.25);
+    display: flex; justify-content: space-between;
+    color: #141414;
+  }
+  .atlas-sub .tree-mini .trow:last-child { border-bottom: 0; }
+  .atlas-sub .tree-mini .trow.focus.d  { background: #a07628; color: #141414; font-weight: 600; }
+  .atlas-sub .tree-mini .trow.focus.s  { background: #c44a1a; color: #ece2cd; font-weight: 600; }
+  .atlas-sub .tree-mini .trow.focus.l  { background: #0e6f8c; color: #ece2cd; font-weight: 600; }
+  .atlas-sub .tree-mini .trow.focus.h  { background: #141414; color: #ece2cd; font-weight: 600; }
+  .atlas-sub .compass-mini-sub {
+    position: absolute;
+    bottom: 12px; right: 14px;
+    width: 22px; height: 22px;
+    background: #ece2cd;
+    border: 1px solid #a07628;
+    border-radius: 50%;
+    background-image:
+      linear-gradient(#a07628 0 1px, transparent 1px) center/2px 18px no-repeat,
+      linear-gradient(90deg, #a07628 0 1px, transparent 1px) center/18px 2px no-repeat;
+  }
+
+  /* DRILL — breadcrumb stack indicator at top */
+  .atlas-sub.drill .breadcrumb-mini {
+    background: #ece2cd; color: #141414;
+    font-family: 'Geist Mono', monospace;
+    font-size: 6.5px; letter-spacing: 0.10em;
+    padding: 2px 6px;
+    border-bottom: 1px solid rgba(20,20,20,0.4);
+    display: flex; gap: 4px; align-items: center;
+    text-transform: uppercase;
+  }
+  .atlas-sub.drill .breadcrumb-mini .seg { color: rgba(20,20,20,0.5); }
+  .atlas-sub.drill .breadcrumb-mini .seg.cur { color: #141414; font-weight: 600; }
+  .atlas-sub.drill .breadcrumb-mini .sep { color: #a07628; }
+  .atlas-sub.drill .preview-mark {
+    margin-left: auto; color: #1f5d7a;
+    font-size: 6px; letter-spacing: 0.12em;
+  }
+
+  /* SURFACE — bloomed node + trail */
+  .atlas-sub.surface .bloomed-mini {
+    position: absolute;
+    right: 6%; top: 30%;
+    width: 28%; height: 36%;
+    background:
+      repeating-linear-gradient(-45deg, transparent 0 6px, rgba(160,118,40,0.16) 6px 7px),
+      #d7c9a8;
+    border: 1.5px solid #141414;
+    box-shadow: 3px 3px 0 -1px rgba(196,74,26,0.5);
+  }
+  .atlas-sub.surface .bloomed-mini .blbl {
+    background: #c44a1a; color: #ece2cd;
+    font-family: 'Geist Mono', monospace; font-size: 6.5px;
+    padding: 2px 4px; letter-spacing: 0.1em;
+  }
+  .atlas-sub.surface .trail {
+    position: absolute; top: 38%; left: 30%; width: 32%; height: 8%;
+    pointer-events: none;
+  }
+
+  /* LENS — loupe overlay */
+  .atlas-sub.lens .loupe-mini {
+    position: absolute;
+    right: 6%; top: 28%;
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: 3px solid #0e6f8c;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 4px, rgba(14,111,140,0.18) 4px 5px),
+      #d7c9a8;
+    box-shadow:
+      0 0 0 2px rgba(14,111,140,0.25),
+      4px 5px 18px -2px rgba(14,111,140,0.5);
+    overflow: hidden;
+  }
+  .atlas-sub.lens .loupe-mini::after {
+    content: '';
+    position: absolute;
+    bottom: -14px; right: -14px;
+    width: 22px; height: 70px;
+    background: #0e6f8c;
+    transform: rotate(-45deg);
+    border-radius: 4px;
+    border: 2px solid #141414;
+  }
+  .atlas-sub.lens .loupe-mini .preview-rows {
+    position: absolute;
+    inset: 10px;
+    background: #ece2cd;
+    border: 1.5px solid #141414;
+    padding: 3px;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .atlas-sub.lens .loupe-mini .pr {
+    font-family: 'Geist Mono', monospace;
+    font-size: 5.5px;
+    letter-spacing: 0.06em;
+    display: flex; justify-content: space-between;
+    border-bottom: 1px dashed rgba(20,20,20,0.3);
+    padding: 0 2px;
+  }
+  .atlas-sub.lens .loupe-mini .pr:last-child { border-bottom: 0; }
+  .atlas-sub.lens .loupe-mini .pr.f { background: #0e6f8c; color: #ece2cd; }
+
+  /* HYBRID — 3 mode chip pill in the header */
+  .atlas-sub.hybrid .chips-mini {
+    display: flex; gap: 0; margin-left: auto;
+  }
+  .atlas-sub.hybrid .chips-mini .chp {
+    font-family: 'Geist Mono', monospace;
+    font-size: 6.5px; letter-spacing: 0.08em;
+    padding: 3px 5px;
+    color: rgba(20,20,20,0.4);
+    background: #ece2cd;
+    border-right: 1px dashed rgba(20,20,20,0.25);
+  }
+  .atlas-sub.hybrid .chips-mini .chp:last-child { border-right: 0; }
+  .atlas-sub.hybrid .chips-mini .chp.active.d { background: #a07628; color: #141414; }
+  .atlas-sub.hybrid .chips-mini .chp.active.s { background: #c44a1a; color: #ece2cd; }
+  .atlas-sub.hybrid .chips-mini .chp.active.l { background: #0e6f8c; color: #ece2cd; }
+  .atlas-sub.hybrid .tree-mini .act-chip {
+    padding: 0 4px; font-size: 5.5px; letter-spacing: 0.06em;
+    color: #ece2cd; background: #141414;
+    margin-left: 4px;
+  }
+  .atlas-sub.hybrid .tree-mini .act-chip.d { background: #a07628; color: #141414; }
+  .atlas-sub.hybrid .tree-mini .act-chip.s { background: #c44a1a; }
+  .atlas-sub.hybrid .tree-mini .act-chip.l { background: #0e6f8c; }
+</style>
+</head>
+<body>
+  <main>
+
+    <header class="hdr">
+      <div>
+        <div class="kicker">VoiceTree · folder-nodes design exploration · 2026-05-21</div>
+        <h1>Atlas picked.<br/>Pick a <em>contract</em>.</h1>
+      </div>
+      <div class="meta">
+        Brief: Dan<br />
+        File-tree merged into sealed folder<br />
+        Enter-key transition contract<br />
+        <span class="badge">Pick a contract</span>
+      </div>
+    </header>
+
+    <p class="intro">
+      The user picked Atlas. Now: what does <em>Enter</em> do on a focused row inside the sealed folder's embedded file-tree? Four contracts below — each a different answer to the same interaction question. Pick one; the other three become recoverable as keyboard modifiers.
+    </p>
+
+    <p class="brief">
+      <strong>Drill</strong> — Enter pushes a breadcrumb and re-renders the list one level deeper. Graph untouched. Pure preview. Cheapest, safest.<br />
+      <strong>Surface</strong> — Enter blooms the focused subfolder out of the sealed list and into the graph as a new compound node. Graph grows organically.<br />
+      <strong>Lens</strong> — Enter relocates the camera. Focused folder becomes the new graph root; siblings disappear from view. Best answer to <em>BF-112</em> scale.<br />
+      <strong>Hybrid</strong> — All three available; mode selector in the control bar, per-folder defaults, modifier-key overrides. Most flexible, most surface area.
+    </p>
+
+    <!-- ATLAS sub-variants — Enter contract -->
+    <div class="section-bar">
+      <span class="line"></span>
+      <span class="label">ATLAS · 4 sub-variants — pick a contract</span>
+      <span class="line"></span>
+    </div>
+
+    <div class="cards cards-4">
+      <a class="card" href="./atlas-drill.html">
+        <div class="preview atlas-sub drill">
+          <div class="sealed-mini">
+            <div class="ctrl-mini">
+              <div class="lbl"><span class="lvl">L1</span> folder-nodes</div>
+              <div class="mode">DRILL</div>
+            </div>
+            <div class="breadcrumb-mini">
+              <span class="seg">folder-nodes</span><span class="sep">›</span>
+              <span class="seg">openspec</span><span class="sep">›</span>
+              <span class="seg cur">specs</span>
+              <span class="preview-mark">⊙ preview</span>
+            </div>
+            <div class="tree-mini">
+              <div class="trow"><span>◰ agent-surface.md</span><span>2.1K</span></div>
+              <div class="trow focus d"><span>◰ edge-aggregation</span><span>3.4K</span></div>
+              <div class="trow"><span>▶ contracts/</span><span>×6</span></div>
+              <div class="trow"><span>◧ identity-formal</span><span>5.8K</span></div>
+            </div>
+          </div>
+          <span class="compass-mini-sub"></span>
+          <div class="label-overlay">04.a · DRILL</div>
+        </div>
+        <div class="body">
+          <div class="num">04.a — Preview contract</div>
+          <h2><em>Drill</em></h2>
+          <div class="tag">enter pushes breadcrumb · graph untouched</div>
+          <p>Arrow keys move focus; Enter on a subfolder re-renders the list one level deeper. The breadcrumb stacks. The graph never moves. Cheapest contract — pure preview.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./atlas-surface.html">
+        <div class="preview atlas-sub surface">
+          <div class="sealed-mini">
+            <div class="ctrl-mini">
+              <div class="lbl"><span class="lvl">L1</span> folder-nodes</div>
+              <div class="mode">SURF</div>
+            </div>
+            <div class="tree-mini">
+              <div class="trow"><span>▶ tasks/</span><span>×4</span></div>
+              <div class="trow focus s"><span>▶ openspec/ ↗</span><span>×8</span></div>
+              <div class="trow"><span>◰ BF-110.md</span><span>2.1K</span></div>
+              <div class="trow"><span>◰ folder-note</span><span>note</span></div>
+            </div>
+          </div>
+          <div class="bloomed-mini">
+            <div class="blbl">L2 openspec ↗</div>
+            <div style="padding: 2px 4px; font-family: 'Geist Mono', monospace; font-size: 6px; color: #141414;">
+              proposal · 928B<br/>design · 1.4K<br/>▶ specs/ · ×4
+            </div>
+          </div>
+          <svg class="trail" viewBox="0 0 100 20" preserveAspectRatio="none">
+            <path d="M 5 12 Q 50 4, 95 8" stroke="#c44a1a" stroke-width="1.5" stroke-dasharray="3 3" fill="none"/>
+          </svg>
+          <span class="compass-mini-sub"></span>
+          <div class="label-overlay">04.b · SURFACE</div>
+        </div>
+        <div class="body">
+          <div class="num">04.b — Promote contract</div>
+          <h2><em>Surface</em></h2>
+          <div class="tag">enter blooms folder out · graph grows</div>
+          <p>Enter on a subfolder lifts it OUT of the sealed list and into the graph as a real compound node, edged back to its parent. The graph grows organically as the user commits to branches.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./atlas-lens.html">
+        <div class="preview atlas-sub lens">
+          <div class="sealed-mini">
+            <div class="ctrl-mini">
+              <div class="lbl"><span class="lvl">L1</span> folder-nodes</div>
+              <div class="mode">LENS</div>
+            </div>
+            <div class="tree-mini">
+              <div class="trow"><span>▶ tasks/</span><span>×4</span></div>
+              <div class="trow focus l"><span>▶ openspec/ ⊙</span><span>×8</span></div>
+              <div class="trow"><span>◰ BF-110.md</span><span>2.1K</span></div>
+              <div class="trow"><span>◰ folder-note</span><span>note</span></div>
+            </div>
+          </div>
+          <div class="loupe-mini">
+            <div class="preview-rows">
+              <div class="pr"><span>proposal</span><span>928B</span></div>
+              <div class="pr"><span>design</span><span>1.4K</span></div>
+              <div class="pr f"><span>▶ specs/</span><span>×4</span></div>
+              <div class="pr"><span>tasks</span><span>2.1K</span></div>
+            </div>
+          </div>
+          <span class="compass-mini-sub"></span>
+          <div class="label-overlay">04.c · LENS</div>
+        </div>
+        <div class="body">
+          <div class="num">04.c — Camera contract</div>
+          <h2><em>Lens</em></h2>
+          <div class="tag">enter zooms in · viewport relocates</div>
+          <p>A loupe previews the destination; Enter commits the camera move. Focused folder becomes the new graph root. The graph data is invariant — what changes is what you're looking at. Strongest scale answer.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./atlas-hybrid.html">
+        <div class="preview atlas-sub hybrid">
+          <div class="sealed-mini">
+            <div class="ctrl-mini">
+              <div class="lbl"><span class="lvl">L1</span> folder-nodes</div>
+              <div class="chips-mini">
+                <span class="chp active d">D</span>
+                <span class="chp">S</span>
+                <span class="chp">L</span>
+              </div>
+            </div>
+            <div class="tree-mini">
+              <div class="trow"><span>▶ tasks/</span><span class="act-chip s">SURF</span></div>
+              <div class="trow focus h"><span>▶ openspec/</span><span class="act-chip d">DRILL</span></div>
+              <div class="trow"><span>◰ BF-110.md</span><span class="act-chip">OPEN</span></div>
+              <div class="trow"><span>▶ large-arch/</span><span class="act-chip l">LENS</span></div>
+            </div>
+          </div>
+          <span class="compass-mini-sub"></span>
+          <div class="label-overlay">04.d · HYBRID</div>
+        </div>
+        <div class="body">
+          <div class="num">04.d — Composite contract</div>
+          <h2><em>Hybrid</em></h2>
+          <div class="tag">all three modes · per-folder default · modifier overrides</div>
+          <p>Mode-selector pill in the control bar. Each row shows what Enter will do as a colored chip — so the keystroke consequence is visible before pressing. Heaviest implementation, most flexible answer.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- STRATA family section divider — previous round (Atlas picked) -->
+    <div class="section-bar dim" style="margin-top: 56px;">
+      <span class="line"></span>
+      <span class="label">STRATA family · previous round — Atlas was picked</span>
+      <span class="line"></span>
+    </div>
+
+    <div class="cards">
+      <a class="card" href="./strata-atlas.html">
+        <div class="preview atlas">
+          <span class="compass-mini"></span>
+          <div class="lvl-1 hatched">
+            <div class="ctrl">L1 · folder-nodes <span class="bearing">N 045°</span></div>
+            <div class="lvl-2 hatched-2">
+              <div class="ctrl">L2 · openspec <span class="bearing">N 088°</span></div>
+              <div class="lvl-3 hatched-3">
+                <div class="ctrl">L3 · refactor</div>
+              </div>
+            </div>
+          </div>
+          <div class="label-overlay">04 · ATLAS</div>
+        </div>
+        <div class="body">
+          <div class="num">04 — Cartographic</div>
+          <h2><em>Atlas</em></h2>
+          <div class="tag">bearings · contour hatching · compass rose</div>
+          <p>Each folder is a region with a bearing reading and a hatched ground. Three hatching directions read as three levels of depth without paper-tint games.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./strata-bench.html">
+        <div class="preview bench">
+          <div class="lvl-1 bench-solid">
+            <div class="ctrl">ASM A · folder-nodes <span class="bom">×12</span></div>
+            <div class="lvl-2 bench-phantom">
+              <div class="ctrl">SA B · openspec <span class="bom">×8</span></div>
+              <div class="lvl-3 bench-dotted">
+                <div class="ctrl">DET C · refactor <span class="bom">×4</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="roundel" style="top: 36%; left: 18%;">1</div>
+          <div class="roundel" style="top: 60%; left: 22%;">2</div>
+          <div class="roundel" style="top: 50%; left: 56%;">5</div>
+          <div class="label-overlay">05 · BENCH</div>
+        </div>
+        <div class="body">
+          <div class="num">05 — Engineering</div>
+          <h2><em>Bench</em></h2>
+          <div class="tag">item roundels · phantom · dotted · ansi title block</div>
+          <p>ANSI Y14.2 line conventions encode depth: continuous → phantom → dotted. Each child gets a numbered roundel that survives into the bill-of-materials.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./strata-bus.html">
+        <div class="preview bus">
+          <div class="lvl-1 bus-cyan">
+            <div class="ctrl"><span class="desig">U1</span> folder-nodes</div>
+            <div class="lvl-2 bus-tan">
+              <div class="ctrl"><span class="desig">U1A</span> openspec</div>
+              <div class="lvl-3 bus-tan-2">
+                <div class="ctrl"><span class="desig">U1A1</span> refactor</div>
+              </div>
+            </div>
+          </div>
+          <div class="trace"></div>
+          <div class="pad" style="top: 22%; right: 28%;"></div>
+          <div class="pad" style="top: 22%; right: 10%;"></div>
+          <div class="fid-corner tl"></div>
+          <div class="fid-corner tr"></div>
+          <div class="label-overlay">06 · BUS</div>
+        </div>
+        <div class="body">
+          <div class="num">06 — Schematic</div>
+          <h2><em>Bus</em></h2>
+          <div class="tag">chip designators · pin rails · copper traces</div>
+          <p>Each level is a chip in a chip in a chip — U1 → U1A → U1A1. DIP pin rails frame every package; sealed packages publish their pin interface on the right edge.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Originals divider -->
+    <div class="section-bar dim" style="margin-top: 56px;">
+      <span class="line"></span>
+      <span class="label">Original alternatives · for reference</span>
+      <span class="line"></span>
+    </div>
+
+    <div class="cards">
+      <a class="card" href="./strata.html">
+        <div class="preview strata">
+          <div class="tab-overlay">folder-nodes</div>
+          <div class="chip-overlay">× 12 INSIDE</div>
+          <div class="child" style="left: 26%; top: 44%;">BF-108</div>
+          <div class="child" style="left: 46%; top: 40%;">design.md</div>
+          <div class="child" style="left: 62%; top: 50%;">BF-110</div>
+          <div class="child" style="left: 30%; top: 64%;">BF-117</div>
+          <div class="child" style="left: 56%; top: 70%;">tasks.md</div>
+          <div class="label-overlay">01 · STRATA</div>
+        </div>
+        <div class="body">
+          <div class="num">01 — Brutalist blueprint</div>
+          <h2><em>Strata</em></h2>
+          <div class="tag">Major Mono · IBM Plex Mono · paper + blueprint cyan</div>
+          <p>Architectural drafting plate. Cornered, hatched, double-ruled. The folder publishes a stamped label tab and a fan of edge ports when collapsed.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./bloom.html">
+        <div class="preview bloom">
+          <div class="plate"><em>folder-nodes</em></div>
+          <div class="blob" style="left: 26%; top: 46%;">BF-108</div>
+          <div class="blob" style="left: 48%; top: 42%;">design.md</div>
+          <div class="blob" style="left: 66%; top: 52%;">BF-110</div>
+          <div class="blob" style="left: 30%; top: 66%;">BF-117</div>
+          <div class="blob" style="left: 58%; top: 70%;">tasks.md</div>
+          <div class="label-overlay">02 · BLOOM</div>
+        </div>
+        <div class="body">
+          <div class="num">02 — Organic membrane</div>
+          <h2><em>Bloom</em></h2>
+          <div class="tag">Fraunces italic · Cormorant · cream / terracotta / sage</div>
+          <p>A folder is a permeable membrane. Members float inside; collapsed, the folder contracts to a breathing bud surrounded by satellite hints of what's within.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+
+      <a class="card" href="./press.html">
+        <div class="preview press">
+          <div class="title-overlay">An Epic in Two Movements</div>
+          <div class="masthead-bar"></div>
+          <div class="section">
+            <div class="col" style="left:  6%; top:  8%; width: 24%;"><div class="eyebrow">done</div>BF-108 identity</div>
+            <div class="col" style="left: 36%; top:  8%; width: 24%;"><div class="eyebrow">openspec</div>design.md</div>
+            <div class="col" style="left: 66%; top:  8%; width: 26%;"><div class="eyebrow">testing</div>BF-110</div>
+            <div class="col" style="left:  6%; top: 50%; width: 24%;"><div class="eyebrow">shipped</div>BF-117</div>
+            <div class="col" style="left: 36%; top: 50%; width: 24%;"><div class="eyebrow">researching</div>BF-112</div>
+            <div class="col" style="left: 66%; top: 50%; width: 26%;"><div class="eyebrow">openspec</div>tasks.md</div>
+          </div>
+          <div class="label-overlay">03 · PRESS</div>
+        </div>
+        <div class="body">
+          <div class="num">03 — Editorial broadsheet</div>
+          <h2><em>Press</em></h2>
+          <div class="tag">DM Serif Display · EB Garamond · Antonio · paper / black / vermilion</div>
+          <p>A folder is a print section with its own masthead. Collapsed, it folds to an italic see-also dispatch with a folio reference. One red ink that earns its place.</p>
+          <span class="open">Open mockup</span>
+        </div>
+      </a>
+    </div>
+
+    <footer class="foot">
+      <span>folder-nodes / design gallery · <strong>4 atlas sub-variants</strong> + 3 strata variants + 3 originals</span>
+      <span>VoiceTree · webapp/mockups/folder-node-designs</span>
+    </footer>
+  </main>
+</body>
+</html>

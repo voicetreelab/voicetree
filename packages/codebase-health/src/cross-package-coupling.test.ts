@@ -30,6 +30,10 @@ type ImportEdge = {
 //   graph-db-client -> graph-db-protocol: 17 -> 25 (+8)
 //   graph-db-server -> graph-state:        7 -> 10 (+3)
 //   graph-db-server -> graph-db-protocol:  1 -> 4  (+3)
+// 2026-05-21: Tier 2 editor-typing-order fix in writeMarkdownFile.ts needs
+// getAppendedSuffix + isAppendOnly + fromNodeToContentWithWikilinks from
+// graph-model to compute pending external-append preservation server-side:
+//   graph-db-server -> graph-model:       38 -> 41 (+3)
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
@@ -39,7 +43,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'graph-db-client -> graph-db-server': 17,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> graph-db-protocol': 4,
-    'graph-db-server -> graph-model': 38,
+    'graph-db-server -> graph-model': 41,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
     'graph-state -> graph-model': 8,

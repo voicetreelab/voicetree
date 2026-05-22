@@ -28,6 +28,16 @@ bold "═══ Pre-push: Stage 1 + Stage 2 local verification ═══"
 echo "Log file: $LOG_FILE"
 echo ""
 
+# ── Pre-flight: CLAUDE.md / AGENTS.md must be byte-identical ──────────
+bold "Pre-flight: CLAUDE.md / AGENTS.md sync"
+if ! diff -q "$REPO_ROOT/CLAUDE.md" "$REPO_ROOT/AGENTS.md" >/dev/null 2>&1; then
+  echo "CLAUDE.md and AGENTS.md differ. They must be identical."
+  echo "Reconcile them (e.g. cp CLAUDE.md AGENTS.md), commit, then push again."
+  echo "Bypass with: git push --no-verify"
+  fail "CLAUDE.md / AGENTS.md out of sync"
+fi
+pass "CLAUDE.md / AGENTS.md in sync"
+
 # ── Stage 1a: Lint ─────────────────────────────────────────────────────
 bold "Stage 1: Lint"
 npm run lint --prefix "$REPO_ROOT" || fail "Lint failed"

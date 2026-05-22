@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ATLAS · LENS — sealed folder embeds tree, Enter relocates viewport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:     #ece2cd;
+    --paper-2:   #e1d5ba;
+    --paper-3:   #d7c9a8;
+    --paper-4:   #cebe98;
+    --ink:       #141414;
+    --ink-soft:  #3a3a3a;
+    --ink-faint: rgba(20,20,20,0.32);
+    --bp:        #1f5d7a;
+    --bp-2:      #2e87a8;
+    --lens:      #0e6f8c;
+    --gold:      #a07628;
+    --warn:      #b8421a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply; opacity: 0.55;
+  }
+
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+  .br-tl, .br-tr, .br-bl, .br-br {
+    --b: 28px;
+    position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink);
+  }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+  header.masthead {
+    display: grid; grid-template-columns: 1fr auto; align-items: end;
+    gap: 24px; padding-bottom: 24px; border-bottom: 2px solid var(--ink);
+  }
+  .title-block .kicker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em;
+    color: var(--ink-soft); margin-bottom: 14px;
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(48px, 7vw, 96px); letter-spacing: 0.02em;
+    line-height: 0.9; margin: 0;
+  }
+  .title-block h1 .tab { background: var(--ink); color: var(--paper); padding: 0 0.18em; font-size: 0.86em; }
+  .title-block h1 .mode { color: var(--lens); }
+  .title-block .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--lens);
+    letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px;
+  }
+  .stamp-block {
+    text-align: right; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.18em; line-height: 1.7; color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block; padding: 4px 8px; border: 1.5px solid var(--ink);
+    margin-top: 6px; color: var(--ink); font-weight: 500;
+  }
+  .lede {
+    margin-top: 26px; font-size: 14px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 78ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+  .lede em { color: var(--lens); font-style: normal; font-weight: 500; }
+  .kbd {
+    display: inline-block; padding: 1px 8px; border: 1.5px solid var(--ink);
+    background: var(--paper); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink);
+    margin: 0 2px; vertical-align: 1px;
+  }
+
+  /* viewport breadcrumb (camera path) — sits ABOVE the canvas, signaling that the WHOLE viewport is contextual */
+  .viewport-bar {
+    margin-top: 28px;
+    border: 1.5px solid var(--ink); border-bottom: 0;
+    background: var(--ink); color: var(--paper);
+    display: flex; align-items: stretch; height: 38px;
+    font-family: 'Major Mono Display';
+  }
+  .viewport-bar .vlabel {
+    background: var(--lens); padding: 11px 16px;
+    font-size: 12px; letter-spacing: 0.08em;
+    border-right: 1.5px solid var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .viewport-bar .vlabel .loupe { width: 14px; height: 14px; }
+  .viewport-bar .vpath {
+    flex: 1; display: flex; align-items: center; padding: 0 16px;
+    font-family: 'IBM Plex Mono';
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .viewport-bar .vpath .seg { padding: 0 6px; color: rgba(236,226,205,0.6); }
+  .viewport-bar .vpath .seg.cur { color: var(--paper); font-weight: 500; }
+  .viewport-bar .vpath .sep { color: var(--gold); font-family: 'Major Mono Display'; font-size: 16px; }
+  .viewport-bar .vactions {
+    display: flex; align-items: center; padding: 0 16px;
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(236,226,205,0.7);
+    border-left: 1.5px solid rgba(236,226,205,0.2);
+  }
+  .viewport-bar .vactions .vk {
+    display: inline-block; padding: 1px 6px; border: 1px solid rgba(236,226,205,0.4);
+    margin: 0 4px; color: var(--paper);
+  }
+
+  /* canvas — at depth 0, sealed folder is shown; at depth 1, this would re-render with focused-folder as root */
+  .canvas {
+    position: relative;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 28px;
+    min-height: 720px;
+    overflow: hidden;
+  }
+  .tick { position: absolute; font-size: 10px; letter-spacing: 0.2em; color: var(--ink-soft); text-transform: uppercase; }
+  .tick.tl { top: 8px; left: 12px; } .tick.tr { top: 8px; right: 12px; }
+  .tick.bl { bottom: 8px; left: 12px; } .tick.br { bottom: 8px; right: 12px; }
+
+  .compass {
+    position: absolute; bottom: 22px; right: 22px;
+    width: 80px; height: 80px; color: var(--gold); opacity: 0.95;
+  }
+
+  .scale-stamp {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    border: 1.5px solid var(--lens); background: var(--paper);
+    padding: 6px 12px;
+    font-family: 'Major Mono Display'; font-size: 12px;
+    color: var(--lens); letter-spacing: 0.08em;
+  }
+
+  /* sealed L1 with embedded tree */
+  .sealed {
+    position: absolute;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 11px, rgba(31,93,122,0.06) 11px 12px),
+      var(--paper-2);
+    border: 2px solid var(--ink);
+  }
+  .sealed > .crn {
+    position: absolute; width: 14px; height: 14px; border: 2px solid var(--ink);
+  }
+  .sealed > .crn.tl { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+  .sealed > .crn.tr { top: 4px; right: 4px; border-left: 0; border-bottom: 0; }
+  .sealed > .crn.bl { bottom: 4px; left: 4px; border-right: 0; border-top: 0; }
+  .sealed > .crn.br { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+
+  .controls {
+    display: flex; align-items: stretch; height: 32px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .controls .tab {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display', monospace;
+    font-size: 13px; letter-spacing: 0.04em;
+    padding: 7px 14px 6px; display: flex; align-items: center; gap: 10px;
+    border-right: 1.5px solid var(--ink);
+  }
+  .controls .tab .lvl {
+    color: var(--gold); font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .controls .bearing {
+    flex: 1; background: var(--paper); border-right: 1.5px solid var(--ink);
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-soft); padding: 8px 14px; display: flex; align-items: center; gap: 14px;
+  }
+  .controls .bearing b { color: var(--gold); font-weight: 500; }
+  .controls .count {
+    background: var(--bp); color: var(--paper); border-right: 1.5px solid var(--ink);
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 8px 14px; display: flex; align-items: center;
+  }
+  .controls .mode-stamp {
+    background: var(--lens); color: var(--paper); border-right: 1.5px solid var(--ink);
+    font-family: 'Major Mono Display', monospace; font-size: 11px; letter-spacing: 0.08em;
+    padding: 8px 14px; display: flex; align-items: center; gap: 6px;
+  }
+  .btn {
+    width: 32px; display: flex; align-items: center; justify-content: center;
+    background: var(--paper); border-right: 1.5px solid var(--ink);
+    color: var(--ink); text-decoration: none;
+  }
+  .btn:last-child { border-right: 0; }
+  .btn.toggle { background: var(--ink); color: var(--paper); font-family: 'Major Mono Display', monospace; font-size: 18px; }
+  .btn.note svg { color: var(--bp); }
+
+  .treelist { padding: 4px 0; }
+  .row {
+    display: grid;
+    grid-template-columns: 22px 1fr 110px 90px 38px 32px;
+    align-items: center; height: 30px;
+    font-size: 12px; padding: 0 8px 0 0;
+    border-bottom: 1px dashed var(--ink-faint);
+    position: relative;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .gut {
+    height: 100%;
+    background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(20,20,20,0.08) 5px 6px);
+    border-right: 1px solid var(--ink-faint);
+  }
+  .row .nm { font-weight: 500; padding-left: 10px; letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; }
+  .row .nm .glyph { font-family: 'Major Mono Display'; font-size: 13px; color: var(--ink); }
+  .row.folder .nm .glyph::before { content: '▶'; font-size: 9px; }
+  .row.file .nm .glyph { color: var(--bp); }
+  .row .bear {
+    font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); text-align: right; padding-right: 10px;
+  }
+  .row .meta {
+    font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); text-align: right;
+  }
+  .row .preview-act {
+    font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+    text-align: center; color: var(--lens);
+  }
+  .row .micro-tog { text-align: center; color: var(--ink); opacity: 0.5; font-family: 'Major Mono Display'; font-size: 13px; }
+
+  .row.focused {
+    background: var(--lens); color: var(--paper);
+    position: relative;
+  }
+  .row.focused .nm, .row.focused .bear, .row.focused .meta, .row.focused .micro-tog { color: var(--paper); }
+  .row.focused .nm .glyph { color: var(--paper); }
+  .row.focused .gut { background: rgba(236,226,205,0.18); }
+  .row.focused .preview-act { color: var(--paper); font-weight: 500; }
+
+  /* lens loupe rendered on focused row — a circle showing zoomed-in preview */
+  .loupe {
+    position: absolute;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    border: 3px solid var(--lens);
+    background: var(--paper-3);
+    background-image:
+      repeating-linear-gradient(45deg, transparent 0 6px, rgba(31,93,122,0.08) 6px 7px),
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%);
+    box-shadow:
+      0 0 0 3px rgba(14,111,140,0.2),
+      inset 0 0 20px rgba(20,20,20,0.15),
+      6px 6px 24px -4px rgba(14,111,140,0.4);
+    overflow: hidden;
+  }
+  .loupe::before {
+    content: '';
+    position: absolute; bottom: -22px; right: -22px;
+    width: 36px; height: 130px;
+    background: var(--lens);
+    transform: rotate(-45deg);
+    border-radius: 6px;
+    border: 3px solid var(--ink);
+  }
+  .loupe .preview-content {
+    position: absolute; inset: 16px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 6px;
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 8px;
+  }
+  .loupe .preview-content .ph {
+    background: var(--ink); color: var(--paper);
+    padding: 2px 4px; font-family: 'Major Mono Display';
+    font-size: 7px; letter-spacing: 0.12em;
+  }
+  .loupe .preview-content .pr {
+    display: flex; justify-content: space-between;
+    font-size: 7.5px; padding: 1px 2px;
+    border-bottom: 1px dashed var(--ink-faint);
+  }
+  .loupe .preview-content .pr:last-child { border-bottom: 0; }
+  .loupe .preview-content .pr.f { background: var(--lens); color: var(--paper); }
+  .loupe .pulse {
+    position: absolute; inset: -3px;
+    border-radius: 50%; border: 2px solid var(--lens);
+    opacity: 0.5;
+    animation: pulse 2.4s ease-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(0.98); opacity: 0.7; }
+    100% { transform: scale(1.14); opacity: 0; }
+  }
+  .loupe-label {
+    position: absolute; padding: 4px 10px;
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display'; font-size: 11px; letter-spacing: 0.08em;
+    border: 1.5px solid var(--ink);
+  }
+
+  /* edge fan */
+  .edge-fan {
+    position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 56px;
+    background-image:
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 8%/100% 22%,
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 50%/100% 22%,
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 92%/100% 22%;
+    background-repeat: no-repeat;
+  }
+
+  /* external nodes */
+  .node {
+    position: absolute;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    padding: 8px 12px 10px;
+    font-size: 11.5px; line-height: 1.25;
+    box-shadow: 3px 3px 0 -1px rgba(20,20,20,0.85);
+    min-width: 130px;
+  }
+  .node .nm { display: block; font-weight: 500; }
+  .node .meta { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  svg.edges path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  svg.edges path.bp { stroke: var(--bp); stroke-dasharray: 5 4; }
+
+  /* hint strip */
+  .hint {
+    margin-top: 18px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: stretch;
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .hint .label {
+    background: var(--ink); color: var(--paper); padding: 10px 16px;
+    font-family: 'Major Mono Display'; letter-spacing: 0.08em; font-size: 13px;
+  }
+  .hint .keys { padding: 9px 16px; display: flex; gap: 18px; align-items: center; color: var(--ink-soft); flex-wrap: wrap; }
+  .hint .keys b { color: var(--ink); }
+  .hint .stamp {
+    background: var(--lens); color: var(--paper); padding: 10px 16px;
+    font-family: 'Major Mono Display'; letter-spacing: 0.08em; font-size: 12px;
+    display: flex; align-items: center;
+  }
+
+  .fsm {
+    margin-top: 36px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px),
+      var(--paper);
+    background-size: 24px 24px;
+    padding: 28px 32px 40px;
+    position: relative;
+  }
+  .fsm h3 {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    margin: 0 0 24px; color: var(--ink);
+  }
+  .fsm h3::after { content: ' — viewport-relocate contract'; color: var(--lens); }
+  .fsm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .fsm-state {
+    border: 1.5px solid var(--ink); background: var(--paper);
+    padding: 14px; min-height: 150px; position: relative;
+    box-shadow: 4px 4px 0 -1px rgba(20,20,20,0.7);
+  }
+  .fsm-state .id { font-family: 'Major Mono Display'; font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+  .fsm-state .id .n { color: var(--lens); font-size: 14px; margin-right: 6px; }
+  .fsm-state .desc { font-size: 11px; line-height: 1.5; color: var(--ink-soft); }
+  .fsm-state .graph {
+    margin-top: 12px; padding: 5px 10px; border: 1px solid var(--ink-faint);
+    font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--lens); display: inline-block;
+  }
+  .fsm-state.terminal { background: var(--paper-2); border-style: double; border-width: 4px; }
+  .fsm-svg { position: absolute; left: 32px; right: 32px; top: 95px; height: 160px; pointer-events: none; }
+  .fsm-svg path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  .fsm-svg path.lens { stroke: var(--lens); }
+  .fsm-svg path.back { stroke: var(--warn); stroke-dasharray: 4 4; }
+  .fsm-svg text { font-family: 'IBM Plex Mono'; font-size: 10px; fill: var(--ink); letter-spacing: 0.18em; text-transform: uppercase; }
+  .fsm-svg text.l { fill: var(--lens); }
+
+  /* states strip — zoom progression */
+  .states {
+    margin-top: 36px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  }
+  .state {
+    border: 1.5px solid var(--ink); background: var(--paper);
+    padding: 0; min-height: 280px; position: relative;
+    overflow: hidden;
+  }
+  .state h5 {
+    font-family: 'IBM Plex Mono'; font-size: 10px;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    margin: 0; padding: 10px 14px;
+    background: var(--ink); color: var(--paper);
+    display: flex; justify-content: space-between;
+  }
+  .state h5 .num { color: var(--lens); }
+  .state .vpathmini {
+    padding: 6px 14px; font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    border-bottom: 1px solid var(--ink-faint);
+    color: var(--ink-soft);
+  }
+  .state .vpathmini .cur { color: var(--lens); font-weight: 500; }
+  .state .stage {
+    position: relative; height: 200px;
+    background-image:
+      linear-gradient(rgba(20,20,20,0.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,20,20,0.16) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .state .stage .blob {
+    position: absolute;
+    border: 1.5px solid var(--ink);
+    background: var(--paper-2);
+    font-size: 9px; padding: 4px 6px;
+    font-family: 'IBM Plex Mono';
+  }
+  .state .stage .blob.sealed-mini {
+    background:
+      repeating-linear-gradient(45deg, transparent 0 6px, rgba(31,93,122,0.10) 6px 7px),
+      var(--paper-2);
+  }
+  .state .stage .blob .label {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display'; font-size: 9px;
+    padding: 1px 4px; letter-spacing: 0.1em;
+    margin: -4px -6px 4px;
+  }
+  .state .stage .lensring {
+    position: absolute;
+    border-radius: 50%; border: 3px solid var(--lens);
+    box-shadow: 0 0 0 2px rgba(14,111,140,0.2);
+    pointer-events: none;
+  }
+
+  /* notes */
+  .notes {
+    margin-top: 32px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  .notes section { border-top: 1.5px solid var(--ink); padding-top: 12px; }
+  .notes h4 {
+    margin: 0 0 6px; font-size: 10px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--ink);
+  }
+  .notes p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+  .notes p strong { color: var(--ink); font-weight: 500; }
+  .notes p em { color: var(--lens); font-style: normal; font-weight: 500; }
+
+  .footline {
+    margin-top: 36px; display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // atlas sub-variants · 04.c of 04.d // 2026-05-21</div>
+        <h1>atlas <span class="mode">/ lens</span></h1>
+        <div class="sub">enter relocates viewport · focused folder becomes new root</div>
+      </div>
+      <div class="stamp-block">
+        Sheet 04.c / 04.d<br />
+        Contract · ZOOM-INTO-FOCUS<br />
+        Side-effect · CAMERA RELOCATES<br />
+        <span class="sn">REV. B · CONTEXT MODE</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      The sealed folder is a <strong>map of regions</strong>. <span class="kbd">↑</span><span class="kbd">↓</span> moves focus; a glowing <em>loupe</em> hovers over the focused row showing a zoomed preview of the destination context. <span class="kbd">Enter</span> commits the camera move — the viewport <em>relocates</em> so that the focused subfolder fills the canvas as the new graph root. The viewport breadcrumb at the top remembers the camera path; <span class="kbd">Esc</span> pops the camera back. The graph itself is unchanged — only what you're <em>looking at</em> changes.
+    </p>
+
+    <div class="viewport-bar">
+      <div class="vlabel">
+        <svg class="loupe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11 L15 15"/></svg>
+        VIEWPORT
+      </div>
+      <div class="vpath">
+        <span class="seg cur">/</span>
+        <span class="sep">›</span>
+        <span class="seg cur">folder-nodes</span>
+        <span class="seg" style="margin-left:auto; color:rgba(236,226,205,0.4); font-size: 9.5px;">— camera at depth 1 / can descend 3 more</span>
+      </div>
+      <div class="vactions">
+        <span><span class="vk">↵</span> descend</span>
+        <span style="margin-left:14px"><span class="vk">Esc</span> ascend</span>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <span class="tick tl">+ 000,000 · N</span>
+      <span class="tick tr">+ 1180,000</span>
+      <span class="tick bl">+ 000,720</span>
+      <span class="tick br">+ 1180,720 · S</span>
+
+      <div class="scale-stamp">scale 1:1 · depth 1 of n</div>
+
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" stroke-width="0.6" stroke-dasharray="2 3"/>
+        <path d="M50 8 L54 50 L50 92 L46 50 Z" fill="currentColor" opacity="0.9"/>
+        <path d="M8 50 L50 54 L92 50 L50 46 Z" fill="currentColor" opacity="0.4"/>
+        <text x="50" y="6" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">N</text>
+        <text x="50" y="99" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">S</text>
+        <text x="3" y="52" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">W</text>
+        <text x="93" y="52" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">E</text>
+      </svg>
+
+      <div class="sealed" style="left: 40px; top: 70px; width: 540px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+        <div class="controls">
+          <div class="tab"><span class="lvl">L1</span> folder-nodes</div>
+          <div class="bearing">bearing <b>N 045°</b> · region 01</div>
+          <div class="count">× 12 sealed</div>
+          <div class="mode-stamp">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11 L15 15"/></svg>
+            LENS
+          </div>
+          <a class="btn note">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/><path d="M10.5 1 L10.5 3.5 L13 3.5"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="11" y2="9"/>
+            </svg>
+          </a>
+          <a class="btn toggle">+</a>
+        </div>
+        <div class="treelist">
+          <div class="row folder">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph"></span>tasks/</span>
+            <span class="bear">N 060° · L2</span>
+            <span class="meta">× 4 inside</span>
+            <span class="preview-act">⊙ zoom</span>
+            <span class="micro-tog">+</span>
+          </div>
+          <div class="row folder focused">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph"></span>openspec/</span>
+            <span class="bear">N 088° · L2</span>
+            <span class="meta">× 8 inside</span>
+            <span class="preview-act">⊙ zoom on ↵</span>
+            <span class="micro-tog">+</span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◰</span>BF-110-cross-edges.md</span>
+            <span class="bear">N 105°</span>
+            <span class="meta">2.1 K</span>
+            <span class="preview-act">open .md</span>
+            <span class="micro-tog"></span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◧</span>BF-112-file-cap.md</span>
+            <span class="bear">N 112°</span>
+            <span class="meta">1.7 K</span>
+            <span class="preview-act">open .md</span>
+            <span class="micro-tog"></span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◰</span>folder-nodes.md <span style="color:var(--bp); font-size:9px;">◀ note</span></span>
+            <span class="bear">—</span>
+            <span class="meta">872 B</span>
+            <span class="preview-act">open .md</span>
+            <span class="micro-tog"></span>
+          </div>
+        </div>
+        <span class="edge-fan"></span>
+      </div>
+
+      <!-- the loupe hovering over the focused row, with a tether line connecting it to the row -->
+      <div class="loupe" style="right: 100px; top: 160px;">
+        <div class="pulse"></div>
+        <div class="preview-content">
+          <div class="ph">L2 openspec · ZOOM PREVIEW</div>
+          <div class="pr"><span>proposal.md</span><span>928B</span></div>
+          <div class="pr"><span>design.md</span><span>1.4K</span></div>
+          <div class="pr f"><span>▶ specs/</span><span>× 4</span></div>
+          <div class="pr"><span>tasks.md</span><span>2.1K</span></div>
+          <div class="pr"><span>openspec.md</span><span>note</span></div>
+        </div>
+      </div>
+      <div class="loupe-label" style="right: 100px; top: 350px;">↵ commit zoom · esc cancel</div>
+
+      <!-- tether line from focused row to loupe -->
+      <svg class="edges" viewBox="0 0 1180 720" preserveAspectRatio="none">
+        <path d="M 580 200 C 700 200, 800 190, 940 240" stroke="#0e6f8c" stroke-width="1.5" stroke-dasharray="2 4" fill="none"/>
+        <!-- a few siblings hinting at sibling regions in graph -->
+        <path class="bp" d="M 580 380 C 680 480, 800 500, 870 510"/>
+        <path class="bp" d="M 580 380 C 400 480, 280 520, 220 540"/>
+      </svg>
+
+      <!-- siblings as background context (sealed at depth 1 — same level as folder-nodes) -->
+      <div class="node" style="left: 870px; top: 500px;">
+        <span class="nm">brain-system/</span>
+        <span class="meta">L1 region 02 · × 7</span>
+      </div>
+      <div class="node" style="left: 200px; top: 540px;">
+        <span class="nm">graph-db-server/</span>
+        <span class="meta">L1 region 03 · × 14</span>
+      </div>
+    </div>
+
+    <div class="hint">
+      <div class="label">key</div>
+      <div class="keys">
+        <span><span class="kbd">↑</span><span class="kbd">↓</span> <b>move focus</b></span>
+        <span><span class="kbd">Enter</span> on folder = <b>zoom into</b></span>
+        <span><span class="kbd">Enter</span> on file = <b>open .md</b></span>
+        <span><span class="kbd">Esc</span> <b>zoom out one level</b></span>
+        <span><span class="kbd">Home</span> <b>return to root</b></span>
+        <span><span class="kbd">Alt</span><span class="kbd">+</span><span class="kbd">←</span> <b>history back</b></span>
+      </div>
+      <div class="stamp">camera: depth +1</div>
+    </div>
+
+    <div class="fsm">
+      <h3>state machine</h3>
+      <div class="fsm-grid">
+        <div class="fsm-state">
+          <div class="id"><span class="n">S0</span> root</div>
+          <div class="desc">Camera at top. Canvas shows the L1 sealed folder + its siblings.</div>
+          <div class="graph">camera: /</div>
+        </div>
+        <div class="fsm-state">
+          <div class="id"><span class="n">S1</span> aimed</div>
+          <div class="desc">Focused row inside sealed folder. Loupe previews the destination context.</div>
+          <div class="graph">camera: stable</div>
+        </div>
+        <div class="fsm-state terminal">
+          <div class="id"><span class="n">T₁</span> zoomed</div>
+          <div class="desc">Camera moved. Canvas re-renders with focused subfolder as the new root. Sibling context fades.</div>
+          <div class="graph">camera: <span style="color:var(--lens)">/folder-nodes/openspec</span></div>
+        </div>
+        <div class="fsm-state terminal">
+          <div class="id"><span class="n">T₂</span> opened</div>
+          <div class="desc">Enter on a leaf opens the .md file. Camera stays.</div>
+          <div class="graph">camera: stable</div>
+        </div>
+      </div>
+      <svg class="fsm-svg" viewBox="0 0 1100 160" preserveAspectRatio="none">
+        <path d="M 250 30 L 320 30" marker-end="url(#a)" /><text x="270" y="22">↑↓ focus</text>
+        <path class="lens" d="M 540 30 L 610 30" marker-end="url(#al)" /><text class="l" x="555" y="22">Enter on folder</text>
+        <path d="M 540 60 C 600 100, 800 100, 870 60" marker-end="url(#a)" /><text x="660" y="105">Enter on file</text>
+        <path class="back" d="M 720 60 C 600 110, 400 110, 280 70" marker-end="url(#a)" /><text x="450" y="120">Esc / ←</text>
+        <defs>
+          <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#141414"/></marker>
+          <marker id="al" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#0e6f8c"/></marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="states">
+      <div class="state">
+        <h5>I — root <span class="num">/</span></h5>
+        <div class="vpathmini">camera: <span class="cur">/</span></div>
+        <div class="stage">
+          <div class="blob sealed-mini" style="left: 12px; top: 18px; width: 110px; height: 50px;">
+            <div class="label">L1 folder-nodes ×12</div>
+            <div style="font-size:7.5px;">▶ openspec · ▶ tasks · 9 more</div>
+          </div>
+          <div class="blob" style="left: 140px; top: 26px;"><div class="label" style="font-size:7.5px">brain ×7</div></div>
+          <div class="blob" style="left: 12px; top: 96px;"><div class="label" style="font-size:7.5px">graph-db ×14</div></div>
+          <div class="blob" style="left: 140px; top: 120px;"><div class="label" style="font-size:7.5px">webapp ×22</div></div>
+        </div>
+      </div>
+      <div class="state">
+        <h5>II — aimed <span class="num">⊙</span></h5>
+        <div class="vpathmini">camera: <span class="cur">/</span> · loupe over openspec/</div>
+        <div class="stage">
+          <div class="blob sealed-mini" style="left: 12px; top: 18px; width: 130px; height: 110px;">
+            <div class="label">L1 folder-nodes ×12</div>
+            <div style="font-size:7.5px;">tasks/<br/><b style="color:#0e6f8c">▶ openspec/</b> ⊙<br/>BF-110.md<br/>BF-112.md<br/>folder-nodes.md</div>
+          </div>
+          <div class="lensring" style="left: 110px; top: 30px; width: 80px; height: 80px;"></div>
+        </div>
+      </div>
+      <div class="state">
+        <h5>III — zoomed <span class="num">/openspec</span></h5>
+        <div class="vpathmini">camera: / folder-nodes / <span class="cur">openspec</span></div>
+        <div class="stage">
+          <div class="blob sealed-mini" style="left: 14px; top: 14px; right: 14px; height: 140px; padding: 4px 6px 6px;">
+            <div class="label">L2 openspec · NEW ROOT · ×8</div>
+            <div style="font-size:7.5px; line-height:1.5;">
+              proposal.md · 928B<br/>
+              design.md · 1.4K<br/>
+              ▶ specs/ · × 4<br/>
+              tasks.md · 2.1K<br/>
+              openspec.md · note
+            </div>
+          </div>
+          <div style="position:absolute; bottom:10px; right:14px; font-size:7.5px; color:var(--lens); font-weight:500; letter-spacing:0.16em; text-transform:uppercase;">↑ esc returns to /</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <section>
+        <h4>contract</h4>
+        <p>The graph data is <strong>invariant</strong> — what changes is the camera. Lens mode is to drilling what zoom-to-folder is to selecting-in-finder: you don't move files, you reframe your view of them. The viewport breadcrumb at the top is the URL; <span class="kbd">Esc</span> is the back button.</p>
+      </section>
+      <section>
+        <h4>scale superpower</h4>
+        <p>Because the focused folder becomes the new canvas, you get the <em>full canvas budget</em> back at every zoom level. A folder with 600 children that would crush layout at the root can render comfortably as its own viewport. This is the strongest answer to <em>BF-112</em>.</p>
+      </section>
+      <section>
+        <h4>cost</h4>
+        <p>You lose <em>peripheral context</em> on zoom. Sibling regions and ancestor edges disappear from view. Mitigation: a small "minimap" inset in the corner showing the parent context, plus the persistent viewport breadcrumb. Acceptable trade for the canvas budget recovered.</p>
+      </section>
+    </div>
+
+    <div class="footline">
+      <span>atlas-lens.html · sub-variant 04.c · enter = zoom</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>

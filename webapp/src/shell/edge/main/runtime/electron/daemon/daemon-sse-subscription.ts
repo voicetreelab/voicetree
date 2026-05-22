@@ -5,9 +5,6 @@ const SSE_SILENCE_TIMEOUT_MS: number = 45_000
 let currentController: AbortController | null = null
 let currentReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let currentSubscriptionKey: string | null = null
-let latestProjectedGraph:
-    | { readonly subscriptionKey: string; readonly graph: ProjectedGraph }
-    | null = null
 let lastSeenSeq: number = 0
 
 function clearReconnectTimer(): void {
@@ -38,11 +35,9 @@ function getProjectedGraphSeq(graph: ProjectedGraph): number | null {
 
 function forwardProjectedGraph(
     graph: ProjectedGraph,
-    subscriptionKey: string,
     mainWindow: Electron.BrowserWindow,
 ): void {
     if (mainWindow.isDestroyed()) return
-    latestProjectedGraph = { subscriptionKey, graph }
     mainWindow.webContents.send('graph:projectedGraphUpdate', graph)
 }
 
@@ -52,7 +47,6 @@ async function connectToDaemonSSE(
     mainWindow: Electron.BrowserWindow,
     controller: AbortController,
 ): Promise<void> {
-    const subscriptionKey: string = `${baseUrl}|${sessionId}`;
     const response: Response = await fetch(`${baseUrl}/sessions/${sessionId}/events?since=${lastSeenSeq}`, {
         signal: controller.signal,
     })
@@ -99,7 +93,7 @@ async function connectToDaemonSSE(
                 if (seq !== null) {
                     lastSeenSeq = Math.max(lastSeenSeq, seq);
                 }
-                forwardProjectedGraph(graph, subscriptionKey, mainWindow)
+                forwardProjectedGraph(graph, mainWindow)
             }
         }
     }
@@ -133,7 +127,6 @@ export function subscribeToDaemonSSE(
     const subscriptionKey: string = `${baseUrl}|${sessionId}`;
     if (currentSubscriptionKey !== subscriptionKey) {
         currentSubscriptionKey = subscriptionKey;
-        latestProjectedGraph = null;
         lastSeenSeq = 0;
     }
 
@@ -157,27 +150,6 @@ export function unsubscribeFromDaemonSSE(): void {
     clearReconnectTimer()
     currentController?.abort()
     currentController = null
-}
-
-export function getLatestProjectedGraphForSubscription(
-    baseUrl: string,
-    sessionId: string,
-): ProjectedGraph | null {
-    const subscriptionKey: string = `${baseUrl}|${sessionId}`;
-    return latestProjectedGraph?.subscriptionKey === subscriptionKey
-        ? latestProjectedGraph.graph
-        : null;
-}
-
-export function rememberLatestProjectedGraphForSubscription(
-    baseUrl: string,
-    sessionId: string,
-    graph: ProjectedGraph,
-): void {
-    latestProjectedGraph = {
-        subscriptionKey: `${baseUrl}|${sessionId}`,
-        graph,
-    };
 }
 
 export function __debugLockSSE(): void {

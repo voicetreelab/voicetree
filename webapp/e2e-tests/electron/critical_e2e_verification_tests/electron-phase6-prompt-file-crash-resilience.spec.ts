@@ -36,17 +36,28 @@ import {
   resolveTmuxSessionNamesForTest,
   robustElectronTeardown,
   safeStopFileWatching,
+  tmuxCommandArgsForTest,
   waitForMcpServer,
   type ExtendedWindow,
 } from "./electron-smoke-helpers";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function tmuxSessionExists(sessionName: string): boolean {
+function tmuxSessionExists(
+  appSupportPath: string,
+  sessionName: string,
+): boolean {
   try {
     execFileSync(
       "tmux",
-      ["has-session", "-t", resolveTmuxSessionNameForTest(sessionName)],
+      tmuxCommandArgsForTest(
+        [
+          "has-session",
+          "-t",
+          resolveTmuxSessionNameForTest(sessionName, appSupportPath),
+        ],
+        appSupportPath,
+      ),
       { stdio: "ignore" },
     );
     return true;
@@ -55,12 +66,20 @@ function tmuxSessionExists(sessionName: string): boolean {
   }
 }
 
-function killTmuxSession(sessionName: string): void {
-  for (const resolvedName of resolveTmuxSessionNamesForTest(sessionName)) {
+function killTmuxSession(appSupportPath: string, sessionName: string): void {
+  for (const resolvedName of resolveTmuxSessionNamesForTest(
+    sessionName,
+    appSupportPath,
+  )) {
     try {
-      execFileSync("tmux", ["kill-session", "-t", resolvedName], {
-        stdio: "ignore",
-      });
+      execFileSync(
+        "tmux",
+        tmuxCommandArgsForTest(
+          ["kill-session", "-t", resolvedName],
+          appSupportPath,
+        ),
+        { stdio: "ignore" },
+      );
     } catch {
       // already gone
     }
@@ -143,24 +162,33 @@ const AGENT_NAMES: ReadonlyArray<string> = [
 ];
 
 function reapStaleTestTmuxSessions(
+  appSupportPath: string,
   extraNames: ReadonlyArray<string> = [],
 ): void {
   for (const name of [...AGENT_NAMES, ...extraNames]) {
-    if (tmuxSessionExists(name)) killTmuxSession(name);
+    if (tmuxSessionExists(appSupportPath, name)) {
+      killTmuxSession(appSupportPath, name);
+    }
   }
 }
 
-function tmuxPanePid(sessionName: string): number | null {
+function tmuxPanePid(
+  appSupportPath: string,
+  sessionName: string,
+): number | null {
   try {
     const out = execFileSync(
       "tmux",
-      [
-        "list-panes",
-        "-t",
-        resolveTmuxSessionNameForTest(sessionName),
-        "-F",
-        "#{pane_pid}",
-      ],
+      tmuxCommandArgsForTest(
+        [
+          "list-panes",
+          "-t",
+          resolveTmuxSessionNameForTest(sessionName, appSupportPath),
+          "-F",
+          "#{pane_pid}",
+        ],
+        appSupportPath,
+      ),
       { encoding: "utf8" },
     );
     const first = out.split("\n").find((line) => line.trim().length > 0);
@@ -449,7 +477,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
     // Hermeticity: kill any AGENT_NAMES-shaped tmux sessions left over from
     // prior failed runs, otherwise M1-fix5's idempotent rebind silently
     // takes over and the prompt-file write path under test never runs.
-    reapStaleTestTmuxSessions(["phase6-caller"]);
+    reapStaleTestTmuxSessions(userDataDir, ["phase6-caller"]);
 
     let app1: ElectronApplication | null = null;
     let app2: ElectronApplication | null = null;
@@ -578,12 +606,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
 
       // ── STEP 5: tmux session backs the agent ──
       await expect
-        .poll(() => tmuxSessionExists(terminalId as string), {
+        .poll(() => tmuxSessionExists(userDataDir, terminalId as string), {
           timeout: 10_000,
           message: `tmux session ${terminalId} never appeared`,
         })
         .toBe(true);
-      const prePanePid = tmuxPanePid(terminalId);
+      const prePanePid = tmuxPanePid(userDataDir, terminalId);
       expect(prePanePid, "pane pid must be readable pre-kill").toBeTruthy();
 
       // ── STEP 6: agent actually received & parsed the prompt (sentinel node created) ──
@@ -634,11 +662,11 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
 
       // ── STEP 8: tmux session + prompt file survive the crash ──
       expect(
-        tmuxSessionExists(terminalId),
+        tmuxSessionExists(userDataDir, terminalId),
         "tmux session must outlive Electron kill",
       ).toBe(true);
       expect(
-        tmuxPanePid(terminalId),
+        tmuxPanePid(userDataDir, terminalId),
         "pane pid must be unchanged post-kill",
       ).toBe(prePanePid);
       try {
@@ -746,7 +774,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
 
       // Pane PID still unchanged after reconciliation.
       expect(
-        tmuxPanePid(terminalId),
+        tmuxPanePid(userDataDir, terminalId),
         "pane pid must remain stable across relaunch",
       ).toBe(prePanePid);
 
@@ -760,12 +788,12 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       const closeAgentSucceeded =
         closeRes.success || closeRes.parsed?.success === true;
       if (!closeAgentSucceeded) {
-        killTmuxSession(terminalId);
+        killTmuxSession(userDataDir, terminalId);
         await fs.rm(promptFile, { force: true });
       }
 
       await expect
-        .poll(() => tmuxSessionExists(terminalId), {
+        .poll(() => tmuxSessionExists(userDataDir, terminalId), {
           timeout: 10_000,
           message: `tmux session ${terminalId} not torn down by close_agent`,
         })
@@ -792,7 +820,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       if (killedMainPid) killProcessGroup(killedMainPid);
       await cleanupLiveElectronApp(app2);
       await cleanupLiveElectronApp(app1);
-      if (terminalId) killTmuxSession(terminalId);
+      if (terminalId) killTmuxSession(userDataDir, terminalId);
       if (promptFile) {
         try {
           await fs.rm(promptFile, { force: true });

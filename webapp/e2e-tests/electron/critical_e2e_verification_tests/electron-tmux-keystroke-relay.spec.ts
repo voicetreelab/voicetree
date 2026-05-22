@@ -26,32 +26,54 @@ import { WebSocket } from 'ws';
 import {
   type ExtendedWindow,
   resolveTmuxSessionNameForTest,
+  tmuxCommandArgsForTest,
   waitForMcpServer,
 } from './electron-smoke-helpers';
 import { test } from './electron-anchor-test-fixtures';
 
 const KEYSTROKE_SETTLE_TIMEOUT_MS: number = 15_000;
 
-function tmuxCapturePane(sessionName: string): string {
+function tmuxCapturePane(sessionName: string, appSupportPath?: string): string {
   try {
-    return execFileSync('tmux', ['capture-pane', '-p', '-J', '-S', '-200', '-t', resolveTmuxSessionNameForTest(sessionName)], { encoding: 'utf8' });
+    return execFileSync(
+      'tmux',
+      tmuxCommandArgsForTest(
+        ['capture-pane', '-p', '-J', '-S', '-200', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
+        appSupportPath,
+      ),
+      { encoding: 'utf8' },
+    );
   } catch {
     return '';
   }
 }
 
-function tmuxSessionExists(sessionName: string): boolean {
+function tmuxSessionExists(sessionName: string, appSupportPath?: string): boolean {
   try {
-    execFileSync('tmux', ['has-session', '-t', resolveTmuxSessionNameForTest(sessionName)], { stdio: 'ignore' });
+    execFileSync(
+      'tmux',
+      tmuxCommandArgsForTest(
+        ['has-session', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
+        appSupportPath,
+      ),
+      { stdio: 'ignore' },
+    );
     return true;
   } catch {
     return false;
   }
 }
 
-function killTmuxSession(sessionName: string): void {
+function killTmuxSession(sessionName: string, appSupportPath?: string): void {
   try {
-    execFileSync('tmux', ['kill-session', '-t', resolveTmuxSessionNameForTest(sessionName)], { stdio: 'ignore' });
+    execFileSync(
+      'tmux',
+      tmuxCommandArgsForTest(
+        ['kill-session', '-t', resolveTmuxSessionNameForTest(sessionName, appSupportPath)],
+        appSupportPath,
+      ),
+      { stdio: 'ignore' },
+    );
   } catch {
     // already gone
   }
@@ -74,13 +96,19 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
 
     // Hermetic terminalId so successive runs / parallel tests don't collide.
     const terminalId: string = `e2e-keystroke-${randomBytes(4).toString('hex')}`;
+    let appSupportPath: string | undefined;
 
     try {
-      const mcpPort: number = await appWindow.evaluate(async () => {
+      const runtimeInfo: { appSupportPath: string; mcpPort: number } = await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return await api.main.getMcpPort();
+        return {
+          appSupportPath: await api.main.getAppSupportPath(),
+          mcpPort: await api.main.getMcpPort(),
+        };
       });
+      appSupportPath = runtimeInfo.appSupportPath;
+      const mcpPort: number = runtimeInfo.mcpPort;
       expect(await waitForMcpServer(`http://127.0.0.1:${mcpPort}/mcp`)).toBe(true);
 
       const watchResult = await appWindow.evaluate(async (vaultPath) => {
@@ -136,7 +164,7 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
       }, { tid: terminalId, parentNodeId });
       expect(spawnResult.success, `terminal:spawn failed: ${JSON.stringify(spawnResult)}`).toBe(true);
 
-      await expect.poll(() => tmuxSessionExists(terminalId), {
+      await expect.poll(() => tmuxSessionExists(terminalId, appSupportPath), {
         timeout: 10_000,
         message: `tmux session ${terminalId} never came up`,
       }).toBe(true);
@@ -189,10 +217,10 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
         // frame parsed → forwarded to pty → pty output → outbound frame),
         // AND (b) the shell executes `echo` so the sentinel appears in the
         // pane buffer.
-        await expect.poll(() => received.includes(sentinel) && tmuxCapturePane(terminalId).includes(sentinel), {
+        await expect.poll(() => received.includes(sentinel) && tmuxCapturePane(terminalId, appSupportPath).includes(sentinel), {
           timeout: KEYSTROKE_SETTLE_TIMEOUT_MS,
           intervals: [200, 500, 1000],
-          message: `keystrokes never produced "${sentinel}" — relay WS inbound path is broken. wsClosed=${wsClosed} wsError=${wsError}. capture-pane:\n${tmuxCapturePane(terminalId)}\nReceived from relay (${received.length} bytes):\n${received}`,
+          message: `keystrokes never produced "${sentinel}" — relay WS inbound path is broken. wsClosed=${wsClosed} wsError=${wsError}. capture-pane:\n${tmuxCapturePane(terminalId, appSupportPath)}\nReceived from relay (${received.length} bytes):\n${received}`,
         }).toBe(true);
       } finally {
         ws.close();
@@ -200,7 +228,7 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
     } finally {
       // Defensive cleanup — the tmux session is detached from the relay's
       // pty, so closing the WS alone won't kill it.
-      if (tmuxSessionExists(terminalId)) killTmuxSession(terminalId);
+      if (tmuxSessionExists(terminalId, appSupportPath)) killTmuxSession(terminalId, appSupportPath);
     }
   });
 });

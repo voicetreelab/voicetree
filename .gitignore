@@ -181,6 +181,8 @@ webapp/workers/share-worker/.wrangler/**
 
 # Markdown (tracked exceptions below)
 **/*.md
+!/CLAUDE.md
+!/AGENTS.md
 !tools/prompts/*.md
 !brain/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
@@ -224,6 +226,14 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+
+# Vestigial root-level files that tools/agents might recreate
+# (progress notes are already covered by **/*.md above)
+/test.db
+/pnpm-lock.yaml
+/opencode.json
+/.obsidianignore
+/.pre-commit-config.yaml
 
 # Codebase health dashboard report state
 /health-dashboard/reports/*.json

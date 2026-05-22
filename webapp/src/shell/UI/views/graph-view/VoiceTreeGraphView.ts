@@ -205,16 +205,17 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // painted as a cytoscape background-image (see defaultNodeStyles.ts).
         setupFolderHandles(this.cy);
 
-        // Initial graph hydration races against daemon startup. markFrontendReady()
-        // triggers main-side initialLoad() → ensureDaemonClientForVault(); the
-        // first getProjectedGraph() RPC throws "Watched directory not initialized"
-        // if it lands before that connection is active. Await readiness before
-        // subscribing.
+        // Initial graph hydration races against daemon startup only on the legacy
+        // startup path. When App already supplied an initial projected graph, it
+        // has opened the vault; calling markFrontendReady() would reopen it and
+        // tear down the daemon/SSE subscription path during graph view startup.
         void (async (): Promise<void> => {
-            try {
-                await window.electronAPI?.main?.markFrontendReady();
-            } catch (err: unknown) {
-                console.error('[VoiceTreeGraphView] markFrontendReady failed:', err);
+            if (!this.options.initialProjectedGraph) {
+                try {
+                    await window.electronAPI?.main?.markFrontendReady();
+                } catch (err: unknown) {
+                    console.error('[VoiceTreeGraphView] markFrontendReady failed:', err);
+                }
             }
             if (this.isDisposed) return;
             this.subscribeToGraphUpdates();

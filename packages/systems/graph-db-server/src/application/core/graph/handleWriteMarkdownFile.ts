@@ -5,6 +5,7 @@ import { validateAbsolutePath } from '../validatePath.ts'
 import {
   resolveFolderMarkdownTarget,
   writeMarkdownFile,
+  type WriteMarkdownFileResult,
 } from '@vt/graph-db-server/graph/writeMarkdownFile'
 
 const WriteMarkdownFileRequestSchema = z.object({
@@ -76,9 +77,11 @@ export async function writeMarkdownFileFromRequest(request: {
   readonly absolutePath: string
   readonly body: string
   readonly editorId: string
-}): Promise<{ readonly ok: true; readonly absolutePath: string }> {
+}): Promise<{ readonly ok: true; readonly absolutePath: string; readonly preservedSuffix: string | null }> {
+  const result: WriteMarkdownFileResult = await writeMarkdownFile(request)
   return {
     ok: true,
-    absolutePath: await writeMarkdownFile(request),
+    absolutePath: result.absolutePath,
+    preservedSuffix: result.preservedSuffix,
   }
 }

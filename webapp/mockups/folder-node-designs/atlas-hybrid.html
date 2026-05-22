@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ATLAS · HYBRID — three modes selectable, defaults configurable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:     #ece2cd;
+    --paper-2:   #e1d5ba;
+    --paper-3:   #d7c9a8;
+    --paper-4:   #cebe98;
+    --ink:       #141414;
+    --ink-soft:  #3a3a3a;
+    --ink-faint: rgba(20,20,20,0.32);
+    --bp:        #1f5d7a;
+    --bp-2:      #2e87a8;
+    --lens:      #0e6f8c;
+    --gold:      #a07628;
+    --bloom:     #c44a1a;
+    --warn:      #b8421a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px),
+      radial-gradient(rgba(20,20,20,0.06) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 8px 8px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply; opacity: 0.55;
+  }
+
+  .sheet {
+    position: relative; z-index: 1;
+    max-width: 1280px;
+    margin: 56px auto;
+    padding: 56px 64px 80px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04)),
+      var(--paper);
+    box-shadow: 18px 22px 0 -2px rgba(20,20,20,0.18), 0 0 0 0.5px rgba(0,0,0,0.5);
+  }
+  .br-tl, .br-tr, .br-bl, .br-br {
+    --b: 28px;
+    position: absolute; width: var(--b); height: var(--b); border: 2px solid var(--ink);
+  }
+  .br-tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+  .br-tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+  .br-bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+  .br-br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+  header.masthead {
+    display: grid; grid-template-columns: 1fr auto; align-items: end;
+    gap: 24px; padding-bottom: 24px; border-bottom: 2px solid var(--ink);
+  }
+  .title-block .kicker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em;
+    color: var(--ink-soft); margin-bottom: 14px;
+  }
+  .title-block h1 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(48px, 7vw, 96px); letter-spacing: 0.02em;
+    line-height: 0.9; margin: 0;
+  }
+  .title-block h1 .tab { background: var(--ink); color: var(--paper); padding: 0 0.18em; font-size: 0.86em; }
+  .title-block h1 .mode {
+    background: linear-gradient(90deg, var(--gold) 0 33%, var(--bloom) 33% 66%, var(--lens) 66% 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .title-block .sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px;
+    color: var(--ink-soft);
+  }
+  .title-block .sub b.d { color: var(--gold); }
+  .title-block .sub b.s { color: var(--bloom); }
+  .title-block .sub b.l { color: var(--lens); }
+  .stamp-block {
+    text-align: right; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.18em; line-height: 1.7; color: var(--ink-soft);
+  }
+  .stamp-block .sn {
+    display: inline-block; padding: 4px 8px; border: 1.5px solid var(--ink);
+    margin-top: 6px; color: var(--ink); font-weight: 500;
+  }
+  .lede {
+    margin-top: 26px; font-size: 14px; line-height: 1.65;
+    color: var(--ink-soft); max-width: 78ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 500; }
+  .lede em.d { color: var(--gold); font-style: normal; font-weight: 500; }
+  .lede em.s { color: var(--bloom); font-style: normal; font-weight: 500; }
+  .lede em.l { color: var(--lens); font-style: normal; font-weight: 500; }
+  .kbd {
+    display: inline-block; padding: 1px 8px; border: 1.5px solid var(--ink);
+    background: var(--paper); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink);
+    margin: 0 2px; vertical-align: 1px;
+  }
+
+  /* canvas */
+  .canvas {
+    position: relative; margin-top: 28px;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    padding: 28px;
+    min-height: 540px;
+    overflow: hidden;
+  }
+  .tick { position: absolute; font-size: 10px; letter-spacing: 0.2em; color: var(--ink-soft); text-transform: uppercase; }
+  .tick.tl { top: 8px; left: 12px; } .tick.tr { top: 8px; right: 12px; }
+  .tick.bl { bottom: 8px; left: 12px; } .tick.br { bottom: 8px; right: 12px; }
+
+  .compass {
+    position: absolute; bottom: 22px; right: 22px;
+    width: 80px; height: 80px; color: var(--gold); opacity: 0.95;
+  }
+
+  .sealed {
+    position: absolute;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 11px, rgba(31,93,122,0.06) 11px 12px),
+      var(--paper-2);
+    border: 2px solid var(--ink);
+  }
+  .sealed > .crn {
+    position: absolute; width: 14px; height: 14px; border: 2px solid var(--ink);
+  }
+  .sealed > .crn.tl { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+  .sealed > .crn.tr { top: 4px; right: 4px; border-left: 0; border-bottom: 0; }
+  .sealed > .crn.bl { bottom: 4px; left: 4px; border-right: 0; border-top: 0; }
+  .sealed > .crn.br { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+
+  .controls {
+    display: flex; align-items: stretch; height: 32px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .controls .tab {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display'; font-size: 13px; letter-spacing: 0.04em;
+    padding: 7px 14px 6px; display: flex; align-items: center; gap: 10px;
+    border-right: 1.5px solid var(--ink);
+  }
+  .controls .tab .lvl {
+    color: var(--gold); font-family: 'IBM Plex Mono';
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .controls .bearing {
+    flex: 1; background: var(--paper); border-right: 1.5px solid var(--ink);
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-soft); padding: 8px 14px; display: flex; align-items: center; gap: 14px;
+  }
+  .controls .bearing b { color: var(--gold); font-weight: 500; }
+  .controls .count {
+    background: var(--bp); color: var(--paper); border-right: 1.5px solid var(--ink);
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 8px 14px; display: flex; align-items: center;
+  }
+
+  /* mode selector pill — 3 segments */
+  .mode-selector {
+    display: flex; align-items: stretch;
+    border-right: 1.5px solid var(--ink);
+  }
+  .mode-selector .seg {
+    padding: 8px 10px; display: flex; align-items: center; gap: 5px;
+    font-family: 'Major Mono Display'; font-size: 10.5px; letter-spacing: 0.08em;
+    background: var(--paper); color: var(--ink-faint);
+    border-right: 1px dashed var(--ink-faint);
+    cursor: pointer; user-select: none;
+  }
+  .mode-selector .seg:last-child { border-right: 0; }
+  .mode-selector .seg.active.d  { background: var(--gold);  color: var(--ink); }
+  .mode-selector .seg.active.s  { background: var(--bloom); color: var(--paper); }
+  .mode-selector .seg.active.l  { background: var(--lens);  color: var(--paper); }
+  .mode-selector .seg .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+  .mode-selector .seg.active .dot { background: currentColor; box-shadow: 0 0 0 2px rgba(0,0,0,0.2); }
+
+  .btn {
+    width: 32px; display: flex; align-items: center; justify-content: center;
+    background: var(--paper); border-right: 1.5px solid var(--ink);
+    color: var(--ink); text-decoration: none;
+  }
+  .btn:last-child { border-right: 0; }
+  .btn.toggle { background: var(--ink); color: var(--paper); font-family: 'Major Mono Display'; font-size: 18px; }
+  .btn.note svg { color: var(--bp); }
+
+  .treelist { padding: 4px 0; }
+  .row {
+    display: grid;
+    grid-template-columns: 22px 1fr 110px 90px 92px 32px;
+    align-items: center; height: 32px;
+    font-size: 12px; padding: 0 8px 0 0;
+    border-bottom: 1px dashed var(--ink-faint);
+    position: relative;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .gut {
+    height: 100%;
+    background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(20,20,20,0.08) 5px 6px);
+    border-right: 1px solid var(--ink-faint);
+  }
+  .row .nm { font-weight: 500; padding-left: 10px; letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; }
+  .row .nm .glyph { font-family: 'Major Mono Display'; font-size: 13px; color: var(--ink); }
+  .row.folder .nm .glyph::before { content: '▶'; font-size: 9px; }
+  .row.file .nm .glyph { color: var(--bp); }
+  .row .bear {
+    font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); text-align: right; padding-right: 10px;
+  }
+  .row .meta {
+    font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); text-align: right;
+  }
+  .row .micro-tog { text-align: center; color: var(--ink); opacity: 0.5; font-family: 'Major Mono Display'; font-size: 13px; }
+  /* the per-row mode-action chip — shows what Enter does in current mode */
+  .row .act {
+    text-align: center;
+    font-family: 'Major Mono Display'; font-size: 10px; letter-spacing: 0.08em;
+    padding: 3px 6px;
+    color: var(--paper);
+    background: var(--ink);
+    margin: 0 6px;
+    border-radius: 1px;
+  }
+  .row .act.d { background: var(--gold); color: var(--ink); }
+  .row .act.s { background: var(--bloom); }
+  .row .act.l { background: var(--lens); }
+
+  .row.focused.d  { background: var(--gold);  }
+  .row.focused.s  { background: var(--bloom); }
+  .row.focused.l  { background: var(--lens);  }
+  .row.focused.d  .nm, .row.focused.d .bear, .row.focused.d .meta, .row.focused.d .micro-tog,
+  .row.focused.d  .nm .glyph { color: var(--ink); }
+  .row.focused.s  .nm, .row.focused.s .bear, .row.focused.s .meta, .row.focused.s .micro-tog,
+  .row.focused.s  .nm .glyph { color: var(--paper); }
+  .row.focused.l  .nm, .row.focused.l .bear, .row.focused.l .meta, .row.focused.l .micro-tog,
+  .row.focused.l  .nm .glyph { color: var(--paper); }
+  .row.focused .gut { background: rgba(236,226,205,0.18); }
+  .row.focused .act { background: var(--ink); color: var(--paper); }
+  .row.focused.d .act { background: var(--ink); color: var(--gold); }
+
+  /* edge fan */
+  .edge-fan {
+    position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 56px;
+    background-image:
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 8%/100% 22%,
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 50%/100% 22%,
+      linear-gradient(90deg, var(--ink) 0 2px, transparent 2px) 0 92%/100% 22%;
+    background-repeat: no-repeat;
+  }
+
+  /* mode default settings panel — a small sticky stamp on canvas */
+  .defaults-panel {
+    position: absolute; top: 60px; right: 28px;
+    width: 280px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 5px 5px 0 -1px rgba(20,20,20,0.7);
+  }
+  .defaults-panel h6 {
+    margin: 0; background: var(--ink); color: var(--paper);
+    padding: 7px 12px; font-family: 'Major Mono Display'; font-size: 11px;
+    letter-spacing: 0.08em; display: flex; justify-content: space-between;
+  }
+  .defaults-panel h6 .pin {
+    color: var(--gold); font-size: 14px;
+  }
+  .defaults-panel .row-pref {
+    padding: 8px 12px;
+    border-bottom: 1px dashed var(--ink-faint);
+    font-size: 10.5px;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+    align-items: center;
+  }
+  .defaults-panel .row-pref:last-child { border-bottom: 0; }
+  .defaults-panel .row-pref .name { letter-spacing: 0.04em; }
+  .defaults-panel .row-pref .label { font-size: 8.5px; letter-spacing: 0.16em; color: var(--ink-soft); text-transform: uppercase; }
+  .defaults-panel .row-pref .pill {
+    display: inline-block; padding: 2px 6px;
+    font-family: 'Major Mono Display'; font-size: 9px;
+    letter-spacing: 0.08em;
+    color: var(--paper);
+  }
+  .defaults-panel .row-pref .pill.d { background: var(--gold); color: var(--ink); }
+  .defaults-panel .row-pref .pill.s { background: var(--bloom); }
+  .defaults-panel .row-pref .pill.l { background: var(--lens); }
+
+  /* hint strip */
+  .hint {
+    margin-top: 18px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    display: grid; grid-template-columns: auto 1fr;
+    align-items: stretch;
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .hint .label {
+    background: var(--ink); color: var(--paper); padding: 10px 16px;
+    font-family: 'Major Mono Display'; letter-spacing: 0.08em; font-size: 13px;
+  }
+  .hint .keys { padding: 9px 16px; display: flex; gap: 22px; align-items: center; color: var(--ink-soft); flex-wrap: wrap; }
+  .hint .keys b { color: var(--ink); }
+  .hint .keys .swatch {
+    display: inline-block; width: 10px; height: 10px;
+    margin-right: 4px; vertical-align: -1px;
+  }
+  .hint .keys .swatch.d { background: var(--gold); }
+  .hint .keys .swatch.s { background: var(--bloom); }
+  .hint .keys .swatch.l { background: var(--lens); }
+
+  /* three outcome panels — side by side: SAME focused row, THREE outcomes */
+  .outcomes {
+    margin-top: 36px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+  }
+  .outcome {
+    border: 1.5px solid var(--ink); background: var(--paper);
+    overflow: hidden; min-height: 360px;
+    position: relative;
+    box-shadow: 6px 6px 0 -1px rgba(20,20,20,0.12);
+  }
+  .outcome .head {
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Major Mono Display'; font-size: 14px;
+    color: var(--paper);
+    letter-spacing: 0.06em;
+  }
+  .outcome.d .head { background: var(--gold); color: var(--ink); }
+  .outcome.s .head { background: var(--bloom); }
+  .outcome.l .head { background: var(--lens); }
+  .outcome .head .kbd-pair {
+    display: flex; gap: 4px;
+  }
+  .outcome .head .kbd-pair span {
+    font-family: 'IBM Plex Mono'; font-size: 10px;
+    padding: 1px 6px;
+    background: var(--ink); color: var(--paper);
+    letter-spacing: 0.06em;
+  }
+  .outcome.d .head .kbd-pair span { background: var(--ink); color: var(--gold); }
+  .outcome .desc {
+    padding: 12px 14px;
+    font-size: 11px; line-height: 1.55; color: var(--ink-soft);
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .outcome .desc strong { color: var(--ink); font-weight: 500; }
+  .outcome .stage {
+    position: relative; height: 200px; margin: 0 14px 14px;
+    border: 1.5px solid var(--ink);
+    background-image:
+      linear-gradient(rgba(20,20,20,0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,20,20,0.15) 1px, transparent 1px);
+    background-size: 14px 14px;
+    background-color: var(--paper);
+    overflow: hidden;
+  }
+  .outcome .effect {
+    position: absolute; bottom: 14px; left: 14px; right: 14px;
+    padding: 6px 10px; font-family: 'Major Mono Display'; font-size: 10px;
+    letter-spacing: 0.08em;
+    background: var(--ink); color: var(--paper);
+    display: flex; justify-content: space-between;
+  }
+  .outcome.d .effect span.tag { color: var(--gold); }
+  .outcome.s .effect span.tag { color: var(--bloom); }
+  .outcome.l .effect span.tag { color: var(--lens); }
+
+  /* mini sealed for the outcome stages */
+  .ms {
+    position: absolute;
+    border: 1.5px solid var(--ink); background: var(--paper-2);
+    font-family: 'IBM Plex Mono';
+  }
+  .ms .lbl {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display'; font-size: 9px;
+    padding: 2px 5px; letter-spacing: 0.1em;
+  }
+  .ms .li {
+    font-size: 8px; padding: 1px 5px;
+    border-top: 1px dashed var(--ink-faint);
+    display: flex; justify-content: space-between;
+  }
+  .ms .li.foc.d { background: var(--gold); }
+  .ms .li.foc.s { background: var(--bloom); color: var(--paper); }
+  .ms .li.foc.l { background: var(--lens); color: var(--paper); }
+
+  /* fsm */
+  .fsm {
+    margin-top: 36px;
+    border: 1.5px solid var(--ink);
+    background:
+      linear-gradient(var(--ink-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink-faint) 1px, transparent 1px),
+      var(--paper);
+    background-size: 24px 24px;
+    padding: 28px 32px 32px;
+  }
+  .fsm h3 {
+    font-family: 'IBM Plex Mono'; font-size: 11px;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    margin: 0 0 18px; color: var(--ink);
+  }
+  .fsm h3 .a-d { color: var(--gold); }
+  .fsm h3 .a-s { color: var(--bloom); }
+  .fsm h3 .a-l { color: var(--lens); }
+  .modkey-grid {
+    display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 0;
+    border: 1.5px solid var(--ink); background: var(--paper);
+  }
+  .modkey-grid .cell {
+    padding: 10px 14px;
+    font-size: 11px;
+    border-right: 1.5px solid var(--ink);
+    border-bottom: 1.5px solid var(--ink);
+    display: flex; align-items: center;
+  }
+  .modkey-grid .cell:nth-child(4n) { border-right: 0; }
+  .modkey-grid .cell.h {
+    background: var(--ink); color: var(--paper);
+    font-family: 'Major Mono Display'; font-size: 11px;
+    letter-spacing: 0.1em;
+    border-color: var(--ink);
+  }
+  .modkey-grid .cell.k {
+    background: var(--paper-2);
+    font-family: 'IBM Plex Mono'; font-size: 10.5px;
+    font-weight: 500; letter-spacing: 0.04em;
+  }
+  .modkey-grid .cell.eff.d { color: var(--gold); }
+  .modkey-grid .cell.eff.s { color: var(--bloom); }
+  .modkey-grid .cell.eff.l { color: var(--lens); }
+  .modkey-grid .cell:nth-last-child(-n+4) { border-bottom: 0; }
+  .modkey-grid .cell strong { font-weight: 500; }
+
+  /* notes */
+  .notes {
+    margin-top: 32px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  .notes section { border-top: 1.5px solid var(--ink); padding-top: 12px; }
+  .notes h4 {
+    margin: 0 0 6px; font-size: 10px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--ink);
+  }
+  .notes p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+  .notes p strong { color: var(--ink); font-weight: 500; }
+
+  .footline {
+    margin-top: 36px; display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .footline a { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--ink); }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <div class="br-tl"></div><div class="br-tr"></div><div class="br-bl"></div><div class="br-br"></div>
+
+    <header class="masthead">
+      <div class="title-block">
+        <div class="kicker">folder-nodes // atlas sub-variants · 04.d of 04.d // 2026-05-21</div>
+        <h1>atlas <span class="mode">/ hybrid</span></h1>
+        <div class="sub">three modes selectable · <b class="d">drill</b> · <b class="s">surface</b> · <b class="l">lens</b></div>
+      </div>
+      <div class="stamp-block">
+        Sheet 04.d / 04.d<br />
+        Contract · USER-SELECTED<br />
+        Default · per-folder override<br />
+        <span class="sn">REV. B · COMPOSITE</span>
+      </div>
+    </header>
+
+    <p class="lede">
+      Each sealed folder exposes a <strong>mode selector</strong> in its control bar — three keyed segments (<em class="d">drill</em>, <em class="s">surface</em>, <em class="l">lens</em>) — that decides what <span class="kbd">Enter</span> does on the focused row. Modifier keys allow temporary overrides without changing the persistent mode. Each row publishes the action it will take as a colored chip in the right slot, so the consequence of pressing Enter is <strong>visible before the keystroke</strong>. A per-folder default can be configured (e.g. <em class="s">tasks/</em> defaults to SURFACE because users always want a task subfolder to live in the graph; <em class="d">specs/</em> defaults to DRILL because users browse without committing).
+    </p>
+
+    <div class="canvas">
+      <span class="tick tl">+ 000,000 · N</span>
+      <span class="tick tr">+ 1180,000</span>
+      <span class="tick bl">+ 000,540</span>
+      <span class="tick br">+ 1180,540 · S</span>
+
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" stroke-width="0.6" stroke-dasharray="2 3"/>
+        <path d="M50 8 L54 50 L50 92 L46 50 Z" fill="currentColor" opacity="0.9"/>
+        <path d="M8 50 L50 54 L92 50 L50 46 Z" fill="currentColor" opacity="0.4"/>
+        <text x="50" y="6" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">N</text>
+        <text x="50" y="99" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" letter-spacing="1" fill="currentColor">S</text>
+      </svg>
+
+      <!-- sealed folder, hybrid mode (currently in DRILL) -->
+      <div class="sealed" style="left: 40px; top: 60px; width: 720px;">
+        <span class="crn tl"></span><span class="crn tr"></span><span class="crn bl"></span><span class="crn br"></span>
+
+        <div class="controls">
+          <div class="tab"><span class="lvl">L1</span> folder-nodes</div>
+          <div class="bearing">bearing <b>N 045°</b> · region 01</div>
+          <div class="count">× 12 sealed</div>
+
+          <!-- mode selector pill -->
+          <div class="mode-selector" title="mode — what Enter does">
+            <div class="seg d active" title="drill: preview only"><span class="dot"></span>DRILL</div>
+            <div class="seg s" title="surface: promote to graph"><span class="dot"></span>SURF</div>
+            <div class="seg l" title="lens: zoom into focus"><span class="dot"></span>LENS</div>
+          </div>
+
+          <a class="btn note">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 1 L10.5 1 L13 3.5 L13 15 L3 15 Z"/><path d="M10.5 1 L10.5 3.5 L13 3.5"/>
+              <line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="11" y2="9"/>
+            </svg>
+          </a>
+          <a class="btn toggle">+</a>
+        </div>
+
+        <div class="treelist">
+          <div class="row folder">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph"></span>tasks/</span>
+            <span class="bear">N 060° · L2</span>
+            <span class="meta">× 4 inside</span>
+            <span class="act s" title="this folder overrides global mode to SURFACE">SURF↗</span>
+            <span class="micro-tog">+</span>
+          </div>
+          <div class="row folder focused d">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph"></span>openspec/</span>
+            <span class="bear">N 088° · L2</span>
+            <span class="meta">× 8 inside</span>
+            <span class="act d">DRILL→</span>
+            <span class="micro-tog">+</span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◰</span>BF-110-cross-edges.md</span>
+            <span class="bear">N 105°</span>
+            <span class="meta">2.1 K</span>
+            <span class="act">OPEN</span>
+            <span class="micro-tog"></span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◧</span>BF-112-file-cap.md</span>
+            <span class="bear">N 112°</span>
+            <span class="meta">1.7 K · researching</span>
+            <span class="act">OPEN</span>
+            <span class="micro-tog"></span>
+          </div>
+          <div class="row folder">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph"></span>large-archive/</span>
+            <span class="bear">N 119° · L2</span>
+            <span class="meta">× 612 inside</span>
+            <span class="act l" title="this folder overrides global mode to LENS — too large to drill or bloom">LENS⊙</span>
+            <span class="micro-tog">+</span>
+          </div>
+          <div class="row file">
+            <span class="gut"></span>
+            <span class="nm"><span class="glyph">◰</span>folder-nodes.md <span style="color:var(--bp); font-size:9px;">◀ note</span></span>
+            <span class="bear">—</span>
+            <span class="meta">872 B</span>
+            <span class="act">OPEN</span>
+            <span class="micro-tog"></span>
+          </div>
+        </div>
+
+        <span class="edge-fan"></span>
+      </div>
+
+      <!-- defaults panel sticky on right -->
+      <div class="defaults-panel">
+        <h6>per-folder mode <span class="pin">⊙</span></h6>
+        <div class="row-pref">
+          <div>
+            <div class="name">tasks/</div>
+            <div class="label">launchpad · always graph</div>
+          </div>
+          <span class="pill s">SURF</span>
+        </div>
+        <div class="row-pref">
+          <div>
+            <div class="name">openspec/</div>
+            <div class="label">inherits parent (DRILL)</div>
+          </div>
+          <span class="pill d">DRILL</span>
+        </div>
+        <div class="row-pref">
+          <div>
+            <div class="name">large-archive/</div>
+            <div class="label">×612 · too large to bloom</div>
+          </div>
+          <span class="pill l">LENS</span>
+        </div>
+        <div class="row-pref" style="background: var(--paper-2)">
+          <div>
+            <div class="name" style="color: var(--ink-soft); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;">parent default</div>
+            <div class="label">folder-nodes/ · inherited</div>
+          </div>
+          <span class="pill d">DRILL</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">
+      <div class="label">key</div>
+      <div class="keys">
+        <span><span class="kbd">↑</span><span class="kbd">↓</span> <b>focus</b></span>
+        <span><span class="swatch d"></span><span class="kbd">Enter</span> <b>= current mode</b></span>
+        <span><span class="swatch d"></span><span class="kbd">Alt</span>+<span class="kbd">D</span> <b>switch to DRILL</b></span>
+        <span><span class="swatch s"></span><span class="kbd">Alt</span>+<span class="kbd">S</span> <b>switch to SURFACE</b></span>
+        <span><span class="swatch l"></span><span class="kbd">Alt</span>+<span class="kbd">L</span> <b>switch to LENS</b></span>
+        <span><span class="kbd">Shift</span>+<span class="kbd">Enter</span> <b>once-only override</b></span>
+      </div>
+    </div>
+
+    <div class="outcomes">
+      <div class="outcome d">
+        <div class="head">
+          DRILL
+          <div class="kbd-pair"><span>↵</span></div>
+        </div>
+        <div class="desc">Focus on <strong>openspec/</strong> · Enter. Breadcrumb pushes, list re-renders depth+1. <strong>Graph unchanged.</strong></div>
+        <div class="stage">
+          <div class="ms" style="left: 14px; top: 14px; right: 14px;">
+            <div class="lbl">L1 folder-nodes · drilled → openspec</div>
+            <div class="li"><span>proposal.md</span><span>928B</span></div>
+            <div class="li foc d"><span>design.md ◀ focus</span><span>1.4K</span></div>
+            <div class="li"><span>▶ specs/</span><span>× 4</span></div>
+            <div class="li"><span>tasks.md</span><span>2.1K</span></div>
+            <div class="li"><span>openspec.md</span><span>note</span></div>
+          </div>
+        </div>
+        <div class="effect"><span>effect</span><span class="tag">canvas: ø</span></div>
+      </div>
+
+      <div class="outcome s">
+        <div class="head">
+          SURFACE
+          <div class="kbd-pair"><span>Alt</span><span>S</span><span>↵</span></div>
+        </div>
+        <div class="desc">Focus on <strong>openspec/</strong> · Alt+S then Enter. Openspec blooms out of sealed list, lands as a new compound node. <strong>Graph: +1 node.</strong></div>
+        <div class="stage">
+          <div class="ms" style="left: 14px; top: 14px; width: 100px;">
+            <div class="lbl">L1 folder-nodes · ×11</div>
+            <div class="li"><span>tasks/</span><span>×4</span></div>
+            <div class="li"><span>BF-110</span><span>2.1K</span></div>
+            <div class="li"><span>large-arch.</span><span>×612</span></div>
+          </div>
+          <div class="ms" style="right: 14px; top: 30px; width: 100px; background: var(--paper-3); box-shadow: 3px 3px 0 -1px rgba(196,74,26,0.4);">
+            <div class="lbl" style="background: var(--bloom)">L2 openspec ↗ NEW</div>
+            <div class="li"><span>proposal</span><span>928B</span></div>
+            <div class="li"><span>design</span><span>1.4K</span></div>
+            <div class="li"><span>specs/</span><span>×4</span></div>
+          </div>
+          <svg style="position:absolute; inset: 0; width:100%; height:100%; pointer-events:none;" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M 24 28 C 50 24, 60 28, 70 30" stroke="#c44a1a" stroke-dasharray="3 3" stroke-width="1.2" fill="none"/>
+          </svg>
+        </div>
+        <div class="effect"><span>effect</span><span class="tag">canvas: +1 node</span></div>
+      </div>
+
+      <div class="outcome l">
+        <div class="head">
+          LENS
+          <div class="kbd-pair"><span>Alt</span><span>L</span><span>↵</span></div>
+        </div>
+        <div class="desc">Focus on <strong>openspec/</strong> · Alt+L then Enter. Camera relocates — viewport re-frames with openspec/ as the new root. <strong>Graph unchanged, view zoomed.</strong></div>
+        <div class="stage">
+          <div class="ms" style="left: 14px; top: 14px; right: 14px;">
+            <div class="lbl" style="background: var(--lens)">⊙ camera: /folder-nodes/openspec · NEW ROOT</div>
+            <div class="li"><span>proposal.md</span><span>928B</span></div>
+            <div class="li"><span>design.md</span><span>1.4K</span></div>
+            <div class="li foc l"><span>▶ specs/ ◀ focus</span><span>×4</span></div>
+            <div class="li"><span>tasks.md</span><span>2.1K</span></div>
+            <div class="li"><span>openspec.md</span><span>note</span></div>
+          </div>
+          <div style="position:absolute; bottom: 38px; right: 14px; font-size: 8px; letter-spacing: 0.16em; color: var(--lens); text-transform: uppercase;">Esc ↑ ascend</div>
+        </div>
+        <div class="effect"><span>effect</span><span class="tag">canvas: camera ↑</span></div>
+      </div>
+    </div>
+
+    <div class="fsm">
+      <h3>modifier × mode matrix — what <span class="a-d">↵</span> does given current mode and modifier</h3>
+      <div class="modkey-grid">
+        <div class="cell h">key</div>
+        <div class="cell h" style="background: var(--gold); color: var(--ink);">mode: DRILL</div>
+        <div class="cell h" style="background: var(--bloom);">mode: SURFACE</div>
+        <div class="cell h" style="background: var(--lens);">mode: LENS</div>
+
+        <div class="cell k">Enter</div>
+        <div class="cell eff d">drill in (breadcrumb +1)</div>
+        <div class="cell eff s">bloom into graph (+1 node)</div>
+        <div class="cell eff l">zoom into folder (camera +1)</div>
+
+        <div class="cell k">Shift + Enter</div>
+        <div class="cell eff s">→ bloom (override)</div>
+        <div class="cell eff d">→ drill (override)</div>
+        <div class="cell eff s">→ bloom (override)</div>
+
+        <div class="cell k">Cmd + Enter</div>
+        <div class="cell eff l">→ zoom (override)</div>
+        <div class="cell eff l">→ zoom (override)</div>
+        <div class="cell eff d">→ drill (override)</div>
+
+        <div class="cell k">Esc</div>
+        <div class="cell eff">pop drill level</div>
+        <div class="cell eff">unfocus</div>
+        <div class="cell eff">ascend camera</div>
+
+        <div class="cell k">Alt + D/S/L</div>
+        <div class="cell eff" colspan="3" style="grid-column: span 3;">persistent mode switch on this folder · sticky until changed</div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <section>
+        <h4>per-folder defaults</h4>
+        <p>Each folder remembers its own mode. A folder of tasks where every entry deserves graph-level prominence defaults to <strong>SURFACE</strong>; a folder of specs the user browses without commitment defaults to <strong>DRILL</strong>; an archive folder with hundreds of files defaults to <strong>LENS</strong> because no other mode scales there.</p>
+      </section>
+      <section>
+        <h4>visible consequence</h4>
+        <p>The per-row colored chip is non-negotiable: it shows <em>before the keystroke</em> what the consequence will be. This is the single most important UX guarantee — the user is never surprised by a graph mutation triggered by Enter.</p>
+      </section>
+      <section>
+        <h4>cost &amp; risk</h4>
+        <p>Hybrid is the heaviest implementation: three runtime modes, modifier matrix, per-folder persistence, distinct visual languages. Recommend shipping <strong>DRILL</strong> first (cheapest, lowest blast-radius), validate, then add <strong>LENS</strong> if BF-112 confirms scale need, finally add <strong>SURFACE</strong> only if user research shows users want graph promotion as a primary action.</p>
+      </section>
+    </div>
+
+    <div class="footline">
+      <span>atlas-hybrid.html · sub-variant 04.d · enter = user-selected</span>
+      <span><a href="./index.html">return to gallery →</a></span>
+    </div>
+  </main>
+</body>
+</html>
