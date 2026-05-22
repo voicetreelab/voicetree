@@ -14,6 +14,7 @@ export type CheckDef = {
     readonly args: (jsonOut: string | null) => readonly string[]
     readonly parser: ParserKind
     readonly slow?: boolean
+    readonly phase?: 'parallel' | 'isolated'
     readonly timeoutMs?: number
     readonly exclusive?: boolean
 }

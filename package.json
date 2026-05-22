@@ -9,6 +9,11 @@
   "scripts": {
     "test": "node scripts/run-remote.mjs npm run test:local",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:run",
+    "test:t0": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=0'",
+    "test:t1": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=1'",
+    "test:t2": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=2'",
+    "test:t3": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=3'",
+    "test:full": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
     "test:run": "npm run measures && npm run test:vt-fake-agent && node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/run-test-parallel.ts",
     "test:vt-fake-agent": "vitest run --config tools/vt-fake-agent/vitest.config.ts",
     "test:run:serial": "npm run measures && npm --workspace webapp run test",
