@@ -16,6 +16,7 @@
 
 import {spawn, type ChildProcess} from 'node:child_process'
 import {mkdir, mkdtemp, readFile, rm} from 'node:fs/promises'
+import {createRequire} from 'node:module'
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -35,10 +36,19 @@ import {
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
-const TSX_BIN: string = join(REPO_ROOT, 'node_modules/.bin/tsx')
+// Resolve the tsx CLI through Node's own module lookup. The worktree layout
+// keeps the bulk of dependencies in the main repo's node_modules and only
+// symlinks a tiny .bin subset under webapp/node_modules, so a hardcoded
+// node_modules/.bin/tsx path is unreliable here.
+const TSX_REQUIRE = createRequire(import.meta.url)
+const TSX_PACKAGE_DIR: string = dirname(TSX_REQUIRE.resolve('tsx/package.json'))
+const TSX_CLI_PATH: string = join(TSX_PACKAGE_DIR, 'dist', 'cli.mjs')
+const NODE_BIN: string = process.execPath
 const WEBAPP_TSCONFIG: string = join(REPO_ROOT, 'webapp/tsconfig.json')
 const GRAPHD_SOURCE_BIN: string = join(REPO_ROOT, 'packages/systems/graph-db-server/bin/vt-graphd.ts')
-const VT_GRAPHD_BIN_OVERRIDE: string = `${TSX_BIN} ${GRAPHD_SOURCE_BIN}`
+// `node <tsx-cli> <script>` is the worktree-portable equivalent of running
+// `tsx <script>` directly — see TSX_CLI_PATH derivation above.
+const VT_GRAPHD_BIN_OVERRIDE: string = `${NODE_BIN} ${TSX_CLI_PATH} ${GRAPHD_SOURCE_BIN}`
 
 const SERVE_READY_TIMEOUT_MS: number = 20_000
 const SERVE_EXIT_TIMEOUT_MS: number = 10_000
@@ -92,11 +102,15 @@ function parseServeReady(line: string): ServeReady | null {
 }
 
 function spawnServe(args: string[], appSupport: string): ServeHandle {
-    const child: ChildProcess = spawn(TSX_BIN, [CLI_ENTRYPOINT, 'serve', ...args], {
-        cwd: REPO_ROOT,
-        env: buildChildEnv(appSupport),
-        stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const child: ChildProcess = spawn(
+        NODE_BIN,
+        [TSX_CLI_PATH, CLI_ENTRYPOINT, 'serve', ...args],
+        {
+            cwd: REPO_ROOT,
+            env: buildChildEnv(appSupport),
+            stdio: ['ignore', 'pipe', 'pipe'],
+        },
+    )
     const stdoutBuffer = {value: ''}
     const stderrBuffer = {value: ''}
 
