@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readCurrentFolderState } from '@vt/graph-db-server/views/folderVisibilityResource'
-import type { FolderState } from '../../daemon/contract.ts'
+import type { FolderState } from '@vt/graph-db-server/contract'
 import type { Session } from './types.ts'
 export type { Session } from './types.ts'
 

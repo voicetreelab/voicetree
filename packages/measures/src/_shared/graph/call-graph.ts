@@ -156,6 +156,10 @@ function isProductionSourcePath(path: string): boolean {
         && !normalized.includes('/node_modules/')
         && !normalized.includes('/dist/')
         && !normalized.includes('/build/')
+        // Package scripts and bin entrypoints are shell/edge code. The call graph
+        // is used by purity/coupling metrics that should measure core source.
+        && !normalized.includes('/scripts/')
+        && !normalized.includes('/bin/')
         && !normalized.includes('/tests/')
 }
 

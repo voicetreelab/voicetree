@@ -67,7 +67,23 @@ export {getLiveStateTool, getLiveState} from '../live/getLiveStateTool'
 // ─── MCP Server ──────────────────────────────────────────────────────────────
 
 const MCP_BASE_PORT: 3001 = 3001 as const
-let mcpPort: number = MCP_BASE_PORT
+
+type McpPortCell = {
+    readonly get: () => number
+    readonly set: (next: number) => void
+}
+
+function createMcpPortCell(initial: number): McpPortCell {
+    let current: number = initial
+    return {
+        get: (): number => current,
+        set: (next: number): void => {
+            current = next
+        },
+    }
+}
+
+const mcpPortCell: McpPortCell = createMcpPortCell(MCP_BASE_PORT)
 
 /**
  * Creates and configures the MCP server with Voicetree tools.
@@ -418,7 +434,8 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
     })
 
     const startPort: number = options?.startPort ?? MCP_BASE_PORT
-    mcpPort = await findAvailablePort(startPort)
+    const mcpPort: number = await findAvailablePort(startPort)
+    mcpPortCell.set(mcpPort)
 
     const httpServer: Server = app.listen(mcpPort, '127.0.0.1', () => {
         log(`[MCP] Voicetree MCP Server running on http://localhost:${mcpPort}/mcp`)
@@ -464,5 +481,5 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
  * Returns the MCP server port for configuration.
  */
 export function getMcpPort(): number {
-    return mcpPort
+    return mcpPortCell.get()
 }
