@@ -3,7 +3,7 @@ import {readFileSync, existsSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
@@ -33,21 +33,21 @@ const GATE_FILES: readonly GateFile[] = [
 ]
 
 const SHARED_FILES: readonly string[] = [
-    'packages/measures/src/_shared/call-graph.ts',
-    'packages/measures/src/_shared/check-report-writer.ts',
-    'packages/measures/src/_shared/cogcx-scorer.ts',
-    'packages/measures/src/_shared/cyclomatic.ts',
-    'packages/measures/src/_shared/discover-packages.ts',
-    'packages/measures/src/_shared/function-discovery.ts',
-    'packages/measures/src/_shared/function-row-formatters.ts',
-    'packages/measures/src/_shared/health-report-writer.ts',
-    'packages/measures/src/_shared/hierarchical-complexity-measures.ts',
-    'packages/measures/src/_shared/import-graph.ts',
-    'packages/measures/src/_shared/maintainability.ts',
+    'packages/measures/src/_shared/graph/call-graph.ts',
+    'packages/measures/src/_shared/writers/check-report-writer.ts',
+    'packages/measures/src/_shared/complexity/cogcx-scorer.ts',
+    'packages/measures/src/_shared/complexity/cyclomatic.ts',
+    'packages/measures/src/_shared/discovery/discover-packages.ts',
+    'packages/measures/src/_shared/discovery/function-discovery.ts',
+    'packages/measures/src/_shared/complexity/function-row-formatters.ts',
+    'packages/measures/src/_shared/writers/health-report-writer.ts',
+    'packages/measures/src/_shared/complexity/hierarchical-complexity-measures.ts',
+    'packages/measures/src/_shared/graph/import-graph.ts',
+    'packages/measures/src/_shared/complexity/maintainability.ts',
     'packages/measures/src/_shared/purity-analysis.ts',
-    'packages/measures/src/_shared/report-writer.ts',
-    'packages/measures/src/_shared/runtime-fan-in.ts',
-    'packages/measures/src/_shared/vitest-ci-check-reporter.ts',
+    'packages/measures/src/_shared/writers/report-writer.ts',
+    'packages/measures/src/_shared/graph/runtime-fan-in.ts',
+    'packages/measures/src/_shared/writers/vitest-ci-check-reporter.ts',
 ]
 
 const RUNNER_FILES: readonly string[] = [

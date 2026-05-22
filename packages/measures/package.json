@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "exports": {
-    "./vitest-reporter": "./src/_shared/vitest-ci-check-reporter.ts",
-    "./check-report-writer": "./src/_shared/check-report-writer.ts"
+    "./vitest-reporter": "./src/_shared/writers/vitest-ci-check-reporter.ts",
+    "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
   },
   "scripts": {
     "test": "vitest run src/health/**/*.test.ts"

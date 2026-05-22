@@ -2,9 +2,9 @@ import {readFileSync} from 'node:fs'
 import {relative, resolve} from 'node:path'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {buildCallGraph, type CallGraph, type FunctionNode} from '../../_shared/call-graph'
-import {scoreFunction} from '../../_shared/cogcx-scorer'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {buildCallGraph, type CallGraph, type FunctionNode} from '../../_shared/graph/call-graph'
+import {scoreFunction} from '../../_shared/complexity/cogcx-scorer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../../..')
 // 2026-05-15 [BF-271]: DOVL+UFV epic structural baseline bump. Top function

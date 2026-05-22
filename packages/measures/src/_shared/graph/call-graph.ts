@@ -36,7 +36,7 @@ export type CallGraph = {
 }
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(TEST_DIR, '../../../..')
+const REPO_ROOT: string = resolve(TEST_DIR, '../../../../..')
 
 let graphPromise: Promise<CallGraph> | undefined
 

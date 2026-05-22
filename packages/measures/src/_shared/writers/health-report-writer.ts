@@ -4,7 +4,7 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 const CI_REPORTING_SRC_ROOT: string = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT: string = resolve(CI_REPORTING_SRC_ROOT, '..', '..', '..', '..')
+const REPO_ROOT: string = resolve(CI_REPORTING_SRC_ROOT, '..', '..', '..', '..', '..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
 const LATEST_REPORT_PATH: string = join(REPORTS_DIR, 'latest.json')
 const METRIC_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

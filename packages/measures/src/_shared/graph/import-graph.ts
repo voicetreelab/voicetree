@@ -1,7 +1,7 @@
 import {readdir, readFile, stat} from 'node:fs/promises'
 import {dirname, join, relative, resolve} from 'node:path'
 import * as ts from 'typescript'
-import {DEFAULT_REPO_ROOT, type PackageInfo} from './discover-packages'
+import {DEFAULT_REPO_ROOT, type PackageInfo} from '../discovery/discover-packages'
 
 export type SourceFile = {
     readonly absolutePath: string

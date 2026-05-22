@@ -2,8 +2,8 @@ import {readFile} from 'node:fs/promises'
 import {relative} from 'node:path'
 import * as ts from 'typescript'
 import type {FunctionComplexity} from './cyclomatic'
-import {DEFAULT_REPO_ROOT} from './discover-packages'
-import type {SourceFileInfo} from './function-discovery'
+import {DEFAULT_REPO_ROOT} from '../discovery/discover-packages'
+import type {SourceFileInfo} from '../discovery/function-discovery'
 
 export type MaintainabilityRow = {
     readonly file: string

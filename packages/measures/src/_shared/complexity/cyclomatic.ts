@@ -1,6 +1,6 @@
 import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
-import type {SourceFileInfo} from './function-discovery'
+import type {SourceFileInfo} from '../discovery/function-discovery'
 
 export type FunctionComplexity = {
     readonly packageName: string

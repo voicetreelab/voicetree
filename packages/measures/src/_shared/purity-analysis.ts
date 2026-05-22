@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as ts from 'typescript'
-import { discoverPackages } from './discover-packages'
+import { discoverPackages } from './discovery/discover-packages'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT: string = resolve(TEST_DIR, '../../../..')

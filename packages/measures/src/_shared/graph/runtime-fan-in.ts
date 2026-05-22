@@ -1,7 +1,7 @@
 import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
-import type {PackageInfo} from './discover-packages'
-import type {SourceFileInfo} from './function-discovery'
+import type {PackageInfo} from '../discovery/discover-packages'
+import type {SourceFileInfo} from '../discovery/function-discovery'
 
 type ImportDeclarationInfo = {
     readonly specifier: string

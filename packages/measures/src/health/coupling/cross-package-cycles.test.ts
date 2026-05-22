@@ -1,8 +1,8 @@
 import {readFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {discoverPackages, type PackageInfo} from '../../_shared/discover-packages'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 type PackageJson = {
     readonly dependencies?: Record<string, string>

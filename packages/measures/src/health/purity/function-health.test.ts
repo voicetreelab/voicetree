@@ -3,7 +3,7 @@ import {
     type ArchLayer, type FnEntry,
     analyze, classifyLayer, median, percentile,
 } from '../../_shared/purity-analysis'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 type FunctionHealthStats = {
     allLocs: number[]

@@ -2,8 +2,8 @@ import {readFile} from 'node:fs/promises'
 import {basename, dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
-import {listGitTrackedFiles} from '../../_shared/git-tracked-files'
-import {recordHealthMetric} from '../../_shared/report-writer'
+import {listGitTrackedFiles} from '../../_shared/discovery/git-tracked-files'
+import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../..')
