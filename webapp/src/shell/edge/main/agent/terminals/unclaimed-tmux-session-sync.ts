@@ -53,7 +53,7 @@ export async function attachUnclaimedTmuxSession(
         await terminalRuntimeSurface.attachUnclaimedTmuxSession(sessionName)
 
     if (result.success && result.terminalData) {
-        uiAPI.launchTerminalOntoUI(result.terminalData.attachedToContextNodeId, result.terminalData, false)
+        void uiAPI.launchTerminalOntoUI(result.terminalData.attachedToContextNodeId, result.terminalData, false)
     }
 
     void refreshUnclaimedTmuxSessions().catch(() => undefined)
