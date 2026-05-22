@@ -605,7 +605,10 @@ function countSimpleComplexity(filePath: string, text: string): number {
 
 function tryRunGit(args: string): string | null {
     try {
-        return execSync(`git ${args}`, {cwd: REPO_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']})
+        // 64 MB cap: whole-repo `git log --name-only --since=6mo` is ~1.4 MB
+        // today and grows with history. The default 1 MB limit silently truncates
+        // → churn map empty → file-turbulence axis falsely reports 0.
+        return execSync(`git ${args}`, {cwd: REPO_ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024})
     } catch {
         return null
     }
