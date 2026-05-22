@@ -73,6 +73,7 @@
 .badge-fail  { color: var(--sig);   }
 .badge-stale { color: var(--caution); }
 .badge-skip  { color: var(--paper-faint); }
+.badge-never-run { color: var(--paper-ghost); }
 
 .card-desc {
   font-family: var(--sans);
