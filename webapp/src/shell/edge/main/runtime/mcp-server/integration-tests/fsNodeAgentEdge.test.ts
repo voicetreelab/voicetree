@@ -33,9 +33,9 @@ import {
 import {
     registerAgentNodes,
     getAgentNodes,
-    clearAgentNodes
-} from '@vt/voicetree-mcp'
-import {isAgentComplete} from '@vt/voicetree-mcp'
+    clearAgentNodes,
+    isAgentComplete,
+} from '@vt/agent-runtime'
 
 /**
  * Production callback from graph-model-init.ts (Electron-only).

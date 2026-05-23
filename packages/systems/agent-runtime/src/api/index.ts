@@ -40,3 +40,24 @@ export * from '../application/hooks/onNewNodeHook'
 export * from '../application/inject/get-unseen-nodes-for-terminal'
 export * from '../application/inject/inject-nodes-into-terminal'
 export * from '../application/inject/send-text-to-terminal'
+
+export {
+    registerAgentNodes,
+    getAgentNodes,
+    clearAgentNodes,
+    type AgentNodeEntry,
+} from '../application/completion/agentNodeIndex'
+export {
+    isAgentComplete,
+    getAgentStatus,
+    NO_PROGRESS_TIMEOUT_MS,
+    type AgentStatus,
+} from '../application/completion/isAgentComplete'
+export {
+    buildCompletionMessage,
+    type AgentResult,
+} from '../application/completion/buildCompletionMessage'
+export {
+    getNewNodesForAgent,
+    getNewNodesForAgentIdentities,
+} from '../application/completion/getNewNodesForAgent'

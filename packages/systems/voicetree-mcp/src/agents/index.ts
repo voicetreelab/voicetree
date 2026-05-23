@@ -52,24 +52,12 @@ export type {McpToolResponse} from '../tools/toolResponse'
 export {buildJsonResponse} from '../tools/toolResponse'
 
 export {
-    registerAgentNodes,
-    getAgentNodes,
-    clearAgentNodes,
-    type AgentNodeEntry,
-} from './agentNodeIndex'
-
-export {
     startMonitor,
     cancelMonitor,
     registerChildIfMonitored,
     isTerminalIdAlreadyMonitoredForCaller,
     getPendingAgentNamesForCaller,
 } from './agent-completion-monitor'
-
-export {isAgentComplete, getAgentStatus, NO_PROGRESS_TIMEOUT_MS} from './isAgentComplete'
-export type {AgentStatus} from './isAgentComplete'
-export {buildCompletionMessage, type AgentResult} from './buildCompletionMessage'
-export {getNewNodesForAgent} from './getNewNodesForAgent'
 
 export {spawnAgentTool, type SpawnAgentParams} from '../tools/agent-control/spawnAgentTool'
 export {listAgentsTool} from '../tools/agent-control/listAgentsTool'

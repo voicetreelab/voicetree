@@ -12,8 +12,9 @@ vi.mock('@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode', () 
     getUnseenNodesAroundContextNode: vi.fn(),
 }))
 
-vi.mock('@vt/agent-runtime', () => {
-    const runtime = {
+vi.mock('@vt/agent-runtime', async (importOriginal) => {
+    const actual: typeof import('@vt/agent-runtime') = await importOriginal()
+    const overrides = {
         closeHeadlessAgent: vi.fn(),
         enqueuePendingMessage: vi.fn(),
         getHeadlessAgentOutput: vi.fn(),
@@ -28,11 +29,12 @@ vi.mock('@vt/agent-runtime', () => {
         runStopHooks: vi.fn(),
         sendTextToTerminal: vi.fn(),
         spawnTerminalWithContextNode: vi.fn(),
-        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
+        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined})),
     }
     return {
-        ...runtime,
-        agentRuntime: runtime,
+        ...actual,
+        ...overrides,
+        agentRuntime: {...actual.agentRuntime, ...overrides},
     }
 })
 

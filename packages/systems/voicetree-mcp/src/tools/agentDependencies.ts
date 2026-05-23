@@ -1,7 +1,10 @@
-export {getAgentNodes} from '../agents/agentNodeIndex'
+export {
+    getAgentNodes,
+    getNewNodesForAgent,
+    getNewNodesForAgentIdentities,
+    getAgentStatus,
+} from '@vt/agent-runtime'
 export {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
 } from '../agents/agent-completion-monitor'
-export {getNewNodesForAgent, getNewNodesForAgentIdentities} from '../agents/getNewNodesForAgent'
-export {getAgentStatus} from '../agents/isAgentComplete'
