@@ -27,24 +27,11 @@ export async function refreshRecoverySessions(): Promise<readonly RecoverableAge
     }
 }
 
-function safeCaptureNativeSessions(): void {
-    // Opportunistic capture of recovery.native.sessionId for live Claude/Codex
-    // terminals whose metadata still lacks the handle. Eventually consistent on
-    // the same poll cadence as discovery; no new timer or lifecycle hook.
-    try {
-        terminalRuntimeSurface.captureMissingNativeSessions()
-    } catch (error) {
-        console.warn('[recovery-session-sync] captureMissingNativeSessions failed:', error)
-    }
-}
-
 export function startRecoverySessionPolling(): void {
     if (pollTimer) return
     void refreshRecoverySessions().catch(() => undefined)
-    safeCaptureNativeSessions()
     pollTimer = setInterval(() => {
         void refreshRecoverySessions().catch(() => undefined)
-        safeCaptureNativeSessions()
     }, RECOVERY_POLL_INTERVAL_MS)
 }
 
@@ -60,11 +47,20 @@ export async function resumeRecoverySession(terminalId: string): Promise<Rendere
     if (result.kind === 'spawned') {
         return {success: true, terminalId}
     }
-    if (result.kind === 'stale') {
-        return {success: false, terminalId, error: `Cannot resume: ${result.reason}`}
-    }
-    if (result.kind === 'unsupported') {
+    if (result.kind === 'stale' || result.kind === 'unsupported') {
         return {success: false, terminalId, error: `Cannot resume: ${result.reason}`}
     }
     return {success: false, terminalId, error: result.error}
+}
+
+export async function forkRecoverySession(sourceTerminalId: string): Promise<RendererRecoveryActionResult> {
+    const result = await terminalRuntimeSurface.forkAgentSession(sourceTerminalId as TerminalId)
+    void refreshRecoverySessions().catch(() => undefined)
+    if (result.kind === 'spawned') {
+        return {success: true, terminalId: result.forkedTerminalId}
+    }
+    if (result.kind === 'stale' || result.kind === 'unsupported') {
+        return {success: false, terminalId: sourceTerminalId, error: `Cannot fork: ${result.reason}`}
+    }
+    return {success: false, terminalId: sourceTerminalId, error: result.error}
 }

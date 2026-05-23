@@ -1,7 +1,7 @@
 import {useCallback, useState} from 'react';
 import type {JSX} from 'react';
 import {Link2, Play, RefreshCw, X} from 'lucide-react';
-import type {RecoverableAgentSession, UnclaimedTmuxSession} from '@vt/agent-runtime';
+import type {RecoverableAgentSession} from '@vt/agent-runtime';
 
 type SurvivingAgentActionResult = {
     readonly success: boolean;
@@ -33,35 +33,44 @@ function formatAge(createdAt: number, now: number = Date.now()): string {
     return `${Math.floor(ageHours / 24)}d ago`;
 }
 
-function attachableTooltip(session: UnclaimedTmuxSession): string {
-    const parts: string[] = [
-        `tmux: ${session.sessionName}`,
-        `terminal: ${session.terminalId}`,
-        `pid: ${session.panePid}`,
-    ];
-    if (session.vaultPath) parts.push(`vault: ${session.vaultPath}`);
-    if (session.contextNodePath) parts.push(`context: ${session.contextNodePath}`);
-    if (session.taskNodePath) parts.push(`task: ${session.taskNodePath}`);
-    return parts.join('\n');
-}
-
-function resumableTooltip(row: Extract<RecoverableAgentSession, {kind: 'resumable-cli'}>): string {
-    const parts: string[] = [
-        `cli: ${row.cliType}`,
-        `terminal: ${row.terminalId}`,
-        `native session: ${row.nativeSessionId}`,
-        `metadata: ${row.metadataPath}`,
-    ];
+function rowTooltip(row: RecoverableAgentSession): string {
+    const parts: string[] = [`terminal: ${row.terminalId}`];
+    if (row.attach) {
+        parts.push(`tmux: ${row.attach.session.sessionName}`);
+        parts.push(`pid: ${row.attach.session.panePid}`);
+    }
+    if (row.resume) {
+        parts.push(`resume cli: ${row.resume.cliType}`);
+        parts.push(`native session: ${row.resume.nativeSessionId}`);
+    }
+    if (row.metadataPath) parts.push(`metadata: ${row.metadataPath}`);
     const vaultPath: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
     if (vaultPath) parts.push(`vault: ${vaultPath}`);
-    if (row.terminalData.attachedToContextNodeId) parts.push(`context: ${row.terminalData.attachedToContextNodeId}`);
     return parts.join('\n');
 }
 
-function rowKey(row: RecoverableAgentSession): string {
-    return row.kind === 'attachable-tmux'
-        ? `attachable:${row.session.sessionName}`
-        : `resumable:${row.terminalId}`;
+function rowMeta(row: RecoverableAgentSession): string {
+    if (row.attach) {
+        return `${formatAge(row.attach.session.createdAt)} | pid ${row.attach.session.panePid}`;
+    }
+    if (row.resume) {
+        return `session ${row.resume.nativeSessionId}`;
+    }
+    return '';
+}
+
+function rowBadge(row: RecoverableAgentSession): {label: string; className: string} {
+    if (row.attach) {
+        const isThisVault: boolean = row.attach.session.classification === 'this-vault';
+        return {
+            label: isThisVault ? 'This vault' : 'Foreign vault',
+            className: isThisVault ? 'this-vault' : 'foreign-vault',
+        };
+    }
+    if (row.resume) {
+        return {label: `Resumable (${row.resume.cliType})`, className: 'resumable'};
+    }
+    return {label: 'Surviving', className: 'this-vault'};
 }
 
 export function SurvivingAgentsSection({
@@ -101,12 +110,16 @@ export function SurvivingAgentsSection({
             });
     }, []);
 
-    if (sessions.length === 0 && !error) return null;
+    // Surviving Agents shows only unclaimed rows. Claimed rows (live tabs with
+    // a resume handle) get a fork-on-hover button on the regular tab strip.
+    const unclaimedSessions: readonly RecoverableAgentSession[] = sessions.filter((s) => !s.isClaimed);
+
+    if (unclaimedSessions.length === 0 && !error) return null;
 
     return (
         <section className="surviving-agents-section" aria-label="Surviving agents" data-testid="surviving-agents-section">
             <div className="terminal-tree-header surviving-agents-header">
-                <span>Surviving agents ({sessions.length})</span>
+                <span>Surviving agents ({unclaimedSessions.length})</span>
                 <button
                     className="surviving-agents-refresh"
                     type="button"
@@ -125,95 +138,69 @@ export function SurvivingAgentsSection({
             )}
 
             <div className="surviving-agents-list">
-                {sessions.map((row: RecoverableAgentSession): JSX.Element => {
-                    const key: string = rowKey(row);
+                {unclaimedSessions.map((row: RecoverableAgentSession): JSX.Element => {
+                    const key: string = row.terminalId;
                     const isBusy: boolean = busyKey === key;
-                    if (row.kind === 'attachable-tmux') {
-                        const session: UnclaimedTmuxSession = row.session;
-                        const isThisVault: boolean = session.classification === 'this-vault';
-                        return (
-                            <div
-                                key={key}
-                                className="surviving-agent-row"
-                                data-session-name={session.sessionName}
-                                data-row-kind="attachable-tmux"
-                                title={attachableTooltip(session)}
-                            >
-                                <div className="surviving-agent-main">
-                                    <div className="surviving-agent-title-row">
-                                        <span className="surviving-agent-title">
-                                            {session.agentName || session.terminalId}
-                                        </span>
-                                        <span className={`surviving-agent-badge ${isThisVault ? 'this-vault' : 'foreign-vault'}`}>
-                                            {isThisVault ? 'This vault' : 'Foreign vault'}
-                                        </span>
-                                    </div>
-                                    <div className="surviving-agent-meta">
-                                        {formatAge(session.createdAt)} | pid {session.panePid}
-                                    </div>
-                                </div>
-                                <div className="surviving-agent-actions">
-                                    {session.attachable && (
-                                        <button
-                                            className="surviving-agent-action attach"
-                                            type="button"
-                                            onClick={() => runAction(key, () => onAttach(session.sessionName))}
-                                            title="Attach surviving agent"
-                                            disabled={isBusy}
-                                        >
-                                            <Link2 size={12} aria-hidden="true" />
-                                            <span>Attach</span>
-                                        </button>
-                                    )}
-                                    <button
-                                        className="surviving-agent-action kill"
-                                        type="button"
-                                        onClick={() => runAction(key, () => onKill(session.sessionName))}
-                                        title="Kill surviving tmux session"
-                                        aria-label={`Kill ${session.agentName || session.terminalId}`}
-                                        disabled={isBusy}
-                                    >
-                                        <X size={13} aria-hidden="true" />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    // resumable-cli row: dead-pane Claude/Codex with deterministic native session id
+                    const badge: {label: string; className: string} = rowBadge(row);
                     return (
                         <div
                             key={key}
                             className="surviving-agent-row"
                             data-terminal-id={row.terminalId}
-                            data-row-kind="resumable-cli"
-                            title={resumableTooltip(row)}
+                            data-has-attach={row.attach ? 'true' : 'false'}
+                            data-has-resume={row.resume ? 'true' : 'false'}
+                            data-session-name={row.attach?.session.sessionName}
+                            title={rowTooltip(row)}
                         >
                             <div className="surviving-agent-main">
                                 <div className="surviving-agent-title-row">
                                     <span className="surviving-agent-title">
                                         {row.agentName || row.terminalId}
                                     </span>
-                                    <span className="surviving-agent-badge resumable">
-                                        Resumable ({row.cliType})
+                                    <span className={`surviving-agent-badge ${badge.className}`}>
+                                        {badge.label}
                                     </span>
                                 </div>
-                                <div className="surviving-agent-meta">
-                                    session {row.nativeSessionId}
-                                </div>
+                                <div className="surviving-agent-meta">{rowMeta(row)}</div>
                             </div>
                             <div className="surviving-agent-actions">
-                                <button
-                                    className="surviving-agent-action resume"
-                                    type="button"
-                                    onClick={() => runAction(key, () => onResume(row.terminalId))}
-                                    title={`Resume ${row.cliType} session`}
-                                    aria-label={`Resume ${row.cliType} session`}
-                                    disabled={isBusy}
-                                >
-                                    <Play size={12} aria-hidden="true" />
-                                    <span>Resume</span>
-                                </button>
+                                {row.attach && row.attach.session.attachable && (
+                                    <button
+                                        className="surviving-agent-action attach"
+                                        type="button"
+                                        onClick={() => runAction(key, () => onAttach(row.attach!.session.sessionName))}
+                                        title="Attach surviving agent"
+                                        disabled={isBusy}
+                                    >
+                                        <Link2 size={12} aria-hidden="true" />
+                                        <span>Attach</span>
+                                    </button>
+                                )}
+                                {row.resume && (
+                                    <button
+                                        className="surviving-agent-action resume"
+                                        type="button"
+                                        onClick={() => runAction(key, () => onResume(row.terminalId))}
+                                        title={`Resume ${row.resume.cliType} session`}
+                                        aria-label={`Resume ${row.resume.cliType} session`}
+                                        disabled={isBusy}
+                                    >
+                                        <Play size={12} aria-hidden="true" />
+                                        <span>Resume</span>
+                                    </button>
+                                )}
+                                {row.attach && (
+                                    <button
+                                        className="surviving-agent-action kill"
+                                        type="button"
+                                        onClick={() => runAction(key, () => onKill(row.attach!.session.sessionName))}
+                                        title="Kill surviving tmux session"
+                                        aria-label={`Kill ${row.agentName || row.terminalId}`}
+                                        disabled={isBusy}
+                                    >
+                                        <X size={13} aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );

@@ -2,129 +2,178 @@ import {readdirSync, readFileSync, statSync} from 'node:fs'
 import path from 'node:path'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-registry'
+import {readMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
+import {createTerminalData, type TerminalId} from '../terminals/terminal-registry/types'
 import {
     getCurrentTmuxNamespaceHash,
     listUnclaimedTmuxSessions,
+    parseVoicetreeTmuxSessionName,
     type UnclaimedTmuxSession,
 } from '../terminals/tmux/unclaimed-tmux'
-import {listSessions, type TmuxListedSession} from '../terminals/tmux/tmux-session-manager'
-import {classifyRecoveryCandidates, type MetadataRecord} from './classifier'
-import type {RecoverableAgentSession, RecoveryClassification} from './types'
+import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
+import {
+    classifyRecoveryCandidates,
+    detectSupportedCliFromMetadata,
+    type MetadataRecord,
+} from './classifier'
+import os from 'node:os'
+import {resolveClaudeNativeSession, defaultResolveClaudeDeps, type ResolveClaudeResult} from './resolvers/resolveClaudeNativeSession'
+import {resolveCodexNativeSession, defaultResolveCodexDeps, type ResolveCodexResult} from './resolvers/resolveCodexNativeSession'
+import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type DiscoverRecoveryDeps = {
     readonly readVaultMetadataDir: () => Promise<readonly MetadataRecord[]>
-    readonly listLiveTmuxSessionNames: () => Promise<ReadonlySet<string>>
     readonly listLiveUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSession[]>
     readonly getRegistryTerminalIds: () => ReadonlySet<string>
     readonly getCurrentNamespaceHash: () => Promise<string | null>
+    readonly resolveResumeHandle: (req: ResolveRequest) => ResumeCapability | null
 }
 
-function toActionable(
-    classification: RecoveryClassification,
-    liveByName: ReadonlyMap<string, UnclaimedTmuxSession>,
-): RecoverableAgentSession | null {
-    if (classification.kind === 'attachable-live-tmux') {
-        const session = liveByName.get(classification.sessionName)
-        return session ? {kind: 'attachable-tmux', session} : null
-    }
-    if (classification.kind === 'resumable-missing-tmux') {
-        return {
-            kind: 'resumable-cli',
-            terminalId: classification.terminalId,
-            agentName: classification.agentName,
-            cliType: classification.cliType,
-            metadataPath: classification.metadataPath,
-            terminalData: classification.terminalData,
-            nativeSessionId: classification.nativeSessionId,
-            reason: 'missing-tmux-session',
-        }
-    }
-    return null
+export type ResolveRequest = {
+    readonly cliType: 'claude' | 'codex'
+    readonly terminalId: string
+    readonly vaultPath: string
+    readonly taskNodePath: string
 }
 
-function dedupeAttachableOverResumable(
-    rows: readonly RecoverableAgentSession[],
-): readonly RecoverableAgentSession[] {
-    const attachableTerminalIds: Set<string> = new Set()
-    for (const row of rows) {
-        if (row.kind === 'attachable-tmux') attachableTerminalIds.add(row.session.terminalId)
-    }
-    return rows.filter((row) => {
-        if (row.kind !== 'resumable-cli') return true
-        return !attachableTerminalIds.has(row.terminalId)
+function sortRecords(records: readonly RecoverableAgentSession[]): readonly RecoverableAgentSession[] {
+    return [...records].sort((a, b) => {
+        // Claimed rows (rendered as fork-on-hover on live tabs) come last so
+        // the Surviving Agents section, which filters !isClaimed, shows
+        // orphans first.
+        if (a.isClaimed !== b.isClaimed) return a.isClaimed ? 1 : -1
+        // Orphans with a live tmux pane (Attach available) come before
+        // dead-pane resume-only rows — Attach is the lower-friction action.
+        if (Boolean(a.attach) !== Boolean(b.attach)) return a.attach ? -1 : 1
+        return a.terminalId.localeCompare(b.terminalId)
     })
-}
-
-function sortRecoveryRows(rows: readonly RecoverableAgentSession[]): readonly RecoverableAgentSession[] {
-    const attachable: RecoverableAgentSession[] = []
-    const resumable: RecoverableAgentSession[] = []
-    for (const row of rows) {
-        if (row.kind === 'attachable-tmux') attachable.push(row)
-        else resumable.push(row)
-    }
-    attachable.sort((a, b) => {
-        if (a.kind !== 'attachable-tmux' || b.kind !== 'attachable-tmux') return 0
-        return b.session.createdAt - a.session.createdAt
-    })
-    resumable.sort((a, b) => {
-        if (a.kind !== 'resumable-cli' || b.kind !== 'resumable-cli') return 0
-        return a.metadataPath.localeCompare(b.metadataPath)
-    })
-    return [...attachable, ...resumable]
 }
 
 /**
  * Impure discovery entry point.
  *
- * Reads vault terminal metadata, live tmux state, the in-memory terminal registry,
- * and the current vault namespace hash. Runs them through the pure Phase 1 classifier
- * and returns only the actionable rows (`attachable-tmux` for live unclaimed panes,
- * `resumable-cli` for dead-pane records with a deterministic native session handle).
+ * Reads vault terminal metadata, live tmux state, the in-memory terminal
+ * registry, and the current vault namespace hash. For each candidate record
+ * targeting a supported CLI (claude/codex), runs the matching resolver against
+ * disk (e.g. `~/.claude/projects/**\/*.jsonl`) to determine the resume
+ * capability at discovery time. Then routes everything through the pure
+ * classifier and returns the recoverable rows.
  *
- * Non-actionable diagnostics (`exited`, `claimed`, `foreign-vault`, `missing-native-handle`,
- * `unsupported-cli`, `invalid`) are dropped so the UI only sees rows it can act on.
+ * Capabilities (`attach`, `resume`) are independent. A record can carry
+ * neither, one, or both. The UI decides where to render based on `isClaimed`
+ * and which capabilities are present.
+ *
+ * Records with neither capability and not currently claimed (e.g. dead-pane
+ * agent that never wrote a transcript) are dropped — there's nothing the UI
+ * could do with them.
  */
 export async function discoverRecoverableAgentSessions(
     deps?: DiscoverRecoveryDeps,
 ): Promise<readonly RecoverableAgentSession[]> {
     const resolvedDeps: DiscoverRecoveryDeps = deps ?? defaultDiscoverRecoveryDeps()
-    const [metadataRecords, liveTmuxSessionNames, liveUnclaimed, currentNamespaceHash] = await Promise.all([
+    const [metadataRecords, liveUnclaimed, currentNamespaceHash] = await Promise.all([
         resolvedDeps.readVaultMetadataDir(),
-        resolvedDeps.listLiveTmuxSessionNames(),
         resolvedDeps.listLiveUnclaimedTmuxSessions(),
         resolvedDeps.getCurrentNamespaceHash(),
     ])
     const registryTerminalIds: ReadonlySet<string> = resolvedDeps.getRegistryTerminalIds()
-    const liveByName: ReadonlyMap<string, UnclaimedTmuxSession> = new Map(
+    const liveTmuxSessionsByName: ReadonlyMap<string, UnclaimedTmuxSession> = new Map(
         liveUnclaimed.map((session) => [session.sessionName, session]),
+    )
+    const resumeHandleByTerminalId: ReadonlyMap<string, ResumeCapability> = resolveResumeHandlesForMetadata(
+        metadataRecords,
+        currentNamespaceHash,
+        resolvedDeps.resolveResumeHandle,
     )
     const classifications: readonly RecoveryClassification[] = classifyRecoveryCandidates({
         metadataRecords,
-        liveTmuxSessionNames,
+        liveTmuxSessionsByName,
         registryTerminalIds,
         currentNamespaceHash,
+        resumeHandleByTerminalId,
     })
-    const actionable: RecoverableAgentSession[] = []
-    const sessionsFromMetadata: Set<string> = new Set()
+    const recoverable: RecoverableAgentSession[] = []
+    const surfacedTerminalIds: Set<string> = new Set()
     for (const classification of classifications) {
-        const row: RecoverableAgentSession | null = toActionable(classification, liveByName)
-        if (row) {
-            actionable.push(row)
-            if (row.kind === 'attachable-tmux') sessionsFromMetadata.add(row.session.sessionName)
-        }
+        if (classification.kind !== 'recoverable') continue
+        const row: RecoverableAgentSession = classification.record
+        // Surface only rows the UI can act on. Claimed rows always surface
+        // (fork-on-hover applies). Unclaimed rows need at least one capability.
+        if (!row.isClaimed && !row.attach && !row.resume) continue
+        recoverable.push(row)
+        surfacedTerminalIds.add(row.terminalId)
     }
-    // Surface live unclaimed sessions that have no matching metadata file.
-    // This preserves the pre-OpenSpec listUnclaimedTmuxSessions behavior:
-    // a tmux session can outlive its metadata (deleted vault, app crash
-    // before writeMetadata, manual `tmux new-session` for testing) but
-    // remain attachable. Without this, the sidebar would only show sessions
-    // we have on-disk metadata for.
+    // Surface live unclaimed tmux sessions that have no matching metadata
+    // file. Pre-OpenSpec listUnclaimedTmuxSessions behavior: a tmux session
+    // can outlive its metadata (deleted vault, app crash before writeMetadata,
+    // manual `tmux new-session`) but still be attachable. These rows carry
+    // only the `attach` capability — no metadataPath, no terminalData beyond
+    // what the session itself provides.
     for (const session of liveUnclaimed) {
-        if (!sessionsFromMetadata.has(session.sessionName)) {
-            actionable.push({kind: 'attachable-tmux', session})
-        }
+        if (surfacedTerminalIds.has(session.terminalId)) continue
+        recoverable.push(metadataLessAttachableRow(session))
     }
-    return sortRecoveryRows(dedupeAttachableOverResumable(actionable))
+    return sortRecords(recoverable)
+}
+
+function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAgentSession {
+    const terminalId: TerminalId = session.terminalId as TerminalId
+    const attachedToNodeId: string = session.contextNodePath ?? `tmux-session:${session.sessionName}`
+    return {
+        terminalId,
+        agentName: session.agentName ?? session.terminalId,
+        metadataPath: '',
+        terminalData: createTerminalData({
+            terminalId,
+            attachedToNodeId,
+            terminalCount: 0,
+            title: session.agentName ?? session.terminalId,
+            agentName: session.agentName ?? session.terminalId,
+            initialEnvVars: {
+                ...(session.vaultPath ? {VOICETREE_VAULT_PATH: session.vaultPath} : {}),
+                ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),
+                ...(session.taskNodePath ? {TASK_NODE_PATH: session.taskNodePath} : {}),
+            },
+        }),
+        isClaimed: false,
+        attach: {session},
+    }
+}
+
+function resolveResumeHandlesForMetadata(
+    metadataRecords: readonly MetadataRecord[],
+    currentNamespaceHash: string | null,
+    resolveResumeHandle: (req: ResolveRequest) => ResumeCapability | null,
+): ReadonlyMap<string, ResumeCapability> {
+    const out: Map<string, ResumeCapability> = new Map()
+    for (const record of metadataRecords) {
+        const data: unknown = record.data
+        if (typeof data !== 'object' || data === null) continue
+        const obj = data as Record<string, unknown>
+        if (typeof obj.name !== 'string' || !obj.name) continue
+        if (obj.status !== 'running' && obj.status !== 'exited') continue
+        const metadata = data as TmuxTerminalMetadata
+        // Skip foreign vaults early — no point resolving handles we won't surface.
+        if (currentNamespaceHash !== null) {
+            const sessionName: string = metadata.session
+                ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
+            const namespaceHash: string | null = parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
+            if (namespaceHash !== null && namespaceHash !== currentNamespaceHash) continue
+        }
+        const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
+        if (!cliType) continue
+        const vaultPath: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
+        if (!vaultPath) continue
+        const taskNodePath: string = metadata.terminalData?.initialEnvVars?.TASK_NODE_PATH ?? ''
+        const handle: ResumeCapability | null = resolveResumeHandle({
+            cliType,
+            terminalId: metadata.name,
+            vaultPath,
+            taskNodePath,
+        })
+        if (handle) out.set(metadata.name, handle)
+    }
+    return out
 }
 
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
@@ -158,15 +207,40 @@ function readMetadataDir(dir: string): readonly MetadataRecord[] {
     return records
 }
 
+/**
+ * Resolve a Claude/Codex native session id by scanning the on-disk transcript
+ * store. The store roots can be overridden via env vars, useful for tests
+ * (point at a temp dir) and for users with non-default Claude/Codex configs:
+ *
+ * - `VOICETREE_CLAUDE_PROJECTS_DIR`  → defaults to `~/.claude/projects`
+ * - `VOICETREE_CODEX_STATE_DB`       → defaults to `~/.codex/state_5.sqlite`
+ */
+function defaultResolveResumeHandle(req: ResolveRequest): ResumeCapability | null {
+    if (req.cliType === 'claude') {
+        const claudeProjectsRoot: string = process.env.VOICETREE_CLAUDE_PROJECTS_DIR
+            ?? path.join(os.homedir(), '.claude', 'projects')
+        const result: ResolveClaudeResult = resolveClaudeNativeSession(
+            {terminalId: req.terminalId, vaultPath: req.vaultPath, taskNodePath: req.taskNodePath},
+            defaultResolveClaudeDeps(claudeProjectsRoot),
+        )
+        if (result.kind !== 'found') return null
+        return {cliType: 'claude', nativeSessionId: result.sessionId}
+    }
+    const codexDbPath: string = process.env.VOICETREE_CODEX_STATE_DB
+        ?? path.join(os.homedir(), '.codex', 'state_5.sqlite')
+    const result: ResolveCodexResult = resolveCodexNativeSession(
+        {terminalId: req.terminalId, vaultPath: req.vaultPath, taskNodePath: req.taskNodePath},
+        defaultResolveCodexDeps(codexDbPath),
+    )
+    if (result.kind !== 'found') return null
+    return {cliType: 'codex', nativeSessionId: result.sessionId}
+}
+
 export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
     return {
         readVaultMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
             const dir: string | null = await resolveCurrentVaultMetadataDir()
             return dir ? readMetadataDir(dir) : []
-        },
-        listLiveTmuxSessionNames: async (): Promise<ReadonlySet<string>> => {
-            const sessions: readonly TmuxListedSession[] = await listSessions()
-            return new Set(sessions.map((session) => session.sessionName))
         },
         listLiveUnclaimedTmuxSessions: (): Promise<readonly UnclaimedTmuxSession[]> => listUnclaimedTmuxSessions(),
         getRegistryTerminalIds: (): ReadonlySet<string> => {
@@ -174,5 +248,10 @@ export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
             return new Set(records.map((record) => record.terminalId))
         },
         getCurrentNamespaceHash: (): Promise<string | null> => getCurrentTmuxNamespaceHash(),
+        resolveResumeHandle: defaultResolveResumeHandle,
     }
 }
+
+// Re-export for convenience: callers building custom deps that still want to
+// share the on-disk metadata reader.
+export {readMetadata}

@@ -48,14 +48,12 @@ function makeResumable(): RecoverableAgentSession {
         initialEnvVars: {VOICETREE_VAULT_PATH: '/vault'},
     }
     return {
-        kind: 'resumable-cli',
         terminalId: 'Bob' as TerminalData['terminalId'],
         agentName: 'Bob',
-        cliType: 'claude',
         metadataPath: '/vault/.voicetree/terminals/Bob.json',
         terminalData,
-        nativeSessionId: 'sess-uuid-bob',
-        reason: 'missing-tmux-session',
+        isClaimed: false,
+        resume: {cliType: 'claude', nativeSessionId: 'sess-uuid-bob'},
     }
 }
 

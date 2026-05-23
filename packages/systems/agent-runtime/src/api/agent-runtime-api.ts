@@ -27,7 +27,7 @@ import {
 } from '../application/terminals/tmux/unclaimed-tmux'
 import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
 import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
-import { captureMissingNativeSessions } from '../application/recovery/captureNativeSessions'
+import { forkAgentSession } from '../application/recovery/forkAgentSession'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -76,7 +76,7 @@ export const agentRuntime = {
     listUnclaimedTmuxSessions,
     discoverRecoverableAgentSessions,
     resumePersistedAgentSession,
-    captureMissingNativeSessions,
+    forkAgentSession,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,

@@ -21,6 +21,7 @@ import {
   refreshUnclaimedTmuxSessions,
 } from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync'
 import {
+  forkRecoverySession,
   refreshRecoverySessions,
   resumeRecoverySession,
 } from '@/shell/edge/main/agent/terminals/recovery-session-sync'
@@ -200,6 +201,7 @@ export const mainAPI = {
   // Unified recovery feed: live-tmux attach rows + dead-pane resumable rows
   refreshRecoverySessions,
   resumeRecoverySession,
+  forkRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

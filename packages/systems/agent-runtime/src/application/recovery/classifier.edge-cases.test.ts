@@ -3,8 +3,10 @@ import {classifyRecoveryCandidates} from './classifier'
 import {
     baseInput,
     FOREIGN_HASH,
+    makeLiveSession,
     makeRunningClaudeMetadata,
     makeRunningCodexMetadata,
+    makeTerminalData,
     METADATA_PATH_A,
     record,
     SESSION_A,
@@ -13,55 +15,58 @@ import {
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
-// Classification priority: earlier checks take precedence
+// Drop precedence: foreign-vault and invalid trump capability detection.
+// Other former "non-actionable" kinds (exited, claimed, unsupported-cli,
+// missing-native-handle) are no longer drops — they surface as recoverable
+// rows with `isClaimed` and/or capabilities populated accordingly.
 // ---------------------------------------------------------------------------
 
-describe('classification priority ordering', () => {
-    it('classifies as exited even if terminal is also in registry', () => {
+describe('drop precedence', () => {
+    it('drops as invalid even when the same terminal would otherwise be live', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({name: TERMINAL_A, status: 'exited'})],
-            registryTerminalIds: new Set([TERMINAL_A]),
+            metadataRecords: [record(null)],
+            liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
         }))
-        expect(result.kind).toBe('exited')
+        expect(result.kind).toBe('dropped')
+        if (result.kind === 'dropped') {
+            expect(result.reason).toBe('invalid')
+        }
     })
 
-    it('classifies as claimed before checking foreign-vault', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record({
-                name: TERMINAL_A,
-                status: 'running',
-                session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
-            })],
-            registryTerminalIds: new Set([TERMINAL_A]),
-            currentNamespaceHash: VAULT_HASH,
-        }))
-        expect(result.kind).toBe('claimed')
-    })
-
-    it('classifies as foreign-vault before checking live tmux', () => {
+    it('drops as foreign-vault even when the foreign session is live in the local tmux', () => {
+        const foreignSession: string = `vt-${FOREIGN_HASH}-${TERMINAL_A}`
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
-                session: `vt-${FOREIGN_HASH}-${TERMINAL_A}`,
+                session: foreignSession,
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
-            liveTmuxSessionNames: new Set([`vt-${FOREIGN_HASH}-${TERMINAL_A}`]),
+            liveTmuxSessionsByName: new Map([[foreignSession, makeLiveSession(foreignSession)]]),
             currentNamespaceHash: VAULT_HASH,
         }))
-        expect(result.kind).toBe('foreign-vault')
+        expect(result.kind).toBe('dropped')
+        if (result.kind === 'dropped') {
+            expect(result.reason).toBe('foreign-vault')
+        }
     })
 
-    it('classifies as attachable-live-tmux before checking CLI support', () => {
+    it('still surfaces the record as recoverable when a claimed terminal is also live (isClaimed + attach)', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
                 session: SESSION_A,
-                // no terminalData → would normally be unsupported-cli
+                terminalData: makeTerminalData({initialCommand: 'claude'}),
             })],
-            liveTmuxSessionNames: new Set([SESSION_A]),
+            liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
+            registryTerminalIds: new Set([TERMINAL_A]),
         }))
-        expect(result.kind).toBe('attachable-live-tmux')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.isClaimed).toBe(true)
+            expect(result.record.attach).toBeDefined()
+        }
     })
 })
 
@@ -77,11 +82,17 @@ describe('multiple records', () => {
                 record(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json'),
                 record(null, '/vault/.voicetree/terminals/bad.json'),
             ],
+            resumeHandleByTerminalId: new Map([
+                [TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}],
+                ['B', {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}],
+            ]),
         }))
         expect(results).toHaveLength(3)
-        expect(results[0].kind).toBe('resumable-missing-tmux')
-        expect(results[1].kind).toBe('resumable-missing-tmux')
-        expect(results[2].kind).toBe('invalid')
+        expect(results[0].kind).toBe('recoverable')
+        expect(results[1].kind).toBe('recoverable')
+        expect(results[2].kind).toBe('dropped')
+        if (results[0].kind === 'recoverable') expect(results[0].record.resume?.cliType).toBe('claude')
+        if (results[1].kind === 'recoverable') expect(results[1].record.resume?.cliType).toBe('codex')
     })
 
     it('returns empty array for empty input', () => {
@@ -89,18 +100,18 @@ describe('multiple records', () => {
         expect(results).toHaveLength(0)
     })
 
-    it('mixes actionable and non-actionable correctly', () => {
+    it('mixes recoverable records and drops correctly', () => {
         const results = classifyRecoveryCandidates(baseInput({
             metadataRecords: [
                 record(makeRunningClaudeMetadata(), '/vault/.voicetree/terminals/A.json'),
-                record({name: 'C', status: 'exited'}, '/vault/.voicetree/terminals/C.json'),
+                record({name: 'C', status: 'exited', terminalData: makeTerminalData({terminalId: 'C' as ReturnType<typeof makeTerminalData>['terminalId'], initialCommand: 'claude'})}, '/vault/.voicetree/terminals/C.json'),
                 record(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json'),
             ],
+            resumeHandleByTerminalId: new Map([
+                [TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}],
+                ['B', {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}],
+            ]),
         }))
-        expect(results.map(r => r.kind)).toEqual([
-            'resumable-missing-tmux',
-            'exited',
-            'resumable-missing-tmux',
-        ])
+        expect(results.map(r => r.kind)).toEqual(['recoverable', 'recoverable', 'recoverable'])
     })
 })

@@ -1,7 +1,9 @@
 import {describe, expect, it} from 'vitest'
 import {classifyRecoveryCandidates} from './classifier'
+import type {ResumeCapability} from './types'
 import {
     baseInput,
+    makeLiveSession,
     makeRunningClaudeMetadata,
     makeRunningCodexMetadata,
     makeTerminalData,
@@ -14,110 +16,112 @@ import {
 } from './classifier.test-fixtures'
 
 // ---------------------------------------------------------------------------
-// Scenario: Running record + alive tmux → attachable-live-tmux
+// Scenario: Running record + alive tmux → attach capability present
 // ---------------------------------------------------------------------------
 
-describe('attachable-live-tmux', () => {
-    it('returns attachable-live-tmux when session is in liveTmuxSessionNames', () => {
+describe('attach capability', () => {
+    it('exposes attach when session is in liveTmuxSessionsByName', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
-            liveTmuxSessionNames: new Set([SESSION_A]),
+            liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
         }))
-        expect(result.kind).toBe('attachable-live-tmux')
-        if (result.kind === 'attachable-live-tmux') {
-            expect(result.terminalId).toBe(TERMINAL_A)
-            expect(result.sessionName).toBe(SESSION_A)
-            expect(result.metadataPath).toBe(METADATA_PATH_A)
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalId).toBe(TERMINAL_A)
+            expect(result.record.attach?.session.sessionName).toBe(SESSION_A)
+            expect(result.record.metadataPath).toBe(METADATA_PATH_A)
         }
     })
 
-    it('does not also return resumable for the same alive session — one classification only', () => {
-        const results = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record(makeRunningClaudeMetadata())],
-            liveTmuxSessionNames: new Set([SESSION_A]),
-        }))
-        expect(results).toHaveLength(1)
-        expect(results[0].kind).toBe('attachable-live-tmux')
-    })
-
-    it('falls through to resumable when session is not alive', () => {
+    it('exposes BOTH attach AND resume when session is alive AND a resume handle is present (fork-while-running)', () => {
+        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
-            liveTmuxSessionNames: new Set(), // dead
+            liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, resumeHandle]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.attach).toBeDefined()
+            expect(result.record.resume).toEqual(resumeHandle)
+        }
+    })
+
+    it('falls through to resume-only when session is dead but resume handle is present', () => {
+        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
+        const [result] = classifyRecoveryCandidates(baseInput({
+            metadataRecords: [record(makeRunningClaudeMetadata())],
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, resumeHandle]]),
+        }))
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.attach).toBeUndefined()
+            expect(result.record.resume).toEqual(resumeHandle)
+        }
     })
 })
 
 // ---------------------------------------------------------------------------
-// Scenario: Persisted running Claude record with missing tmux + recovery.native → resumable
+// Scenario: Resume handle present for Claude / Codex
 // ---------------------------------------------------------------------------
 
-describe('resumable-missing-tmux — Claude', () => {
-    it('returns resumable-missing-tmux for Claude when tmux session is dead', () => {
+describe('resume capability — Claude', () => {
+    it('exposes resume when a Claude handle is in resumeHandleByTerminalId', () => {
+        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, resumeHandle]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
-        if (result.kind === 'resumable-missing-tmux') {
-            expect(result.terminalId).toBe(TERMINAL_A)
-            expect(result.cliType).toBe('claude')
-            expect(result.nativeSessionId).toBe('sess-uuid-123')
-            expect(result.agentName).toBe('Ari')
-            expect(result.metadataPath).toBe(METADATA_PATH_A)
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalId).toBe(TERMINAL_A)
+            expect(result.record.resume?.cliType).toBe('claude')
+            expect(result.record.resume?.nativeSessionId).toBe('sess-uuid-123')
+            expect(result.record.agentName).toBe('Ari')
+            expect(result.record.metadataPath).toBe(METADATA_PATH_A)
         }
     })
 
-    it('includes terminalData in the resumable result', () => {
+    it('includes terminalData in the recoverable record', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
-        if (result.kind === 'resumable-missing-tmux') {
-            expect(result.terminalData.initialCommand).toBe('claude')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalData.initialCommand).toBe('claude')
         }
     })
 
-    it('detects Claude command even with env-var prefix', () => {
+    it('still surfaces the row when initialCommand carries an env-var prefix (resolver job is upstream)', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata({
                 terminalData: makeTerminalData({
                     initialCommand: 'CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions',
                 }),
             }))],
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
-        if (result.kind === 'resumable-missing-tmux') {
-            expect(result.cliType).toBe('claude')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.resume?.cliType).toBe('claude')
         }
     })
 })
 
-// ---------------------------------------------------------------------------
-// Scenario: Persisted running Codex record with missing tmux + recovery.native → resumable
-// ---------------------------------------------------------------------------
-
-describe('resumable-missing-tmux — Codex', () => {
-    it('returns resumable-missing-tmux for Codex when tmux session is dead', () => {
+describe('resume capability — Codex', () => {
+    it('exposes resume when a Codex handle is in resumeHandleByTerminalId', () => {
+        const resumeHandle: ResumeCapability = {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningCodexMetadata())],
+            resumeHandleByTerminalId: new Map([['B', resumeHandle]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
-        if (result.kind === 'resumable-missing-tmux') {
-            expect(result.terminalId).toBe('B')
-            expect(result.cliType).toBe('codex')
-            expect(result.nativeSessionId).toBe('thread-uuid-456')
-            expect(result.agentName).toBe('Bea')
-        }
-    })
-
-    it('includes terminalData with correct command for Codex', () => {
-        const [result] = classifyRecoveryCandidates(baseInput({
-            metadataRecords: [record(makeRunningCodexMetadata())],
-        }))
-        expect(result.kind).toBe('resumable-missing-tmux')
-        if (result.kind === 'resumable-missing-tmux') {
-            expect(result.terminalData.initialCommand).toBe('codex')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.terminalId).toBe('B')
+            expect(result.record.resume?.cliType).toBe('codex')
+            expect(result.record.resume?.nativeSessionId).toBe('thread-uuid-456')
+            expect(result.record.agentName).toBe('Bea')
         }
     })
 })
@@ -127,7 +131,7 @@ describe('resumable-missing-tmux — Codex', () => {
 // ---------------------------------------------------------------------------
 
 describe('session name resolution from env vars', () => {
-    it('classifies as attachable when session field absent but computed name matches live session', () => {
+    it('exposes attach when session field absent but computed name matches live session', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
@@ -140,22 +144,21 @@ describe('session name resolution from env vars', () => {
                         VOICETREE_VAULT_PATH: VAULT_PATH,
                     },
                 }),
-                recovery: {native: {cli: 'claude', mode: 'interactive', sessionId: 'x', capturedAt: '', source: 'claude-project-transcript'}},
             })],
-            // The computed session name uses VOICETREE_VAULT_PATH to build the hash.
-            // We pass the actual expected session name here so the live-session check matches.
-            liveTmuxSessionNames: new Set([SESSION_A]),
+            liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
             currentNamespaceHash: VAULT_HASH,
         }))
-        expect(result.kind).toBe('attachable-live-tmux')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.attach?.session.sessionName).toBe(SESSION_A)
+        }
     })
 
-    it('classifies as resumable when session field absent and computed name is not alive', () => {
+    it('exposes resume-only when session field absent, computed name is dead, and a resume handle is supplied', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record({
                 name: TERMINAL_A,
                 status: 'running',
-                // no explicit session field
                 terminalData: makeTerminalData({
                     initialCommand: 'claude',
                     initialEnvVars: {
@@ -163,10 +166,13 @@ describe('session name resolution from env vars', () => {
                         VOICETREE_VAULT_PATH: VAULT_PATH,
                     },
                 }),
-                recovery: {native: {cli: 'claude', mode: 'interactive', sessionId: 'sid', capturedAt: '', source: 'claude-project-transcript'}},
             })],
-            liveTmuxSessionNames: new Set(), // computed session is not alive
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sid'}]]),
         }))
-        expect(result.kind).toBe('resumable-missing-tmux')
+        expect(result.kind).toBe('recoverable')
+        if (result.kind === 'recoverable') {
+            expect(result.record.attach).toBeUndefined()
+            expect(result.record.resume?.nativeSessionId).toBe('sid')
+        }
     })
 })

@@ -35,20 +35,19 @@ export type UnclaimedTmuxSessionShape = {
     readonly attachable: boolean;
 };
 
-export type RecoverableAgentSessionShape =
-    | {
-        readonly kind: 'attachable-tmux';
+export type RecoverableAgentSessionShape = {
+    readonly terminalId: string;
+    readonly agentName: string;
+    readonly metadataPath: string;
+    readonly isClaimed: boolean;
+    readonly attach?: {
         readonly session: UnclaimedTmuxSessionShape;
-    }
-    | {
-        readonly kind: 'resumable-cli';
-        readonly terminalId: string;
-        readonly agentName: string;
-        readonly cliType: 'claude' | 'codex';
-        readonly metadataPath: string;
-        readonly nativeSessionId: string;
-        readonly reason: 'missing-tmux-session';
     };
+    readonly resume?: {
+        readonly cliType: 'claude' | 'codex';
+        readonly nativeSessionId: string;
+    };
+};
 
 export interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
@@ -78,6 +77,7 @@ export interface SurvivingAgentsVault {
     readonly tempRoot: string;
     readonly vaultPath: string;
     readonly contextNodePath: string;
+    readonly claudeProjectsRoot: string;
 }
 
 export function tmuxSocketPath(): string {
@@ -93,7 +93,9 @@ export async function createSurvivingAgentsVault(): Promise<SurvivingAgentsVault
     const tempRoot: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-surviving-agents-vault-'));
     const vaultPath: string = await createFolderTestVault(tempRoot);
     const contextNodePath: string = path.join(vaultPath, 'readme.md');
-    return {tempRoot, vaultPath, contextNodePath};
+    const claudeProjectsRoot: string = path.join(tempRoot, 'claude-projects');
+    await fs.mkdir(claudeProjectsRoot, {recursive: true});
+    return {tempRoot, vaultPath, contextNodePath, claudeProjectsRoot};
 }
 
 export function buildNamespaceHash(vaultPath: string): string {
@@ -210,9 +212,47 @@ export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void>
 }
 
 /**
+ * Fixture a stub Claude transcript JSONL file in a custom projects root.
+ *
+ * Discovery's Claude resolver scans `*.jsonl` under
+ * `VOICETREE_CLAUDE_PROJECTS_DIR` (or `~/.claude/projects` by default) and
+ * matches records whose `message.content` contains the three VoiceTree
+ * markers: VOICETREE_TERMINAL_ID, VOICETREE_VAULT_PATH, TASK_NODE_PATH.
+ *
+ * The e2e tests set VOICETREE_CLAUDE_PROJECTS_DIR to a temp dir and call this
+ * helper to seed the matching transcript, so the resolver can find the
+ * native session id at discovery time without touching the real user's
+ * Claude home dir.
+ */
+export async function fixtureClaudeTranscript(opts: {
+    readonly claudeProjectsRoot: string;
+    readonly terminalId: string;
+    readonly vaultPath: string;
+    readonly taskNodePath: string;
+    readonly sessionId: string;
+}): Promise<string> {
+    const subdir: string = path.join(opts.claudeProjectsRoot, `vt-e2e-${opts.terminalId}`);
+    await fs.mkdir(subdir, {recursive: true});
+    const transcriptPath: string = path.join(subdir, `${opts.sessionId}.jsonl`);
+    const markerText: string = [
+        `VOICETREE_TERMINAL_ID = ${opts.terminalId}`,
+        `VOICETREE_VAULT_PATH = ${opts.vaultPath}`,
+        `TASK_NODE_PATH = ${opts.taskNodePath}`,
+    ].join('\n');
+    const record = {
+        sessionId: opts.sessionId,
+        type: 'user',
+        message: {role: 'user', content: markerText},
+    };
+    await fs.writeFile(transcriptPath, `${JSON.stringify(record)}\n`, 'utf8');
+    return transcriptPath;
+}
+
+/**
  * Fixture a `.voicetree/terminals/<id>.json` metadata file that the recovery
- * discovery flow will classify as `resumable-missing-tmux` (when no live tmux
- * session exists for the resolved session name).
+ * discovery flow will surface as a recoverable row. To actually expose a
+ * `resume` capability the caller must ALSO seed a Claude transcript (see
+ * `fixtureClaudeTranscript`) — the resolver runs at discovery time.
  *
  * Returns the absolute metadata path so the caller can clean it up.
  */
@@ -221,8 +261,8 @@ export async function fixtureRecoveryMetadata(opts: {
     readonly terminalId: string;
     readonly agentName: string;
     readonly cliBinary: 'claude' | 'codex';
-    readonly nativeSessionId: string;
     readonly sessionNameOverride?: string;
+    readonly taskNodePath?: string;
 }): Promise<string> {
     const metadataDir: string = path.join(opts.vaultPath, '.voicetree', 'terminals');
     await fs.mkdir(metadataDir, {recursive: true});
@@ -246,19 +286,9 @@ export async function fixtureRecoveryMetadata(opts: {
                 AGENT_NAME: opts.agentName,
                 VOICETREE_VAULT_PATH: opts.vaultPath,
                 VOICETREE_PROJECT_DIR: projectDir,
+                ...(opts.taskNodePath ? {TASK_NODE_PATH: opts.taskNodePath} : {}),
             },
             isHeadless: false,
-        },
-        recovery: {
-            native: {
-                cli: opts.cliBinary,
-                mode: 'interactive' as const,
-                sessionId: opts.nativeSessionId,
-                capturedAt: new Date().toISOString(),
-                source: opts.cliBinary === 'claude'
-                    ? ('claude-project-transcript' as const)
-                    : ('codex-state-index' as const),
-            },
         },
     };
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
@@ -322,6 +352,7 @@ export const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
+                VOICETREE_CLAUDE_PROJECTS_DIR: vault.claudeProjectsRoot,
             },
             timeout: 15000,
         });

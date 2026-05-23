@@ -1,20 +1,23 @@
 import type {TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
+import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
 import {detectCliType} from '../spawn/headlessCli'
 import {buildTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 import {parseVoicetreeTmuxSessionName} from '../terminals/tmux/unclaimed-tmux'
-import type {RecoveryClassification} from './types'
+import type {AttachCapability, RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type ClassifierInput = {
     /**
      * Raw parsed JSON objects (already JSON.parse'd) with their source file paths.
-     * The classifier validates shape and returns `invalid` for malformed records.
+     * The classifier validates shape and drops malformed records.
      */
     readonly metadataRecords: readonly MetadataRecord[]
     /**
-     * All live tmux session names visible from `listSessions`.
+     * Live tmux sessions visible from the unclaimed-tmux scan, keyed by session
+     * name. Includes the full UnclaimedTmuxSession payload so attach rows can
+     * carry it.
      */
-    readonly liveTmuxSessionNames: ReadonlySet<string>
+    readonly liveTmuxSessionsByName: ReadonlyMap<string, UnclaimedTmuxSession>
     /**
      * Terminal ids currently registered in the in-memory terminal registry.
      */
@@ -24,6 +27,13 @@ export type ClassifierInput = {
      * Null if the current vault namespace could not be resolved.
      */
     readonly currentNamespaceHash: string | null
+    /**
+     * Resume handles already resolved by discovery (one call per supported-CLI
+     * record). Map keyed by terminal id. Records absent from the map have no
+     * resume capability (resolver returned not-found, or the record's CLI is
+     * unsupported, or the metadata had no initialCommand).
+     */
+    readonly resumeHandleByTerminalId: ReadonlyMap<string, ResumeCapability>
 }
 
 export type MetadataRecord = {
@@ -44,74 +54,74 @@ function resolveSessionName(metadata: TmuxTerminalMetadata): string {
         ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
 }
 
-function extractNamespaceHash(metadata: TmuxTerminalMetadata): string | null {
-    const sessionName = resolveSessionName(metadata)
+function extractNamespaceHash(sessionName: string): string | null {
     return parseVoicetreeTmuxSessionName(sessionName)?.hash ?? null
 }
 
 function classifyRecord(record: MetadataRecord, input: ClassifierInput): RecoveryClassification {
     const metadata = validateMetadata(record.data)
-    if (!metadata) return {kind: 'invalid', metadataPath: record.path}
+    if (!metadata) return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
 
     const terminalId = metadata.name as TerminalId
-
-    if (metadata.status === 'exited') {
-        return {kind: 'exited', terminalId, metadataPath: record.path}
-    }
-
-    if (input.registryTerminalIds.has(metadata.name)) {
-        return {kind: 'claimed', terminalId, metadataPath: record.path}
-    }
+    const sessionName: string = resolveSessionName(metadata)
 
     if (input.currentNamespaceHash !== null) {
-        const metadataHash = extractNamespaceHash(metadata)
+        const metadataHash: string | null = extractNamespaceHash(sessionName)
         if (metadataHash !== null && metadataHash !== input.currentNamespaceHash) {
-            return {kind: 'foreign-vault', terminalId, metadataPath: record.path}
+            return {kind: 'dropped', reason: 'foreign-vault', metadataPath: record.path}
         }
     }
 
-    const sessionName = resolveSessionName(metadata)
-    if (input.liveTmuxSessionNames.has(sessionName)) {
-        return {kind: 'attachable-live-tmux', terminalId, sessionName, metadataPath: record.path}
+    if (!metadata.terminalData) {
+        // Without terminalData we can't surface a useful row — the UI needs it
+        // for context node, env vars, and initial command. Treat as invalid.
+        return {kind: 'dropped', reason: 'invalid', metadataPath: record.path}
     }
 
-    const initialCommand = metadata.terminalData?.initialCommand
-    if (!initialCommand) {
-        return {kind: 'unsupported-cli', terminalId, metadataPath: record.path}
-    }
+    const liveSession: UnclaimedTmuxSession | undefined = input.liveTmuxSessionsByName.get(sessionName)
+    const attach: AttachCapability | undefined = liveSession ? {session: liveSession} : undefined
+    const resume: ResumeCapability | undefined = input.resumeHandleByTerminalId.get(terminalId)
 
-    const cliType = detectCliType(initialCommand)
-    if (cliType !== 'claude' && cliType !== 'codex') {
-        return {kind: 'unsupported-cli', terminalId, metadataPath: record.path}
-    }
-
-    const nativeSessionId = metadata.recovery?.native?.sessionId
-    if (!nativeSessionId) {
-        return {kind: 'missing-native-handle', terminalId, metadataPath: record.path}
-    }
-
-    // terminalData is non-null here: initialCommand is accessed via terminalData?.initialCommand,
-    // so if initialCommand is non-null, terminalData must be non-null.
-    const terminalData = metadata.terminalData!
-
-    return {
-        kind: 'resumable-missing-tmux',
+    const recoverable: RecoverableAgentSession = {
         terminalId,
-        agentName: terminalData.agentName,
-        cliType,
-        nativeSessionId,
+        agentName: metadata.terminalData.agentName ?? metadata.name,
         metadataPath: record.path,
-        terminalData,
+        terminalData: metadata.terminalData,
+        isClaimed: input.registryTerminalIds.has(metadata.name),
+        ...(attach ? {attach} : {}),
+        ...(resume ? {resume} : {}),
     }
+
+    return {kind: 'recoverable', record: recoverable}
 }
 
 /**
  * Pure classifier for terminal metadata recovery candidates.
  *
- * Takes already-loaded inputs (no IO) and returns a classification per record.
- * Discovery (Phase 2c) is responsible for reading metadata files, listing tmux sessions,
- * and querying the registry before calling this function.
+ * Takes already-loaded inputs (no IO) and returns one classification per
+ * record. Discovery is responsible for reading metadata files, listing tmux
+ * sessions, querying the registry, and resolving native session handles before
+ * calling this function.
+ *
+ * Capabilities (`attach`, `resume`) are independent: a single record can carry
+ * neither, one, or both. The classifier no longer filters records by status
+ * (`exited` is fine — capabilities answer actionability) or by registry
+ * membership (`isClaimed: true` is exposed so the UI can route the record to
+ * the regular tab strip rather than the Surviving Agents section).
  */
 export function classifyRecoveryCandidates(input: ClassifierInput): readonly RecoveryClassification[] {
     return input.metadataRecords.map((record) => classifyRecord(record, input))
+}
+
+/**
+ * Convenience: which supported CLI does this metadata target (if any)?
+ *
+ * Used by discovery to decide whether to spend a resolver call on a record.
+ * Returns null for unsupported CLIs, missing initialCommand, or invalid metadata.
+ */
+export function detectSupportedCliFromMetadata(metadata: TmuxTerminalMetadata): 'claude' | 'codex' | null {
+    const initialCommand: string | undefined = metadata.terminalData?.initialCommand
+    if (!initialCommand) return null
+    const cliType = detectCliType(initialCommand)
+    return cliType === 'claude' || cliType === 'codex' ? cliType : null
 }

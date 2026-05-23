@@ -90,3 +90,14 @@ export async function resumeRecoverySession(
     void refreshRecoverySessions()
     return result
 }
+
+export async function forkRecoverySession(
+    sourceTerminalId: string,
+): Promise<{readonly success: boolean; readonly error?: string; readonly terminalId?: string}> {
+    const result: {readonly success: boolean; readonly error?: string; readonly terminalId?: string} = await (
+        window.electronAPI?.main.forkRecoverySession?.(sourceTerminalId)
+        ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
+    )
+    void refreshRecoverySessions()
+    return result
+}
