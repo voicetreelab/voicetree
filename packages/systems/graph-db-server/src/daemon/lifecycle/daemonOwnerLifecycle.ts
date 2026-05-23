@@ -32,7 +32,7 @@ import type {
   CommandFingerprint,
   HealthOwner,
   OwnerRecord,
-} from '../contract.ts'
+} from '@vt/graph-db-server/contract'
 import {
   atomicReplaceOwnerRecord,
   createInitialRecord,

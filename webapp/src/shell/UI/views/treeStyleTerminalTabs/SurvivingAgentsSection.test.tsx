@@ -97,6 +97,7 @@ function renderSection(
 describe('SurvivingAgentsSection — attachable-tmux rows', () => {
     afterEach(() => {
         cleanup();
+        vi.useRealTimers();
     });
 
     it('renders same-vault attachable rows with an Attach action', () => {
@@ -110,6 +111,18 @@ describe('SurvivingAgentsSection — attachable-tmux rows', () => {
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /attach/i}));
 
         expect(onAttach).toHaveBeenCalledWith('vt-aaaaaaaaaa-Ari');
+    });
+
+    it('renders attachable row age from the render-time clock', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-05-22T00:00:30.000Z'));
+        const createdAt: number = new Date('2026-05-22T00:00:00.000Z').getTime();
+
+        const {container} = renderSection([makeAttachable({createdAt})]);
+
+        const row: Element | null = container.querySelector('[data-row-kind="attachable-tmux"][data-session-name="vt-aaaaaaaaaa-Ari"]');
+        expect(row).not.toBeNull();
+        expect(within(row as HTMLElement).getByText('30s ago | pid 84231')).toBeTruthy();
     });
 
     it('renders foreign-vault attachable rows as kill-only', () => {

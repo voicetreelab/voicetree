@@ -20,7 +20,7 @@ import {
   type SelectionResponse,
   type LayoutPartial,
   type LayoutResponse,
-} from '../contract.ts'
+} from '@vt/graph-db-server/contract'
 
 describe('contract', () => {
   test('CONTRACT_VERSION is 0.2.0', () => {

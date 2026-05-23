@@ -20,7 +20,7 @@ function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-function formatAge(createdAt: number, now: number = Date.now()): string {
+function formatAge(createdAt: number, now: number): string {
     const ageSeconds: number = Math.max(0, Math.floor((now - createdAt) / 1000));
     if (ageSeconds < 60) return `${ageSeconds}s ago`;
 
@@ -73,6 +73,7 @@ export function SurvivingAgentsSection({
 }: SurvivingAgentsSectionProps): JSX.Element | null {
     const [busyKey, setBusyKey] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const now: number = Date.now();
 
     const handleRefresh: () => void = useCallback((): void => {
         setError(null);
@@ -149,7 +150,7 @@ export function SurvivingAgentsSection({
                                         </span>
                                     </div>
                                     <div className="surviving-agent-meta">
-                                        {formatAge(session.createdAt)} | pid {session.panePid}
+                                        {formatAge(session.createdAt, now)} | pid {session.panePid}
                                     </div>
                                 </div>
                                 <div className="surviving-agent-actions">

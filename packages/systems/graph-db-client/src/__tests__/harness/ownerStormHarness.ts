@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 import {
   CONTRACT_VERSION,
-  isOwnerRecord,
+  ownerRecordFile,
   type CommandFingerprint,
   type OwnerRecord,
 } from '@vt/graph-db-protocol'
@@ -80,11 +80,11 @@ function tryKill(pid: number, signal: NodeJS.Signals | 0 = 'SIGKILL'): void {
 
 export async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
   const raw = await readFile(join(vault, '.voicetree', OWNER_FILE), 'utf8')
-  const parsed: unknown = JSON.parse(raw)
-  if (!isOwnerRecord(parsed)) {
+  const decoded = ownerRecordFile.decode(raw)
+  if (decoded === null) {
     throw new Error('owner record on disk did not satisfy OwnerRecord schema')
   }
-  return parsed
+  return decoded
 }
 
 export async function readPersistedOwnerOrNull(

@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { HealthOwner, HealthResponse } from './contract.ts'
+import type { HealthOwner, HealthResponse } from '../contract.ts'
 import type { FolderTreeScanner } from '../data/folder-tree-cache/types.ts'
 
 export type DaemonHandle = {

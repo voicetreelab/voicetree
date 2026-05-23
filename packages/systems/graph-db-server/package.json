@@ -11,7 +11,7 @@
     "./application/workflows/*": "./src/application/workflows/*.ts",
     "./application/errors/*": "./src/application/errors/*.ts",
     "./application/session/*": "./src/application/session/*.ts",
-    "./contract": "./src/daemon/contract.ts",
+    "./contract": "./src/contract.ts",
     "./daemonRouteParity": "./src/routes/daemonRouteParity.ts",
     "./portFile": "./src/daemon/portFile.ts",
     "./views/*": "./src/data/views/*.ts",

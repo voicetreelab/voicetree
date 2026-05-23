@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export * from './owner.ts'
+export * from './diagnostics.ts'
 
 export const CONTRACT_VERSION = '0.2.0'
 

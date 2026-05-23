@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import { getCallbacks } from '@vt/graph-model'
 import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@vt/graph-model/graph'
-import { callDaemon } from '../lifecycle/graph-daemon'
+import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from './daemon-graph-normalization'
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO'
 import type { VTSettings } from '@vt/graph-model/settings'
