@@ -8,11 +8,20 @@
     "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
   },
   "scripts": {
-    "test": "vitest run src/health/**/*.test.ts"
+    "test": "vitest run src/health/**/*.test.ts",
+    "test:perf:agents": "node --import tsx perf/agent-storm.ts"
+  },
+  "dependencies": {
+    "@vt/agent-runtime": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-server": "*",
+    "@vt/graph-model": "*",
+    "@vt/voicetree-mcp": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "ts-morph": "^28.0.0",
+    "tsx": "^4.19.2",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"
   }

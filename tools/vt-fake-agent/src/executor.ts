@@ -8,6 +8,8 @@ export interface ExecutorEnv {
   waitForMessage?: (matcher: (message: string) => boolean) => Promise<string>
 }
 
+let createNodeCounter = 0
+
 function interruptibleDelay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     if (signal.aborted) { resolve(); return }
@@ -36,7 +38,10 @@ export async function executeScript(
       }
 
       case 'create_node': {
-        const filename = `fake-agent-${Date.now()}.md`
+        // Include terminalId + a monotonic counter so concurrent fake-agents
+        // do not produce colliding filenames when their create_node actions
+        // land in the same millisecond.
+        const filename = `fake-agent-${env.terminalId}-${Date.now()}-${createNodeCounter++}.md`
         await mcpClient.createGraph(env.terminalId, [{
           filename,
           title: action.title,
