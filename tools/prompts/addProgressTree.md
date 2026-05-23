@@ -5,8 +5,8 @@ Does this task have 2+ distinct concerns or phases?
 
 YES → Decompose and spawn:
 1. Create nodes for each subtask (one node = one concern)
-2. Spawn voicetree agents (`mcp__voicetree__spawn_agent`) to work in parallel
-3. Wait (`mcp__voicetree__wait_for_agents`) and review their work
+2. Spawn voicetree agents (`vt agent spawn`) to work in parallel
+3. Wait (`vt agent wait`) and review their work
 
 See `decompose_subtask_dependency_graph.md` for graph structure patterns.
 
