@@ -30,7 +30,7 @@ describe('contract', () => {
   test('HealthResponse round-trips a valid sample with owner=null (vaultless)', () => {
     const sample: HealthResponse = {
       version: CONTRACT_VERSION,
-      vault: '/tmp/vault',
+      vault: null,
       uptimeSeconds: 42,
       sessionCount: 0,
       owner: null,

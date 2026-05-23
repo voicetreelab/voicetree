@@ -43,26 +43,20 @@ type OpenVaultWorkflowInput = OpenVaultRequest & {
 
 type LifecycleState = {
   activeSessionId: string | null
-  activeVaultPath: string | null
   registry: SessionRegistry | null
 }
 
 const resources: VaultResource[] = []
 const lifecycleState: LifecycleState = {
   activeSessionId: null,
-  activeVaultPath: null,
   registry: null,
 }
 
 let mutexTail: Promise<unknown> = Promise.resolve()
 
 export function configureVaultLifecycle(options: {
-  activeVaultPath?: string | null
   registry: SessionRegistry
 }): void {
-  lifecycleState.activeVaultPath = options.activeVaultPath
-    ? resolve(options.activeVaultPath)
-    : null
   lifecycleState.activeSessionId = null
   lifecycleState.registry = options.registry
 }
@@ -70,7 +64,6 @@ export function configureVaultLifecycle(options: {
 export function resetVaultLifecycle(): void {
   resources.length = 0
   lifecycleState.activeSessionId = null
-  lifecycleState.activeVaultPath = null
   lifecycleState.registry = null
   mutexTail = Promise.resolve()
 }
@@ -181,16 +174,16 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
   return await withVaultMutex(async () => {
     const body = OpenVaultRequestSchema.parse(input)
     const targetVaultPath = resolve(body.path)
+    const currentVaultPath = getProjectRootWatchedDirectory()
 
-    if (lifecycleState.activeVaultPath === targetVaultPath) {
+    if (currentVaultPath && resolve(currentVaultPath) === targetVaultPath) {
       return await buildOpenVaultResponse(targetVaultPath)
     }
 
-    if (lifecycleState.activeVaultPath) {
+    if (currentVaultPath) {
       await closeResources()
     }
 
-    lifecycleState.activeVaultPath = null
     lifecycleState.activeSessionId = null
     setGraph(createEmptyGraph())
 
@@ -200,9 +193,10 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
         targetVaultPath,
       )
       await openResources(targetVaultPath)
-      lifecycleState.activeVaultPath = targetVaultPath
       return await buildOpenVaultResponse(targetVaultPath)
     } catch (error) {
+      await closeResources()
+      clearVaultPath()
       throw error instanceof VaultOpenFailedError
         ? error
         : new VaultOpenFailedError(
@@ -214,12 +208,11 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
 
 export async function closeVaultWorkflow(): Promise<void> {
   await withVaultMutex(async () => {
-    if (!lifecycleState.activeVaultPath && !getProjectRootWatchedDirectory()) {
+    if (!getProjectRootWatchedDirectory()) {
       return
     }
 
     await closeResources()
-    lifecycleState.activeVaultPath = null
     lifecycleState.activeSessionId = null
     clearVaultPath()
     setGraph(createEmptyGraph())

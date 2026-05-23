@@ -123,7 +123,7 @@ async function startOwnedDaemon(
       registry,
       opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
     )
-    configureVaultLifecycle({ activeVaultPath: null, registry })
+    configureVaultLifecycle({ registry })
     registerVaultResource({
       openForVault: openFolderVisibilityForVault,
       closeForVault: closeFolderVisibilityForVault,
@@ -176,7 +176,7 @@ async function startOwnedDaemon(
       readHealth: () =>
         buildHealthResponse(
           CONTRACT_VERSION,
-          getProjectRootWatchedDirectory() ?? startupVault ?? '',
+          getProjectRootWatchedDirectory(),
           startMs,
           clock(),
           registry.size(),

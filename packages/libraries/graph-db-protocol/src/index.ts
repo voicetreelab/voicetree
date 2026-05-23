@@ -28,7 +28,7 @@ export type HealthOwner = z.infer<typeof HealthOwnerSchema>
 
 export const HealthResponseSchema = z.object({
   version: z.string(),
-  vault: z.string(),
+  vault: z.string().nullable(),
   uptimeSeconds: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
   /**

@@ -72,9 +72,26 @@ describe('startDaemon', () => {
     expect(res.status).toBe(200)
     const body = HealthResponseSchema.parse(await res.json())
     expect(body.version).toBe(CONTRACT_VERSION)
-    expect(body.vault).toBe('')
+    expect(body.vault).toBeNull()
     expect(body.sessionCount).toBe(0)
     expect(body.owner).toBeNull()
+  })
+
+  test('closing the startup vault makes health report no open vault', async () => {
+    const h = await start()
+
+    const close = await fetch(`http://127.0.0.1:${h.port}/vault/close`, {
+      method: 'POST',
+    })
+    const health = await fetch(`http://127.0.0.1:${h.port}/health`)
+    const vaultRead = await fetch(`http://127.0.0.1:${h.port}/vault`)
+
+    expect(close.status).toBe(204)
+    expect(HealthResponseSchema.parse(await health.json()).vault).toBeNull()
+    expect(vaultRead.status).toBe(409)
+    expect(await vaultRead.json()).toMatchObject({
+      error: { code: 'vault_not_open' },
+    })
   })
 
   test('port file reflects the assigned port', async () => {
