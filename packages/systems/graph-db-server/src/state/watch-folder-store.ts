@@ -45,6 +45,10 @@ export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | n
     ));
 };
 
+export const clearProjectRoot: () => void = (): void => {
+    resetProjectState();
+};
+
 export const onReadPathsChanged: (listener: ReadPathsListener) => (() => void) = (
     listener: ReadPathsListener,
 ): (() => void) => {

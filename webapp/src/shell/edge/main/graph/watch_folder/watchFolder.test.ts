@@ -2,7 +2,7 @@
  * Unit Tests for Multi-Vault Path Functionality
  *
  * Tests the public API functions for multi-vault path management:
- * - await getProjectRoots() - returns readonly FilePath[] of readPaths
+ * - await getVaultPaths() - returns readonly FilePath[] of readPaths
  * - await getWriteFolder() - returns O.Option<FilePath> of write path
  * - setWriteFolder(path) - sets write path, returns {success, error?}
  * - addReadPath(path) - adds path to readPaths
@@ -25,7 +25,7 @@ import {
   addReadPath,
   removeReadPath,
   setWriteFolder,
-  getProjectRoots,
+  getVaultPaths,
   getWriteFolder,
 } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { setProjectRoot, getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
@@ -154,7 +154,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
   })
 
   describe('7.1.1 Scenario: User adds multiple vault paths', () => {
-    it('should return all configured vault paths from await getProjectRoots()', async () => {
+    it('should return all configured vault paths from await getVaultPaths()', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
       await loadFolder(testVaultPath1)
 
@@ -166,8 +166,8 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       expect(result1.success).toBe(true)
       expect(result2.success).toBe(true)
 
-      // ASSERT: await getProjectRoots() returns all paths
-      const vaultPaths: readonly string[] = await getProjectRoots()
+      // ASSERT: await getVaultPaths() returns all paths
+      const vaultPaths: readonly string[] = await getVaultPaths()
       expect(vaultPaths).toContain(testVaultPath1)
       expect(vaultPaths).toContain(testVaultPath2)
       expect(vaultPaths).toContain(testVaultPath3)
@@ -196,13 +196,13 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       expect(stats.isDirectory()).toBe(true)
 
       // ASSERT: Path is now in readPaths
-      expect(await getProjectRoots()).toContain(newFolderPath)
+      expect(await getVaultPaths()).toContain(newFolderPath)
     })
 
     it('should fail gracefully when path cannot be created (e.g., invalid characters or permissions)', async () => {
       // GIVEN: Load a folder (initializes with primary vault path)
       await loadFolder(testVaultPath1)
-      const initialPaths: readonly string[] = [...await getProjectRoots()]
+      const initialPaths: readonly string[] = [...await getVaultPaths()]
 
       // WHEN: Directory creation fails for a path Node rejects on every platform
       const unreadablePath: string = path.join(testWatchedDir, 'invalid\0path')
@@ -213,8 +213,8 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       expect(result.error).toBeDefined()
       expect(result.error).toContain('Failed to create directory')
 
-      // ASSERT: await getProjectRoots() unchanged
-      const currentPaths: readonly string[] = await getProjectRoots()
+      // ASSERT: await getVaultPaths() unchanged
+      const currentPaths: readonly string[] = await getVaultPaths()
       expect(currentPaths).toEqual(initialPaths)
     })
   })
@@ -227,7 +227,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       // AND: Add a path (using custom-vault which is not auto-added by defaultAllowlistPatterns)
       const firstAdd: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
       expect(firstAdd.success).toBe(true)
-      const lengthAfterFirstAdd: number = (await getProjectRoots()).length
+      const lengthAfterFirstAdd: number = (await getVaultPaths()).length
 
       // WHEN: Attempt to add same path again
       const secondAdd: { success: boolean; error?: string } = await addReadPath(testVaultPath2)
@@ -235,7 +235,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
       // ASSERT: Duplicate not added (readPaths length unchanged)
       expect(secondAdd.success).toBe(false)
       expect(secondAdd.error).toContain('already')
-      expect((await getProjectRoots()).length).toBe(lengthAfterFirstAdd)
+      expect((await getVaultPaths()).length).toBe(lengthAfterFirstAdd)
     })
   })
 })
@@ -395,7 +395,7 @@ describe('Remove Vault Path from Allowlist', () => {
     // GIVEN: Load a folder and add second vault path
     await loadFolder(testVaultPath1)
     await addReadPath(testVaultPath2)
-    expect(await getProjectRoots()).toContain(testVaultPath2)
+    expect(await getVaultPaths()).toContain(testVaultPath2)
 
     // WHEN: Remove the second path (not the default)
     const result: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
@@ -404,7 +404,7 @@ describe('Remove Vault Path from Allowlist', () => {
     expect(result.success).toBe(true)
 
     // ASSERT: Path is no longer in readPaths
-    expect(await getProjectRoots()).not.toContain(testVaultPath2)
+    expect(await getVaultPaths()).not.toContain(testVaultPath2)
   })
 
   it('should reject removing the default write path', async () => {
@@ -419,7 +419,7 @@ describe('Remove Vault Path from Allowlist', () => {
     expect(result.error).toContain('write path')
 
     // ASSERT: Path is still in readPaths
-    expect(await getProjectRoots()).toContain(testVaultPath1)
+    expect(await getVaultPaths()).toContain(testVaultPath1)
   })
 
   it('should succeed when removing path not in readPaths (no-op)', async () => {
@@ -505,7 +505,7 @@ describe('Two-Tier Configuration (7.3)', () => {
       // THEN: Check if openspec is in the readPaths
       // Note: This depends on the actual settings configuration
       // The test validates the public API behavior
-      const vaultPaths: readonly string[] = await getProjectRoots()
+      const vaultPaths: readonly string[] = await getVaultPaths()
 
       // At minimum, the primary vault path should be in readPaths
       expect(vaultPaths).toContain(testVaultPath1)
@@ -529,14 +529,14 @@ describe('Two-Tier Configuration (7.3)', () => {
       await loadFolder(projectAVault)
       await addReadPath(testVaultPath2)
 
-      const projectAPaths: readonly string[] = [...await getProjectRoots()]
+      const projectAPaths: readonly string[] = [...await getVaultPaths()]
       expect(projectAPaths).toContain(testVaultPath2)
 
       // WHEN: Switch to project B
       await loadFolder(projectBVault)
 
       // THEN: Project B should NOT have project A's custom path
-      const projectBPaths: readonly string[] = await getProjectRoots()
+      const projectBPaths: readonly string[] = await getVaultPaths()
       expect(projectBPaths).not.toContain(testVaultPath2)
       expect(projectBPaths).toContain(projectBVault)
     })
@@ -849,26 +849,26 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     await addReadPath(testVaultPath2)
 
     // Verify both paths are in readPaths
-    expect(await getProjectRoots()).toContain(testVaultPath1)
-    expect(await getProjectRoots()).toContain(testVaultPath2)
-    console.log('[Test] Initial vault paths:', await getProjectRoots())
+    expect(await getVaultPaths()).toContain(testVaultPath1)
+    expect(await getVaultPaths()).toContain(testVaultPath2)
+    console.log('[Test] Initial vault paths:', await getVaultPaths())
 
     // WHEN: Remove the second path
     const removeResult: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
     expect(removeResult.success).toBe(true)
 
     // Verify path is removed from memory
-    expect(await getProjectRoots()).toContain(testVaultPath1)
-    expect(await getProjectRoots()).not.toContain(testVaultPath2)
-    console.log('[Test] After removal vault paths:', await getProjectRoots())
+    expect(await getVaultPaths()).toContain(testVaultPath1)
+    expect(await getVaultPaths()).not.toContain(testVaultPath2)
+    console.log('[Test] After removal vault paths:', await getVaultPaths())
 
     // WHEN: Reload the folder (simulating app restart)
     await loadFolder(testVaultPath1)
-    console.log('[Test] After reload vault paths:', await getProjectRoots())
+    console.log('[Test] After reload vault paths:', await getVaultPaths())
 
     // THEN: Removed path should NOT be re-added
-    expect(await getProjectRoots()).toContain(testVaultPath1)
-    expect(await getProjectRoots()).not.toContain(testVaultPath2)
+    expect(await getVaultPaths()).toContain(testVaultPath1)
+    expect(await getVaultPaths()).not.toContain(testVaultPath2)
   })
 
   it('should persist removed vault path even when folder still exists on disk', async () => {
@@ -879,13 +879,13 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     await loadFolder(testVaultPath1)
 
     // Manually add openspec to simulate it being auto-added by patterns
-    const pathsBefore: readonly string[] = await getProjectRoots()
+    const pathsBefore: readonly string[] = await getVaultPaths()
     if (!pathsBefore.includes(testVaultPath2)) {
       await addReadPath(testVaultPath2)
     }
 
-    expect(await getProjectRoots()).toContain(testVaultPath2)
-    console.log('[Test] Vault paths with openspec:', await getProjectRoots())
+    expect(await getVaultPaths()).toContain(testVaultPath2)
+    console.log('[Test] Vault paths with openspec:', await getVaultPaths())
 
     // WHEN: Remove openspec
     const removeResult: { success: boolean; error?: string } = await removeReadPath(testVaultPath2)
@@ -897,15 +897,15 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
     console.log('[Test] openspec folder exists on disk:', folderExists)
 
     // Verify path is removed from memory
-    expect(await getProjectRoots()).not.toContain(testVaultPath2)
+    expect(await getVaultPaths()).not.toContain(testVaultPath2)
 
     // WHEN: Reload the folder
     await loadFolder(testVaultPath1)
-    console.log('[Test] After reload vault paths:', await getProjectRoots())
+    console.log('[Test] After reload vault paths:', await getVaultPaths())
 
     // THEN: openspec should NOT be re-added even though folder exists on disk
     // This was the bug - resolveAllowlistForProject would re-add existing folders
-    expect(await getProjectRoots()).not.toContain(testVaultPath2)
+    expect(await getVaultPaths()).not.toContain(testVaultPath2)
   })
 })
 

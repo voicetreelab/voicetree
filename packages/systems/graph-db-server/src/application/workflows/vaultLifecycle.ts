@@ -17,14 +17,16 @@ import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import {
-  clearProjectRoot,
   getReadPaths,
   getWriteFolder,
   resolveWriteFolder,
-  setProjectRoot,
   setWriteFolder,
 } from '@vt/graph-db-server/state/vaultAllowlist'
-import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
+import {
+  clearProjectRoot,
+  getProjectRoot,
+  setProjectRoot,
+} from '@vt/graph-db-server/state/watch-folder-store'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import {
