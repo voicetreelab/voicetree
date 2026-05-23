@@ -241,6 +241,7 @@ async function startRootSessionWithStaleSocketRetry(tmuxBin: string, socketPath:
     try {
         await startRootSession(tmuxBin, socketPath, deps)
         await verifyServer(tmuxBin, socketPath, deps)
+        await raiseServerPriority(tmuxBin, socketPath, deps)
         return
     } catch (error) {
         if (!deps.existsSync(socketPath) || !isMissingOrStaleServerError(error)) throw error
@@ -250,6 +251,40 @@ async function startRootSessionWithStaleSocketRetry(tmuxBin: string, socketPath:
 
     await startRootSession(tmuxBin, socketPath, deps)
     await verifyServer(tmuxBin, socketPath, deps)
+    await raiseServerPriority(tmuxBin, socketPath, deps)
+}
+
+// macOS jetsam reaps high-RSS background daemons under memory pressure. Because tmux
+// daemonizes (severs our parent chain to the foreground Electron app), every agent
+// pane below the server inherits a background priority band and becomes a target.
+// `taskpolicy -c user-interactive` lifts the server's QoS class so the kernel treats
+// it (and its descendants) as interactive work, surviving pressure-driven kills.
+async function raiseServerPriority(tmuxBin: string, socketPath: string, deps: TmuxServerDeps): Promise<void> {
+    if (deps.platform !== 'darwin') return
+
+    let serverPid: string
+    try {
+        const result: TmuxCommandResult = await execFilePromise(
+            deps,
+            tmuxBin,
+            getTmuxCommandArgs(['display-message', '-p', '#{pid}'], socketPath),
+        )
+        serverPid = result.stdout.trim()
+    } catch (error) {
+        deps.logger.warn(`[tmux-server] could not resolve server pid for priority raise: ${tmuxErrorText(error).trim()}`)
+        return
+    }
+
+    if (!/^\d+$/.test(serverPid)) {
+        deps.logger.warn(`[tmux-server] unexpected server pid output: "${serverPid}"`)
+        return
+    }
+
+    try {
+        await execFilePromise(deps, 'taskpolicy', ['-c', 'user-interactive', '-p', serverPid])
+    } catch (error) {
+        deps.logger.warn(`[tmux-server] taskpolicy raise failed for pid ${serverPid} (best-effort): ${tmuxErrorText(error).trim()}`)
+    }
 }
 
 async function removeLegacyLaunchAgentOnce(deps: TmuxServerDeps): Promise<void> {
