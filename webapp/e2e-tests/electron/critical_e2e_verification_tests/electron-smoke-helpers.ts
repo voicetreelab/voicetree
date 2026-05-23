@@ -119,22 +119,53 @@ export function resolveGraphDaemonNodeBin(): string {
   return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
 }
 
-function escapeProcessPattern(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+type ProcessRow = {
+  readonly pid: number;
+  readonly command: string;
+};
+
+function readProcessRows(): readonly ProcessRow[] {
+  try {
+    const output = execFileSync("ps", ["-ww", "-eo", "pid=,command="], {
+      encoding: "utf8",
+    });
+    return output
+      .split("\n")
+      .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
+      .filter((match): match is RegExpMatchArray => match !== null)
+      .map((match) => ({ pid: Number(match[1]), command: match[2] }))
+      .filter(
+        (row) =>
+          Number.isInteger(row.pid) && row.pid > 0 && row.pid !== process.pid,
+      );
+  } catch {
+    return [];
+  }
+}
+
+function killProcessesMatching(predicate: (command: string) => boolean): void {
+  const pids = readProcessRows()
+    .filter((row) => predicate(row.command))
+    .map((row) => row.pid);
+
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    for (const pid of pids) {
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // The process may already be gone.
+      }
+    }
+  }
 }
 
 export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
-  try {
-    execFileSync(
-      "pkill",
-      ["-f", `vt-graphd\\.ts --vault ${escapeProcessPattern(vaultPath)}`],
-      {
-        stdio: "ignore",
-      },
-    );
-  } catch {
-    // No matching smoke daemon is fine.
-  }
+  killProcessesMatching(
+    (command) =>
+      command.includes(vaultPath) &&
+      (command.includes("vt-graphd.ts") ||
+        command.includes("vt-graphd.mjs")),
+  );
 }
 
 export async function waitForMcpServer(

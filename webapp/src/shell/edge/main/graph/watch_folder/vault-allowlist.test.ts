@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
 }))
 
 // Import after mocks are set up
-import { getVaultPaths, loadAndMergeVaultPath, type LoadVaultPathResult, addReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
@@ -224,27 +224,29 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     await fs.writeFile(notePath, '# Test Node\n\nHello world.')
 
     // WHEN: loadAndMergeVaultPath is called (impure edge function)
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath)
+    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath)
 
     // THEN: Should return success
-    expect(result.success).toBe(true)
+    expect(outcome.kind).toBe('ok')
     expect(getGraph().nodes[notePath]).toBeDefined()
     expect(Object.keys(getGraph().nodes)).toHaveLength(1)
   })
 
-  it('returns error when file limit is exceeded', async () => {
+  it('returns fileLimit outcome when file limit is exceeded', async () => {
     // GIVEN: A vault path
     const vaultPath: string = path.join(testTmpDir, 'vault')
     await fs.mkdir(vaultPath, { recursive: true })
     await seedMarkdownFiles(vaultPath, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
     // WHEN: loadAndMergeVaultPath is called (impure edge function)
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath)
+    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath)
 
-    // THEN: Should return error
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('File limit exceeded')
-    expect(result.error).toContain(String(FILE_COUNT_ABOVE_RAISED_LIMIT))
+    // THEN: Should return fileLimit with typed details
+    expect(outcome.kind).toBe('fileLimit')
+    if (outcome.kind === 'fileLimit') {
+      expect(outcome.details.fileCount).toBe(FILE_COUNT_ABOVE_RAISED_LIMIT)
+      expect(outcome.details.maxFiles).toBeGreaterThan(0)
+    }
   })
 })
 
@@ -374,10 +376,10 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.mkdir(vaultPath, { recursive: true })
 
       // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
 
       // THEN: Should return success
-      expect(result.success).toBe(true)
+      expect(outcome.kind).toBe('ok')
 
       // AND: A starter node should have been created in both graph state and on disk.
       const createdNodeIds: readonly string[] = Object.keys(getGraph().nodes)
@@ -394,10 +396,10 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.writeFile(existingNodeId, '# Existing File\n\nAlready here.')
 
       // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
 
       // THEN: Should return success
-      expect(result.success).toBe(true)
+      expect(outcome.kind).toBe('ok')
 
       // AND: Only the existing file should be present - no starter node created.
       const createdNodeIds: readonly string[] = Object.keys(getGraph().nodes)
@@ -410,10 +412,10 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.mkdir(vaultPath, { recursive: true })
 
       // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
 
       // THEN: Should return success
-      expect(result.success).toBe(true)
+      expect(outcome.kind).toBe('ok')
 
       // AND: The backend notification callback should have been called.
       expect(notifyWriteDirectory).toHaveBeenCalledWith(vaultPath)
@@ -443,10 +445,10 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.mkdir(vaultPath, { recursive: true })
 
       // WHEN: loadAndMergeVaultPath is called with isWritePath: false
-      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
 
       // THEN: Should return success
-      expect(result.success).toBe(true)
+      expect(outcome.kind).toBe('ok')
 
       // AND: No starter node should be created for read-only paths.
       expect(Object.keys(getGraph().nodes)).toHaveLength(0)
@@ -458,10 +460,10 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.mkdir(vaultPath, { recursive: true })
 
       // WHEN: loadAndMergeVaultPath is called with isWritePath: false
-      const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
 
       // THEN: Should return success
-      expect(result.success).toBe(true)
+      expect(outcome.kind).toBe('ok')
 
       // AND: Read-only paths should not notify the backend about write-directory changes.
       expect(notifyWriteDirectory).not.toHaveBeenCalled()

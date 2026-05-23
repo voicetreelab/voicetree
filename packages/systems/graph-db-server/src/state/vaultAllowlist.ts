@@ -12,14 +12,20 @@ import normalizePath from "normalize-path";
 export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject } from '../data/watch-folder/paths/resolve-vault-config';
 export {
     loadAndMergeVaultPath,
+    describeVaultLoadFailure,
     type LoadVaultPathOptions,
-    type LoadVaultPathResult,
+    type VaultLoadOutcome,
+    type FileLimitDetails,
 } from '../data/graph/loading/loadAndMergeVaultPath';
 import {
     logIgnoredLegacyReadPathsIfPresent,
     resolveWritePath,
 } from '../data/watch-folder/paths/resolve-vault-config';
-import { loadAndMergeVaultPath, type LoadVaultPathResult } from '../data/graph/loading/loadAndMergeVaultPath';
+import {
+    loadAndMergeVaultPath,
+    describeVaultLoadFailure,
+    type VaultLoadOutcome,
+} from '../data/graph/loading/loadAndMergeVaultPath';
 import { traceGraphdSpan } from "../data/watch-folder/paths/traceGraphdSpan";
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
@@ -99,6 +105,11 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
  *
  * When setting a new write path, all nodes from that path are fully loaded.
  * This ensures the write path behaves like an "immediate load" path.
+ *
+ * @deprecated Use `setWritePath` from `application/workflows/watchFolder`
+ * instead. The new verb demotes the previous writePath to `collapsed`
+ * (matching openspec § D5) rather than `expanded`. Will be removed in
+ * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function setWritePath(
     vaultPath: FilePath,
@@ -119,13 +130,13 @@ export async function setWritePath(
     ]);
 
     // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
-    const result: LoadVaultPathResult = await traceGraphdSpan('daemon.set-write-path.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
+    const outcome: VaultLoadOutcome = await traceGraphdSpan('daemon.set-write-path.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
         vaultPath,
         { isWritePath: true, createStarterIfEmpty: options.createStarterIfEmpty },
         positions,
     ));
-    if (!result.success) {
-        return result;
+    if (outcome.kind !== 'ok') {
+        return { success: false, error: describeVaultLoadFailure(outcome) };
     }
 
     // Demote old write path to the active view's expanded paths before overwriting
@@ -171,6 +182,10 @@ export async function setWritePath(
  * - Single UI broadcast instead of N broadcasts
  * - No floating editors auto-opened (bulk load behavior)
  * - All files are loaded immediately (not lazy)
+ *
+ * @deprecated Use `setFolderState(path, 'expanded')` from
+ * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function addReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
@@ -199,14 +214,15 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
 
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWritePath: false means no starter node and no backend notification
-    const result: LoadVaultPathResult = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
-    if (!result.success) {
+    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
+    if (outcome.kind === 'fileLimit') {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
-        if (result.error?.includes('File limit exceeded')) {
-            await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
-            await broadcastVaultState();
-        }
-        return result;
+        await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
+        await broadcastVaultState();
+        return { success: false, error: describeVaultLoadFailure(outcome) };
+    }
+    if (outcome.kind === 'failed') {
+        return { success: false, error: outcome.reason };
     }
 
     // Only save visibility and add to watcher AFTER successful load
@@ -230,6 +246,10 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
  * Remove a path from the active view's expanded folder paths.
  * Cannot remove the write path.
  * Immediately removes nodes from that path from the graph.
+ *
+ * @deprecated Use `setFolderState(path, 'unloaded')` from
+ * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function removeReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
