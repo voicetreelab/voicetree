@@ -14,7 +14,6 @@ const PROJECT_PROMPT_FILES: readonly string[] = [
   'CREATE_SUBAGENTS_COMMAND.md',
   'decompose_subtask_dependency_graph.md',
   'subtask_template.md',
-  'addProgressTreeManualFallback.md',
 ];
 
 // Hook scripts to copy into {projectRoot}/.voicetree/hooks/

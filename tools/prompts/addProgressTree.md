@@ -85,9 +85,6 @@ Add `--validate-only` to dry-run (parses + schema-gates without writing). Add `-
 
 If you are writing into a subfolder that has a folder note declaring `## Type: <kind>` (the public-VT walk-up resolver finds it), the CLI runs a schema validator before writing. On rejection it exits non-zero with structured JSON on stderr. Read the violations, correct the failing H2 sections in your body, and re-run the same command. The progress-node format used here is generic (no `## Type` upstream), so the gate is skipped for normal progress nodes.
 
-## Fallback
-If `vt graph create` is unavailable (e.g., the CLI is not on PATH), read `addProgressTreeManualFallback.md` for manual markdown file creation instructions.
-
 ## Pre-creation Checklist
 1. `$VOICETREE_TERMINAL_ID` is set (echo it if unsure).
 2. N concerns → N files. Split by concern, not by size.

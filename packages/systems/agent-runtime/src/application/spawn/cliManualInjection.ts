@@ -23,11 +23,35 @@ import {getRuntimeEnv} from '../runtime/runtime-config'
 
 const SECTION_HEADER: string = '<vt_cli_manual>'
 const SECTION_FOOTER: string = '</vt_cli_manual>'
+const ESSENTIALS_BEGIN: string = '<!-- BEGIN_ESSENTIALS -->'
+const ESSENTIALS_END: string = '<!-- END_ESSENTIALS -->'
+
+/**
+ * Pure: extract the Essentials block from a tiered manual. Returns the
+ * substring between the BEGIN/END marker comments (exclusive of markers).
+ * Returns null when either marker is missing — callers fall back to the
+ * full manual in that case so the function stays safe with non-tiered
+ * inputs.
+ */
+function extractEssentials(manualContent: string): string | null {
+    const beginIdx: number = manualContent.indexOf(ESSENTIALS_BEGIN)
+    if (beginIdx === -1) return null
+    const afterBegin: number = beginIdx + ESSENTIALS_BEGIN.length
+    const endIdx: number = manualContent.indexOf(ESSENTIALS_END, afterBegin)
+    if (endIdx === -1) return null
+    return manualContent.slice(afterBegin, endIdx).trim()
+}
 
 /**
  * Pure: returns a new env-var map with the CLI manual appended to
  * `AGENT_PROMPT`. If the manual is empty or absent the input is returned
  * unchanged. Idempotent — calling twice does not nest the section.
+ *
+ * When the manual carries `<!-- BEGIN_ESSENTIALS -->` / `<!-- END_ESSENTIALS -->`
+ * markers, only the Essentials block is injected — the full Reference is
+ * discoverable via `vt manual <verb>`. Manuals without markers fall through
+ * to full-content injection (preserves behavior for callers that pass a
+ * non-tiered manual).
  */
 export function appendCliManualToAgentPrompt(
     envVars: Record<string, string>,
@@ -36,8 +60,9 @@ export function appendCliManualToAgentPrompt(
     if (manualContent === null || manualContent.trim().length === 0) return envVars
     const current: string = envVars.AGENT_PROMPT ?? ''
     if (current.includes(SECTION_HEADER)) return envVars
-    const trimmedManual: string = manualContent.trimEnd()
-    const block: string = `\n\n${SECTION_HEADER}\n${trimmedManual}\n${SECTION_FOOTER}\n`
+    const essentials: string | null = extractEssentials(manualContent)
+    const body: string = (essentials ?? manualContent).trimEnd()
+    const block: string = `\n\n${SECTION_HEADER}\n${body}\n${SECTION_FOOTER}\n`
     return {...envVars, AGENT_PROMPT: current + block}
 }
 

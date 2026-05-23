@@ -24,6 +24,26 @@ const MANUAL_PATH: string = resolve(
     '../../../../../../tools/prompts/cli-manual.md',
 )
 
+// Mapping from the catalog's MCP-style tool name to the user-facing `vt`
+// CLI verb that appears as the manual's H3 header. Step 7 deleted the MCP
+// server; the manual is now CLI-flavored. Catalog entries still carry their
+// historical `name` (used for HTTP dispatch keys) until a later milestone
+// renames the catalog itself — until then this table is the bridge.
+const CLI_VERBS: Readonly<Record<string, string>> = {
+    spawn_agent: 'vt agent spawn',
+    list_agents: 'vt agent list',
+    wait_for_agents: 'vt agent wait',
+    get_unseen_nodes_nearby: 'vt graph unseen',
+    close_agent: 'vt agent close',
+    send_message: 'vt agent send',
+    read_terminal_output: 'vt agent output',
+    create_graph: 'vt graph create',
+    graph_structure: 'vt graph structure',
+    search_nodes: 'vt search',
+    vt_get_live_state: 'vt graph live state',
+    vt_dispatch_live_command: 'vt graph live dispatch',
+}
+
 function loadManual(): string {
     return readFileSync(MANUAL_PATH, 'utf8')
 }
@@ -32,9 +52,11 @@ describe('catalog ↔ cli-manual drift', () => {
     const manual: string = loadManual()
 
     it.each(TOOL_CATALOG)('manual contains a section header for $name', (entry: CatalogEntry) => {
-        // Each entry must show up as `### \`<name>\`` in the manual.
-        expect(manual, `manual is missing the section for ${entry.name}`)
-            .toContain(`\`${entry.name}\``)
+        // Each entry must show up as `### \`<vt cli verb>\`` in the manual.
+        const verb: string | undefined = CLI_VERBS[entry.name]
+        expect(verb, `no CLI_VERBS mapping for catalog entry "${entry.name}"`).toBeDefined()
+        expect(manual, `manual is missing the section header for ${entry.name} (\`${verb}\`)`)
+            .toContain(`\`${verb}\``)
     })
 
     it.each(TOOL_CATALOG)('manual contains the description leader for $name', (entry: CatalogEntry) => {

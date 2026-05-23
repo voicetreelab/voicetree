@@ -11,7 +11,7 @@ change one, change the other or the test will fail.
 
 Each tool section starts with an H3 header of the shape:
 
-    ### `<mcp_tool_name>` — `<vt cli verb>`
+    ### `<vt cli verb>`
 
 The text between the header and `**Parameters:**` is the tool description
 (verbatim). The bullet list under `**Parameters:**` enumerates each parameter
@@ -20,9 +20,12 @@ dotted paths: `nodes[].filename`, `override_with_rationale[].ruleId`, etc.
 
 Tools with no parameters omit the `**Parameters:**` block.
 
-## Tools
+<!-- BEGIN_ESSENTIALS -->
+## Essentials
 
-### `spawn_agent` — `vt agent spawn`
+These are the core verbs every spawning agent needs. For any other tool, run `vt manual <verb>` (or `vt --help` for the full list).
+
+### `vt agent spawn`
 
 Spawn an agent in the Voicetree graph. Prefer this over built-in subagents—users get visibility and control over the work.
 
@@ -47,11 +50,7 @@ If no node exists yet, use task+parentNodeId to create a new task node first.
 - `replaceSelf`: When true, the successor inherits the caller's terminal ID and agent name. The caller's process is killed and replaced atomically. Use for context handover — the agent identity persists across context boundaries.
 - `depthBudget`: Explicit DEPTH_BUDGET for the child agent. If omitted, auto-decrements from the caller's DEPTH_BUDGET (parent budget - 1). Controls recursive decomposition: budget > 0 = may spawn sub-agents, budget = 0 = leaf agent (no spawning).
 
-### `list_agents` — `vt agent list`
-
-List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.
-
-### `wait_for_agents` — `vt agent wait`
+### `vt agent wait`
 
 Wait for specified agent terminals to complete. Returns immediately with a monitorId. The monitor polls in the background and sends a completion message to your terminal when all agents are done.
 
@@ -65,46 +64,11 @@ NOTE: spawn_agent now auto-starts a monitor, so you only need wait_for_agents fo
 - `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
 - `pollIntervalMs`: Poll interval in ms (default: 5000)
 
-### `get_unseen_nodes_nearby` — `vt graph unseen`
+### `vt agent list`
 
-Get nodes near your context that were created after your context was generated. The user or other agents may have added nodes for you to read. Call this to check for new relevant information.
+List running agent terminals with their status and newly created nodes. Also returns `availableAgents` — the names you can pass as `agentName` to spawn_agent.
 
-**Parameters:**
-
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `search_from_node`: Optional node ID to search from instead of your task node
-
-### `close_agent` — `vt agent close`
-
-Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed. Will error if the agent is still running — you must send them a message first to check remaining work, then override with forceWithReason if needed.
-
-**Parameters:**
-
-- `terminalId`: The terminal ID of the agent to close
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `forceWithReason`: Required to close a running (non-idle) agent. Explain why you are force-closing.
-
-### `send_message` — `vt agent send`
-
-Send a message directly to an agent terminal. The message is injected into the terminal and executed (carriage return appended). Use this to provide follow-up instructions, answer prompts, or inject commands into a running agent.
-
-**Parameters:**
-
-- `terminalId`: The terminal ID of the agent to send the message to
-- `message`: The message/command to send to the terminal
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-
-### `read_terminal_output` — `vt agent output`
-
-Read the last N characters of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.
-
-**Parameters:**
-
-- `terminalId`: The terminal ID of the agent to read output from
-- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
-- `nChars`: Number of characters to return (default: 10000)
-
-### `create_graph` — `vt graph create`
+### `vt graph create`
 
 Create a graph of progress nodes in a single call. Supports trees, chains, fan-out, fan-in, and diamond dependencies (multiple parents per node). Automatically handles frontmatter, parent linking, file paths, graph positioning, and mermaid validation.
 
@@ -153,7 +117,49 @@ Task
 - `nodes[].linkedArtifacts`: Array of node basenames to render as markdown links in a ## Related section. Use for specs, proposals, or openspec artifacts without creating graph edges.
 - `override_with_rationale`: Override validation rules that would otherwise block. Each entry must match a rule ID from the error response.
 
-### `graph_structure` — `vt graph structure`
+### `vt graph unseen`
+
+Get nodes near your context that were created after your context was generated. The user or other agents may have added nodes for you to read. Call this to check for new relevant information.
+
+**Parameters:**
+
+- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
+- `search_from_node`: Optional node ID to search from instead of your task node
+<!-- END_ESSENTIALS -->
+
+## Reference
+
+### `vt agent close`
+
+Close an agent terminal. After waiting for an agent to finish, review its work. Close the agent if satisfied with its output. Leave the agent open if any tech debt was introduced or if human review would be beneficial - open terminals signal to the user that attention is needed. Will error if the agent is still running — you must send them a message first to check remaining work, then override with forceWithReason if needed.
+
+**Parameters:**
+
+- `terminalId`: The terminal ID of the agent to close
+- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
+- `forceWithReason`: Required to close a running (non-idle) agent. Explain why you are force-closing.
+
+### `vt agent send`
+
+Send a message directly to an agent terminal. The message is injected into the terminal and executed (carriage return appended). Use this to provide follow-up instructions, answer prompts, or inject commands into a running agent.
+
+**Parameters:**
+
+- `terminalId`: The terminal ID of the agent to send the message to
+- `message`: The message/command to send to the terminal
+- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
+
+### `vt agent output`
+
+Read the last N characters of output from an agent terminal. Output has ANSI escape codes stripped for readability. Use this to check what an agent has printed, debug issues, or verify agent progress without waiting for completion.
+
+**Parameters:**
+
+- `terminalId`: The terminal ID of the agent to read output from
+- `callerTerminalId`: Your terminal ID from $VOICETREE_TERMINAL_ID env var
+- `nChars`: Number of characters to return (default: 10000)
+
+### `vt graph structure`
 
 Read .md files from a folder on disk and render the graph structure as ASCII. Small folders default to a context-style view with a tree plus `## Node Contents`; larger folders default to compact topology only. Excludes ctx-nodes/ folders.
 
@@ -162,7 +168,7 @@ Read .md files from a folder on disk and render the graph structure as ASCII. Sm
 - `folderPath`: Absolute path to folder containing .md files
 - `withSummaries`: Tri-state summary control: `true` forces the context-style tree plus `## Node Contents`, `false` forces topology-only output, and omitting it auto-enables summaries only for folders with 30 or fewer nodes.
 
-### `search_nodes` — `vt search`
+### `vt search`
 
 Semantic search across the active vault. Returns matching node paths ranked by relevance to the query. Stubbed until vector search is wired up; callers should expect an explicit "not yet available" response.
 
@@ -171,11 +177,11 @@ Semantic search across the active vault. Returns matching node paths ranked by r
 - `query`: Natural-language search query
 - `top_k`: Maximum number of results to return (default: 10)
 
-### `vt_get_live_state` — `vt graph live state`
+### `vt graph live state`
 
 Return a SerializedState snapshot of the running app with graph, folderState, activeView, selection, layout, and revision. Matches the @vt/graph-state SerializedState schema so the CLI can hydrateState the output.
 
-### `vt_dispatch_live_command` — `vt graph live dispatch`
+### `vt graph live dispatch`
 
 Apply a SerializedCommand to the running app. Returns {delta, revision}.
 
