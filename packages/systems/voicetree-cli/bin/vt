@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# TODO(milestone-d): Windows backends currently need WSL — the CLI ships as a
-# TS source tree consumed via tsx, and the bash launcher relies on POSIX
-# semantics (symlink resolution, exec env). Milestone D bundles a compiled
-# dist/ and lets npm auto-generate the Windows shim from the `bin` field; no
-# hand-rolled vt.cmd is shipped in this milestone to avoid baking in a
-# brittle workaround.
+# When installed from npm (or `npm pack`'d), the published tarball ships
+# `dist/voicetree-cli.js` alongside this script — exec it directly.
+# When run from a monorepo checkout, `dist/` is gitignored and absent;
+# fall back to running the TS sources via tsx.
 set -euo pipefail
 
 # Resolve symlinks to find the real location of this script
@@ -17,9 +15,16 @@ while [ -L "$_script" ]; do
     esac
 done
 PACKAGE_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
+
+# Bundled path (published tarball): a single self-contained ESM bundle.
+BUNDLE="$PACKAGE_DIR/dist/voicetree-cli.js"
+if [ -f "$BUNDLE" ]; then
+    exec node "$BUNDLE" "$@"
+fi
+
+# Source path (in-monorepo dev): run the TS entry directly through tsx.
 REPO_ROOT="$(cd "$PACKAGE_DIR/../../.." && pwd)"
 
-# Locate tsx: prefer workspace-local, fall back to monorepo-hoisted, then global.
 if [ -x "$PACKAGE_DIR/node_modules/.bin/tsx" ]; then
     TSX_BIN="$PACKAGE_DIR/node_modules/.bin/tsx"
 elif [ -x "$REPO_ROOT/node_modules/.bin/tsx" ]; then
