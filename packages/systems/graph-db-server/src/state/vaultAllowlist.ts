@@ -43,6 +43,7 @@ import {
     applyGraphDeltaToMemState,
     refreshGraphChangeSideEffects
 } from "../data/graph/mutations/applyGraphDelta";
+import { clearKnownExistingDirectoriesCache } from "../data/graph/mutations/graphActionsToDBEffects";
 import { loadPositions } from "@vt/app-config/positions";
 import {
     getVaultConfigForDirectory,
@@ -381,6 +382,9 @@ export async function createDatedVoiceTreeFolder(): Promise<{
 
 export function clearVaultPath(): void {
     setProjectRootWatchedDirectory(null);
+    // Directory existence depends on the active vault root; once the vault is
+    // cleared, the cache (paths under the old root) is no longer trustworthy.
+    clearKnownExistingDirectoriesCache();
 }
 
 /**

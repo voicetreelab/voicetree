@@ -70,6 +70,18 @@ function isIgnorablePruneError(error: unknown): boolean {
     return errorCode === 'ENOTEMPTY' || errorCode === 'ENOENT'
 }
 
+// Module-scoped cache of directories we have already created (or proven to
+// exist) in the current vault. `fs.mkdir(..., {recursive: true})` is a syscall
+// per write (~30-100ms under storm); after the first write into a given
+// directory we can skip the mkdir entirely. Cleared on vault close
+// (via clearKnownExistingDirectoriesCache) and individually invalidated
+// when pruneEmptyParentDirectories removes a directory.
+const knownExistingDirectories: Set<string> = new Set()
+
+export function clearKnownExistingDirectoriesCache(): void {
+    knownExistingDirectories.clear()
+}
+
 async function pruneEmptyParentDirectories(filePath: string, rootPath: string): Promise<void> {
     const normalizedRootPath: string = path.resolve(rootPath)
     let currentDirectory: string = path.dirname(filePath)
@@ -84,6 +96,9 @@ async function pruneEmptyParentDirectories(filePath: string, rootPath: string): 
 
             throw error
         }
+
+        // We just removed this directory; the cache must not claim it exists.
+        knownExistingDirectories.delete(currentDirectory)
 
         const parentDirectory: string = path.dirname(currentDirectory)
         if (parentDirectory === currentDirectory) {
@@ -137,9 +152,15 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
         async () => {
             const plan: FileWritePlan = createFileWritePlan(node, env.projectRootWatchedDirectory)
 
-            await traceGraphdSpan('daemon.apply-delta.db-write.mkdir', async () =>
-                await fs.mkdir(plan.parentDirectory, { recursive: true }),
-            )
+            await traceGraphdSpan('daemon.apply-delta.db-write.mkdir', async span => {
+                if (knownExistingDirectories.has(plan.parentDirectory)) {
+                    span.setAttribute('vt.mkdir.cache', 'hit')
+                    return
+                }
+                span.setAttribute('vt.mkdir.cache', 'miss')
+                await fs.mkdir(plan.parentDirectory, { recursive: true })
+                knownExistingDirectories.add(plan.parentDirectory)
+            })
 
             markPendingWrite(plan.fullPath)
             await traceGraphdSpan('daemon.apply-delta.db-write.writeFile', async span => {
