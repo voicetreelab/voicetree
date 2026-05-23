@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import { project } from '@vt/graph-state'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 import {
   OpenVaultRequestSchema,
   OpenVaultResponseSchema,
@@ -178,51 +179,65 @@ async function bindVault(input: OpenVaultWorkflowInput, targetVaultPath: string)
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
-  return await withVaultMutex(async () => {
-    const body = OpenVaultRequestSchema.parse(input)
-    const targetVaultPath = resolve(body.path)
+  return await traceGraphdSpan('daemon.open-vault', async (span) => {
+    return await withVaultMutex(async () => {
+      const body = OpenVaultRequestSchema.parse(input)
+      const targetVaultPath = resolve(body.path)
+      span.setAttribute('targetVaultPath', targetVaultPath)
+      span.setAttribute('priorActiveVaultPath', lifecycleState.activeVaultPath ?? '')
 
-    if (lifecycleState.activeVaultPath === targetVaultPath) {
-      return await buildOpenVaultResponse(targetVaultPath)
-    }
+      if (lifecycleState.activeVaultPath === targetVaultPath) {
+        span.setAttribute('outcome', 'reuse-current')
+        return await buildOpenVaultResponse(targetVaultPath)
+      }
 
-    if (lifecycleState.activeVaultPath) {
-      await closeResources()
-    }
+      if (lifecycleState.activeVaultPath) {
+        span.setAttribute('switchedFromActive', true)
+        await closeResources()
+      }
 
-    lifecycleState.activeVaultPath = null
-    lifecycleState.activeSessionId = null
-    setGraph(createEmptyGraph())
+      lifecycleState.activeVaultPath = null
+      lifecycleState.activeSessionId = null
+      setGraph(createEmptyGraph())
 
-    try {
-      await bindVault(
-        { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-        targetVaultPath,
-      )
-      await openResources(targetVaultPath)
-      lifecycleState.activeVaultPath = targetVaultPath
-      return await buildOpenVaultResponse(targetVaultPath)
-    } catch (error) {
-      throw error instanceof VaultOpenFailedError
-        ? error
-        : new VaultOpenFailedError(
-            error instanceof Error ? error.message : 'Failed to open vault',
-          )
-    }
+      try {
+        await bindVault(
+          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+          targetVaultPath,
+        )
+        await openResources(targetVaultPath)
+        lifecycleState.activeVaultPath = targetVaultPath
+        span.setAttribute('outcome', 'opened')
+        return await buildOpenVaultResponse(targetVaultPath)
+      } catch (error) {
+        span.setAttribute('outcome', 'open-failed')
+        span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
+        throw error instanceof VaultOpenFailedError
+          ? error
+          : new VaultOpenFailedError(
+              error instanceof Error ? error.message : 'Failed to open vault',
+            )
+      }
+    })
   })
 }
 
 export async function closeVaultWorkflow(): Promise<void> {
-  await withVaultMutex(async () => {
-    if (!lifecycleState.activeVaultPath && !getProjectRootWatchedDirectory()) {
-      return
-    }
+  await traceGraphdSpan('daemon.close-vault', async (span) => {
+    await withVaultMutex(async () => {
+      span.setAttribute('priorActiveVaultPath', lifecycleState.activeVaultPath ?? '')
+      if (!lifecycleState.activeVaultPath && !getProjectRootWatchedDirectory()) {
+        span.setAttribute('outcome', 'no-op')
+        return
+      }
 
-    await closeResources()
-    lifecycleState.activeVaultPath = null
-    lifecycleState.activeSessionId = null
-    clearVaultPath()
-    setGraph(createEmptyGraph())
+      await closeResources()
+      lifecycleState.activeVaultPath = null
+      lifecycleState.activeSessionId = null
+      clearVaultPath()
+      setGraph(createEmptyGraph())
+      span.setAttribute('outcome', 'closed')
+    })
   })
 }
 
