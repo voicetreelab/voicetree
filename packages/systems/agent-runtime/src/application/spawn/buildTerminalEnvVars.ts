@@ -8,6 +8,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
+import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import path from 'path'
 
@@ -74,7 +75,9 @@ export async function buildTerminalEnvVars(params: {
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const cliManual: string | null = await readCliManualOrNull()
-    return appendCliManualToAgentPrompt(filtered, cliManual)
+    const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered, cliManual)
+    const vtBinDir: string | null = await readVtBinDirOrNull()
+    return prependVtBinToPath(withManual, vtBinDir)
 }
 
 export function dropPromptTemplateVariants(env: Record<string, string>): Record<string, string> {

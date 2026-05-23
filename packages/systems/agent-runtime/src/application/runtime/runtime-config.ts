@@ -31,6 +31,15 @@ export type RuntimeEnvProvider = {
      * is then skipped silently.
      */
     readonly getCliManualPath?: () => string | null;
+    /**
+     * Absolute path to the directory containing the `vt` CLI executable
+     * (the daemon's known vt-bin dir). The spawn pipeline prepends this
+     * directory to each spawned agent's PATH so commands like
+     * `vt agent spawn` resolve as bare names in the agent's shell.
+     * Returns null when the daemon shell did not register a location
+     * (headless tests, etc.); PATH injection is then skipped silently.
+     */
+    readonly getVtBinDir?: () => string | null;
 };
 
 export type WatchStatus = {
