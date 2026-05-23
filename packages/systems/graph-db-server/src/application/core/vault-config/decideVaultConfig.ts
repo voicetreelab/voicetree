@@ -1,5 +1,5 @@
 export interface WatchFolderConfig {
-    readonly writePath: string;
+    readonly writeFolder: string;
     readonly allowlist: readonly string[];
 }
 
@@ -10,14 +10,14 @@ export interface VaultConfigPlan {
 
 export function decideVaultConfig(
     savedConfig: WatchFolderConfig | null,
-    derivedWritePath: string,
+    derivedWriteFolder: string,
     derivedAllowlist: readonly string[],
 ): VaultConfigPlan {
     if (savedConfig) {
         return { config: savedConfig, shouldPersist: false };
     }
     return {
-        config: { writePath: derivedWritePath, allowlist: derivedAllowlist },
+        config: { writeFolder: derivedWriteFolder, allowlist: derivedAllowlist },
         shouldPersist: true,
     };
 }

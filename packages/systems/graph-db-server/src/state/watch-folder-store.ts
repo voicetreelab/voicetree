@@ -31,11 +31,11 @@ export const setWatcher: (w: FSWatcher | null) => void = (w: FSWatcher | null): 
     }));
 };
 
-export const getProjectRootWatchedDirectory: () => FilePath | null = (): FilePath | null => {
+export const getProjectRoot: () => FilePath | null = (): FilePath | null => {
     return getProject()?.root ?? null;
 };
 
-export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
+export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
     if (dir === null) {
         resetProjectState();
         return;

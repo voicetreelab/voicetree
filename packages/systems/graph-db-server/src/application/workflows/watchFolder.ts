@@ -15,8 +15,8 @@ import type { VTSettings } from '@vt/graph-model/settings';
 import {
     getWatcher,
     setWatcher,
-    getProjectRootWatchedDirectory,
-    setProjectRootWatchedDirectory,
+    getProjectRoot,
+    setProjectRoot,
 } from "../../state/watch-folder-store";
 import {
     getLastDirectory,
@@ -60,14 +60,14 @@ export interface WatchFolderLoadOptions {
 
 function buildWatchingStartedPayload(
     directory: string,
-    writePath: string,
+    writeFolder: string,
     timestamp: string,
-): { readonly directory: string; readonly writePath: string; readonly timestamp: string } {
-    return { directory, writePath, timestamp };
+): { readonly directory: string; readonly writeFolder: string; readonly timestamp: string } {
+    return { directory, writeFolder, timestamp };
 }
 
 function getWatchingStartedDirectory(watchedFolderPath: FilePath): string {
-    return getProjectRootWatchedDirectory() ?? watchedFolderPath;
+    return getProjectRoot() ?? watchedFolderPath;
 }
 
 function validateDirectoryForWatching(env: WatchFolderEnv, selectedDirectory: string): string | null {
@@ -100,12 +100,12 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
  * removed in `watch-folder-verb-consolidation` Phase 5.
  */
 export async function initialLoad(options: WatchFolderLoadOptions = {}): Promise<void> {
-    if (getProjectRootWatchedDirectory() !== null) {
+    if (getProjectRoot() !== null) {
         return;
     }
 
     const lastDirectory: O.Option<string> = await getLastDirectory();
-    if (getProjectRootWatchedDirectory() !== null) return;
+    if (getProjectRoot() !== null) return;
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value, options);
     }
@@ -134,7 +134,7 @@ async function resolveOrCreateConfig(
 
     const plan = decideVaultConfig(null, subfolderPath, allowlist);
     if (plan.shouldPersist) {
-        await saveVaultConfigForDirectory(watchedFolderPath, { writePath: plan.config.writePath });
+        await saveVaultConfigForDirectory(watchedFolderPath, { writeFolder: plan.config.writeFolder });
     }
     return plan.config;
 }
@@ -190,7 +190,7 @@ async function resolveDefaultPatternAllowlist(
 }
 
 function getExpandedPaths(config: WatchFolderConfig): readonly string[] {
-    return config.allowlist.filter((folderPath: string) => folderPath !== config.writePath);
+    return config.allowlist.filter((folderPath: string) => folderPath !== config.writeFolder);
 }
 
 async function handleVaultLoadOutcome(
@@ -226,7 +226,7 @@ async function loadExpandedPaths(
     for (const expandedPath of getExpandedPaths(config)) {
         const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(
             expandedPath,
-            { isWritePath: false },
+            { isWriteFolder: false },
             positions,
         );
 
@@ -247,12 +247,12 @@ async function prepareForFolderSwitch(
     env: WatchFolderEnv,
     watchedFolderPath: FilePath,
 ): Promise<void> {
-    const previousRoot: FilePath | null = getProjectRootWatchedDirectory();
+    const previousRoot: FilePath | null = getProjectRoot();
     if (previousRoot) {
         savePositionsSync(getGraph(), previousRoot);
     }
 
-    setProjectRootWatchedDirectory(watchedFolderPath);
+    setProjectRoot(watchedFolderPath);
 
     void env.callbacks().enableMcpIntegration?.().catch(() => { /* MCP server may not be ready yet */ });
 
@@ -292,8 +292,8 @@ async function loadAllVaultPaths(
     options: WatchFolderLoadOptions,
 ): Promise<{ success: boolean } | null> {
     const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(
-        config.writePath,
-        { isWritePath: true },
+        config.writeFolder,
+        { isWriteFolder: true },
         positions,
     );
     const writeRecovery = await handleVaultLoadOutcome(env, writeOutcome, watchedFolderPath, config, options);
@@ -318,7 +318,7 @@ async function mountWatcherAndFinalize(
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
         getWatchingStartedDirectory(watchedFolderPath),
-        config.writePath,
+        config.writeFolder,
         env.clock.nowIso(),
     ));
 
@@ -361,12 +361,12 @@ async function createNewWorkspaceOnFileLimitExceeded(
     );
 
     await saveVaultConfigForDirectory(watchedFolderPath, {
-        writePath: newSubfolderPath,
+        writeFolder: newSubfolderPath,
     });
 
     setGraph(createEmptyGraph());
 
-    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(newSubfolderPath, { isWritePath: true });
+    const writeOutcome: VaultLoadOutcome = await loadAndMergeVaultPath(newSubfolderPath, { isWriteFolder: true });
     if (writeOutcome.kind !== 'ok') {
         return { success: false };
     }
@@ -380,7 +380,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
     await saveLastDirectory(watchedFolderPath);
 
     env.callbacks().onWatchingStarted?.(buildWatchingStartedPayload(
-        getProjectRootWatchedDirectory() ?? watchedFolderPath,
+        getProjectRoot() ?? watchedFolderPath,
         newSubfolderPath,
         env.clock.nowIso(),
     ));
@@ -437,7 +437,7 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
         await currentWatcher.close();
         setWatcher(null);
     }
-    setProjectRootWatchedDirectory(null);
+    setProjectRoot(null);
     return { success: true };
 }
 
@@ -448,7 +448,7 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean; r
 export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
     return {
         isWatching: isWatching(),
-        directory: getProjectRootWatchedDirectory() ?? undefined,
+        directory: getProjectRoot() ?? undefined,
     };
 }
 
@@ -460,7 +460,7 @@ export async function loadPreviousFolder(
     options: WatchFolderLoadOptions = {},
 ): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
     await initialLoad(options);
-    const watchedDir: string | null = getProjectRootWatchedDirectory();
+    const watchedDir: string | null = getProjectRoot();
     if (watchedDir) {
         return { success: true, directory: watchedDir };
     }
@@ -479,7 +479,7 @@ export async function markFrontendReady(options: WatchFolderLoadOptions = {}): P
 //  New public API — `watch-folder-verb-consolidation` openspec.
 //
 //  Reduces the 8+ legacy verbs to 4 actions + 1 query that match the user's
-//  mental model (open / close / setFolderState / setWritePath / status).
+//  mental model (open / close / setFolderState / setWriteFolder / status).
 //  The legacy verbs above are now thin wrappers that delegate here; they are
 //  retained for the migration window with `@deprecated` JSDoc and will be
 //  removed in a follow-up PR per openspec Phase 5.
@@ -489,7 +489,7 @@ export type ProjectStatus =
     | {
         readonly open: true;
         readonly root: FilePath;
-        readonly writePath: FilePath | null;
+        readonly writeFolder: FilePath | null;
         readonly directory: string;
     }
     | { readonly open: false };
@@ -516,8 +516,8 @@ export async function openProject(
             : { success: false, error: 'Failed to load folder' };
     }
 
-    if (getProjectRootWatchedDirectory() !== null) {
-        return { success: true, directory: getProjectRootWatchedDirectory() ?? undefined };
+    if (getProjectRoot() !== null) {
+        return { success: true, directory: getProjectRoot() ?? undefined };
     }
 
     const lastDirectory: O.Option<string> = await getLastDirectory();
@@ -540,7 +540,7 @@ export async function closeProject(): Promise<{ readonly success: boolean; reado
         await currentWatcher.close();
         setWatcher(null);
     }
-    setProjectRootWatchedDirectory(null);
+    setProjectRoot(null);
     return { success: true };
 }
 
@@ -555,18 +555,18 @@ export async function setFolderState(
     folderPath: FilePath,
     action: FolderAction,
 ): Promise<{ readonly success: boolean; readonly error?: string }> {
-    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const { addReadPath, removeReadPath, getWritePath } = await import("../../state/vaultAllowlist");
-    const writePathOpt = await getWritePath();
-    const currentWritePath: string | null = O.isSome(writePathOpt) ? writePathOpt.value : null;
+    const { addReadPath, removeReadPath, getWriteFolder } = await import("../../state/vaultAllowlist");
+    const writeFolderOpt = await getWriteFolder();
+    const currentWriteFolder: string | null = O.isSome(writeFolderOpt) ? writeFolderOpt.value : null;
 
-    if (folderPath === currentWritePath) {
+    if (folderPath === currentWriteFolder) {
         if (action === 'unloaded') {
-            return { success: false, error: 'cannot-unload-writepath' };
+            return { success: false, error: 'cannot-unload-writefolder' };
         }
         return { success: true };
     }
@@ -589,32 +589,32 @@ export async function setFolderState(
 }
 
 /**
- * Set the writePath, atomically loading the new path if it was unloaded and
- * demoting the previous writePath to `collapsed`. Per design § D5.
+ * Set the writeFolder, atomically loading the new path if it was unloaded and
+ * demoting the previous writeFolder to `collapsed`. Per design § D5.
  *
- * Today this is a thin wrapper over `vaultAllowlist.setWritePath`, which
+ * Today this is a thin wrapper over `vaultAllowlist.setWriteFolder`, which
  * already loads-and-merges the new path. The post-call demote-to-collapsed
  * brings the behavior in line with the openspec (the legacy helper sets
- * the old writePath to `expanded` after promotion).
+ * the old writeFolder to `expanded` after promotion).
  */
-export async function setWritePath(
-    newWritePath: FilePath,
+export async function setWriteFolder(
+    newWriteFolder: FilePath,
 ): Promise<{ readonly success: boolean; readonly error?: string }> {
-    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const { setWritePath: setWritePathLegacy, getWritePath } = await import("../../state/vaultAllowlist");
-    const previousOpt = await getWritePath();
+    const { setWriteFolder: setWriteFolderLegacy, getWriteFolder } = await import("../../state/vaultAllowlist");
+    const previousOpt = await getWriteFolder();
     const previous: string | null = O.isSome(previousOpt) ? previousOpt.value : null;
 
-    const result = await setWritePathLegacy(newWritePath);
+    const result = await setWriteFolderLegacy(newWriteFolder);
     if (!result.success) {
         return result;
     }
 
-    if (previous !== null && previous !== newWritePath) {
+    if (previous !== null && previous !== newWriteFolder) {
         await setActiveViewFolderState(watchedDir, previous, 'collapsed');
         await broadcastVaultState();
     }
@@ -628,12 +628,12 @@ export async function setWritePath(
  * the "no vault" case representable in the type system.
  */
 export function getProjectStatus(): ProjectStatus {
-    const root: FilePath | null = getProjectRootWatchedDirectory();
+    const root: FilePath | null = getProjectRoot();
     if (!root) return { open: false };
     return {
         open: true,
         root,
-        writePath: null,
+        writeFolder: null,
         directory: root,
     };
 }
