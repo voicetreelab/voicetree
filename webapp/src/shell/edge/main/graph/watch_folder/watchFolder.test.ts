@@ -1,6 +1,6 @@
 /* vt-allow-direct-daemon-mutation-import: low-level watch-folder behaviour test */
 
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {afterEach, describe, expect, it, vi} from 'vitest'
 import * as fs from 'fs/promises'
 import * as os from 'os'
 import * as path from 'path'

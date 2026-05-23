@@ -62,7 +62,7 @@ export type OwnerMediatedRecoveryOptions = {
  * the owner infrastructure's suppression state.
  */
 export async function attemptOwnerMediatedRecovery(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   options: OwnerMediatedRecoveryOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
@@ -73,5 +73,5 @@ export async function attemptOwnerMediatedRecovery(
   // or reintroduce their own ensure path while the owner protocol runs.
   if (stopLoops) await stopLoops()
 
-  return ensureFn(canonicalVaultPath, caller)
+  return ensureFn(canonicalProjectRoot, caller)
 }
