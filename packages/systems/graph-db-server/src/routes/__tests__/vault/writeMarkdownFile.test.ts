@@ -7,7 +7,7 @@ import { createDaemonApp } from '../../daemonApp.ts'
 import { SessionRegistry } from '../../../application/session/registry.ts'
 import {
   clearWatchFolderState,
-  setProjectRootWatchedDirectory,
+  setProjectRoot,
 } from '../../../state/watch-folder-store.ts'
 import { consumeBroadcastSuppression } from '../../../data/watch-folder/pending-writes.ts'
 
@@ -20,7 +20,7 @@ describe('write markdown file route', () => {
     vault = path.join(root, 'vault')
     await mkdir(vault, { recursive: true })
     clearWatchFolderState()
-    setProjectRootWatchedDirectory(vault)
+    setProjectRoot(vault)
   })
 
   afterEach(async () => {

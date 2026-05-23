@@ -10,8 +10,8 @@ const ReadPathsResponseSchema = z.object({
   readPaths: z.array(z.string()),
 })
 
-const WritePathResponseSchema = z.object({
-  writePath: z.string(),
+const WriteFolderResponseSchema = z.object({
+  writeFolder: z.string(),
 })
 
 export type VaultMutationResult = {
@@ -73,19 +73,19 @@ export function decodeVaultPath(encodedPath: string):
 }
 
 export function composeVaultState(input: {
-  readonly vaultPath: string
+  readonly projectRoot: string
   readonly readPaths: readonly string[]
-  readonly writePathOption: unknown
+  readonly writeFolderOption: unknown
 }): VaultState {
-  const writePathOption = input.writePathOption as { readonly value?: unknown }
-  const writePath = typeof writePathOption.value === 'string'
-    ? writePathOption.value
-    : input.vaultPath
+  const writeFolderOption = input.writeFolderOption as { readonly value?: unknown }
+  const writeFolder = typeof writeFolderOption.value === 'string'
+    ? writeFolderOption.value
+    : input.projectRoot
 
   return VaultStateSchema.parse({
-    vaultPath: input.vaultPath,
+    projectRoot: input.projectRoot,
     readPaths: [...input.readPaths],
-    writePath,
+    writeFolder,
   })
 }
 
@@ -127,7 +127,7 @@ export function classifyRemoveReadPathResult(
   }
 }
 
-export function classifySetWritePathResult(
+export function classifySetWriteFolderResult(
   result: VaultMutationResult,
 ): { readonly kind: 'success' } | VaultMutationError {
   if (result.success) return { kind: 'success' }
@@ -145,8 +145,8 @@ export function composeReadPathsResponse(readPaths: readonly string[]): {
   return ReadPathsResponseSchema.parse({ readPaths: [...readPaths] })
 }
 
-export function composeWritePathResponse(writePath: string): {
-  readonly writePath: string
+export function composeWriteFolderResponse(writeFolder: string): {
+  readonly writeFolder: string
 } {
-  return WritePathResponseSchema.parse({ writePath })
+  return WriteFolderResponseSchema.parse({ writeFolder })
 }

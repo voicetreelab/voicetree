@@ -1,9 +1,9 @@
 /**
  * Write-path folder-visibility seeding contract.
  *
- * On setWritePath(writePath), the active-view folder-visibility table should
- * be seeded with exactly the writePath as 'expanded'. Immediate child
- * directories of writePath must NOT be auto-seeded — they default to
+ * On setWriteFolder(writeFolder), the active-view folder-visibility table should
+ * be seeded with exactly the writeFolder as 'expanded'. Immediate child
+ * directories of writeFolder must NOT be auto-seeded — they default to
  * collapsed and only become expanded when the user clicks or when the file
  * watcher observes them appear under an already-expanded parent.
  *
@@ -57,12 +57,12 @@ import { initGraphModel } from '@vt/graph-model'
 import { setGraph } from '../../../state/graph-store'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import {
-    setProjectRootWatchedDirectory,
+    setProjectRoot,
     clearWatchFolderState,
 } from '../../../state/watch-folder-store'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { setActiveViewFolderState } from '../folder-visibility-active-view'
-import { setWritePath, getReadPaths } from '../../../state/vaultAllowlist'
+import { setWriteFolder, getReadPaths } from '../../../state/vaultAllowlist'
 import { saveSettings, clearSettingsCache } from '@vt/app-config/settings'
 import { DEFAULT_SETTINGS } from '@vt/graph-model/settings'
 import { getFolderStateForActiveView } from '../../views/folderStateOps'
@@ -100,43 +100,43 @@ describe('write path folder visibility seeding', () => {
         vi.clearAllMocks()
     })
 
-    it('setWritePath seeds only the write path as expanded (children remain collapsed by default)', async () => {
+    it('setWriteFolder seeds only the write path as expanded (children remain collapsed by default)', async () => {
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'voicetree')
-        const childA = path.join(writePath, '2025-09-30')
-        const childB = path.join(writePath, 'notes')
+        const writeFolder = path.join(watchedDir, 'voicetree')
+        const childA = path.join(writeFolder, '2025-09-30')
+        const childB = path.join(writeFolder, 'notes')
         const nested = path.join(childA, 'deep')
         await fs.mkdir(nested, { recursive: true })
         await fs.mkdir(childB, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writePath })
+        setProjectRoot(watchedDir)
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
 
-        const result = await setWritePath(writePath, { createStarterIfEmpty: false })
+        const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })
 
         expect(result.success).toBe(true)
         const expandedPaths = await getReadPaths()
-        expect([...expandedPaths].sort()).toEqual([writePath])
+        expect([...expandedPaths].sort()).toEqual([writeFolder])
         expect(expandedPaths).not.toContain(childA)
         expect(expandedPaths).not.toContain(childB)
         expect(expandedPaths).not.toContain(nested)
     })
 
-    it('setWritePath seeds only the write path; existing child visibility rows are preserved', async () => {
+    it('setWriteFolder seeds only the write path; existing child visibility rows are preserved', async () => {
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'voicetree')
-        const hiddenChild = path.join(writePath, 'private')
-        const newChild = path.join(writePath, 'public')
+        const writeFolder = path.join(watchedDir, 'voicetree')
+        const hiddenChild = path.join(writeFolder, 'private')
+        const newChild = path.join(writeFolder, 'public')
         await fs.mkdir(hiddenChild, { recursive: true })
         await fs.mkdir(newChild, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
-        await saveVaultConfigForDirectory(watchedDir, { writePath })
+        setProjectRoot(watchedDir)
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         await setActiveViewFolderState(watchedDir, hiddenChild, 'hidden')
 
-        const result = await setWritePath(writePath, { createStarterIfEmpty: false })
+        const result = await setWriteFolder(writeFolder, { createStarterIfEmpty: false })
 
         expect(result.success).toBe(true)
         const expandedPaths = await getReadPaths()
-        expect([...expandedPaths].sort()).toEqual([writePath])
+        expect([...expandedPaths].sort()).toEqual([writeFolder])
         // The explicit 'hidden' user state for hiddenChild is preserved.
         expect(getFolderStateForActiveView(watchedDir).folderState).toContainEqual([
             hiddenChild,

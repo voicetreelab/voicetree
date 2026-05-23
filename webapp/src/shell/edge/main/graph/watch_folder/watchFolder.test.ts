@@ -3,8 +3,8 @@
  *
  * Tests the public API functions for multi-vault path management:
  * - await getVaultPaths() - returns readonly FilePath[] of readPaths
- * - await getWritePath() - returns O.Option<FilePath> of write path
- * - setWritePath(path) - sets write path, returns {success, error?}
+ * - await getWriteFolder() - returns O.Option<FilePath> of write path
+ * - setWriteFolder(path) - sets write path, returns {success, error?}
  * - addReadPath(path) - adds path to readPaths
  * - removeReadPath(path) - removes path from readPaths
  *
@@ -21,15 +21,15 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { initGraphModel } from '@vt/graph-model'
-import { addReadPath, removeReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { addReadPath, removeReadPath, setWriteFolder } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import * as O from 'fp-ts/lib/Option.js'
 import {
   getVaultPaths,
-  getWritePath,
+  getWriteFolder,
   loadFolder,
   stopFileWatching,
-  getVaultPath,
-  clearVaultPath,
+  getProjectRoot,
+  clearProjectRoot,
 } from '@vt/graph-db-server/watch-folder/watchFolder'
 import { setGraph, getGraph } from '@vt/graph-db-server/state/graph-store'
 import type { GraphDelta, Graph } from '@vt/graph-model/graph'
@@ -40,9 +40,9 @@ import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
  * Pre-seed vault config so resolveOrCreateConfig uses it directly
  * instead of trying to discover/create a voicetree subfolder.
  */
-async function preseedVaultConfig(vaultPath: string): Promise<void> {
-  await saveVaultConfigForDirectory(vaultPath, {
-    writePath: vaultPath,
+async function preseedVaultConfig(projectRoot: string): Promise<void> {
+  await saveVaultConfigForDirectory(projectRoot, {
+    writeFolder: projectRoot,
     readPaths: []
   })
 }
@@ -123,7 +123,7 @@ describe('Multi-Vault Path Allowlist (7.1)', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -258,7 +258,7 @@ describe('Default Write Path (7.2)', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -289,11 +289,11 @@ describe('Default Write Path (7.2)', () => {
       // GIVEN: Only one vault path configured (via loadFolder)
       await loadFolder(testVaultPath1)
 
-      // ASSERT: await getWritePath() returns that path automatically
-      const defaultWritePath: O.Option<string> = await getWritePath()
-      expect(O.isSome(defaultWritePath)).toBe(true)
-      if (O.isSome(defaultWritePath)) {
-        expect(defaultWritePath.value).toBe(testVaultPath1)
+      // ASSERT: await getWriteFolder() returns that path automatically
+      const defaultWriteFolder: O.Option<string> = await getWriteFolder()
+      expect(O.isSome(defaultWriteFolder)).toBe(true)
+      if (O.isSome(defaultWriteFolder)) {
+        expect(defaultWriteFolder.value).toBe(testVaultPath1)
       }
     })
   })
@@ -304,19 +304,19 @@ describe('Default Write Path (7.2)', () => {
       await loadFolder(testVaultPath1)
 
       // WHEN: Set write path to a different existing path
-      // In the new architecture, writePath is independent and doesn't need to be in readPaths
+      // In the new architecture, writeFolder is independent and doesn't need to be in readPaths
       const outsidePath: string = path.join(testTmpDir, 'outside')
       await fs.mkdir(outsidePath, { recursive: true })
-      const result: { success: boolean; error?: string } = await setWritePath(outsidePath)
+      const result: { success: boolean; error?: string } = await setWriteFolder(outsidePath)
 
-      // ASSERT: setWritePath() succeeds
+      // ASSERT: setWriteFolder() succeeds
       expect(result.success).toBe(true)
 
       // ASSERT: Default write path is now the outside path
-      const defaultWritePath: O.Option<string> = await getWritePath()
-      expect(O.isSome(defaultWritePath)).toBe(true)
-      if (O.isSome(defaultWritePath)) {
-        expect(defaultWritePath.value).toBe(outsidePath)
+      const defaultWriteFolder: O.Option<string> = await getWriteFolder()
+      expect(O.isSome(defaultWriteFolder)).toBe(true)
+      if (O.isSome(defaultWriteFolder)) {
+        expect(defaultWriteFolder.value).toBe(outsidePath)
       }
     })
 
@@ -326,16 +326,16 @@ describe('Default Write Path (7.2)', () => {
       await addReadPath(testVaultPath2)
 
       // WHEN: Set write path to the second path (which is in readPaths)
-      const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
+      const result: { success: boolean; error?: string } = await setWriteFolder(testVaultPath2)
 
-      // ASSERT: setWritePath() succeeds
+      // ASSERT: setWriteFolder() succeeds
       expect(result.success).toBe(true)
 
       // ASSERT: Default write path is now the second path
-      const defaultWritePath: O.Option<string> = await getWritePath()
-      expect(O.isSome(defaultWritePath)).toBe(true)
-      if (O.isSome(defaultWritePath)) {
-        expect(defaultWritePath.value).toBe(testVaultPath2)
+      const defaultWriteFolder: O.Option<string> = await getWriteFolder()
+      expect(O.isSome(defaultWriteFolder)).toBe(true)
+      if (O.isSome(defaultWriteFolder)) {
+        expect(defaultWriteFolder.value).toBe(testVaultPath2)
       }
     })
   })
@@ -362,7 +362,7 @@ describe('Remove Vault Path from Allowlist', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -458,7 +458,7 @@ describe('Two-Tier Configuration (7.3)', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -558,7 +558,7 @@ describe('File Write Bug Fix (7.5)', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -590,36 +590,36 @@ describe('File Write Bug Fix (7.5)', () => {
       await loadFolder(testVaultPath1)
 
       // THEN: Default write path should be the loaded folder
-      const defaultWritePath: O.Option<string> = await getWritePath()
-      expect(O.isSome(defaultWritePath)).toBe(true)
+      const defaultWriteFolder: O.Option<string> = await getWriteFolder()
+      expect(O.isSome(defaultWriteFolder)).toBe(true)
 
-      if (O.isSome(defaultWritePath)) {
+      if (O.isSome(defaultWriteFolder)) {
         // ASSERT: File should be written to vault path
-        expect(defaultWritePath.value).toBe(testVaultPath1)
+        expect(defaultWriteFolder.value).toBe(testVaultPath1)
 
         // Verify the path ends with the vault name
-        expect(defaultWritePath.value.endsWith('voicetree-vault')).toBe(true)
+        expect(defaultWriteFolder.value.endsWith('voicetree-vault')).toBe(true)
       }
     })
 
-    it('should return watched directory from getVaultPath (use getWritePath for write location)', async () => {
+    it('should return watched directory from getProjectRoot (use getWriteFolder for write location)', async () => {
       // GIVEN: Load the vault folder
       await loadFolder(testVaultPath1)
 
-      // THEN: getVaultPath returns the watched directory (project root)
-      // For actual write location, use getWritePath instead
-      const vaultPath: O.Option<string> = getVaultPath()
-      expect(O.isSome(vaultPath)).toBe(true)
+      // THEN: getProjectRoot returns the watched directory (project root)
+      // For actual write location, use getWriteFolder instead
+      const projectRoot: O.Option<string> = getProjectRoot()
+      expect(O.isSome(projectRoot)).toBe(true)
 
-      if (O.isSome(vaultPath)) {
-        // getVaultPath now returns the watched directory
-        expect(vaultPath.value).toBe(testVaultPath1)
+      if (O.isSome(projectRoot)) {
+        // getProjectRoot now returns the watched directory
+        expect(projectRoot.value).toBe(testVaultPath1)
       }
     })
   })
 })
 
-describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
+describe('Fallback Behavior - getProjectRoot vs getWriteFolder', () => {
   beforeEach(async () => {
     // Create temp directory structure for tests
     testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fallback-test-'))
@@ -638,7 +638,7 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -664,56 +664,56 @@ describe('Fallback Behavior - getVaultPath vs getWritePath', () => {
     vi.clearAllMocks()
   })
 
-  it('should have getVaultPath return None after clearVaultPath', () => {
-    // GIVEN: clearVaultPath called (in beforeEach)
+  it('should have getProjectRoot return None after clearProjectRoot', () => {
+    // GIVEN: clearProjectRoot called (in beforeEach)
 
-    // THEN: getVaultPath should return None (projectRootWatchedDirectory is null)
-    const vaultPath: O.Option<string> = getVaultPath()
-    expect(O.isNone(vaultPath)).toBe(true)
+    // THEN: getProjectRoot should return None (projectRoot is null)
+    const projectRoot: O.Option<string> = getProjectRoot()
+    expect(O.isNone(projectRoot)).toBe(true)
   })
 
-  it('should have getWritePath fall back to getVaultPath when no explicit default set', async () => {
+  it('should have getWriteFolder fall back to getProjectRoot when no explicit default set', async () => {
     // GIVEN: Load a folder (sets up primary vault as default)
     await loadFolder(testVaultPath1)
 
     // WHEN: Get the default write path
-    const defaultWritePath: O.Option<string> = await getWritePath()
+    const defaultWriteFolder: O.Option<string> = await getWriteFolder()
 
     // THEN: It should match the primary vault path
-    expect(O.isSome(defaultWritePath)).toBe(true)
-    if (O.isSome(defaultWritePath)) {
-      expect(defaultWritePath.value).toBe(testVaultPath1)
+    expect(O.isSome(defaultWriteFolder)).toBe(true)
+    if (O.isSome(defaultWriteFolder)) {
+      expect(defaultWriteFolder.value).toBe(testVaultPath1)
     }
 
-    // AND: getVaultPath should also return the same primary vault path
-    const vaultPath: O.Option<string> = getVaultPath()
-    expect(O.isSome(vaultPath)).toBe(true)
-    if (O.isSome(vaultPath)) {
-      expect(vaultPath.value).toBe(testVaultPath1)
+    // AND: getProjectRoot should also return the same primary vault path
+    const projectRoot: O.Option<string> = getProjectRoot()
+    expect(O.isSome(projectRoot)).toBe(true)
+    if (O.isSome(projectRoot)) {
+      expect(projectRoot.value).toBe(testVaultPath1)
     }
   })
 
-  it('should return writePath from config when setWritePath is called', async () => {
+  it('should return writeFolder from config when setWriteFolder is called', async () => {
     // GIVEN: Load a folder and add second vault
     await loadFolder(testVaultPath1)
     await addReadPath(testVaultPath2)
 
     // AND: Change default write path to the second vault
-    await setWritePath(testVaultPath2)
+    await setWriteFolder(testVaultPath2)
 
-    // THEN: getWritePath should return the new default
-    const defaultWritePath: O.Option<string> = await getWritePath()
-    expect(O.isSome(defaultWritePath)).toBe(true)
-    if (O.isSome(defaultWritePath)) {
-      expect(defaultWritePath.value).toBe(testVaultPath2)
+    // THEN: getWriteFolder should return the new default
+    const defaultWriteFolder: O.Option<string> = await getWriteFolder()
+    expect(O.isSome(defaultWriteFolder)).toBe(true)
+    if (O.isSome(defaultWriteFolder)) {
+      expect(defaultWriteFolder.value).toBe(testVaultPath2)
     }
 
-    // AND: getVaultPath returns the watched directory (not the write path)
-    // For write location, always use getWritePath
-    const vaultPath: O.Option<string> = getVaultPath()
-    expect(O.isSome(vaultPath)).toBe(true)
-    if (O.isSome(vaultPath)) {
-      expect(vaultPath.value).toBe(testVaultPath1) // Watched directory, not write path
+    // AND: getProjectRoot returns the watched directory (not the write path)
+    // For write location, always use getWriteFolder
+    const projectRoot: O.Option<string> = getProjectRoot()
+    expect(O.isSome(projectRoot)).toBe(true)
+    if (O.isSome(projectRoot)) {
+      expect(projectRoot.value).toBe(testVaultPath1) // Watched directory, not write path
     }
   })
 })
@@ -748,7 +748,7 @@ describe('Auto-load files when adding new vault path', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -814,7 +814,7 @@ describe('Vault path removal persistence across reload (BUG REGRESSION TEST)', (
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -930,7 +930,7 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -979,7 +979,7 @@ describe('Vault path removal should delete nodes from graph (BUG REGRESSION TEST
   })
 })
 
-describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
+describe('VaultConfig uses writeFolder (renamed from defaultWriteFolder)', () => {
   beforeEach(async () => {
     // Create temp directory structure for tests
     testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'writepath-rename-test-'))
@@ -999,7 +999,7 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
 
     // Reset graph state
     setGraph(createEmptyGraph())
-    clearVaultPath()
+    clearProjectRoot()
 
     // Pre-seed vault config so loadFolder uses testVaultPath1 directly
     await preseedVaultConfig(testVaultPath1)
@@ -1025,57 +1025,57 @@ describe('VaultConfig uses writePath (renamed from defaultWritePath)', () => {
     vi.clearAllMocks()
   })
 
-  it('should use getWritePath to get the write path (renamed from getWritePath)', async () => {
+  it('should use getWriteFolder to get the write path (renamed from getWriteFolder)', async () => {
     // GIVEN: Load a folder
     await loadFolder(testVaultPath1)
 
     // WHEN: Get the write path using the renamed function
-    const writePath: O.Option<string> = await getWritePath()
+    const writeFolder: O.Option<string> = await getWriteFolder()
 
     // THEN: It should return the primary vault path
-    expect(O.isSome(writePath)).toBe(true)
-    if (O.isSome(writePath)) {
-      expect(writePath.value).toBe(testVaultPath1)
+    expect(O.isSome(writeFolder)).toBe(true)
+    if (O.isSome(writeFolder)) {
+      expect(writeFolder.value).toBe(testVaultPath1)
     }
   })
 
-  it('should use setWritePath to set the write path (renamed from setWritePath)', async () => {
+  it('should use setWriteFolder to set the write path (renamed from setWriteFolder)', async () => {
     // GIVEN: Load a folder and add second vault path
     await loadFolder(testVaultPath1)
     await addReadPath(testVaultPath2)
 
     // WHEN: Set write path to the second vault using renamed function
-    const result: { success: boolean; error?: string } = await setWritePath(testVaultPath2)
+    const result: { success: boolean; error?: string } = await setWriteFolder(testVaultPath2)
 
     // THEN: It should succeed
     expect(result.success).toBe(true)
 
-    // AND: getWritePath should return the new path
-    const writePath: O.Option<string> = await getWritePath()
-    expect(O.isSome(writePath)).toBe(true)
-    if (O.isSome(writePath)) {
-      expect(writePath.value).toBe(testVaultPath2)
+    // AND: getWriteFolder should return the new path
+    const writeFolder: O.Option<string> = await getWriteFolder()
+    expect(O.isSome(writeFolder)).toBe(true)
+    if (O.isSome(writeFolder)) {
+      expect(writeFolder.value).toBe(testVaultPath2)
     }
   })
 
-  it('should persist writePath across folder reload (config round-trip)', async () => {
+  it('should persist writeFolder across folder reload (config round-trip)', async () => {
     // GIVEN: Load a folder, add second vault, and set it as write path
     await loadFolder(testVaultPath1)
     await addReadPath(testVaultPath2)
-    await setWritePath(testVaultPath2)
+    await setWriteFolder(testVaultPath2)
 
     // Verify write path is set
-    const writePathBefore: O.Option<string> = await getWritePath()
-    expect(O.isSome(writePathBefore) && writePathBefore.value === testVaultPath2).toBe(true)
+    const writeFolderBefore: O.Option<string> = await getWriteFolder()
+    expect(O.isSome(writeFolderBefore) && writeFolderBefore.value === testVaultPath2).toBe(true)
 
     // WHEN: Reload the folder
     await loadFolder(testVaultPath1)
 
     // THEN: Write path should be preserved
-    const writePathAfter: O.Option<string> = await getWritePath()
-    expect(O.isSome(writePathAfter)).toBe(true)
-    if (O.isSome(writePathAfter)) {
-      expect(writePathAfter.value).toBe(testVaultPath2)
+    const writeFolderAfter: O.Option<string> = await getWriteFolder()
+    expect(O.isSome(writeFolderAfter)).toBe(true)
+    if (O.isSome(writeFolderAfter)) {
+      expect(writeFolderAfter.value).toBe(testVaultPath2)
     }
   })
 })

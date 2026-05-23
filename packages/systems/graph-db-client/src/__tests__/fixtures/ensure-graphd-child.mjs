@@ -3,7 +3,7 @@
  * Child-process helper for the BF-348 cross-process storm regression test.
  *
  * Invoked as:
- *   node --import tsx <this> --vault <path> --bin "<command line>"
+ *   node --import tsx <this> --project-root <path> --bin "<command line>"
  *     [--timeoutMs <n>] [--caller <CallerKind>]
  *
  * Calls `ensureGraphDaemonForVault` once and writes a single JSON line to
@@ -28,13 +28,13 @@ function arg(flag) {
   return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined
 }
 
-const vault = arg('--vault')
+const vault = arg('--project-root')
 const bin = arg('--bin')
 const timeoutMs = Number(arg('--timeoutMs') ?? '10000')
 const caller = arg('--caller') ?? 'electron'
 
 if (!vault || !bin) {
-  process.stderr.write('ensure-graphd-child: --vault and --bin required\n')
+  process.stderr.write('ensure-graphd-child: --project-root and --bin required\n')
   process.exit(2)
 }
 

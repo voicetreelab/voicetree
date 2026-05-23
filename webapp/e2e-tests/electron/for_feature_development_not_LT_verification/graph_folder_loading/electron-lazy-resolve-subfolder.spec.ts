@@ -2,9 +2,9 @@
  * Test: Lazy resolve for links with path components like [[openspec/AGENTS.md]]
  *
  * Scenario:
- * - writePath: tempDir/sun (main vault)
+ * - writeFolder: tempDir/sun (main vault)
  * - watchedFolder: tempDir (parent)
- * - File exists at: tempDir/openspec/AGENTS.md (outside writePath but inside watchedFolder)
+ * - File exists at: tempDir/openspec/AGENTS.md (outside writeFolder but inside watchedFolder)
  * - User creates link [[openspec/AGENTS.md]] in a node in sun/
  * - Expected: The linked node should be lazy-loaded and appear in graph
  */
@@ -39,12 +39,12 @@ const test = base.extend<{
     const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-subfolder-userdata-'));
 
     // Setup:
-    // - writePath: tempDir/sun
+    // - writeFolder: tempDir/sun
     // - watchedFolder: tempDir (implicitly, since that's where we start watching)
     const sunDir: string = path.join(tempDir, 'sun');
     await fs.mkdir(sunDir);
 
-    // Write config - writePath is sun/, but we watch tempDir
+    // Write config - writeFolder is sun/, but we watch tempDir
     const configPath: string = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
@@ -52,7 +52,7 @@ const test = base.extend<{
         lastDirectory: tempDir,
         vaultConfig: {
           [tempDir]: {
-            writePath: sunDir,
+            writeFolder: sunDir,
             readPaths: []
           }
         }
@@ -130,7 +130,7 @@ test.describe('Lazy resolve with subfolder paths', () => {
     const sunDir: string = path.join(tempDir, 'sun');
     const openspecDir: string = path.join(tempDir, 'openspec');
 
-    // Create openspec/AGENTS.md (outside writePath, inside watchedFolder)
+    // Create openspec/AGENTS.md (outside writeFolder, inside watchedFolder)
     await fs.mkdir(openspecDir);
     await fs.writeFile(
       path.join(openspecDir, 'AGENTS.md'),
@@ -223,7 +223,7 @@ test.describe('Lazy resolve with subfolder paths', () => {
     const sunDir: string = path.join(tempDir, 'sun');
     const openspecDir: string = path.join(tempDir, 'openspec');
 
-    // Create openspec/AGENTS.md first (outside writePath)
+    // Create openspec/AGENTS.md first (outside writeFolder)
     await fs.mkdir(openspecDir);
     await fs.writeFile(
       path.join(openspecDir, 'AGENTS.md'),

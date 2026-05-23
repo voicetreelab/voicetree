@@ -83,7 +83,7 @@ function assertDebugCdpPortResolved(cdpPort: number): void {
 
 interface InstanceRecord {
     readonly pid: number;
-    readonly vaultPath: string;
+    readonly projectRoot: string;
     readonly mcpPort: number;
     readonly cdpPort: number;
     readonly startedAt: string;
@@ -92,14 +92,14 @@ interface InstanceRecord {
 export async function registerInstance(): Promise<void> {
     const cdpPort: number = await resolveCdpPort();
     assertDebugCdpPortResolved(cdpPort);
-    const vaultPath: string =
+    const projectRoot: string =
         process.env.VOICETREE_VAULT_PATH ??
         getStartupFolderOverride() ??
         '';
     const mcpPort: number = getMcpPort();
     const instance: InstanceRecord = {
         pid: process.pid,
-        vaultPath,
+        projectRoot,
         mcpPort,
         cdpPort,
         startedAt: new Date().toISOString(),

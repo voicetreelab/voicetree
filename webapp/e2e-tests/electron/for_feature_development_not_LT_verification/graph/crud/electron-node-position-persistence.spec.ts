@@ -41,30 +41,30 @@ const test = base.extend<{
 }>({
   testVaultPath: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-position-test-'));
-    const vaultPath = path.join(tempDir, 'voicetree');
+    const projectRoot = path.join(tempDir, 'voicetree');
     const voicetreeDir = path.join(tempDir, '.voicetree');
 
-    await fs.mkdir(vaultPath, { recursive: true });
+    await fs.mkdir(projectRoot, { recursive: true });
     await fs.mkdir(voicetreeDir, { recursive: true });
 
     // Create markdown files
     await fs.writeFile(
-      path.join(vaultPath, 'node-a.md'),
+      path.join(projectRoot, 'node-a.md'),
       '# Node A\n\nFirst test node.\n\n[[node-b.md]]'
     );
     await fs.writeFile(
-      path.join(vaultPath, 'node-b.md'),
+      path.join(projectRoot, 'node-b.md'),
       '# Node B\n\nSecond test node.\n\n[[node-c.md]]'
     );
     await fs.writeFile(
-      path.join(vaultPath, 'node-c.md'),
+      path.join(projectRoot, 'node-c.md'),
       '# Node C\n\nThird test node.'
     );
 
     // Write positions.json with absolute paths as keys (matching how the app stores them)
     const positionsWithAbsolutePaths: Record<string, { x: number; y: number }> = {};
     for (const [filename, pos] of Object.entries(SAVED_POSITIONS)) {
-      const absolutePath = path.join(vaultPath, filename);
+      const absolutePath = path.join(projectRoot, filename);
       positionsWithAbsolutePaths[absolutePath] = pos;
     }
     await fs.writeFile(
@@ -177,7 +177,7 @@ test.describe('Node Position Persistence', () => {
   test('nodes should load with saved positions from positions.json, not stacked at origin', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(45000);
 
-    const vaultPath = path.join(testVaultPath, 'voicetree');
+    const projectRoot = path.join(testVaultPath, 'voicetree');
 
     // Get all node positions from Cytoscape
     const nodePositions = await appWindow.evaluate((vaultDir: string) => {
@@ -194,7 +194,7 @@ test.describe('Node Position Persistence', () => {
         }
       });
       return positions;
-    }, vaultPath);
+    }, projectRoot);
 
     console.log('[Position Test] Node positions in Cytoscape:', JSON.stringify(nodePositions, null, 2));
 
@@ -211,7 +211,7 @@ test.describe('Node Position Persistence', () => {
     // Verify positions match what we saved (within tolerance for rounding/layout adjustments)
     const TOLERANCE = 75; // Allow some drift from layout engine / compound node padding
     for (const [filename, expectedPos] of Object.entries(SAVED_POSITIONS)) {
-      const nodeId = path.join(vaultPath, filename);
+      const nodeId = path.join(projectRoot, filename);
       const actualPos = nodePositions[nodeId];
 
       if (actualPos) {
@@ -227,11 +227,11 @@ test.describe('Node Position Persistence', () => {
   test('moved node positions should propagate to in-memory graph state', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(45000);
 
-    const vaultPath = path.join(testVaultPath, 'voicetree');
+    const projectRoot = path.join(testVaultPath, 'voicetree');
 
     // Move a node to a new position via the Cytoscape API + saveNodePositions IPC
     const newPosition = { x: 999, y: 888 };
-    const targetNodeId = path.join(vaultPath, 'node-a.md');
+    const targetNodeId = path.join(projectRoot, 'node-a.md');
 
     await appWindow.evaluate(({ nodeId, pos }: { nodeId: string; pos: { x: number; y: number } }) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;

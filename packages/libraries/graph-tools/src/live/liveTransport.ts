@@ -43,6 +43,39 @@ export interface LiveTransport {
     readonly dispatchLiveCommand: (cmd: Command) => Promise<Delta>
 }
 
+type McpTextBlock = {
+    readonly type: string
+    readonly text?: string
+}
+
+type McpTextToolResult = {
+    readonly isError?: boolean
+    readonly content?: readonly McpTextBlock[]
+}
+
+function asTextToolResult(value: unknown): McpTextToolResult {
+    if (!value || typeof value !== 'object') {
+        return {}
+    }
+    const record = value as Record<string, unknown>
+    const content: readonly McpTextBlock[] | undefined = Array.isArray(record.content)
+        ? record.content
+            .filter((entry: unknown): entry is McpTextBlock => {
+                if (!entry || typeof entry !== 'object') return false
+                const block = entry as Record<string, unknown>
+                return typeof block.type === 'string'
+            })
+            .map((entry: McpTextBlock): McpTextBlock => ({
+                type: entry.type,
+                ...(typeof entry.text === 'string' ? {text: entry.text} : {}),
+            }))
+        : undefined
+    return {
+        ...(typeof record.isError === 'boolean' ? {isError: record.isError} : {}),
+        ...(content ? {content} : {}),
+    }
+}
+
 async function callMcpTool<T>(
     port: number,
     toolName: string,
@@ -54,10 +87,9 @@ async function callMcpTool<T>(
     )
     await client.connect(transport)
     try {
-        const result: {
-            isError?: boolean
-            content?: Array<{type: string; text?: string}>
-        } = await client.callTool({name: toolName, arguments: toolArgs})
+        const result: McpTextToolResult = asTextToolResult(
+            await client.callTool({name: toolName, arguments: toolArgs}),
+        )
 
         if (result.isError) {
             const errBlock = (result.content ?? []).find((c) => c.type === 'text')

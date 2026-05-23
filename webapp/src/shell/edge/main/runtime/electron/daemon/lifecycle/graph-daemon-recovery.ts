@@ -68,13 +68,13 @@ export function decideRecoveryAttempt(
  */
 export class RecoveryExhaustedError extends Error {
   constructor(
-    readonly canonicalVaultPath: string,
+    readonly canonicalProjectRoot: string,
     readonly attemptsInWindow: number,
     readonly windowMs: number,
     readonly untilMs: number,
   ) {
     super(
-      `Electron recovery for vault ${canonicalVaultPath} exhausted: `
+      `Electron recovery for vault ${canonicalProjectRoot} exhausted: `
       + `${attemptsInWindow} attempts in ${windowMs}ms; next allowed at `
       + `${new Date(untilMs).toISOString()}`,
     )
@@ -131,7 +131,7 @@ const historyByVault = new Map<string, RecoveryHistory>()
  * calling ensure). Lets `ensureGraphDaemonForVault` errors propagate.
  */
 export async function attemptBoundedRecovery(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   options: BoundedRecoveryOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
@@ -146,7 +146,7 @@ export async function attemptBoundedRecovery(
   if (stopLoops) await stopLoops()
 
   const nowMs = now()
-  const history = ensureHistory(canonicalVaultPath)
+  const history = ensureHistory(canonicalProjectRoot)
   pruneOutsideWindow(history, nowMs, windowMs)
 
   const decision = decideRecoveryAttempt(nowMs, history.attempts, {
@@ -158,7 +158,7 @@ export async function attemptBoundedRecovery(
     const oldest = history.attempts[0] ?? nowMs
     const untilMs = oldest + windowMs
     throw new RecoveryExhaustedError(
-      canonicalVaultPath,
+      canonicalProjectRoot,
       history.attempts.length,
       windowMs,
       untilMs,
@@ -166,15 +166,15 @@ export async function attemptBoundedRecovery(
   }
 
   history.attempts.push(nowMs)
-  return ensureFn(canonicalVaultPath, caller)
+  return ensureFn(canonicalProjectRoot, caller)
 }
 
 /**
  * Clear recovery history for a vault. Used when switching vaults so the
  * fresh vault starts with a clean attempt budget.
  */
-export function resetRecoveryHistory(canonicalVaultPath: string): void {
-  historyByVault.delete(canonicalVaultPath)
+export function resetRecoveryHistory(canonicalProjectRoot: string): void {
+  historyByVault.delete(canonicalProjectRoot)
 }
 
 /**
@@ -185,11 +185,11 @@ export function __resetAllRecoveryHistoryForTest(): void {
   historyByVault.clear()
 }
 
-function ensureHistory(canonicalVaultPath: string): RecoveryHistory {
-  const existing = historyByVault.get(canonicalVaultPath)
+function ensureHistory(canonicalProjectRoot: string): RecoveryHistory {
+  const existing = historyByVault.get(canonicalProjectRoot)
   if (existing) return existing
   const created: RecoveryHistory = { attempts: [] }
-  historyByVault.set(canonicalVaultPath, created)
+  historyByVault.set(canonicalProjectRoot, created)
   return created
 }
 

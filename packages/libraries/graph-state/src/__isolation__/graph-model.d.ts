@@ -35,7 +35,7 @@ export declare function toAbsolutePath(path: string): AbsolutePath
 export declare function buildFolderTree(
     entry: DirectoryEntry,
     loadedPaths: ReadonlySet<string>,
-    writePath: AbsolutePath | null,
+    writeFolder: AbsolutePath | null,
     graphFilePaths: ReadonlySet<string>,
 ): FolderTreeNode
 export declare function getDirectoryTree(rootPath: string, maxDepth?: number): Promise<DirectoryEntry>

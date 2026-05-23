@@ -14,12 +14,12 @@ import {
 } from "./loadGraphFromDisk";
 import { notifyTextToTreeServerOfDirectory } from "./notifyTextToTreeServer";
 import { setGraph, getGraph } from "@vt/graph-db-server/state/graph-store";
-import { getProjectRootWatchedDirectory } from "@vt/graph-db-server/state/watch-folder-store";
+import { getProjectRoot } from "@vt/graph-db-server/state/watch-folder-store";
 import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-starter-node";
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
 export interface LoadVaultPathOptions {
-  isWritePath: boolean;
+  isWriteFolder: boolean;
   createStarterIfEmpty?: boolean;
 }
 
@@ -29,17 +29,17 @@ export type LoadVaultPathResult = {
 };
 
 export async function loadAndMergeVaultPath(
-    vaultPath: FilePath,
-    options: LoadVaultPathOptions = { isWritePath: false },
+    projectRoot: FilePath,
+    options: LoadVaultPathOptions = { isWriteFolder: false },
     positions?: ReadonlyMap<string, Position>
 ): Promise<LoadVaultPathResult> {
     const existingGraph: Graph = getGraph();
-    const watchedFolderPath: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedFolderPath: FilePath | null = getProjectRoot();
 
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
         await traceGraphdSpan('vault.load-and-merge.load-vault-path-additively', async (span) => {
-            span.setAttribute('vaultPath', vaultPath);
-            return await loadVaultPathAdditively(vaultPath, existingGraph);
+            span.setAttribute('projectRoot', projectRoot);
+            return await loadVaultPathAdditively(projectRoot, existingGraph);
         });
 
     if (E.isLeft(loadResult)) {
@@ -75,14 +75,14 @@ export async function loadAndMergeVaultPath(
         }
     }
 
-    if (options.isWritePath && (options.createStarterIfEmpty ?? true)) {
+    if (options.isWriteFolder && (options.createStarterIfEmpty ?? true)) {
         await traceGraphdSpan('vault.load-and-merge.create-starter-node-if-empty', async (span) => {
             const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-                nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
+                nodeId.startsWith(projectRoot + '/') || nodeId === projectRoot
             );
             span.setAttribute('nodesInPath.count', nodesInPath.length);
             if (nodesInPath.length === 0) {
-                const starterGraph: Graph = await createStarterNode(vaultPath);
+                const starterGraph: Graph = await createStarterNode(projectRoot);
                 currentGraph = { ...currentGraph, nodes: { ...currentGraph.nodes, ...starterGraph.nodes } };
                 const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
                 if (starterNodeId) {
@@ -102,8 +102,8 @@ export async function loadAndMergeVaultPath(
         if (accumulatedDelta.length > 0) {
             refreshGraphChangeSideEffects();
         }
-        if (options.isWritePath) {
-            notifyTextToTreeServerOfDirectory(vaultPath);
+        if (options.isWriteFolder) {
+            notifyTextToTreeServerOfDirectory(projectRoot);
         }
     });
 

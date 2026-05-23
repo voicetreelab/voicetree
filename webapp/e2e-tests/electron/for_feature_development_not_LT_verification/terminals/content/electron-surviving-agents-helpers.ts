@@ -75,7 +75,7 @@ export interface ExtendedWindow {
 
 export interface SurvivingAgentsVault {
     readonly tempRoot: string;
-    readonly vaultPath: string;
+    readonly projectRoot: string;
     readonly contextNodePath: string;
     readonly claudeProjectsRoot: string;
 }
@@ -91,20 +91,20 @@ export function tmuxSocketPath(): string {
 
 export async function createSurvivingAgentsVault(): Promise<SurvivingAgentsVault> {
     const tempRoot: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-surviving-agents-vault-'));
-    const vaultPath: string = await createFolderTestVault(tempRoot);
-    const contextNodePath: string = path.join(vaultPath, 'readme.md');
+    const projectRoot: string = await createFolderTestVault(tempRoot);
+    const contextNodePath: string = path.join(projectRoot, 'readme.md');
     const claudeProjectsRoot: string = path.join(tempRoot, 'claude-projects');
     await fs.mkdir(claudeProjectsRoot, {recursive: true});
-    return {tempRoot, vaultPath, contextNodePath, claudeProjectsRoot};
+    return {tempRoot, projectRoot, contextNodePath, claudeProjectsRoot};
 }
 
-export function buildNamespaceHash(vaultPath: string): string {
-    const namespace: string = path.join(vaultPath, '.voicetree');
+export function buildNamespaceHash(projectRoot: string): string {
+    const namespace: string = path.join(projectRoot, '.voicetree');
     return createHash('sha1').update(namespace).digest('hex').slice(0, 10);
 }
 
-export function buildSessionName(vaultPath: string, terminalId: string): string {
-    return `vt-${buildNamespaceHash(vaultPath)}-${terminalId}`;
+export function buildSessionName(projectRoot: string, terminalId: string): string {
+    return `vt-${buildNamespaceHash(projectRoot)}-${terminalId}`;
 }
 
 export function spawnSeededTmuxSession(sessionName: string, env: Record<string, string>): void {
@@ -227,7 +227,7 @@ export async function ensureVaultLoadedIntoGraph(appWindow: Page): Promise<void>
 export async function fixtureClaudeTranscript(opts: {
     readonly claudeProjectsRoot: string;
     readonly terminalId: string;
-    readonly vaultPath: string;
+    readonly projectRoot: string;
     readonly taskNodePath: string;
     readonly sessionId: string;
 }): Promise<string> {
@@ -236,7 +236,7 @@ export async function fixtureClaudeTranscript(opts: {
     const transcriptPath: string = path.join(subdir, `${opts.sessionId}.jsonl`);
     const markerText: string = [
         `VOICETREE_TERMINAL_ID = ${opts.terminalId}`,
-        `VOICETREE_VAULT_PATH = ${opts.vaultPath}`,
+        `VOICETREE_VAULT_PATH = ${opts.projectRoot}`,
         `TASK_NODE_PATH = ${opts.taskNodePath}`,
     ].join('\n');
     const record = {
@@ -257,19 +257,19 @@ export async function fixtureClaudeTranscript(opts: {
  * Returns the absolute metadata path so the caller can clean it up.
  */
 export async function fixtureRecoveryMetadata(opts: {
-    readonly vaultPath: string;
+    readonly projectRoot: string;
     readonly terminalId: string;
     readonly agentName: string;
     readonly cliBinary: 'claude' | 'codex';
     readonly sessionNameOverride?: string;
     readonly taskNodePath?: string;
 }): Promise<string> {
-    const metadataDir: string = path.join(opts.vaultPath, '.voicetree', 'terminals');
+    const metadataDir: string = path.join(opts.projectRoot, '.voicetree', 'terminals');
     await fs.mkdir(metadataDir, {recursive: true});
     const metadataPath: string = path.join(metadataDir, `${opts.terminalId}.json`);
-    const projectDir: string = path.join(opts.vaultPath, '.voicetree');
+    const projectDir: string = path.join(opts.projectRoot, '.voicetree');
     const sessionName: string = opts.sessionNameOverride
-        ?? buildSessionName(opts.vaultPath, opts.terminalId);
+        ?? buildSessionName(opts.projectRoot, opts.terminalId);
     const metadata = {
         name: opts.terminalId,
         status: 'running' as const,
@@ -279,12 +279,12 @@ export async function fixtureRecoveryMetadata(opts: {
             type: 'Terminal',
             terminalId: opts.terminalId,
             agentName: opts.agentName,
-            attachedToContextNodeId: path.join(opts.vaultPath, 'readme.md'),
+            attachedToContextNodeId: path.join(opts.projectRoot, 'readme.md'),
             initialCommand: opts.cliBinary,
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: opts.terminalId,
                 AGENT_NAME: opts.agentName,
-                VOICETREE_VAULT_PATH: opts.vaultPath,
+                VOICETREE_VAULT_PATH: opts.projectRoot,
                 VOICETREE_PROJECT_DIR: projectDir,
                 ...(opts.taskNodePath ? {TASK_NODE_PATH: opts.taskNodePath} : {}),
             },
@@ -323,10 +323,10 @@ export const test = base.extend<{
         const tempUserDataPath: string = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-surviving-agents-test-'));
 
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.vaultPath,
+            lastDirectory: vault.projectRoot,
             vaultConfig: {
-                [vault.vaultPath]: {
-                    writePath: vault.vaultPath,
+                [vault.projectRoot]: {
+                    writeFolder: vault.projectRoot,
                     readPaths: [],
                 },
             },
@@ -334,7 +334,7 @@ export const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
             id: PROJECT_ID,
-            path: vault.vaultPath,
+            path: vault.projectRoot,
             name: PROJECT_ID,
             type: 'folder',
             lastOpened: Date.now(),
@@ -417,7 +417,7 @@ export const test = base.extend<{
     }, {timeout: 60000}],
 
     seededSessionName: [async ({vault}, use) => {
-        const name: string = buildSessionName(vault.vaultPath, SEEDED_TERMINAL_ID);
+        const name: string = buildSessionName(vault.projectRoot, SEEDED_TERMINAL_ID);
         try {
             await use(name);
         } finally {

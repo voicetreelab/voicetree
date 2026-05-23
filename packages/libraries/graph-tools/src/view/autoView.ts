@@ -339,10 +339,10 @@ function buildUserCollapsedClusterIds(
 }
 
 export function renderAutoView(
-    vaultPath: string,
+    projectRoot: string,
     options: AutoViewOptions = {},
 ): {output: string; format: string} {
-    const root: string = path.resolve(vaultPath)
+    const root: string = path.resolve(projectRoot)
     const graph: ProjectedGraph = buildProjectedGraphFromVault(root)
 
     const output: string = renderTreeCover(graph, {

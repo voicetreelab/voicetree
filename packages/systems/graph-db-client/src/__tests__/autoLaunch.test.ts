@@ -126,7 +126,7 @@ describe('resolveDefaultDaemonArgs', () => {
 
     expect(args).toEqual([
       expect.stringMatching(/dist\/vt-graphd\.mjs$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })
@@ -141,7 +141,7 @@ describe('resolveDefaultDaemonArgs', () => {
       '--import',
       '/tmp/tsx',
       expect.stringMatching(/bin\/vt-graphd\.ts$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })

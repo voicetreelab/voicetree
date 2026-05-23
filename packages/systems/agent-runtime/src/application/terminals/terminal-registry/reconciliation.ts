@@ -31,25 +31,25 @@ export type TmuxReconciliationDeps = {
 
 const defaultClock: TerminalRegistryClock = {now: Date.now}
 
-function fallbackTerminalData(metadata: TmuxTerminalMetadata, vaultPath: string): TerminalData {
+function fallbackTerminalData(metadata: TmuxTerminalMetadata, projectRoot: string): TerminalData {
     const terminalId: TerminalId = metadata.name as TerminalId
     return createTerminalData({
         terminalId,
-        attachedToNodeId: `${vaultPath}/.voicetree/terminals/${metadata.name}.json`,
+        attachedToNodeId: `${projectRoot}/.voicetree/terminals/${metadata.name}.json`,
         terminalCount: 0,
         title: metadata.name,
         agentName: metadata.name,
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: metadata.name,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_VAULT_PATH: projectRoot,
         },
     })
 }
 
-function importRunningRecord(metadata: TmuxTerminalMetadata, vaultPath: string, now: number): TerminalId {
+function importRunningRecord(metadata: TmuxTerminalMetadata, projectRoot: string, now: number): TerminalId {
     const terminalId: TerminalId = metadata.name as TerminalId
-    const terminalData: TerminalData = metadata.terminalData ?? fallbackTerminalData(metadata, vaultPath)
+    const terminalData: TerminalData = metadata.terminalData ?? fallbackTerminalData(metadata, projectRoot)
     const spawnedAt: number = metadata.startedAt ? Date.parse(metadata.startedAt) : now
 
     terminalRecords.set(terminalId, {
@@ -72,10 +72,10 @@ function importRunningRecord(metadata: TmuxTerminalMetadata, vaultPath: string, 
 }
 
 export async function reconcileTmuxTerminalRegistry(
-    vaultPath: string,
+    projectRoot: string,
     deps: TmuxReconciliationDeps = {},
 ): Promise<TmuxReconciliationResult> {
-    const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
     const hasSession: (name: string) => Promise<boolean> = deps.hasSession ?? defaultHasSession
     const now: () => number = deps.now ?? defaultClock.now
     const result: TmuxReconciliationResult = {imported: [], markedExited: [], skipped: []}
@@ -106,7 +106,7 @@ export async function reconcileTmuxTerminalRegistry(
 
         if (alive) {
             registerTmuxSessionAlias(metadata.name, metadata.session ?? metadata.name)
-            const terminalId: TerminalId = importRunningRecord(metadata, vaultPath, now())
+            const terminalId: TerminalId = importRunningRecord(metadata, projectRoot, now())
             deps.onRunningSession?.({terminalId, metadataPath, metadata})
             result.imported.push(metadata.name)
             continue

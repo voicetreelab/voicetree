@@ -89,7 +89,7 @@ async function createAppSupport(vault: string): Promise<string> {
   const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-appsupport-'))
   await writeFile(
     join(appSupport, 'voicetree-config.json'),
-    JSON.stringify({ vaultConfig: { [vault]: { writePath: vault } } }),
+    JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
   )
   return appSupport
 }

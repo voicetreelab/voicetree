@@ -48,18 +48,18 @@ async function pathIsDirectory(directoryPath: string): Promise<boolean> {
     }
 }
 
-function resolveLocalWritePath(projectPath: string, writePath: string): string {
-    return path.isAbsolute(writePath)
-        ? writePath
-        : path.join(projectPath, writePath)
+function resolveLocalWriteFolder(projectPath: string, writeFolder: string): string {
+    return path.isAbsolute(writeFolder)
+        ? writeFolder
+        : path.join(projectPath, writeFolder)
 }
 
-async function resolveOrCreateWritePath(projectPath: string): Promise<string> {
+async function resolveOrCreateWriteFolder(projectPath: string): Promise<string> {
     const existingConfig: VaultConfig | undefined = await getVaultConfigForDirectory(projectPath)
-    if (existingConfig?.writePath) {
-        const writePath: string = resolveLocalWritePath(projectPath, existingConfig.writePath)
-        if (await pathIsDirectory(writePath)) {
-            return writePath
+    if (existingConfig?.writeFolder) {
+        const writeFolder: string = resolveLocalWriteFolder(projectPath, existingConfig.writeFolder)
+        if (await pathIsDirectory(writeFolder)) {
+            return writeFolder
         }
     }
 
@@ -68,9 +68,9 @@ async function resolveOrCreateWritePath(projectPath: string): Promise<string> {
         ? path.join(onboardingRoot, 'voicetree')
         : undefined
     const initializedPath: string | null = await initializeProject(projectPath, onboardingSourceDir)
-    const writePath: string = initializedPath ?? projectPath
-    await saveVaultConfigForDirectory(projectPath, { writePath })
-    return writePath
+    const writeFolder: string = initializedPath ?? projectPath
+    await saveVaultConfigForDirectory(projectPath, { writeFolder })
+    return writeFolder
 }
 
 export async function getStartupVaultHint(): Promise<StartupVaultHint> {
@@ -85,13 +85,13 @@ export async function getStartupVaultHint(): Promise<StartupVaultHint> {
         : { kind: 'none' }
 }
 
-export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
-    if (!(await pathIsDirectory(vaultPath))) {
-        throw new Error(`Path is not a directory: ${vaultPath}`)
+export async function openVault(projectRoot: string): Promise<OpenVaultResponse> {
+    if (!(await pathIsDirectory(projectRoot))) {
+        throw new Error(`Path is not a directory: ${projectRoot}`)
     }
 
-    startLoadTiming(vaultPath)
-    pushToRenderer('vault:switching', { path: vaultPath })
+    startLoadTiming(projectRoot)
+    pushToRenderer('vault:switching', { path: projectRoot })
 
     try {
         // D6: stop SSE/watch-sync loops bound to the prior owner's base URL
@@ -102,43 +102,43 @@ export async function openVault(vaultPath: string): Promise<OpenVaultResponse> {
         unsubscribeFromDaemonSSE()
         await stopDaemonGraphSync()
 
-        // Persist writePath BEFORE the daemon claims the vault: vt-graphd's
+        // Persist writeFolder BEFORE the daemon claims the vault: vt-graphd's
         // startup vault-open reads saved config, and the daemon's
         // `openVaultWorkflow` short-circuits on a re-open with the same path
-        // — so the writePath we pass below must already be on disk for the
+        // — so the writeFolder we pass below must already be on disk for the
         // first ensure to pick it up.
-        const writePath: string = await resolveOrCreateWritePath(vaultPath)
-        await getCallbacks().ensureProjectSetup?.(vaultPath).catch((error: unknown) => {
+        const writeFolder: string = await resolveOrCreateWriteFolder(projectRoot)
+        await getCallbacks().ensureProjectSetup?.(projectRoot).catch((error: unknown) => {
             console.warn('[openVault] Failed to set up .voicetree/ defaults:', error)
         })
 
         markLoadTiming('main:daemon-open-vault-start')
-        const owner = await setActiveVaultAndEnsureDaemon(vaultPath)
+        const owner = await setActiveVaultAndEnsureDaemon(projectRoot)
         // The owner-aware spawn already opened the vault at startup using
-        // the saved writePath. This call is the idempotent confirmation
+        // the saved writeFolder. This call is the idempotent confirmation
         // that returns the daemon's authoritative `OpenVaultResponse`.
-        const response = await owner.client.openVault(vaultPath, { writePath })
+        const response = await owner.client.openVault(projectRoot, { writeFolder })
         markLoadTiming('main:daemon-open-vault-end')
 
-        await startDaemonGraphSync(vaultPath)
+        await startDaemonGraphSync(projectRoot)
         markLoadTiming('main:daemon-graph-sync-started')
-        await saveLastDirectory(vaultPath)
-        syncWatchedProjectRoot(vaultPath)
+        await saveLastDirectory(projectRoot)
+        syncWatchedProjectRoot(projectRoot)
 
         getCallbacks().onWatchingStarted?.({
-            directory: vaultPath,
-            writePath: response.writePath,
+            directory: projectRoot,
+            writeFolder: response.writeFolder,
             timestamp: new Date().toISOString(),
         })
 
-        pushToRenderer('vault:ready', { path: vaultPath })
+        pushToRenderer('vault:ready', { path: projectRoot })
         void getCallbacks().enableMcpIntegration?.().catch((err: unknown) => {
             console.error('[openVault] Failed to enable MCP integration:', err)
         })
         return response
     } catch (err) {
         pushToRenderer('vault:lost', {
-            path: vaultPath,
+            path: projectRoot,
             error: err instanceof Error ? err.message : String(err),
         })
         throw err

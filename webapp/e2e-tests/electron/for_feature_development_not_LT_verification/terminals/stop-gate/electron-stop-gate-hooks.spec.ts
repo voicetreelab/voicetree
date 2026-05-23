@@ -383,9 +383,9 @@ async function registerCallerTerminal(
   await appWindow.waitForTimeout(500);
 }
 
-async function createProgressNode(vaultPath: string, nodeName: string, agentName: string, mentions: string[]): Promise<void> {
+async function createProgressNode(projectRoot: string, nodeName: string, agentName: string, mentions: string[]): Promise<void> {
   await fs.writeFile(
-    path.join(vaultPath, 'voicetree', nodeName),
+    path.join(projectRoot, 'voicetree', nodeName),
     [
       '---',
       `agent_name: ${agentName}`,

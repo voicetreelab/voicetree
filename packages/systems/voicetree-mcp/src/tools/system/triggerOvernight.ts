@@ -9,7 +9,7 @@ import {buildSpatialIndexFromGraph} from '@vt/graph-model/spatial'
 import type {SpatialIndex} from '@vt/graph-model/spatial'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWritePath} from '../mcpConfigDependencies'
+import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolder} from '../mcpConfigDependencies'
 import {spawnContextTerminal} from '../agent-control/agentControlRuntime'
 
 export interface TriggerOvernightParams {
@@ -47,11 +47,11 @@ export async function triggerOvernight(
     params: TriggerOvernightParams,
     deps: TriggerOvernightDeps = defaultTriggerOvernightDeps,
 ): Promise<TriggerOvernightResult> {
-    const vaultPathOpt: O.Option<string> = await getMcpWritePath()
+    const vaultPathOpt: O.Option<string> = await getMcpWriteFolder()
     if (O.isNone(vaultPathOpt)) {
         return {success: false, error: 'No vault loaded. Open a folder in VoiceTree first.'}
     }
-    const writePath: string = vaultPathOpt.value
+    const writeFolder: string = vaultPathOpt.value
 
     const graph: Graph = await getMcpGraph()
     const nodeIds: readonly string[] = Object.keys(graph.nodes)
@@ -74,7 +74,7 @@ export async function triggerOvernight(
         taskDescription,
         selectedNodeIds: [parentNodeId],
         graph,
-        writePath,
+        writeFolder,
         position
     })
 

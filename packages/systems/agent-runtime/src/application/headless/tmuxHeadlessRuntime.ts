@@ -52,11 +52,11 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     readonly metadataPath: string
     readonly exitCodePath: string
 } {
-    const vaultPath: string | undefined = env.VOICETREE_VAULT_PATH
-    if (!vaultPath) {
+    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+    if (!projectRoot) {
         throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
     }
-    const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
     mkdirSync(terminalDir, {recursive: true})
     return {
         logPath: join(terminalDir, `${terminalId}.log`),
@@ -208,14 +208,14 @@ export function spawnTmuxHeadlessAgent(
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
 ): void {
-    const vaultPath: string | undefined = env.VOICETREE_VAULT_PATH
-    const plan = vaultPath
-        ? applyPromptFileToHeadlessSpawn({vaultPath, terminalId, command, env})
+    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+    const plan = projectRoot
+        ? applyPromptFileToHeadlessSpawn({projectRoot, terminalId, command, env})
         : {command, env, promptFilePath: null}
     void spawnTmuxBackedTerminal(terminalId, terminalData, plan.command, cwd, plan.env, deps, plan.promptFilePath).catch((error: unknown) => {
         deps.writeLog({level: 'error', message: `[headlessAgentManager] Failed to spawn tmux-backed headless agent ${terminalId}:`, error})
         deps.markTerminalExited(terminalId, null)
-        if (plan.promptFilePath && vaultPath) deletePromptFile(vaultPath, terminalId)
+        if (plan.promptFilePath) deletePromptFile(projectRoot, terminalId)
     })
 }
 
@@ -269,10 +269,10 @@ export function getTmuxHeadlessAgentOutput(terminalId: TerminalId): string {
 }
 
 export async function reconcileTmuxHeadlessAgents(
-    vaultPath: string,
+    projectRoot: string,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
 ): Promise<TmuxReconciliationResult> {
-    return reconcileTmuxTerminalRegistry(vaultPath, {
+    return reconcileTmuxTerminalRegistry(projectRoot, {
         hasSession,
         logger: {
             info: (message?: unknown, ...optionalParams: unknown[]): void =>
@@ -286,10 +286,10 @@ export async function reconcileTmuxHeadlessAgents(
             registerTmuxSessionAlias(terminalId, sessionName)
             tmuxHeadlessState.sessions.set(terminalId, {
                 sessionName,
-                logPath: metadata.logFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.log`),
+                logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
-                exitCodePath: metadata.exitCodeFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.exitcode`),
-                promptFilePath: join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
+                exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
+                promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
                 pollTimer: startTmuxExitPoll(terminalId, sessionName, deps),
             })
         },

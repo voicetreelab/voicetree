@@ -16,15 +16,15 @@ export async function buildFolderTreeSyncPayload(
 ): Promise<FolderTreeSyncPayload> {
   const loadedPaths: Set<string> = new Set<string>([
     ...vaultState.readPaths,
-    vaultState.writePath,
+    vaultState.writeFolder,
   ])
-  const writePath: AbsolutePath = toAbsolutePath(vaultState.writePath)
+  const writeFolder: AbsolutePath = toAbsolutePath(vaultState.writeFolder)
   const graphFilePaths: Set<string> = new Set<string>(Object.keys(graph.nodes))
 
   let rootTree: FolderTreeNode | null = null
   try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.vaultPath)
-    rootTree = buildFolderTree(rootEntry, loadedPaths, writePath, graphFilePaths)
+    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.projectRoot)
+    rootTree = buildFolderTree(rootEntry, loadedPaths, writeFolder, graphFilePaths)
   } catch {
     rootTree = null
   }
@@ -38,7 +38,7 @@ export async function buildFolderTreeSyncPayload(
       starredTrees[folder] = buildFolderTree(
         entry,
         loadedPaths,
-        writePath,
+        writeFolder,
         graphFilePaths,
       )
     } catch {
@@ -47,13 +47,13 @@ export async function buildFolderTreeSyncPayload(
   }
 
   const externalTrees: Record<string, FolderTreeNode> = {}
-  for (const folder of getExternalReadPaths(vaultState.readPaths, vaultState.vaultPath)) {
+  for (const folder of getExternalReadPaths(vaultState.readPaths, vaultState.projectRoot)) {
     try {
       const entry: DirectoryEntry = await getDirectoryTree(folder, 3)
       externalTrees[folder] = buildFolderTree(
         entry,
         loadedPaths,
-        writePath,
+        writeFolder,
         graphFilePaths,
       )
     } catch {

@@ -44,8 +44,8 @@ function rowTooltip(row: RecoverableAgentSession): string {
         parts.push(`native session: ${row.resume.nativeSessionId}`);
     }
     if (row.metadataPath) parts.push(`metadata: ${row.metadataPath}`);
-    const vaultPath: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
-    if (vaultPath) parts.push(`vault: ${vaultPath}`);
+    const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
+    if (projectRoot) parts.push(`project root: ${projectRoot}`);
     return parts.join('\n');
 }
 

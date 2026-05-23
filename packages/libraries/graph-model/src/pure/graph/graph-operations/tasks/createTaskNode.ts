@@ -7,19 +7,19 @@ export interface TaskNodeCreationParams {
   readonly taskDescription: string
   readonly selectedNodeIds: readonly NodeIdAndFilePath[]
   readonly graph: Graph
-  readonly writePath: string
+  readonly writeFolder: string
   readonly position: Position
   readonly initialStatus?: string
 }
 
 function createTaskNodeCandidateId(
-  writePath: string,
+  writeFolder: string,
   taskDescription: string,
   selectedNodeIds: readonly NodeIdAndFilePath[]
 ): NodeIdAndFilePath {
-  const separator: string = writePath.endsWith('/') ? '' : '/'
-  const suffix: string = stableIdSuffix([writePath, taskDescription, ...selectedNodeIds])
-  return `${writePath}${separator}task_${suffix}.md`
+  const separator: string = writeFolder.endsWith('/') ? '' : '/'
+  const suffix: string = stableIdSuffix([writeFolder, taskDescription, ...selectedNodeIds])
+  return `${writeFolder}${separator}task_${suffix}.md`
 }
 
 /**
@@ -30,10 +30,10 @@ function createTaskNodeCandidateId(
  * @returns GraphDelta containing the new task node
  */
 export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
-  const { taskDescription, selectedNodeIds, graph, writePath, position, initialStatus } = params
+  const { taskDescription, selectedNodeIds, graph, writeFolder, position, initialStatus } = params
 
   const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
-  const candidateId: NodeIdAndFilePath = createTaskNodeCandidateId(writePath, taskDescription, selectedNodeIds)
+  const candidateId: NodeIdAndFilePath = createTaskNodeCandidateId(writeFolder, taskDescription, selectedNodeIds)
   const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
 
   // Find most-connected node for parent relationship

@@ -75,10 +75,10 @@ describe('OwnerDiagnosticEvent emission (BF-347)', () => {
     expect(readyIdx).toBeLessThan(acquiredIdx)
 
     // Every event carries the spec's required identity fields.
-    const canonicalVaultPath = resolve(vault)
+    const canonicalProjectRoot = resolve(vault)
     for (const event of captured) {
       expect(event.callerKind).toBe('cli')
-      expect(event.canonicalVaultPath).toBe(canonicalVaultPath)
+      expect(event.canonicalProjectRoot).toBe(canonicalProjectRoot)
       expect(typeof event.attemptId).toBe('string')
       expect(event.attemptId.length).toBeGreaterThan(0)
       expect(Number.isFinite(event.nowMs)).toBe(true)

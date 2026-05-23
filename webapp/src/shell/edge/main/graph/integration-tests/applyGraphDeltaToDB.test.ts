@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/watchFolder'
+import { setProjectRoot, clearProjectRoot } from '@vt/graph-db-server/watch-folder/watchFolder'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
@@ -40,7 +40,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     initGraphModel({ appSupportPath: '/tmp/test-userdata-apply-graph-delta' })
     // Initialize state with empty graph and example_small vault path
     setGraph(createEmptyGraph())
-    setVaultPath(EXAMPLE_SMALL_PATH)
+    setProjectRoot(EXAMPLE_SMALL_PATH)
   })
 
   afterEach(async () => {
@@ -244,7 +244,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
   describe('BEHAVIOR: Error handling', () => {
     it('should throw error if vault path is not initialized', async () => {
       // GIVEN: Vault path not set
-      clearVaultPath() // Clear vault path to None
+      clearProjectRoot() // Clear vault path to None
 
       const delta: GraphDelta = [{
         type: 'UpsertNode',

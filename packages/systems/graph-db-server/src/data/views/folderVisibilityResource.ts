@@ -26,7 +26,7 @@ export type FolderStateUpdate = {
 }
 
 type CurrentFolderVisibility = {
-  readonly vaultPath: string
+  readonly projectRoot: string
   readonly db: FolderVisibilityDatabase
 }
 
@@ -34,12 +34,12 @@ type ViewNameRow = { readonly name: string }
 
 let current: CurrentFolderVisibility | null = null
 
-export async function openFolderVisibilityForVault(vaultPath: string): Promise<void> {
+export async function openFolderVisibilityForVault(projectRoot: string): Promise<void> {
   await closeFolderVisibilityForVault()
-  const db = openFolderVisibilityDb(vaultPath)
+  const db = openFolderVisibilityDb(projectRoot)
   ensureDefaultView(db)
   configureFolderVisibilityStore(db as never)
-  current = { vaultPath, db }
+  current = { projectRoot, db }
 }
 
 export async function closeFolderVisibilityForVault(): Promise<void> {

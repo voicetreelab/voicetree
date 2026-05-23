@@ -66,31 +66,31 @@ function sortSyntheticEdges(edges: readonly SyntheticEdgeSnapshot[]): SyntheticE
         `${left.source}->${left.target}`.localeCompare(`${right.source}->${right.target}`));
 }
 
-function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
-    const authFolderId = `${path.join(vaultPath, 'auth')}/`;
-    const internalFolderId = `${path.join(vaultPath, 'auth', 'internal')}/`;
-    const apiGatewayId = path.join(vaultPath, 'api', 'gateway.md');
+function buildFolderSpecFixture(projectRoot: string): FolderSpecFixture {
+    const authFolderId = `${path.join(projectRoot, 'auth')}/`;
+    const internalFolderId = `${path.join(projectRoot, 'auth', 'internal')}/`;
+    const apiGatewayId = path.join(projectRoot, 'api', 'gateway.md');
 
     return {
         authFolderId,
         internalFolderId,
         beforeCollapseVisibleFolderDescendants: [internalFolderId],
         beforeCollapseVisibleRegularDescendants: sortIds([
-            path.join(vaultPath, 'auth', 'internal', 'refresh-token.md'),
-            path.join(vaultPath, 'auth', 'jwt-token.md'),
-            path.join(vaultPath, 'auth', 'login-flow.md'),
-            path.join(vaultPath, 'auth', 'session-manager.md'),
+            path.join(projectRoot, 'auth', 'internal', 'refresh-token.md'),
+            path.join(projectRoot, 'auth', 'jwt-token.md'),
+            path.join(projectRoot, 'auth', 'login-flow.md'),
+            path.join(projectRoot, 'auth', 'session-manager.md'),
         ]),
         afterExpandVisibleFolderDescendants: [internalFolderId],
         afterExpandVisibleRegularDescendants: sortIds([
-            path.join(vaultPath, 'auth', 'internal', 'refresh-token.md'),
-            path.join(vaultPath, 'auth', 'jwt-token.md'),
-            path.join(vaultPath, 'auth', 'login-flow.md'),
-            path.join(vaultPath, 'auth', 'session-manager.md'),
+            path.join(projectRoot, 'auth', 'internal', 'refresh-token.md'),
+            path.join(projectRoot, 'auth', 'jwt-token.md'),
+            path.join(projectRoot, 'auth', 'login-flow.md'),
+            path.join(projectRoot, 'auth', 'session-manager.md'),
         ]),
         collapsedSyntheticEdges: sortSyntheticEdges([
             {
-                source: path.join(vaultPath, 'api', 'router.md'),
+                source: path.join(projectRoot, 'api', 'router.md'),
                 target: authFolderId,
                 edgeCount: undefined,
                 label: undefined,
@@ -102,7 +102,7 @@ function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
                 label: undefined,
             },
             {
-                source: path.join(vaultPath, 'readme.md'),
+                source: path.join(projectRoot, 'readme.md'),
                 target: authFolderId,
                 edgeCount: undefined,
                 label: undefined,
@@ -112,36 +112,36 @@ function buildFolderSpecFixture(vaultPath: string): FolderSpecFixture {
 }
 
 async function createCriticalFolderSpecVault(basePath: string): Promise<string> {
-    const vaultPath = await createFolderTestVault(basePath);
-    const nestedAuthFolderPath = path.join(vaultPath, 'auth', 'internal');
+    const projectRoot = await createFolderTestVault(basePath);
+    const nestedAuthFolderPath = path.join(projectRoot, 'auth', 'internal');
 
     await fs.mkdir(nestedAuthFolderPath, { recursive: true });
     await fs.writeFile(path.join(nestedAuthFolderPath, 'refresh-token.md'),
         `---\nposition:\n  x: 400\n  y: 100\n---\n# Refresh Token\nNested auth detail.\n[[api/gateway]]\n`);
 
-    return vaultPath;
+    return projectRoot;
 }
 
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-spec-test-'));
-        const vaultPath = await createCriticalFolderSpecVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createCriticalFolderSpecVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-spec-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -149,7 +149,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-spec-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-spec-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -189,7 +189,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
 
         window.on('console', msg => {
@@ -223,7 +223,7 @@ const test = base.extend<{
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error('electronAPI not available');
                 return api.main.startFileWatching(folderPath);
-            }, vaultPath);
+            }, projectRoot);
             expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
             await window.waitForFunction(
                 () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -314,14 +314,14 @@ async function getSyntheticEdgesForFolder(appWindow: Page, folderSuffix: string)
 }
 
 test.describe('Folder Nodes - Spec Behavior', () => {
-    test('sidebar graph toggle collapses a folder and preserves visible topology with synthetic edges', async ({ appWindow, vaultPath }) => {
+    test('sidebar graph toggle collapses a folder and preserves visible topology with synthetic edges', async ({ appWindow, projectRoot }) => {
         test.setTimeout(60000);
-        const fixture = buildFolderSpecFixture(vaultPath);
+        const fixture = buildFolderSpecFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
 
-        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', vaultPath);
+        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', projectRoot);
         const authToggle = authRow.locator('.folder-tree-graph-collapse-icon');
         await expect(authToggle).toHaveClass(/expanded/);
 
@@ -360,14 +360,14 @@ test.describe('Folder Nodes - Spec Behavior', () => {
         await captureStateScreenshot(appWindow, 'after-collapse.png');
     });
 
-    test('sidebar graph toggle expands a collapsed folder and restores descendants', async ({ appWindow, vaultPath }) => {
+    test('sidebar graph toggle expands a collapsed folder and restores descendants', async ({ appWindow, projectRoot }) => {
         test.setTimeout(60000);
-        const fixture = buildFolderSpecFixture(vaultPath);
+        const fixture = buildFolderSpecFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 3);
         await openFolderTreeSidebar(appWindow);
 
-        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', vaultPath);
+        const authRow = await ensureSidebarFolderVisible(appWindow, 'auth', projectRoot);
         const authToggle = authRow.locator('.folder-tree-graph-collapse-icon');
 
         const before = await getFolderGraphSnapshot(appWindow, 'auth/');

@@ -42,12 +42,12 @@ export interface TerminalSpawnOpts {
 
 function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
   if (!request) return null;
-  return writePromptFile(request.vaultPath, request.terminalId, request.prompt);
+  return writePromptFile(request.projectRoot, request.terminalId, request.prompt);
 }
 
-async function resolveRuntimeWritePath(): Promise<string | null> {
+async function resolveRuntimeWriteFolder(): Promise<string | null> {
   try {
-    return await (getRuntimeEnv().getWritePath?.() ?? Promise.resolve(null));
+    return await (getRuntimeEnv().getWriteFolder?.() ?? Promise.resolve(null));
   } catch {
     return null;
   }
@@ -100,14 +100,14 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWritePath());
+      const projectRoot: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWriteFolder());
       const promptFile: string | null = writeResolvedPromptFile(
-        resolvePromptFileWrite(vaultPath, terminalId, initial.AGENT_PROMPT),
+        resolvePromptFileWrite(projectRoot, terminalId, initial.AGENT_PROMPT),
       );
-      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, vaultPath, promptFile);
+      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, projectRoot, promptFile);
       const terminalDataWithVaultPath: TerminalData = {
         ...terminalData,
-        initialEnvVars: withResolvedTmuxVaultPath(initial, vaultPath),
+        initialEnvVars: withResolvedTmuxVaultPath(initial, projectRoot),
       };
       await spawnTmuxBackedTerminal(terminalId, terminalDataWithVaultPath, shell, cwd, tmuxEnv, undefined, promptFile);
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(

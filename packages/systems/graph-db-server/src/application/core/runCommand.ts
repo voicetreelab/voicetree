@@ -11,14 +11,14 @@ import { getUnseenNodesAroundContextNode } from '@vt/graph-db-server/context-nod
 import { updateContextNodeContainedIds } from '@vt/graph-db-server/context-nodes/updateContextNodeContainedIds'
 import { getGraph, getNode, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { VaultStateSchema } from '@vt/graph-db-server/contract'
 import {
   addReadPath,
   getReadPaths,
-  getWritePath,
+  getWriteFolder,
   removeReadPath,
-  setWritePath,
+  setWriteFolder,
 } from '@vt/graph-db-server/state/vaultAllowlist'
 import type { Command, CommandOutput } from './command.ts'
 import type { SessionRegistry } from '../session/registry.ts'
@@ -48,18 +48,18 @@ function requireRegistry(deps: RunCommandDeps): SessionRegistry {
 }
 
 async function readVaultState(): Promise<CommandOutput['ReadVaultState']> {
-  const vaultPath = getProjectRootWatchedDirectory()
-  if (!vaultPath) {
+  const projectRoot = getProjectRoot()
+  if (!projectRoot) {
     throw new VaultNotOpenError()
   }
 
   const readPaths = [...(await getReadPaths())]
-  const writePathOption = await getWritePath() as { readonly value?: unknown }
-  const writePath = typeof writePathOption.value === 'string'
-    ? writePathOption.value
-    : vaultPath
+  const writeFolderOption = await getWriteFolder() as { readonly value?: unknown }
+  const writeFolder = typeof writeFolderOption.value === 'string'
+    ? writeFolderOption.value
+    : projectRoot
 
-  return VaultStateSchema.parse({ vaultPath, readPaths, writePath })
+  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
 }
 
 const commandHandlers = {
@@ -92,7 +92,7 @@ const commandHandlers = {
     command.contextNodeId,
     command.searchFromNode,
   ),
-  GetWatchedDirectory: () => getProjectRootWatchedDirectory(),
+  GetWatchedDirectory: () => getProjectRoot(),
   InitializeGraphModel: command => {
     initGraphModel({ appSupportPath: command.appSupportPath })
   },
@@ -114,7 +114,7 @@ const commandHandlers = {
   SetGraph: command => {
     setGraph(command.graph)
   },
-  SetVaultWritePath: command => setWritePath(command.path),
+  SetVaultWriteFolder: command => setWriteFolder(command.path),
   UpdateContextNodeContainedIds: async command => {
     await updateContextNodeContainedIds(
       command.contextNodeId,

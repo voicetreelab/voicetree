@@ -17,14 +17,14 @@ import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
 import {
-  clearVaultPath,
+  clearProjectRoot,
   getReadPaths,
-  getWritePath,
-  resolveWritePath,
-  setVaultPath,
-  setWritePath,
+  getWriteFolder,
+  resolveWriteFolder,
+  setProjectRoot,
+  setWriteFolder,
 } from '@vt/graph-db-server/state/vaultAllowlist'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { buildDaemonState } from '../session/buildDaemonState.ts'
 import type { SessionRegistry } from '../session/registry.ts'
 import {
@@ -33,7 +33,7 @@ import {
 } from '../errors/vaultNotOpen.ts'
 
 export type VaultResource = {
-  openForVault(vaultPath: string): Promise<void>
+  openForVault(projectRoot: string): Promise<void>
   closeForVault(): Promise<void>
 }
 
@@ -85,22 +85,22 @@ function getRegistry(): SessionRegistry {
   return lifecycleState.registry
 }
 
-function parseWritePath(writePathOption: Awaited<ReturnType<typeof getWritePath>>): string | null {
-  const maybeValue = (writePathOption as { value?: unknown }).value
+function parseWriteFolder(writeFolderOption: Awaited<ReturnType<typeof getWriteFolder>>): string | null {
+  const maybeValue = (writeFolderOption as { value?: unknown }).value
   return typeof maybeValue === 'string' ? maybeValue : null
 }
 
-async function readVaultState(vaultPath: string): Promise<VaultState> {
+async function readVaultState(projectRoot: string): Promise<VaultState> {
   const readPaths = [...(await getReadPaths())]
-  const writePath = parseWritePath(await getWritePath()) ?? vaultPath
-  return VaultStateSchema.parse({ vaultPath, readPaths, writePath })
+  const writeFolder = parseWriteFolder(await getWriteFolder()) ?? projectRoot
+  return VaultStateSchema.parse({ projectRoot, readPaths, writeFolder })
 }
 
 function readFolderVisibilitySnapshot(
-  vaultPath: string,
+  projectRoot: string,
 ): { folderState: FolderStateEntry[]; activeView: ActiveView } {
   try {
-    return getFolderStateForActiveView(vaultPath) as {
+    return getFolderStateForActiveView(projectRoot) as {
       folderState: FolderStateEntry[]
       activeView: ActiveView
     }
@@ -112,7 +112,7 @@ function readFolderVisibilitySnapshot(
   }
 }
 
-async function buildOpenVaultResponse(vaultPath: string): Promise<OpenVaultResponse> {
+async function buildOpenVaultResponse(projectRoot: string): Promise<OpenVaultResponse> {
   const registry = getRegistry()
   const session = lifecycleState.activeSessionId
     ? registry.get(lifecycleState.activeSessionId) ?? registry.create()
@@ -120,13 +120,13 @@ async function buildOpenVaultResponse(vaultPath: string): Promise<OpenVaultRespo
   lifecycleState.activeSessionId = session.id
 
   const state = await buildDaemonState(session)
-  const vaultState = await readVaultState(vaultPath)
+  const vaultState = await readVaultState(projectRoot)
   return OpenVaultResponseSchema.parse({
     sessionId: session.id,
-    writePath: vaultState.writePath,
+    writeFolder: vaultState.writeFolder,
     vaultState,
     initialProjectedGraph: project(state),
-    ...readFolderVisibilitySnapshot(vaultPath),
+    ...readFolderVisibilitySnapshot(projectRoot),
   })
 }
 
@@ -140,10 +140,10 @@ async function closeResources(): Promise<void> {
   }
 }
 
-async function openResources(vaultPath: string): Promise<void> {
+async function openResources(projectRoot: string): Promise<void> {
   try {
     for (const resource of resources) {
-      await resource.openForVault(vaultPath)
+      await resource.openForVault(projectRoot)
     }
   } catch (error) {
     throw new VaultOpenFailedError(
@@ -152,35 +152,35 @@ async function openResources(vaultPath: string): Promise<void> {
   }
 }
 
-async function bindVault(input: OpenVaultWorkflowInput, targetVaultPath: string): Promise<void> {
-  await mkdir(join(targetVaultPath, '.voicetree'), { recursive: true })
-  setVaultPath(targetVaultPath)
+async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: string): Promise<void> {
+  await mkdir(join(targetProjectRoot, '.voicetree'), { recursive: true })
+  setProjectRoot(targetProjectRoot)
 
-  const savedConfig = await getVaultConfigForDirectory(targetVaultPath)
-  const configuredWritePath = input.writePath ?? savedConfig?.writePath
-  const targetWritePath = configuredWritePath
-    ? resolveWritePath(targetVaultPath, configuredWritePath)
-    : targetVaultPath
+  const savedConfig = await getVaultConfigForDirectory(targetProjectRoot)
+  const configuredWriteFolder = input.writeFolder ?? savedConfig?.writeFolder
+  const targetWriteFolder = configuredWriteFolder
+    ? resolveWriteFolder(targetProjectRoot, configuredWriteFolder)
+    : targetProjectRoot
 
-  const result = await setWritePath(targetWritePath, {
+  const result = await setWriteFolder(targetWriteFolder, {
     createStarterIfEmpty: input.createStarterIfEmpty,
   })
   if (!result.success) {
-    throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetVaultPath}`)
+    throw new VaultOpenFailedError(result.error ?? `Failed to open vault ${targetProjectRoot}`)
   }
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
   return await withVaultMutex(async () => {
     const body = OpenVaultRequestSchema.parse(input)
-    const targetVaultPath = resolve(body.path)
-    const currentVaultPath = getProjectRootWatchedDirectory()
+    const targetProjectRoot = resolve(body.path)
+    const currentProjectRoot = getProjectRoot()
 
-    if (currentVaultPath && resolve(currentVaultPath) === targetVaultPath) {
-      return await buildOpenVaultResponse(targetVaultPath)
+    if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+      return await buildOpenVaultResponse(targetProjectRoot)
     }
 
-    if (currentVaultPath) {
+    if (currentProjectRoot) {
       await closeResources()
     }
 
@@ -190,13 +190,13 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
     try {
       await bindVault(
         { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-        targetVaultPath,
+        targetProjectRoot,
       )
-      await openResources(targetVaultPath)
-      return await buildOpenVaultResponse(targetVaultPath)
+      await openResources(targetProjectRoot)
+      return await buildOpenVaultResponse(targetProjectRoot)
     } catch (error) {
       await closeResources()
-      clearVaultPath()
+      clearProjectRoot()
       throw error instanceof VaultOpenFailedError
         ? error
         : new VaultOpenFailedError(
@@ -208,19 +208,19 @@ export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<
 
 export async function closeVaultWorkflow(): Promise<void> {
   await withVaultMutex(async () => {
-    if (!getProjectRootWatchedDirectory()) {
+    if (!getProjectRoot()) {
       return
     }
 
     await closeResources()
     lifecycleState.activeSessionId = null
-    clearVaultPath()
+    clearProjectRoot()
     setGraph(createEmptyGraph())
   })
 }
 
 export function ensureVaultIsOpen(): void {
-  if (!getProjectRootWatchedDirectory()) {
+  if (!getProjectRoot()) {
     throw new VaultNotOpenError()
   }
 }

@@ -46,16 +46,16 @@ const test = base.extend<{
     await fs.mkdir(watchedFolder, { recursive: true });
 
     // Create the actual vault path with default suffix 'voicetree'
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create a child node first (so the wikilink can resolve to it)
     const childContent = '# My Child Node\n\nThis is the child node with a title.';
-    await fs.writeFile(path.join(vaultPath, 'child-node.md'), childContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'child-node.md'), childContent, 'utf-8');
 
     // Create a parent node with a wikilink to the child
     const parentContent = '# Parent Node\n\nThis node links to [[child-node.md]].\n\nMore content here.';
-    await fs.writeFile(path.join(vaultPath, 'parent.md'), parentContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'parent.md'), parentContent, 'utf-8');
 
     // Create projects.json with a pre-saved project (required for project selection)
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -73,10 +73,10 @@ const test = base.extend<{
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
-    // Store vaultPath for test access
-    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
+    // Store projectRoot for test access
+    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
       args: [
@@ -118,7 +118,7 @@ const test = base.extend<{
   },
 
   testVaultPath: async ({}, use, testInfo) => {
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   screenshotsDir: async ({}, use) => {

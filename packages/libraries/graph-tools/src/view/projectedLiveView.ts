@@ -1,7 +1,7 @@
 import path from 'path'
 
 import {project, type State} from '@vt/graph-state'
-import type {EdgeElement, NodeElement} from '@vt/graph-state/contract'
+import type {ProjectedEdge, ProjectedNode} from '@vt/graph-state/contract'
 
 import {deriveTitle} from '../core/primitives'
 import type {ViewFormat, ViewGraphResult} from './viewGraph'
@@ -33,7 +33,7 @@ function canonicalFolderNotePath(folderId: string): string {
     return path.posix.join(folderId, `${folderName}.md`)
 }
 
-function buildChildrenMap(nodes: readonly NodeElement[]): ChildrenMap {
+function buildChildrenMap(nodes: readonly ProjectedNode[]): ChildrenMap {
     const children = new Map<string, string[]>()
     for (const node of nodes) {
         if (!node.parent) continue
@@ -58,16 +58,16 @@ function countDescendants(entityId: string, childrenMap: ChildrenMap): number {
     return count
 }
 
-function isSelected(node: NodeElement): boolean {
+function isSelected(node: ProjectedNode): boolean {
     return node.classes?.includes('selected') ?? false
 }
 
 function buildRenderEntity(
-    node: NodeElement,
+    node: ProjectedNode,
     state: State,
     outgoingIds: readonly string[],
 ): RenderEntity {
-    if (node.kind === 'node') {
+    if (node.kind === 'file') {
         const graphNode = state.graph.nodes[node.id]
         const title: string = graphNode
             ? deriveTitle(graphNode.contentWithoutYamlOrLinks, node.id)
@@ -216,7 +216,7 @@ function renderMermaid(
     roots: readonly string[],
     childrenMap: ChildrenMap,
     entityById: ReadonlyMap<string, RenderEntity>,
-    edges: readonly EdgeElement[],
+    edges: readonly ProjectedEdge[],
     descendantCountById: ReadonlyMap<string, number>,
     outgoingCountById: ReadonlyMap<string, number>,
 ): string {

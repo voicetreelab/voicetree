@@ -104,7 +104,7 @@ describe('unclaimed tmux discovery', () => {
                 createdAt: 200000,
                 panePid: 3,
                 agentName: 'Jay',
-                vaultPath: '/other/vault',
+                projectRoot: '/other/vault',
             }),
             expect.objectContaining({
                 sessionName: currentSession,
@@ -114,7 +114,7 @@ describe('unclaimed tmux discovery', () => {
                 createdAt: 100000,
                 panePid: 2,
                 agentName: 'Ivy',
-                vaultPath: '/repo/vault',
+                projectRoot: '/repo/vault',
                 contextNodePath: '/repo/vault/ctx.md',
                 taskNodePath: '/repo/vault/task.md',
             }),

@@ -48,7 +48,7 @@ describe('GET /sessions/:sessionId/state', () => {
     const body = LiveStateSnapshotSchema.parse(await res.json())
 
     expect(body.meta.schemaVersion).toBe(1)
-    // setWritePath seeds the writePath as 'expanded' so the sidebar can show
+    // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
     expect(body.folderState).toEqual([[vault, 'expanded']])
     expect(body.activeView.name).toBe('main')

@@ -106,7 +106,7 @@ export interface VTSettings {
     readonly hotkeys?: HotkeySettings;
     /**
      * Relative folder patterns auto-allowlisted for all projects (e.g., ["openspec"]).
-     * These resolve relative to each project's projectRootWatchedDirectory.
+     * These resolve relative to each project's projectRoot.
      */
     readonly defaultAllowlistPatterns?: readonly string[];
     /** Whether the feedback dialog has been shown (persisted to avoid showing again) */
@@ -139,11 +139,11 @@ export interface VTSettings {
 /**
  * Per-folder vault configuration for multi-vault support.
  *
- * writePath: The main vault (read + write). Can be relative to projectRootWatchedDirectory or absolute.
+ * writeFolder: The main vault (read + write). Can be relative to projectRoot or absolute.
  */
 export interface VaultConfig {
     /** Main vault path where new nodes are created. Can be relative or absolute. */
-    readonly writePath: string;
+    readonly writeFolder: string;
     /** Compatibility read paths for older app builds; current active-view state is authoritative. */
     readonly readPaths?: readonly string[];
 }

@@ -93,7 +93,7 @@ function resolveGraphDaemonNodeBin(): string {
 }
 
 async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknown>> {
-  return page.evaluate(async (vaultPath) => {
+  return page.evaluate(async (projectRoot) => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     const api = (
       window as unknown as {
@@ -128,7 +128,7 @@ async function collectLoadDiagnostics(page: Page): Promise<Record<string, unknow
     return {
       url: location.href,
       title: document.title,
-      vaultPath,
+      projectRoot,
       bodyText,
       hasCytoscape: Boolean(cy),
       cyNodes: cy?.nodes().length ?? null,
@@ -177,7 +177,7 @@ const test = base.extend<{
         lastDirectory: generatedProjectPath,
         vaultConfig: {
           [generatedProjectPath]: {
-            writePath: generatedVaultPath,
+            writeFolder: generatedVaultPath,
             readPaths: [],
           }
         }
@@ -274,7 +274,7 @@ const test = base.extend<{
     await window.waitForSelector('text=Voicetree', { timeout: 15000 });
     const projectButton = window.locator('button:has-text("perf-test-vault")').first();
     await projectButton.click();
-    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writePath=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
+    console.log(`[Realistic Perf] Clicked project to enter graph view (project=${generatedProjectPath}, writeFolder=${generatedVaultPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
     const watchResult = await window.evaluate(async (projectPath) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;

@@ -50,8 +50,8 @@ test.describe('Surviving Agents Sidebar', () => {
         spawnSeededTmuxSession(seededSessionName, {
             VOICETREE_TERMINAL_ID: SEEDED_TERMINAL_ID,
             AGENT_NAME: SEEDED_TERMINAL_ID,
-            VOICETREE_VAULT_PATH: vault.vaultPath,
-            VOICETREE_PROJECT_DIR: path.join(vault.vaultPath, '.voicetree'),
+            VOICETREE_VAULT_PATH: vault.projectRoot,
+            VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
             CONTEXT_NODE_PATH: vault.contextNodePath,
         });
 
@@ -124,9 +124,9 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
 
         const fixturedTerminalId = 'ResumerAlpha';
         const fixturedNativeSessionId = 'sess-e2e-alpha-1234';
-        const taskNodePath: string = path.join(vault.vaultPath, 'task.md');
+        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
         const metadataPath: string = await fixtureRecoveryMetadata({
-            vaultPath: vault.vaultPath,
+            projectRoot: vault.projectRoot,
             terminalId: fixturedTerminalId,
             agentName: fixturedTerminalId,
             cliBinary: 'claude',
@@ -135,7 +135,7 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         const transcriptPath: string = await fixtureClaudeTranscript({
             claudeProjectsRoot: vault.claudeProjectsRoot,
             terminalId: fixturedTerminalId,
-            vaultPath: vault.vaultPath,
+            projectRoot: vault.projectRoot,
             taskNodePath,
             sessionId: fixturedNativeSessionId,
         });
@@ -181,9 +181,9 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
         await ensureVaultLoadedIntoGraph(appWindow);
 
         const twinTerminalId = 'TwinAgent';
-        const twinSessionName: string = buildSessionName(vault.vaultPath, twinTerminalId);
+        const twinSessionName: string = buildSessionName(vault.projectRoot, twinTerminalId);
         const twinNativeSessionId = 'sess-e2e-twin-9999';
-        const taskNodePath: string = path.join(vault.vaultPath, 'task.md');
+        const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
         let createdSession = false;
         let metadataPath: string | null = null;
         let transcriptPath: string | null = null;
@@ -191,14 +191,14 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             spawnSeededTmuxSession(twinSessionName, {
                 VOICETREE_TERMINAL_ID: twinTerminalId,
                 AGENT_NAME: twinTerminalId,
-                VOICETREE_VAULT_PATH: vault.vaultPath,
-                VOICETREE_PROJECT_DIR: path.join(vault.vaultPath, '.voicetree'),
+                VOICETREE_VAULT_PATH: vault.projectRoot,
+                VOICETREE_PROJECT_DIR: path.join(vault.projectRoot, '.voicetree'),
                 CONTEXT_NODE_PATH: vault.contextNodePath,
             });
             createdSession = true;
 
             metadataPath = await fixtureRecoveryMetadata({
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 terminalId: twinTerminalId,
                 agentName: twinTerminalId,
                 cliBinary: 'claude',
@@ -208,7 +208,7 @@ test.describe('Surviving Agents Sidebar — Resumable CLI rows', () => {
             transcriptPath = await fixtureClaudeTranscript({
                 claudeProjectsRoot: vault.claudeProjectsRoot,
                 terminalId: twinTerminalId,
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 taskNodePath,
                 sessionId: twinNativeSessionId,
             });
@@ -281,15 +281,15 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
         // and a UUID, not "ResumerClickable" + "sess-e2e-clickable-1234".
         const resumeTerminalId = 'Mira';
         const resumeNativeSessionId = '0f4e2c3a-7b1d-4d9e-9a2f-8c7b6e5d4321';
-        const resumeSessionName: string = buildSessionName(vault.vaultPath, resumeTerminalId);
+        const resumeSessionName: string = buildSessionName(vault.projectRoot, resumeTerminalId);
 
         // Preload vault config + project so the app autoloads our vault.
         await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vault.vaultPath,
-            vaultConfig: {[vault.vaultPath]: {writePath: vault.vaultPath, readPaths: []}},
+            lastDirectory: vault.projectRoot,
+            vaultConfig: {[vault.projectRoot]: {writeFolder: vault.projectRoot, readPaths: []}},
         }, null, 2), 'utf8');
         await fs.writeFile(path.join(tempUserDataPath, 'projects.json'), JSON.stringify([{
-            id: PROJECT_ID, path: vault.vaultPath, name: PROJECT_ID, type: 'folder',
+            id: PROJECT_ID, path: vault.projectRoot, name: PROJECT_ID, type: 'folder',
             lastOpened: Date.now(), voicetreeInitialized: true,
         }], null, 2), 'utf8');
 
@@ -332,9 +332,9 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             await appWindow.waitForTimeout(500);
 
             // Fixture the metadata + a stub Claude transcript the resolver can match.
-            const taskNodePath: string = path.join(vault.vaultPath, 'task.md');
+            const taskNodePath: string = path.join(vault.projectRoot, 'task.md');
             const metadataPath: string = await fixtureRecoveryMetadata({
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 terminalId: resumeTerminalId,
                 agentName: resumeTerminalId,
                 cliBinary: 'claude',
@@ -343,7 +343,7 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             const transcriptPath: string = await fixtureClaudeTranscript({
                 claudeProjectsRoot: vault.claudeProjectsRoot,
                 terminalId: resumeTerminalId,
-                vaultPath: vault.vaultPath,
+                projectRoot: vault.projectRoot,
                 taskNodePath,
                 sessionId: resumeNativeSessionId,
             });
@@ -453,7 +453,7 @@ test.describe('Surviving Agents Sidebar — Resume actually resumes (with fake c
             expect(
                 persistedMetadata.terminalData?.attachedToContextNodeId,
                 'attachedToContextNodeId must be preserved — this is what wires the terminal back to its graph node',
-            ).toBe(path.join(vault.vaultPath, 'readme.md'));
+            ).toBe(path.join(vault.projectRoot, 'readme.md'));
             expect(persistedMetadata.terminalData?.initialCommand).toBe('claude');
 
             await appWindow.waitForTimeout(500);

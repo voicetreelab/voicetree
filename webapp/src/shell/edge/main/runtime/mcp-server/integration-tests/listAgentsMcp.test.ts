@@ -77,7 +77,7 @@ describe('MCP list_agents tool', () => {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => [],
-                getWritePath: async () => null,
+                getWriteFolder: async () => null,
                 applyGraphDelta: async () => {},
                 getUnseenNodesAroundContextNode,
             }

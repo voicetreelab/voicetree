@@ -154,7 +154,7 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
 
     const handleSetAsWrite: (path: string) => void = useCallback((path: string): void => {
         void window.electronAPI?.main.addReadPath(path).then(() => {
-            void window.electronAPI?.main.setWritePath(path);
+            void window.electronAPI?.main.setWriteFolder(path);
         });
         setAddQuery('');
         setShowResults(false);
@@ -317,7 +317,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
 
     const handleSetWriteTarget: (path: string) => void = useCallback(
         (path: string): void => {
-            void window.electronAPI?.main.setWritePath(path);
+            void window.electronAPI?.main.setWriteFolder(path);
         }, []
     );
 
@@ -374,7 +374,7 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
                 starredFolders={vaultState.starredFolders}
                 starredFolderTrees={folderState.starredFolderTrees}
                 readPaths={vaultState.readPaths}
-                writePath={vaultState.writePath}
+                writeFolder={vaultState.writeFolder}
                 expandedPaths={folderState.expandedPaths}
                 onFileSelect={callbacks.onFileSelect}
                 onToggleExpand={toggleFolderExpanded}

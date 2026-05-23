@@ -3,7 +3,7 @@
  * tests. Built around three observable boundaries the protocol must respect:
  *
  *  - the on-disk owner record under `<vault>/.voicetree/graphd.owner.json`,
- *  - the actual vt-graphd processes visible via `ps` matching `--vault X`,
+ *  - the actual vt-graphd processes visible via `ps` matching `--project-root X`,
  *  - the recorded pid's liveness as seen by `kill(pid, 0)`.
  *
  * All helpers are POSIX (darwin/linux). No mocking of `ensureGraphDaemonForVault`
@@ -108,11 +108,11 @@ export async function writeOwnerRecord(
   vault: string,
   partial: Partial<OwnerRecord> & { pid: number; ownerNonce: string },
 ): Promise<OwnerRecord> {
-  const canonicalVaultPath = resolve(vault)
+  const canonicalProjectRoot = resolve(vault)
   const now = Date.now()
   const record: OwnerRecord = {
     schemaVersion: 1,
-    canonicalVaultPath,
+    canonicalProjectRoot,
     pid: partial.pid,
     ppid: partial.ppid ?? 0,
     port: partial.port ?? null,
@@ -161,13 +161,13 @@ export async function deadPid(): Promise<number> {
 }
 
 /**
- * Count live vt-graphd-shaped processes whose `--vault` argument resolves
+ * Count live vt-graphd-shaped processes whose `--project-root` argument resolves
  * to `vault`. Matches both the production `vt-graphd.mjs` / `.ts` entries
  * AND the test fixture `fake-vt-graphd.mjs` — the protocol invariant we're
  * locking in is "exactly one daemon child" regardless of which binary the
  * harness happens to be exercising.
  *
- * The match is intentionally fingerprint-shaped (executable + --vault path),
+ * The match is intentionally fingerprint-shaped (executable + --project-root path),
  * not pid-set-based: callers can return their result pid 100 times from a
  * single-flight cache, but the kernel only knows the one real process.
  */
@@ -220,7 +220,7 @@ function matchesDaemonLine(line: string, canonicalVault: string): boolean {
   if (!line) return false
   // Match production vt-graphd.<ext> and the test fake-vt-graphd.<ext>
   // entries; both must point at our canonical vault.
-  const re = /(vt-graphd|fake-vt-graphd)\.\w+\b.*--vault\s+(\S+)/
+  const re = /(vt-graphd|fake-vt-graphd)\.\w+\b.*--project-root\s+(\S+)/
   const match = re.exec(line)
   if (!match) return false
   return resolve(match[2]) === canonicalVault
@@ -240,13 +240,13 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 /**
- * Synthesize a command fingerprint that matches `node <FAKE_BIN> --vault X`,
+ * Synthesize a command fingerprint that matches `node <FAKE_BIN> --project-root X`,
  * for tests that need the protocol to *successfully* identify a recorded
  * owner as vt-graphd-shaped (e.g. stale-heartbeat-with-matching-fingerprint).
  */
 export function fakeDaemonFingerprintFor(vault: string): CommandFingerprint {
   return {
     executable: process.execPath,
-    args: [FAKE_BIN, '--vault', resolve(vault)],
+    args: [FAKE_BIN, '--project-root', resolve(vault)],
   }
 }

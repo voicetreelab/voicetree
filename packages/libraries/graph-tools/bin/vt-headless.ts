@@ -10,11 +10,11 @@ function fail(msg: string): never {
 }
 
 if (subcommand !== 'serve') {
-    fail('Usage: vt-headless serve [--port N] [--vault <path>]')
+    fail('Usage: vt-headless serve [--port N] [--project-root <path>]')
 }
 
 let portArg = 0
-let vaultArg: string | undefined
+let projectRootArg: string | undefined
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -28,26 +28,26 @@ for (let i = 0; i < args.length; i++) {
         portArg = parseInt(arg.slice('--port='.length), 10)
         continue
     }
-    if (arg === '--vault') {
+    if (arg === '--project-root') {
         const next = args[++i]
-        if (!next || next.startsWith('--')) fail('--vault requires a path')
-        vaultArg = next
+        if (!next || next.startsWith('--')) fail('--project-root requires a path')
+        projectRootArg = next
         continue
     }
-    if (arg.startsWith('--vault=')) {
-        vaultArg = arg.slice('--vault='.length)
+    if (arg.startsWith('--project-root=')) {
+        projectRootArg = arg.slice('--project-root='.length)
         continue
     }
     if (arg.startsWith('--')) fail(`Unknown argument: ${arg}`)
 }
 
-const vaultPath = vaultArg ? path.resolve(vaultArg) : undefined
+const projectRoot = projectRootArg ? path.resolve(projectRootArg) : undefined
 
-if (vaultPath) {
-    process.stderr.write(`[vt-headless] Loading vault from ${vaultPath}...\n`)
+if (projectRoot) {
+    process.stderr.write(`[vt-headless] Loading project root from ${projectRoot}...\n`)
 }
 
-const server = await createHeadlessServer({port: portArg, vaultPath})
+const server = await createHeadlessServer({port: portArg, projectRoot})
 
 process.stdout.write(`Listening on port ${server.port}\n`)
 

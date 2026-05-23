@@ -23,14 +23,14 @@ export const setWatcher: (w: FSWatcher | null) => void = (w: FSWatcher | null): 
 };
 
 // Currently watched directory (the project root, not the vault path)
-let projectRootWatchedDirectory: FilePath | null = null;
+let projectRoot: FilePath | null = null;
 
-export const getProjectRootWatchedDirectory: () => FilePath | null = (): FilePath | null => {
-    return projectRootWatchedDirectory;
+export const getProjectRoot: () => FilePath | null = (): FilePath | null => {
+    return projectRoot;
 };
 
-export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
-    projectRootWatchedDirectory = dir;
+export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
+    projectRoot = dir;
 };
 
 type ReadPathsChangedListener = (watchPaths: readonly FilePath[]) => void
@@ -80,7 +80,7 @@ export const setOnFolderSwitchCleanup: (cleanup: (() => void) | null) => void = 
  */
 export const clearWatchFolderState: () => void = (): void => {
     watcher = null;
-    projectRootWatchedDirectory = null;
+    projectRoot = null;
     readPathListeners.clear();
     startupFolderOverride = null;
     onFolderSwitchCleanup = null;

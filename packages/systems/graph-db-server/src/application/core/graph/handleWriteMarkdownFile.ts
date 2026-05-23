@@ -36,7 +36,7 @@ function isPathInside(parentPath: string, candidatePath: string): boolean {
 
 export async function parseWriteMarkdownFileRequest(
   rawBody: unknown,
-  vaultPath: string,
+  projectRoot: string,
 ): Promise<ParsedWriteMarkdownFileRequest> {
   const parsed = WriteMarkdownFileRequestSchema.safeParse(rawBody)
   if (!parsed.success) {
@@ -57,7 +57,7 @@ export async function parseWriteMarkdownFileRequest(
     }
   }
 
-  if (!isPathInside(path.resolve(vaultPath), pathResult.path)) {
+  if (!isPathInside(path.resolve(projectRoot), pathResult.path)) {
     return {
       ok: false,
       error: 'Path must be inside the open vault',

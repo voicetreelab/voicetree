@@ -34,32 +34,32 @@ const SCREENSHOT_DIR = path.join(PROJECT_ROOT, 'e2e-tests/screenshots');
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-trackpad-pan-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestVault(tempDir);
         await fs.writeFile(
-            path.join(vaultPath, 'auth', 'index.md'),
+            path.join(projectRoot, 'auth', 'index.md'),
             `---\nposition:\n  x: 50\n  y: 120\n---\n# Auth Folder Note\n`,
         );
-        await use(vaultPath);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-trackpad-pan-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: { writePath: vaultPath, readPaths: [] },
+                [projectRoot]: { writeFolder: projectRoot, readPaths: [] },
             },
         }, null, 2), 'utf8');
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'trackpad-pan-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'trackpad-pan-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -266,11 +266,11 @@ test.describe('Trackpad two-finger pan over folder body', () => {
     test('pans the graph and does not saturate the main thread', async ({
         appWindow,
         electronApp,
-        vaultPath,
+        projectRoot,
     }) => {
         test.setTimeout(90000);
 
-        const authFolderId = `${path.join(vaultPath, 'auth')}/`;
+        const authFolderId = `${path.join(projectRoot, 'auth')}/`;
         await waitForGraphLoaded(appWindow, 3);
 
         await appWindow.evaluate(() => {

@@ -175,10 +175,10 @@ test.describe('MCP Agent Spawn E2E', () => {
     const serverReady = await waitForMcpServer();
     expect(serverReady).toBe(true);
 
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as unknown as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

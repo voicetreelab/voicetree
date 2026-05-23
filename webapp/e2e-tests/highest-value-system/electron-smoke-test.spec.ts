@@ -117,11 +117,11 @@ const test = base.extend<{
   },
 
   electronApp: async ({ fixtureVaultPath, tempUserDataPath, electronDiagnostics }, use) => {
-    // Pin writePath to vault root so the daemon indexes the fixture .md files
+    // Pin writeFolder to vault root so the daemon indexes the fixture .md files
     // (without this, initializeProject creates a voicetree-{date} subfolder)
     await fs.writeFile(path.join(tempUserDataPath, 'voicetree-config.json'), JSON.stringify({
       vaultConfig: {
-        [fixtureVaultPath]: { writePath: fixtureVaultPath, readPaths: [] }
+        [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] }
       }
     }, null, 2), 'utf8');
 

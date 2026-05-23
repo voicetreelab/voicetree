@@ -46,7 +46,7 @@ function makeAttachable(overrides: Partial<UnclaimedTmuxSession> & Partial<Recov
         createdAt: Date.now() - 12_000,
         panePid: 84231,
         agentName: 'Ari',
-        vaultPath: '/vault/current',
+        projectRoot: '/vault/current',
         contextNodePath: '/vault/current/ctx.md',
         taskNodePath: '/vault/current/task.md',
         ...overrides,
@@ -148,7 +148,7 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
             classification: 'foreign-vault',
             attachable: false,
             agentName: 'Beth',
-            vaultPath: '/vault/other',
+            projectRoot: '/vault/other',
         });
         const {container, onKill} = renderSection([foreign]);
 

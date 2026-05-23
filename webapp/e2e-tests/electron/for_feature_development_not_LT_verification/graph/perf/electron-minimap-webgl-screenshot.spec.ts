@@ -85,20 +85,20 @@ const test = base.extend<{
 
     // App starts on ProjectSelectionScreen — programmatically save a project
     // and start file watching to trigger the onWatchingStarted auto-switch
-    await page.evaluate(async (vaultPath) => {
+    await page.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
       await api.main.saveProject({
         id: 'minimap-test-project',
-        path: vaultPath,
+        path: projectRoot,
         name: 'Minimap Test',
         type: 'folder',
         lastOpened: Date.now(),
         voicetreeInitialized: true,
       });
 
-      await api.main.startFileWatching(vaultPath);
+      await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     // Wait for cytoscape to initialize (graph view loaded)

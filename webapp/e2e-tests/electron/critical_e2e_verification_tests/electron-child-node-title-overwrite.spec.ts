@@ -36,10 +36,10 @@ function idSelector(id: string): string {
   return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
-async function seedVault(vaultPath: string): Promise<void> {
-  await fs.mkdir(vaultPath, { recursive: true });
+async function seedVault(projectRoot: string): Promise<void> {
+  await fs.mkdir(projectRoot, { recursive: true });
   await fs.writeFile(
-    path.join(vaultPath, 'parent-node.md'),
+    path.join(projectRoot, 'parent-node.md'),
     '# \n',
     'utf8',
   );
@@ -67,21 +67,21 @@ function resolveGraphdNodeBin(): string | undefined {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  vaultPath: string;
+  projectRoot: string;
 }>({
-  vaultPath: async ({}, use) => {
+  projectRoot: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-child-title-'));
-    const vaultPath = path.join(tempRoot, 'vault');
-    await seedVault(vaultPath);
-    await use(vaultPath);
+    const projectRoot = path.join(tempRoot, 'vault');
+    await seedVault(projectRoot);
+    await use(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
-  electronApp: async ({ vaultPath }, use) => {
+  electronApp: async ({ projectRoot }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-child-title-app-'));
     const savedProject = {
       id: 'child-title-overwrite-regression',
-      path: vaultPath,
+      path: projectRoot,
       name: 'child-title-test',
       type: 'folder',
       lastOpened: Date.now(),
@@ -93,8 +93,8 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         vaultConfig: {
-          [vaultPath]: {
-            writePath: vaultPath,
+          [projectRoot]: {
+            writeFolder: projectRoot,
             readPaths: [],
           },
         },
@@ -129,7 +129,7 @@ const test = base.extend<{
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 
-  appWindow: async ({ electronApp, vaultPath }, use) => {
+  appWindow: async ({ electronApp, projectRoot }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
@@ -142,7 +142,7 @@ const test = base.extend<{
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         await api.main.startFileWatching(vault);
-      }, vaultPath);
+      }, projectRoot);
     }
 
     await pollForCytoscape(window, 15_000);
@@ -165,7 +165,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 90_000 });
 
-test('parent node title survives rapid child creation via cmd-n', async ({ appWindow, vaultPath }) => {
+test('parent node title survives rapid child creation via cmd-n', async ({ appWindow, projectRoot }) => {
   // 1. Find, select, and tap the parent node to open its editor
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -287,7 +287,7 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
   await appWindow.waitForTimeout(2_000);
 
   // 7. CRITICAL: Parent file on disk still has the title
-  const parentFilePath = path.join(vaultPath, 'parent-node.md');
+  const parentFilePath = path.join(projectRoot, 'parent-node.md');
   const diskContent = await fs.readFile(parentFilePath, 'utf8');
   expect(diskContent).toContain('My Important Title');
 

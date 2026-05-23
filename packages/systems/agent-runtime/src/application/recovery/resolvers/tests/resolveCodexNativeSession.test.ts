@@ -29,7 +29,7 @@ function makeDeps(rows: readonly CodexThreadRow[]): ResolveCodexDeps {
 describe('resolveCodexNativeSession', () => {
     it('returns the thread id and rollout_path for a matching row', () => {
         const result = resolveCodexNativeSession(
-            {terminalId: TERMINAL, vaultPath: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
             makeDeps([makeRow({id: 'thread-A', rollout_path: '/rollouts/A.jsonl'})]),
         )
         expect(result).toEqual({
@@ -41,7 +41,7 @@ describe('resolveCodexNativeSession', () => {
 
     it('returns found without providerStorePath when the matching row has no rollout_path', () => {
         const result = resolveCodexNativeSession(
-            {terminalId: TERMINAL, vaultPath: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
             makeDeps([makeRow({id: 'thread-B', rollout_path: undefined})]),
         )
         expect(result).toEqual({kind: 'found', sessionId: 'thread-B'})
@@ -49,7 +49,7 @@ describe('resolveCodexNativeSession', () => {
 
     it('returns not-found when no row matches', () => {
         const result = resolveCodexNativeSession(
-            {terminalId: TERMINAL, vaultPath: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
             makeDeps([makeRow({first_user_message: 'no markers here'})]),
         )
         expect(result).toEqual({kind: 'not-found'})
@@ -57,7 +57,7 @@ describe('resolveCodexNativeSession', () => {
 
     it('returns not-found when the candidate list is empty', () => {
         const result = resolveCodexNativeSession(
-            {terminalId: TERMINAL, vaultPath: VAULT, taskNodePath: TASK},
+            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK},
             makeDeps([]),
         )
         expect(result).toEqual({kind: 'not-found'})
@@ -67,7 +67,7 @@ describe('resolveCodexNativeSession', () => {
         let capturedSince: number = -1
         let capturedLimit: number = -1
         resolveCodexNativeSession(
-            {terminalId: TERMINAL, vaultPath: VAULT, taskNodePath: TASK, recencyWindowMs: 90_000, rowLimit: 7},
+            {terminalId: TERMINAL, projectRoot: VAULT, taskNodePath: TASK, recencyWindowMs: 90_000, rowLimit: 7},
             {
                 listRecentThreads: (sinceMs: number, limit: number) => {
                     capturedSince = sinceMs

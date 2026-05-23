@@ -40,18 +40,18 @@ const test = base.extend<{
 
     // Create the actual vault path with default suffix 'voicetree'
     // IMPORTANT: Start EMPTY - no files created
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Write config to auto-load the watched folder
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
     // Store paths for test access via testInfo
-    (testInfo as unknown as { vaultPath: string; watchedFolder: string }).vaultPath = vaultPath;
-    (testInfo as unknown as { vaultPath: string; watchedFolder: string }).watchedFolder = watchedFolder;
+    (testInfo as unknown as { projectRoot: string; watchedFolder: string }).projectRoot = projectRoot;
+    (testInfo as unknown as { projectRoot: string; watchedFolder: string }).watchedFolder = watchedFolder;
 
     const electronApp = await electron.launch({
       args: [
@@ -92,7 +92,7 @@ const test = base.extend<{
   },
 
   testVaultPath: async ({}, use, testInfo) => {
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   watchedFolder: async ({}, use, testInfo) => {

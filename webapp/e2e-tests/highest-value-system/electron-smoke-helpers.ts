@@ -62,9 +62,9 @@ function escapeProcessPattern(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
+export function stopSmokeGraphDaemonForVault(projectRoot: string): void {
   try {
-    execFileSync('pkill', ['-f', `vt-graphd\\.ts --vault ${escapeProcessPattern(vaultPath)}`], {
+    execFileSync('pkill', ['-f', `vt-graphd\\.ts --project-root ${escapeProcessPattern(projectRoot)}`], {
       stdio: 'ignore'
     });
   } catch {
