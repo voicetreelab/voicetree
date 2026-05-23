@@ -9,7 +9,7 @@
 
 import { promises as fs } from "fs";
 import normalizePath from "normalize-path";
-export { resolveWriteFolder, type ResolvedVaultConfig, resolveAllowlistForProject } from '../data/watch-folder/paths/resolve-vault-config';
+export { resolveWritePath, type ResolvedVaultConfig, resolveAllowlistForProject } from '../data/watch-folder/paths/resolve-vault-config';
 export {
     loadAndMergeVaultPath,
     describeVaultLoadFailure,
@@ -19,7 +19,7 @@ export {
 } from '../data/graph/loading/loadAndMergeVaultPath';
 import {
     logIgnoredLegacyReadPathsIfPresent,
-    resolveWriteFolder,
+    resolveWritePath,
 } from '../data/watch-folder/paths/resolve-vault-config';
 import {
     loadAndMergeVaultPath,
@@ -34,8 +34,8 @@ import type { VaultConfig } from '@vt/graph-model/settings';
 import { createDatedSubfolder } from "@vt/app-config/project";
 import { getGraph } from "./graph-store";
 import {
-    getProjectRoot,
-    setProjectRoot,
+    getProjectRootWatchedDirectory,
+    setProjectRootWatchedDirectory,
     getWatcher,
     emitReadPathsChanged,
 } from "./watch-folder-store";
@@ -57,19 +57,19 @@ import {
 } from "../data/watch-folder/folder-visibility-active-view";
 
 /**
- * Get all vault paths (writeFolder + active-view expanded paths).
+ * Get all vault paths (writePath + active-view expanded paths).
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
-    const watchedDir: FilePath | null = getProjectRoot();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
     if (!config) return [];
-    const resolvedWriteFolder: string = resolveWriteFolder(watchedDir, config.writeFolder);
+    const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
     const expandedPaths: readonly FilePath[] = await getReadPaths();
-    const uniqueExpandedPaths: readonly string[] = expandedPaths.filter((p: string) => p !== resolvedWriteFolder);
-    return [resolvedWriteFolder, ...uniqueExpandedPaths];
+    const uniqueExpandedPaths: readonly string[] = expandedPaths.filter((p: string) => p !== resolvedWritePath);
+    return [resolvedWritePath, ...uniqueExpandedPaths];
 }
 
 /**
@@ -77,10 +77,10 @@ export async function getVaultPaths(): Promise<readonly FilePath[]> {
  * All paths are normalized to forward slashes for cross-platform consistency.
  */
 export async function getReadPaths(): Promise<readonly FilePath[]> {
-    const watchedDir: FilePath | null = getProjectRoot();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return [];
     const expandedPaths: readonly FilePath[] = await getExpandedFolderPathsForVault(watchedDir);
-    return expandedPaths.map((p: string) => resolveWriteFolder(watchedDir, p));
+    return expandedPaths.map((p: string) => resolveWritePath(watchedDir, p));
 }
 
 /**
@@ -89,12 +89,12 @@ export async function getReadPaths(): Promise<readonly FilePath[]> {
  * Falls back to the watched directory if not explicitly set.
  * Path is normalized to forward slashes for cross-platform consistency.
  */
-export async function getWriteFolder(): Promise<O.Option<FilePath>> {
-    const watchedDir: FilePath | null = getProjectRoot();
+export async function getWritePath(): Promise<O.Option<FilePath>> {
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return O.none;
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    if (config?.writeFolder) {
-        return O.some(resolveWriteFolder(watchedDir, config.writeFolder));
+    if (config?.writePath) {
+        return O.some(resolveWritePath(watchedDir, config.writePath));
     }
     // Fallback to watched directory (normalized)
     return O.some(normalizePath(watchedDir));
@@ -106,23 +106,23 @@ export async function getWriteFolder(): Promise<O.Option<FilePath>> {
  * When setting a new write path, all nodes from that path are fully loaded.
  * This ensures the write path behaves like an "immediate load" path.
  *
- * @deprecated Use `setWriteFolder` from `application/workflows/watchFolder`
- * instead. The new verb demotes the previous writeFolder to `collapsed`
+ * @deprecated Use `setWritePath` from `watch-folder/watchFolder`
+ * instead. The new verb demotes the previous writePath to `collapsed`
  * (matching openspec § D5) rather than `expanded`. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
-export async function setWriteFolder(
+export async function setWritePath(
     vaultPath: FilePath,
     options: { createStarterIfEmpty?: boolean } = {},
 ): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getProjectRoot();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
     const [config, positions]: [VaultConfig | undefined, ReadonlyMap<string, Position>] = await Promise.all([
-        traceGraphdSpan('daemon.set-write-folder.get-vault-config', async () => await getVaultConfigForDirectory(watchedDir)),
-        traceGraphdSpan('daemon.set-write-folder.load-positions', async (span) => {
+        traceGraphdSpan('daemon.set-write-path.get-vault-config', async () => await getVaultConfigForDirectory(watchedDir)),
+        traceGraphdSpan('daemon.set-write-path.load-positions', async (span) => {
             const loadedPositions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
             span.setAttribute('positions.count', loadedPositions.size);
             return loadedPositions;
@@ -130,9 +130,9 @@ export async function setWriteFolder(
     ]);
 
     // Load and merge handles everything: graph state, UI broadcast, backend notification, starter node
-    const outcome: VaultLoadOutcome = await traceGraphdSpan('daemon.set-write-folder.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
+    const outcome: VaultLoadOutcome = await traceGraphdSpan('daemon.set-write-path.load-and-merge-vault-path', async () => await loadAndMergeVaultPath(
         vaultPath,
-        { isWriteFolder: true, createStarterIfEmpty: options.createStarterIfEmpty },
+        { isWritePath: true, createStarterIfEmpty: options.createStarterIfEmpty },
         positions,
     ));
     if (outcome.kind !== 'ok') {
@@ -140,34 +140,34 @@ export async function setWriteFolder(
     }
 
     // Demote old write path to the active view's expanded paths before overwriting
-    const oldWriteFolder: string = config?.writeFolder
-        ? resolveWriteFolder(watchedDir, config.writeFolder)
+    const oldWritePath: string = config?.writePath
+        ? resolveWritePath(watchedDir, config.writePath)
         : normalizePath(watchedDir);
 
-    if (oldWriteFolder !== vaultPath) {
-        await traceGraphdSpan('daemon.set-write-folder.set-active-view-folder-state', async () => {
-            await setActiveViewFolderState(watchedDir, oldWriteFolder, 'expanded');
+    if (oldWritePath !== vaultPath) {
+        await traceGraphdSpan('daemon.set-write-path.set-active-view-folder-state', async () => {
+            await setActiveViewFolderState(watchedDir, oldWritePath, 'expanded');
         });
     }
 
-    await traceGraphdSpan('daemon.set-write-folder.seed-write-path-folder-visibility', async () => {
+    await traceGraphdSpan('daemon.set-write-path.seed-write-path-folder-visibility', async () => {
         await seedActiveViewExpandedFolderStates(watchedDir, [normalizePath(vaultPath)]);
     });
 
     // Save to config only AFTER successful load (atomic operation)
-    await traceGraphdSpan('daemon.set-write-folder.save-vault-config', async () => {
+    await traceGraphdSpan('daemon.set-write-path.save-vault-config', async () => {
         await saveVaultConfigForDirectory(watchedDir, {
-            writeFolder: vaultPath,
+            writePath: vaultPath,
         });
     });
 
-    const vaultPaths: readonly FilePath[] = await traceGraphdSpan('daemon.set-write-folder.get-vault-paths-for-emit', async () => await getVaultPaths());
+    const vaultPaths: readonly FilePath[] = await traceGraphdSpan('daemon.set-write-path.get-vault-paths-for-emit', async () => await getVaultPaths());
     emitReadPathsChanged(vaultPaths);
 
     // Note: Clearing the old write path is handled by the caller (VaultPathSelector)
-    // which calls removeReadPath() after setWriteFolder()
+    // which calls removeReadPath() after setWritePath()
 
-    await traceGraphdSpan('daemon.set-write-folder.broadcast-vault-state', async () => {
+    await traceGraphdSpan('daemon.set-write-path.broadcast-vault-state', async () => {
         await broadcastVaultState();
     });
     return { success: true };
@@ -184,22 +184,22 @@ export async function setWriteFolder(
  * - All files are loaded immediately (not lazy)
  *
  * @deprecated Use `setFolderState(path, 'expanded')` from
- * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder/watchFolder` instead. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function addReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getProjectRoot();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    const currentWriteFolder: string = config?.writeFolder ?? watchedDir;
+    const currentWritePath: string = config?.writePath ?? watchedDir;
     const currentExpandedPaths: readonly FilePath[] = await getReadPaths();
 
-    // Check if already expanded or is the writeFolder
-    const resolvedWriteFolder: string = resolveWriteFolder(watchedDir, currentWriteFolder);
-    if (currentExpandedPaths.includes(vaultPath) || vaultPath === resolvedWriteFolder) {
+    // Check if already expanded or is the writePath
+    const resolvedWritePath: string = resolveWritePath(watchedDir, currentWritePath);
+    if (currentExpandedPaths.includes(vaultPath) || vaultPath === resolvedWritePath) {
         return { success: false, error: 'Path already expanded' };
     }
 
@@ -213,8 +213,8 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
     const positions: ReadonlyMap<string, Position> = await loadPositions(watchedDir);
 
     // Load and merge handles everything: graph state, UI broadcast
-    // Note: isWriteFolder: false means no starter node and no backend notification
-    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: false }, positions);
+    // Note: isWritePath: false means no starter node and no backend notification
+    const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false }, positions);
     if (outcome.kind === 'fileLimit') {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
         await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
@@ -228,7 +228,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
     // Only save visibility and add to watcher AFTER successful load
     await setActiveViewFolderState(watchedDir, vaultPath, 'expanded');
     await saveVaultConfigForDirectory(watchedDir, {
-        writeFolder: currentWriteFolder,
+        writePath: currentWritePath,
     });
 
     emitReadPathsChanged(await getVaultPaths());
@@ -248,11 +248,11 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
  * Immediately removes nodes from that path from the graph.
  *
  * @deprecated Use `setFolderState(path, 'unloaded')` from
- * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder/watchFolder` instead. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function removeReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
-    const watchedDir: FilePath | null = getProjectRoot();
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
@@ -265,10 +265,10 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
         return { success: false, error: 'No vault config found' };
     }
 
-    const resolvedWriteFolder: string = resolveWriteFolder(watchedDir, config.writeFolder);
+    const resolvedWritePath: string = resolveWritePath(watchedDir, config.writePath);
 
     // Cannot remove the current write path
-    if (normalizedVaultPath === resolvedWriteFolder) {
+    if (normalizedVaultPath === resolvedWritePath) {
         return { success: false, error: 'Cannot remove write path' };
     }
 
@@ -279,13 +279,13 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
     // Remove nodes from the graph that belong to this vault path
     const currentGraph: Graph = getGraph();
 
-    // Build list of paths that should be KEPT (current writeFolder + remaining expanded paths)
+    // Build list of paths that should be KEPT (current writePath + remaining expanded paths)
     // Exclude the path we're removing so its nodes can be deleted
     // Normalize all paths for consistent comparison with nodeIds (which use forward slashes)
     const remainingExpandedPaths: readonly string[] = (await getReadPaths())
         .filter((p: string) => normalizePath(p) !== normalizedVaultPath)
         .map((p: string) => normalizePath(p));
-    const pathsToKeep: readonly string[] = [resolvedWriteFolder, ...remainingExpandedPaths];
+    const pathsToKeep: readonly string[] = [resolvedWritePath, ...remainingExpandedPaths];
 
     // Helper to check if a nodeId is inside any of the paths to keep
     const isInPathToKeep: (nodeId: string) => boolean = (nodeId: string): boolean => {
@@ -327,13 +327,26 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
 
     // Save write path to config (visibility is sqlite-backed)
     await saveVaultConfigForDirectory(watchedDir, {
-        writeFolder: config.writeFolder,
+        writePath: config.writePath,
     });
 
     emitReadPathsChanged(await getVaultPaths());
 
     await broadcastVaultState();
     return { success: true };
+}
+
+// Returns the watched directory (project root), normalized to forward slashes.
+// For the actual write path where new files are created, use getWritePath() instead.
+export function getVaultPath(): O.Option<FilePath> {
+    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
+    if (!watchedDir) return O.none;
+    return O.some(normalizePath(watchedDir));
+}
+
+// For external callers (MCP) - sets the vault path directly
+export function setVaultPath(vaultPath: FilePath): void {
+    setProjectRootWatchedDirectory(vaultPath);
 }
 
 /**
@@ -344,26 +357,30 @@ export async function removeReadPath(vaultPath: FilePath): Promise<{ success: bo
 export async function createDatedVoiceTreeFolder(): Promise<{
     success: boolean; path?: string; error?: string;
 }> {
-    const watchedDir: string | null = getProjectRoot();
+    const watchedDir: string | null = getProjectRootWatchedDirectory();
     if (!watchedDir) return { success: false, error: 'No project open' };
 
     // Capture old write path before switching, so we can unwatch it afterward
     const config: VaultConfig | undefined = await getVaultConfigForDirectory(watchedDir);
-    const oldWriteFolder: string | null = config?.writeFolder
-        ? resolveWriteFolder(watchedDir, config.writeFolder)
+    const oldWritePath: string | null = config?.writePath
+        ? resolveWritePath(watchedDir, config.writePath)
         : null;
 
     const newPath: string = await createDatedSubfolder(watchedDir);
     await addReadPath(newPath);
-    const result: { success: boolean; error?: string } = await setWriteFolder(newPath);
+    const result: { success: boolean; error?: string } = await setWritePath(newPath);
     if (!result.success) return { ...result, path: newPath };
 
     // Unwatch old write folder completely - neither read nor write
-    if (oldWriteFolder && oldWriteFolder !== normalizePath(watchedDir)) {
-        await removeReadPath(oldWriteFolder);
+    if (oldWritePath && oldWritePath !== normalizePath(watchedDir)) {
+        await removeReadPath(oldWritePath);
     }
 
     return { success: true, path: newPath };
+}
+
+export function clearVaultPath(): void {
+    setProjectRootWatchedDirectory(null);
 }
 
 /**

@@ -38,15 +38,13 @@ async function getMcpJsonPath(): Promise<string | null> {
     return path.join(watchedDir, '.mcp.json');
 }
 
-/**
- * Read the current .mcp.json config, or return empty config if doesn't exist
- */
-async function readMcpJson(): Promise<McpJsonConfig> {
-    const mcpJsonPath: string | null = await getMcpJsonPath();
-    if (!mcpJsonPath) {
-        return {};
-    }
+// All public helpers resolve the .mcp.json path EXACTLY once and pass it
+// through to these I/O primitives. Re-resolving inside helpers would race
+// with `shutdownActiveDaemonConnection` clearing the graph bridge during
+// app quit: an outer call would obtain a valid path, then a follow-up
+// write/read would observe a null path and fail.
 
+async function readMcpJsonAt(mcpJsonPath: string): Promise<McpJsonConfig> {
     try {
         const content: string = await fs.readFile(mcpJsonPath, 'utf-8');
         return JSON.parse(content) as McpJsonConfig;
@@ -56,15 +54,7 @@ async function readMcpJson(): Promise<McpJsonConfig> {
     }
 }
 
-/**
- * Write the .mcp.json config
- */
-async function writeMcpJson(config: McpJsonConfig): Promise<void> {
-    const mcpJsonPath: string | null = await getMcpJsonPath();
-    if (!mcpJsonPath) {
-        throw new Error('No watched directory - cannot write .mcp.json');
-    }
-
+async function writeMcpJsonAt(mcpJsonPath: string, config: McpJsonConfig): Promise<void> {
     const content: string = JSON.stringify(config, null, 2);
     await fs.writeFile(mcpJsonPath, content, 'utf-8');
 }
@@ -73,7 +63,9 @@ async function writeMcpJson(config: McpJsonConfig): Promise<void> {
  * Check if Voicetree MCP integration is enabled in .mcp.json
  */
 export async function isMcpIntegrationEnabled(): Promise<boolean> {
-    const config: McpJsonConfig = await readMcpJson();
+    const mcpJsonPath: string | null = await getMcpJsonPath();
+    if (!mcpJsonPath) return false;
+    const config: McpJsonConfig = await readMcpJsonAt(mcpJsonPath);
     return config.mcpServers?.[VOICETREE_MCP_SERVER_NAME] !== undefined;
 }
 
@@ -82,7 +74,12 @@ export async function isMcpIntegrationEnabled(): Promise<boolean> {
  * Merges with existing config to preserve other MCP servers
  */
 export async function enableMcpJsonIntegration(): Promise<void> {
-    const config: McpJsonConfig = await readMcpJson();
+    const mcpJsonPath: string | null = await getMcpJsonPath();
+    if (!mcpJsonPath) {
+        throw new Error('No watched directory - cannot write .mcp.json');
+    }
+
+    const config: McpJsonConfig = await readMcpJsonAt(mcpJsonPath);
     const port: number = getMcpPort();
 
     // Merge Voicetree server into existing config
@@ -94,15 +91,22 @@ export async function enableMcpJsonIntegration(): Promise<void> {
         }
     };
 
-    await writeMcpJson(config);
+    await writeMcpJsonAt(mcpJsonPath, config);
 }
 
 /**
  * Disable Voicetree MCP integration by removing config from .mcp.json
- * Preserves other MCP servers in the config
+ * Preserves other MCP servers in the config.
+ *
+ * No-op when no watched directory exists: there is no .mcp.json to mutate,
+ * therefore nothing to disable. This case occurs during app quit when the
+ * graph bridge has already been torn down by `shutdownActiveDaemonConnection`.
  */
 export async function disableMcpJsonIntegration(): Promise<void> {
-    const config: McpJsonConfig = await readMcpJson();
+    const mcpJsonPath: string | null = await getMcpJsonPath();
+    if (!mcpJsonPath) return;
+
+    const config: McpJsonConfig = await readMcpJsonAt(mcpJsonPath);
 
     if (config.mcpServers?.[VOICETREE_MCP_SERVER_NAME]) {
         delete config.mcpServers[VOICETREE_MCP_SERVER_NAME];
@@ -112,7 +116,7 @@ export async function disableMcpJsonIntegration(): Promise<void> {
             delete config.mcpServers;
         }
 
-        await writeMcpJson(config);
+        await writeMcpJsonAt(mcpJsonPath, config);
     }
 }
 

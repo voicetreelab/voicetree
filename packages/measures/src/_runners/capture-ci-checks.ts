@@ -5,13 +5,13 @@
 //
 // Measure inventory is auto-detected from the tiered `checks/` tree.
 
-import {spawn} from 'node:child_process'
-import {mkdir, mkdtemp, readdir, readFile, rm} from 'node:fs/promises'
-import {availableParallelism, tmpdir} from 'node:os'
+import {mkdir, readdir} from 'node:fs/promises'
+import {availableParallelism} from 'node:os'
 import {dirname, join, relative, resolve, sep} from 'node:path'
 import {pathToFileURL, fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
+import {spawnCheck} from './capture-check-runner.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
@@ -19,7 +19,6 @@ const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 const CHECKS_DIR = join(MEASURES_DIR, 'checks')
 const MAX_TIER = 3
 
-const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
 // ── Auto-detected measure inventory ──────────────────────────────────────────
@@ -150,127 +149,6 @@ function printHelp(checks) {
     console.log(lines.join('\n'))
 }
 
-// ── Subprocess runner ────────────────────────────────────────────────────────
-
-function summarizeStderr(text, maxLines = 4) {
-    if (!text) return undefined
-    const lines = text.split('\n').map(l => l.replace(/\s+$/, '')).filter(Boolean)
-    if (lines.length === 0) return undefined
-    const tail = lines.slice(-maxLines)
-    return tail.join('\n').slice(0, 800)
-}
-
-async function spawnCheck(check, env) {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'ci-check-'))
-    const jsonOut = check.parser === 'vitest' ? join(tmpDir, 'vitest.json') : null
-    const playwrightJson = check.parser === 'playwright' ? join(tmpDir, 'playwright.json') : null
-    const args = check.args(jsonOut)
-    const [cmd, ...rest] = args
-    const timeoutMs = check.timeoutMs ?? DEFAULT_TIMEOUT_MS
-    const startedAt = Date.now()
-    const childEnv = {
-        ...env,
-        ...(playwrightJson ? {PLAYWRIGHT_JSON_OUTPUT_FILE: playwrightJson} : {}),
-    }
-
-    let stdoutBuf = ''
-    let stderrBuf = ''
-    let timedOut = false
-
-    const result = await new Promise(resolve => {
-        const child = spawn(cmd, rest, {
-            cwd: REPO_ROOT,
-            env: childEnv,
-            shell: false,
-            stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        const timer = setTimeout(() => {
-            timedOut = true
-            child.kill('SIGTERM')
-            setTimeout(() => child.kill('SIGKILL'), 5_000).unref()
-        }, timeoutMs)
-        child.stdout.on('data', chunk => {
-            stdoutBuf += chunk.toString('utf8')
-            process.stdout.write(chunk)
-        })
-        child.stderr.on('data', chunk => {
-            stderrBuf += chunk.toString('utf8')
-            process.stderr.write(chunk)
-        })
-        child.on('error', err => {
-            clearTimeout(timer)
-            resolve({exitCode: -1, signal: null, spawnError: String(err.message ?? err)})
-        })
-        child.on('close', (code, signal) => {
-            clearTimeout(timer)
-            resolve({exitCode: code, signal, spawnError: null})
-        })
-    })
-
-    const durationMs = Date.now() - startedAt
-    const counts = await parseCounts(check.parser, jsonOut, playwrightJson)
-    await rm(tmpDir, {recursive: true, force: true}).catch(() => {})
-
-    const exitOk = result.exitCode === 0 && !timedOut && !result.spawnError
-    return {
-        durationMs,
-        exitCode: result.exitCode ?? -1,
-        signal: result.signal,
-        timedOut,
-        spawnError: result.spawnError,
-        stdoutTail: summarizeStderr(stdoutBuf),
-        stderrTail: summarizeStderr(stderrBuf),
-        status: exitOk ? 'pass' : 'fail',
-        ...counts,
-    }
-}
-
-async function readJsonIfExists(path) {
-    if (!path) return null
-    try {
-        const raw = await readFile(path, 'utf8')
-        return JSON.parse(raw)
-    } catch {
-        return null
-    }
-}
-
-async function parseCounts(parser, vitestPath, playwrightPath) {
-    if (parser === 'vitest') {
-        const json = await readJsonIfExists(vitestPath)
-        if (!json) return {}
-        return {
-            testsTotal: numberOrUndef(json.numTotalTests),
-            testsPassed: numberOrUndef(json.numPassedTests),
-            testsFailed: numberOrUndef(json.numFailedTests),
-            testsSkipped: numberOrUndef(json.numPendingTests ?? json.numSkippedTests),
-        }
-    }
-    if (parser === 'playwright') {
-        const json = await readJsonIfExists(playwrightPath)
-        if (!json?.stats) return {}
-        const s = json.stats
-        const expected = numberOrZero(s.expected)
-        const unexpected = numberOrZero(s.unexpected)
-        const skipped = numberOrZero(s.skipped)
-        const flaky = numberOrZero(s.flaky)
-        return {
-            testsTotal: expected + unexpected + skipped + flaky,
-            testsPassed: expected + flaky,
-            testsFailed: unexpected,
-            testsSkipped: skipped,
-        }
-    }
-    return {}
-}
-
-function numberOrUndef(n) {
-    return Number.isFinite(n) ? n : undefined
-}
-function numberOrZero(n) {
-    return Number.isFinite(n) ? n : 0
-}
-
 // ── Reporting ────────────────────────────────────────────────────────────────
 
 function statusGlyph(status) {
@@ -314,6 +192,7 @@ async function recordOutcome(check, outcome) {
     if (outcome.timedOut) details.timedOut = true
     if (outcome.signal) details.signal = outcome.signal
     if (outcome.spawnError) details.spawnError = outcome.spawnError
+    Object.assign(details, outcome.failureDetails ?? {})
     await recordCheckReport({
         checkId: check.id,
         checkName: check.name,
@@ -359,7 +238,7 @@ function failedSpawnOutcome(err) {
 
 async function runCheck(check) {
     try {
-        return await spawnCheck(check, process.env)
+        return await spawnCheck(check, process.env, REPO_ROOT)
     } catch (err) {
         return failedSpawnOutcome(err)
     }

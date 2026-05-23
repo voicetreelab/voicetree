@@ -12,8 +12,11 @@ export interface AutoHeaderOptions {
 
 type SpineEntry =
     | {readonly kind: 'folder'; readonly folderPath: string; readonly sortKey: string}
+    | {readonly kind: 'collapsed-folder'; readonly node: CollapsedFolderNode; readonly sortKey: string}
     | {readonly kind: 'summary'; readonly cluster: CollapseCluster; readonly sortKey: string}
     | {readonly kind: 'file'; readonly node: RenderNode; readonly sortKey: string}
+
+type CollapsedFolderNode = RenderNode & {readonly collapsedChildCount: number}
 
 export function buildAutoHeader(
     graph: RenderGraph,
@@ -81,10 +84,18 @@ function renderSpine(
 ): string {
     const clusterByNodeId: ReadonlyMap<string, CollapseCluster> = buildClusterByNodeId(clusters)
     const visibleFilesByFolder = new Map<string, RenderNode[]>()
+    const collapsedFoldersByParent = new Map<string, CollapsedFolderNode[]>()
     const summariesByAnchor = new Map<string, CollapseCluster[]>()
     const requiredFolders = new Set<string>()
 
     for (const node of graph.nodes) {
+        if (isExplicitCollapsedFolder(node)) {
+            const folders: CollapsedFolderNode[] = collapsedFoldersByParent.get(node.folderPath) ?? []
+            folders.push(node)
+            collapsedFoldersByParent.set(node.folderPath, folders)
+            ancestorFolders(node.folderPath).forEach(folderPath => requiredFolders.add(folderPath))
+            continue
+        }
         if (node.kind === 'folder') continue
         if (clusterByNodeId.has(node.id)) continue
         const files: RenderNode[] = visibleFilesByFolder.get(node.folderPath) ?? []
@@ -115,6 +126,7 @@ function renderSpine(
         false,
         lines,
         childFoldersByParent,
+        collapsedFoldersByParent,
         visibleFilesByFolder,
         summariesByAnchor,
         displayLabelByClusterId,
@@ -130,6 +142,7 @@ function renderFolderEntries(
     isRoot: boolean,
     out: string[],
     childFoldersByParent: ReadonlyMap<string, readonly string[]>,
+    collapsedFoldersByParent: ReadonlyMap<string, readonly CollapsedFolderNode[]>,
     visibleFilesByFolder: ReadonlyMap<string, readonly RenderNode[]>,
     summariesByAnchor: ReadonlyMap<string, readonly CollapseCluster[]>,
     displayLabelByClusterId: ClusterDisplayLabelMap,
@@ -138,6 +151,7 @@ function renderFolderEntries(
 ): void {
     const childFolders: readonly string[] = [...(childFoldersByParent.get(folderPath) ?? [])]
         .sort((left, right) => path.posix.basename(left).localeCompare(path.posix.basename(right)))
+    const collapsedFolders: readonly CollapsedFolderNode[] = [...(collapsedFoldersByParent.get(folderPath) ?? [])]
     const summaries: readonly CollapseCluster[] = [...(summariesByAnchor.get(folderPath) ?? [])]
     const files: readonly RenderNode[] = [...(visibleFilesByFolder.get(folderPath) ?? [])]
 
@@ -146,6 +160,11 @@ function renderFolderEntries(
             kind: 'folder' as const,
             folderPath: childFolderPath,
             sortKey: path.posix.basename(childFolderPath),
+        })),
+        ...collapsedFolders.map(node => ({
+            kind: 'collapsed-folder' as const,
+            node,
+            sortKey: node.basename,
         })),
         ...summaries.map(cluster => ({
             kind: 'summary' as const,
@@ -171,12 +190,17 @@ function renderFolderEntries(
                 false,
                 out,
                 childFoldersByParent,
+                collapsedFoldersByParent,
                 visibleFilesByFolder,
                 summariesByAnchor,
                 displayLabelByClusterId,
                 selectedIds,
                 userCollapsedClusterIds,
             )
+            return
+        }
+        if (entry.kind === 'collapsed-folder') {
+            out.push(`${prefix}${branch}${formatExplicitCollapsedFolder(entry.node)}`)
             return
         }
         if (entry.kind === 'summary') {
@@ -192,10 +216,14 @@ function renderFolderEntries(
     })
 }
 
+function isExplicitCollapsedFolder(node: RenderNode): node is CollapsedFolderNode {
+    return node.kind === 'folder' && node.collapsedChildCount !== undefined
+}
+
 function compareSpineEntries(left: SpineEntry, right: SpineEntry): number {
     const rank = (entry: SpineEntry): number => {
         if (entry.kind === 'folder') return 0
-        if (entry.kind === 'summary') return 1
+        if (entry.kind === 'collapsed-folder' || entry.kind === 'summary') return 1
         return 2
     }
     const rankDelta: number = rank(left) - rank(right)
@@ -292,6 +320,11 @@ function entitySortKey(
         return resolveClusterDisplayLabel(cluster, displayLabelByClusterId)
     }
     return nodeById.get(entityId)?.title ?? entityId
+}
+
+function formatExplicitCollapsedFolder(node: CollapsedFolderNode): string {
+    const label: string = node.basename.endsWith('/') ? node.basename : `${node.basename}/`
+    return `▢ ${label} [collapsed:user ${node.collapsedChildCount} nodes, 0 edges in, 0 edges out]`
 }
 
 function formatCollapsedSummary(

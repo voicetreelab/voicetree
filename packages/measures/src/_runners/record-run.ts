@@ -19,6 +19,7 @@ import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
+import {vitestFailureDetailsForCommand} from './vitest-failure-detail-reader.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
@@ -88,6 +89,9 @@ const {opts, cmd} = parseArgs(process.argv.slice(2))
 const outcome = await runChild(cmd)
 const status = statusFor(outcome.code, outcome.spawnError)
 const display = opts.display ?? cmd.join(' ')
+const failureDetails = status === 'fail'
+    ? await vitestFailureDetailsForCommand(cmd, message => console.warn(message), `record-run:${opts.id}`)
+    : {}
 
 try {
     await recordCheckReport({
@@ -106,6 +110,7 @@ try {
             exitCode: outcome.code ?? -1,
             ...(outcome.signal ? {signal: outcome.signal} : {}),
             ...(outcome.spawnError ? {spawnError: outcome.spawnError} : {}),
+            ...failureDetails,
         },
     })
 } catch (err) {

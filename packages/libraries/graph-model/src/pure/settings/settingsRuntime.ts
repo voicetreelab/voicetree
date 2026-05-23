@@ -4,7 +4,7 @@ import {
     defaultHotkeysForPlatform,
     platformFromBrowserText,
     type SettingsRuntime,
-} from './pure/settings/settingsSchema';
+} from './settingsSchema';
 
 const runtimeNavigator: {
     readonly userAgentData?: { readonly platform?: string };

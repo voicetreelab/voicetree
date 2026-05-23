@@ -131,11 +131,28 @@ verify_at_vt_resolution() {
 verify_at_vt_resolution
 
 # --- Symlink .env from main repo so run-remote.mjs and other tools see
-#     VT_REMOTE_HOST etc. without per-shell exports. ---
-MAIN_ENV="$MAIN_REPO/.env"
+#     VT_REMOTE_HOST etc. without per-shell exports. Target is RELATIVE: an
+#     absolute target (/Users/.../.env) fails mutagen's portable symlink mode
+#     with "invalid symbolic link: target is absolute" and blocks the scan. ---
+MAIN_ENV="$MAIN_REPO_REALPATH/.env"
 if [ -f "$MAIN_ENV" ] && [ ! -e "$WORKTREE_PATH/.env" ]; then
-    echo "Symlinking .env from $MAIN_ENV ..."
-    ln -s "$MAIN_ENV" "$WORKTREE_PATH/.env"
+    suffix="${WORKTREE_REALPATH#$MAIN_REPO_REALPATH/}"
+    if [ "$suffix" = "$WORKTREE_REALPATH" ]; then
+        echo "ERROR: $WORKTREE_REALPATH is not under $MAIN_REPO_REALPATH; cannot compute relative .env target" >&2
+        exit 1
+    fi
+    rel_prefix=""
+    rest="$suffix"
+    while [ -n "$rest" ]; do
+        rel_prefix="../$rel_prefix"
+        case "$rest" in
+            */*) rest="${rest#*/}" ;;
+            *)   rest="" ;;
+        esac
+    done
+    REL_ENV="${rel_prefix}.env"
+    echo "Symlinking .env -> $REL_ENV ..."
+    ln -s "$REL_ENV" "$WORKTREE_PATH/.env"
 fi
 
 echo "Async setup complete for worktree $WORKTREE_NAME"

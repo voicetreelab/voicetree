@@ -8,4 +8,5 @@ export const check: CheckDef = {
     display: 'npx vitest run packages/measures/src/checks/tier_0/lint/verify-cytoscape-lint-rules.test.ts --testTimeout=60000',
     args: () => ['npx', 'vitest', 'run', 'packages/measures/src/checks/tier_0/lint/verify-cytoscape-lint-rules.test.ts', '--testTimeout=60000'],
     parser: 'none',
+    exclusive: true,
 }
