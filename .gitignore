@@ -248,3 +248,6 @@ test_output/*
 /test-results/
 /VoiceTree/
 .codeql/
+
+# Voicetree per-version vault dirs at repo root (runtime app state from past sessions, not source)
+/voicetree-*-*/
