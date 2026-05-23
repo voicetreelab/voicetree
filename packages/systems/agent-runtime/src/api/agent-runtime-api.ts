@@ -5,7 +5,7 @@ import {
     reconcileTmuxHeadlessAgents,
     sendHeadlessAgentInput,
 } from '../application/headless/headlessAgentManager'
-import { dispatchOnNewNodeHooks } from '../application/hooks/onNewNodeHook'
+import { createOnNewNodeHookDispatcher } from '../application/hooks/onNewNodeHook'
 import { runStopHooks } from '../application/hooks/stopGateHookRunner'
 import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
 import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
@@ -48,6 +48,8 @@ import {
     registerChild,
     tryConsumeAndSplitBudget,
 } from '../application/terminals/global-budget-registry'
+
+const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
 
 export const agentRuntime = {
     attachUnclaimedTmuxSession,
