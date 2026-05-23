@@ -32,8 +32,22 @@ const nestedGitRootExcludes = (root: string): string[] => {
     'build',
   ])
   const found: string[] = []
+  const readDirectories = (absDir: string) => {
+    try {
+      return readdirSync(absDir, { withFileTypes: true })
+    } catch (error) {
+      if (
+        error instanceof Error
+        && 'code' in error
+        && (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+      ) {
+        return []
+      }
+      throw error
+    }
+  }
   const walk = (absDir: string, relDir: string) => {
-    for (const entry of readdirSync(absDir, { withFileTypes: true })) {
+    for (const entry of readDirectories(absDir)) {
       if (!entry.isDirectory()) continue
       if (excludedDirNames.has(entry.name)) continue
       const childAbs = path.join(absDir, entry.name)
