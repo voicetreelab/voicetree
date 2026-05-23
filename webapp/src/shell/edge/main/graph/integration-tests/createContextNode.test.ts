@@ -30,7 +30,7 @@ vi.mock('electron', () => ({
 import { loadGraphFromDisk } from '@vt/graph-db-server/graph/loadGraphFromDisk'
 
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { setProjectRoot, getProjectRoot } from '@vt/graph-db-server/watch-folder/watchFolder'
+import { setVaultPath, getVaultPath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
@@ -51,11 +51,11 @@ describe('createContextNode - Integration Tests', () => {
   beforeEach(async () => {
     initGraphModel(
       { appSupportPath: '/tmp/test-userdata-context-node' },
-      { getWriteFolder: async () => EXAMPLE_SMALL_WRITE_PATH }
+      { getWritePath: async () => EXAMPLE_SMALL_WRITE_PATH }
     )
 
     // Initialize vault path with example_small fixture
-    setProjectRoot(EXAMPLE_SMALL_PATH)
+    setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
     const loadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_SMALL_WRITE_PATH])
@@ -120,10 +120,10 @@ describe('createContextNode - Integration Tests', () => {
       expect(contextNodeId).toMatch(/_context_\d+\.md$/)
 
       // AND: File should exist on disk
-      const projectRoot: O.Option<string> = getProjectRoot()
-      expect(O.isSome(projectRoot)).toBe(true)
+      const vaultPath: O.Option<string> = getVaultPath()
+      expect(O.isSome(vaultPath)).toBe(true)
 
-      if (O.isSome(projectRoot)) {
+      if (O.isSome(vaultPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileExists: boolean = await fs.access(contextFilePath)
           .then(() => true)
@@ -161,7 +161,7 @@ describe('createContextNode - Integration Tests', () => {
       )
 
       await saveVaultConfigForDirectory(EXAMPLE_SMALL_PATH, {
-        writeFolder: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
+        writePath: path.join(EXAMPLE_SMALL_PATH, 'voicetree'),
         readPaths: [],
       })
 
@@ -185,8 +185,8 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the created file
-      const projectRoot: O.Option<string> = getProjectRoot()
-      if (O.isSome(projectRoot)) {
+      const vaultPath: O.Option<string> = getVaultPath()
+      if (O.isSome(vaultPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -244,8 +244,8 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const projectRoot: O.Option<string> = getProjectRoot()
-      if (O.isSome(projectRoot)) {
+      const vaultPath: O.Option<string> = getVaultPath()
+      if (O.isSome(vaultPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -272,10 +272,10 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
-      const projectRoot: O.Option<string> = getProjectRoot()
-      expect(O.isSome(projectRoot)).toBe(true)
+      const vaultPath: O.Option<string> = getVaultPath()
+      expect(O.isSome(vaultPath)).toBe(true)
 
-      if (O.isSome(projectRoot)) {
+      if (O.isSome(vaultPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const fileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
@@ -311,10 +311,10 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Context node should be orphaned (zero edges) — terminal shadow draws the cytoscape edge at runtime', () => {
     it('should create context node with zero outgoing/incoming wikilink edges (orphaned)', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
-      setProjectRoot(EXAMPLE_LARGE_PATH)
+      setVaultPath(EXAMPLE_LARGE_PATH)
       initGraphModel(
         { appSupportPath: '/tmp/test-userdata-context-node' },
-        { getWriteFolder: async () => EXAMPLE_LARGE_WRITE_PATH }
+        { getWritePath: async () => EXAMPLE_LARGE_WRITE_PATH }
       )
       const largeLoadResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([EXAMPLE_LARGE_WRITE_PATH])
       if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
@@ -338,10 +338,10 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // Read the context node file content to verify structure
-      const projectRoot: O.Option<string> = getProjectRoot()
-      expect(O.isSome(projectRoot)).toBe(true)
+      const vaultPath: O.Option<string> = getVaultPath()
+      expect(O.isSome(vaultPath)).toBe(true)
 
-      if (O.isSome(projectRoot)) {
+      if (O.isSome(vaultPath)) {
         const contextFilePath: string = contextNodeId  // contextNodeId is already an absolute path
         const contextFileContent: string = await fs.readFile(contextFilePath, 'utf-8')
 
