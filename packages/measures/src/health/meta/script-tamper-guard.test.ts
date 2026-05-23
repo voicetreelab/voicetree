@@ -58,12 +58,30 @@ function packageJsonScriptFindings(): string[] {
     return findings
 }
 
+function headTrackedFiles(): Set<string> {
+    const output = tryRunGit('ls-tree -r --name-only HEAD') ?? ''
+    return new Set(output.split('\n').filter(Boolean))
+}
+
+// Prefixes that are deliberately absent from the working tree on the remote dev box
+// (excluded by `get_dev_healthy/mutagen-vt-remote.yml`). A path missing from disk
+// because mutagen never synced it is not a tamper signal.
+const PARTIAL_MIRROR_PREFIXES: readonly string[] = ['webapp/workers/', 'old/']
+
+function isInPartialMirrorPrefix(path: string): boolean {
+    return PARTIAL_MIRROR_PREFIXES.some(prefix => path.startsWith(prefix))
+}
+
 function deletedTestFindings(): string[] {
+    const head = headTrackedFiles()
     const deletedTests = changedStatusEntries()
         .filter(line => line.startsWith('D ') || line.startsWith(' D'))
         .map(line => line.slice(2).trim())
         .filter(path => /\.(test|spec)\.(ts|tsx|js|jsx)$/.test(path))
         .filter(path => !isMovedCodebaseHealthTest(path))
+        .filter(path => head.has(path))
+        .filter(path => !existsSync(join(REPO_ROOT, path)))
+        .filter(path => !isInPartialMirrorPrefix(path))
 
     return deletedTests.length === 0 ? [] : [`deleted test files detected: ${deletedTests.join(', ')}`]
 }
