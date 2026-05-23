@@ -26,9 +26,9 @@ import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-stor
 import {
   addReadPath,
   getVaultPaths,
-  getWritePath,
+  getWriteFolder,
   removeReadPath,
-  setWritePath,
+  setWriteFolder,
 } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {loadFolder, stopFileWatching} from '@vt/graph-db-server/watch-folder/watchFolder'
 
@@ -79,7 +79,7 @@ async function resetAroundProject(nextFixture: ProjectFixture): Promise<void> {
   setGraph(createEmptyGraph())
   clearWatchFolderState()
   await saveVaultConfigForDirectory(nextFixture.primaryPath, {
-    writePath: nextFixture.primaryPath,
+    writeFolder: nextFixture.primaryPath,
     readPaths: [],
   })
 }
@@ -123,7 +123,7 @@ describe('watch-folder public contract', () => {
     const duplicateResult = await addReadPath(createdReadPath)
     const vaultPaths = await getVaultPaths()
 
-    expect(expectSomeValue(await getWritePath())).toBe(project.primaryPath)
+    expect(expectSomeValue(await getWriteFolder())).toBe(project.primaryPath)
     expect(addResult).toEqual({success: true})
     await expect(fs.stat(createdReadPath).then(stats => stats.isDirectory())).resolves.toBe(true)
     expect(duplicateResult.success).toBe(false)
@@ -137,13 +137,13 @@ describe('watch-folder public contract', () => {
     const project = await openPrimaryProject()
 
     expect((await addReadPath(project.secondaryPath)).success).toBe(true)
-    expect((await setWritePath(project.secondaryPath)).success).toBe(true)
-    expect(expectSomeValue(await getWritePath())).toBe(project.secondaryPath)
+    expect((await setWriteFolder(project.secondaryPath)).success).toBe(true)
+    expect(expectSomeValue(await getWriteFolder())).toBe(project.secondaryPath)
 
     const reloadResult = await loadFolder(project.primaryPath, LOAD_OPTIONS)
 
     expect(reloadResult.success).toBe(true)
-    expect(expectSomeValue(await getWritePath())).toBe(project.secondaryPath)
+    expect(expectSomeValue(await getWriteFolder())).toBe(project.secondaryPath)
     expect(await getVaultPaths()).toContain(project.primaryPath)
     expect(await getVaultPaths()).toContain(project.secondaryPath)
   })

@@ -2,7 +2,7 @@ import type { FilePath } from '@vt/graph-model/graph';
 import * as O from "fp-ts/lib/Option.js";
 import { getLastDirectory } from "@vt/app-config/vault-config";
 import {
-    getProjectRootWatchedDirectory,
+    getProjectRoot,
 } from "@vt/graph-db-server/state/watch-folder-store";
 import { setActiveViewFolderState } from "@vt/graph-db-server/watch-folder/folder-visibility-active-view";
 import { broadcastVaultState } from "@vt/graph-db-server/watch-folder/broadcast/broadcast-vault-state";
@@ -22,7 +22,7 @@ export type ProjectStatus =
     | {
         readonly open: true;
         readonly root: FilePath;
-        readonly writePath: FilePath | null;
+        readonly writeFolder: FilePath | null;
         readonly directory: string;
     }
     | { readonly open: false };
@@ -49,8 +49,8 @@ export async function openProject(
             : { success: false, error: 'Failed to load folder' };
     }
 
-    if (getProjectRootWatchedDirectory() !== null) {
-        return { success: true, directory: getProjectRootWatchedDirectory() ?? undefined };
+    if (getProjectRoot() !== null) {
+        return { success: true, directory: getProjectRoot() ?? undefined };
     }
 
     const lastDirectory: O.Option<string> = await getLastDirectory();
@@ -79,18 +79,18 @@ export async function setFolderState(
     folderPath: FilePath,
     action: FolderAction,
 ): Promise<{ readonly success: boolean; readonly error?: string }> {
-    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const { addReadPath, removeReadPath, getWritePath } = await import("@vt/graph-db-server/state/vaultAllowlist");
-    const writePathOpt = await getWritePath();
-    const currentWritePath: string | null = O.isSome(writePathOpt) ? writePathOpt.value : null;
+    const { addReadPath, removeReadPath, getWriteFolder } = await import("@vt/graph-db-server/state/vaultAllowlist");
+    const writeFolderOpt = await getWriteFolder();
+    const currentWriteFolder: string | null = O.isSome(writeFolderOpt) ? writeFolderOpt.value : null;
 
-    if (folderPath === currentWritePath) {
+    if (folderPath === currentWriteFolder) {
         if (action === 'unloaded') {
-            return { success: false, error: 'cannot-unload-writepath' };
+            return { success: false, error: 'cannot-unload-writefolder' };
         }
         return { success: true };
     }
@@ -113,27 +113,27 @@ export async function setFolderState(
 }
 
 /**
- * Set the writePath, atomically loading the new path if it was unloaded and
- * demoting the previous writePath to `collapsed`. Per design D5.
+ * Set the writeFolder, atomically loading the new path if it was unloaded and
+ * demoting the previous writeFolder to `collapsed`. Per design D5.
  */
-export async function setWritePath(
-    newWritePath: FilePath,
+export async function setWriteFolder(
+    newWriteFolder: FilePath,
 ): Promise<{ readonly success: boolean; readonly error?: string }> {
-    const watchedDir: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const { setWritePath: setWritePathLegacy, getWritePath } = await import("@vt/graph-db-server/state/vaultAllowlist");
-    const previousOpt = await getWritePath();
+    const { setWriteFolder: setWriteFolderLegacy, getWriteFolder } = await import("@vt/graph-db-server/state/vaultAllowlist");
+    const previousOpt = await getWriteFolder();
     const previous: string | null = O.isSome(previousOpt) ? previousOpt.value : null;
 
-    const result = await setWritePathLegacy(newWritePath);
+    const result = await setWriteFolderLegacy(newWriteFolder);
     if (!result.success) {
         return result;
     }
 
-    if (previous !== null && previous !== newWritePath) {
+    if (previous !== null && previous !== newWriteFolder) {
         await setActiveViewFolderState(watchedDir, previous, 'collapsed');
         await broadcastVaultState();
     }
@@ -146,12 +146,12 @@ export async function setWritePath(
  * `open` before reading project fields.
  */
 export function getProjectStatus(): ProjectStatus {
-    const root: FilePath | null = getProjectRootWatchedDirectory();
+    const root: FilePath | null = getProjectRoot();
     if (!root) return { open: false };
     return {
         open: true,
         root,
-        writePath: null,
+        writeFolder: null,
         directory: root,
     };
 }
