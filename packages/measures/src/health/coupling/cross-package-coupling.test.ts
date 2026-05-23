@@ -49,12 +49,13 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'graph-state -> graph-model': 8,
     'graph-tools -> graph-model': 2,
     'graph-tools -> graph-state': 12,
-    'voicetree-mcp -> agent-runtime': 14,
-    'voicetree-mcp -> app-config': 1,
-    'voicetree-mcp -> graph-db-server': 8,
-    'voicetree-mcp -> graph-model': 9,
-    'voicetree-mcp -> graph-state': 1,
-    'voicetree-mcp -> graph-tools': 7,
+    'vt-daemon -> agent-runtime': 14,
+    'vt-daemon -> app-config': 1,
+    'vt-daemon -> graph-db-server': 8,
+    'vt-daemon -> graph-model': 9,
+    'vt-daemon -> graph-state': 1,
+    'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> voicetree-graph-validation': 1,
     'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
     'webapp -> graph-db-client': 9,
@@ -62,7 +63,7 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
-    'webapp -> voicetree-mcp': 13,
+    'webapp -> vt-daemon': 13,
 }
 
 async function pathExists(p: string): Promise<boolean> {

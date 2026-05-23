@@ -42,7 +42,7 @@ vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn()
 }))
 
-import {configureMcpServer, listAgentsTool} from '@vt/voicetree-mcp'
+import {configureMcpServer, listAgentsTool} from '@vt/vt-daemon'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getUnseenNodesAroundContextNode} from '@vt/graph-db-server/context-nodes/getUnseenNodesAroundContextNode'
 import {agentRuntime, getTerminalRecords} from '@vt/agent-runtime'

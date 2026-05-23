@@ -137,7 +137,7 @@
     "@vt/agent-runtime": "*",
     "@vt/graph-model": "*",
     "@vt/graph-tools": "*",
-    "@vt/voicetree-mcp": "*",
+    "@vt/vt-daemon": "*",
     "@vt/vt-rpc": "*",
     "@vitest/ui": "^3.2.4",
     "chokidar": "^4.0.3",

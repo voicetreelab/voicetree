@@ -47,7 +47,7 @@ vi.mock('@mermaid-js/parser', () => ({
     parse: vi.fn()
 }))
 
-import {createGraphTool} from '@vt/voicetree-mcp'
+import {createGraphTool} from '@vt/vt-daemon'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'

@@ -4,4 +4,4 @@ export {
     type TerminalManager,
     type TerminalRecord,
     type TerminalSpawnResult,
-} from '@vt/voicetree-mcp/tools/agent-control/terminalRuntimeSurface'
+} from '@vt/vt-daemon/tools/agent-control/terminalRuntimeSurface'

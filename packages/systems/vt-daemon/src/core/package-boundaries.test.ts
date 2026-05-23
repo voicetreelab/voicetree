@@ -24,7 +24,7 @@ const FORBIDDEN_RULES: readonly {rule: string, pattern: RegExp}[] = [
         pattern: /from\s+['"]@\/shell\/edge\//,
     },
     {
-        rule: "No 'uiAPI' references (renderer surface) — keep voicetree-mcp UI-agnostic",
+        rule: "No 'uiAPI' references (renderer surface) — keep vt-daemon UI-agnostic",
         pattern: /\buiAPI\b/,
     },
     {
@@ -96,7 +96,7 @@ function formatViolation(v: Violation): string {
     return `${v.file}:${v.line} — ${v.rule}\n    ${v.snippet}`
 }
 
-describe('@vt/voicetree-mcp package boundaries', () => {
+describe('@vt/vt-daemon package boundaries', () => {
     it('forbids electron / webapp-edge / uiAPI / deep webapp imports in production sources', async () => {
         const violations = await findViolations()
         expect(violations.map(formatViolation)).toEqual([])

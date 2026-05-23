@@ -1,11 +1,11 @@
 // Headless HTTP daemon for graph-tools' live tooling. A minimal cousin of
-// `@vt/voicetree-mcp`'s `startHttpDaemonServer` (no `/hook/:source`, no
+// `@vt/vt-daemon`'s `startHttpDaemonServer` (no `/hook/:source`, no
 // `/events` WS, no tmux relay). Serves `POST /rpc` with bearer-token auth and
 // writes `<vault>/.voicetree/rpc.port` + `auth-token` atomically so a sibling
 // `liveTransport` client can discover it via the standard chain.
 //
-// Why not import `@vt/voicetree-mcp`'s server here: voicetree-mcp depends on
-// `@vt/graph-tools/node`, so graph-tools cannot import voicetree-mcp at the
+// Why not import `@vt/vt-daemon`'s server here: vt-daemon depends on
+// `@vt/graph-tools/node`, so graph-tools cannot import vt-daemon at the
 // package level without a runtime cycle. The HTTP server primitives needed
 // for this headless data-layer-only daemon are small enough to live here;
 // auth-token write + read share the canonical `@vt/vt-rpc` implementations.

@@ -1,4 +1,4 @@
-// Public API surface for @vt/voicetree-mcp.
+// Public API surface for @vt/vt-daemon.
 // Both Electron (webapp) and vt-mcpd consume runtime functionality through
 // this barrel or via the stable internal subpaths declared in
 // package.json#exports.

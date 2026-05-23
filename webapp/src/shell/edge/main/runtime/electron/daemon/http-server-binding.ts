@@ -19,7 +19,7 @@ import {
     type HookHandler,
     type ToolCatalog,
     type VaultStateWatcherHandle,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {agentRuntime} from '@vt/agent-runtime'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 

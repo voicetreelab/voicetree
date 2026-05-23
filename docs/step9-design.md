@@ -512,7 +512,7 @@ Step 7 §4.4. Implementers MUST verify round-trip when swapping wires.
 LOC counts carry the 3× pad (§1). STOP-and-surface if blown even
 after padding.
 
-Assumes Step 7g (`@vt/voicetree-mcp` → `@vt/tool-catalog`, commit
+Assumes Step 7g (`@vt/vt-daemon` → `@vt/tool-catalog`, commit
 `fab76e7d`) is on origin; paths below use the renamed package.
 
 ### 5.1 Files deleted

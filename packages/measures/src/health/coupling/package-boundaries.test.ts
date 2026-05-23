@@ -12,7 +12,7 @@ const SYSTEMS_ROOT: string = resolve(REPO_ROOT, 'packages/systems')
 const SCANNED_PACKAGE_NAMES: readonly string[] = [
     'graph-db-server',
     'agent-runtime',
-    'voicetree-mcp',
+    'vt-daemon',
 ] as const
 // BF-267: Bumped 44 → 47 to absorb the net +3 module-state vars introduced by the
 // DOVL+UFV epic (vaultLifecycle.{resources,mutexTail}, folderVisibilityResource.current,
@@ -29,8 +29,8 @@ const GRAPH_DB_SERVER_IMPORT_PATTERN = /^@vt\/graph-db-server(?:\/.*)?$/
 const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(REPO_ROOT, 'webapp/src'),
     join(SYSTEMS_ROOT, 'agent-runtime/src'),
-    join(SYSTEMS_ROOT, 'voicetree-mcp/bin'),
-    join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
+    join(SYSTEMS_ROOT, 'vt-daemon/bin'),
+    join(SYSTEMS_ROOT, 'vt-daemon/src'),
     join(SYSTEMS_ROOT, 'voicetree-cli/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
@@ -45,7 +45,7 @@ const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
     // vt-mcpd is the MCP-side daemon launcher entrypoint.
-    'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+    'packages/systems/vt-daemon/bin/vt-mcpd.ts',
 ] as const
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET = 0
 
@@ -415,7 +415,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         expect(violations).toEqual([])
     })
 
-    it('keeps webapp, agent-runtime, and voicetree-mcp production sources off graph-db-server outside allowlisted entrypoints', async () => {
+    it('keeps webapp, agent-runtime, and vt-daemon production sources off graph-db-server outside allowlisted entrypoints', async () => {
         const report = await scanGraphDbServerConsumerImports()
 
         console.info(
@@ -429,7 +429,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         await recordHealthMetric({
             metricId: 'daemon-owned-mutations-non-launcher-graph-db-server-runtime-imports',
             metricName: 'Daemon-Owned Mutations Non-Launcher GraphDbServer Runtime Imports',
-            description: 'Production webapp, agent-runtime, and voicetree-mcp runtime imports from @vt/graph-db-server outside launcher/search/parity entrypoints.',
+            description: 'Production webapp, agent-runtime, and vt-daemon runtime imports from @vt/graph-db-server outside launcher/search/parity entrypoints.',
             category: 'Coupling',
             current: report.nonLauncherRuntimeImports.length,
             budget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_IMPORT_BUDGET,

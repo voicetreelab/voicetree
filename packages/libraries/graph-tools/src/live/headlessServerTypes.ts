@@ -13,7 +13,7 @@ export type Catalog = ReadonlyMap<string, CatalogHandler>
 // JSON-RPC -32602 (`validation_failed`) wire support. A handler that needs to
 // surface "input was malformed" throws this; the dispatcher maps it onto the
 // `{kind: 'validation_failed', tool, issues}` envelope CLI callers
-// already recognise (design doc §4.6, harmonised with voicetree-mcp).
+// already recognise (design doc §4.6, harmonised with vt-daemon).
 export class CatalogValidationError extends Error {
     constructor(
         public readonly toolName: string,

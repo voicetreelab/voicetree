@@ -5,7 +5,7 @@ This file records the completion of the headless migration. The end state:
 - `@vt/agent-runtime` owns terminal + headless-agent runtime (PTY, child_process,
   registry, hooks, node injection). Embedded in Electron and consumed by
   `vt-mcpd`.
-- `@vt/voicetree-mcp` owns the MCP HTTP server (tool catalog) and ships a
+- `@vt/vt-daemon` owns the MCP HTTP server (tool catalog) and ships a
   `vt-mcpd` binary that runs MCP + graph-db without Electron.
 - Boundary-guard tests prevent either package from re-importing `electron`,
   the webapp shell (`@/shell/edge/...`), `uiAPI`, or deep `webapp/src/...`
@@ -194,7 +194,7 @@ Per `MIGRATION_PLAN.md` "Done Definition":
 
 - [x] `@vt/agent-runtime` contains terminal/headless runtime; typecheck +
       tests green.
-- [x] `@vt/voicetree-mcp` contains MCP server; typecheck + tests green.
+- [x] `@vt/vt-daemon` contains MCP server; typecheck + tests green.
 - [x] `vt-mcpd` runs without Electron (Phase D + Phase E re-smoke).
 - [x] Electron desktop terminal flow unchanged (electron-vite build green;
       Phase B3 smoke + Phase D regression on file).

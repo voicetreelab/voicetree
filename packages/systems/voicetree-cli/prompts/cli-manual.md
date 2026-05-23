@@ -2,8 +2,8 @@
 
 This is the canonical reference for the `vt` CLI surface. Every tool description
 below mirrors the tool catalog's zod schema descriptions in
-`packages/systems/voicetree-mcp/src/tools/catalog.ts`. A lightweight drift test
-(`packages/systems/voicetree-mcp/src/transport/tests/catalogManualDrift.test.ts`)
+`packages/systems/vt-daemon/src/tools/catalog.ts`. A lightweight drift test
+(`packages/systems/vt-daemon/src/transport/tests/catalogManualDrift.test.ts`)
 asserts each catalog description substring is present in this file. If you
 change one, change the other or the test will fail.
 

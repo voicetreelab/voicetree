@@ -7,7 +7,7 @@
  *
  * The on-disk markdown file is the source of truth for client-facing
  * descriptions; the drift check in
- * `packages/systems/voicetree-mcp/src/transport/tests/catalogManualDrift.test.ts`
+ * `packages/systems/vt-daemon/src/transport/tests/catalogManualDrift.test.ts`
  * keeps it in lock-step with the daemon's tool catalog.
  */
 

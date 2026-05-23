@@ -9,7 +9,7 @@ import {
     type HttpDaemonServerHandle,
     type McpToolResponse,
     type ToolCatalog,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {graphCreate} from '../core/graph'
 import {clearLoadSchemaPluginCacheForTest} from '../core/loadSchemaPlugin'

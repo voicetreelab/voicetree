@@ -9,7 +9,7 @@ import {killSession, createSession, hasSession} from '../../terminals/tmux/tmux-
 import {attachTmuxSessionToWebSocket} from '../tmux-attach-relay.ts'
 
 // Bridge-level black-box test. The daemon-side wiring lives in
-// voicetree-mcp/transport/tmuxAttachWiring.ts; here we drive the primitive
+// vt-daemon/transport/tmuxAttachWiring.ts; here we drive the primitive
 // directly via a tiny test-local mount helper so the bridge can be verified
 // in isolation from daemon auth.
 function mountForTest(server: Server): {readonly close: () => void} {

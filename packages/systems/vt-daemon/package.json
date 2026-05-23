@@ -1,5 +1,5 @@
 {
-  "name": "@vt/voicetree-mcp",
+  "name": "@vt/vt-daemon",
   "version": "0.0.0",
   "private": true,
   "type": "module",

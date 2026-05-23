@@ -12,7 +12,7 @@ const SERVER_PACKAGE_DIR = 'packages/systems/graph-db-server'
 const CONSUMER_PACKAGE_DIRS: readonly string[] = [
     'webapp',
     'packages/systems/agent-runtime',
-    'packages/systems/voicetree-mcp',
+    'packages/systems/vt-daemon',
     'packages/systems/voicetree-cli',
 ] as const
 
@@ -23,7 +23,7 @@ const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
     'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
     'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
-    'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+    'packages/systems/vt-daemon/bin/vt-mcpd.ts',
 ])
 
 const DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET = 0
@@ -287,7 +287,7 @@ describe('import graph: daemon-owned-mutations boundary', () => {
         await recordHealthMetric({
             metricId: 'daemon-owned-mutations-graph-boundary-runtime-edges',
             metricName: 'Daemon-Owned Mutations Graph-Boundary Runtime Edges',
-            description: 'ts-morph resolved import edges from {webapp, agent-runtime, voicetree-mcp} into graph-db-server with at least one runtime binding, outside the launcher/search allowlist. Catches package-spec, deep-relative, and barrel-re-exported back-channels uniformly.',
+            description: 'ts-morph resolved import edges from {webapp, agent-runtime, vt-daemon} into graph-db-server with at least one runtime binding, outside the launcher/search allowlist. Catches package-spec, deep-relative, and barrel-re-exported back-channels uniformly.',
             category: 'Coupling',
             current: violations.length,
             budget: DAEMON_OWNED_MUTATIONS_NON_LAUNCHER_RUNTIME_EDGE_BUDGET,

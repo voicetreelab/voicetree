@@ -67,7 +67,7 @@ import {
     configureMcpServer,
     dispatchLiveCommand,
     dispatchLiveCommandTool,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {
     applyLiveCommand,
     getCurrentLiveState,

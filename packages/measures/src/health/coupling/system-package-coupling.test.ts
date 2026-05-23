@@ -10,8 +10,8 @@ const SYSTEM_PACKAGES: ReadonlySet<string> = new Set([
     '@vt/graph-db-server',
     // The agent runtime owns terminal/session orchestration; webapp runtime access is launcher-only.
     '@vt/agent-runtime',
-    // The MCP package is the external control-plane adapter; new runtime consumers need review.
-    '@vt/voicetree-mcp',
+    // The vt-daemon package is the external control-plane adapter; new runtime consumers need review.
+    '@vt/vt-daemon',
     // The graph-db client is the stable daemon client/launcher surface; broad fan-in stays bounded.
     '@vt/graph-db-client',
 ])
@@ -43,14 +43,16 @@ const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES: ReadonlySet<string> = new Se
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
     'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
     // vt-mcpd is the MCP-side daemon launcher entrypoint.
-    'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
+    'packages/systems/vt-daemon/bin/vt-mcpd.ts',
 ])
 
 const ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS: ReadonlySet<string> = new Set([
-    // Legacy webapp launcher allowlist: the CLI has moved out to @vt/cli
-    // (packages/systems/voicetree-cli). webapp no longer hosts a runtime
-    // import of @vt/agent-runtime; the set is kept (empty) so the boundary
-    // test still rejects any new webapp-side runtime import.
+    // FS-watcher -> agent-completion-index bridge: graph-model-init wires the
+    // Electron file-watcher callback to registerAgentNodes so nodes authored
+    // by an agent via FS write (not create_graph) still satisfy the
+    // in-process agent-completion progress-node gate. The bridge crosses the
+    // boundary by intent; no other webapp file may import the symbol.
+    'webapp/src/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init.ts',
 ])
 
 type RuntimeSites = {

@@ -14,7 +14,7 @@ import {
     type HookHandler,
     type HttpDaemonServerHandle,
     type VaultStateWatcherHandle,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 import {error} from '../../output'
 import {emitInvocationStart, setErrorClass} from '../../telemetry/recordCliInvocation'

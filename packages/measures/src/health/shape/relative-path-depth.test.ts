@@ -15,7 +15,7 @@ const REQUESTED_SCOPE_ROOTS = [
     'webapp/src',
     'packages/systems/*/src',
     'packages/libraries/*/src',
-    'packages/systems/voicetree-mcp/bin',
+    'packages/systems/vt-daemon/bin',
 ] as const
 
 const EXCLUDED_DIR_NAMES = new Set(['node_modules', 'dist', 'build', '__tests__', 'integration-tests'])
@@ -49,7 +49,7 @@ async function discoverSourceRoots(): Promise<string[]> {
     return [
         join(REPO_ROOT, 'webapp', 'src'),
         ...packageSrcRoots.flat(),
-        join(REPO_ROOT, 'packages', 'systems', 'voicetree-mcp', 'bin'),
+        join(REPO_ROOT, 'packages', 'systems', 'vt-daemon', 'bin'),
     ]
 }
 

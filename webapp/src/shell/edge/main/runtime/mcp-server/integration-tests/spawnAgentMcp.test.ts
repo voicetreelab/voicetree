@@ -36,8 +36,8 @@ vi.mock('@vt/graph-db-server/graph/applyGraphDelta', () => ({
     applyGraphDeltaToDBThroughMemAndUIAndEditors: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
-    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+vi.mock('@vt/vt-daemon', async (importOriginal) => {
+    const actual: typeof import('@vt/vt-daemon') = await importOriginal()
     return {
         ...actual,
         startMonitor: vi.fn().mockReturnValue('monitor-1')
@@ -45,7 +45,7 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
 })
 
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
-import {configureMcpServer, spawnAgentTool} from '@vt/voicetree-mcp'
+import {configureMcpServer, spawnAgentTool} from '@vt/vt-daemon'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'

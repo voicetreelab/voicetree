@@ -3,7 +3,7 @@
 // tool catalog in one Node process, with no Electron dependency. Lifecycle
 // (Step 9b — unified HTTP transport):
 //   1. Parse --vault (required) and --port (optional bind pin; default 0).
-//   2. Wire @vt/agent-runtime + @vt/voicetree-mcp late-bound bridges for
+//   2. Wire @vt/agent-runtime + @vt/vt-daemon late-bound bridges for
 //      headless mode.
 //   3. Start graph-db-server in-process via startDaemon (loads graph,
 //      mounts watcher, publishes graphd.port, owns the per-vault lock).
@@ -42,7 +42,7 @@ import {
     type HookHandler,
     type HttpDaemonServerHandle,
     type VaultStateWatcherHandle,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
@@ -115,7 +115,7 @@ function configureHeadlessBridges(appSupportPath: string): void {
     })
 
     // The CLI manual is shipped inside @vt/cli. vt-mcpd lives next to it on
-    // disk (packages/systems/voicetree-mcp → packages/systems/voicetree-cli),
+    // disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
     // so resolve relative to this file rather than the appSupport-tools copy.
     const vtCliManualPath: string = join(
         dirname(fileURLToPath(import.meta.url)),

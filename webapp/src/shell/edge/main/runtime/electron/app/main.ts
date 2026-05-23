@@ -12,7 +12,7 @@ import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-st
 import {
     configureMcpServer,
     registerChildIfMonitored,
-} from '@vt/voicetree-mcp';
+} from '@vt/vt-daemon';
 import {agentRuntime} from '@vt/agent-runtime';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
@@ -93,7 +93,7 @@ validateStartupCwd();
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
+// Wire @vt/vt-daemon late-bound bridges. Headless vt-mcpd will provide
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {

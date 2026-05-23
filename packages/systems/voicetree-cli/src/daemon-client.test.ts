@@ -21,7 +21,7 @@ import {
     type HookHandler,
     type HttpDaemonServerHandle,
     type ToolCatalog,
-} from '@vt/voicetree-mcp'
+} from '@vt/vt-daemon'
 import {authTokenFilePath, generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 import {callDaemon, DaemonTimeout, DaemonUnreachable} from './daemon-client.ts'

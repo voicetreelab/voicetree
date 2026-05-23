@@ -9,9 +9,9 @@ export default defineConfig({
         reporters: [
             'default',
             [ciCheckReporter, {
-                checkId: 'voicetree-mcp-unit',
-                checkName: 'VoiceTree MCP Unit',
-                command: 'npm --workspace @vt/voicetree-mcp run test',
+                checkId: 'vt-daemon-unit',
+                checkName: 'vt-daemon Unit',
+                command: 'npm --workspace @vt/vt-daemon run test',
             }],
         ],
     },

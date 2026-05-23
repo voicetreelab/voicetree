@@ -13,7 +13,7 @@ How public VT routes `create_graph` writes across loaded vault paths, and how an
 
 ### `create_graph.outputPath` resolution
 
-In `packages/systems/voicetree-mcp/src/create-graph/createGraphTool.ts:resolveOutputDirectory`:
+In `packages/systems/vt-daemon/src/create-graph/createGraphTool.ts:resolveOutputDirectory`:
 
 1. **No `outputPath` given** → writes default to the daemon's `writePath`.
 2. **Absolute `outputPath`** → resolved as-is, then checked against the loaded vault paths.
@@ -23,7 +23,7 @@ In `packages/systems/voicetree-mcp/src/create-graph/createGraphTool.ts:resolveOu
 
 ### `spawn_agent.spawnDirectory` propagation
 
-In `packages/systems/voicetree-mcp/src/tools/agent-control/spawnAgentTool.ts:resolveSpawnDirectory`:
+In `packages/systems/vt-daemon/src/tools/agent-control/spawnAgentTool.ts:resolveSpawnDirectory`:
 
 - If the caller passes `spawnDirectory`, the child terminal is opened there.
 - Otherwise the child inherits the caller's `initialSpawnDirectory` (which the caller itself inherited the same way, all the way back to the agent that was given an explicit value or to the daemon's project root default).

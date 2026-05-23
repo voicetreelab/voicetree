@@ -80,13 +80,13 @@ describe('resolveExportsSubpath', () => {
 describe('resolveWorkspaceBasePath', () => {
     it('uses exports["."] for root imports', () => {
         const pkg = makePkg({
-            name: '@vt/voicetree-mcp',
-            absDir: '/repo/voicetree-mcp',
-            srcRoot: '/repo/voicetree-mcp/src',
+            name: '@vt/vt-daemon',
+            absDir: '/repo/vt-daemon',
+            srcRoot: '/repo/vt-daemon/src',
             exports: {'.': './src/agents/index.ts'},
         })
-        expect(resolveWorkspaceBasePath(pkg, '@vt/voicetree-mcp'))
-            .toBe('/repo/voicetree-mcp/src/agents/index.ts')
+        expect(resolveWorkspaceBasePath(pkg, '@vt/vt-daemon'))
+            .toBe('/repo/vt-daemon/src/agents/index.ts')
     })
 
     it('falls back to main for root imports when exports["."] is missing', () => {
@@ -117,16 +117,16 @@ describe('resolveWorkspaceBasePath', () => {
 
     it('resolves subpath imports via exact exports map entries', () => {
         const pkg = makePkg({
-            name: '@vt/voicetree-mcp',
-            absDir: '/repo/voicetree-mcp',
-            srcRoot: '/repo/voicetree-mcp/src',
+            name: '@vt/vt-daemon',
+            absDir: '/repo/vt-daemon',
+            srcRoot: '/repo/vt-daemon/src',
             exports: {
                 '.': './src/agents/index.ts',
                 './mcp-config': './src/config/mcp-config-public.ts',
             },
         })
-        expect(resolveWorkspaceBasePath(pkg, '@vt/voicetree-mcp/mcp-config'))
-            .toBe('/repo/voicetree-mcp/src/config/mcp-config-public.ts')
+        expect(resolveWorkspaceBasePath(pkg, '@vt/vt-daemon/mcp-config'))
+            .toBe('/repo/vt-daemon/src/config/mcp-config-public.ts')
     })
 
     it('resolves subpath imports via wildcard exports that remap segments', () => {
