@@ -14,9 +14,9 @@ import type { OpenVaultResponse } from '@vt/graph-db-client'
 
 import { markLoadTiming, startLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
-import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
-import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
-import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription'
+import { setActiveVaultAndEnsureDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { startDaemonGraphSync, stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
+import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 

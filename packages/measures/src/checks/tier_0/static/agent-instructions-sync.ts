@@ -1,10 +1,12 @@
-import {type CheckDef, npmRun} from '../../../_types.ts'
+import {type CheckDef} from '../../../_types.ts'
+
+const SCRIPT_PATH = 'packages/measures/src/checks/tier_0/static/agent-instructions-sync.mjs'
 
 export const check: CheckDef = {
     id: 'agent-instructions-sync',
     name: 'CLAUDE.md / AGENTS.md byte-sync',
     category: 'Static',
-    display: 'npm run check:agent-instructions-sync',
-    args: () => npmRun('check:agent-instructions-sync'),
+    display: `node ${SCRIPT_PATH}`,
+    args: () => ['node', SCRIPT_PATH],
     parser: 'none',
 }

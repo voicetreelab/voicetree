@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import {
   CONTRACT_VERSION,
-  isOwnerRecord,
+  ownerRecordFile,
   type OwnerRecord,
 } from '@vt/graph-db-protocol'
 import {
@@ -75,11 +75,11 @@ function trackServer(server: Server): Server {
 
 async function readPersistedOwner(vault: string): Promise<OwnerRecord> {
   const raw = await readFile(join(vault, '.voicetree', OWNER_FILE), 'utf8')
-  const parsed: unknown = JSON.parse(raw)
-  if (!isOwnerRecord(parsed)) {
+  const decoded = ownerRecordFile.decode(raw)
+  if (decoded === null) {
     throw new Error('owner record on disk did not satisfy OwnerRecord schema')
   }
-  return parsed
+  return decoded
 }
 
 function spawnLongRunningChild(): ChildProcess {

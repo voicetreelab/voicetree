@@ -1,8 +1,8 @@
-import {readdir, readFile, stat} from 'node:fs/promises'
-import {join, relative} from 'node:path'
+import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
-import {DEFAULT_REPO_ROOT, discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
+import {discoverSourceFiles, type SourceFileInfo} from '../../_shared/discovery/function-discovery'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const REPO_ROOT: string = DEFAULT_REPO_ROOT
@@ -30,37 +30,6 @@ type PackageMean = {
     readonly fileCount: number
     readonly exportCount: number
     readonly mean: number
-}
-
-async function pathExists(path: string): Promise<boolean> {
-    try {
-        await stat(path)
-        return true
-    } catch {
-        return false
-    }
-}
-
-function isProductionSource(path: string): boolean {
-    return path.endsWith('.ts')
-        && !path.endsWith('/__audit_seed__.ts')
-        && !path.endsWith('.d.ts')
-        && !path.endsWith('.test.ts')
-        && !path.endsWith('.spec.ts')
-        && !path.includes('/__tests__/')
-        && !path.includes('/__generated__/')
-        && !path.includes('/__fixtures__/')
-}
-
-async function listProductionSources(root: string): Promise<string[]> {
-    const entries = await readdir(root, {withFileTypes: true})
-    const nested = await Promise.all(entries.map(async entry => {
-        const path = join(root, entry.name)
-        if (entry.isDirectory()) return listProductionSources(path)
-        if (entry.isFile() && isProductionSource(path)) return [path]
-        return []
-    }))
-    return nested.flat().sort()
 }
 
 function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
@@ -126,20 +95,16 @@ function collectTopLevelExportSymbols(sourceFile: ts.SourceFile): string[] {
     return [...symbols].sort()
 }
 
-async function scanPackageExports(pkg: PackageInfo): Promise<FileExportCount[]> {
-    const files = await listProductionSources(pkg.srcRoot)
-    const counts = await Promise.all(files.map(async file => {
-        const text = await readFile(file, 'utf8')
-        const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
-        const exportedSymbols = collectTopLevelExportSymbols(sourceFile)
-        return {
-            packageName: pkg.dirName,
-            file: relative(REPO_ROOT, file),
-            exportedSymbols,
-            exportCount: exportedSymbols.length,
-        }
-    }))
-    return counts.sort((a, b) => a.file.localeCompare(b.file))
+async function scanFileExports(sf: SourceFileInfo): Promise<FileExportCount> {
+    const text = await readFile(sf.absolutePath, 'utf8')
+    const sourceFile = ts.createSourceFile(sf.absolutePath, text, ts.ScriptTarget.Latest, true)
+    const exportedSymbols = collectTopLevelExportSymbols(sourceFile)
+    return {
+        packageName: sf.packageName,
+        file: sf.relativePath,
+        exportedSymbols,
+        exportCount: exportedSymbols.length,
+    }
 }
 
 function median(values: readonly number[]): number {
@@ -227,7 +192,9 @@ function formatReport(
 describe('systems exports per file', () => {
     it('keeps top-level exported symbol counts narrow per source file', async () => {
         const packages = await discoverPackages()
-        const counts = (await Promise.all(packages.map(scanPackageExports))).flat()
+        const sourceFiles = await discoverSourceFiles(packages, REPO_ROOT)
+        const counts = (await Promise.all(sourceFiles.map(scanFileExports)))
+            .sort((a, b) => a.file.localeCompare(b.file))
         const dist = distribution(counts)
         const totalExportedSymbols = counts.reduce((sum, count) => sum + count.exportCount, 0)
         const top = topFiles(counts, 10)

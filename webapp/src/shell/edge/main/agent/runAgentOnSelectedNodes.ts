@@ -10,7 +10,7 @@ import type { Graph, GraphDelta, NodeIdAndFilePath, Position } from '@vt/graph-m
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { createTaskNode } from '@vt/graph-model/graph'
 import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
-import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy'
+import { getGraphFromDaemon, postDeltaThroughDaemonWithEditors } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 import * as O from 'fp-ts/lib/Option.js'
 
 export interface RunAgentOnSelectedParams {

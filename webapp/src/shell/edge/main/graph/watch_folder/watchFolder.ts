@@ -8,8 +8,8 @@ import type { ParsedQuery } from '@vt/graph-model'
 import { createDatedSubfolder } from '@vt/app-config/project'
 import type { VaultState } from '@vt/graph-db-client'
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
-import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
+import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
     getStartupVaultHint,

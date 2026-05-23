@@ -15,7 +15,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import type { CallerKind, OwnerRecord } from '@vt/graph-db-protocol'
+import type { CallerKind, OwnerRecord } from './types.ts'
 import { GraphDbClient } from '../GraphDbClient.ts'
 import { DaemonLaunchTimeout, UnsafeOwnerError } from '../errors.ts'
 import {

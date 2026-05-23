@@ -1,11 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import {
-  CALLER_KINDS,
-  commandFingerprintsEqual,
-  isCallerKind,
-  isOwnerRecord,
-  OWNER_RECORD_SCHEMA_VERSION,
+  ownerRecordFile,
   type CommandFingerprint,
   type OwnerRecord,
 } from '@vt/graph-db-protocol'
@@ -20,125 +16,156 @@ function fingerprint(
   }
 }
 
-function ownerRecord(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
-  return {
-    schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
+function validOwnerRecord(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
+  return ownerRecordFile.create({
     canonicalVaultPath: '/vault',
     pid: 4242,
     ppid: 1,
-    port: 65123,
-    ownerNonce: 'nonce-abc',
-    startedAtMs: 1_000_000,
-    heartbeatAtMs: 1_000_500,
     callerKind: 'electron',
     contractVersion: '0.2.0',
     commandFingerprint: fingerprint(),
+    nowMs: 1_000_000,
+    ownerNonce: 'nonce-abc',
     ...overrides,
-  }
+  })
 }
 
-describe('commandFingerprintsEqual', () => {
-  test('returns true for identical fingerprints', () => {
-    expect(commandFingerprintsEqual(fingerprint(), fingerprint())).toBe(true)
+function encodeWithOverrides(overrides: Record<string, unknown>): string {
+  // Bypass the typed `create` builder to construct a deliberately malformed
+  // record for decode-rejection black-box tests. The validator inside
+  // `decode` is implementation; we only assert on the observable outcome
+  // (returns null for malformed input).
+  return JSON.stringify({
+    ...validOwnerRecord(),
+    ...overrides,
+  })
+}
+
+describe('ownerRecordFile.create', () => {
+  test('stamps the current schema version on every record', () => {
+    const record = validOwnerRecord()
+    expect(record.schemaVersion).toBe(1)
   })
 
-  test('returns false when executable differs', () => {
-    expect(
-      commandFingerprintsEqual(
-        fingerprint(),
-        fingerprint({ executable: '/usr/bin/python' }),
-      ),
-    ).toBe(false)
+  test('starts records with a null port until the daemon binds', () => {
+    const record = ownerRecordFile.create({
+      canonicalVaultPath: '/vault',
+      pid: 4242,
+      ppid: 1,
+      callerKind: 'electron',
+      contractVersion: '0.2.0',
+      commandFingerprint: fingerprint(),
+      nowMs: 1_000_000,
+    })
+    expect(record.port).toBeNull()
   })
 
-  test('returns false when arg length differs', () => {
-    expect(
-      commandFingerprintsEqual(fingerprint(), fingerprint({ args: [] })),
-    ).toBe(false)
+  test('uses the caller-supplied nonce when provided', () => {
+    const record = validOwnerRecord({ ownerNonce: 'fixed-nonce' })
+    expect(record.ownerNonce).toBe('fixed-nonce')
   })
 
-  test('returns false when arg content differs', () => {
-    expect(
-      commandFingerprintsEqual(
-        fingerprint(),
-        fingerprint({ args: ['vt-graphd', '--vault', '/other-vault'] }),
-      ),
-    ).toBe(false)
+  test('produces a fresh nonce when none is supplied', () => {
+    const a = ownerRecordFile.create({
+      canonicalVaultPath: '/vault',
+      pid: 4242,
+      ppid: 1,
+      callerKind: 'electron',
+      contractVersion: '0.2.0',
+      commandFingerprint: fingerprint(),
+      nowMs: 1_000_000,
+    })
+    const b = ownerRecordFile.create({
+      canonicalVaultPath: '/vault',
+      pid: 4242,
+      ppid: 1,
+      callerKind: 'electron',
+      contractVersion: '0.2.0',
+      commandFingerprint: fingerprint(),
+      nowMs: 1_000_000,
+    })
+    expect(a.ownerNonce).not.toBe(b.ownerNonce)
   })
 })
 
-describe('isCallerKind', () => {
-  test.each(CALLER_KINDS)('accepts %s', (kind) => {
-    expect(isCallerKind(kind)).toBe(true)
+describe('ownerRecordFile.encode / decode roundtrip', () => {
+  test('encode then decode preserves a valid record', () => {
+    const original = validOwnerRecord()
+    const roundTripped = ownerRecordFile.decode(ownerRecordFile.encode(original))
+    expect(roundTripped).toEqual(original)
   })
 
-  test('rejects unknown strings', () => {
-    expect(isCallerKind('renderer')).toBe(false)
-    expect(isCallerKind('')).toBe(false)
-  })
-
-  test('rejects non-strings', () => {
-    expect(isCallerKind(42)).toBe(false)
-    expect(isCallerKind(null)).toBe(false)
-    expect(isCallerKind(undefined)).toBe(false)
-  })
-})
-
-describe('isOwnerRecord', () => {
-  test('accepts a well-formed record', () => {
-    expect(isOwnerRecord(ownerRecord())).toBe(true)
-  })
-
-  test('accepts a record whose port is null (claim before port bind)', () => {
-    expect(isOwnerRecord(ownerRecord({ port: null }))).toBe(true)
-  })
-
-  test('rejects an unknown schema version', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), schemaVersion: 2 })).toBe(false)
-  })
-
-  test('rejects a missing canonical vault path', () => {
-    const r = { ...ownerRecord() } as Record<string, unknown>
-    delete r.canonicalVaultPath
-    expect(isOwnerRecord(r)).toBe(false)
-  })
-
-  test('rejects a non-integer pid', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), pid: 12.5 })).toBe(false)
-  })
-
-  test('rejects a zero or negative pid', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), pid: 0 })).toBe(false)
-    expect(isOwnerRecord({ ...ownerRecord(), pid: -1 })).toBe(false)
-  })
-
-  test('rejects an out-of-range port', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), port: 70_000 })).toBe(false)
-    expect(isOwnerRecord({ ...ownerRecord(), port: -1 })).toBe(false)
-  })
-
-  test('rejects an empty owner nonce', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), ownerNonce: '' })).toBe(false)
-  })
-
-  test('rejects an unknown caller kind', () => {
-    expect(isOwnerRecord({ ...ownerRecord(), callerKind: 'renderer' })).toBe(
-      false,
+  test('decode accepts a port-less record (claim before port bind)', () => {
+    const original = validOwnerRecord({ port: null })
+    expect(ownerRecordFile.decode(ownerRecordFile.encode(original))).toEqual(
+      original,
     )
   })
 
-  test('rejects a malformed command fingerprint', () => {
-    expect(
-      isOwnerRecord({
-        ...ownerRecord(),
-        commandFingerprint: { executable: 'node', args: [123] },
-      }),
-    ).toBe(false)
+  test('encoded form has a trailing newline (POSIX file convention)', () => {
+    const encoded = ownerRecordFile.encode(validOwnerRecord())
+    expect(encoded.endsWith('\n')).toBe(true)
+  })
+})
+
+describe('ownerRecordFile.decode rejection', () => {
+  test('returns null on invalid JSON', () => {
+    expect(ownerRecordFile.decode('not-json')).toBeNull()
+    expect(ownerRecordFile.decode('')).toBeNull()
   })
 
-  test('rejects non-objects', () => {
-    expect(isOwnerRecord(null)).toBe(false)
-    expect(isOwnerRecord('owner')).toBe(false)
-    expect(isOwnerRecord(42)).toBe(false)
+  test('returns null when schema version is unknown', () => {
+    expect(ownerRecordFile.decode(encodeWithOverrides({ schemaVersion: 2 }))).toBeNull()
+  })
+
+  test('returns null when canonical vault path is missing', () => {
+    expect(
+      ownerRecordFile.decode(
+        JSON.stringify({
+          ...validOwnerRecord(),
+          canonicalVaultPath: undefined,
+        }),
+      ),
+    ).toBeNull()
+  })
+
+  test('returns null on a non-integer pid', () => {
+    expect(ownerRecordFile.decode(encodeWithOverrides({ pid: 12.5 }))).toBeNull()
+  })
+
+  test('returns null on a zero or negative pid', () => {
+    expect(ownerRecordFile.decode(encodeWithOverrides({ pid: 0 }))).toBeNull()
+    expect(ownerRecordFile.decode(encodeWithOverrides({ pid: -1 }))).toBeNull()
+  })
+
+  test('returns null on an out-of-range port', () => {
+    expect(ownerRecordFile.decode(encodeWithOverrides({ port: 70_000 }))).toBeNull()
+    expect(ownerRecordFile.decode(encodeWithOverrides({ port: -1 }))).toBeNull()
+  })
+
+  test('returns null when the owner nonce is empty', () => {
+    expect(ownerRecordFile.decode(encodeWithOverrides({ ownerNonce: '' }))).toBeNull()
+  })
+
+  test('returns null on an unknown caller kind', () => {
+    expect(
+      ownerRecordFile.decode(encodeWithOverrides({ callerKind: 'renderer' })),
+    ).toBeNull()
+  })
+
+  test('returns null on a malformed command fingerprint', () => {
+    expect(
+      ownerRecordFile.decode(
+        encodeWithOverrides({
+          commandFingerprint: { executable: 'node', args: [123] },
+        }),
+      ),
+    ).toBeNull()
+  })
+
+  test('returns null on non-object roots', () => {
+    expect(ownerRecordFile.decode('null')).toBeNull()
+    expect(ownerRecordFile.decode('"owner"')).toBeNull()
+    expect(ownerRecordFile.decode('42')).toBeNull()
   })
 })

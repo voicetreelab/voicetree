@@ -10,7 +10,7 @@
  * client's ownership lifecycle.
  */
 
-import type { OwnerDiagnosticEvent } from '@vt/graph-db-protocol'
+import type { OwnerDiagnosticEvent } from './types.ts'
 
 export type OwnerDiagnosticListener = (event: OwnerDiagnosticEvent) => void
 

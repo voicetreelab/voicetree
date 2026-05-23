@@ -9,10 +9,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import {
-  commandFingerprintsEqual,
-  type CommandFingerprint,
-} from '@vt/graph-db-protocol'
+import type { CommandFingerprint } from './types.ts'
 import type {
   CommandFingerprintMatch,
   ProcessLiveness,
@@ -46,7 +43,19 @@ export function readCommandFingerprintMatch(
 ): CommandFingerprintMatch {
   const live = readPidCommand(pid)
   if (live === null) return 'unknown'
-  return commandFingerprintsEqual(live, recorded) ? 'match' : 'mismatch'
+  return fingerprintsEqual(live, recorded) ? 'match' : 'mismatch'
+}
+
+function fingerprintsEqual(
+  a: CommandFingerprint,
+  b: CommandFingerprint,
+): boolean {
+  if (a.executable !== b.executable) return false
+  if (a.args.length !== b.args.length) return false
+  for (let i = 0; i < a.args.length; i++) {
+    if (a.args[i] !== b.args[i]) return false
+  }
+  return true
 }
 
 function readPidCommand(pid: number): CommandFingerprint | null {

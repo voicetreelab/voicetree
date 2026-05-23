@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "test": "node scripts/run-remote.mjs npm run test:local",
+    "install:devbox": "node scripts/run-remote.mjs npm install",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:t1",
     "test:t0": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=0'",
     "test:t1": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=1'",
@@ -15,7 +16,6 @@
     "test:t3": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts '--tier<=3'",
     "test:full": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/capture-ci-checks.ts",
     "test:vt-fake-agent": "vitest run --config tools/vt-fake-agent/vitest.config.ts",
-    "check:agent-instructions-sync": "node scripts/check-agent-instructions-sync.mjs",
     "test:measures": "npm --workspace @vt/measures run test",
     "orange-codebase-complexity-tests": "vitest run packages/measures/src/health/complexity/hierarchical-complexity.test.ts packages/measures/src/health/complexity/behavioral-complexity.test.ts packages/measures/src/health/complexity/shape-complexity.test.ts",
     "check": "npm run test:t1",

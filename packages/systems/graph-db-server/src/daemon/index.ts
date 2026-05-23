@@ -7,7 +7,6 @@ export {
   type DaemonOwnerHandle,
 } from './lifecycle/daemonOwnerLifecycle.ts'
 export {
-  OWNER_RECORD_FILENAME,
   ownerRecordPathFor,
   readOwnerRecord,
 } from './ownerRecord.ts'

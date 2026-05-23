@@ -22,7 +22,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import type { CallerKind } from '@vt/graph-db-protocol'
+import type { CallerKind } from './types.ts'
 import {
   DaemonLaunchTimeout,
   OwnerSpawnCooldownError,
@@ -31,7 +31,7 @@ import {
 } from '../errors.ts'
 import { GraphDbClient } from '../GraphDbClient.ts'
 import { emitOwnerDiagnostic } from './diagnostics.ts'
-import { decideOwnerAction } from './ownerDecision.ts'
+import { decideOwnerAction, type OwnerDecision } from './ownerDecision.ts'
 import { readOwnerRecord } from './ownerRecordIo.ts'
 import {
   attemptSpawnAndWait,
@@ -107,156 +107,222 @@ export async function ensureGraphDaemonForVault(
   return work
 }
 
+type EnsureContext = {
+  readonly canonicalVaultPath: string
+  readonly caller: CallerKind
+  /**
+   * Per-call UUID carried into every {@link emitOwnerDiagnostic} so
+   * listeners can correlate a chain without inferring causality from timing.
+   */
+  readonly attemptId: string
+  readonly options: EnsureGraphDaemonOptions
+  readonly deadlineMs: number
+  readonly staleHeartbeatMs: number
+  readonly initialBackoffMs: number
+  readonly maxBackoffMs: number
+  readonly spawnCooldownMs: number
+}
+
+type LoopOutcome =
+  | { readonly kind: 'done'; readonly result: EnsureGraphDaemonResult }
+  | { readonly kind: 'continue'; readonly nextBackoff: number }
+
 async function runEnsure(
   canonicalVaultPath: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): Promise<EnsureGraphDaemonResult> {
   await mkdir(`${canonicalVaultPath}/.voicetree`, { recursive: true })
-  const attemptId = randomUUID()
-  const deadlineMs = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
-  const staleHeartbeatMs =
-    options.staleHeartbeatMs ?? DEFAULT_STALE_HEARTBEAT_MS
-  const initialBackoffMs =
-    options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS
-  const maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS
-  const spawnCooldownMs =
-    options.spawnCooldownMs ?? DEFAULT_SPAWN_COOLDOWN_MS
-  let backoff = initialBackoffMs
+  const ctx = makeEnsureContext(canonicalVaultPath, caller, options)
+  let backoff = ctx.initialBackoffMs
 
-  while (Date.now() < deadlineMs) {
+  while (Date.now() < ctx.deadlineMs) {
     const evidence = await gatherEvidence(canonicalVaultPath)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
-      staleHeartbeatMs,
+      staleHeartbeatMs: ctx.staleHeartbeatMs,
     })
+    const outcome = await handleDecision(decision, ctx, backoff)
+    if (outcome.kind === 'done') return outcome.result
+    backoff = outcome.nextBackoff
+  }
 
-    switch (decision.kind) {
-      case 'reuse': {
-        emitOwnerDiagnostic({
-          kind: 'reuse',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          pid: decision.pid,
-          port: decision.port,
-          ownerNonce: decision.ownerNonce,
-        })
-        return finaliseReuse(decision.port, decision.pid, decision.ownerNonce)
-      }
+  throw await timeoutError(canonicalVaultPath)
+}
 
-      case 'wait': {
-        emitOwnerDiagnostic({
-          kind: 'wait',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          reason: decision.reason,
-          recordedPid: decision.recordedPid,
-          recordedPort: decision.recordedPort,
-        })
-        await sleep(boundedDelay(backoff, deadlineMs))
-        backoff = nextBackoff(backoff, maxBackoffMs)
-        continue
-      }
+function makeEnsureContext(
+  canonicalVaultPath: string,
+  caller: CallerKind,
+  options: EnsureGraphDaemonOptions,
+): EnsureContext {
+  return {
+    canonicalVaultPath,
+    caller,
+    attemptId: randomUUID(),
+    options,
+    deadlineMs: Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    staleHeartbeatMs:
+      options.staleHeartbeatMs ?? DEFAULT_STALE_HEARTBEAT_MS,
+    initialBackoffMs:
+      options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS,
+    maxBackoffMs: options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
+    spawnCooldownMs:
+      options.spawnCooldownMs ?? DEFAULT_SPAWN_COOLDOWN_MS,
+  }
+}
 
-      case 'claim': {
-        emitOwnerDiagnostic({
-          kind: 'claim-attempt',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          reason: 'no-owner',
-        })
-        const result = await attemptSpawnAndWait(
-          canonicalVaultPath,
-          caller,
-          attemptId,
-          { bin: options.bin, initialBackoffMs, maxBackoffMs },
-          deadlineMs,
-          staleHeartbeatMs,
-          spawnCooldownMs,
-        )
-        if (result !== null) {
-          emitOwnerDiagnostic({
-            kind: 'acquired',
-            attemptId,
-            callerKind: caller,
-            canonicalVaultPath,
-            nowMs: Date.now(),
-            pid: result.pid,
-            port: result.port,
-            ownerNonce: result.ownerNonce,
-          })
-          return result
-        }
-        // Lost the spawn lock or another caller's claim raced ahead;
-        // loop back to discovery and reuse/wait on their owner.
-        await sleep(boundedDelay(backoff, deadlineMs))
-        backoff = nextBackoff(backoff, maxBackoffMs)
-        continue
-      }
-
-      case 'stale-reclaim': {
-        emitOwnerDiagnostic({
-          kind: 'claim-attempt',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          reason: 'stale-reclaim',
-        })
-        await reclaimStaleOwner(canonicalVaultPath, decision.staleRecord)
-        emitOwnerDiagnostic({
-          kind: 'stale-reclaimed',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          reason: decision.reason,
-          recordedPid: decision.staleRecord.pid,
-        })
-        backoff = initialBackoffMs
-        continue
-      }
-
-      case 'unsafe-owner': {
-        throw new UnsafeOwnerError(
-          canonicalVaultPath,
-          decision.recordedPid,
-          decision.reason,
-        )
-      }
-
-      case 'cooldown-suppressed': {
-        emitOwnerDiagnostic({
-          kind: 'cooldown-suppressed',
-          attemptId,
-          callerKind: caller,
-          canonicalVaultPath,
-          nowMs: Date.now(),
-          untilMs: decision.untilMs,
-          reason: decision.reason,
-        })
-        throw new OwnerSpawnCooldownError(
-          canonicalVaultPath,
-          decision.untilMs,
-          decision.reason,
-        )
+/**
+ * Map one {@link OwnerDecision} to its loop effect. Each branch is either
+ * a terminal outcome (return / throw) or a continuation with the next
+ * backoff value. Pulling the dispatch out of {@link runEnsure} keeps the
+ * orchestrator a flat while-loop and the per-branch effects each readable
+ * on their own.
+ *
+ * Every transition emits an `OwnerDiagnosticEvent` so subscribers (BF-347
+ * `subscribeOwnerDiagnostics`) can observe the full lifecycle.
+ */
+async function handleDecision(
+  decision: OwnerDecision,
+  ctx: EnsureContext,
+  backoff: number,
+): Promise<LoopOutcome> {
+  switch (decision.kind) {
+    case 'reuse': {
+      emitOwnerDiagnostic({
+        kind: 'reuse',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        pid: decision.pid,
+        port: decision.port,
+        ownerNonce: decision.ownerNonce,
+      })
+      return {
+        kind: 'done',
+        result: finaliseReuse(decision.port, decision.pid, decision.ownerNonce),
       }
     }
+    case 'wait': {
+      emitOwnerDiagnostic({
+        kind: 'wait',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        reason: decision.reason,
+        recordedPid: decision.recordedPid,
+        recordedPort: decision.recordedPort,
+      })
+      return waitAndContinue(ctx, backoff)
+    }
+    case 'claim': {
+      emitOwnerDiagnostic({
+        kind: 'claim-attempt',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        reason: 'no-owner',
+      })
+      const result = await attemptSpawnAndWait(
+        ctx.canonicalVaultPath,
+        ctx.caller,
+        ctx.attemptId,
+        {
+          bin: ctx.options.bin,
+          initialBackoffMs: ctx.initialBackoffMs,
+          maxBackoffMs: ctx.maxBackoffMs,
+        },
+        ctx.deadlineMs,
+        ctx.staleHeartbeatMs,
+        ctx.spawnCooldownMs,
+      )
+      if (result !== null) {
+        emitOwnerDiagnostic({
+          kind: 'acquired',
+          attemptId: ctx.attemptId,
+          callerKind: ctx.caller,
+          canonicalVaultPath: ctx.canonicalVaultPath,
+          nowMs: Date.now(),
+          pid: result.pid,
+          port: result.port,
+          ownerNonce: result.ownerNonce,
+        })
+        return { kind: 'done', result }
+      }
+      // Lost the spawn lock or another caller's claim raced ahead; loop
+      // back to discovery and reuse/wait on their owner.
+      return waitAndContinue(ctx, backoff)
+    }
+    case 'stale-reclaim': {
+      emitOwnerDiagnostic({
+        kind: 'claim-attempt',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        reason: 'stale-reclaim',
+      })
+      await reclaimStaleOwner(ctx.canonicalVaultPath, decision.staleRecord)
+      emitOwnerDiagnostic({
+        kind: 'stale-reclaimed',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        reason: decision.reason,
+        recordedPid: decision.staleRecord.pid,
+      })
+      return { kind: 'continue', nextBackoff: ctx.initialBackoffMs }
+    }
+    case 'unsafe-owner':
+      throw new UnsafeOwnerError(
+        ctx.canonicalVaultPath,
+        decision.recordedPid,
+        decision.reason,
+      )
+    case 'cooldown-suppressed': {
+      emitOwnerDiagnostic({
+        kind: 'cooldown-suppressed',
+        attemptId: ctx.attemptId,
+        callerKind: ctx.caller,
+        canonicalVaultPath: ctx.canonicalVaultPath,
+        nowMs: Date.now(),
+        untilMs: decision.untilMs,
+        reason: decision.reason,
+      })
+      throw new OwnerSpawnCooldownError(
+        ctx.canonicalVaultPath,
+        decision.untilMs,
+        decision.reason,
+      )
+    }
   }
+}
 
-  // Decision loop ran out of time. Distinguish "we were waiting on an
-  // in-flight owner" from "we never even got a record".
+async function waitAndContinue(
+  ctx: EnsureContext,
+  backoff: number,
+): Promise<LoopOutcome> {
+  await sleep(boundedDelay(backoff, ctx.deadlineMs))
+  return {
+    kind: 'continue',
+    nextBackoff: nextBackoff(backoff, ctx.maxBackoffMs),
+  }
+}
+
+/**
+ * Decide which timeout shape to throw when the work-loop deadline expires.
+ * Distinguishes "we were waiting on an in-flight owner" (record on disk)
+ * from "we never even got a record" (no owner ever materialised).
+ */
+async function timeoutError(canonicalVaultPath: string): Promise<Error> {
   const finalRecord = await readOwnerRecord(canonicalVaultPath)
   if (finalRecord !== null) {
-    throw new OwnerWaitTimeoutError(canonicalVaultPath, finalRecord.pid)
+    return new OwnerWaitTimeoutError(canonicalVaultPath, finalRecord.pid)
   }
-  throw new DaemonLaunchTimeout(
+  return new DaemonLaunchTimeout(
     `vt-graphd ensure for vault ${canonicalVaultPath} did not produce an owner before deadline`,
   )
 }

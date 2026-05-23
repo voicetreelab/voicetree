@@ -12,7 +12,6 @@ export {
   FolderStateBatchRequestSchema,
   FolderStatePatchRequestSchema,
   FolderStateResponseSchema,
-  FolderStateSchema,
   GraphStateSchema,
   HealthResponseSchema,
   LayoutPartialSchema,
