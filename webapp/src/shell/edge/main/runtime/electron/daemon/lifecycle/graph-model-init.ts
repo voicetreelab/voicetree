@@ -20,8 +20,8 @@ import { refreshAllInjectBadges } from '@/shell/edge/main/agent/terminals/inject
 import { terminalRuntimeSurface, type TerminalRecord } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
 import { registerAgentNodes, stripStaleVoicetreeMcpEntries, writeVaultAgentDiscoveryFile } from '@vt/voicetree-mcp'
 import { tellSTTServerToLoadDirectory } from '@/shell/edge/main/runtime/backend-api'
-import { ensureProjectDotVoicetree, getToolsDirectory } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
-import path from 'path'
+import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup'
+import { getBuildConfig } from '@/shell/edge/main/runtime/electron/app/build-config'
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
@@ -159,8 +159,7 @@ export function initializeGraphModel(): void {
             return stripStaleVoicetreeMcpEntries(vaultDir)
         },
         writeVaultAgentDiscoveryFile(vaultDir: string): Promise<void> {
-            const manualPath: string = path.join(getToolsDirectory(), 'prompts', 'cli-manual.md')
-            return writeVaultAgentDiscoveryFile(vaultDir, manualPath)
+            return writeVaultAgentDiscoveryFile(vaultDir, getBuildConfig().cliManualPath)
         },
         ensureProjectSetup(projectPath: string): Promise<void> {
             return ensureProjectDotVoicetree(projectPath)

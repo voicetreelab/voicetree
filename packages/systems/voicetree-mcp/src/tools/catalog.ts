@@ -2,9 +2,9 @@
 // input schemas, and handler bindings. Consumed by the unified HTTP daemon
 // (`transport/httpServer.ts`) for input validation + dispatch, and by
 // `transport/toolCatalog.ts` for the dispatcher map shape. The CLI manual
-// (`tools/prompts/cli-manual.md`) is the user-facing description surface;
-// `transport/tests/catalogManualDrift.test.ts` asserts each description
-// substring is present in that manual.
+// (`packages/systems/voicetree-cli/prompts/cli-manual.md`) is the user-facing
+// description surface; `transport/tests/catalogManualDrift.test.ts` asserts
+// each description substring is present in that manual.
 //
 // Functional design: this file is data + thin adapters that delegate to the
 // existing pure tool functions under `src/tools/`, `src/create-graph/`. No

@@ -13,15 +13,16 @@ const CONSUMER_PACKAGE_DIRS: readonly string[] = [
     'webapp',
     'packages/systems/agent-runtime',
     'packages/systems/voicetree-mcp',
+    'packages/systems/voicetree-cli',
 ] as const
 
 // Mirrors ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES in package-boundaries.test.ts.
 // Keep these in sync with the BF-271e ratchet.
 const DAEMON_OWNED_MUTATIONS_LAUNCHER_ALLOWLIST: ReadonlySet<string> = new Set([
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
-    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
-    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ])
 

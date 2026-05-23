@@ -1,7 +1,8 @@
 /**
  * Drift check between `tools/catalog.ts` (load-bearing data; consumed by the
- * HTTP daemon for input validation + dispatch) and `tools/prompts/cli-manual.md`
- * (load-bearing canonical docs; spawn-prompt injection source).
+ * HTTP daemon for input validation + dispatch) and the CLI manual now shipped
+ * inside @vt/cli (`packages/systems/voicetree-cli/prompts/cli-manual.md`,
+ * load-bearing canonical docs; spawn-prompt injection source).
  *
  * Replaces the deleted byte-for-byte parity lint
  * (`cliManualParity.test.ts` + `extractZodDescriptions.ts`). The old lint ran
@@ -21,7 +22,7 @@ import {TOOL_CATALOG, type CatalogEntry} from '../../tools/catalog'
 
 const MANUAL_PATH: string = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    '../../../../../../tools/prompts/cli-manual.md',
+    '../../../../voicetree-cli/prompts/cli-manual.md',
 )
 
 // Mapping from the catalog's MCP-style tool name to the user-facing `vt`

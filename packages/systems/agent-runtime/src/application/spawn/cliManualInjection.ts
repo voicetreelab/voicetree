@@ -5,7 +5,7 @@
  * Step 7 deletes VoiceTree's MCP server. External coding agents no longer
  * discover VoiceTree tools through an `.mcp.json` entry — they learn the
  * `vt` CLI verbs by reading the manual that lives at
- * `tools/prompts/cli-manual.md`. The spawn pipeline calls
+ * `packages/systems/voicetree-cli/prompts/cli-manual.md`. The spawn pipeline calls
  * `appendCliManualToAgentPrompt` to splice the manual into the agent's
  * system prompt before exec.
  *

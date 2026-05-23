@@ -31,18 +31,19 @@ const GRAPH_DB_SERVER_CONSUMER_SOURCE_ROOTS: readonly string[] = [
     join(SYSTEMS_ROOT, 'agent-runtime/src'),
     join(SYSTEMS_ROOT, 'voicetree-mcp/bin'),
     join(SYSTEMS_ROOT, 'voicetree-mcp/src'),
+    join(SYSTEMS_ROOT, 'voicetree-cli/src'),
 ] as const
 const ALLOWED_GRAPH_DB_SERVER_IMPORT_FILES: readonly string[] = [
     // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
     'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
-    // CLI serve command is the intentional webapp entrypoint for starting the daemon.
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    // CLI serve command is the intentional entrypoint for starting the daemon.
+    'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.
-    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
     // Graph CLI index command intentionally reaches the daemon search backend.
-    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
-    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
     // vt-mcpd is the MCP-side daemon launcher entrypoint.
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ] as const
@@ -399,9 +400,9 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         ])
     })
 
-    it('allows intentional webapp CLI launcher/search/parity imports', () => {
+    it('allows intentional @vt/cli launcher/search/parity imports', () => {
         const violations = findGraphDbServerImportViolations(
-            join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts'),
+            join(REPO_ROOT, 'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts'),
             `
                 import {buildIndex, search} from '@vt/graph-db-server/search/index-backend'
                 import {SearchIndexNotFoundError, type NodeSearchHit} from '@vt/graph-db-server/search/types'

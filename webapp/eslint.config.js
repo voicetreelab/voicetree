@@ -314,7 +314,7 @@ export default tseslint.config([
   },
   {
     basePath: repoRootDir,
-    files: ['webapp/src/shell/edge/main/cli/**/*.ts'],
+    files: ['packages/systems/voicetree-cli/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# TODO(milestone-d): Windows backends currently need WSL — the CLI ships as a
+# TS source tree consumed via tsx, and the bash launcher relies on POSIX
+# semantics (symlink resolution, exec env). Milestone D bundles a compiled
+# dist/ and lets npm auto-generate the Windows shim from the `bin` field; no
+# hand-rolled vt.cmd is shipped in this milestone to avoid baking in a
+# brittle workaround.
+set -euo pipefail
+
+# Resolve symlinks to find the real location of this script
+_script="${BASH_SOURCE[0]}"
+while [ -L "$_script" ]; do
+    _target="$(readlink "$_script")"
+    case "$_target" in
+        /*) _script="$_target" ;;
+        *)  _script="$(dirname "$_script")/$_target" ;;
+    esac
+done
+PACKAGE_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
+REPO_ROOT="$(cd "$PACKAGE_DIR/../../.." && pwd)"
+
+# Locate tsx: prefer workspace-local, fall back to monorepo-hoisted, then global.
+if [ -x "$PACKAGE_DIR/node_modules/.bin/tsx" ]; then
+    TSX_BIN="$PACKAGE_DIR/node_modules/.bin/tsx"
+elif [ -x "$REPO_ROOT/node_modules/.bin/tsx" ]; then
+    TSX_BIN="$REPO_ROOT/node_modules/.bin/tsx"
+elif command -v tsx >/dev/null 2>&1; then
+    TSX_BIN="$(command -v tsx)"
+else
+    echo "vt: cannot find tsx (checked $PACKAGE_DIR/node_modules/.bin/tsx, $REPO_ROOT/node_modules/.bin/tsx, and PATH)" >&2
+    exit 127
+fi
+
+# tsx auto-discovers tsconfig.json from CWD, but vt runs from vault dirs —
+# pin it to this package's tsconfig so module resolution stays consistent.
+exec env TSX_TSCONFIG_PATH="$PACKAGE_DIR/tsconfig.json" "$TSX_BIN" \
+    "$PACKAGE_DIR/src/voicetree-cli.ts" "$@"

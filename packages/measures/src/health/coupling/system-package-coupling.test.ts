@@ -34,21 +34,23 @@ const PACKAGE_DIR_LAYERS: readonly string[] = [
 const ALLOWED_GRAPH_DB_SERVER_RUNTIME_IMPORT_FILES: ReadonlySet<string> = new Set([
     // Vaultless graph-db-client launcher embeds a daemon start import in the child-process eval script.
     'packages/systems/graph-db-client/src/autoLaunch/vaultlessSpawn.ts',
-    // CLI serve command is the intentional webapp entrypoint for starting the daemon.
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    // CLI serve command is the intentional entrypoint for starting the daemon.
+    'packages/systems/voicetree-cli/src/commands/runtime/serve.ts',
     // Route-parity command imports daemon route types for CLI/API consistency checks.
-    'webapp/src/shell/edge/main/cli/commands/runtime/daemonRouteParity.ts',
+    'packages/systems/voicetree-cli/src/commands/runtime/daemonRouteParity.ts',
     // Graph CLI index command intentionally reaches the daemon search backend.
-    'webapp/src/shell/edge/main/cli/commands/graph/actions/index-cmds.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts',
     // Graph CLI shared types expose search-result shape without runtime daemon ownership.
-    'webapp/src/shell/edge/main/cli/commands/graph/core/types.ts',
+    'packages/systems/voicetree-cli/src/commands/graph/core/types.ts',
     // vt-mcpd is the MCP-side daemon launcher entrypoint.
     'packages/systems/voicetree-mcp/bin/vt-mcpd.ts',
 ])
 
 const ALLOWED_AGENT_RUNTIME_WEBAPP_LAUNCHERS: ReadonlySet<string> = new Set([
-    // CLI serve wires terminal runtime through the sanctioned MCP-owned command surface.
-    'webapp/src/shell/edge/main/cli/commands/runtime/serve.ts',
+    // Legacy webapp launcher allowlist: the CLI has moved out to @vt/cli
+    // (packages/systems/voicetree-cli). webapp no longer hosts a runtime
+    // import of @vt/agent-runtime; the set is kept (empty) so the boundary
+    // test still rejects any new webapp-side runtime import.
 ])
 
 type RuntimeSites = {

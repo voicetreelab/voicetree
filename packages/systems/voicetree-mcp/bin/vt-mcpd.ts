@@ -29,7 +29,8 @@
 // terminal has no real owner.
 
 import {homedir} from 'node:os'
-import {join, resolve} from 'node:path'
+import {dirname, join, resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {
     buildDefaultToolCatalog,
@@ -113,10 +114,22 @@ function configureHeadlessBridges(appSupportPath: string): void {
         // search bridge omitted: search_nodes returns "Search backend is not configured."
     })
 
+    // The CLI manual is shipped inside @vt/cli. vt-mcpd lives next to it on
+    // disk (packages/systems/voicetree-mcp → packages/systems/voicetree-cli),
+    // so resolve relative to this file rather than the appSupport-tools copy.
+    const vtCliManualPath: string = join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        'voicetree-cli',
+        'prompts',
+        'cli-manual.md',
+    )
+
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => appSupportPath,
-            getCliManualPath: (): string => join(appSupportPath, 'tools', 'prompts', 'cli-manual.md'),
+            getCliManualPath: (): string => vtCliManualPath,
         },
         // No interactive terminals in headless mode; only registerChildIfMonitored
         // is reachable (used by the spawn path even for headless agents).

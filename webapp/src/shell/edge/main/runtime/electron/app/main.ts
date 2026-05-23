@@ -20,6 +20,7 @@ import {
     type TerminalRecord,
 } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
+import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
@@ -132,7 +133,7 @@ terminalRuntimeSurface.configureAgentRuntime({
             const writePath: O.Option<string> = await getWritePath();
             return O.isSome(writePath) ? writePath.value : null;
         },
-        getCliManualPath: (): string => path.join(getToolsDirectory(), 'prompts', 'cli-manual.md'),
+        getCliManualPath: (): string => getBuildConfig().cliManualPath,
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
