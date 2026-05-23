@@ -11,7 +11,7 @@ import {
 } from "../mutations/applyGraphDelta";
 import {isOurRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import {publish} from "@vt/graph-db-server/state/events/deltaEventBus";
-import {getFolderTreeReadModel} from "../../../state/folder-tree-read-model-store";
+import {getFolderTreeReadModel} from "@vt/graph-db-server/state/folder-tree-read-model-store";
 
 /**
  * Handle filesystem events by:

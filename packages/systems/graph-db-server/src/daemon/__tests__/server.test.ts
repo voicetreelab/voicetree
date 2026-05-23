@@ -11,7 +11,7 @@ import {
 import { ownerRecordPathFor, readOwnerRecord } from '../ownerRecord.ts'
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
-import { CONTRACT_VERSION, HealthResponseSchema } from '../contract.ts'
+import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'
 
 async function withTempVault(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-test-'))

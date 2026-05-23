@@ -7,7 +7,7 @@ import {
   ensureDefaultView,
   getActiveViewId,
 } from './viewsRepository'
-import type { FolderState } from '../../daemon/contract.ts'
+import type { FolderState } from '@vt/graph-db-server/contract'
 
 export type ActiveViewInfo = {
   readonly viewId: string
