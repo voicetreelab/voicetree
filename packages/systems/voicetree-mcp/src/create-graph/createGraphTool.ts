@@ -20,12 +20,12 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
-    type OverrideEntry,
     ALL_RULES,
     runValidations,
     resolveOverrides,
     formatViolationError,
 } from './createGraphValidation'
+import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '../agents/agentNodeIndex'
 import {applyMcpGraphDelta, getMcpGraph, getMcpVaultPaths, getMcpWritePath} from '../config/mcp-graph-bridge'
 import {

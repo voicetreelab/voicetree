@@ -10,30 +10,17 @@
 import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
+import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Soft, overridable validation rules for create_graph. Single source of truth
- * for the rule taxonomy — consumed by both the MCP zod schema (in
- * mcp-server.ts) and the CLI `--override` parser (in webapp). Adding a rule
- * here is the only place needed.
- */
-export const OVERRIDABLE_RULE_IDS = ['grandparent_attachment', 'node_line_limit'] as const
-export type OverridableRuleId = typeof OVERRIDABLE_RULE_IDS[number]
 
 export interface RuleViolation {
     readonly ruleId: OverridableRuleId
     readonly message: string
     readonly nodeFilename: string // '__graph_root__' for graph-level rules
     readonly details: Record<string, unknown>
-}
-
-export interface OverrideEntry {
-    readonly ruleId: OverridableRuleId
-    readonly rationale: string
 }
 
 export type ValidationResult =

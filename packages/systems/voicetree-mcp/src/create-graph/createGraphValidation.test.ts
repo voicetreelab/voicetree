@@ -11,13 +11,12 @@ import {
     type ValidationContext,
     type ValidationResult,
     type RuleViolation,
-    type OverrideEntry,
-    type OverridableRuleId,
     ALL_RULES,
     runValidations,
     resolveOverrides,
     formatViolationError,
 } from './createGraphValidation'
+import type {OverrideEntry, OverridableRuleId} from '@vt/graph-validation'
 import {mockGraph, mockNode, linesOfText, buildCtx} from './createGraphValidation.testHelpers'
 
 // ============================================================================

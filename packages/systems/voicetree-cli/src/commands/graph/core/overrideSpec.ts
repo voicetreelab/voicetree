@@ -1,4 +1,4 @@
-import {OVERRIDABLE_RULE_IDS, type OverridableRuleId} from '@vt/voicetree-mcp'
+import {OVERRIDABLE_RULE_IDS, type OverridableRuleId} from '@vt/graph-validation'
 import {error} from './graphCliDependencies'
 import type {OverrideSpec} from './types'
 import {isRecord} from './util'

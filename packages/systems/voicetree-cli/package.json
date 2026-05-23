@@ -20,6 +20,7 @@
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-tools": "*",
+    "@vt/graph-validation": "*",
     "@vt/voicetree-mcp": "*",
     "@vt/vt-rpc": "*",
     "fp-ts": "^2.16.9"

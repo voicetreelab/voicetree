@@ -5,7 +5,7 @@ import type {
     FilesystemAuthoringValidationError,
     StructureManifest,
 } from '@vt/graph-tools/node'
-import type {OverridableRuleId} from '@vt/voicetree-mcp'
+import type {OverridableRuleId} from '@vt/graph-validation'
 
 export type GraphCreateNode = Record<string, unknown> & {
     filename: string
