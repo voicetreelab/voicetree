@@ -112,6 +112,7 @@ function renderSection(
 describe('SurvivingAgentsSection — attach capability rows', () => {
     afterEach(() => {
         cleanup();
+        vi.useRealTimers();
     });
 
     it('renders same-vault attach rows with an Attach action', () => {
@@ -125,6 +126,18 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /attach/i}));
 
         expect(onAttach).toHaveBeenCalledWith('vt-aaaaaaaaaa-Ari');
+    });
+
+    it('renders attach row age from the render-time clock', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-05-22T00:00:30.000Z'));
+        const createdAt: number = new Date('2026-05-22T00:00:00.000Z').getTime();
+
+        const {container} = renderSection([makeAttachable({createdAt})]);
+
+        const row: Element | null = container.querySelector('[data-terminal-id="Ari"][data-has-attach="true"]');
+        expect(row).not.toBeNull();
+        expect(within(row as HTMLElement).getByText('30s ago | pid 84231')).toBeTruthy();
     });
 
     it('renders foreign-vault attach rows as kill-only', () => {

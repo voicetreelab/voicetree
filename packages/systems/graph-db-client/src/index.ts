@@ -25,6 +25,16 @@ export {
   type EnsureGraphDaemonResult,
 } from './autoLaunch.ts'
 export {
+  subscribeOwnerDiagnostics,
+  type OwnerDiagnosticListener,
+  type OwnerDiagnosticUnsubscribe,
+} from './autoLaunch/diagnostics.ts'
+export {
+  cooldownBreadcrumbPathFor,
+  COOLDOWN_BREADCRUMB_FILENAME,
+  type CooldownBreadcrumb,
+} from './autoLaunch/cooldownBreadcrumb.ts'
+export {
   isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,
   terminateUnresponsiveDaemon,

@@ -3,7 +3,7 @@ import {
   HealthResponseSchema,
   ShutdownResponseSchema,
   type HealthResponse,
-} from '../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { createGraphRoutes } from './graph-endpoints/graph.ts'
 import { mountLayoutRoutes } from './graph-endpoints/layout.ts'
 import { mountFolderStateRoutes } from './session-endpoints/folderState.ts'

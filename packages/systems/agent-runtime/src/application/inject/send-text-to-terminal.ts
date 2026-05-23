@@ -46,12 +46,23 @@ const PREAMBLE_DUMMY: string = ' '
 const BATCH_CHAR_LIMIT: number = 150
 const BATCH_DELAY_MS: number = 40
 
-const terminalWriteQueues: Map<string, Promise<void>> = new Map()
-
 export type SendTextToTerminalDeps = {
     readonly writeLiteral: (terminalId: string, bytes: string) => Promise<void>
     readonly sleep: (delayMs: number) => Promise<void>
 }
+
+export type TerminalWriteScheduler = {
+    readonly enqueueTerminalWrite: <T>(
+        terminalId: string,
+        operation: () => Promise<T>,
+    ) => Promise<T>
+}
+
+export type SendTextToTerminal = (
+    terminalId: string,
+    text: string,
+    deps?: SendTextToTerminalDeps,
+) => Promise<TerminalOperationResult>
 
 const sleepWithTimer = (delayMs: number): Promise<void> =>
     new Promise(resolve => setTimeout(resolve, delayMs))
@@ -72,82 +83,99 @@ export function sanitizeTerminalInput(text: string): string {
         .trim()
 }
 
-function enqueueTerminalWrite<T>(
-    terminalId: string,
-    operation: () => Promise<T>
-): Promise<T> {
-    const prior: Promise<void> = terminalWriteQueues.get(terminalId) ?? Promise.resolve()
-    const safePrior: Promise<void> = prior.catch(() => undefined).then(() => undefined)
-    const operationPromise: Promise<T> = safePrior.then(operation)
+export function createTerminalWriteScheduler(): TerminalWriteScheduler {
+    const terminalWriteQueues: Map<string, Promise<void>> = new Map()
 
-    const marker: Promise<void> = operationPromise.then(
-        () => undefined,
-        () => undefined
-    )
-    terminalWriteQueues.set(terminalId, marker)
-    return operationPromise.finally(() => {
-        if (terminalWriteQueues.get(terminalId) === marker) {
-            terminalWriteQueues.delete(terminalId)
+    return {
+        enqueueTerminalWrite: <T>(
+            terminalId: string,
+            operation: () => Promise<T>,
+        ): Promise<T> => {
+            const prior: Promise<void> = terminalWriteQueues.get(terminalId) ?? Promise.resolve()
+            const safePrior: Promise<void> = prior.catch(() => undefined).then(() => undefined)
+            const operationPromise: Promise<T> = safePrior.then(operation)
+
+            const marker: Promise<void> = operationPromise.then(
+                () => undefined,
+                () => undefined
+            )
+            terminalWriteQueues.set(terminalId, marker)
+            return operationPromise.finally(() => {
+                if (terminalWriteQueues.get(terminalId) === marker) {
+                    terminalWriteQueues.delete(terminalId)
+                }
+            })
         }
-    })
+    }
 }
 
-export function sendTextToTerminal(
+export function createSendTextToTerminal(
+    scheduler: TerminalWriteScheduler = createTerminalWriteScheduler(),
+): SendTextToTerminal {
+    return (
+        terminalId: string,
+        text: string,
+        deps: SendTextToTerminalDeps = defaultSendTextToTerminalDeps,
+    ): Promise<TerminalOperationResult> =>
+        scheduler.enqueueTerminalWrite(terminalId, () => sendTextToTerminalNow(terminalId, text, deps))
+}
+
+async function sendTextToTerminalNow(
     terminalId: string,
     text: string,
     deps: SendTextToTerminalDeps = defaultSendTextToTerminalDeps,
 ): Promise<TerminalOperationResult> {
-    return enqueueTerminalWrite(terminalId, async (): Promise<TerminalOperationResult> => {
-        try {
-            const write = (bytes: string): Promise<void> => deps.writeLiteral(terminalId, bytes)
+    try {
+        const write = (bytes: string): Promise<void> => deps.writeLiteral(terminalId, bytes)
 
-            // Universal preamble — vi-mode and emacs-mode safe.
-            //   PREAMBLE_DUMMY → harmless byte; mitigates first-byte timing
-            //                    misses on some PTY paths.
-            //   ESC            → vi: normal mode; emacs: harmless meta-noise.
-            //   'i'            → vi: insert mode; emacs: types stray 'i'.
-            //   Ctrl-U         → both: kill-line clears the input buffer
-            //                    (removes the stray 'i' in emacs, no-op in vi).
-            // The preamble must run BEFORE the body — sending ESC after \r
-            // would cancel an in-flight generation.
-            await write(PREAMBLE_DUMMY)
-            await deps.sleep(ESC_DELAY_MS)
-            await write('\x1b')
-            await deps.sleep(ESC_DELAY_MS)
-            await write('i')
-            await deps.sleep(INSERT_MODE_DELAY_MS)
-            await write('\x15')
-            await deps.sleep(CHAR_DELAY_MS)
+        // Universal preamble — vi-mode and emacs-mode safe.
+        //   PREAMBLE_DUMMY → harmless byte; mitigates first-byte timing
+        //                    misses on some PTY paths.
+        //   ESC            → vi: normal mode; emacs: harmless meta-noise.
+        //   'i'            → vi: insert mode; emacs: types stray 'i'.
+        //   Ctrl-U         → both: kill-line clears the input buffer
+        //                    (removes the stray 'i' in emacs, no-op in vi).
+        // The preamble must run BEFORE the body — sending ESC after \r
+        // would cancel an in-flight generation.
+        await write(PREAMBLE_DUMMY)
+        await deps.sleep(ESC_DELAY_MS)
+        await write('\x1b')
+        await deps.sleep(ESC_DELAY_MS)
+        await write('i')
+        await deps.sleep(INSERT_MODE_DELAY_MS)
+        await write('\x15')
+        await deps.sleep(CHAR_DELAY_MS)
 
-            // Body in bracketed paste mode, batched. Sanitization strips
-            // raw \n/\r/\t and stray cursor escapes; bracketed paste then
-            // hides the (now whitespace-collapsed) content from readline so
-            // none of it is mistaken for keystrokes. Batching keeps Claude
-            // Code below its "[N lines pasted]" collapse threshold.
-            const sanitized: string = sanitizeTerminalInput(text)
-            await write('\x1b[200~')
-            for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
-                const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
-                await write(batchText)
-                if (i + BATCH_CHAR_LIMIT < sanitized.length) {
-                    await deps.sleep(BATCH_DELAY_MS)
-                }
+        // Body in bracketed paste mode, batched. Sanitization strips
+        // raw \n/\r/\t and stray cursor escapes; bracketed paste then
+        // hides the (now whitespace-collapsed) content from readline so
+        // none of it is mistaken for keystrokes. Batching keeps Claude
+        // Code below its "[N lines pasted]" collapse threshold.
+        const sanitized: string = sanitizeTerminalInput(text)
+        await write('\x1b[200~')
+        for (let i: number = 0; i < sanitized.length; i += BATCH_CHAR_LIMIT) {
+            const batchText: string = sanitized.slice(i, i + BATCH_CHAR_LIMIT)
+            await write(batchText)
+            if (i + BATCH_CHAR_LIMIT < sanitized.length) {
+                await deps.sleep(BATCH_DELAY_MS)
             }
-            await write('\x1b[201~')
-
-            // Dual submit for cross-agent compatibility.
-            //   ESC+CR as a single write → Alt+Enter for Codex / OpenCode.
-            //   Plain CR after a delay   → Enter for Claude vi-mode readline.
-            // ESC and CR must travel in the same write — splitting them after
-            // a bulk body was historically unreliable for Gemini.
-            await deps.sleep(CHAR_DELAY_MS)
-            await write('\x1b\r')
-            await deps.sleep(ESC_DELAY_MS)
-            await write('\r')
-
-            return {success: true}
-        } catch (error) {
-            return {success: false, error: error instanceof Error ? error.message : String(error)}
         }
-    })
+        await write('\x1b[201~')
+
+        // Dual submit for cross-agent compatibility.
+        //   ESC+CR as a single write → Alt+Enter for Codex / OpenCode.
+        //   Plain CR after a delay   → Enter for Claude vi-mode readline.
+        // ESC and CR must travel in the same write — splitting them after
+        // a bulk body was historically unreliable for Gemini.
+        await deps.sleep(CHAR_DELAY_MS)
+        await write('\x1b\r')
+        await deps.sleep(ESC_DELAY_MS)
+        await write('\r')
+
+        return {success: true}
+    } catch (error) {
+        return {success: false, error: error instanceof Error ? error.message : String(error)}
+    }
 }
+
+export const sendTextToTerminal: SendTextToTerminal = createSendTextToTerminal()

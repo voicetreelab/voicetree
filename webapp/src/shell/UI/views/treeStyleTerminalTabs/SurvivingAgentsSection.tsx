@@ -20,7 +20,7 @@ function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-function formatAge(createdAt: number, now: number = Date.now()): string {
+function formatAge(createdAt: number, now: number): string {
     const ageSeconds: number = Math.max(0, Math.floor((now - createdAt) / 1000));
     if (ageSeconds < 60) return `${ageSeconds}s ago`;
 
@@ -49,9 +49,9 @@ function rowTooltip(row: RecoverableAgentSession): string {
     return parts.join('\n');
 }
 
-function rowMeta(row: RecoverableAgentSession): string {
+function rowMeta(row: RecoverableAgentSession, now: number): string {
     if (row.attach) {
-        return `${formatAge(row.attach.session.createdAt)} | pid ${row.attach.session.panePid}`;
+        return `${formatAge(row.attach.session.createdAt, now)} | pid ${row.attach.session.panePid}`;
     }
     if (row.resume) {
         return `session ${row.resume.nativeSessionId}`;
@@ -82,6 +82,7 @@ export function SurvivingAgentsSection({
 }: SurvivingAgentsSectionProps): JSX.Element | null {
     const [busyKey, setBusyKey] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const now: number = Date.now();
 
     const handleRefresh: () => void = useCallback((): void => {
         setError(null);
@@ -161,7 +162,7 @@ export function SurvivingAgentsSection({
                                         {badge.label}
                                     </span>
                                 </div>
-                                <div className="surviving-agent-meta">{rowMeta(row)}</div>
+                                <div className="surviving-agent-meta">{rowMeta(row, now)}</div>
                             </div>
                             <div className="surviving-agent-actions">
                                 {row.attach && row.attach.session.attachable && (

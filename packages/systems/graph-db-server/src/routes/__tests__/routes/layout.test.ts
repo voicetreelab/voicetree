@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import {
   LayoutResponseSchema,
   SessionCreateResponseSchema,
-} from '../../../daemon/contract.ts'
+} from '@vt/graph-db-server/contract'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
 
 async function withTempVault(): Promise<string> {

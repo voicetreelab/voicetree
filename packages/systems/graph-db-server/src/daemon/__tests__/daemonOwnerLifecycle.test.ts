@@ -32,7 +32,7 @@ import {
   DaemonOwnerConflictError,
   HEARTBEAT_INTERVAL_MS,
 } from '../lifecycle/daemonOwnerLifecycle.ts'
-import { HealthResponseSchema } from '../contract.ts'
+import { HealthResponseSchema } from '@vt/graph-db-server/contract'
 
 const TEST_TIMEOUT_MS = 30_000
 
