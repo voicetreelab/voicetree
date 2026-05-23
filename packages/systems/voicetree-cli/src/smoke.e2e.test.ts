@@ -45,6 +45,9 @@ function runVt(args: string[], cwd: string): Promise<SpawnResult> {
         const childEnv: Record<string, string | undefined> = {...process.env}
         delete childEnv.VT_SESSION
         delete childEnv.VOICETREE_TERMINAL_ID
+        // Force source-mode dispatch so the test exercises the live tsx path
+        // rather than any locally built bundle in `dist/voicetree-cli.js`.
+        childEnv.VT_FORCE_SOURCE = '1'
         const env: Record<string, string> = {}
         for (const [key, value] of Object.entries(childEnv)) {
             if (value !== undefined) env[key] = value

@@ -17,8 +17,10 @@ done
 PACKAGE_DIR="$(cd "$(dirname "$_script")/.." && pwd)"
 
 # Bundled path (published tarball): a single self-contained ESM bundle.
+# `VT_FORCE_SOURCE=1` skips the bundle and uses the tsx source path so
+# in-monorepo tests don't run against a stale or unrelated dist build.
 BUNDLE="$PACKAGE_DIR/dist/voicetree-cli.js"
-if [ -f "$BUNDLE" ]; then
+if [ -z "${VT_FORCE_SOURCE:-}" ] && [ -f "$BUNDLE" ]; then
     exec node "$BUNDLE" "$@"
 fi
 

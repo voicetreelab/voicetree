@@ -210,6 +210,9 @@ webapp/workers/share-worker/.wrangler/**
 # Node modules
 **/node_modules/**
 
+# npm pack tarballs (generated locally for publish verification)
+**/*.tgz
+
 # Web dist
 **/dist-web/**
 

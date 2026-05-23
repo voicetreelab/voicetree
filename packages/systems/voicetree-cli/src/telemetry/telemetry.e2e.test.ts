@@ -67,6 +67,9 @@ function buildChildEnv(telemetryPath: string): Record<string, string> {
         VOICETREE_TELEMETRY_PATH: telemetryPath,
         VOICETREE_TERMINAL_ID: 'e2e-terminal',
         AGENT_NAME: 'e2e-agent',
+        // Force source-mode dispatch so the test exercises the live tsx path
+        // rather than any locally built bundle in `dist/voicetree-cli.js`.
+        VT_FORCE_SOURCE: '1',
     }
     delete merged.VT_SESSION
     const out: Record<string, string> = {}

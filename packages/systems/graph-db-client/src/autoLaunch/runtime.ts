@@ -20,15 +20,33 @@ type RuntimeValidation = { ok: true } | { ok: false; reason: string }
 const tracer = trace.getTracer('vt-daemon-client')
 
 const requireFromHere = createRequire(import.meta.url)
-const GRAPH_DB_SERVER_PKG_JSON = requireFromHere.resolve(
-  '@vt/graph-db-server/package.json',
-)
-const GRAPH_DB_SERVER_ROOT = dirname(GRAPH_DB_SERVER_PKG_JSON)
 
 // Resolve from the installed workspace package root, not from import.meta.url.
-// In the bundled Electron main process, import.meta.url points into dist output.
-const FALLBACK_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'dist', 'vt-graphd.mjs')
-const SOURCE_BIN_PATH = resolve(GRAPH_DB_SERVER_ROOT, 'bin', 'vt-graphd.ts')
+// In the bundled Electron main process (and the bundled vt CLI), import.meta.url
+// points into dist output, so we cannot derive the daemon binary path from it.
+//
+// This resolution is intentionally lazy: in headless distributions of the vt
+// CLI where the bundle inlines @vt/graph-db-server, the package.json is not
+// installed as a separate node module — and that's fine for commands like
+// `vt --help` / `vt manual` that never need to spawn the daemon. Surfacing
+// the error here would break those commands at module-init time. Code paths
+// that actually need to spawn vt-graphd will throw a clear error.
+let cachedGraphDbServerRoot: string | undefined
+
+function resolveGraphDbServerRoot(): string {
+  if (cachedGraphDbServerRoot !== undefined) return cachedGraphDbServerRoot
+  const pkgJsonPath = requireFromHere.resolve('@vt/graph-db-server/package.json')
+  cachedGraphDbServerRoot = dirname(pkgJsonPath)
+  return cachedGraphDbServerRoot
+}
+
+function fallbackBinPath(): string {
+  return resolve(resolveGraphDbServerRoot(), 'dist', 'vt-graphd.mjs')
+}
+
+function sourceBinPath(): string {
+  return resolve(resolveGraphDbServerRoot(), 'bin', 'vt-graphd.ts')
+}
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()
 const runtimeCommandCache = new Map<string, string>()
@@ -105,21 +123,23 @@ export function resolveDefaultDaemonArgs(
     resolveTsx: () => requireFromHere.resolve('tsx'),
   },
 ): string[] {
-  if (deps.exists(FALLBACK_BIN_PATH)) {
-    return [FALLBACK_BIN_PATH, '--vault', vault]
+  const fallback = fallbackBinPath()
+  if (deps.exists(fallback)) {
+    return [fallback, '--vault', vault]
   }
 
-  if (deps.exists(SOURCE_BIN_PATH)) {
+  const source = sourceBinPath()
+  if (deps.exists(source)) {
     return [
       '--import',
       deps.resolveTsx(),
-      SOURCE_BIN_PATH,
+      source,
       '--vault',
       vault,
     ]
   }
 
-  return [FALLBACK_BIN_PATH, '--vault', vault]
+  return [fallback, '--vault', vault]
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
