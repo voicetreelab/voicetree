@@ -7,11 +7,11 @@ import type { SerializedState, State } from '@vt/graph-state'
 import { getCurrentLiveState, rootsWereExplicitlySet } from '@/shell/edge/main/runtime/state/live-state-store'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
 
-import { callDaemon } from '../lifecycle/graph-daemon'
-import { getNormalizedDaemonGraph } from '../queries/daemon-graph-normalization'
-import { subscribeToDaemonSSE } from '../sync/daemon-sse-subscription'
+import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
+import { subscribeToDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from '../sync/daemon-folder-tree-sync'
+import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-folder-tree-sync'
 
 function sortStrings(values: readonly string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right))

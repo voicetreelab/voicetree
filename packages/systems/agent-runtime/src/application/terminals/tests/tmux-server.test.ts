@@ -88,6 +88,10 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(new Error('not loaded'), '', 'not loaded')
                 return
             }
+            if (file === 'taskpolicy') {
+                callback(null, '', '')
+                return
+            }
             if (file !== '/opt/homebrew/bin/tmux') {
                 callback(new Error(`unexpected command: ${file}`), '', '')
                 return
@@ -112,6 +116,10 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 mutable.serverRunning = true
                 mutable.socketExists = true
                 callback(null, '', '')
+                return
+            }
+            if (command === 'display-message') {
+                callback(null, '12345\n', '')
                 return
             }
 
@@ -188,6 +196,48 @@ describe('tmux-server', () => {
         expect(deps.removedPaths).toContain(socketPath)
         expect(commandTuples(deps.calls).filter((call: readonly string[]) => call[3] === 'new-session')).toHaveLength(2)
         expect(deps.warnLogs[0]).toContain('[tmux-server] removing stale tmux socket')
+    })
+
+    it('raises tmux server jetsam priority on darwin after starting it', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps({platform: 'darwin'})
+
+        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+
+        const tuples: readonly string[][] = commandTuples(deps.calls)
+        expect(tuples).toContainEqual([
+            '/opt/homebrew/bin/tmux',
+            '-S',
+            socketPath,
+            'display-message',
+            '-p',
+            '#{pid}',
+        ])
+        expect(tuples).toContainEqual(['taskpolicy', '-c', 'user-interactive', '-p', '12345'])
+        // priority raise must follow the start, not precede it
+        const startIdx: number = tuples.findIndex((call: readonly string[]) => call.includes('new-session'))
+        const policyIdx: number = tuples.findIndex((call: readonly string[]) => call[0] === 'taskpolicy')
+        expect(startIdx).toBeGreaterThanOrEqual(0)
+        expect(policyIdx).toBeGreaterThan(startIdx)
+    })
+
+    it('still completes server start when taskpolicy raise fails (best-effort)', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const deps = makeDeps({platform: 'darwin'})
+        const originalExecFile = deps.execFile
+        ;(deps as {execFile: typeof originalExecFile}).execFile = (file, args, callback): void => {
+            if (file === 'taskpolicy') {
+                callback(new Error('not permitted'), '', 'not permitted')
+                return
+            }
+            originalExecFile(file, args, callback)
+        }
+
+        await expect(
+            ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false}),
+        ).resolves.toBeUndefined()
+        expect(deps.warnLogs.some((line: string) => line.includes('taskpolicy raise failed'))).toBe(true)
     })
 
     it('removes the legacy macOS LaunchAgent instead of bootstrapping it', async () => {

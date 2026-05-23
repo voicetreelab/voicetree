@@ -1,4 +1,4 @@
-import { refreshMainGraphFromDaemon } from '../ipc/daemon-ipc-proxy'
+import { refreshMainGraphFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
 const DAEMON_GRAPH_POLL_INTERVAL_MS = 750
 const DAEMON_GRAPH_POLL_BACKGROUND_INTERVAL_MS = 5_000

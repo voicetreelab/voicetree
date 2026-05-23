@@ -44,13 +44,29 @@ export type McpServerConfig = {
     readonly search?: SearchBridge
 }
 
-let config: McpServerConfig = {}
+type McpServerConfigCell = {
+    readonly configure: (next: McpServerConfig) => void
+    readonly get: () => McpServerConfig
+}
+
+function createMcpServerConfigCell(initial: McpServerConfig): McpServerConfigCell {
+    let current: McpServerConfig = initial
+    return {
+        configure: (next: McpServerConfig): void => {
+            current = next
+        },
+        get: (): McpServerConfig => current,
+    }
+}
+
+const configCell: McpServerConfigCell = createMcpServerConfigCell({})
 
 export function configureMcpServer(c: McpServerConfig): void {
-    config = c
+    configCell.configure(c)
 }
 
 export function getLiveStateBridge(): LiveStateBridge {
+    const config: McpServerConfig = configCell.get()
     if (!config.liveState) {
         throw new Error(
             'MCP live-state bridge not configured. Call configureMcpServer({ liveState: ... }) at boot.'
@@ -60,9 +76,9 @@ export function getLiveStateBridge(): LiveStateBridge {
 }
 
 export function getSearchBridge(): SearchBridge | undefined {
-    return config.search
+    return configCell.get().search
 }
 
 export function getGraphBridge(): GraphBridge | undefined {
-    return config.graph
+    return configCell.get().graph
 }

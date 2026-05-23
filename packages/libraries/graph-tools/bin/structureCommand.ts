@@ -8,8 +8,7 @@ import {
 import {buildAutoViewGraph, renderTreeCover} from '../src/view/autoView'
 
 function fail(message: string): never {
-  console.error(message)
-  process.exit(1)
+  throw new Error(message)
 }
 
 function getRequiredValue(parsedArgs: string[], index: number, flag: string): string {
@@ -20,8 +19,7 @@ function getRequiredValue(parsedArgs: string[], index: number, flag: string): st
   return value
 }
 
-function getMcpPort(portOverride?: number): number {
-  const envPort = process.env.VOICETREE_MCP_PORT
+function resolveMcpPort(portOverride: number | undefined, envPort: string | undefined): number {
   if (portOverride !== undefined) return portOverride
   return envPort ? parseInt(envPort, 10) : DEFAULT_MCP_PORT
 }
@@ -152,7 +150,7 @@ export async function runStructureCommand(args: string[]): Promise<void> {
     if (explicitRender) {
       fail('--auto cannot be combined with --ascii/--mermaid/--format/--collapse/--select/--no-cross-edges')
     }
-    const overlay = await tryGetDaemonOverlay(getMcpPort(port))
+    const overlay = await tryGetDaemonOverlay(resolveMcpPort(port, process.env.VOICETREE_MCP_PORT))
     const resolvedFolder = folderPath
       ? path.resolve(folderPath)
       : (overlay?.defaultRoot ?? process.cwd())
