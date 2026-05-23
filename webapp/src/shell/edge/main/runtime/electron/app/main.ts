@@ -7,6 +7,7 @@ import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/appli
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
 import {trace} from '@/shell/edge/main/observability/tracing/trace';
+import {initDaemonObservability} from '@/shell/edge/main/observability/tracing/daemon-tracing';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
@@ -89,6 +90,13 @@ if (app.isPackaged) {
 // Startup
 // ============================================================================
 validateStartupCwd();
+
+// Wire daemon-side observability (OTel NDJSON → ~/.voicetree/traces/vt-electron-daemon.ndjson,
+// owner-diagnostic → span bridge, 10s rate logger) before any code can touch
+// `ensureDaemonForActiveVault`. Calling later still works because the tracer
+// auto-replaces no-op spans once the provider registers, but the rate logger
+// would miss early activity.
+initDaemonObservability();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
