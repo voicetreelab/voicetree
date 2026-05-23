@@ -13,6 +13,14 @@ type FakeCall = {
     readonly file: string
 }
 
+type FakeProcess = {
+    readonly pid: number
+    readonly comm: string
+    readonly ppid: number
+    readonly argvMentions: readonly string[]   // strings that appear in the process's argv (for pgrep -f)
+    readonly childPids: readonly number[]
+}
+
 type FakeState = {
     readonly platform?: NodeJS.Platform
     failNextStart: boolean
@@ -21,6 +29,8 @@ type FakeState = {
     now: number
     serverRunning: boolean
     socketExists: boolean
+    processes: FakeProcess[]
+    killFailures: ReadonlySet<number>
 }
 
 function errno(code: string): NodeJS.ErrnoException {
@@ -31,6 +41,8 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
     readonly calls: FakeCall[]
     readonly removedPaths: string[]
     readonly warnLogs: string[]
+    readonly killedPids: number[]
+    readonly processes: FakeProcess[]
 } {
     const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
     const socketPath: string = join(appSupportPath, 'tmux.sock')
@@ -38,6 +50,7 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
     const calls: FakeCall[] = []
     const removedPaths: string[] = []
     const warnLogs: string[] = []
+    const killedPids: number[] = []
     const mutable: FakeState = {
         failNextStart: false,
         lockExists: false,
@@ -46,13 +59,23 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
         platform: 'linux',
         serverRunning: false,
         socketExists: false,
+        processes: [],
+        killFailures: new Set<number>(),
         ...state,
     }
 
-    const deps: TmuxServerDeps & {calls: FakeCall[], removedPaths: string[], warnLogs: string[]} = {
+    const deps: TmuxServerDeps & {
+        calls: FakeCall[],
+        removedPaths: string[],
+        warnLogs: string[],
+        killedPids: number[],
+        processes: FakeProcess[],
+    } = {
         calls,
         removedPaths,
         warnLogs,
+        killedPids,
+        processes: mutable.processes,
         env: {},
         platform: mutable.platform ?? 'linux',
         homedir: () => '/Users/test',
@@ -89,6 +112,62 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 return
             }
             if (file === 'taskpolicy') {
+                callback(null, '', '')
+                return
+            }
+            if (file === 'pgrep') {
+                // Two forms: `pgrep -f <pattern>` for argv match, `pgrep -P <ppid>` for children.
+                if (args[0] === '-f' && typeof args[1] === 'string') {
+                    const pattern: string = args[1]
+                    // Pattern is `^.*tmux.*<escapedPath>`; we just match against argvMentions.
+                    const target: string = pattern.replace(/^\^\.\*tmux\.\*/, '').replace(/\\(.)/g, '$1')
+                    const matches: number[] = mutable.processes
+                        .filter((proc: FakeProcess): boolean => proc.argvMentions.some((mention: string): boolean => mention.includes(target)))
+                        .map((proc: FakeProcess): number => proc.pid)
+                    if (matches.length === 0) {
+                        callback(new Error('no matches'), '', '')
+                        return
+                    }
+                    callback(null, `${matches.join('\n')}\n`, '')
+                    return
+                }
+                if (args[0] === '-P' && typeof args[1] === 'string') {
+                    const ppid: number = Number(args[1])
+                    const proc: FakeProcess | undefined = mutable.processes.find((p: FakeProcess): boolean => p.pid === ppid)
+                    if (!proc || proc.childPids.length === 0) {
+                        callback(new Error('no matches'), '', '')
+                        return
+                    }
+                    callback(null, `${proc.childPids.join('\n')}\n`, '')
+                    return
+                }
+                callback(new Error(`unexpected pgrep args: ${args.join(' ')}`), '', '')
+                return
+            }
+            if (file === 'ps') {
+                // `ps -p <pid> -o ppid=,comm=`
+                if (args[0] === '-p' && typeof args[1] === 'string' && args[2] === '-o' && args[3] === 'ppid=,comm=') {
+                    const pid: number = Number(args[1])
+                    const proc: FakeProcess | undefined = mutable.processes.find((p: FakeProcess): boolean => p.pid === pid)
+                    if (!proc) {
+                        callback(new Error('no such process'), '', '')
+                        return
+                    }
+                    callback(null, `${proc.ppid} ${proc.comm}\n`, '')
+                    return
+                }
+                callback(new Error(`unexpected ps args: ${args.join(' ')}`), '', '')
+                return
+            }
+            if (file === 'kill') {
+                const pidArg: string | undefined = args.find((arg: string): boolean => /^\d+$/.test(arg))
+                const pid: number = Number(pidArg)
+                if (mutable.killFailures.has(pid)) {
+                    callback(new Error('operation not permitted'), '', 'operation not permitted')
+                    return
+                }
+                killedPids.push(pid)
+                mutable.processes = mutable.processes.filter((p: FakeProcess): boolean => p.pid !== pid)
                 callback(null, '', '')
                 return
             }
@@ -195,7 +274,7 @@ describe('tmux-server', () => {
 
         expect(deps.removedPaths).toContain(socketPath)
         expect(commandTuples(deps.calls).filter((call: readonly string[]) => call[3] === 'new-session')).toHaveLength(2)
-        expect(deps.warnLogs[0]).toContain('[tmux-server] removing stale tmux socket')
+        expect(deps.warnLogs.some((line: string) => line.includes('[tmux-server] removing stale tmux socket'))).toBe(true)
     })
 
     it('raises tmux server jetsam priority on darwin after starting it', async () => {
@@ -238,6 +317,81 @@ describe('tmux-server', () => {
             ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false}),
         ).resolves.toBeUndefined()
         expect(deps.warnLogs.some((line: string) => line.includes('taskpolicy raise failed'))).toBe(true)
+    })
+
+    it('kills an orphan tmux daemon with no user sessions before unlinking a stale socket', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        // State 3: socket file exists, but the daemon bound to it has been orphaned
+        // (listener gone, process still alive, only the __voicetree_root__ keep-alive).
+        const orphanPid: number = 20810
+        const deps = makeDeps({
+            failNextStart: true,
+            socketExists: true,
+            processes: [{
+                pid: orphanPid,
+                comm: '/opt/homebrew/bin/tmux',
+                ppid: 1,
+                argvMentions: [socketPath],
+                childPids: [99001], // exactly one shell → root keep-alive only, no user sessions
+            }],
+        })
+
+        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+
+        expect(deps.killedPids).toContain(orphanPid)
+        expect(deps.removedPaths).toContain(socketPath)
+        expect(deps.warnLogs.some((line: string) => line.includes(`killing orphan tmux daemon pid=${orphanPid}`))).toBe(true)
+        expect(deps.warnLogs.some((line: string) => line.includes('scanning') && line.includes('orphan'))).toBe(true)
+    })
+
+    it('refuses to unlink the socket when an orphan daemon holds user agent sessions', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const orphanPid: number = 20810
+        const deps = makeDeps({
+            failNextStart: true,
+            socketExists: true,
+            processes: [{
+                pid: orphanPid,
+                comm: '/opt/homebrew/bin/tmux',
+                ppid: 1,
+                argvMentions: [socketPath],
+                // 1 root keep-alive + 4 user sessions
+                childPids: [99001, 30001, 30002, 30003, 30004],
+            }],
+        })
+
+        await expect(
+            ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+        ).rejects.toThrow(/orphan tmux daemon.*hold user agent sessions/)
+
+        expect(deps.killedPids).not.toContain(orphanPid)   // do no harm — don't kill user sessions
+        expect(deps.removedPaths).not.toContain(socketPath) // and don't unlink the socket
+    })
+
+    it('ignores tmux client processes when scanning for orphan daemons', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        // A `tmux attach` client (ppid != 1) mentioning the same socket path
+        // must NOT be treated as an orphan daemon.
+        const deps = makeDeps({
+            failNextStart: true,
+            socketExists: true,
+            processes: [{
+                pid: 16750,
+                comm: '/opt/homebrew/bin/tmux',
+                ppid: 91545,             // spawned by Electron main, not init
+                argvMentions: [socketPath],
+                childPids: [],
+            }],
+        })
+
+        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+
+        expect(deps.killedPids).toEqual([])
+        expect(deps.removedPaths).toContain(socketPath)
+        expect(deps.warnLogs.some((line: string) => line.includes('no orphan'))).toBe(true)
     })
 
     it('removes the legacy macOS LaunchAgent instead of bootstrapping it', async () => {
