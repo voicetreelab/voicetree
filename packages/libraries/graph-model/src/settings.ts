@@ -12,4 +12,4 @@ export {
     type Section,
     type SettingsRuntime,
 } from './pure/settings/settingsSchema'
-export { DEFAULT_HOTKEYS, DEFAULT_SETTINGS, SETTINGS_SCHEMA } from './settingsRuntime'
+export { DEFAULT_HOTKEYS, DEFAULT_SETTINGS, SETTINGS_SCHEMA } from './pure/settings/settingsRuntime'

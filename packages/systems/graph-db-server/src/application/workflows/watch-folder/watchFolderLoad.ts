@@ -40,11 +40,11 @@ import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
 import {
     decideVaultConfig,
     type WatchFolderConfig,
-} from "../core/vault-config/decideVaultConfig";
+} from "@vt/graph-db-server/application/core/vault-config/decideVaultConfig";
 import {
     buildPatternAllowlist as buildPatternAllowlistPure,
     type PatternProbe,
-} from "../core/vault-config/buildPatternAllowlist";
+} from "@vt/graph-db-server/application/core/vault-config/buildPatternAllowlist";
 import {
     defaultWatchFolderEnv,
     type WatchFolderEnv,

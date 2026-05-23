@@ -106,7 +106,7 @@ export async function getWritePath(): Promise<O.Option<FilePath>> {
  * When setting a new write path, all nodes from that path are fully loaded.
  * This ensures the write path behaves like an "immediate load" path.
  *
- * @deprecated Use `setWritePath` from `application/workflows/watchFolder`
+ * @deprecated Use `setWritePath` from `watch-folder/watchFolder`
  * instead. The new verb demotes the previous writePath to `collapsed`
  * (matching openspec § D5) rather than `expanded`. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
@@ -184,7 +184,7 @@ export async function setWritePath(
  * - All files are loaded immediately (not lazy)
  *
  * @deprecated Use `setFolderState(path, 'expanded')` from
- * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder/watchFolder` instead. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function addReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {
@@ -248,7 +248,7 @@ export async function addReadPath(vaultPath: FilePath): Promise<{ success: boole
  * Immediately removes nodes from that path from the graph.
  *
  * @deprecated Use `setFolderState(path, 'unloaded')` from
- * `application/workflows/watchFolder` instead. Will be removed in
+ * `watch-folder/watchFolder` instead. Will be removed in
  * `watch-folder-verb-consolidation` Phase 5.
  */
 export async function removeReadPath(vaultPath: FilePath): Promise<{ success: boolean; error?: string }> {

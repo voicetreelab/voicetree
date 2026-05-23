@@ -16,7 +16,7 @@ import {
     validateDirectoryForWatching,
     type WatchFolderLoadOptions,
 } from "./watchFolderLoad";
-import type { FolderAction } from "./projectState";
+import type { FolderAction } from "../projectState";
 
 export type ProjectStatus =
     | {
