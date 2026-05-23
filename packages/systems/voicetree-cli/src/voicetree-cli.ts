@@ -30,8 +30,6 @@ type GlobalOptions = {
     commandArgs: string[]
 }
 
-type CommandHandler = (terminalId: string | undefined, args: string[]) => Promise<void>
-
 const HELP_TEXT: string = `Usage: vt [--terminal ID] [--json] <command> [args]
 
 Commands:
@@ -116,29 +114,6 @@ function printHelp(): void {
     console.log(HELP_TEXT)
 }
 
-async function loadDeferredHandler(
-    moduleSpecifier: string,
-    exportName: string,
-    unavailableMessage: string
-): Promise<CommandHandler> {
-    try {
-        const module: Record<string, unknown> = await import(moduleSpecifier)
-        const handler: unknown = module[exportName]
-        if (typeof handler !== 'function') {
-            throw new Error(`Missing export \`${exportName}\` in ${moduleSpecifier}`)
-        }
-
-        return handler as CommandHandler
-    } catch (cause) {
-        const message: string = getErrorMessage(cause)
-        if (message.includes('Cannot find module') || message.includes('Failed to resolve module')) {
-            error(unavailableMessage)
-        }
-
-        throw cause
-    }
-}
-
 async function dispatchAgentCommand(
     terminalId: string | undefined,
     subcommand: string | undefined,
@@ -180,101 +155,57 @@ async function dispatchGraphCommand(
 ): Promise<void> {
     switch (subcommand) {
         case 'create': {
-            const graphCreate: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphCreate',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphCreate} = await import('./commands/graph/core/graph.ts')
             await graphCreate(terminalId, args)
             return
         }
         case 'index': {
-            const graphIndex: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphIndex',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphIndex} = await import('./commands/graph/core/graph.ts')
             await graphIndex(terminalId, args)
             return
         }
         case 'search': {
-            const graphSearch: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphSearch',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphSearch} = await import('./commands/graph/core/graph.ts')
             await graphSearch(terminalId, args)
             return
         }
         case 'unseen': {
-            const graphUnseen: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphUnseen',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphUnseen} = await import('./commands/graph/core/graph.ts')
             await graphUnseen(terminalId, args)
             return
         }
         case 'live': {
-            const graphLive: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphLive',
-                'Graph live commands are not available in this build yet'
-            )
+            const {graphLive} = await import('./commands/graph/core/graph.ts')
             await graphLive(terminalId, args)
             return
         }
         case 'structure': {
-            const graphStructure: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphStructure',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphStructure} = await import('./commands/graph/core/graph.ts')
             await graphStructure(terminalId, args)
             return
         }
         case 'view': {
-            const graphView: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphView',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphView} = await import('./commands/graph/core/graph.ts')
             await graphView(terminalId, args)
             return
         }
         case 'lint': {
-            const graphLintCommand: CommandHandler = await loadDeferredHandler(
-                './commands/graph/core/graph',
-                'graphLintCommand',
-                'Graph commands are not available in this build yet'
-            )
+            const {graphLintCommand} = await import('./commands/graph/core/graph.ts')
             await graphLintCommand(terminalId, args)
             return
         }
         case 'rename': {
-            const graphRename: CommandHandler = await loadDeferredHandler(
-                './commands/node/rename.ts',
-                'graphRename',
-                'Rename command is not available in this build yet'
-            )
+            const {graphRename} = await import('./commands/node/rename.ts')
             await graphRename(terminalId, args)
             return
         }
         case 'mv': {
-            const graphMove: CommandHandler = await loadDeferredHandler(
-                './commands/node/move.ts',
-                'graphMove',
-                'Move command is not available in this build yet'
-            )
+            const {graphMove} = await import('./commands/node/move.ts')
             await graphMove(terminalId, args)
             return
         }
         case 'group': {
-            const graphGroup: CommandHandler = await loadDeferredHandler(
-                './commands/node/group.ts',
-                'graphGroup',
-                'Group command is not available in this build yet'
-            )
+            const {graphGroup} = await import('./commands/node/group.ts')
             await graphGroup(terminalId, args)
             return
         }
@@ -292,12 +223,8 @@ async function dispatchSearchCommand(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
-    const searchHandler: CommandHandler = await loadDeferredHandler(
-        './commands/node/search.ts',
-        'searchCommand',
-        'Search commands are not available in this build yet'
-    )
-    await searchHandler(terminalId, args)
+    const {searchCommand} = await import('./commands/node/search.ts')
+    await searchCommand(terminalId, args)
 }
 
 function readVtVersion(): string {

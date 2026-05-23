@@ -11,17 +11,28 @@
  * keeps it in lock-step with the daemon's tool catalog.
  */
 
-import {readFileSync} from 'node:fs'
+import {existsSync, readFileSync} from 'node:fs'
 import {dirname, join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {error} from '../output.ts'
 import {parseManual, type ManualTool} from '../manual/parseManual.ts'
 
-// This file lives at <package>/src/commands/manual.ts; the manual lives at
-// <package>/prompts/cli-manual.md. Resolve relative to the file so the lookup
-// works regardless of CWD or repo-root vs. installed-package layout.
-const PACKAGE_DIR: string = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
-const MANUAL_PATH: string = join(PACKAGE_DIR, 'prompts', 'cli-manual.md')
+// The manual lives at <package>/prompts/cli-manual.md. Locate it by walking up
+// from this module until we hit the directory that contains `prompts/`. This
+// keeps a single source of truth for the lookup across both the source layout
+// (<package>/src/commands/manual.ts) and the bundled layout
+// (<package>/dist/voicetree-cli.js).
+const MANUAL_RELATIVE_PATH: string = join('prompts', 'cli-manual.md')
+
+function findManualPath(startUrl: string): string | undefined {
+    let current: string = dirname(fileURLToPath(startUrl))
+    while (current !== dirname(current)) {
+        const candidate: string = join(current, MANUAL_RELATIVE_PATH)
+        if (existsSync(candidate)) return candidate
+        current = dirname(current)
+    }
+    return undefined
+}
 
 export function runManualCommand(args: readonly string[]): void {
     const markdown: string = readManualFile()
@@ -46,11 +57,15 @@ export function runManualCommand(args: readonly string[]): void {
 }
 
 function readManualFile(): string {
+    const manualPath: string | undefined = findManualPath(import.meta.url)
+    if (manualPath === undefined) {
+        error(`vt manual: cannot locate ${MANUAL_RELATIVE_PATH} relative to ${fileURLToPath(import.meta.url)}`)
+    }
     try {
-        return readFileSync(MANUAL_PATH, 'utf8')
+        return readFileSync(manualPath, 'utf8')
     } catch (cause: unknown) {
         const message: string = cause instanceof Error ? cause.message : String(cause)
-        error(`vt manual: cannot read ${MANUAL_PATH}: ${message}`)
+        error(`vt manual: cannot read ${manualPath}: ${message}`)
     }
 }
 
