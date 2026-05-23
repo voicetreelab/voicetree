@@ -66,9 +66,15 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
     throw new Error('Cannot ensure graph daemon: no vault is currently open')
   }
   if (activeOwner !== null) {
+    // Capture locally: the module-scope `activeOwner` can be cleared during
+    // any `await` below by a concurrent `shutdownActiveDaemonConnection()`
+    // (fires from `will-quit` while cleanup tasks scheduled in `before-quit`
+    // are still running). Without the capture, `return activeOwner` could
+    // resolve to `null` and callers would dereference `null.client`.
+    const current: DaemonHandle = activeOwner
     try {
-      await activeOwner.client.health()
-      return activeOwner
+      await current.client.health()
+      return current
     } catch (error) {
       if (!isConnectionFailure(error)) throw error
       markDaemonLost(error)

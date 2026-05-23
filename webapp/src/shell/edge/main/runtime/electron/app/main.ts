@@ -382,8 +382,13 @@ app.on('before-quit', () => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
     });
 
-    // Remove stale .mcp.json so external agents don't connect to a dead port
-    void disableMcpJsonIntegration();
+    // Remove stale .mcp.json so external agents don't connect to a dead port.
+    // Fire-and-forget but with .catch — `will-quit` shuts down the daemon and
+    // can clear the graph bridge mid-flight, so this can race even after our
+    // null-guards inside disableMcpJsonIntegration itself.
+    void disableMcpJsonIntegration().catch((error: unknown) => {
+        console.warn('[App] Failed to disable .mcp.json integration before quit:', error);
+    });
 
     // Stop OTLP receiver
     void stopOTLPReceiver();
