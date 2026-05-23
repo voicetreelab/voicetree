@@ -42,7 +42,7 @@ export type BuildConfig = {
   // Per-project .voicetree/ source paths (for copy-on-first-open)
   readonly promptsSource: string;      // packages/systems/voicetree-cli/prompts/*.md
   readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, on-worktree-created-*.sh, prompts/)
-  // Canonical CLI manual file path — co-located with the @vt/cli source tree.
+  // Canonical CLI manual file path — co-located with the @voicetree/cli source tree.
   readonly cliManualPath: string;
 
   // Server binary absolutePath (production only)

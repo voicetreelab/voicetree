@@ -400,7 +400,7 @@ describe('@vt/graph-db-server consumer import boundary', () => {
         ])
     })
 
-    it('allows intentional @vt/cli launcher/search/parity imports', () => {
+    it('allows intentional @voicetree/cli launcher/search/parity imports', () => {
         const violations = findGraphDbServerImportViolations(
             join(REPO_ROOT, 'packages/systems/voicetree-cli/src/commands/graph/actions/index-cmds.ts'),
             `

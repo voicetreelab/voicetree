@@ -3,7 +3,7 @@
  *
  * Single source of truth for the rule IDs the create_graph tool may emit
  * (via @vt/vt-daemon) and the override-spec entries that the CLI parses
- * (via @vt/cli). Adding a rule here is the only place needed.
+ * (via @voicetree/cli). Adding a rule here is the only place needed.
  *
  * Pure types + a frozen const literal — no runtime dependencies.
  */

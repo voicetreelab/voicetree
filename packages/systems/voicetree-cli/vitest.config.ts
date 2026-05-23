@@ -11,7 +11,7 @@ export default defineConfig({
             [ciCheckReporter, {
                 checkId: 'voicetree-cli-unit',
                 checkName: 'VoiceTree CLI Unit',
-                command: 'npm --workspace @vt/cli run test',
+                command: 'npm --workspace @voicetree/cli run test',
             }],
         ],
     },

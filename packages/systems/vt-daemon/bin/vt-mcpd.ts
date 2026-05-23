@@ -114,7 +114,7 @@ function configureHeadlessBridges(appSupportPath: string): void {
         // search bridge omitted: search_nodes returns "Search backend is not configured."
     })
 
-    // The CLI manual is shipped inside @vt/cli. vt-mcpd lives next to it on
+    // The CLI manual is shipped inside @voicetree/cli. vt-mcpd lives next to it on
     // disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
     // so resolve relative to this file rather than the appSupport-tools copy.
     const vtCliManualPath: string = join(
