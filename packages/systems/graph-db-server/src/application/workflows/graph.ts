@@ -25,6 +25,7 @@ import {
 import { executeCommand } from './dispatch.ts'
 import { VaultNotOpenError, structuredVaultErrorResult } from '../errors/vaultNotOpen.ts'
 import { errorResult, jsonResult, type HttpResult } from './httpResult.ts'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 
 type WorkflowParsed = { readonly ok: true }
 
@@ -136,17 +137,24 @@ async function applyGraphDeltaAndReadGraph(
   sessionId: string,
   options: ApplyDeltaOptions,
 ): Promise<Graph> {
-  await executeCommand({
-    type: 'ApplyGraphDeltaToDB',
-    delta: parsed.delta,
-    recordForUndo: options.recordForUndo,
+  await traceGraphdSpan('daemon.apply-delta.to-db', async span => {
+    span.setAttribute('vt.delta.size', parsed.delta.length)
+    await executeCommand({
+      type: 'ApplyGraphDeltaToDB',
+      delta: parsed.delta,
+      recordForUndo: options.recordForUndo,
+    })
   })
-  await executeCommand({
-    type: 'PublishDelta',
-    delta: parsed.delta,
-    source: `session:${sessionId}`,
+  await traceGraphdSpan('daemon.apply-delta.publish', async () => {
+    await executeCommand({
+      type: 'PublishDelta',
+      delta: parsed.delta,
+      source: `session:${sessionId}`,
+    })
   })
-  return await executeCommand({ type: 'ReadGraph' })
+  return await traceGraphdSpan('daemon.apply-delta.read-graph', async () =>
+    await executeCommand({ type: 'ReadGraph' }),
+  )
 }
 
 async function prepareDeleteGraphNode(
@@ -190,33 +198,61 @@ export async function readGraphWorkflow(): Promise<HttpResult> {
   return jsonResult(composeGraphResponse(await executeCommand({ type: 'ReadGraph' })))
 }
 
+async function tracedApplyDeltaAndCompose(
+  delta: GraphDelta,
+  sessionId: string,
+  recordForUndo: boolean | undefined,
+): Promise<HttpResult> {
+  try {
+    const graph = await applyGraphDeltaAndReadGraph(
+      { ok: true, delta },
+      sessionId,
+      { recordForUndo },
+    )
+    const composed = await traceGraphdSpan(
+      'daemon.apply-delta.compose-response',
+      async span => {
+        span.setAttribute('vt.graph.nodes', Object.keys((graph as { nodes?: object }).nodes ?? {}).length)
+        return composeApplyDeltaResponse(delta, graph)
+      },
+    )
+    return jsonResult(composed)
+  } catch (error) {
+    return vaultAwareWorkflowErrorResult(error, 'GRAPH_DELTA_APPLY_FAILED')
+  }
+}
+
 export async function applyGraphDeltaWorkflow(
   rawBody: unknown,
   sessionId: string,
   options: { recordForUndo?: boolean } = {},
 ): Promise<HttpResult> {
-  return await wrapWorkflow(
-    parseGraphDeltaRequest,
-    parsed => applyGraphDeltaAndReadGraph(parsed, sessionId, options),
-    (graph, parsed) => composeApplyDeltaResponse(parsed.delta, graph),
-    'GRAPH_DELTA_APPLY_FAILED',
-    vaultAwareWorkflowErrorResult,
-  )(rawBody)
+  return await traceGraphdSpan('daemon.apply-delta', async span => {
+    const parsed = parseGraphDeltaRequest(rawBody)
+    if (!parsed.ok) return parseRejectionResult(parsed)
+    span.setAttribute('vt.delta.size', parsed.delta.length)
+    return await tracedApplyDeltaAndCompose(
+      parsed.delta,
+      sessionId,
+      options.recordForUndo,
+    )
+  })
 }
 
 export async function applyGraphDeltaWithOptionsWorkflow(
   rawBody: unknown,
   sessionId: string,
 ): Promise<HttpResult> {
-  return await wrapWorkflow(
-    parseApplyDeltaRequest,
-    parsed => applyGraphDeltaAndReadGraph(parsed, sessionId, {
-      recordForUndo: parsed.recordForUndo,
-    }),
-    (graph, parsed) => composeApplyDeltaResponse(parsed.delta, graph),
-    'GRAPH_DELTA_APPLY_FAILED',
-    vaultAwareWorkflowErrorResult,
-  )(rawBody)
+  return await traceGraphdSpan('daemon.apply-delta', async span => {
+    const parsed = parseApplyDeltaRequest(rawBody)
+    if (!parsed.ok) return parseRejectionResult(parsed)
+    span.setAttribute('vt.delta.size', parsed.delta.length)
+    return await tracedApplyDeltaAndCompose(
+      parsed.delta,
+      sessionId,
+      parsed.recordForUndo,
+    )
+  })
 }
 
 export async function deleteGraphNodeWorkflow(nodeId: string): Promise<HttpResult> {
