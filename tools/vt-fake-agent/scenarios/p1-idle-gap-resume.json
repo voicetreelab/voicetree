@@ -1,0 +1,13 @@
+{
+  "description": "P1: Agent creates node, goes idle 10s, then resumes — should not be marked complete during gap",
+  "actions": [
+    { "type": "delay", "ms": 2000 },
+    { "type": "create_node", "title": "First checkpoint", "summary": "Early progress node before long idle gap" },
+    { "type": "log", "message": "Going idle for 10s..." },
+    { "type": "delay", "ms": 10000 },
+    { "type": "log", "message": "Resuming work after idle gap" },
+    { "type": "create_node", "title": "Second checkpoint", "summary": "Created after 10s idle gap — proves agent was not done" },
+    { "type": "delay", "ms": 1000 },
+    { "type": "exit", "code": 0 }
+  ]
+}

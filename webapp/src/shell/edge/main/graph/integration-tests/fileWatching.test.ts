@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching, setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { openVault, stopFileWatching, isWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import type { Graph, GraphNode } from '@vt/graph-model/graph'
 import { createEmptyGraph } from '@vt/graph-model/graph'
@@ -76,10 +76,9 @@ describe.skip('File Watching - Edge Management Tests', () => {
     testVoicetreeDir = path.join(testProjectPath, 'voicetree')
 
     setGraph(createEmptyGraph())
-    setVaultPath('')
 
-    await loadFolder(testProjectPath)
-    expect(isWatching()).toBe(true)
+    await openVault(testProjectPath)
+    expect(await isWatching()).toBe(true)
     await waitForWatcherReady()
   }, INTEGRATION_TEST_TIMEOUT_MS)
 

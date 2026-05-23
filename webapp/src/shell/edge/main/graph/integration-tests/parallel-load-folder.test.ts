@@ -1,7 +1,7 @@
 /**
- * Black-box test for surface (a) — Parallel loadFolder idempotency.
+ * Black-box test for surface (a) — Parallel openVault idempotency.
  *
- * Demonstrates that 3+ concurrent loadFolder() callers (renderer bootstrap,
+ * Demonstrates that 3+ concurrent openVault() callers (renderer bootstrap,
  * UI click, IPC handler) for the same vault path:
  *   1. spawn at most one vt-graphd daemon process for that vault, and
  *   2. leave the just-loaded graph populated (no late re-spawn clearing the
@@ -12,7 +12,7 @@
  * for an unrelated BETA broadcast-count regression — this test isolates the
  * idempotency surface so it isn't blocked by that.
  *
- * Black-box rules: drives the public loadFolder() API, asserts on observable
+ * Black-box rules: drives the public openVault() API, asserts on observable
  * daemon graph state via GraphDbClient, and counts daemons via `ps` (no internal
  * idempotency-map inspection, no mocks of internal collaborators).
  */
@@ -24,8 +24,7 @@ import path from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-    loadFolder,
-    setVaultPath,
+    openVault,
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
@@ -104,7 +103,7 @@ async function waitForDaemonNodeCount(vault: string): Promise<number> {
     throw new Error('daemon graph never reached MIN_SMALL_NODE_COUNT after parallel load (waited 10000ms)')
 }
 
-describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
+describe('Parallel openVault idempotency (Hot Zone A surface a)', () => {
     beforeAll(async () => {
         tempFixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'parallel-load-folder-'))
         initGraphModel(
@@ -140,7 +139,6 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
         )
 
         setGraph(createGraph({}))
-        setVaultPath('')
         clearRecentDeltas()
         clearDaemonClientCache()
     })
@@ -159,26 +157,23 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
         }
     }, TIMEOUT_MS)
 
-    it('5 concurrent loadFolder callers spawn ≤1 vt-graphd and leave graph populated', async () => {
+    it('5 concurrent openVault callers spawn ≤1 vt-graphd and leave graph populated', async () => {
         // GIVEN: clean slate — no stale daemon for this vault.
         await shutdownDaemonForVault(vaultPath)
         clearDaemonClientCache()
 
         // WHEN: 5 callers race to load the same folder.
         // (Models renderer-bootstrap + UI click + IPC handler + 2 stragglers.)
-        const callers: ReadonlyArray<Promise<{ readonly success: boolean }>> = [
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-        ]
-        const results: ReadonlyArray<{ readonly success: boolean }> = await Promise.all(callers)
+        // openVault throws on failure — Promise.all rejecting is the failure mode.
+        await Promise.all([
+            openVault(vaultPath),
+            openVault(vaultPath),
+            openVault(vaultPath),
+            openVault(vaultPath),
+            openVault(vaultPath),
+        ])
 
-        // THEN: every caller saw success.
-        results.forEach(r => expect(r.success).toBe(true))
-
-        // AND: daemon graph populated — not cleared by a late re-spawn.
+        // THEN: daemon graph populated — not cleared by a late re-spawn.
         const nodeCount: number = await waitForDaemonNodeCount(vaultPath)
         expect(nodeCount).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
@@ -189,12 +184,9 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
                 .toBeLessThanOrEqual(1)
         }
 
-        // AND: a follow-up loadFolder is a no-op that preserves the graph
+        // AND: a follow-up openVault is a no-op that preserves the graph
         // (the original race symptom: late call-site re-spawns and clears).
-        const followup: { readonly success: boolean } = await loadFolder(vaultPath, {
-            includeActiveViewExpandedPaths: false,
-        })
-        expect(followup.success).toBe(true)
+        await openVault(vaultPath)
         const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(vaultPath)
         expect(nodeCountAfterFollowup).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
     }, TIMEOUT_MS)

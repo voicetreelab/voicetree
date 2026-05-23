@@ -27,7 +27,6 @@ import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
@@ -183,7 +182,6 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setVaultPath(tempVault)
 
         // Create initial markdown files with frontmatter and wikilinks
         await fs.writeFile(
@@ -359,7 +357,6 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setVaultPath(tempVault)
 
         // Create initial markdown files
         await fs.writeFile(

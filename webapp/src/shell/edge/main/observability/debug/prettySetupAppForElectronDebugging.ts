@@ -1,6 +1,6 @@
 import { getGraphThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import { terminalRuntimeSurface } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import { startFileWatching } from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import { openVault } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
@@ -121,13 +121,14 @@ export async function prettySetupAppForElectronDebugging(): Promise<DebugSetupRe
         await saveProject(project);
         console.log('[DebugSetup] Saved project:', project.id);
 
-        const result = await startFileWatching(testProjectPath);
-        if (!result.success) {
-            console.error('[DebugSetup] Failed to load test project:', result.error);
+        try {
+            await openVault(testProjectPath);
+        } catch (err: unknown) {
+            console.error('[DebugSetup] Failed to load test project:', err);
             return { terminalsSpawned: [], nodeCount: 0 };
         }
 
-        projectLoaded = result.directory;
+        projectLoaded = testProjectPath;
 
         // Wait a moment for graph to populate
         await new Promise(resolve => setTimeout(resolve, 500));
