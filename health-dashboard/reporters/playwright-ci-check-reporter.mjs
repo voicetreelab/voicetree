@@ -1,6 +1,6 @@
 import {spawn} from 'node:child_process'
 
-const WRITER_SPECIFIER = '@vt/ci-reporting'
+const WRITER_SPECIFIER = '@vt/measures/check-report-writer'
 const RECORD_SCRIPT = `
 const report = JSON.parse(process.env.PLAYWRIGHT_CI_CHECK_REPORT)
 const {recordCheckReport} = await import(process.env.PLAYWRIGHT_CI_CHECK_WRITER_SPECIFIER)

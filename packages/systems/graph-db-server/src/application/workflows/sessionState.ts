@@ -2,14 +2,15 @@ import {
   buildFolderTree,
   toAbsolutePath,
   type AbsolutePath,
+  type DirectoryEntry,
   type FolderTreeNode,
 } from '@vt/graph-model'
 import type { LiveStateSnapshot } from '@vt/graph-db-server/contract'
 import { getGraph } from '@vt/graph-db-server/state/graph-store'
 import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
-import { getDirectoryTree } from '@vt/graph-db-server/graph/folderScanner'
 import { getReadPaths, getVaultPaths, getWritePath } from '@vt/graph-db-server/state/vaultAllowlist'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
+import { getFolderTreeReadModel } from '@vt/graph-db-server/state/folder-tree-read-model-store'
 import { handleReadSessionState } from '../core/handleSessionState.ts'
 import { jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 import type { WorkflowSessionRegistry } from './sessionRoutes.ts'
@@ -37,6 +38,31 @@ function readFolderVisibilitySnapshot(
   >
 }
 
+async function readFolderTreeForSnapshot(
+  projectRoot: string | null,
+  readPaths: readonly string[],
+  vaultPaths: readonly string[],
+  writePath: AbsolutePath | null,
+  graphNodePaths: ReadonlySet<string>,
+): Promise<FolderTreeNode | null> {
+  if (!projectRoot) return null
+  let directoryEntry: DirectoryEntry | null
+  try {
+    directoryEntry = await getFolderTreeReadModel().readRootTree({
+      root: toAbsolutePath(projectRoot),
+    })
+  } catch {
+    return null
+  }
+  if (!directoryEntry) return null
+  return buildFolderTree(
+    directoryEntry,
+    new Set<string>([...readPaths, ...vaultPaths]),
+    writePath,
+    new Set<string>(graphNodePaths),
+  )
+}
+
 export async function readSessionStateWorkflow(
   registry: WorkflowSessionRegistry,
   sessionId: string,
@@ -53,20 +79,13 @@ export async function readSessionStateWorkflow(
   const readPaths = [...(await getReadPaths())]
   const vaultPaths = await getVaultPaths()
 
-  let folderTree: FolderTreeNode | null = null
-  if (projectRoot) {
-    try {
-      const directoryEntry = await getDirectoryTree(projectRoot)
-      folderTree = buildFolderTree(
-        directoryEntry,
-        new Set<string>([...readPaths, ...vaultPaths]),
-        writePath,
-        new Set<string>(Object.keys(graph.nodes)),
-      )
-    } catch {
-      folderTree = null
-    }
-  }
+  const folderTree = await readFolderTreeForSnapshot(
+    projectRoot,
+    readPaths,
+    vaultPaths,
+    writePath,
+    new Set(Object.keys(graph.nodes)),
+  )
 
   const result = handleReadSessionState({
     session,

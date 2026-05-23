@@ -3,8 +3,8 @@ import type {IncomingMessage, Server} from 'node:http'
 import type {Duplex} from 'node:stream'
 import pty, {type IPty} from 'node-pty'
 import {WebSocket, WebSocketServer} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux-launchagent'
-import {hasSession, resolveTmuxSessionName} from '../terminals/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
+import {hasSession, resolveTmuxSessionName} from '../terminals/tmux/tmux-session-manager'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
@@ -13,9 +13,20 @@ const PASTE_CHUNK_DELAY_MS: 25 = 25
 const INTERACTIVE_INPUT_BYTES: 64 = 64
 const ATTACH_ROUTE: RegExp = /^\/terminals\/([^/]+)\/attach\/?$/
 
+export interface TmuxRelayLogger {
+    readonly warn: (message: string) => void
+    readonly info: (message: string) => void
+}
+
+const defaultLogger: TmuxRelayLogger = {
+    warn: (message: string): void => console.warn(message),
+    info: (message: string): void => console.log(message),
+}
+
 export interface TmuxAttachRelayOptions {
     readonly cwd?: string
     readonly env?: NodeJS.ProcessEnv
+    readonly logger?: TmuxRelayLogger
 }
 
 export interface TmuxAttachRelayHandle {
@@ -47,14 +58,14 @@ function parseAttachRequest(request: IncomingMessage): ParsedAttachRequest {
 }
 
 function configureTmuxSession(sessionName: string): void {
+    // window-size=latest lets the most recently active client drive the window/pane size.
+    // The relay's pty (via node-pty's TIOCSWINSZ → SIGWINCH → tmux client → server) is then
+    // sufficient to resize panes: no explicit `tmux resize-pane` exec is needed at runtime.
+    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'window-size', 'latest']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'escape-time', '0']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'status', 'off']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'mouse', 'on']), {stdio: 'ignore'})
     execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['set', '-t', sessionName, 'history-limit', '9999']), {stdio: 'ignore'})
-}
-
-function resizeTmuxPane(sessionName: string, cols: number, rows: number): void {
-    execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(['resize-pane', '-t', sessionName, '-x', String(cols), '-y', String(rows)]), {stdio: 'ignore'})
 }
 
 function sendData(ws: WebSocket, payload: string): void {
@@ -92,13 +103,17 @@ function enqueuePacedInput(term: IPty, queue: string[], state: {flushing: boolea
     flushNext()
 }
 
-function parseWsMessage(raw: Buffer | ArrayBuffer | Buffer[]): unknown {
+function parseWsMessage(raw: Buffer | ArrayBuffer | Buffer[]): unknown | null {
     const text: string = Buffer.isBuffer(raw)
         ? raw.toString()
         : Array.isArray(raw)
             ? Buffer.concat(raw).toString()
             : Buffer.from(raw).toString()
-    return JSON.parse(text)
+    try {
+        return JSON.parse(text)
+    } catch {
+        return null
+    }
 }
 
 export async function attachTmuxSessionToWebSocket(
@@ -106,6 +121,7 @@ export async function attachTmuxSessionToWebSocket(
     request: IncomingMessage,
     options: TmuxAttachRelayOptions = {}
 ): Promise<void> {
+    const logger: TmuxRelayLogger = options.logger ?? defaultLogger
     const parsed: ParsedAttachRequest = parseAttachRequest(request)
     if (!parsed) {
         ws.close()
@@ -115,12 +131,14 @@ export async function attachTmuxSessionToWebSocket(
 
     try {
         if (!(await hasSession(sessionName))) {
+            logger.info(`[tmux-relay] ${sessionName}: session not found, closing client`)
             sendData(ws, '[session ended — agent exited]\r\n')
             sendExit(ws, 0)
             ws.close()
             return
         }
     } catch (error) {
+        logger.warn(`[tmux-relay] ${sessionName}: hasSession check failed: ${error instanceof Error ? error.message : String(error)}`)
         sendData(ws, `tmux session check failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
         sendExit(ws, 1)
         ws.close()
@@ -130,11 +148,13 @@ export async function attachTmuxSessionToWebSocket(
     try {
         configureTmuxSession(sessionName)
     } catch (error) {
+        logger.warn(`[tmux-relay] ${sessionName}: configureTmuxSession failed: ${error instanceof Error ? error.message : String(error)}`)
         sendData(ws, `tmux session configuration failed: ${error instanceof Error ? error.message : String(error)}\r\n`)
         sendExit(ws, 1)
         ws.close()
         return
     }
+    logger.info(`[tmux-relay] ${sessionName}: attached cols=${parsed.cols} rows=${parsed.rows}`)
 
     const env: NodeJS.ProcessEnv = {
         ...process.env,
@@ -173,6 +193,10 @@ export async function attachTmuxSessionToWebSocket(
 
     ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[]): void => {
         const msg: unknown = parseWsMessage(raw)
+        if (msg === null) {
+            logger.warn(`[tmux-relay] ${sessionName}: dropped malformed WS frame`)
+            return
+        }
         if (!msg || typeof msg !== 'object') return
         const record: Record<string, unknown> = msg as Record<string, unknown>
 
@@ -185,8 +209,13 @@ export async function attachTmuxSessionToWebSocket(
             const cols: number = Number(record.cols)
             const rows: number = Number(record.rows)
             if (Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0) {
+                // term.resize() issues TIOCSWINSZ on the pty master, which delivers SIGWINCH
+                // to the tmux client (the foreground pgrp of the pty). The client then notifies
+                // the server over its already-open fd, and tmux's `window-size=latest` policy
+                // resizes the pane. This runs entirely through the existing tmux connection —
+                // no fresh `tmux resize-pane` exec is required, which is critical for surviving
+                // the macOS jetsam orphan-daemon split-brain scenario.
                 term.resize(cols, rows)
-                resizeTmuxPane(sessionName, cols, rows)
             }
         }
     })

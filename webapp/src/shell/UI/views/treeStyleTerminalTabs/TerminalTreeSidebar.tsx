@@ -10,6 +10,7 @@
 
 import { createElement, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { JSX } from 'react';
+import { Play } from 'lucide-react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
@@ -18,60 +19,7 @@ import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } fro
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
 import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
-// =============================================================================
-// Collapse / expand
-// =============================================================================
-
-/** A parent with this many or more direct children auto-collapses unless the user explicitly expands it. */
-const AUTO_COLLAPSE_THRESHOLD: number = 5;
-/** localStorage key. Stores explicit user choices: collapsed terminals + expanded terminals. */
-const COLLAPSE_STORAGE_KEY: string = 'vt:terminalTreeCollapse:v1';
-
-type CollapseChoice = 'collapsed' | 'expanded';
-type CollapseChoiceMap = Record<TerminalId, CollapseChoice>;
-
-function loadCollapseChoices(): CollapseChoiceMap {
-    try {
-        const raw: string | null = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
-        if (!raw) return {};
-        const parsed: unknown = JSON.parse(raw);
-        return (parsed && typeof parsed === 'object') ? parsed as CollapseChoiceMap : {};
-    } catch { return {}; }
-}
-
-function saveCollapseChoices(choices: CollapseChoiceMap): void {
-    try {
-        window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(choices));
-    } catch { /* localStorage may be unavailable (private mode); persistence is best-effort. */ }
-}
-
-function useCollapseState(): {
-    readonly isCollapsed: (id: TerminalId, directChildCount: number) => boolean;
-    readonly toggle: (id: TerminalId, directChildCount: number) => void;
-} {
-    const [choices, setChoices] = useState<CollapseChoiceMap>(loadCollapseChoices);
-
-    const isCollapsed = useCallback((id: TerminalId, directChildCount: number): boolean => {
-        const choice: CollapseChoice | undefined = choices[id];
-        if (choice === 'collapsed') return true;
-        if (choice === 'expanded') return false;
-        return directChildCount >= AUTO_COLLAPSE_THRESHOLD;
-    }, [choices]);
-
-    const toggle = useCallback((id: TerminalId, directChildCount: number): void => {
-        setChoices((prev: CollapseChoiceMap): CollapseChoiceMap => {
-            const next: CollapseChoiceMap = { ...prev };
-            const current: CollapseChoice | undefined = prev[id];
-            const autoCollapsed: boolean = directChildCount >= AUTO_COLLAPSE_THRESHOLD;
-            const effective: CollapseChoice = current ?? (autoCollapsed ? 'collapsed' : 'expanded');
-            next[id] = effective === 'collapsed' ? 'expanded' : 'collapsed';
-            saveCollapseChoices(next);
-            return next;
-        });
-    }, []);
-
-    return { isCollapsed, toggle };
-}
+import { useCollapseState } from './terminalTreeCollapseState';
 import {
     subscribeToTerminalChanges,
     subscribeToActiveTerminalChange,
@@ -79,6 +27,22 @@ import {
     getActiveTerminalId,
     clearTerminals,
 } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
+import {
+    clearUnclaimedTmuxSessions,
+    startUnclaimedTmuxPolling,
+    stopUnclaimedTmuxPolling,
+} from '@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore';
+import {
+    attachRecoverySession,
+    clearRecoverySessions,
+    forkRecoverySession,
+    killRecoverySession,
+    refreshRecoverySessions,
+    resumeRecoverySession,
+    startRecoverySessionsPolling,
+    stopRecoverySessionsPolling,
+} from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore';
+import {useRecoverySessions} from './survivingAgentsHooks';
 import {
     syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
@@ -89,6 +53,8 @@ import {
 import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
 import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
+import { SurvivingAgentsSection } from './SurvivingAgentsSection';
+import type { RecoverableAgentSession } from '@vt/agent-runtime';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -118,6 +84,7 @@ function useActiveTerminalId(): TerminalId | null {
 
     return activeId;
 }
+
 
 // =============================================================================
 // Resize Hook
@@ -213,10 +180,11 @@ interface TreeNodeProps {
     readonly onSelect: (terminal: TerminalData) => void;
     readonly isCollapsed: boolean;
     readonly onToggleCollapse: (id: TerminalId, directChildCount: number) => void;
+    readonly resumeCliType: 'claude' | 'codex' | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onToggleCollapse }: TreeNodeProps): JSX.Element {
+function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onToggleCollapse, resumeCliType }: TreeNodeProps): JSX.Element {
     const { terminal, depth, hasChildren, directChildCount, descendantSummary } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
 
@@ -246,6 +214,11 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const handleMouseDown: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
     }, []);
+
+    const handleFork: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        void forkRecoverySession(terminalId);
+    }, [terminalId]);
 
     const activityDots: JSX.Element[] = useMemo(() => {
         const dots: JSX.Element[] = [];
@@ -304,6 +277,22 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
                 <span className="terminal-tab-shortcut-hint">{shortcutHint}</span>
             )}
 
+            {/* Fork button — only shown when the recovery feed reports a resume
+                capability for this terminal. Spawns a new tab continuing the
+                same conversation, leaving the live agent untouched. */}
+            {resumeCliType && (
+                <button
+                    className="terminal-tree-fork"
+                    type="button"
+                    onClick={handleFork}
+                    onMouseDown={handleMouseDown}
+                    title={`Fork ${resumeCliType} session into a new tab`}
+                    aria-label={`Fork ${resumeCliType} session`}
+                >
+                    <Play size={11} aria-hidden="true" />
+                </button>
+            )}
+
             {/* Close button */}
             <button className="terminal-tree-close" onClick={handleClose}>
                 &times;
@@ -323,6 +312,7 @@ interface SidebarInternalProps {
 // eslint-disable-next-line react-refresh/only-export-components
 function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.Element | null {
     const allTerminals: TerminalData[] = useTerminals();
+    const recoverySessions: readonly RecoverableAgentSession[] = useRecoverySessions();
     const activeTerminalId: TerminalId | null = useActiveTerminalId();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
@@ -332,7 +322,13 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     // Start/stop activity polling with component lifecycle
     useEffect(() => {
         startTerminalActivityPolling();
-        return () => stopTerminalActivityPolling();
+        startUnclaimedTmuxPolling();
+        startRecoverySessionsPolling();
+        return () => {
+            stopTerminalActivityPolling();
+            stopUnclaimedTmuxPolling();
+            stopRecoverySessionsPolling();
+        };
     }, []);
 
     const collapse = useCollapseState();
@@ -354,6 +350,17 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
 
     const totalTabs: number = displayOrder.length;
     const shortcutPlatform = useMemo(() => getShortcutPlatform(), []);
+    const hasSidebarContent: boolean = terminals.length > 0 || recoverySessions.length > 0;
+
+    // Index resume capability by terminalId so TreeNode can render the fork
+    // button without re-scanning the session list per row.
+    const resumeCliByTerminalId: ReadonlyMap<string, 'claude' | 'codex'> = useMemo(() => {
+        const out: Map<string, 'claude' | 'codex'> = new Map();
+        for (const session of recoverySessions) {
+            if (session.resume) out.set(session.terminalId, session.resume.cliType);
+        }
+        return out;
+    }, [recoverySessions]);
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
         if (!terminal.isHeadless && terminal.isMinimized) {
@@ -368,7 +375,7 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
             ref={sidebarRef}
             className="terminal-tree-sidebar"
             data-testid="terminal-tree-sidebar"
-            style={{ display: terminals.length === 0 ? 'none' : 'flex' }}
+            style={{ display: hasSidebarContent ? 'flex' : 'none' }}
         >
             <div className="terminal-tree-header">Terminals</div>
             <div className="terminal-tree-container">
@@ -388,10 +395,18 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                             onSelect={handleSelect}
                             isCollapsed={collapsed}
                             onToggleCollapse={collapse.toggle}
+                            resumeCliType={resumeCliByTerminalId.get(terminalId) ?? null}
                         />
                     );
                 })}
             </div>
+            <SurvivingAgentsSection
+                sessions={recoverySessions}
+                onRefresh={refreshRecoverySessions}
+                onAttach={attachRecoverySession}
+                onKill={killRecoverySession}
+                onResume={resumeRecoverySession}
+            />
             <div ref={resizeHandleRef} className="terminal-tree-resize-handle" />
         </div>
     );
@@ -439,4 +454,6 @@ export function disposeTerminalTreeSidebar(): void {
 
     // Clear terminal stores to ensure clean state when switching projects
     clearTerminals();
+    clearUnclaimedTmuxSessions();
+    clearRecoverySessions();
 }

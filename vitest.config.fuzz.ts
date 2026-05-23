@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import path from 'path'
 
 const require = createRequire(import.meta.url)
-const ciCheckReporter = require.resolve('@vt/ci-reporting/vitest-reporter')
+const ciCheckReporter = require.resolve('@vt/measures/vitest-reporter')
 
 type FuzzCheckCfg = { readonly checkId: string; readonly checkName: string; readonly command: string }
 

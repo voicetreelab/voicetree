@@ -70,8 +70,8 @@ export const METRICS = [
   {id:'modularity-q',                  name:'Modularity Q',                category:'Structure', current:0.58424, budget:0.525,  comparison:'gte', passed:true},
 ]
 
-// Semantic subgroup rules — inspired by what a `scripts/measures/<cat>/<subgroup>/`
-// folder layout would express. Each subgroup is a leaf in scripts/measures'
+// Semantic subgroup rules — inspired by what a `packages/measures/<cat>/<subgroup>/`
+// folder layout would express. Each subgroup is a leaf in packages/measures'
 // imagined hierarchy.
 //
 // A metric joins the FIRST subgroup whose match returns true. Anything

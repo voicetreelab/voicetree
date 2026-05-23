@@ -262,6 +262,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
       },
       onWatchingStarted: () => {},
       onFileWatchingStopped: () => {},

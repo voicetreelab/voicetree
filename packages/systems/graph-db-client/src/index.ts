@@ -9,18 +9,31 @@ export {
   DaemonLockHeldError,
   DaemonUnreachableError,
   GraphDbClientError,
+  OwnerSpawnCooldownError,
+  OwnerWaitTimeoutError,
+  UnsafeOwnerError,
   VaultNotOpenError,
   VaultOpenFailedError,
 } from './errors.ts'
 export { readPortFile, discoverPort } from './portDiscovery.ts'
 export {
   ensureDaemon,
+  ensureGraphDaemonForVault,
   resolveDaemonRuntimeCommand,
-  spawnVaultlessDaemon,
   type EnsureDaemonResult,
-  type SpawnVaultlessDaemonOptions,
-  type VaultlessDaemonHandle,
+  type EnsureGraphDaemonOptions,
+  type EnsureGraphDaemonResult,
 } from './autoLaunch.ts'
+export {
+  subscribeOwnerDiagnostics,
+  type OwnerDiagnosticListener,
+  type OwnerDiagnosticUnsubscribe,
+} from './autoLaunch/diagnostics.ts'
+export {
+  cooldownBreadcrumbPathFor,
+  COOLDOWN_BREADCRUMB_FILENAME,
+  type CooldownBreadcrumb,
+} from './autoLaunch/cooldownBreadcrumb.ts'
 export {
   isVtGraphdProcessForVault,
   killOrphanVtGraphdDaemons,

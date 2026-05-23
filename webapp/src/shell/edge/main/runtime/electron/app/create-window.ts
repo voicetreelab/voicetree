@@ -9,11 +9,16 @@ import {setMainWindow} from '@/shell/edge/main/runtime/state/app-electron-state'
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {recordAppUsage} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
 import {registerDebugAutoSetup} from '@/shell/edge/main/runtime/electron/startup/debug-auto-setup';
-import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
-import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
+import {writeCurrentPositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
+import {setDaemonGraphSyncTier, type AppActivityTier} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 
 const DEBUG_AUTO_SETUP_SHOW_TIMEOUT_MS: number = 15000;
 const appRuntimeDir: string = path.dirname(fileURLToPath(import.meta.url));
+type TrackpadDetect = {
+    startMonitoring: () => boolean;
+    stopMonitoring: () => void;
+    isTrackpadScroll: () => boolean;
+};
 
 /** Resolve a path relative to the webapp package root in both dev and packaged builds. */
 export function appResource(...segments: string[]): string {
@@ -44,14 +49,17 @@ async function waitForDebugAutoSetup(autoSetupComplete: Promise<void> | null): P
 // `require()` left in by rollup for externalized modules throws
 // ReferenceError at runtime. Use createRequire to get a real CJS require.
 const nativeRequire = createRequire(import.meta.url);
-let trackpadDetect: { startMonitoring: () => boolean; stopMonitoring: () => void; isTrackpadScroll: () => boolean } | null = null;
-if (process.platform === 'darwin') {
+function loadTrackpadDetect(): TrackpadDetect | null {
+    if (process.platform !== 'darwin') return null;
+
     try {
-        trackpadDetect = nativeRequire('electron-trackpad-detect');
+        return nativeRequire('electron-trackpad-detect') as TrackpadDetect;
     } catch {
         console.warn('[Main] electron-trackpad-detect not available');
+        return null;
     }
 }
+const trackpadDetect: TrackpadDetect | null = loadTrackpadDetect();
 
 /** Stop trackpad monitoring (called on app quit). */
 export function stopTrackpadMonitoring(): void {
@@ -230,7 +238,7 @@ export function createWindow(deps: {
             if (input.type === 'mouseWheel') {
                 // Query the native addon for whether this was a trackpad scroll
                 // The addon monitors NSEvent and stores the hasPreciseScrollingDeltas value
-                const isTrackpad: boolean = trackpadDetect!.isTrackpadScroll();
+                const isTrackpad: boolean = trackpadDetect.isTrackpadScroll();
                 uiAPI.setIsTrackpadScrolling(isTrackpad);
             }
         });

@@ -12,18 +12,26 @@ const SLIDES = [
 function statusBadge(status) {
   if (status === 'pass') return `<span class="badge badge-pass">PASS</span>`
   if (status === 'fail') return `<span class="badge badge-fail">FAIL</span>`
+  if (status === 'never-run') return `<span class="badge badge-never-run">NEVER RUN</span>`
   return `<span class="badge badge-skip">SKIP</span>`
 }
 
 function squareCls(c) {
   if (c.status === 'fail') return 'sq sq-fail'
+  if (c.status === 'never-run') return 'sq sq-never-run'
   if (c.status === 'skip') return 'sq sq-skip'
   if (isStale(c.timestamp)) return 'sq sq-stale'
   return 'sq sq-pass'
 }
 
 function squareTooltip(c) {
-  const head = `${c.checkName} — ${c.status.toUpperCase()}`
+  const statusLabel = c.status === 'never-run' ? 'NEVER RUN LOCALLY' : c.status.toUpperCase()
+  const head = `${c.checkName} — ${statusLabel}`
+  if (c.status === 'never-run') {
+    const tier = c.details?.tier
+    const hint = tier !== undefined && tier !== null ? `\nrun: npm run test:t${tier}` : ''
+    return `${head}${hint}`
+  }
   if (c.testsTotal !== undefined) {
     const p = c.testsPassed ?? 0
     const f = c.testsFailed ?? 0
@@ -37,26 +45,35 @@ function renderSquare(c) {
   return `<button class="${squareCls(c)}" data-id="${esc(c.checkId)}" title="${esc(squareTooltip(c))}" type="button" aria-label="${esc(squareTooltip(c))}"></button>`
 }
 
-// fail → stale → pass → skip
+// fail → stale → never-run → pass → skip
 function sortSquares(reports) {
-  const rank = (r) => r.status === 'fail' ? 0 : isStale(r.timestamp) ? 1 : r.status === 'pass' ? 2 : 3
+  const rank = (r) => {
+    if (r.status === 'fail') return 0
+    if (r.status === 'pass' && isStale(r.timestamp)) return 1
+    if (r.status === 'never-run') return 2
+    if (r.status === 'pass') return 3
+    return 4
+  }
   return [...reports].sort((a, b) => rank(a) - rank(b) || a.checkId.localeCompare(b.checkId))
 }
 
 function categoryStats(reports) {
   const fail = reports.filter(r => r.status === 'fail').length
   const skip = reports.filter(r => r.status === 'skip').length
+  const neverRun = reports.filter(r => r.status === 'never-run').length
   const stale = reports.filter(r => r.status === 'pass' && isStale(r.timestamp)).length
-  const pass = reports.length - fail - skip - stale
-  return { fail, skip, pass, stale, total: reports.length }
+  const pass = reports.length - fail - skip - neverRun - stale
+  return { fail, skip, pass, stale, neverRun, total: reports.length }
 }
 
 function tallyChip(stats) {
   if (stats.total === 0) return `<span class="hm-tally is-skip">0 checks</span>`
   if (stats.fail > 0) return `<span class="hm-tally is-fail"><span class="t-fail">${stats.fail}</span>/${stats.total - stats.skip} failing</span>`
-  if (stats.stale > 0) return `<span class="hm-tally is-stale">${stats.stale} stale · ${stats.pass} passing</span>`
+  if (stats.stale > 0) return `<span class="hm-tally is-stale">${stats.stale} stale · ${stats.pass} passing${stats.neverRun > 0 ? ` · ${stats.neverRun} never run` : ''}</span>`
+  if (stats.neverRun > 0 && stats.pass === 0 && stats.skip === stats.total - stats.neverRun) return `<span class="hm-tally is-never-run">${stats.neverRun} never run locally</span>`
   if (stats.pass === 0 && stats.skip === stats.total) return `<span class="hm-tally is-skip">all skipped</span>`
-  return `<span class="hm-tally is-pass"><span class="t-pass">${stats.pass}</span>/${stats.total - stats.skip} passing</span>`
+  const neverTail = stats.neverRun > 0 ? ` · <span class="t-never-run">${stats.neverRun}</span> never run` : ''
+  return `<span class="hm-tally is-pass"><span class="t-pass">${stats.pass}</span>/${stats.total - stats.skip - stats.neverRun} passing${neverTail}</span>`
 }
 
 function bucketize(reports) {
@@ -175,6 +192,7 @@ function renderCarousel(byCategory) {
       <span class="hm-legend-item"><span class="sq sq-fail" aria-hidden="true"></span> fail</span>
       <span class="hm-legend-item"><span class="sq sq-stale" aria-hidden="true"></span> stale</span>
       <span class="hm-legend-item"><span class="sq sq-pass" aria-hidden="true"></span> pass</span>
+      <span class="hm-legend-item"><span class="sq sq-never-run" aria-hidden="true"></span> never run</span>
       <span class="hm-legend-item"><span class="sq sq-skip" aria-hidden="true"></span> skip</span>
     </div>
   </div>`
@@ -186,6 +204,7 @@ function overallTally(reports) {
   if (stats.fail > 0)  parts.push(`<span class="t-fail">${stats.fail} failing</span>`)
   if (stats.stale > 0) parts.push(`${stats.stale} stale`)
   parts.push(`<span class="t-pass">${stats.pass} passing</span>`)
+  if (stats.neverRun > 0) parts.push(`<span class="t-never-run">${stats.neverRun} never run locally</span>`)
   if (stats.skip > 0)  parts.push(`<span class="t-skip">${stats.skip} skipped</span>`)
   return `${reports.length} checks · ${parts.join(' · ')}`
 }
@@ -201,7 +220,7 @@ export function renderChecksSection(checksData) {
       </div>
       <div class="checks-empty">
         <p>No CI check reports yet.</p>
-        <p>Run <code>npm run health:capture-ci</code> to populate, or <code>npm run health:capture-ci -- --quick</code> to skip slow checks.</p>
+        <p>Run <code>npm run test:t1</code> for the local push gate, or <code>npm run test:full</code> for every scheduled check.</p>
       </div>
     </section>`
   }
@@ -259,7 +278,22 @@ export function bindChecksSection(root, checksData) {
   let pinned = null
 
   function renderDetail(c) {
-    const measurePath = c.details?.measurePath ?? `scripts/measures/${c.checkId}.ts`
+    const measurePath = c.details?.measurePath ?? `packages/measures/${c.checkId}.ts`
+    if (c.status === 'never-run') {
+      const tier = c.details?.tier
+      const runCmd = tier !== undefined && tier !== null ? `npm run test:t${tier}` : `npm run measures:capture-ci -- --only=${c.checkId}`
+      return `<div class="hm-detail-head">
+          ${statusBadge(c.status)}
+          <span class="hm-detail-name">${esc(c.checkName)}</span>
+          <code class="hm-detail-cmd">${esc(c.command)}</code>
+        </div>
+        <div class="hm-detail-meta">
+          <span>no report captured locally</span>
+          <span class="hm-d-sep">·</span>
+          <code class="hm-detail-source" title="Defined in this file">${esc(measurePath)}</code>
+        </div>
+        <div class="hm-detail-hint">run locally: <code>${esc(runCmd)}</code></div>`
+    }
     const counts = c.testsTotal !== undefined
       ? `<span><span class="t-pass">${c.testsPassed ?? 0}</span><span class="t-sep">/</span>${c.testsTotal} tests</span><span class="hm-d-sep">·</span><span class="t-fail">${c.testsFailed ?? 0} fail</span><span class="hm-d-sep">·</span><span class="t-skip">${c.testsSkipped ?? 0} skip</span>`
       : ''

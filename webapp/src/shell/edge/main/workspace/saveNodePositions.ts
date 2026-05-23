@@ -1,8 +1,8 @@
 import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphDelta, Position} from "@vt/graph-model/graph";
 import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
-import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
-import {writePositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
+import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
+import {writePositionsThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
 
 /**

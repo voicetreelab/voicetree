@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/watchFolder'
+import { setVaultPath, clearVaultPath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import type { GraphDelta, UpsertNodeDelta, DeleteNode, GraphNode } from '@vt/graph-model/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'

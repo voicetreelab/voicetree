@@ -97,6 +97,48 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
   exit $ec
 fi
 
+# --- Post-action: `git worktree remove` → ssh-clean matching dirs on devbox ---
+# Mutagen two-way-resolved refuses to delete a beta directory that contains
+# "untracked" content — i.e. ignored files like .git/worktrees/<n>/index and
+# .worktrees/<n>/{node_modules,dist,test-results,playwright-report-*}.
+# The deletion deadlocks until the stale paths on beta are cleared manually.
+# We pre-empt by ssh-rm'ing them ourselves so mutagen sees no remote conflict.
+if [ "$sub" = "worktree" ] && [ "${2:-}" = "remove" ]; then
+  wt_path=""
+  for arg in "${@:3}"; do
+    case "$arg" in
+      -*) ;;
+      *)  wt_path="$arg"; break ;;
+    esac
+  done
+
+  "$REAL_GIT" "$@"
+  ec=$?
+
+  if [ $ec -eq 0 ] && [ -n "$wt_path" ]; then
+    wt_name="$(basename "$wt_path")"
+    # Reject anything that isn't a plain worktree name. Defensive against
+    # command injection via the path argument and against accidental clobbers.
+    if [[ "$wt_name" =~ ^[A-Za-z0-9_.-]+$ ]] && [ "$wt_name" != "." ] && [ "$wt_name" != ".." ]; then
+      remote_host="${VT_REMOTE_HOST:-}"
+      if [ -z "$remote_host" ]; then
+        main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+        [ -n "$main_repo" ] && [ -f "$main_repo/.env" ] && \
+          remote_host="$(awk -F= '/^VT_REMOTE_HOST=/{sub(/^VT_REMOTE_HOST=/,""); print; exit}' "$main_repo/.env")"
+      fi
+      if [ -n "$remote_host" ]; then
+        remote_root="/root/voicetree-public"
+        ssh -o BatchMode=yes -o ConnectTimeout=5 "$remote_host" \
+          "rm -rf '$remote_root/.git/worktrees/$wt_name' '$remote_root/.worktrees/$wt_name'" \
+          >/dev/null 2>&1 \
+          || echo "git-gate: warning: failed to ssh-clean $wt_name on $remote_host — drift may follow; run 'mutagen sync list vt-remote' to check" >&2
+      fi
+    fi
+  fi
+
+  exit $ec
+fi
+
 if [ -n "$reason" ]; then
   if [ -n "$merge_assertion" ]; then
     {
@@ -160,12 +202,16 @@ if [ -n "$reason" ]; then
       echo "    PATH to circumvent this gate. If you cannot get the password,"
       echo "    surface the blocked command to the user and stop."
       echo ""
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (no TTY, no GIT_GATE_PASS_ATTEMPT)"
     } >&2
     exit 1
   fi
 
   if [ "$pass" != "$expected" ]; then
-    echo "    wrong password — aborted." >&2
+    {
+      echo "    wrong password — aborted."
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (wrong password)"
+    } >&2
     exit 1
   fi
   # one-shot: clear the attempt so re-invocations require fresh authorization

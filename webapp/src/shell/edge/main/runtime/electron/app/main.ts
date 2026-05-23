@@ -24,11 +24,21 @@ import {
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
-import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
+import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
+import {
+    refreshUnclaimedTmuxSessions,
+    startUnclaimedTmuxSessionPolling,
+    stopUnclaimedTmuxSessionPolling,
+} from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync';
+import {
+    refreshRecoverySessions,
+    startRecoverySessionPolling,
+    stopRecoverySessionPolling,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
@@ -36,8 +46,8 @@ import {
     getGraphFromDaemon,
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
-import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/graph-ipc-handlers';
+} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
+import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
 import {
     getWatchStatus,
     getVaultPaths,
@@ -50,15 +60,15 @@ import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/sta
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
-import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/graph-model-init';
+import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
-} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
-import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
-import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
+} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
+import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -217,6 +227,8 @@ const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createA
 terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
+    void refreshUnclaimedTmuxSessions().catch(() => undefined);
+    void refreshRecoverySessions().catch(() => undefined);
 });
 
 // Register terminal cleanup for when folders are switched
@@ -236,7 +248,7 @@ void app.whenReady().then(async () => {
     // Start MCP server in-process (shares graph state with Electron)
     try {
         await terminalRuntimeSurface.ensureTmuxAvailable();
-        await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+        await terminalRuntimeSurface.ensureTmuxServer();
     } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error);
         dialog.showErrorBox('Voicetree cannot start', message);
@@ -299,6 +311,8 @@ void app.whenReady().then(async () => {
 
     console.time('[Startup] createWindow');
     createWindow({terminalManager, isQuitting: () => isQuitting});
+    startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
@@ -360,14 +374,21 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
     void cleanupOrphanedContextNodes().catch((error: unknown) => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
     });
 
-    // Remove stale .mcp.json so external agents don't connect to a dead port
-    void disableMcpJsonIntegration();
+    // Remove stale .mcp.json so external agents don't connect to a dead port.
+    // Fire-and-forget but with .catch — `will-quit` shuts down the daemon and
+    // can clear the graph bridge mid-flight, so this can race even after our
+    // null-guards inside disableMcpJsonIntegration itself.
+    void disableMcpJsonIntegration().catch((error: unknown) => {
+        console.warn('[App] Failed to disable .mcp.json integration before quit:', error);
+    });
 
     // Stop OTLP receiver
     void stopOTLPReceiver();
@@ -395,6 +416,8 @@ app.on('window-all-closed', () => {
     // but it's complicated because the graph renderer (which hosts terminal UI-edge) is destroyed
     // when the window closes, so terminals lose their renderer connection anyway
     terminalManager.cleanup();
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     if (process.platform !== 'darwin') {
         app.quit();
@@ -414,6 +437,8 @@ app.on('activate', () => {
                 setBackendPort(textToTreeServerPort);
             }
             createWindow({terminalManager, isQuitting: () => isQuitting});
+            startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();

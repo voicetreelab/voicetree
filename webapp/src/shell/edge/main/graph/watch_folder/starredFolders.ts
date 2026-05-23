@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { getNodeThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries'
+import { getNodeThroughDaemon } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries'
 import { loadSettings, saveSettings } from '@/shell/edge/main/settings/settings_IO'
 import { getVaultPaths, getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'

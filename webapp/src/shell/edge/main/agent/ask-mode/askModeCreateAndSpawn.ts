@@ -18,7 +18,7 @@ import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {
   createContextNodeFromQuestionThroughDaemon,
   getGraphThroughDaemon,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
+} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   const graph: Graph = await getGraphThroughDaemon();

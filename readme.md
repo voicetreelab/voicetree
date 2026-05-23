@@ -48,20 +48,7 @@ A lightweight API (agent-first, local-only) for a set of operations on these pri
   - agent orchestration tools, such as
     - run(Agent,node) // default behaviour is collect nearby nodes as context and send_message(agent, local_graph(node)) it into the spawned agent
 
----
-
-These primitives + rules provide essentially a turing-complete computer at a higher level of abstraction where you have cognition as a function — that of an agentic system. 
-
----
-
-**Obsidian meets Claude Code**
-
-Voicetree is an interactive graph-view where nodes are either markdown notes, folders, or terminal-based agents.
-
-Agents can spawn their own subagents onto the graph. Agents will have the nearby nodes injected into their context. 
-Agents are also able to edit and create their own nodes.
-
-This project aims to build from first principles the most possibly efficient human-AI interaction system. 
+**Obsidian meets Claude Code.** Built from first principles for the most efficient human-AI interaction system possible.
 
 ## Install
 

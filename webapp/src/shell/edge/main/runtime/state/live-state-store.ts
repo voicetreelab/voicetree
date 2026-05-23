@@ -17,8 +17,8 @@ import { applyCommandWithDelta } from '@vt/graph-state'
 import { createEmptyGraph, type Graph } from '@vt/graph-model'
 import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
-import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
-import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-normalization'
+import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
+import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 
 import {
     applyRendererLiveCommand,
