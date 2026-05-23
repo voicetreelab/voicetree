@@ -169,8 +169,8 @@ export function computeAllMetrics(nodeIds: readonly string[], edges: readonly Ed
 
 // ── Vault scanning ────────────────────────────────────────────────────────────
 
-export function computeMetricsFromVault(vaultPath: string): GraphMetrics {
-    const root = path.resolve(vaultPath)
+export function computeMetricsFromVault(projectRoot: string): GraphMetrics {
+    const root = path.resolve(projectRoot)
     const mdFiles = scanMarkdownFiles(root)
     const structureNodes = new Map<string, StructureNode>()
     const contents = new Map<string, string>()

@@ -3,7 +3,7 @@ import {
   SessionInfoSchema,
 } from '@vt/graph-db-server/contract'
 import { type SessionRegistry } from '../session/registry.ts'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderStateOps'
 import { emptyResult, jsonResult, notFoundResult, type HttpResult } from './httpResult.ts'
 
@@ -41,12 +41,12 @@ export function readSessionWorkflow(
 }
 
 function readFolderStateSize(): number {
-  const vaultPath = getProjectRootWatchedDirectory()
-  if (!vaultPath) {
+  const projectRoot = getProjectRoot()
+  if (!projectRoot) {
     return 0
   }
   try {
-    return getFolderStateForActiveView(vaultPath).folderState.length
+    return getFolderStateForActiveView(projectRoot).folderState.length
   } catch {
     return 0
   }

@@ -135,19 +135,19 @@ export function createDeleteNodesAction(nodesToDelete: ReadonlyArray<{readonly n
  * Node IDs are absolute paths to simplify path handling throughout the codebase.
  *
  * @param pos - Position where the node should be placed
- * @param writePath - Absolute path to the write directory (where new nodes are created)
+ * @param writeFolder - Absolute path to the write directory (where new nodes are created)
  * @param graph - Current graph state (for uniqueness check)
  */
-export function createNewNodeNoParent(pos: Position, writePath: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
+export function createNewNodeNoParent(pos: Position, writeFolder: string, graph: Graph): { readonly newNode: GraphNode; readonly graphDelta: GraphDelta; } {
     const suffix: string = stableIdSuffix([
-        writePath,
+        writeFolder,
         String(pos.x),
         String(pos.y),
         ...Object.keys(graph.nodes).sort(),
     ])
     const candidateFileName: string = `node_${suffix}.md`
     // Node ID is the absolute path to the file
-    const candidateId: string = writePath ? `${writePath}/${candidateFileName}` : candidateFileName
+    const candidateId: string = writeFolder ? `${writeFolder}/${candidateFileName}` : candidateFileName
     // Ensure unique if the same stable candidate already exists.
     const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
     const nodeId: string = ensureUniqueNodeId(candidateId, existingIds)

@@ -56,7 +56,7 @@ describe('@vt/graph-db-client system contract', () => {
 
   describe('vault write path', () => {
     it('rejects missing write paths with a typed error', async () => {
-      await expect(client.setWritePath(path.join(vault, 'missing'))).rejects.toMatchObject({
+      await expect(client.setWriteFolder(path.join(vault, 'missing'))).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
@@ -64,9 +64,9 @@ describe('@vt/graph-db-client system contract', () => {
     })
 
     it('sets an existing write path and returns the updated vault state', async () => {
-      await expect(client.setWritePath(docs)).resolves.toMatchObject({
-        writePath: docs,
-        vaultPath: vault,
+      await expect(client.setWriteFolder(docs)).resolves.toMatchObject({
+        writeFolder: docs,
+        projectRoot: vault,
       })
     })
   })

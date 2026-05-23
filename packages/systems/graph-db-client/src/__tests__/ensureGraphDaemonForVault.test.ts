@@ -120,11 +120,11 @@ async function writeOwnerRecord(
     ownerNonce: string
   },
 ): Promise<OwnerRecord> {
-  const canonicalVaultPath = resolve(vault)
+  const canonicalProjectRoot = resolve(vault)
   const now = Date.now()
   const record: OwnerRecord = {
     schemaVersion: 1,
-    canonicalVaultPath,
+    canonicalProjectRoot,
     pid: partial.pid,
     ppid: partial.ppid ?? 0,
     port: partial.port ?? null,
@@ -196,15 +196,15 @@ describe('ensureGraphDaemonForVault — black-box', () => {
 
   test('existing healthy owner is reused — no new child is spawned', async () => {
     const ownerNonce = 'static-nonce-for-reuse-test'
-    const canonicalVaultPath = resolve(harness.vault)
+    const canonicalProjectRoot = resolve(harness.vault)
     const port = await startHealthServer((boundPort) => ({
       version: '0.2.0',
-      vault: canonicalVaultPath,
+      vault: canonicalProjectRoot,
       uptimeSeconds: 1,
       sessionCount: 0,
       owner: {
         schemaVersion: 1,
-        canonicalVaultPath,
+        canonicalProjectRoot,
         pid: process.pid,
         ppid: 0,
         port: boundPort,
@@ -243,7 +243,7 @@ describe('ensureGraphDaemonForVault — black-box', () => {
       heartbeatAtMs: Date.now(),
       commandFingerprint: {
         executable: process.execPath,
-        args: [FAKE_BIN, '--vault', resolve(harness.vault)],
+        args: [FAKE_BIN, '--project-root', resolve(harness.vault)],
       },
     })
 
@@ -266,15 +266,15 @@ describe('ensureGraphDaemonForVault — black-box', () => {
   test('mismatching health nonce → UnsafeOwnerError, no kill, owner record intact', async () => {
     const recordedNonce = 'expected-nonce'
     const observedNonce = 'totally-different-nonce'
-    const canonicalVaultPath = resolve(harness.vault)
+    const canonicalProjectRoot = resolve(harness.vault)
     const port = await startHealthServer((boundPort) => ({
       version: '0.2.0',
-      vault: canonicalVaultPath,
+      vault: canonicalProjectRoot,
       uptimeSeconds: 1,
       sessionCount: 0,
       owner: {
         schemaVersion: 1,
-        canonicalVaultPath,
+        canonicalProjectRoot,
         pid: process.pid,
         ppid: 0,
         port: boundPort,

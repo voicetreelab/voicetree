@@ -1,7 +1,7 @@
 /**
  * Vault config resolution utilities.
  *
- * - resolveWritePath: Normalize a write path to an absolute, forward-slash path.
+ * - resolveWriteFolder: Normalize a write path to an absolute, forward-slash path.
  * - resolveAllowlistForProject: Resolve the full vault path configuration for a project,
  *   filtering out stale paths that no longer exist on disk.
  */
@@ -17,15 +17,15 @@ import {
 } from "@vt/app-config/vault-config";
 
 /**
- * Resolve a writePath to an absolute path with normalized separators.
- * If writePath is relative, it's resolved against watchedFolder.
- * If writePath is absolute, it's returned unchanged.
+ * Resolve a writeFolder to an absolute path with normalized separators.
+ * If writeFolder is relative, it's resolved against watchedFolder.
+ * If writeFolder is absolute, it's returned unchanged.
  * Always normalizes to forward slashes for cross-platform consistency.
  */
-export function resolveWritePath(watchedFolder: string, writePath: string): string {
-    const resolved: string = path.isAbsolute(writePath)
-        ? writePath
-        : path.join(watchedFolder, writePath);
+export function resolveWriteFolder(watchedFolder: string, writeFolder: string): string {
+    const resolved: string = path.isAbsolute(writeFolder)
+        ? writeFolder
+        : path.join(watchedFolder, writeFolder);
     return normalizePath(resolved);
 }
 
@@ -33,10 +33,10 @@ export function resolveWritePath(watchedFolder: string, writePath: string): stri
  * Resolved vault configuration for loading.
  */
 export interface ResolvedVaultConfig {
-    /** Combined watch roots: writePath plus active-view expanded folder paths. */
+    /** Combined watch roots: writeFolder plus active-view expanded folder paths. */
     readonly allowlist: readonly string[];
     /** Main vault path for writing new nodes */
-    readonly writePath: string;
+    readonly writeFolder: string;
 }
 
 export interface ResolveAllowlistOptions {
@@ -78,16 +78,16 @@ export async function resolveAllowlistForProject(
     await logIgnoredLegacyReadPathsIfPresent(watchedDir);
 
     // If no saved config exists, return null so caller can attempt loading directly
-    if (!savedVaultConfig?.writePath) {
+    if (!savedVaultConfig?.writeFolder) {
         return null;
     }
 
-    // Resolve writePath to absolute
-    const absoluteWritePath: string = resolveWritePath(watchedDir, savedVaultConfig.writePath);
+    // Resolve writeFolder to absolute
+    const absoluteWriteFolder: string = resolveWriteFolder(watchedDir, savedVaultConfig.writeFolder);
 
-    // Check if writePath still exists on disk
+    // Check if writeFolder still exists on disk
     try {
-        await fs.access(absoluteWritePath);
+        await fs.access(absoluteWriteFolder);
     } catch {
         // Write path no longer exists, return null to retry fresh
         return null;
@@ -95,8 +95,8 @@ export async function resolveAllowlistForProject(
 
     if (options.includeActiveViewExpandedPaths === false) {
         return {
-            allowlist: [absoluteWritePath],
-            writePath: absoluteWritePath,
+            allowlist: [absoluteWriteFolder],
+            writeFolder: absoluteWriteFolder,
         };
     }
 
@@ -109,8 +109,8 @@ export async function resolveAllowlistForProject(
                 ? expandedPath
                 : path.join(watchedDir, expandedPath)
         );
-        // Skip if same as writePath (deduplicate)
-        if (absolutePath === absoluteWritePath) continue;
+        // Skip if same as writeFolder (deduplicate)
+        if (absolutePath === absoluteWriteFolder) continue;
         try {
             await fs.access(absolutePath);
             validExpandedPaths.push(absolutePath);
@@ -120,7 +120,7 @@ export async function resolveAllowlistForProject(
     }
 
     return {
-        allowlist: [absoluteWritePath, ...validExpandedPaths],
-        writePath: absoluteWritePath,
+        allowlist: [absoluteWriteFolder, ...validExpandedPaths],
+        writeFolder: absoluteWriteFolder,
     };
 }

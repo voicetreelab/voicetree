@@ -83,7 +83,7 @@ export function makeLiveSession(sessionName: string, overrides: Partial<Unclaime
         createdAt: 0,
         classification: 'this-vault',
         attachable: true,
-        vaultPath: VAULT_PATH,
+        projectRoot: VAULT_PATH,
         contextNodePath: '/vault/node.md',
         ...overrides,
     }

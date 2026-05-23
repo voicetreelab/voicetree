@@ -61,7 +61,7 @@ export const test = base.extend<{
       JSON.stringify(
         {
           vaultConfig: {
-            [fixtureVaultPath]: { writePath: fixtureVaultPath, readPaths: [] },
+            [fixtureVaultPath]: { writeFolder: fixtureVaultPath, readPaths: [] },
           },
         },
         null,

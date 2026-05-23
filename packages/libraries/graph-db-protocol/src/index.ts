@@ -17,7 +17,7 @@ export const CONTRACT_VERSION = '0.2.0'
  */
 export const HealthOwnerSchema = z.object({
   schemaVersion: z.literal(1),
-  canonicalVaultPath: z.string().min(1),
+  canonicalProjectRoot: z.string().min(1),
   pid: z.number().int().positive(),
   ppid: z.number().int().nonnegative(),
   port: z.number().int().min(0).max(65535),
@@ -28,7 +28,7 @@ export type HealthOwner = z.infer<typeof HealthOwnerSchema>
 
 export const HealthResponseSchema = z.object({
   version: z.string(),
-  vault: z.string(),
+  vault: z.string().nullable(),
   uptimeSeconds: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
   /**
@@ -216,21 +216,21 @@ export const LiveStateSnapshotSchema = z.object({
 export type LiveStateSnapshot = z.infer<typeof LiveStateSnapshotSchema>
 
 export const VaultStateSchema = z.object({
-  vaultPath: z.string(),
+  projectRoot: z.string(),
   readPaths: z.array(z.string()),
-  writePath: z.string(),
+  writeFolder: z.string(),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
 
 export const OpenVaultRequestSchema = z.object({
   path: z.string(),
-  writePath: z.string().optional(),
+  writeFolder: z.string().optional(),
 })
 export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
 
 export const OpenVaultResponseSchema = z.object({
   sessionId: SessionIdSchema,
-  writePath: z.string(),
+  writeFolder: z.string(),
   vaultState: VaultStateSchema,
   initialProjectedGraph: z.unknown(),
   folderState: z.array(FolderStateEntrySchema),
@@ -238,10 +238,10 @@ export const OpenVaultResponseSchema = z.object({
 })
 export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
 
-export const SetWritePathRequestSchema = z.object({
+export const SetWriteFolderRequestSchema = z.object({
   path: z.string(),
 })
-export type SetWritePathRequest = z.infer<typeof SetWritePathRequestSchema>
+export type SetWriteFolderRequest = z.infer<typeof SetWriteFolderRequestSchema>
 
 export const AddReadPathRequestSchema = z.object({
   path: z.string(),

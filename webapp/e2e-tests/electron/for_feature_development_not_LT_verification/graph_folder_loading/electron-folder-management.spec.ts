@@ -310,10 +310,10 @@ test.describe('Folder Management E2E', () => {
         test.setTimeout(45000);
 
         console.log('=== STEP 1: Get initial write path ===');
-        const initialWritePath = await appWindow.evaluate(async () => {
+        const initialWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -321,8 +321,8 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('Initial write path:', initialWritePath);
-        expect(initialWritePath).toContain('notes');
+        console.log('Initial write path:', initialWriteFolder);
+        expect(initialWriteFolder).toContain('notes');
 
         console.log('=== STEP 2: Set docs folder as write destination via API ===');
         const docsPath = path.join(testProjectPath, 'docs');
@@ -332,17 +332,17 @@ test.describe('Folder Management E2E', () => {
 
             // First add to read paths, then set as write
             await api.main.addReadPath(targetPath);
-            return await api.main.setWritePath(targetPath);
+            return await api.main.setWriteFolder(targetPath);
         }, docsPath);
 
         console.log('Set write path result:', setResult);
         expect(setResult.success).toBe(true);
 
         console.log('=== STEP 3: Verify write path changed ===');
-        const newWritePath = await appWindow.evaluate(async () => {
+        const newWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -350,8 +350,8 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('New write path:', newWritePath);
-        expect(newWritePath).toContain('docs');
+        console.log('New write path:', newWriteFolder);
+        expect(newWriteFolder).toContain('docs');
 
         console.log('=== STEP 4: Verify docs is now the write destination ===');
         const allPaths = await appWindow.evaluate(async () => {
@@ -382,10 +382,10 @@ test.describe('Folder Management E2E', () => {
         expect(addResult.success).toBe(true);
 
         console.log('=== STEP 2: Get current write path (should be notes) ===');
-        const initialWritePath = await appWindow.evaluate(async () => {
+        const initialWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -393,23 +393,23 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('Initial write path:', initialWritePath);
-        expect(initialWritePath).toContain('notes');
+        console.log('Initial write path:', initialWriteFolder);
+        expect(initialWriteFolder).toContain('notes');
 
         console.log('=== STEP 3: Promote docs to write folder ===');
         const promoteResult = await appWindow.evaluate(async (targetPath: string) => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.setWritePath(targetPath);
+            return await api.main.setWriteFolder(targetPath);
         }, docsPath);
         console.log('Promote result:', promoteResult);
         expect(promoteResult.success).toBe(true);
 
         console.log('=== STEP 4: Verify docs is now write folder ===');
-        const newWritePath = await appWindow.evaluate(async () => {
+        const newWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -417,8 +417,8 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('New write path:', newWritePath);
-        expect(newWritePath).toContain('docs');
+        console.log('New write path:', newWriteFolder);
+        expect(newWriteFolder).toContain('docs');
 
         console.log('=== STEP 5: Verify docs is now the write folder ===');
         const allPaths = await appWindow.evaluate(async () => {
@@ -439,10 +439,10 @@ test.describe('Folder Management E2E', () => {
         test.setTimeout(45000);
 
         console.log('=== STEP 1: Get initial write path (notes subfolder) ===');
-        const initialWritePath = await appWindow.evaluate(async () => {
+        const initialWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -450,24 +450,24 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('Initial write path:', initialWritePath);
-        expect(initialWritePath).toContain('notes');
-        expect(initialWritePath).not.toBe(testProjectPath);
+        console.log('Initial write path:', initialWriteFolder);
+        expect(initialWriteFolder).toContain('notes');
+        expect(initialWriteFolder).not.toBe(testProjectPath);
 
         console.log('=== STEP 2: Reset write folder to project root ===');
         const resetResult = await appWindow.evaluate(async (rootPath: string) => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.setWritePath(rootPath);
+            return await api.main.setWriteFolder(rootPath);
         }, testProjectPath);
         console.log('Reset result:', resetResult);
         expect(resetResult.success).toBe(true);
 
         console.log('=== STEP 3: Verify write folder is now project root ===');
-        const newWritePath = await appWindow.evaluate(async () => {
+        const newWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -475,8 +475,8 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('New write path:', newWritePath);
-        expect(newWritePath).toBe(testProjectPath);
+        console.log('New write path:', newWriteFolder);
+        expect(newWriteFolder).toBe(testProjectPath);
 
         console.log('=== TEST PASSED: Write folder reset to root ===');
     });
@@ -537,10 +537,10 @@ test.describe('Folder Management E2E', () => {
         test.setTimeout(45000);
 
         console.log('=== STEP 1: Get initial write path ===');
-        const initialWritePath = await appWindow.evaluate(async () => {
+        const initialWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -548,9 +548,9 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('Initial write path:', initialWritePath);
+        console.log('Initial write path:', initialWriteFolder);
         // The app auto-creates a voicetree subfolder, verify we have a write path
-        expect(initialWritePath).toBeTruthy();
+        expect(initialWriteFolder).toBeTruthy();
 
         console.log('=== STEP 2: Change write path to docs ===');
         const docsPath = path.join(testProjectPath, 'docs');
@@ -558,7 +558,7 @@ test.describe('Folder Management E2E', () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
             await api.main.addReadPath(targetPath);
-            return await api.main.setWritePath(targetPath);
+            return await api.main.setWriteFolder(targetPath);
         }, docsPath);
         console.log('Set write path result:', setResult);
         expect(setResult.success).toBe(true);
@@ -567,10 +567,10 @@ test.describe('Folder Management E2E', () => {
         await appWindow.waitForTimeout(500);
 
         console.log('=== STEP 3: Verify write path changed in state ===');
-        const newWritePath = await appWindow.evaluate(async () => {
+        const newWriteFolder = await appWindow.evaluate(async () => {
             const api = (window as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            const result = await api.main.getWritePath();
+            const result = await api.main.getWriteFolder();
             if (result && typeof result === 'object' && '_tag' in result) {
                 return (result as { _tag: string; value?: string })._tag === 'Some'
                     ? (result as { value: string }).value
@@ -578,11 +578,11 @@ test.describe('Folder Management E2E', () => {
             }
             return null;
         });
-        console.log('New write path:', newWritePath);
-        expect(newWritePath).toContain('docs');
+        console.log('New write path:', newWriteFolder);
+        expect(newWriteFolder).toContain('docs');
 
         console.log('=== STEP 4: Verify new write path is different from initial ===');
-        expect(newWritePath).not.toBe(initialWritePath);
+        expect(newWriteFolder).not.toBe(initialWriteFolder);
 
         console.log('=== TEST PASSED: Write folder change updates internal state ===');
     });

@@ -245,10 +245,10 @@ test.describe('MCP Server Integration', () => {
 
         // STEP 1: Load the test vault
         console.log('=== STEP 1: Load test vault ===');
-        const watchResult = await appWindow.evaluate(async (vaultPath) => {
+        const watchResult = await appWindow.evaluate(async (projectRoot) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.startFileWatching(vaultPath);
+            return await api.main.startFileWatching(projectRoot);
         }, FIXTURE_VAULT_PATH);
 
         expect(watchResult.success).toBe(true);
@@ -372,10 +372,10 @@ test.describe('MCP Server Integration', () => {
         }
 
         // Load vault
-        await appWindow.evaluate(async (vaultPath) => {
+        await appWindow.evaluate(async (projectRoot) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
-            return await api.main.startFileWatching(vaultPath);
+            return await api.main.startFileWatching(projectRoot);
         }, FIXTURE_VAULT_PATH);
 
         await appWindow.waitForTimeout(3000);

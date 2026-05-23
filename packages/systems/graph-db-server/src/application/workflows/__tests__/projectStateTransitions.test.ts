@@ -3,12 +3,12 @@ import type { FilePath } from '@vt/graph-model/graph';
 import type { BoundProject, FolderTreeState } from '../projectState';
 import {
     transitionFolder,
-    promoteWritePath,
+    promoteWriteFolder,
     type FolderTransition,
     type FolderTransitionError,
 } from '../projectStateTransitions';
 
-const WRITE_PATH = '/vault/write' as FilePath;
+const WRITE_FOLDER = '/vault/write' as FilePath;
 const FOLDER_A = '/vault/a' as FilePath;
 
 function makeState(
@@ -16,7 +16,7 @@ function makeState(
 ): BoundProject {
     return {
         root: '/vault' as FilePath,
-        writePath: WRITE_PATH,
+        writeFolder: WRITE_FOLDER,
         folders: new Map(folders),
         watcher: null,
         cleanups: [],
@@ -104,57 +104,57 @@ describe('transitionFolder — D6 semantics matrix', () => {
         });
     });
 
-    describe('writePath folder', () => {
-        it('unloaded action errors with cannot-unload-writepath', () => {
+    describe('writeFolder folder', () => {
+        it('unloaded action errors with cannot-unload-writefolder', () => {
             const state = makeState();
-            const result = transitionFolder(state, WRITE_PATH, 'unloaded');
-            expect(result).toEqual({ code: 'cannot-unload-writepath' });
+            const result = transitionFolder(state, WRITE_FOLDER, 'unloaded');
+            expect(result).toEqual({ code: 'cannot-unload-writefolder' });
         });
 
-        it('collapsed action is no-op (already loaded as writePath)', () => {
+        it('collapsed action is no-op (already loaded as writeFolder)', () => {
             const state = makeState();
-            const transition = asTransition(transitionFolder(state, WRITE_PATH, 'collapsed'));
+            const transition = asTransition(transitionFolder(state, WRITE_FOLDER, 'collapsed'));
             expect(transition.effect).toEqual({ kind: 'noop' });
             expect(transition.nextState).toBe(state);
         });
 
-        it('expanded action is no-op (already loaded as writePath)', () => {
+        it('expanded action is no-op (already loaded as writeFolder)', () => {
             const state = makeState();
-            const transition = asTransition(transitionFolder(state, WRITE_PATH, 'expanded'));
+            const transition = asTransition(transitionFolder(state, WRITE_FOLDER, 'expanded'));
             expect(transition.effect).toEqual({ kind: 'noop' });
             expect(transition.nextState).toBe(state);
         });
     });
 });
 
-describe('promoteWritePath', () => {
-    it('demotes previous writePath to collapsed', () => {
+describe('promoteWriteFolder', () => {
+    it('demotes previous writeFolder to collapsed', () => {
         const state = makeState();
-        const plan = promoteWritePath(state, FOLDER_A);
-        expect(plan.nextState.writePath).toBe(FOLDER_A);
-        expect(plan.nextState.folders.get(WRITE_PATH)).toBe('collapsed');
-        expect(plan.demotedFrom).toBe(WRITE_PATH);
+        const plan = promoteWriteFolder(state, FOLDER_A);
+        expect(plan.nextState.writeFolder).toBe(FOLDER_A);
+        expect(plan.nextState.folders.get(WRITE_FOLDER)).toBe('collapsed');
+        expect(plan.demotedFrom).toBe(WRITE_FOLDER);
     });
 
-    it('signals needsLoad when newWritePath was unloaded', () => {
+    it('signals needsLoad when newWriteFolder was unloaded', () => {
         const state = makeState();
-        const plan = promoteWritePath(state, FOLDER_A);
+        const plan = promoteWriteFolder(state, FOLDER_A);
         expect(plan.needsLoad).toBe(true);
         expect(plan.nextState.folders.has(FOLDER_A)).toBe(false);
     });
 
-    it('does not signal needsLoad when newWritePath was already loaded', () => {
+    it('does not signal needsLoad when newWriteFolder was already loaded', () => {
         const state = makeState([[FOLDER_A, 'expanded']]);
-        const plan = promoteWritePath(state, FOLDER_A);
+        const plan = promoteWriteFolder(state, FOLDER_A);
         expect(plan.needsLoad).toBe(false);
         expect(plan.nextState.folders.has(FOLDER_A)).toBe(false);
     });
 
-    it('is no-op when newWritePath equals current writePath', () => {
+    it('is no-op when newWriteFolder equals current writeFolder', () => {
         const state = makeState([[FOLDER_A, 'collapsed']]);
-        const plan = promoteWritePath(state, WRITE_PATH);
+        const plan = promoteWriteFolder(state, WRITE_FOLDER);
         expect(plan.nextState).toBe(state);
         expect(plan.needsLoad).toBe(false);
-        expect(plan.demotedFrom).toBe(WRITE_PATH);
+        expect(plan.demotedFrom).toBe(WRITE_FOLDER);
     });
 });

@@ -14,7 +14,7 @@ import { toAbsolutePath } from '@vt/graph-model/folders';
 import type { DirectoryEntry } from '@vt/graph-model/folders';
 import { getAvailableFolders, parseSearchQuery } from '@vt/graph-model/folders';
 import type { ParsedQuery } from '@vt/graph-model/folders';
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store';
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store';
 import { getVaultPaths } from '@vt/graph-db-server/state/vaultAllowlist';
 
 /**
@@ -112,7 +112,7 @@ export async function getSubfoldersWithModifiedAt(
 export async function getAvailableFoldersForSelector(
     searchQuery: string
 ): Promise<readonly AvailableFolderItem[]> {
-    const projectRoot: string | null = getProjectRootWatchedDirectory();
+    const projectRoot: string | null = getProjectRoot();
     if (!projectRoot) return [];
 
     const vaultPaths: readonly string[] = await getVaultPaths();

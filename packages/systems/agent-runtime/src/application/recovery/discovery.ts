@@ -32,7 +32,7 @@ export type DiscoverRecoveryDeps = {
 export type ResolveRequest = {
     readonly cliType: 'claude' | 'codex'
     readonly terminalId: string
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly taskNodePath: string
 }
 
@@ -130,7 +130,7 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
             title: session.agentName ?? session.terminalId,
             agentName: session.agentName ?? session.terminalId,
             initialEnvVars: {
-                ...(session.vaultPath ? {VOICETREE_VAULT_PATH: session.vaultPath} : {}),
+                ...(session.projectRoot ? {VOICETREE_VAULT_PATH: session.projectRoot} : {}),
                 ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),
                 ...(session.taskNodePath ? {TASK_NODE_PATH: session.taskNodePath} : {}),
             },
@@ -162,13 +162,13 @@ function resolveResumeHandlesForMetadata(
         }
         const cliType: 'claude' | 'codex' | null = detectSupportedCliFromMetadata(metadata)
         if (!cliType) continue
-        const vaultPath: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
-        if (!vaultPath) continue
+        const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
+        if (!projectRoot) continue
         const taskNodePath: string = metadata.terminalData?.initialEnvVars?.TASK_NODE_PATH ?? ''
         const handle: ResumeCapability | null = resolveResumeHandle({
             cliType,
             terminalId: metadata.name,
-            vaultPath,
+            projectRoot,
             taskNodePath,
         })
         if (handle) out.set(metadata.name, handle)
@@ -178,10 +178,10 @@ function resolveResumeHandlesForMetadata(
 
 async function resolveCurrentVaultMetadataDir(): Promise<string | null> {
     const runtimeEnv = getRuntimeEnv()
-    const projectRoot: string | null = await (runtimeEnv.getProjectRootWatchedDirectory?.() ?? Promise.resolve(null))
+    const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
     if (projectRoot) return path.join(projectRoot, '.voicetree', 'terminals')
-    const writePath: string | null = await (runtimeEnv.getWritePath?.() ?? Promise.resolve(null))
-    return writePath ? path.join(writePath, 'terminals') : null
+    const writeFolder: string | null = await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
+    return writeFolder ? path.join(writeFolder, 'terminals') : null
 }
 
 function readMetadataDir(dir: string): readonly MetadataRecord[] {
@@ -220,7 +220,7 @@ function defaultResolveResumeHandle(req: ResolveRequest): ResumeCapability | nul
         const claudeProjectsRoot: string = process.env.VOICETREE_CLAUDE_PROJECTS_DIR
             ?? path.join(os.homedir(), '.claude', 'projects')
         const result: ResolveClaudeResult = resolveClaudeNativeSession(
-            {terminalId: req.terminalId, vaultPath: req.vaultPath, taskNodePath: req.taskNodePath},
+            {terminalId: req.terminalId, projectRoot: req.projectRoot, taskNodePath: req.taskNodePath},
             defaultResolveClaudeDeps(claudeProjectsRoot),
         )
         if (result.kind !== 'found') return null
@@ -229,7 +229,7 @@ function defaultResolveResumeHandle(req: ResolveRequest): ResumeCapability | nul
     const codexDbPath: string = process.env.VOICETREE_CODEX_STATE_DB
         ?? path.join(os.homedir(), '.codex', 'state_5.sqlite')
     const result: ResolveCodexResult = resolveCodexNativeSession(
-        {terminalId: req.terminalId, vaultPath: req.vaultPath, taskNodePath: req.taskNodePath},
+        {terminalId: req.terminalId, projectRoot: req.projectRoot, taskNodePath: req.taskNodePath},
         defaultResolveCodexDeps(codexDbPath),
     )
     if (result.kind !== 'found') return null

@@ -76,13 +76,13 @@ export async function openFolderTreeSidebar(appWindow: Page): Promise<void> {
     ).toBeGreaterThan(0);
 }
 
-export async function ensureSidebarFolderVisible(appWindow: Page, folderName: string, vaultPath: string): Promise<Locator> {
+export async function ensureSidebarFolderVisible(appWindow: Page, folderName: string, projectRoot: string): Promise<Locator> {
     const row = appWindow.locator('.folder-tree-folder', {
         has: appWindow.locator('.folder-tree-folder-name', { hasText: folderName })
     }).first();
 
     if (!await row.isVisible().catch(() => false)) {
-        const projectRootRow = appWindow.locator(`.folder-tree-container .folder-tree-folder[title="${cssString(vaultPath)}"]`).first();
+        const projectRootRow = appWindow.locator(`.folder-tree-container .folder-tree-folder[title="${cssString(projectRoot)}"]`).first();
         await clickVisibleElementCenter(appWindow, projectRootRow);
         await expect(row).toBeVisible({ timeout: 5000 });
     }

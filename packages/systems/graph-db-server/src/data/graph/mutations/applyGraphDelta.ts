@@ -7,7 +7,7 @@ import {recordUserActionAndSetDeltaHistoryState} from '@vt/graph-db-server/state
 import type {Either} from "fp-ts/es6/Either";
 import {getGraph, setGraph} from "@vt/graph-db-server/state/graph-store";
 import {resolveLinkedNodesInWatchedFolder} from "../loading/loadGraphFromDisk";
-import {getProjectRootWatchedDirectory} from "@vt/graph-db-server/state/watch-folder-store";
+import {getProjectRoot} from "@vt/graph-db-server/state/watch-folder-store";
 import { loadSettings } from "@vt/app-config/settings";
 import {getCallbacks} from '@vt/graph-model'
 import { VaultNotOpenError } from '@vt/graph-db-server/application/errors/vaultNotOpen'
@@ -32,7 +32,7 @@ export async function applyGraphDeltaToMemState(delta: GraphDelta): Promise<Grap
     const hasAddOrUpdate: boolean = delta.some(d => d.type === 'UpsertNode');
 
     if (hasAddOrUpdate) {
-        const watchedDir: string | null = getProjectRootWatchedDirectory();
+        const watchedDir: string | null = getProjectRoot();
         if (watchedDir && newGraph.unresolvedLinksIndex.size > 0) {
             const resolutionDelta: GraphDelta = await resolveLinkedNodesInWatchedFolder(newGraph, watchedDir);
             if (resolutionDelta.length > 0) {
@@ -80,7 +80,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
 
     // Extract watched directory (fail fast at edge)
     const watchedDirectory: string = pipe(
-        O.fromNullable(getProjectRootWatchedDirectory()),
+        O.fromNullable(getProjectRoot()),
         O.getOrElseW(() => {
             throw new VaultNotOpenError()
         })
@@ -98,7 +98,7 @@ export async function applyGraphDeltaToDBThroughMemAndUI(
 
     // Construct env and execute effect (only caller delta goes to DB; linked-node
     // resolution deltas are memory-only projections).
-    const env: Env = {projectRootWatchedDirectory: watchedDirectory}
+    const env: Env = {projectRoot: watchedDirectory}
     const result: Either<Error, GraphDelta> = await apply_graph_deltas_to_db(dbDelta)(env)()
 
     // Handle errors (fail fast)

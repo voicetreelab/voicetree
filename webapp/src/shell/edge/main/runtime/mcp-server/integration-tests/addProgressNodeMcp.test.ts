@@ -6,7 +6,7 @@ import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals
 
 // Mock shell/edge dependencies
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWritePath: vi.fn(),
+    getWriteFolder: vi.fn(),
     getVaultPaths: vi.fn()
 }))
 
@@ -53,7 +53,7 @@ vi.mock('@mermaid-js/parser', () => ({
 
 import {configureMcpServer, createGraphTool} from '@vt/voicetree-mcp'
 import {getVaultPaths} from '@vt/graph-db-server/watch-folder/vault-allowlist'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {getTerminalRecords} from '@vt/agent-runtime'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
@@ -146,7 +146,7 @@ function mockCallerTerminal(options?: {
 
 function setupStandardMocks(graphOverride?: Graph): void {
     mockCallerTerminal()
-    vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+    vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
     vi.mocked(getVaultPaths).mockResolvedValue([WRITE_PATH])
     vi.mocked(getGraph).mockReturnValue(graphOverride ?? buildGraph())
     vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
@@ -159,7 +159,7 @@ describe('MCP create_graph tool', () => {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => getVaultPaths(),
-                getWritePath: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
@@ -188,7 +188,7 @@ describe('MCP create_graph tool', () => {
 
         it('returns error when no vault is loaded', async () => {
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.none)
+            vi.mocked(getWriteFolder).mockResolvedValue(O.none)
 
             const response: McpToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
@@ -218,7 +218,7 @@ describe('MCP create_graph tool', () => {
 
         it('returns error when parent node is not found', async () => {
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue({
                 nodes: {},
                 incomingEdgesIndex: new Map(),
@@ -419,7 +419,7 @@ describe('MCP create_graph tool', () => {
 
         it('uses agent color and name from terminal record', async () => {
             mockCallerTerminal({agentName: 'my-agent', color: 'green'})
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue(buildGraph())
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 
@@ -664,7 +664,7 @@ describe('MCP create_graph tool', () => {
                 [collidingNodeId]: buildGraphNode(collidingNodeId, '# Existing')
             })
             mockCallerTerminal()
-            vi.mocked(getWritePath).mockResolvedValue(O.some(WRITE_PATH))
+            vi.mocked(getWriteFolder).mockResolvedValue(O.some(WRITE_PATH))
             vi.mocked(getGraph).mockReturnValue(graph)
             vi.mocked(applyGraphDeltaToDBThroughMemAndUIAndEditors).mockResolvedValue(undefined)
 

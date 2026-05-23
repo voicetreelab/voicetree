@@ -16,7 +16,7 @@ export type HygieneViolation = {
 }
 
 export type HygieneReport = {
-    vaultPath: string
+    projectRoot: string
     violations: HygieneViolation[]
     summary: {
         totalNodes: number
@@ -61,11 +61,11 @@ export function checkMaxWikilinksPerNode(
 }
 
 export function checkMaxTreeWidth(
-    vaultPath: string,
+    projectRoot: string,
     threshold: number,
 ): HygieneViolation[] {
     const violations: HygieneViolation[] = []
-    const resolved = path.resolve(vaultPath)
+    const resolved = path.resolve(projectRoot)
 
     function walk(dir: string): void {
         let entries: string[]
@@ -181,13 +181,13 @@ export function checkCanonicalHierarchy(
 }
 
 export function runHygieneAudit(
-    vaultPath: string,
+    projectRoot: string,
     options: {
         rule?: HygieneRuleId
         thresholds?: Partial<HygieneThresholds>
     } = {},
 ): HygieneReport {
-    const resolved = path.resolve(vaultPath)
+    const resolved = path.resolve(projectRoot)
     const thresholds = {...HYGIENE_THRESHOLDS, ...options.thresholds}
     const mdFiles = scanMarkdownFiles(resolved)
 
@@ -220,7 +220,7 @@ export function runHygieneAudit(
     const warnings = allViolations.filter(v => v.severity === 'warning').length
 
     return {
-        vaultPath: resolved,
+        projectRoot: resolved,
         violations: allViolations,
         summary: {
             totalNodes: nodes.length,

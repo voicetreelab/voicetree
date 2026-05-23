@@ -6,7 +6,7 @@
  *
  * Architecture:
  * - Uses pure functions from @vt/graph-model/pure/graph for graph operations
- * - Accesses state via shell functions (getGraph, getVaultPath)
+ * - Accesses state via shell functions (getGraph, getProjectRoot)
  * - Executes effects via applyGraphDeltaToDBThroughMem
  * - Runs on HTTP transport at localhost:3001/mcp
  */
@@ -251,7 +251,7 @@ Task
             inputSchema: {
                 callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
                 parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),
-                outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writePath or readPaths).'),
+                outputPath: z.string().optional().describe('Optional absolute or relative directory path where new nodes should be written. Relative paths resolve from the current write path. The resolved path must stay inside the loaded vault paths (writeFolder or readPaths).'),
                 nodes: z.array(z.object({
                     filename: z.string().describe('Filename for this node (with or without .md extension). Also used in `parents` to reference other nodes in this call.'),
                     title: z.string().describe('Node title — one concept per node, concise and descriptive'),
@@ -361,13 +361,9 @@ export async function startMcpServer(options?: StartMcpServerOptions): Promise<M
         }
     })
 
-    // Read the in-memory tier-1 vs tier-3 telemetry snapshot. Optional query
-    // param `?windowMs=<n>` overrides the correlation window (default 5000ms).
-    app.get('/telemetry/lifecycle', (req, res) => {
-        const raw: unknown = req.query.windowMs
-        const parsed: number = typeof raw === 'string' ? parseInt(raw, 10) : NaN
-        const windowMs: number | undefined = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
-        res.json(agentRuntime.getTierTelemetrySnapshot(windowMs))
+    // Read the in-memory lifecycle telemetry snapshot.
+    app.get('/telemetry/lifecycle', (_req, res) => {
+        res.json(agentRuntime.getTierTelemetrySnapshot())
     })
 
     // Agent lifecycle hook ingestion. Receives JSON-on-stdin payloads forwarded

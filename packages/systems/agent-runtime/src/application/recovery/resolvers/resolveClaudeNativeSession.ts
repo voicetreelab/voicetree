@@ -5,7 +5,7 @@ import {matchClaudeSessionId, type ClaudeTranscriptRecord} from './claude-transc
 
 export type ResolveClaudeRequest = {
     readonly terminalId: string
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly taskNodePath: string
     readonly recencyWindowMs?: number
 }
@@ -48,7 +48,7 @@ export function resolveClaudeNativeSession(
         const sessionId: string | null = matchClaudeSessionId({
             records,
             terminalId: request.terminalId,
-            vaultPath: request.vaultPath,
+            projectRoot: request.projectRoot,
             taskNodePath: request.taskNodePath,
         })
         if (sessionId) return {kind: 'found', sessionId, providerStorePath: filePath}

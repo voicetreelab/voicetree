@@ -123,11 +123,11 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
           return {
             sessionId: 'mock-session',
-            writePath: dir,
+            writeFolder: dir,
             vaultState: {
-              vaultPath: dir,
+              projectRoot: dir,
               readPaths: [dir],
-              writePath: dir,
+              writeFolder: dir,
             },
             initialProjectedGraph: projectedGraph,
             folderState: [],
@@ -158,11 +158,11 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
         // Vault path methods (required for VaultPathSelector and node creation)
         getVaultPaths: async (): Promise<readonly string[]> => ['/mock/watched/directory'],
-        getWritePath: async () => ({
+        getWriteFolder: async () => ({
           _tag: 'Some' as const,
           value: '/mock/watched/directory'
         }),
-        setWritePath: async () => ({ success: true }),
+        setWriteFolder: async () => ({ success: true }),
         getShowAllPaths: async (): Promise<readonly string[]> => [],
         toggleShowAll: async () => ({ success: true, showAll: false }),
         addReadOnLinkPath: async () => ({ success: true }),

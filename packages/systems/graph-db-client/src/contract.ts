@@ -23,7 +23,7 @@ export {
   SelectionResponseSchema,
   SessionCreateResponseSchema,
   SessionInfoSchema,
-  SetWritePathRequestSchema,
+  SetWriteFolderRequestSchema,
   ShutdownResponseSchema,
   UnseenNodeSchema,
   VaultStateSchema,
@@ -50,7 +50,7 @@ export {
   type SelectionResponse,
   type SessionCreateResponse,
   type SessionInfo,
-  type SetWritePathRequest,
+  type SetWriteFolderRequest,
   type ShutdownResponse,
   type UnseenNode,
   type VaultState,
@@ -60,7 +60,7 @@ export {
 
 export type OpenVaultResponse = {
   sessionId: string
-  writePath: string
+  writeFolder: string
   vaultState: VaultState
   initialProjectedGraph: unknown
   folderState: FolderStateEntry[]

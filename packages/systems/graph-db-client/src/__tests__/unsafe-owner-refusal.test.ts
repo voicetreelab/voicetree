@@ -88,7 +88,7 @@ describe('BF-348 regression: unsafe-owner pid refusal', () => {
         // mismatch.
         commandFingerprint: {
           executable: process.execPath,
-          args: ['/opt/voicetree/vt-graphd.mjs', '--vault', resolve(harness.vault)],
+          args: ['/opt/voicetree/vt-graphd.mjs', '--project-root', resolve(harness.vault)],
         },
       })
 

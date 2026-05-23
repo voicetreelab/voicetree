@@ -34,11 +34,11 @@ interface ExtendedWindow {
   electronAPI?: ElectronAPI;
 }
 
-async function getWritePath(page: Page): Promise<string | null> {
+async function getWriteFolder(page: Page): Promise<string | null> {
   return await page.evaluate(async () => {
     const api = (window as ExtendedWindow).electronAPI;
     if (!api) throw new Error('electronAPI not available');
-    const result = await api.main.getWritePath();
+    const result = await api.main.getWriteFolder();
     if (result && typeof result === 'object' && '_tag' in result) {
       return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
     }
@@ -57,15 +57,15 @@ const test = base.extend<{
   testVaultPath: async ({}, use) => {
     // Create temp directory structure
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-multi-vault-test-'));
-    const vaultPath = path.join(tempDir, 'voicetree');
+    const projectRoot = path.join(tempDir, 'voicetree');
     const openspecPath = path.join(tempDir, 'openspec');
 
-    await fs.mkdir(vaultPath, { recursive: true });
+    await fs.mkdir(projectRoot, { recursive: true });
     await fs.mkdir(openspecPath, { recursive: true });
 
     // Create test files in both directories
     await fs.writeFile(
-      path.join(vaultPath, 'test-node.md'),
+      path.join(projectRoot, 'test-node.md'),
       '# Test Node\n\nThis is a test node in the primary vault.'
     );
     await fs.writeFile(
@@ -215,15 +215,15 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     expect(sidebarContent).toContain('openspec');
 
     console.log('=== STEP 5: Get initial default write path ===');
-    let initialDefaultPath = await getWritePath(appWindow);
+    let initialDefaultPath = await getWriteFolder(appWindow);
     if (initialDefaultPath?.includes('openspec')) {
       await appWindow.evaluate(async (fallbackPath) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        await api.main.setWritePath(fallbackPath);
+        await api.main.setWriteFolder(fallbackPath);
       }, testVaultPath);
-      await expect.poll(() => getWritePath(appWindow), { timeout: 5000 }).toBe(testVaultPath);
-      initialDefaultPath = await getWritePath(appWindow);
+      await expect.poll(() => getWriteFolder(appWindow), { timeout: 5000 }).toBe(testVaultPath);
+      initialDefaultPath = await getWriteFolder(appWindow);
     }
 
     console.log('Initial default write path:', initialDefaultPath);
@@ -242,8 +242,8 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
     }, openspecPath);
 
     console.log('=== STEP 7: Verify default write path changed ===');
-    await expect.poll(() => getWritePath(appWindow), { timeout: 5000 }).toBe(openspecPath);
-    const newDefaultPath = await getWritePath(appWindow);
+    await expect.poll(() => getWriteFolder(appWindow), { timeout: 5000 }).toBe(openspecPath);
+    const newDefaultPath = await getWriteFolder(appWindow);
 
     console.log('New default write path:', newDefaultPath);
     expect(newDefaultPath).toContain('openspec');
@@ -268,10 +268,10 @@ test.describe('Multi-Vault VaultPathSelector E2E', () => {
 
     // Create a test vault WITHOUT openspec folder
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-single-vault-test-'));
-    const vaultPath = path.join(tempDir, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(tempDir, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
     await fs.writeFile(
-      path.join(vaultPath, 'test.md'),
+      path.join(projectRoot, 'test.md'),
       '# Test\nSingle vault test.'
     );
 

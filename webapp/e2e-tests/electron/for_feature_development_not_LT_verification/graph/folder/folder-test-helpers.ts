@@ -22,33 +22,33 @@ export interface ExtendedWindow {
 //   utils/logger.md, utils/config.md                                 (2 files)
 //   readme.md                                                        (root, no folder)
 export async function createFolderTestVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'folder-test-vault');
+    const projectRoot = path.join(basePath, 'folder-test-vault');
 
-    await fs.mkdir(path.join(vaultPath, 'auth'), { recursive: true });
-    await fs.mkdir(path.join(vaultPath, 'api'), { recursive: true });
-    await fs.mkdir(path.join(vaultPath, 'utils'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'auth'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'api'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'utils'), { recursive: true });
 
-    await fs.writeFile(path.join(vaultPath, 'auth', 'login-flow.md'),
+    await fs.writeFile(path.join(projectRoot, 'auth', 'login-flow.md'),
         `---\nposition:\n  x: 100\n  y: 100\n---\n# Login Flow\nHandles user login.\n[[auth/jwt-token]]\n`);
-    await fs.writeFile(path.join(vaultPath, 'auth', 'jwt-token.md'),
+    await fs.writeFile(path.join(projectRoot, 'auth', 'jwt-token.md'),
         `---\nposition:\n  x: 200\n  y: 100\n---\n# JWT Token\nToken generation.\n[[auth/session-manager]]\n`);
-    await fs.writeFile(path.join(vaultPath, 'auth', 'session-manager.md'),
+    await fs.writeFile(path.join(projectRoot, 'auth', 'session-manager.md'),
         `---\nposition:\n  x: 300\n  y: 100\n---\n# Session Manager\nManages sessions.\n[[api/gateway]]\n`);
 
-    await fs.writeFile(path.join(vaultPath, 'api', 'gateway.md'),
+    await fs.writeFile(path.join(projectRoot, 'api', 'gateway.md'),
         `---\nposition:\n  x: 100\n  y: 300\n---\n# API Gateway\nMain entry point.\n[[api/router]]\n`);
-    await fs.writeFile(path.join(vaultPath, 'api', 'router.md'),
+    await fs.writeFile(path.join(projectRoot, 'api', 'router.md'),
         `---\nposition:\n  x: 200\n  y: 300\n---\n# Router\nRequest routing.\n[[auth/login-flow]]\n`);
 
-    await fs.writeFile(path.join(vaultPath, 'utils', 'logger.md'),
+    await fs.writeFile(path.join(projectRoot, 'utils', 'logger.md'),
         `---\nposition:\n  x: 100\n  y: 500\n---\n# Logger\nLogging utility.\n`);
-    await fs.writeFile(path.join(vaultPath, 'utils', 'config.md'),
+    await fs.writeFile(path.join(projectRoot, 'utils', 'config.md'),
         `---\nposition:\n  x: 200\n  y: 500\n---\n# Config\nApp configuration.\n`);
 
-    await fs.writeFile(path.join(vaultPath, 'readme.md'),
+    await fs.writeFile(path.join(projectRoot, 'readme.md'),
         `---\nposition:\n  x: 400\n  y: 300\n---\n# Project Overview\nTest project.\n[[auth/login-flow]]\n[[api/gateway]]\n`);
 
-    return vaultPath;
+    return projectRoot;
 }
 
 // ── Graph Waiting ─────────────────────────────────────────────────────

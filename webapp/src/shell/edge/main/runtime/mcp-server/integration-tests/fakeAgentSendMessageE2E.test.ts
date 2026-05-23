@@ -60,7 +60,7 @@ describe('fake-agent send_message: A → B', () => {
             env: {
                 getAppSupportPath: () => tempAppSupportPath,
                 getMcpPort: () => mcpPort,
-                getProjectRootWatchedDirectory: async () => tempAppSupportPath,
+                getProjectRoot: async () => tempAppSupportPath,
             },
         })
         stubServer = await startStubMcpServer(mcpPort)

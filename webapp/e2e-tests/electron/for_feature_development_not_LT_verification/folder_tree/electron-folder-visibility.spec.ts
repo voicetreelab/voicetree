@@ -71,15 +71,15 @@ function folderId(folderPath: string): string {
     return `${folderPath}/`;
 }
 
-function buildFixture(vaultPath: string): VisibilityFixture {
-    const draftsPath = path.join(vaultPath, 'drafts');
-    const workspacePath = path.join(vaultPath, 'workspace');
+function buildFixture(projectRoot: string): VisibilityFixture {
+    const draftsPath = path.join(projectRoot, 'drafts');
+    const workspacePath = path.join(projectRoot, 'workspace');
     const featurePath = path.join(workspacePath, 'feature');
-    const secretPath = path.join(vaultPath, 'secret');
-    const publicPath = path.join(vaultPath, 'public');
+    const secretPath = path.join(projectRoot, 'secret');
+    const publicPath = path.join(projectRoot, 'public');
 
     return {
-        rootNoteId: path.join(vaultPath, 'root.md'),
+        rootNoteId: path.join(projectRoot, 'root.md'),
         draftsPath,
         draftsFolderId: folderId(draftsPath),
         draftsTodoId: path.join(draftsPath, 'todo.md'),
@@ -111,46 +111,46 @@ async function writeMarkdownAtomically(filePath: string, body: string): Promise<
 }
 
 async function createVisibilityVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'folder-visibility-vault');
+    const projectRoot = path.join(basePath, 'folder-visibility-vault');
 
-    await writeMarkdown(path.join(vaultPath, 'root.md'),
+    await writeMarkdown(path.join(projectRoot, 'root.md'),
         `---\nposition:\n  x: 60\n  y: 80\n---\n# Root\nVisible root-level note.\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'drafts', 'todo.md'),
+    await writeMarkdown(path.join(projectRoot, 'drafts', 'todo.md'),
         `---\nposition:\n  x: 180\n  y: 80\n---\n# Draft Todo\nUnmapped folder content.\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'workspace', 'feature', 'leaf.md'),
+    await writeMarkdown(path.join(projectRoot, 'workspace', 'feature', 'leaf.md'),
         `---\nposition:\n  x: 320\n  y: 120\n---\n# Feature Leaf\nChild content that should survive ancestor visibility changes.\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'secret', 'existing.md'),
+    await writeMarkdown(path.join(projectRoot, 'secret', 'existing.md'),
         `---\nposition:\n  x: 460\n  y: 120\n---\n# Secret Existing\nExisting hidden-folder content.\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'public', 'target.md'),
+    await writeMarkdown(path.join(projectRoot, 'public', 'target.md'),
         `---\nposition:\n  x: 620\n  y: 120\n---\n# Public Target\nVisible public endpoint.\n`);
 
-    return vaultPath;
+    return projectRoot;
 }
 
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-visibility-'));
-        const vaultPath = await createVisibilityVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createVisibilityVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-visibility-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -158,7 +158,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-visibility-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-visibility-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -198,7 +198,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
 
         window.on('console', msg => {
@@ -232,7 +232,7 @@ const test = base.extend<{
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error('electronAPI not available');
                 return api.main.startFileWatching(folderPath);
-            }, vaultPath);
+            }, projectRoot);
             expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
             await window.waitForFunction(
                 () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -249,16 +249,16 @@ function sidebarFolderRow(appWindow: Page, absolutePath: string) {
     return appWindow.locator(`.folder-tree-folder[title="${cssString(absolutePath)}"]`).first();
 }
 
-async function ensureSidebarPathVisible(appWindow: Page, vaultPath: string, absolutePath: string): Promise<void> {
+async function ensureSidebarPathVisible(appWindow: Page, projectRoot: string, absolutePath: string): Promise<void> {
     await openFolderTreeSidebar(appWindow);
 
-    const relativePath = path.relative(vaultPath, absolutePath);
+    const relativePath = path.relative(projectRoot, absolutePath);
     if (!relativePath || relativePath.startsWith('..')) {
         await expect(sidebarFolderRow(appWindow, absolutePath)).toBeVisible({ timeout: 5000 });
         return;
     }
 
-    let currentPath = vaultPath;
+    let currentPath = projectRoot;
     const segments = relativePath.split(path.sep).filter(Boolean);
     for (const segment of segments) {
         const targetPath = path.join(currentPath, segment);
@@ -274,11 +274,11 @@ async function ensureSidebarPathVisible(appWindow: Page, vaultPath: string, abso
 
 async function setFolderVisibilityWithContextMenu(
     appWindow: Page,
-    vaultPath: string,
+    projectRoot: string,
     absolutePath: string,
     action: FolderVisibilityMenuAction,
 ): Promise<void> {
-    await ensureSidebarPathVisible(appWindow, vaultPath, absolutePath);
+    await ensureSidebarPathVisible(appWindow, projectRoot, absolutePath);
     const row = sidebarFolderRow(appWindow, absolutePath);
     await expect(row).toBeVisible({ timeout: 5000 });
 
@@ -392,9 +392,9 @@ async function getHiddenFolderLeakSnapshot(
 }
 
 test.describe('Folder Visibility - Unified Tri-State UX', () => {
-    test('default state for an unmapped folder is hidden until expanded from the context menu', async ({ appWindow, vaultPath }) => {
+    test('default state for an unmapped folder is hidden until expanded from the context menu', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 1);
         await openFolderTreeSidebar(appWindow);
@@ -407,7 +407,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
             present: false,
         });
 
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.draftsPath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.draftsPath, 'Expand');
 
         await expect.poll(
             () => getNodeSnapshot(appWindow, fixture.draftsFolderId),
@@ -436,13 +436,13 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await captureStateScreenshot(appWindow, 'visibility-default-after-expand.png');
     });
 
-    test('implicit roots are derived from expanded leaves rather than stored parent roots', async ({ appWindow, vaultPath }) => {
+    test('implicit roots are derived from expanded leaves rather than stored parent roots', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 1);
         await expectNodeToUseCanonicalRootParent(appWindow, fixture.rootNoteId);
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.featurePath, 'Expand');
 
         await expect.poll(
             () => getCanonicalRootSnapshot(appWindow, fixture.featureFolderId),
@@ -464,15 +464,15 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await captureStateScreenshot(appWindow, 'visibility-implicit-root-expanded-leaf.png');
     });
 
-    test('hidden ancestor breaks the parent chain while expanded child content stays reachable', async ({ appWindow, vaultPath }) => {
+    test('hidden ancestor breaks the parent chain while expanded child content stays reachable', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 1);
         await expectNodeToUseCanonicalRootParent(appWindow, fixture.rootNoteId);
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Expand');
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Hide');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.workspacePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.featurePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.workspacePath, 'Hide');
 
         await expect.poll(
             () => getCanonicalRootSnapshot(appWindow, fixture.featureFolderId),
@@ -498,13 +498,13 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await captureStateScreenshot(appWindow, 'visibility-hidden-ancestor-child-root.png');
     });
 
-    test('F6 synthetic edge aggregation does not fire for a hidden folder', async ({ appWindow, vaultPath }) => {
+    test('F6 synthetic edge aggregation does not fire for a hidden folder', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 1);
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.publicPath, 'Expand');
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.secretPath, 'Hide');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.publicPath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.secretPath, 'Hide');
 
         await writeMarkdownAtomically(fixture.secretNewLinkId,
             `---\nposition:\n  x: 500\n  y: 220\n---\n# Hidden New Link\nCreated under a hidden folder.\n[[public/target]]\n`);
@@ -529,13 +529,13 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
         await captureStateScreenshot(appWindow, 'visibility-hidden-folder-no-f6.png');
     });
 
-    test('collapse cycle preserves expanded child state', async ({ appWindow, vaultPath }) => {
+    test('collapse cycle preserves expanded child state', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 1);
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Expand');
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.featurePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.workspacePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.featurePath, 'Expand');
 
         await expect.poll(
             () => getNodeSnapshot(appWindow, fixture.featureLeafId),
@@ -549,7 +549,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
             parent: fixture.featureFolderId,
         });
 
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Collapse');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.workspacePath, 'Collapse');
         await expect.poll(
             () => getNodeSnapshot(appWindow, fixture.workspaceFolderId),
             {
@@ -566,7 +566,7 @@ test.describe('Folder Visibility - Unified Tri-State UX', () => {
             present: false,
         });
 
-        await setFolderVisibilityWithContextMenu(appWindow, vaultPath, fixture.workspacePath, 'Expand');
+        await setFolderVisibilityWithContextMenu(appWindow, projectRoot, fixture.workspacePath, 'Expand');
         await expect.poll(
             () => getNodeSnapshot(appWindow, fixture.featureFolderId),
             {

@@ -58,7 +58,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { setGraph } from '../../../state/graph-store'
 import { createEmptyGraph } from '@vt/graph-model/graph'
 import {
-    setProjectRootWatchedDirectory,
+    setProjectRoot,
     clearWatchFolderState,
     setWatcher,
 } from '../../../state/watch-folder-store'
@@ -67,7 +67,7 @@ import { setActiveViewFolderState } from '../folder-visibility-active-view'
 import {
     removeReadPath,
     addReadPath,
-    setWritePath,
+    setWriteFolder,
     getReadPaths,
     getVaultPaths,
     createDatedVoiceTreeFolder,
@@ -122,16 +122,16 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
     })
 
     it('syncVaultState callback should fire with updated vault paths before removeReadPath resolves', async () => {
-        // GIVEN: A project with writePath and one expanded path loaded
+        // GIVEN: A project with writeFolder and one expanded path loaded
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
+        const writeFolder = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(readPathA, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
@@ -153,14 +153,14 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
     it('folder tree should be rebuilt before removeReadPath resolves', async () => {
         // GIVEN: A project with a loaded expanded path
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
+        const writeFolder = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(readPathA, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
@@ -176,16 +176,16 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
     it('vault paths should not include removed path after removal', async () => {
         // GIVEN: A project with two expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
+        const writeFolder = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
         const readPathB = path.join(watchedDir, 'readB')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(readPathA, { recursive: true })
         await fs.mkdir(readPathB, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
         await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
@@ -200,9 +200,9 @@ describe('Bug 1: removeReadPath should complete vault state broadcast before ret
     })
 })
 
-// ── Bug 1 additional: addReadPath and setWritePath broadcast timing ──────
+// ── Bug 1 additional: addReadPath and setWriteFolder broadcast timing ──────
 
-describe('Bug 1 additional: addReadPath and setWritePath should also complete broadcast before returning', () => {
+describe('Bug 1 additional: addReadPath and setWriteFolder should also complete broadcast before returning', () => {
     let testTmpDir: string
     let appSupportDir: string
     let syncVaultStateSpy: ReturnType<typeof vi.fn>
@@ -247,14 +247,14 @@ describe('Bug 1 additional: addReadPath and setWritePath should also complete br
     it('addReadPath should complete vault state broadcast before returning', async () => {
         // GIVEN: A project with a write path and no expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
+        const writeFolder = path.join(watchedDir, 'write')
         const newReadPath = path.join(watchedDir, 'newRead')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(newReadPath, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
 
         // WHEN: addReadPath is called
@@ -268,24 +268,24 @@ describe('Bug 1 additional: addReadPath and setWritePath should also complete br
         expect(syncFolderTreeSpy).toHaveBeenCalled()
     })
 
-    it('setWritePath should complete vault state broadcast before returning', async () => {
+    it('setWriteFolder should complete vault state broadcast before returning', async () => {
         // GIVEN: A project with a write path
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
-        const newWritePath = path.join(watchedDir, 'newWrite')
-        await fs.mkdir(writePath, { recursive: true })
-        await fs.mkdir(newWritePath, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        const writeFolder = path.join(watchedDir, 'write')
+        const newWriteFolder = path.join(watchedDir, 'newWrite')
+        await fs.mkdir(writeFolder, { recursive: true })
+        await fs.mkdir(newWriteFolder, { recursive: true })
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
 
-        // WHEN: setWritePath is called
-        const result = await setWritePath(newWritePath)
+        // WHEN: setWriteFolder is called
+        const result = await setWriteFolder(newWriteFolder)
         expect(result.success).toBe(true)
 
-        // THEN: syncVaultState should have been called before setWritePath returned
+        // THEN: syncVaultState should have been called before setWriteFolder returned
         expect(syncVaultStateSpy).toHaveBeenCalled()
 
         // AND: syncFolderTree should have been called (folder tree rebuilt)
@@ -338,14 +338,14 @@ describe('Bug 1 payload: folder tree broadcast should reflect updated loadState'
     it('removed expanded path should have loadState not-loaded in folder tree broadcast', async () => {
         // GIVEN: A project with a loaded expanded path
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'write')
+        const writeFolder = path.join(watchedDir, 'write')
         const readPathA = path.join(watchedDir, 'readA')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(readPathA, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
         await setActiveViewFolderState(watchedDir, readPathA, 'expanded')
 
@@ -406,12 +406,12 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
     it('starred folders NOT previously loaded should NOT be added to expanded paths', async () => {
         // GIVEN: A project with a write path and no expanded paths
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'currentWrite')
-        await fs.mkdir(writePath, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        const writeFolder = path.join(watchedDir, 'currentWrite')
+        await fs.mkdir(writeFolder, { recursive: true })
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
 
         // AND: A starred folder that is NOT currently expanded
@@ -431,12 +431,12 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
     it('starred folders should NOT appear in getVaultPaths after new folder creation (unless previously loaded)', async () => {
         // GIVEN: A project with a write path
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'currentWrite')
-        await fs.mkdir(writePath, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        const writeFolder = path.join(watchedDir, 'currentWrite')
+        await fs.mkdir(writeFolder, { recursive: true })
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
 
         // AND: Two starred folders, neither currently loaded
@@ -459,14 +459,14 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
     it('a previously-loaded starred folder should remain loaded after new folder creation', async () => {
         // GIVEN: A project where a starred folder IS already expanded
         const watchedDir = path.join(testTmpDir, 'project')
-        const writePath = path.join(watchedDir, 'currentWrite')
+        const writeFolder = path.join(watchedDir, 'currentWrite')
         const starredAndLoaded = path.join(testTmpDir, 'starred-loaded')
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
         await fs.mkdir(starredAndLoaded, { recursive: true })
-        setProjectRootWatchedDirectory(watchedDir)
+        setProjectRoot(watchedDir)
 
         await saveVaultConfigForDirectory(watchedDir, {
-            writePath,
+            writeFolder,
         })
         await setActiveViewFolderState(watchedDir, starredAndLoaded, 'expanded')
 

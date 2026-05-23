@@ -8,7 +8,7 @@ function psLine(pid: number, ppid: number, command: string): string {
 }
 
 describe('killOrphanVtGraphdDaemons — vault-bound branch', () => {
-  test('kills vt-graphd binaries whose --vault directory no longer exists', () => {
+  test('kills vt-graphd binaries whose --project-root directory no longer exists', () => {
     const killProcess = vi.fn()
     const result = killOrphanVtGraphdDaemons({
       currentPid: 999,
@@ -17,7 +17,7 @@ describe('killOrphanVtGraphdDaemons — vault-bound branch', () => {
         psLine(
           4242,
           1,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/missing-vault',
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
         ),
       ],
       platform: 'darwin',
@@ -37,7 +37,7 @@ describe('killOrphanVtGraphdDaemons — vault-bound branch', () => {
         psLine(
           4242,
           5000,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/live-vault',
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/live-vault',
         ),
       ],
       platform: 'darwin',
@@ -58,7 +58,7 @@ describe('killOrphanVtGraphdDaemons — vault-bound branch', () => {
         psLine(
           4242,
           1,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/missing-vault',
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
         ),
       ],
       platform: 'darwin',
@@ -98,7 +98,7 @@ describe('killOrphanVtGraphdDaemons — platform gate', () => {
         psLine(
           1234,
           1,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/missing-vault',
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
         ),
       ],
       platform: 'win32',

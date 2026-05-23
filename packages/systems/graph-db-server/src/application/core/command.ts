@@ -47,7 +47,7 @@ export type Command =
   | { type: 'ReadGraph' }
   | { type: 'ReadGraphNode'; nodeId: string }
   | { type: 'SetGraph'; graph: Graph }
-  | { type: 'SetVaultWritePath'; path: string }
+  | { type: 'SetVaultWriteFolder'; path: string }
   | {
       type: 'UpdateContextNodeContainedIds'
       contextNodeId: string
@@ -76,7 +76,7 @@ export type CommandOutput = {
   RegistryTouch: void
   RemoveVaultReadPath: { readonly success: boolean; readonly error?: string }
   SetGraph: void
-  SetVaultWritePath: { readonly success: boolean; readonly error?: string }
+  SetVaultWriteFolder: { readonly success: boolean; readonly error?: string }
   UpdateContextNodeContainedIds: void
   WriteAllPositions: void
 }

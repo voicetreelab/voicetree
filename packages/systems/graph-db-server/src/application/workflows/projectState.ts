@@ -33,7 +33,7 @@ export type FolderAction = 'unloaded' | 'collapsed' | 'expanded';
  * this layer does not need to depend on the concrete sqlite driver.
  */
 export type FolderVisibilityHandle = {
-    readonly vaultPath: FilePath;
+    readonly projectRoot: FilePath;
     readonly db: unknown;
 };
 
@@ -45,13 +45,13 @@ export type FolderVisibilityHandle = {
 export type ReadPathsListener = (watchPaths: readonly FilePath[]) => void;
 
 /**
- * Shape of an open project. Always carries a root; writePath is null only
- * during the brief window between `setVaultPath` (root binding) and
- * `setWritePath` (writePath binding) in the legacy vault-open flow.
+ * Shape of an open project. Always carries a root; writeFolder is null only
+ * during the brief window between `setProjectRoot` (root binding) and
+ * `setWriteFolder` (writeFolder binding) in the legacy vault-open flow.
  */
 export interface ProjectState {
     readonly root: FilePath | null;
-    readonly writePath: FilePath | null;
+    readonly writeFolder: FilePath | null;
     readonly folders: ReadonlyMap<FilePath, FolderTreeState>;
     readonly watcher: FSWatcher | null;
     readonly cleanups: readonly (() => void)[];
@@ -62,13 +62,13 @@ export interface ProjectState {
 }
 
 /**
- * Project that has a bound root and writePath. Pure transitions over folder
- * state require both — the writePath invariant referenced by D6 implies a
+ * Project that has a bound root and writeFolder. Pure transitions over folder
+ * state require both — the writeFolder invariant referenced by D6 implies a
  * root is set.
  */
 export type BoundProject = ProjectState & {
     readonly root: FilePath;
-    readonly writePath: FilePath;
+    readonly writeFolder: FilePath;
 };
 
 /**
@@ -112,12 +112,12 @@ export function mutateProject(
 /**
  * Construct a fresh ProjectState. Callers pass null for `root` when a
  * sub-field setter arrives before root has been bound (e.g. tests calling
- * `onReadPathsChanged` before any `setProjectRootWatchedDirectory`).
+ * `onReadPathsChanged` before any `setProjectRoot`).
  */
 export function freshProject(root: FilePath | null = null): ProjectState {
     return {
         root,
-        writePath: null,
+        writeFolder: null,
         folders: new Map(),
         watcher: null,
         cleanups: [],

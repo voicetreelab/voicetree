@@ -47,39 +47,39 @@ async function shot(appWindow: Page, name: string): Promise<string> {
 }
 
 async function createCrossParentVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'extract-cross-parent-vault');
+    const projectRoot = path.join(basePath, 'extract-cross-parent-vault');
 
-    await fs.mkdir(path.join(vaultPath, 'docs'), { recursive: true });
-    await fs.mkdir(path.join(vaultPath, 'research'), { recursive: true });
-    await fs.mkdir(path.join(vaultPath, 'projects', 'web'), { recursive: true });
-    await fs.mkdir(path.join(vaultPath, 'projects', 'api'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'docs'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'research'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'projects', 'web'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'projects', 'api'), { recursive: true });
 
     await fs.writeFile(
-        path.join(vaultPath, 'alpha.md'),
+        path.join(projectRoot, 'alpha.md'),
         `---\nposition:\n  x: 120\n  y: 120\n---\n# Alpha\nAlpha body.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'docs', 'intro.md'),
+        path.join(projectRoot, 'docs', 'intro.md'),
         `---\nposition:\n  x: 160\n  y: 280\n---\n# Intro\nDocs intro.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'docs', 'architecture.md'),
+        path.join(projectRoot, 'docs', 'architecture.md'),
         `---\nposition:\n  x: 320\n  y: 280\n---\n# Architecture\nDocs architecture.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'research', 'notes.md'),
+        path.join(projectRoot, 'research', 'notes.md'),
         `---\nposition:\n  x: 200\n  y: 440\n---\n# Notes\nResearch notes.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'projects', 'web', 'dashboard.md'),
+        path.join(projectRoot, 'projects', 'web', 'dashboard.md'),
         `---\nposition:\n  x: 100\n  y: 600\n---\n# Dashboard\nWeb dashboard.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'projects', 'api', 'server.md'),
+        path.join(projectRoot, 'projects', 'api', 'server.md'),
         `---\nposition:\n  x: 300\n  y: 600\n---\n# Server\nAPI server.\n`
     );
 
-    return vaultPath;
+    return projectRoot;
 }
 
 function readWikilinks(markdown: string): string[] {
@@ -146,23 +146,23 @@ async function closeContextMenu(appWindow: Page): Promise<void> {
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-cross-parent-'));
-        const vaultPath = await createCrossParentVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createCrossParentVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-cross-parent-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: [],
                 },
             },
@@ -170,7 +170,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'extract-cross-parent-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'extract-cross-parent-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -248,13 +248,13 @@ const test = base.extend<{
 });
 
 test.describe('Extract Into Folder — cross-parent flow', () => {
-    test('cross-parent selection: popup shows LCA + nodes, custom folder name moves files preserving relative paths', async ({ appWindow, vaultPath }) => {
+    test('cross-parent selection: popup shows LCA + nodes, custom folder name moves files preserving relative paths', async ({ appWindow, projectRoot }) => {
         test.setTimeout(120000);
         await waitForGraphLoaded(appWindow, 6);
         await shot(appWindow, '01-graph-loaded.png');
 
-        const introId = path.join(vaultPath, 'docs', 'intro.md');
-        const notesId = path.join(vaultPath, 'research', 'notes.md');
+        const introId = path.join(projectRoot, 'docs', 'intro.md');
+        const notesId = path.join(projectRoot, 'research', 'notes.md');
 
         await selectGraphNodes(appWindow, [introId, notesId]);
         await shot(appWindow, '02-nodes-selected.png');
@@ -279,10 +279,10 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await expect(listItems).toHaveCount(2);
         await expect(selectedList).toContainText('Intro');
         await expect(selectedList).toContainText('Notes');
-        await expect(selectedList).toContainText(path.join(vaultPath, 'docs') + '/');
-        await expect(selectedList).toContainText(path.join(vaultPath, 'research') + '/');
+        await expect(selectedList).toContainText(path.join(projectRoot, 'docs') + '/');
+        await expect(selectedList).toContainText(path.join(projectRoot, 'research') + '/');
 
-        const expectedAncestor: string = vaultPath + '/';
+        const expectedAncestor: string = projectRoot + '/';
         const ancestorCode = dialog.locator('[data-testid="extract-common-ancestor"]');
         await expect(ancestorCode).toHaveText(expectedAncestor);
 
@@ -301,7 +301,7 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await confirmButton.click();
         await expect(dialog).toBeHidden({ timeout: 5000 });
 
-        const newFolderPath: string = path.join(vaultPath, 'my_collection');
+        const newFolderPath: string = path.join(projectRoot, 'my_collection');
         await expect.poll(async () => {
             return fs.access(newFolderPath).then(() => true).catch(() => false);
         }, {
@@ -320,8 +320,8 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
 
         expect(await fs.access(path.join(newFolderPath, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(true);
 
-        expect(await fs.access(path.join(vaultPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(false);
-        expect(await fs.access(path.join(vaultPath, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(false);
 
         const topLevelEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
         const topLevelFileNames = topLevelEntries
@@ -336,14 +336,14 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await shot(appWindow, '06-after-extract.png');
     });
 
-    test('cancellation flow: dialog closes, no folder created, no files moved', async ({ appWindow, vaultPath }) => {
+    test('cancellation flow: dialog closes, no folder created, no files moved', async ({ appWindow, projectRoot }) => {
         test.setTimeout(90000);
         await waitForGraphLoaded(appWindow, 6);
 
-        const introId = path.join(vaultPath, 'docs', 'intro.md');
-        const notesId = path.join(vaultPath, 'research', 'notes.md');
+        const introId = path.join(projectRoot, 'docs', 'intro.md');
+        const notesId = path.join(projectRoot, 'research', 'notes.md');
 
-        const rootBefore = (await fs.readdir(vaultPath, { withFileTypes: true }))
+        const rootBefore = (await fs.readdir(projectRoot, { withFileTypes: true }))
             .map((entry: import('fs').Dirent) => entry.name)
             .sort();
 
@@ -363,21 +363,21 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await shot(appWindow, '07-popup-cancelled.png');
 
         await appWindow.waitForTimeout(1500);
-        const rootAfter = (await fs.readdir(vaultPath, { withFileTypes: true }))
+        const rootAfter = (await fs.readdir(projectRoot, { withFileTypes: true }))
             .map((entry: import('fs').Dirent) => entry.name)
             .sort();
         expect(rootAfter).toEqual(rootBefore);
 
-        expect(await fs.access(path.join(vaultPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
-        expect(await fs.access(path.join(vaultPath, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(true);
+        expect(await fs.access(path.join(projectRoot, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
+        expect(await fs.access(path.join(projectRoot, 'research', 'notes.md')).then(() => true).catch(() => false)).toBe(true);
     });
 
-    test('deeper LCA: two cousins under /projects/ extract into a new subfolder at /projects/', async ({ appWindow, vaultPath }) => {
+    test('deeper LCA: two cousins under /projects/ extract into a new subfolder at /projects/', async ({ appWindow, projectRoot }) => {
         test.setTimeout(120000);
         await waitForGraphLoaded(appWindow, 6);
 
-        const dashboardId = path.join(vaultPath, 'projects', 'web', 'dashboard.md');
-        const serverId = path.join(vaultPath, 'projects', 'api', 'server.md');
+        const dashboardId = path.join(projectRoot, 'projects', 'web', 'dashboard.md');
+        const serverId = path.join(projectRoot, 'projects', 'api', 'server.md');
 
         await selectGraphNodes(appWindow, [dashboardId, serverId]);
         await openCanvasContextMenu(appWindow);
@@ -385,7 +385,7 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         const extractMenuItem = getExtractMenuItem(appWindow);
         await expect(extractMenuItem).toBeVisible({ timeout: 5000 });
 
-        const projectsAncestor: string = path.join(vaultPath, 'projects') + '/';
+        const projectsAncestor: string = path.join(projectRoot, 'projects') + '/';
         await expect(extractMenuItem).toHaveText(new RegExp(`Extract into subfolder at common ancestor:.*${projectsAncestor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
 
         await extractMenuItem.click();
@@ -405,7 +405,7 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         await dialog.locator('[data-testid="extract-confirm-button"]').click();
         await expect(dialog).toBeHidden({ timeout: 5000 });
 
-        const newFolderPath: string = path.join(vaultPath, 'projects', 'combined');
+        const newFolderPath: string = path.join(projectRoot, 'projects', 'combined');
         await expect.poll(async () => {
             return fs.access(path.join(newFolderPath, 'web', 'dashboard.md')).then(() => true).catch(() => false);
         }, {
@@ -415,16 +415,16 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         }).toBe(true);
 
         expect(await fs.access(path.join(newFolderPath, 'api', 'server.md')).then(() => true).catch(() => false)).toBe(true);
-        expect(await fs.access(path.join(vaultPath, 'projects', 'web', 'dashboard.md')).then(() => true).catch(() => false)).toBe(false);
-        expect(await fs.access(path.join(vaultPath, 'projects', 'api', 'server.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'projects', 'web', 'dashboard.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'projects', 'api', 'server.md')).then(() => true).catch(() => false)).toBe(false);
     });
 
-    test('same-parent regression: menu shows plain "Extract Into Folder", no popup, one-click extract', async ({ appWindow, vaultPath }) => {
+    test('same-parent regression: menu shows plain "Extract Into Folder", no popup, one-click extract', async ({ appWindow, projectRoot }) => {
         test.setTimeout(120000);
         await waitForGraphLoaded(appWindow, 6);
 
-        const introId = path.join(vaultPath, 'docs', 'intro.md');
-        const archId = path.join(vaultPath, 'docs', 'architecture.md');
+        const introId = path.join(projectRoot, 'docs', 'intro.md');
+        const archId = path.join(projectRoot, 'docs', 'architecture.md');
 
         await selectGraphNodes(appWindow, [introId, archId]);
         await openCanvasContextMenu(appWindow);
@@ -443,7 +443,7 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
         expect(await dialog.count()).toBe(0);
 
         await expect.poll(async () => {
-            const docsEntries = await fs.readdir(path.join(vaultPath, 'docs'), { withFileTypes: true });
+            const docsEntries = await fs.readdir(path.join(projectRoot, 'docs'), { withFileTypes: true });
             return docsEntries.filter((entry: import('fs').Dirent) => entry.isDirectory()).length;
         }, {
             message: 'Waiting for a new subfolder under docs/ from same-parent extract',
@@ -451,16 +451,16 @@ test.describe('Extract Into Folder — cross-parent flow', () => {
             intervals: [250, 500, 1000],
         }).toBeGreaterThanOrEqual(1);
 
-        const docsEntries = await fs.readdir(path.join(vaultPath, 'docs'), { withFileTypes: true });
+        const docsEntries = await fs.readdir(path.join(projectRoot, 'docs'), { withFileTypes: true });
         const newSubFolders = docsEntries.filter((entry: import('fs').Dirent) => entry.isDirectory()).map((entry: import('fs').Dirent) => entry.name);
         expect(newSubFolders).toHaveLength(1);
         const newSubFolder: string = newSubFolders[0];
 
-        const movedFiles = await fs.readdir(path.join(vaultPath, 'docs', newSubFolder));
+        const movedFiles = await fs.readdir(path.join(projectRoot, 'docs', newSubFolder));
         expect(movedFiles).toEqual(expect.arrayContaining(['intro.md', 'architecture.md']));
 
-        expect(await fs.access(path.join(vaultPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(false);
-        expect(await fs.access(path.join(vaultPath, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(false);
 
         await closeContextMenu(appWindow);
     });

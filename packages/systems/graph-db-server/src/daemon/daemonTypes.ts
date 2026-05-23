@@ -93,7 +93,7 @@ export function resolveDaemonLogger(opts: StartDaemonOptions): DaemonLogger {
 
 export function buildHealthResponse(
   version: string,
-  vault: string,
+  vault: string | null,
   startMs: number,
   nowMs: number,
   sessionCount: number,

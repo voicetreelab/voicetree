@@ -1,7 +1,7 @@
 import type {TerminalId} from '../terminal-registry/types';
 
 export type PromptFileWriteRequest = {
-    readonly vaultPath: string;
+    readonly projectRoot: string;
     readonly terminalId: TerminalId;
     readonly prompt: string;
 };
@@ -14,32 +14,32 @@ export type HeadfulPromptInjectionRequest = {
 export function resolveTmuxVaultPath(
     env: {readonly VOICETREE_VAULT_PATH?: string},
     initialEnvVars: Record<string, string>,
-    runtimeWritePath?: string | null,
+    runtimeWriteFolder?: string | null,
 ): string | undefined {
-    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWritePath ?? undefined;
+    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWriteFolder ?? undefined;
 }
 
 export function withResolvedTmuxVaultPath(
     initialEnvVars: Record<string, string>,
-    vaultPath: string | undefined,
+    projectRoot: string | undefined,
 ): Record<string, string> | undefined {
-    if (!vaultPath && Object.keys(initialEnvVars).length === 0) return undefined;
-    if (!vaultPath || initialEnvVars.VOICETREE_VAULT_PATH) return initialEnvVars;
-    return {...initialEnvVars, VOICETREE_VAULT_PATH: vaultPath};
+    if (!projectRoot && Object.keys(initialEnvVars).length === 0) return undefined;
+    if (!projectRoot || initialEnvVars.VOICETREE_VAULT_PATH) return initialEnvVars;
+    return {...initialEnvVars, VOICETREE_VAULT_PATH: projectRoot};
 }
 
 export function resolvePromptFileWrite(
-    vaultPath: string | undefined,
+    projectRoot: string | undefined,
     terminalId: TerminalId,
     agentPrompt: string | undefined,
 ): PromptFileWriteRequest | null {
-    if (!vaultPath || !agentPrompt) return null;
-    return {vaultPath, terminalId, prompt: agentPrompt};
+    if (!projectRoot || !agentPrompt) return null;
+    return {projectRoot, terminalId, prompt: agentPrompt};
 }
 
 export function buildTmuxEnv(
     initialEnvVars: Record<string, string>,
-    vaultPath: string | undefined,
+    projectRoot: string | undefined,
     promptFilePath: string | null,
 ): Record<string, string> {
     const tmuxEnv: Record<string, string> = {};
@@ -48,7 +48,7 @@ export function buildTmuxEnv(
         if (typeof value === 'string') tmuxEnv[key] = value;
     }
     if (promptFilePath) tmuxEnv.AGENT_PROMPT_FILE = promptFilePath;
-    if (vaultPath && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = vaultPath;
+    if (projectRoot && !tmuxEnv.VOICETREE_VAULT_PATH) tmuxEnv.VOICETREE_VAULT_PATH = projectRoot;
     return tmuxEnv;
 }
 

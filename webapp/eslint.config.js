@@ -20,7 +20,7 @@ const daemonMutationAllowComment = 'vt-allow-direct-daemon-mutation-import'
 const daemonMutationFixturePattern =
   /(^|[/\\])(?:__fixtures__|fixtures)[/\\]allowed-daemon-mutation-imports[/\\]/
 const daemonMutationSpecifiersByModule = {
-  '@vt/graph-model': new Set(['setWritePath', 'addReadPath', 'removeReadPath']),
+  '@vt/graph-model': new Set(['setWriteFolder', 'addReadPath', 'removeReadPath']),
 }
 
 function normalizeFilePath(filename) {

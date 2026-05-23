@@ -58,11 +58,11 @@ export type SpawnAttemptResult = {
  * wait loop so both see exactly the same projection of vault state.
  */
 export async function gatherEvidence(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
 ): Promise<OwnerEvidence> {
-  const breadcrumb = await readCooldownBreadcrumb(canonicalVaultPath)
+  const breadcrumb = await readCooldownBreadcrumb(canonicalProjectRoot)
   const cooldown = decideActiveCooldown(Date.now(), breadcrumb)
-  const record = await readOwnerRecord(canonicalVaultPath)
+  const record = await readOwnerRecord(canonicalProjectRoot)
   if (record === null) {
     return {
       record: null,
@@ -101,7 +101,7 @@ export async function gatherEvidence(
  * deadline. The breadcrumb is cleared on the spawn-ready path.
  */
 export async function attemptSpawnAndWait(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   attemptId: string,
   options: SpawnCoordinationOptions,
@@ -109,32 +109,32 @@ export async function attemptSpawnAndWait(
   staleHeartbeatMs: number,
   spawnCooldownMs: number,
 ): Promise<SpawnAttemptResult | null> {
-  const acquisition = await acquireSpawnLock(canonicalVaultPath, process.pid)
+  const acquisition = await acquireSpawnLock(canonicalProjectRoot, process.pid)
   if (acquisition.kind === 'held') {
     return null
   }
 
   try {
-    const preSpawnRecord = await readOwnerRecord(canonicalVaultPath)
+    const preSpawnRecord = await readOwnerRecord(canonicalProjectRoot)
     if (preSpawnRecord !== null && preSpawnRecord.port !== null) {
       const reuseResult = await tryReuseExistingOwner(preSpawnRecord)
       if (reuseResult !== null) return reuseResult
     }
 
-    const command = resolveCommand(canonicalVaultPath, options.bin)
+    const command = resolveCommand(canonicalProjectRoot, options.bin)
     const spawnedPid = spawnDaemon(command, caller)
     emitOwnerDiagnostic({
       kind: 'spawn-started',
       attemptId,
       callerKind: caller,
-      canonicalVaultPath,
+      canonicalProjectRoot,
       nowMs: Date.now(),
       childPid: spawnedPid,
     })
 
     try {
       const ready = await waitForDaemonHealth(
-        canonicalVaultPath,
+        canonicalProjectRoot,
         spawnedPid,
         deadlineMs,
         staleHeartbeatMs,
@@ -144,18 +144,18 @@ export async function attemptSpawnAndWait(
         kind: 'spawn-ready',
         attemptId,
         callerKind: caller,
-        canonicalVaultPath,
+        canonicalProjectRoot,
         nowMs: Date.now(),
         pid: ready.pid,
         port: ready.port,
         ownerNonce: ready.ownerNonce,
       })
-      await clearCooldownBreadcrumb(canonicalVaultPath)
+      await clearCooldownBreadcrumb(canonicalProjectRoot)
       return ready
     } catch (cause) {
       await onSpawnFailure(
         cause,
-        canonicalVaultPath,
+        canonicalProjectRoot,
         caller,
         attemptId,
         spawnedPid,
@@ -170,7 +170,7 @@ export async function attemptSpawnAndWait(
 
 async function onSpawnFailure(
   cause: unknown,
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   attemptId: string,
   spawnedPid: number | null,
@@ -181,7 +181,7 @@ async function onSpawnFailure(
     kind: 'spawn-failed',
     attemptId,
     callerKind: caller,
-    canonicalVaultPath,
+    canonicalProjectRoot,
     nowMs: Date.now(),
     childPid: spawnedPid,
     errorName: err.name,
@@ -193,9 +193,9 @@ async function onSpawnFailure(
   // write a cooldown for it.
   if (cause instanceof DaemonLaunchTimeout) {
     const now = Date.now()
-    await writeCooldownBreadcrumb(canonicalVaultPath, {
+    await writeCooldownBreadcrumb(canonicalProjectRoot, {
       schemaVersion: 1,
-      canonicalVaultPath,
+      canonicalProjectRoot,
       writtenAtMs: now,
       untilMs: now + spawnCooldownMs,
       reason: 'spawn-failed',
@@ -213,7 +213,7 @@ async function tryReuseExistingOwner(
   if (record.port === null) return null
   const probe = await probeOwnerHealth(record.port)
   if (probe.kind !== 'verified') return null
-  if (probe.canonicalVaultPath !== record.canonicalVaultPath) return null
+  if (probe.canonicalProjectRoot !== record.canonicalProjectRoot) return null
   if (probe.ownerNonce !== record.ownerNonce) return null
   return {
     client: clientFor(probe.port),
@@ -242,7 +242,7 @@ function spawnDaemon(command: CommandSpec, caller: CallerKind): number | null {
 }
 
 async function waitForDaemonHealth(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   spawnedPid: number | null,
   deadlineMs: number,
   staleHeartbeatMs: number,
@@ -251,7 +251,7 @@ async function waitForDaemonHealth(
   let backoff = options.initialBackoffMs
 
   while (Date.now() < deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVaultPath)
+    const evidence = await gatherEvidence(canonicalProjectRoot)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs,
@@ -267,7 +267,7 @@ async function waitForDaemonHealth(
     }
     if (decision.kind === 'unsafe-owner') {
       throw new UnsafeOwnerError(
-        canonicalVaultPath,
+        canonicalProjectRoot,
         decision.recordedPid,
         decision.reason,
       )
@@ -279,7 +279,7 @@ async function waitForDaemonHealth(
   }
 
   throw new DaemonLaunchTimeout(
-    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalVaultPath} before deadline`,
+    `vt-graphd spawn (pid ${spawnedPid ?? 'unknown'}) did not become healthy for vault ${canonicalProjectRoot} before deadline`,
   )
 }
 
@@ -291,7 +291,7 @@ async function waitForDaemonHealth(
  * terminate so its owner record can be replaced.
  */
 export async function reclaimStaleOwner(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   staleRecord: OwnerRecord,
 ): Promise<void> {
   if (readProcessLiveness(staleRecord.pid) === 'alive') {
@@ -308,7 +308,7 @@ export async function reclaimStaleOwner(
       await sleep(25)
     }
   }
-  await deleteOwnerRecord(canonicalVaultPath)
+  await deleteOwnerRecord(canonicalProjectRoot)
 }
 
 export function clientFor(port: number): GraphDbClient {

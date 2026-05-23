@@ -33,7 +33,7 @@ export { PROJECT_ROOT, FIXTURE_VAULT_PATH }
  * Recursively walks the vault directory, preserving relative paths.
  * Skips .git directories.
  */
-export async function readFixtureFiles(vaultPath: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
+export async function readFixtureFiles(projectRoot: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
   const files = new Map<string, string>()
 
   async function walk(dir: string, prefix: string): Promise<void> {
@@ -51,15 +51,15 @@ export async function readFixtureFiles(vaultPath: string = FIXTURE_VAULT_PATH): 
     }
   }
 
-  await walk(vaultPath, '')
+  await walk(projectRoot, '')
   return files
 }
 
 /**
  * Get just the .md files from the fixture vault (excluding .voicetree/ metadata).
  */
-export async function readFixtureMarkdownFiles(vaultPath: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
-  const all = await readFixtureFiles(vaultPath)
+export async function readFixtureMarkdownFiles(projectRoot: string = FIXTURE_VAULT_PATH): Promise<Map<string, string>> {
+  const all = await readFixtureFiles(projectRoot)
   const mdFiles = new Map<string, string>()
   for (const [path, content] of all) {
     if (path.endsWith('.md')) {

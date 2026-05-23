@@ -91,7 +91,7 @@ async function syncRendererFromDaemon(
   uiAPI.syncVaultState({
     readPaths: vaultState.readPaths,
     starredFolders: treePayload.starredFolders,
-    writePath: vaultState.writePath,
+    writeFolder: vaultState.writeFolder,
   })
 
   if (treePayload.rootTree) {
@@ -150,11 +150,11 @@ async function buildSerializedRoots(
   loadedRoots: ReadonlySet<string>,
 ): Promise<LiveStateSnapshot['roots']> {
   try {
-    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.vaultPath)
+    const rootEntry: DirectoryEntry = await getDirectoryTree(vaultState.projectRoot)
     const rootTree: FolderTreeNode = buildFolderTree(
       rootEntry,
       new Set(loadedRoots),
-      toAbsolutePath(vaultState.writePath),
+      toAbsolutePath(vaultState.writeFolder),
       new Set(Object.keys(graph.nodes)),
     )
     return {
@@ -340,8 +340,8 @@ export async function removeReadPathThroughDaemon(path: string): Promise<unknown
   return graph
 }
 
-export async function setWritePathThroughDaemon(path: string): Promise<VaultState> {
-  return await runVaultMutation(`setWritePath:${path}`, (client) => client.setWritePath(path))
+export async function setWriteFolderThroughDaemon(path: string): Promise<VaultState> {
+  return await runVaultMutation(`setWriteFolder:${path}`, (client) => client.setWriteFolder(path))
 }
 
 export async function refreshMainGraphFromDaemon(_vault?: string): Promise<void> {
