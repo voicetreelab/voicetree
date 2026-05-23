@@ -18,16 +18,16 @@ describe('tmux spawn planning', () => {
             .toBe('/initial-vault');
     });
 
-    it('falls back to the runtime write path when no env vault path exists', () => {
-        expect(resolveTmuxVaultPath({}, {}, '/runtime-write-path'))
-            .toBe('/runtime-write-path');
+    it('falls back to the runtime project root when no env vault path exists', () => {
+        expect(resolveTmuxVaultPath({}, {}, '/runtime-project-root'))
+            .toBe('/runtime-project-root');
     });
 
     it('records the resolved vault path on terminal data env vars only when missing', () => {
-        expect(withResolvedTmuxVaultPath({}, '/runtime-write-path')).toEqual({
-            VOICETREE_VAULT_PATH: '/runtime-write-path',
+        expect(withResolvedTmuxVaultPath({}, '/runtime-project-root')).toEqual({
+            VOICETREE_VAULT_PATH: '/runtime-project-root',
         });
-        expect(withResolvedTmuxVaultPath({VOICETREE_VAULT_PATH: '/initial-vault'}, '/runtime-write-path'))
+        expect(withResolvedTmuxVaultPath({VOICETREE_VAULT_PATH: '/initial-vault'}, '/runtime-project-root'))
             .toEqual({VOICETREE_VAULT_PATH: '/initial-vault'});
         expect(withResolvedTmuxVaultPath({}, undefined)).toBeUndefined();
     });

@@ -5,12 +5,19 @@
  * so the headless and interactive paths share it.
  */
 
+/**
+ * Resolve the canonical vault root for tmux env exposure. The third-tier
+ * fallback is the daemon's project root (the directory containing `.voicetree/`),
+ * NOT the daemon's writePath — `$VOICETREE_VAULT_PATH/.voicetree/auth-token` is
+ * read by the CLI, the agent hook script, and the prompt-file primitive, all of
+ * which need the canonical root. See buildTerminalEnvVars for the same contract.
+ */
 export function resolveTmuxVaultPath(
     env: {readonly VOICETREE_VAULT_PATH?: string},
     initialEnvVars: Record<string, string>,
-    runtimeWritePath?: string | null,
+    runtimeProjectRoot?: string | null,
 ): string | undefined {
-    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeWritePath ?? undefined;
+    return env.VOICETREE_VAULT_PATH ?? initialEnvVars.VOICETREE_VAULT_PATH ?? runtimeProjectRoot ?? undefined;
 }
 
 export function withResolvedTmuxVaultPath(
