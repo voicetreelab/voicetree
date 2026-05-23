@@ -1,10 +1,15 @@
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { trace } from '@opentelemetry/api'
+import { propagation } from '@opentelemetry/api'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { ExportResultCode } from '@opentelemetry/core'
+import {
+  CompositePropagator,
+  ExportResultCode,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 
 function hrTimeToMs(hrTime: [number, number]): number {
@@ -43,7 +48,9 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
   }
 }
 
-// Initialize tracing — call once at process startup
+// Initialize tracing — call once at process startup. Registers the W3C
+// trace-context propagator so client→daemon HTTP calls inject `traceparent`
+// and daemon handlers can attach their spans to the caller's trace.
 function initTracing(serviceName: string): void {
   const traceDir = join(homedir(), '.voicetree', 'traces')
   mkdirSync(traceDir, { recursive: true })
@@ -55,6 +62,14 @@ function initTracing(serviceName: string): void {
     ],
   })
   provider.register()
+  propagation.setGlobalPropagator(
+    new CompositePropagator({
+      propagators: [
+        new W3CTraceContextPropagator(),
+        new W3CBaggagePropagator(),
+      ],
+    }),
+  )
 }
 
 export { initTracing }

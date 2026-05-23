@@ -1,3 +1,5 @@
+import { context, propagation } from '@opentelemetry/api'
+
 import {
   GraphDbClientError,
   VaultNotOpenError,
@@ -84,12 +86,19 @@ export function createRequest(baseUrl: string): RequestClient {
     path: string,
     opts: RequestOptions<T>,
   ): Promise<T> {
+    // Inject W3C traceparent (and tracestate if present) so the daemon can
+    // attach its spans to the caller's trace. No-op when no tracer provider
+    // is registered in the calling process.
+    const propagationHeaders: Record<string, string> = {}
+    propagation.inject(context.active(), propagationHeaders)
+
     const response = await fetch(`${normalizedBaseUrl}${path}`, {
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
       headers: {
         ...(opts.body === undefined
           ? undefined
           : { 'content-type': 'application/json' }),
+        ...propagationHeaders,
         ...opts.headers,
       },
       method: opts.method ?? 'GET',
