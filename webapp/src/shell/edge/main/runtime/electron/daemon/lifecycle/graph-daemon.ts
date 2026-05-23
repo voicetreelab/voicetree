@@ -5,10 +5,7 @@ import {
 } from '@vt/graph-db-client'
 
 import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import {
-  attemptBoundedRecovery,
-  resetRecoveryHistory,
-} from './graph-daemon-recovery'
+import { attemptOwnerMediatedRecovery } from './graph-daemon-recovery'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 
@@ -58,11 +55,11 @@ function markDaemonLost(error: unknown): void {
  * must run first.
  *
  * BF-347: when the cached client is lost (connection failure), recovery
- * goes through {@link attemptBoundedRecovery}: SSE + watch-sync loops are
- * stopped BEFORE the ensure call, and the recovery is bounded
- * (3 attempts in any 30s window per vault). The first-time ensure path
- * (no cached client yet) calls `ensureGraphDaemonForVault` directly — it
- * is the user-driven open, not a recovery.
+ * goes through {@link attemptOwnerMediatedRecovery}: SSE + watch-sync loops
+ * are stopped BEFORE the ensure call, and fork-storm protection remains in
+ * the shared owner ensure path. The first-time ensure path (no cached client
+ * yet) calls `ensureGraphDaemonForVault` directly — it is the user-driven
+ * open, not a recovery.
  */
 export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
   if (activeVault === null) {
@@ -75,9 +72,11 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
     } catch (error) {
       if (!isConnectionFailure(error)) throw error
       markDaemonLost(error)
-      const recovered = await attemptBoundedRecovery(activeVault, 'electron-main', {
-        stopLoops: stopOwnerRecoveryLoops,
-      })
+      const recovered = await attemptOwnerMediatedRecovery(
+        activeVault,
+        'electron-main',
+        { stopLoops: stopOwnerRecoveryLoops },
+      )
       activeOwner = recovered
       return recovered
     }
@@ -95,7 +94,6 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
  */
 export async function setActiveVaultAndEnsureDaemon(vault: string): Promise<DaemonHandle> {
   if (activeVault !== vault) {
-    if (activeVault !== null) resetRecoveryHistory(activeVault)
     activeOwner = null
     activeVault = vault
   }
@@ -134,13 +132,11 @@ export async function callDaemon<T>(
  * at the next launch and by the owner protocol's stale-reclaim path.
  */
 export async function shutdownActiveDaemonConnection(): Promise<void> {
-  if (activeVault !== null) resetRecoveryHistory(activeVault)
   activeOwner = null
   activeVault = null
 }
 
 export function clearDaemonClientCache(): void {
-  if (activeVault !== null) resetRecoveryHistory(activeVault)
   activeOwner = null
   activeVault = null
 }
