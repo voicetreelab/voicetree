@@ -14,6 +14,7 @@ import { fromNodeToMarkdownContent } from '@vt/graph-model/markdown'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
 import {markRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import { markPendingDelete, markPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 
 /**
  * Helper to convert unknown errors to Error type
@@ -136,10 +137,15 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
         async () => {
             const plan: FileWritePlan = createFileWritePlan(node, env.projectRootWatchedDirectory)
 
-            await fs.mkdir(plan.parentDirectory, { recursive: true })
+            await traceGraphdSpan('daemon.apply-delta.db-write.mkdir', async () =>
+                await fs.mkdir(plan.parentDirectory, { recursive: true }),
+            )
 
             markPendingWrite(plan.fullPath)
-            await fs.writeFile(plan.fullPath, plan.markdown, 'utf-8')
+            await traceGraphdSpan('daemon.apply-delta.db-write.writeFile', async span => {
+                span.setAttribute('vt.write.bytes', Buffer.byteLength(plan.markdown))
+                await fs.writeFile(plan.fullPath, plan.markdown, 'utf-8')
+            })
         },
         toError
     )
