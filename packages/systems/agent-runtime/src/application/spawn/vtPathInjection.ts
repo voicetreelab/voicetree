@@ -32,7 +32,7 @@
  * module.
  */
 
-import {delimiter} from 'node:path'
+import {delimiter, isAbsolute, join} from 'node:path'
 import {getRuntimeEnv} from '../runtime/runtime-config'
 
 /**
@@ -65,4 +65,44 @@ export function prependVtBinToPath(
  */
 export async function readVtBinDirOrNull(): Promise<string | null> {
     return getRuntimeEnv().getVtBinDir?.() ?? null
+}
+
+/**
+ * Predicate dependency: returns true if the given absolute path exists
+ * as a file. Shells inject `fs.existsSync` (or an in-memory equivalent
+ * in tests).
+ */
+export type FileExistsCheck = (absolutePath: string) => boolean
+
+/**
+ * Resolve the vt-bin directory for a shell.
+ *
+ * Each shell knows where the `voicetree-cli` package lives on disk —
+ * either by walking up from `import.meta.url` (vt-mcpd, vt serve) or by
+ * reading a build-config-derived path (Electron, which already encodes
+ * the dev vs. packaged split). The shell passes that candidate package
+ * directory in; this function verifies the package actually ships a
+ * `bin/vt` script and returns the absolute path to the `bin/` directory.
+ *
+ * Returns null when:
+ * - `voicetreeCliPackageDir` is null (caller couldn't locate the package).
+ * - The candidate is not absolute (defensive: prevents accidentally
+ *   prepending a relative path onto PATH).
+ * - `<dir>/bin/vt` does not exist (e.g. an Electron packaged build that
+ *   doesn't bundle the CLI — the no-op path then takes over and the
+ *   spawned terminal proceeds without `vt` on PATH).
+ *
+ * Pure with respect to its dependencies: takes `fileExists` so callers
+ * can unit-test without touching the filesystem.
+ */
+export function resolveVtBinDir(
+    voicetreeCliPackageDir: string | null,
+    fileExists: FileExistsCheck,
+): string | null {
+    if (voicetreeCliPackageDir === null || voicetreeCliPackageDir.length === 0) return null
+    if (!isAbsolute(voicetreeCliPackageDir)) return null
+    const binDir: string = join(voicetreeCliPackageDir, 'bin')
+    const vtScript: string = join(binDir, 'vt')
+    if (!fileExists(vtScript)) return null
+    return binDir
 }

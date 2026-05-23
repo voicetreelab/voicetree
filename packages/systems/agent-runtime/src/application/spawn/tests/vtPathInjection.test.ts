@@ -19,7 +19,7 @@ import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '../../runtime/runtime-config'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {prependVtBinToPath} from '../vtPathInjection'
+import {prependVtBinToPath, resolveVtBinDir} from '../vtPathInjection'
 
 describe('prependVtBinToPath (pure)', () => {
     it('passes through unchanged when vtBinDir is null', () => {
@@ -75,6 +75,46 @@ describe('prependVtBinToPath (pure)', () => {
         )
         expect(result.HOME).toBe('/home/me')
         expect(result.SHELL).toBe('/bin/zsh')
+    })
+})
+
+describe('resolveVtBinDir (pure)', () => {
+    const ALWAYS_EXISTS: (p: string) => boolean = (): boolean => true
+    const NEVER_EXISTS: (p: string) => boolean = (): boolean => false
+
+    it('returns null when the package dir is null', () => {
+        expect(resolveVtBinDir(null, ALWAYS_EXISTS)).toBeNull()
+    })
+
+    it('returns null when the package dir is empty', () => {
+        expect(resolveVtBinDir('', ALWAYS_EXISTS)).toBeNull()
+    })
+
+    it('returns null when the package dir is relative (defensive)', () => {
+        expect(resolveVtBinDir('packages/systems/voicetree-cli', ALWAYS_EXISTS)).toBeNull()
+    })
+
+    it('returns null when the vt script does not exist under bin/', () => {
+        expect(resolveVtBinDir('/opt/voicetree-cli', NEVER_EXISTS)).toBeNull()
+    })
+
+    it('returns <packageDir>/bin when the vt script exists', () => {
+        const packageDir: string = '/opt/voicetree-cli'
+        const expectedBin: string = path.join(packageDir, 'bin')
+        const expectedScript: string = path.join(expectedBin, 'vt')
+        const seen: string[] = []
+        const fileExists = (p: string): boolean => {
+            seen.push(p)
+            return p === expectedScript
+        }
+        expect(resolveVtBinDir(packageDir, fileExists)).toBe(expectedBin)
+        expect(seen).toContain(expectedScript)
+    })
+
+    it('returns null on any directory that is not a valid CLI package root', () => {
+        // The verifier is a pure existence check — it does not silently
+        // accept a wrong-but-absolute path that lacks the bin/vt script.
+        expect(resolveVtBinDir('/tmp/not-voicetree', NEVER_EXISTS)).toBeNull()
     })
 })
 

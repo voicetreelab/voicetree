@@ -14,6 +14,8 @@ import {
     registerChildIfMonitored,
 } from '@vt/vt-daemon';
 import {agentRuntime} from '@vt/agent-runtime';
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts';
+import {existsSync} from 'node:fs';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
     terminalRuntimeSurface,
@@ -134,6 +136,7 @@ terminalRuntimeSurface.configureAgentRuntime({
             return O.isSome(writePath) ? writePath.value : null;
         },
         getCliManualPath: (): string => getBuildConfig().cliManualPath,
+        getVtBinDir: (): string | null => resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),

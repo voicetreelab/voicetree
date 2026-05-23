@@ -1,5 +1,8 @@
-import {join, resolve} from 'node:path'
+import {existsSync} from 'node:fs'
+import {dirname, join, resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {agentRuntime, configureAgentRuntime, getTerminalManager} from '@vt/agent-runtime'
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
 import {
     ensureGraphDaemonForVault,
     type EnsureGraphDaemonResult,
@@ -100,6 +103,19 @@ function parseServeArgs(argv: readonly string[]): ServeArgs {
     return {port, vault: resolve(vault), exclusive}
 }
 
+// Walk up from `startUrl` until we hit the directory that contains `bin/vt`.
+// Mirrors `findManualPath` in src/commands/manual.ts so the same source-vs-
+// bundled-layout cases are handled consistently. Returns the absolute path
+// to the @voicetree/cli package root, or null if no ancestor matches.
+function findVoicetreeCliPackageDir(startUrl: string): string | null {
+    let current: string = dirname(fileURLToPath(startUrl))
+    while (current !== dirname(current)) {
+        if (existsSync(join(current, 'bin', 'vt'))) return current
+        current = dirname(current)
+    }
+    return null
+}
+
 function configureHeadlessBridges(appSupportPath: string): void {
     configureMcpServer({
         liveState: {
@@ -114,9 +130,20 @@ function configureHeadlessBridges(appSupportPath: string): void {
         },
     })
 
+    // `vt serve` is itself shipped inside @voicetree/cli, so the `vt` binary
+    // lives in this very package's bin/ directory. Walk up from this module
+    // until we find the directory containing `bin/vt`. This handles both the
+    // source layout (<package>/src/commands/runtime/serve.ts) and the bundled
+    // layout (<package>/dist/voicetree-cli.js) used by published installs.
+    // Returns null on any unexpected layout — the spawn pipeline's PATH
+    // injection then no-ops gracefully.
+    const voicetreeCliPackageDir: string | null = findVoicetreeCliPackageDir(import.meta.url)
+    const vtBinDir: string | null = resolveVtBinDir(voicetreeCliPackageDir, existsSync)
+
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => appSupportPath,
+            getVtBinDir: (): string | null => vtBinDir,
         },
         ui: {
             registerChildIfMonitored,

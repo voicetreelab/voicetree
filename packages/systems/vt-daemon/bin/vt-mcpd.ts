@@ -28,6 +28,7 @@
 // models real PTY/agent processes with budget + lifecycle; a synthetic
 // terminal has no real owner.
 
+import {existsSync} from 'node:fs'
 import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -44,6 +45,7 @@ import {
     type VaultStateWatcherHandle,
 } from '@vt/vt-daemon'
 import {agentRuntime, configureAgentRuntime} from '@vt/agent-runtime'
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts'
 import {generateAuthToken, writeAuthTokenFile, writeRpcPortFile} from '@vt/vt-rpc'
 
 interface Args {
@@ -114,22 +116,27 @@ function configureHeadlessBridges(appSupportPath: string): void {
         // search bridge omitted: search_nodes returns "Search backend is not configured."
     })
 
-    // The CLI manual is shipped inside @voicetree/cli. vt-mcpd lives next to it on
-    // disk (packages/systems/vt-daemon → packages/systems/voicetree-cli),
-    // so resolve relative to this file rather than the appSupport-tools copy.
-    const vtCliManualPath: string = join(
+    // The CLI manual and `vt` binary are both shipped inside @voicetree/cli.
+    // vt-mcpd lives next to it on disk (packages/systems/vt-daemon →
+    // packages/systems/voicetree-cli), so resolve relative to this file
+    // rather than the appSupport-tools copy.
+    const voicetreeCliPackageDir: string = join(
         dirname(fileURLToPath(import.meta.url)),
         '..',
         '..',
         'voicetree-cli',
-        'prompts',
-        'cli-manual.md',
     )
+    const vtCliManualPath: string = join(voicetreeCliPackageDir, 'prompts', 'cli-manual.md')
+    // `vt` lives at <voicetree-cli>/bin/vt. resolveVtBinDir verifies the
+    // script exists and returns null otherwise — the spawn pipeline's
+    // PATH injection then no-ops gracefully.
+    const vtBinDir: string | null = resolveVtBinDir(voicetreeCliPackageDir, existsSync)
 
     configureAgentRuntime({
         env: {
             getAppSupportPath: (): string => appSupportPath,
             getCliManualPath: (): string => vtCliManualPath,
+            getVtBinDir: (): string | null => vtBinDir,
         },
         // No interactive terminals in headless mode; only registerChildIfMonitored
         // is reachable (used by the spawn path even for headless agents).
