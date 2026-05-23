@@ -1,8 +1,7 @@
 /** Shared CLI argument parsing utilities for vt-graph. */
 
 function fail(message: string): never {
-    process.stderr.write(`${message}\n`)
-    process.exit(1)
+    throw new Error(message)
 }
 
 export function parsePrettyValue(value: string): boolean {

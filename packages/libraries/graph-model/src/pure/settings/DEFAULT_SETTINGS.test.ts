@@ -1,32 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { createDefaultSettings } from './settingsSchema';
 
 describe('DEFAULT_SETTINGS platform-specific env var syntax', () => {
-  const originalPlatform: NodeJS.Platform = process.platform;
-
-  beforeEach(() => {
-    // Clear module cache to allow re-importing with different platform
-    vi.resetModules();
-  });
-
-  afterEach(() => {
-    // Restore original platform
-    Object.defineProperty(process, 'platform', {
-      value: originalPlatform,
-      writable: true,
-      configurable: true,
-    });
-  });
-
   it('should use $env:AGENT_PROMPT syntax on Windows', async () => {
-    // Mock process.platform as Windows
-    Object.defineProperty(process, 'platform', {
-      value: 'win32',
-      writable: true,
-      configurable: true,
-    });
-
-    // Dynamically import to get fresh module with mocked platform
-    const { DEFAULT_SETTINGS } = await import('./DEFAULT_SETTINGS');
+    const DEFAULT_SETTINGS = createDefaultSettings({ platform: 'win32' });
 
     // Verify agent commands use PowerShell syntax
     const claudeAgent: { readonly name: string; readonly command: string } | undefined = DEFAULT_SETTINGS.agents.find(
@@ -43,15 +20,7 @@ describe('DEFAULT_SETTINGS platform-specific env var syntax', () => {
   });
 
   it('should use $AGENT_PROMPT syntax on macOS', async () => {
-    // Mock process.platform as macOS
-    Object.defineProperty(process, 'platform', {
-      value: 'darwin',
-      writable: true,
-      configurable: true,
-    });
-
-    // Dynamically import to get fresh module with mocked platform
-    const { DEFAULT_SETTINGS } = await import('./DEFAULT_SETTINGS');
+    const DEFAULT_SETTINGS = createDefaultSettings({ platform: 'darwin' });
 
     // Verify agent commands use bash/zsh syntax
     const claudeAgent: { readonly name: string; readonly command: string } | undefined = DEFAULT_SETTINGS.agents.find(
@@ -68,15 +37,7 @@ describe('DEFAULT_SETTINGS platform-specific env var syntax', () => {
   });
 
   it('should use $AGENT_PROMPT syntax on Linux', async () => {
-    // Mock process.platform as Linux
-    Object.defineProperty(process, 'platform', {
-      value: 'linux',
-      writable: true,
-      configurable: true,
-    });
-
-    // Dynamically import to get fresh module with mocked platform
-    const { DEFAULT_SETTINGS } = await import('./DEFAULT_SETTINGS');
+    const DEFAULT_SETTINGS = createDefaultSettings({ platform: 'linux' });
 
     // Verify agent commands use bash syntax (same as macOS)
     const claudeAgent: { readonly name: string; readonly command: string } | undefined = DEFAULT_SETTINGS.agents.find(
