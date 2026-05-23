@@ -209,4 +209,33 @@ describe('renderTreeCover', () => {
         expect(output).toContain('▢ docs/ [collapsed:user 2 nodes')
         expect(output).not.toContain('· A @[docs/a.md]')
     })
+
+    it('renders daemon-projected collapsed folders without child nodes present', () => {
+        const graph = {
+            nodes: [
+                {
+                    id: '/vault/docs/',
+                    kind: 'folder-collapsed' as const,
+                    label: 'docs',
+                    relPath: 'docs/',
+                    basename: 'docs',
+                    folderPath: '',
+                    content: '',
+                    childCount: 2,
+                    loadState: 'not-loaded' as const,
+                    isWriteTarget: false,
+                },
+            ],
+            edges: [],
+            rootPath: '/vault',
+            revision: 0,
+            forests: [],
+            arboricity: 0,
+        }
+
+        const output = renderTreeCover(graph, {title: 'main', viewApplied: true})
+
+        expect(output).toContain('▢ docs/ [collapsed:user 2 nodes')
+        expect(output).toContain('═══ STRUCTURE main (view applied) ═══')
+    })
 })

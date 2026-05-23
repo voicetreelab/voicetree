@@ -156,7 +156,7 @@ describe('graph daemon migration', () => {
 
         daemonHandle = await startDaemon({vault: harness.vault})
         const loadResult = await loadAndMergeVaultPath(harness.docsPath, {isWritePath: true})
-        expect(loadResult).toEqual({success: true})
+        expect(loadResult).toEqual({kind: 'ok'})
         process.chdir(harness.vault)
 
         await waitFor(async () => {
