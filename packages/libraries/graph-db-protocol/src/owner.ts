@@ -32,6 +32,7 @@ export type OwnerRecordSchemaVersion = typeof OWNER_RECORD_SCHEMA_VERSION
 
 export type CallerKind =
   | 'electron'
+  | 'electron-main'
   | 'cli'
   | 'mcp'
   | 'graph-db-client'
@@ -39,6 +40,7 @@ export type CallerKind =
 
 const CALLER_KINDS: readonly CallerKind[] = [
   'electron',
+  'electron-main',
   'cli',
   'mcp',
   'graph-db-client',
