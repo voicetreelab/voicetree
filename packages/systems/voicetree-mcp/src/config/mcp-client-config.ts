@@ -8,13 +8,18 @@
  * no longer binds, surfacing as a confusing connect failure on the agent side.
  *
  * `stripStaleVoicetreeMcpEntries` is called once when VoiceTree loads a vault.
- * For each known config file it opens the file (if present), removes any
- * `voicetree` entry, and writes the rest back untouched. Other MCP entries
- * (Linear, etc.) are preserved. Idempotent: running on a clean file is a
- * no-op.
+ * It walks from the vault directory up to a boundary ancestor (default: the
+ * user's home directory, inclusive) and at each level removes any `voicetree`
+ * entry from the known config files. Other MCP entries (Linear, etc.) are
+ * preserved. Idempotent: running on a clean file is a no-op.
+ *
+ * Walking parents is necessary because Claude Code's `.mcp.json` discovery
+ * climbs ancestor directories: a stale entry in a grandparent leaks into every
+ * new vault rooted below it.
  */
 
 import {promises as fs} from 'fs'
+import os from 'os'
 import path from 'path'
 
 const VOICETREE_MCP_SERVER_NAME: 'voicetree' = 'voicetree' as const
@@ -79,19 +84,53 @@ async function stripFromCodexToml(filePath: string): Promise<void> {
     await fs.writeFile(filePath, stripped + '\n', 'utf-8')
 }
 
+// Walk from `start` up to and including `stopAtAncestor`. If `start` is not
+// nested inside `stopAtAncestor`, fall back to a single-directory list so the
+// migrator can't accidentally scan unrelated filesystem branches.
+function ancestorsUpTo(start: string, stopAtAncestor: string): readonly string[] {
+    const startAbs: string = path.resolve(start)
+    const boundaryAbs: string = path.resolve(stopAtAncestor)
+    const rel: string = path.relative(boundaryAbs, startAbs)
+    const insideBoundary: boolean = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+    if (!insideBoundary) return [startAbs]
+
+    const dirs: string[] = []
+    let current: string = startAbs
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        dirs.push(current)
+        if (current === boundaryAbs) break
+        const parent: string = path.dirname(current)
+        if (parent === current) break
+        current = parent
+    }
+    return dirs
+}
+
 /**
  * Remove any `voicetree` MCP entry from external coding-agent config files
- * inside `directory`. Preserves unrelated entries. Idempotent.
+ * across the walk from `directory` up to `options.stopAtAncestor` (inclusive,
+ * default: `os.homedir()`). Preserves unrelated entries. Idempotent.
  *
- * Targets:
- *   - `<directory>/.mcp.json`            (Claude Code)
- *   - `<directory>/opencode.jsonc`       (OpenCode)
- *   - `<directory>/.codex/config.toml`   (Codex)
+ * Targets per directory level:
+ *   - `<dir>/.mcp.json`            (Claude Code)
+ *   - `<dir>/opencode.jsonc`       (OpenCode)
+ *   - `<dir>/.codex/config.toml`   (Codex)
+ *
+ * If `directory` is not nested inside `stopAtAncestor`, only `directory`
+ * itself is scanned.
  */
-export async function stripStaleVoicetreeMcpEntries(directory: string): Promise<void> {
-    await Promise.all([
-        stripFromMcpJsonShape(path.join(directory, '.mcp.json')),
-        stripFromOpencodeJsonc(path.join(directory, 'opencode.jsonc')),
-        stripFromCodexToml(path.join(directory, '.codex', 'config.toml')),
-    ])
+export async function stripStaleVoicetreeMcpEntries(
+    directory: string,
+    options?: {readonly stopAtAncestor?: string},
+): Promise<void> {
+    const boundary: string = options?.stopAtAncestor ?? os.homedir()
+    const dirs: readonly string[] = ancestorsUpTo(directory, boundary)
+    await Promise.all(
+        dirs.flatMap((dir: string): readonly Promise<void>[] => [
+            stripFromMcpJsonShape(path.join(dir, '.mcp.json')),
+            stripFromOpencodeJsonc(path.join(dir, 'opencode.jsonc')),
+            stripFromCodexToml(path.join(dir, '.codex', 'config.toml')),
+        ]),
+    )
 }

@@ -40,7 +40,7 @@ describe('stripStaleVoicetreeMcpEntries — .mcp.json', () => {
             },
         }, null, 2))
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result = await readJson(mcpJsonPath) as {mcpServers: Record<string, unknown>}
         expect(result.mcpServers.voicetree).toBeUndefined()
@@ -53,7 +53,7 @@ describe('stripStaleVoicetreeMcpEntries — .mcp.json', () => {
             mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'}},
         }, null, 2))
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result = await readJson(mcpJsonPath) as Record<string, unknown>
         expect(result.mcpServers).toBeUndefined()
@@ -64,15 +64,28 @@ describe('stripStaleVoicetreeMcpEntries — .mcp.json', () => {
         const cleanConfig = {mcpServers: {linear: {type: 'http', url: 'http://127.0.0.1:9999/mcp'}}}
         await fs.writeFile(mcpJsonPath, JSON.stringify(cleanConfig, null, 2))
 
-        await stripStaleVoicetreeMcpEntries(testDir)
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result = await readJson(mcpJsonPath)
         expect(result).toEqual(cleanConfig)
     })
 
-    it('is a no-op when the file does not exist', async () => {
+    it('default boundary (os.homedir) is implied when no options are passed', async () => {
+        const mcpJsonPath: string = path.join(testDir, '.mcp.json')
+        await fs.writeFile(mcpJsonPath, JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'}, linear: {type: 'http', url: 'l'}},
+        }))
+
         await stripStaleVoicetreeMcpEntries(testDir)
+
+        const result = await readJson(mcpJsonPath) as {mcpServers: Record<string, unknown>}
+        expect(result.mcpServers.voicetree).toBeUndefined()
+        expect(result.mcpServers.linear).toBeDefined()
+    })
+
+    it('is a no-op when the file does not exist', async () => {
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
         const exists: boolean = await fs.stat(path.join(testDir, '.mcp.json')).then(() => true, () => false)
         expect(exists).toBe(false)
     })
@@ -90,7 +103,7 @@ describe('stripStaleVoicetreeMcpEntries — opencode.jsonc', () => {
             },
         }, null, 2))
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result = await readJson(opencodePath) as {model?: string; mcp: Record<string, unknown>; $schema: string}
         expect(result.mcp.voicetree).toBeUndefined()
@@ -106,7 +119,7 @@ describe('stripStaleVoicetreeMcpEntries — opencode.jsonc', () => {
             mcp: {voicetree: {type: 'remote', url: 'http://127.0.0.1:3001/mcp', enabled: true}},
         }, null, 2))
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result = await readJson(opencodePath) as {$schema: string; mcp?: unknown}
         expect(result.mcp).toBeUndefined()
@@ -127,7 +140,7 @@ describe('stripStaleVoicetreeMcpEntries — .codex/config.toml', () => {
             'url = "http://localhost:8080/mcp"\n'
         await fs.writeFile(codexPath, initial)
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result: string = await fs.readFile(codexPath, 'utf-8')
         expect(result).not.toContain('[mcp_servers.voicetree]')
@@ -141,7 +154,7 @@ describe('stripStaleVoicetreeMcpEntries — .codex/config.toml', () => {
         const codexPath: string = path.join(codexDir, 'config.toml')
         await fs.writeFile(codexPath, '[mcp_servers.voicetree]\nurl = "http://localhost:3001/mcp"\n')
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const exists: boolean = await fs.stat(codexPath).then(() => true, () => false)
         expect(exists).toBe(false)
@@ -154,7 +167,7 @@ describe('stripStaleVoicetreeMcpEntries — .codex/config.toml', () => {
         const initial: string = '[mcp_servers.other]\nurl = "http://localhost:8080/mcp"\n'
         await fs.writeFile(codexPath, initial)
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const result: string = await fs.readFile(codexPath, 'utf-8')
         expect(result).toBe(initial)
@@ -177,7 +190,7 @@ describe('stripStaleVoicetreeMcpEntries — combined cleanup', () => {
         }))
         await fs.writeFile(codexPath, '[mcp_servers.voicetree]\nurl = "x"\n\n[mcp_servers.custom]\nurl = "y"\n')
 
-        await stripStaleVoicetreeMcpEntries(testDir)
+        await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: testDir})
 
         const mcpJson = await readJson(mcpJsonPath) as {mcpServers: Record<string, unknown>}
         expect(mcpJson.mcpServers.voicetree).toBeUndefined()
@@ -190,5 +203,119 @@ describe('stripStaleVoicetreeMcpEntries — combined cleanup', () => {
         const codex: string = await fs.readFile(codexPath, 'utf-8')
         expect(codex).not.toContain('[mcp_servers.voicetree]')
         expect(codex).toContain('[mcp_servers.custom]')
+    })
+})
+
+describe('stripStaleVoicetreeMcpEntries — parent walk to stopAtAncestor', () => {
+    it('strips voicetree from every ancestor .mcp.json up to and including the boundary', async () => {
+        const childDir: string = path.join(testDir, 'child')
+        const grandchildDir: string = path.join(childDir, 'grandchild')
+        await fs.mkdir(grandchildDir, {recursive: true})
+
+        await fs.writeFile(path.join(testDir, '.mcp.json'), JSON.stringify({
+            mcpServers: {
+                voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'},
+                linear: {type: 'http', url: 'http://127.0.0.1:9999/mcp'},
+            },
+        }))
+        await fs.writeFile(path.join(childDir, '.mcp.json'), JSON.stringify({
+            mcpServers: {
+                voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'},
+                custom: {type: 'http', url: 'http://localhost:8080/mcp'},
+            },
+        }))
+        await fs.writeFile(path.join(grandchildDir, '.mcp.json'), JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'}},
+        }))
+
+        await stripStaleVoicetreeMcpEntries(grandchildDir, {stopAtAncestor: testDir})
+
+        const grandchild = await readJson(path.join(grandchildDir, '.mcp.json')) as Record<string, unknown>
+        expect(grandchild.mcpServers).toBeUndefined()
+
+        const child = await readJson(path.join(childDir, '.mcp.json')) as {mcpServers: Record<string, unknown>}
+        expect(child.mcpServers.voicetree).toBeUndefined()
+        expect(child.mcpServers.custom).toEqual({type: 'http', url: 'http://localhost:8080/mcp'})
+
+        const root = await readJson(path.join(testDir, '.mcp.json')) as {mcpServers: Record<string, unknown>}
+        expect(root.mcpServers.voicetree).toBeUndefined()
+        expect(root.mcpServers.linear).toEqual({type: 'http', url: 'http://127.0.0.1:9999/mcp'})
+    })
+
+    it('does not cross the boundary — files above stopAtAncestor are untouched', async () => {
+        const childDir: string = path.join(testDir, 'child')
+        await fs.mkdir(childDir, {recursive: true})
+
+        const outsideDir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-strip-outside-'))
+        try {
+            const outsideMcp: string = path.join(outsideDir, '.mcp.json')
+            const outsideContent = {mcpServers: {voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'}}}
+            await fs.writeFile(outsideMcp, JSON.stringify(outsideContent))
+
+            await stripStaleVoicetreeMcpEntries(childDir, {stopAtAncestor: testDir})
+
+            const outside = await readJson(outsideMcp)
+            expect(outside).toEqual(outsideContent)
+        } finally {
+            await fs.rm(outsideDir, {recursive: true, force: true})
+        }
+    })
+
+    it('falls back to single-directory scan when directory is outside stopAtAncestor', async () => {
+        const otherBoundary: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-strip-other-'))
+        try {
+            await fs.writeFile(path.join(testDir, '.mcp.json'), JSON.stringify({
+                mcpServers: {
+                    voicetree: {type: 'http', url: 'http://127.0.0.1:3001/mcp'},
+                    linear: {type: 'http', url: 'http://127.0.0.1:9999/mcp'},
+                },
+            }))
+
+            await stripStaleVoicetreeMcpEntries(testDir, {stopAtAncestor: otherBoundary})
+
+            const result = await readJson(path.join(testDir, '.mcp.json')) as {mcpServers: Record<string, unknown>}
+            expect(result.mcpServers.voicetree).toBeUndefined()
+            expect(result.mcpServers.linear).toBeDefined()
+        } finally {
+            await fs.rm(otherBoundary, {recursive: true, force: true})
+        }
+    })
+
+    it('walks parents for all three file types together', async () => {
+        const childDir: string = path.join(testDir, 'child')
+        await fs.mkdir(path.join(testDir, '.codex'))
+        await fs.mkdir(path.join(childDir, '.codex'), {recursive: true})
+
+        await fs.writeFile(path.join(testDir, '.mcp.json'), JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'x'}},
+        }))
+        await fs.writeFile(path.join(testDir, 'opencode.jsonc'), JSON.stringify({
+            mcp: {voicetree: {type: 'remote', url: 'x'}},
+        }))
+        await fs.writeFile(path.join(testDir, '.codex', 'config.toml'),
+            '[mcp_servers.voicetree]\nurl = "x"\n')
+
+        await fs.writeFile(path.join(childDir, '.mcp.json'), JSON.stringify({
+            mcpServers: {voicetree: {type: 'http', url: 'y'}},
+        }))
+        await fs.writeFile(path.join(childDir, 'opencode.jsonc'), JSON.stringify({
+            mcp: {voicetree: {type: 'remote', url: 'y'}},
+        }))
+        await fs.writeFile(path.join(childDir, '.codex', 'config.toml'),
+            '[mcp_servers.voicetree]\nurl = "y"\n')
+
+        await stripStaleVoicetreeMcpEntries(childDir, {stopAtAncestor: testDir})
+
+        for (const dir of [testDir, childDir]) {
+            const mcp = await readJson(path.join(dir, '.mcp.json')) as Record<string, unknown>
+            expect(mcp.mcpServers).toBeUndefined()
+
+            const opencode = await readJson(path.join(dir, 'opencode.jsonc')) as Record<string, unknown>
+            expect(opencode.mcp).toBeUndefined()
+
+            const codexExists: boolean = await fs.stat(path.join(dir, '.codex', 'config.toml'))
+                .then(() => true, () => false)
+            expect(codexExists).toBe(false)
+        }
     })
 })
