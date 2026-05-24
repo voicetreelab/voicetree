@@ -35,7 +35,6 @@ export type NodeVerdictStatus = 'ok' | 'rejected' | 'skipped' | 'warning'
  * user can distinguish "gate ran and passed" from "gate didn't fire because…".
  */
 export type SkipReason =
-    | 'no_type_declared'
     | 'no_schema_plugin'
     | 'unknown_type'
     | 'no_vault_detected'

@@ -26,11 +26,15 @@ function relativeToCwd(absoluteTarget: string): string {
 
 function verdictFromGateResult(displayPath: string, result: SchemaGateResult): NodeVerdict {
     if (result.status === 'ok') {
+        // `typeName`/`schemaPath` are only present when the gate actually ran
+        // against an upstream folder-note Type. A silent `ok` (typeless folder)
+        // omits them so the emitted verdict stays minimal — no spurious empty
+        // fields in the JSON envelope.
         return {
             path: displayPath,
             status: 'ok',
-            typeName: result.typeName,
-            schemaPath: result.schemaPath,
+            ...(result.typeName ? {typeName: result.typeName} : {}),
+            ...(result.schemaPath ? {schemaPath: result.schemaPath} : {}),
         }
     }
 

@@ -20,12 +20,17 @@ export type SchemaGateInput = {
 
 export type SchemaGateResult =
     | {readonly status: 'skipped'; readonly reason: SkipReason}
-    | {readonly status: 'ok'; readonly typeName: string; readonly schemaPath: string}
+    | {readonly status: 'ok'; readonly typeName?: string; readonly schemaPath?: string}
     | {readonly status: 'rejected'; readonly violation: SchemaViolation}
 
 export async function runSchemaGate(input: SchemaGateInput): Promise<SchemaGateResult> {
     const resolved: ResolvedFolderType | undefined = resolveTypeForTarget(input.targetPath, input.vaultRoot)
-    if (!resolved) return {status: 'skipped', reason: 'no_type_declared'}
+    // No upstream `## Type` folder note → the gate has nothing to validate
+    // against. Emit a silent `ok`: the file is still written, and the report
+    // shouldn't surface a misleading "skipped" status for the common case of a
+    // typeless folder. Misconfigurations (`no_schema_plugin`, `unknown_type`)
+    // remain loud skips so the user hears about them.
+    if (!resolved) return {status: 'ok'}
 
     const plugin: ValidatorMap | undefined = await loadSchemaPlugin(input.vaultRoot)
     if (!plugin) return {status: 'skipped', reason: 'no_schema_plugin'}
@@ -51,7 +56,6 @@ export async function runSchemaGate(input: SchemaGateInput): Promise<SchemaGateR
 }
 
 const SKIP_MESSAGES: Readonly<Record<SkipReason, string>> = {
-    no_type_declared: 'no Type declared in upstream folder note',
     no_schema_plugin: 'no .voicetree/schemas.cjs in vault',
     unknown_type: 'declared Type is not registered in schemas.cjs',
     no_vault_detected: 'no vault detected from working directory',

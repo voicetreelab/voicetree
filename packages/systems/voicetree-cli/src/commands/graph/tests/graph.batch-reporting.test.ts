@@ -102,7 +102,7 @@ describe('graph create batch reporting (filesystem mode)', () => {
         expect(payload.summary).toEqual({ok: 0, rejected: 3, skipped: 0, warning: 0})
     })
 
-    it('case 4: skipped gate is loud — input in a folder with no Type declared', async () => {
+    it('case 4: typeless folder is silent — gate emits ok with no skipReason', async () => {
         const freeDir: string = join(vaultRoot, 'free')
         await mkdir(freeDir, {recursive: true})
         await writeFile(join(freeDir, 'note.md'), '# Free\n\nanything goes\n', 'utf8')
@@ -113,9 +113,15 @@ describe('graph create batch reporting (filesystem mode)', () => {
         const payload = JSON.parse(result.stdout)
         expect(payload).toMatchObject({
             kind: 'graph_create_batch_result',
-            nodes: [{path: 'free/note.md', status: 'skipped', skipReason: 'no_type_declared'}],
-            summary: {ok: 0, rejected: 0, skipped: 1, warning: 0},
+            nodes: [{path: 'free/note.md', status: 'ok'}],
+            summary: {ok: 1, rejected: 0, skipped: 0, warning: 0},
         })
+        // No upstream `## Type` was declared, so the verdict must not carry a
+        // `skipReason` (or any of the schema-gate fields) — the gate is silent.
+        expect(payload.nodes[0]).not.toHaveProperty('skipReason')
+        expect(payload.nodes[0]).not.toHaveProperty('typeName')
+        expect(payload.nodes[0]).not.toHaveProperty('schemaPath')
+        await expect(access(join(freeDir, 'note.md'))).resolves.toBeUndefined()
     })
 
     it('case 6: empty batch — no inputs surfaces a non-zero exit', async () => {

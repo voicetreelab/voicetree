@@ -174,7 +174,9 @@ Task
 │   ├── Option A: Event-driven
 │   └── Option B: Request-response
 ├── Data types
-└── Pure functions`,
+└── Pure functions
+
+**Schema validation (optional):** If the folder containing the new node has a folder note declaring \`## Type: <kind>\`, \`vt graph create\` runs a schema validator (from \`.voicetree/schemas.cjs\`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.`,
     inputShape: {
         callerTerminalId: z.string().describe('Your terminal ID from $VOICETREE_TERMINAL_ID env var'),
         parentNodeId: z.string().optional().describe('Existing graph node ID to attach root nodes to. Defaults to your task node.'),

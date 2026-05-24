@@ -83,7 +83,7 @@ Add `--validate-only` to dry-run (parses + schema-gates without writing). Add `-
 
 ### Schema gate (folder-note dispatch)
 
-If you are writing into a subfolder that has a folder note declaring `## Type: <kind>` (the public-VT walk-up resolver finds it), the CLI runs a schema validator before writing. On rejection it exits non-zero with structured JSON on stderr. Read the violations, correct the failing H2 sections in your body, and re-run the same command. The progress-node format used here is generic (no `## Type` upstream), so the gate is skipped for normal progress nodes.
+If you are writing into a subfolder that has a folder note declaring `## Type: <kind>` (the public-VT walk-up resolver finds it), the CLI runs a schema validator before writing. On rejection it exits non-zero with structured JSON on stderr. Read the violations, correct the failing H2 sections in your body, and re-run the same command. The gate is silent when no upstream Type is declared — no impact on create, no `skipped` status in the report.
 
 ## Pre-creation Checklist
 1. `$VOICETREE_TERMINAL_ID` is set (echo it if unsure).
