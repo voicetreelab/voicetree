@@ -1,4 +1,5 @@
 {
+  "name": "voicetree-public",
   "private": true,
   "workspaces": [
     "webapp",
@@ -53,5 +54,10 @@
     "knip": "^6.12.1",
     "ts-morph": "^28.0.0",
     "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@esbuild/linux-x64": "^0.27.7",
+    "@rolldown/binding-linux-x64-gnu": "^1.0.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.60.1"
   }
 }
