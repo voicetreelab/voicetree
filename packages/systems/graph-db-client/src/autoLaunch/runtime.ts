@@ -2,12 +2,14 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { trace, SpanStatusCode } from '@opentelemetry/api'
 
 export type CommandSpec = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
 type DaemonEntrypointDeps = {
   exists: (path: string) => boolean
   resolveTsx: () => string
+  siblingDaemonPath: () => string | undefined
 }
 type RuntimeVersions = NodeJS.ProcessVersions & { electron?: string }
 type RuntimeCommandInput = {
@@ -21,31 +23,51 @@ const tracer = trace.getTracer('vt-daemon-client')
 
 const requireFromHere = createRequire(import.meta.url)
 
-// Resolve from the installed workspace package root, not from import.meta.url.
-// In the bundled Electron main process (and the bundled vt CLI), import.meta.url
-// points into dist output, so we cannot derive the daemon binary path from it.
+// Two distribution shapes ship the daemon, and the resolver has to handle both:
 //
-// This resolution is intentionally lazy: in headless distributions of the vt
-// CLI where the bundle inlines @vt/graph-db-server, the package.json is not
-// installed as a separate node module — and that's fine for commands like
-// `vt --help` / `vt manual` that never need to spawn the daemon. Surfacing
-// the error here would break those commands at module-init time. Code paths
-// that actually need to spawn vt-graphd will throw a clear error.
+//   1. Published @voicetree/cli tarball — `dist/vt-graphd.mjs` sits next to the
+//      consuming CLI bundle. `@vt/graph-db-server` is *not* installed as a
+//      separate package (it's a private workspace dep). We locate the daemon
+//      via `import.meta.url` of this module, which esbuild rewrites to point
+//      into the bundled CLI's `dist/` directory.
+//   2. Workspace dev / Electron — `@vt/graph-db-server` *is* installed (as a
+//      workspace dep or bundled into Electron's node_modules). We locate the
+//      daemon by resolving the package.
+//
+// Both lookups are lazy: commands like `vt --help` / `vt manual` never spawn
+// the daemon, and we don't want module-init to fail for them when the workspace
+// package isn't installed.
 let cachedGraphDbServerRoot: string | undefined
 
-function resolveGraphDbServerRoot(): string {
+function resolveGraphDbServerRoot(): string | undefined {
   if (cachedGraphDbServerRoot !== undefined) return cachedGraphDbServerRoot
-  const pkgJsonPath = requireFromHere.resolve('@vt/graph-db-server/package.json')
-  cachedGraphDbServerRoot = dirname(pkgJsonPath)
-  return cachedGraphDbServerRoot
+  try {
+    const pkgJsonPath = requireFromHere.resolve(
+      '@vt/graph-db-server/package.json',
+    )
+    cachedGraphDbServerRoot = dirname(pkgJsonPath)
+    return cachedGraphDbServerRoot
+  } catch {
+    return undefined
+  }
 }
 
-function fallbackBinPath(): string {
-  return resolve(resolveGraphDbServerRoot(), 'dist', 'vt-graphd.mjs')
+function fallbackBinPath(): string | undefined {
+  const root = resolveGraphDbServerRoot()
+  return root === undefined ? undefined : resolve(root, 'dist', 'vt-graphd.mjs')
 }
 
-function sourceBinPath(): string {
-  return resolve(resolveGraphDbServerRoot(), 'bin', 'vt-graphd.ts')
+function sourceBinPath(): string | undefined {
+  const root = resolveGraphDbServerRoot()
+  return root === undefined ? undefined : resolve(root, 'bin', 'vt-graphd.ts')
+}
+
+function defaultSiblingDaemonPath(): string | undefined {
+  try {
+    return resolve(dirname(fileURLToPath(import.meta.url)), 'vt-graphd.mjs')
+  } catch {
+    return undefined
+  }
 }
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()
@@ -121,15 +143,24 @@ export function resolveDefaultDaemonArgs(
   deps: DaemonEntrypointDeps = {
     exists: existsSync,
     resolveTsx: () => requireFromHere.resolve('tsx'),
+    siblingDaemonPath: defaultSiblingDaemonPath,
   },
 ): string[] {
+  // Published CLI tarball: vt-graphd.mjs sits next to the consuming bundle.
+  // Checked first because @vt/graph-db-server isn't installed in this layout,
+  // so the workspace-package paths would all return undefined.
+  const sibling = deps.siblingDaemonPath()
+  if (sibling !== undefined && deps.exists(sibling)) {
+    return [sibling, '--vault', vault]
+  }
+
   const fallback = fallbackBinPath()
-  if (deps.exists(fallback)) {
+  if (fallback !== undefined && deps.exists(fallback)) {
     return [fallback, '--vault', vault]
   }
 
   const source = sourceBinPath()
-  if (deps.exists(source)) {
+  if (source !== undefined && deps.exists(source)) {
     return [
       '--import',
       deps.resolveTsx(),
@@ -139,7 +170,12 @@ export function resolveDefaultDaemonArgs(
     ]
   }
 
-  return [fallback, '--vault', vault]
+  throw new Error(
+    'Could not locate vt-graphd entrypoint. Looked for a sibling bundle ' +
+      `(${sibling ?? '<unavailable>'}), the @vt/graph-db-server dist build ` +
+      `(${fallback ?? '<package not resolvable>'}), and its TS source ` +
+      `(${source ?? '<package not resolvable>'}).`,
+  )
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {
