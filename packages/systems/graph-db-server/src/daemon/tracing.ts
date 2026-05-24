@@ -1,6 +1,5 @@
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
-import { trace } from '@opentelemetry/api'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -20,17 +19,21 @@ function traceFilePath(homeDirectory: string, serviceName: string): string {
 }
 
 function serializeSpan(span: ReadableSpan): Record<string, unknown> {
-  const parentSpanId = (span as ReadableSpan & { parentSpanId?: string }).parentSpanId
   return {
     traceId: span.spanContext().traceId,
     spanId: span.spanContext().spanId,
-    parentSpanId,
+    parentSpanId: span.parentSpanContext?.spanId,
     name: span.name,
     startTimeMs: hrTimeToMs(span.startTime),
     endTimeMs: hrTimeToMs(span.endTime),
     durationMs: hrTimeToMs(span.duration),
     status: span.status,
     attributes: span.attributes,
+    events: span.events.map(event => ({
+      name: event.name,
+      timeMs: hrTimeToMs(event.time),
+      attributes: event.attributes,
+    })),
   }
 }
 
@@ -55,8 +58,15 @@ function createNdjsonFileExporter(filePath: string): SpanExporter {
   }
 }
 
+let tracingInitialized = false
+
 // Initialize tracing — call once at process startup
 function initTracing(serviceName: string): void {
+  if (tracingInitialized) {
+    return
+  }
+  tracingInitialized = true
+
   const homeDirectory = homedir()
   const traceDir = traceDirectory(homeDirectory)
   mkdirSync(traceDir, { recursive: true })

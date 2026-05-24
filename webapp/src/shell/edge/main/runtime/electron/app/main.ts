@@ -62,7 +62,7 @@ import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {initTracing as initGraphDbClientTracing, killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
@@ -88,6 +88,7 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
+initGraphDbClientTracing('vt-electron-main');
 validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
