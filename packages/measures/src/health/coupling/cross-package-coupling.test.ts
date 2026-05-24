@@ -34,6 +34,15 @@ type ImportEdge = {
 // getAppendedSuffix + isAppendOnly + fromNodeToContentWithWikilinks from
 // graph-model to compute pending external-append preservation server-side:
 //   graph-db-server -> graph-model:       38 -> 41 (+3)
+// 2026-05-24: Extract @vt/observability (Pattern P2 deep-function package) so
+// tracing.init / tracing.span / tracing.syncSpan are one cohesive capability
+// owned by a single library, not three loose symbols re-exported from
+// graph-db-client (which also had a copy-pasted twin in graph-db-server).
+// Webapp now goes to observability for tracing, not graph-db-client:
+//   webapp -> graph-db-client:           11 -> 8 (-3 tracing symbols removed)
+//   webapp -> observability:              0 -> 1 (+tracing facade)
+// (graph-db-server -> observability has no row because the only consumer is
+// bin/vt-graphd.ts, which lives outside the test's src-only scan scope.)
 const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'agent-runtime -> app-config': 1,
     'agent-runtime -> graph-db-server': 12,
@@ -57,11 +66,12 @@ const COUPLING_BUDGET: Readonly<Record<string, number>> = {
     'voicetree-mcp -> graph-tools': 7,
     'webapp -> agent-runtime': 15,
     'webapp -> app-config': 22,
-    'webapp -> graph-db-client': 9,
+    'webapp -> graph-db-client': 8,
     'webapp -> graph-db-server': 11,
     'webapp -> graph-model': 86,
     'webapp -> graph-state': 19,
     'webapp -> graph-tools': 14,
+    'webapp -> observability': 1,
     'webapp -> voicetree-mcp': 13,
 }
 
