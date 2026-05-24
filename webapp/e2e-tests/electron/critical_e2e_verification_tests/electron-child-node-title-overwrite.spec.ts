@@ -19,7 +19,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import { closeElectronAppForE2E } from './helpers/close-electron-app';
+import { safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -125,7 +126,7 @@ const test = base.extend<{
     await use(electronApp);
 
     await safeStopFileWatching(electronApp);
-    await robustElectronTeardown(electronApp);
+    await closeElectronAppForE2E(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 
@@ -220,68 +221,27 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
     timeout: 3_000,
   }).toBe(typedTitle);
 
-  // 4. Create a child node via IPC before autosave fires. Electron's native
-  // menu can intercept Cmd/Ctrl+N in this harness, so this uses the same daemon
-  // write shape as the UI action: child upsert + parent upsert with the current
-  // open-editor content and the new child edge.
-  await appWindow.evaluate(async ({ parentId, currentContent }) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+  // 4. Create a child node through the same shortcut path a user uses.
+  const nodeCountBefore = await appWindow.evaluate(() => {
+    const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+    if (!cy) throw new Error('Cytoscape not initialized');
+    return cy.nodes().length;
+  });
 
-    const graph = await api.main.getGraph();
-    const parentNode = graph.nodes[parentId];
-    if (!parentNode) throw new Error(`Parent node ${parentId} not found in graph`);
+  await appWindow.waitForTimeout(75);
+  await appWindow.keyboard.press('ControlOrMeta+n');
 
-    const childId = parentId.replace(/\.md$/, '') + '_0.md';
-    const delta = [
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          kind: 'leaf' as const,
-          absoluteFilePathIsID: childId,
-          outgoingEdges: [],
-          contentWithoutYamlOrLinks: '# ',
-          nodeUIMetadata: {
-            color: { _tag: 'None' },
-            position: { _tag: 'Some', value: { x: 300, y: 300 } },
-            additionalYAMLProps: new Map(),
-            isContextNode: false,
-          },
-        },
-        previousNode: { _tag: 'None' },
-      },
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          ...parentNode,
-          contentWithoutYamlOrLinks: currentContent,
-          outgoingEdges: [...parentNode.outgoingEdges, { targetId: childId }],
-        },
-        previousNode: { _tag: 'Some', value: parentNode },
-      },
-    ];
-
-    await api.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta);
-    return childId;
-  }, { parentId: nodeId, currentContent: typedTitle });
-
-  // 5. Wait for the child node file to be written to disk by the daemon.
-  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes via the daemon HTTP API;
-  // the daemon writes the child file synchronously before returning. Polling the
-  // file is simpler and more reliable than polling getGraph(), which can return 0
-  // transiently while the daemon rebuilds its in-memory graph from the file watcher.
+  // 5. Wait for the child node to appear in the graph.
   await expect.poll(async () => {
-    try {
-      await fs.access(nodeId.replace(/\.md$/, '') + '_0.md');
-      return true;
-    } catch {
-      return false;
-    }
+    return appWindow.evaluate((previousCount) => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? previousCount;
+    }, nodeCountBefore);
   }, {
-    message: 'Waiting for child node file to be created on disk',
+    message: 'Waiting for Cmd/Ctrl+N to create a child node',
     timeout: 15_000,
-    intervals: [200, 500, 1000, 2000],
-  }).toBe(true);
+    intervals: [100, 250, 500, 1000],
+  }).toBeGreaterThan(nodeCountBefore);
 
   // 6. Allow autosave + file watcher to settle
   await appWindow.waitForTimeout(2_000);
