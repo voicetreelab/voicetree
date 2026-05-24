@@ -164,8 +164,23 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 
             markPendingWrite(plan.fullPath)
             await traceGraphdSpan('daemon.apply-delta.db-write.writeFile', async span => {
-                span.setAttribute('vt.write.bytes', Buffer.byteLength(plan.markdown))
-                await fs.writeFile(plan.fullPath, plan.markdown, 'utf-8')
+                const buffer: Buffer = Buffer.from(plan.markdown, 'utf-8')
+                span.setAttribute('vt.write.bytes', buffer.byteLength)
+                const handle = await traceGraphdSpan(
+                    'daemon.apply-delta.db-write.writeFile.open',
+                    () => fs.open(plan.fullPath, 'w'),
+                )
+                try {
+                    await traceGraphdSpan(
+                        'daemon.apply-delta.db-write.writeFile.write',
+                        () => handle.write(buffer).then(() => undefined),
+                    )
+                } finally {
+                    await traceGraphdSpan(
+                        'daemon.apply-delta.db-write.writeFile.close',
+                        () => handle.close(),
+                    )
+                }
             })
         },
         toError
