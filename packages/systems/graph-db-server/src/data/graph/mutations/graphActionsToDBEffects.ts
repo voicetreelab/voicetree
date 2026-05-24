@@ -13,7 +13,6 @@ import path from 'path'
 import normalizePath from 'normalize-path'
 import { fromNodeToMarkdownContent } from '@vt/graph-model/markdown'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
-import {markRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import { markPendingDelete, markPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
 import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 
@@ -141,8 +140,6 @@ async function pruneEmptyParentDirectories(filePath: string, rootPath: string): 
 export function apply_graph_deltas_to_db(
   deltas: GraphDelta
 ): FSWriteEffect<GraphDelta> {
-    deltas.map( d =>  markRecentDelta(d))
-
     // Map each delta to a file write effect
     const writeEffects: readonly FSWriteEffect<void>[] = deltas.map(delta => {
         switch (delta.type) {
