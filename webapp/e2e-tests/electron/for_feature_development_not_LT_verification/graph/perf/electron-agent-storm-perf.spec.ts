@@ -96,7 +96,6 @@ import {
     mkdtempSync,
     readFileSync,
     readdirSync,
-    rmSync,
     statSync,
     writeFileSync,
 } from 'node:fs'
