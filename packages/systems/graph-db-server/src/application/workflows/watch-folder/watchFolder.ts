@@ -23,6 +23,6 @@ export {
     getProjectStatus,
     openProject,
     setFolderState,
-    setWritePath,
+    setWriteFolder,
 } from "./watchFolderProject";
 export type { ProjectStatus } from "./watchFolderProject";

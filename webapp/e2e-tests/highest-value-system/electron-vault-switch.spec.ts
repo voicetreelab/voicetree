@@ -28,21 +28,21 @@ type FixtureVaults = {
   readonly vaultBPath: string;
 };
 
-async function writeFixtureVault(vaultPath: string, label: string): Promise<void> {
-  await fs.mkdir(vaultPath, { recursive: true });
-  await fs.writeFile(path.join(vaultPath, 'root.md'), [
+async function writeFixtureVault(projectRoot: string, label: string): Promise<void> {
+  await fs.mkdir(projectRoot, { recursive: true });
+  await fs.writeFile(path.join(projectRoot, 'root.md'), [
     `# ${label} Root`,
     '',
     `Links to [[${label} First.md]] and [[${label} Second.md]].`,
     '',
   ].join('\n'), 'utf8');
-  await fs.writeFile(path.join(vaultPath, `${label} First.md`), [
+  await fs.writeFile(path.join(projectRoot, `${label} First.md`), [
     `# ${label} First`,
     '',
     `First child in ${label}.`,
     '',
   ].join('\n'), 'utf8');
-  await fs.writeFile(path.join(vaultPath, `${label} Second.md`), [
+  await fs.writeFile(path.join(projectRoot, `${label} Second.md`), [
     `# ${label} Second`,
     '',
     `Second child in ${label}.`,

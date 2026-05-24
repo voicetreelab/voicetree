@@ -56,50 +56,50 @@ async function writeMarkdown(filePath: string, body: string): Promise<void> {
 }
 
 async function createFolderNoteDomVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'folder-note-dom-vault');
+    const projectRoot = path.join(basePath, 'folder-note-dom-vault');
 
-    await writeMarkdown(path.join(vaultPath, 'auth', 'index.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'index.md'),
         `---\nposition:\n  x: 60\n  y: 100\n---\n# Auth Folder Note\n\nUnique folder note content for DOM hover.\n`);
-    await writeMarkdown(path.join(vaultPath, 'auth', 'login.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'login.md'),
         `---\nposition:\n  x: 220\n  y: 120\n---\n# Login\n\nLinks to its containing folder note.\n[[auth/index]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'outside.md'),
+    await writeMarkdown(path.join(projectRoot, 'outside.md'),
         `---\nposition:\n  x: 520\n  y: 220\n---\n# Outside\n\n[[auth]]\n`);
 
-    return vaultPath;
+    return projectRoot;
 }
 
-function idsForVault(vaultPath: string): {
+function idsForVault(projectRoot: string): {
     readonly authFolderId: string;
     readonly authNoteId: string;
     readonly loginId: string;
 } {
     return {
-        authFolderId: `${path.join(vaultPath, 'auth')}/`,
-        authNoteId: path.join(vaultPath, 'auth', 'index.md'),
-        loginId: path.join(vaultPath, 'auth', 'login.md'),
+        authFolderId: `${path.join(projectRoot, 'auth')}/`,
+        authNoteId: path.join(projectRoot, 'auth', 'index.md'),
+        loginId: path.join(projectRoot, 'auth', 'login.md'),
     };
 }
 
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-note-dom-'));
-        const vaultPath = await createFolderNoteDomVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createFolderNoteDomVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-note-dom-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: [],
                 },
             },
@@ -107,7 +107,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-note-dom-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-note-dom-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -161,7 +161,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
 
         window.on('console', msg => {
@@ -188,7 +188,7 @@ const test = base.extend<{
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error('electronAPI not available');
                 return api.main.startFileWatching(folderPath);
-            }, vaultPath);
+            }, projectRoot);
             expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
             await window.waitForFunction(
                 () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -389,9 +389,9 @@ async function closeHoverEditor(appWindow: Page): Promise<void> {
 }
 
 test.describe('Folder-note DOM affordance', () => {
-    test('renders folder note only through the DOM eye chip in expanded and collapsed states', async ({ appWindow, vaultPath }) => {
+    test('renders folder note only through the DOM eye chip in expanded and collapsed states', async ({ appWindow, projectRoot }) => {
         test.setTimeout(90000);
-        const { authFolderId, authNoteId, loginId } = idsForVault(vaultPath);
+        const { authFolderId, authNoteId, loginId } = idsForVault(projectRoot);
 
         await waitForGraphLoaded(appWindow, 3);
         await fitGraph(appWindow);

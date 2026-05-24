@@ -314,9 +314,9 @@ test.describe('Merge Nodes Feature', () => {
         console.log(`[E2E DEBUG] Node "${id}" exists in graph: ${exists}`);
       }
 
-      // Also check writePath
-      const writePathOption = await api.main.getWritePath();
-      console.log('[E2E DEBUG] writePath option:', JSON.stringify(writePathOption));
+      // Also check writeFolder
+      const writeFolderOption = await api.main.getWriteFolder();
+      console.log('[E2E DEBUG] writeFolder option:', JSON.stringify(writeFolderOption));
     }, selectedIds);
 
     // Take screenshot before merge
@@ -357,7 +357,7 @@ test.describe('Merge Nodes Feature', () => {
       log.includes('E2E') ||
       log.includes('DEBUG') ||
       log.includes('delta') ||
-      log.includes('writePath')
+      log.includes('writeFolder')
     );
     for (const log of mergeRelatedLogs) {
       console.log(log);

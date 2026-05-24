@@ -136,19 +136,19 @@ function isPathWithinDirectory(targetPath: string, directoryPath: string): boole
 }
 
 export function resolveOutputDirectory(
-    writePath: string,
+    writeFolder: string,
     outputPath: string | undefined,
     allowedVaultPaths: readonly string[]
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly error: string } {
     if (!outputPath || outputPath.trim() === '') {
-        return {ok: true, path: normalizePath(writePath)}
+        return {ok: true, path: normalizePath(writeFolder)}
     }
 
     const requestedPath: string = outputPath.trim()
     const resolvedPath: string = normalizePath(
         path.isAbsolute(requestedPath)
             ? requestedPath
-            : path.resolve(writePath, requestedPath)
+            : path.resolve(writeFolder, requestedPath)
     )
 
     if (allowedVaultPaths.some((allowedPath: string) => isPathWithinDirectory(resolvedPath, allowedPath))) {

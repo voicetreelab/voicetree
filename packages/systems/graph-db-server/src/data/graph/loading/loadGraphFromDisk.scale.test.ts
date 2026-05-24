@@ -79,10 +79,10 @@ async function seedNestedVault(root: string, fileCount: number): Promise<void> {
   await Promise.all(writes)
 }
 
-async function profileVault(vaultPath: string): Promise<ProfileResult> {
+async function profileVault(projectRoot: string): Promise<ProfileResult> {
   const startedAt = performance.now()
-  const state: State = await buildStateFromVault(vaultPath)
-  const collapsedFolderId = folderIdForPath(path.join(vaultPath, 'folder-0'))
+  const state: State = await buildStateFromVault(projectRoot)
+  const collapsedFolderId = folderIdForPath(path.join(projectRoot, 'folder-0'))
   const projected: ProjectedGraph = project({
     ...state,
     collapseSet: new Set([collapsedFolderId]),
@@ -91,7 +91,7 @@ async function profileVault(vaultPath: string): Promise<ProfileResult> {
   const heapUsedMiB = process.memoryUsage().heapUsed / 1024 / 1024
 
   expect(Object.keys(state.graph.nodes)).toHaveLength(
-    Number(path.basename(vaultPath).replace('vault-', '')),
+    Number(path.basename(projectRoot).replace('vault-', '')),
   )
   expect(projected.nodes).toContainEqual(expect.objectContaining({
     id: collapsedFolderId,
@@ -122,9 +122,9 @@ test('loadGraphFromDisk plus project handles nested vaults through the configure
 
   const results: ProfileResult[] = []
   for (const fileCount of PROFILE_FILE_COUNTS) {
-    const vaultPath = path.join(tempRoot, `vault-${fileCount}`)
-    await seedNestedVault(vaultPath, fileCount)
-    results.push(await profileVault(vaultPath))
+    const projectRoot = path.join(tempRoot, `vault-${fileCount}`)
+    await seedNestedVault(projectRoot, fileCount)
+    results.push(await profileVault(projectRoot))
   }
 
   const capResult = results.find((result) => result.fileCount === MAX_MARKDOWN_FILES_PER_VAULT_PATH)

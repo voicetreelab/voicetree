@@ -1,0 +1,414 @@
+#!/usr/bin/env node
+// vtbg — stateful CDP debugger for agents.
+// One detached daemon holds the WebSocket; subcommands talk to it over a Unix socket.
+
+import net from 'node:net';
+import fs from 'node:fs';
+import { spawn } from 'node:child_process';
+
+const SOCK = `${process.env.TMPDIR || '/tmp'}/vtbg.sock`;
+const LOG = `${process.env.TMPDIR || '/tmp'}/vtbg.log`;
+
+const USAGE = `Usage: vtbg <command> [args]
+
+Session:
+  attach <ws-url>          start daemon attached to CDP target
+  detach                   stop daemon
+  status                   daemon + ws state
+  target [cdp-port=9229]   list CDP page targets at port
+
+Breakpoints:
+  bp <urlRegex> <line>     set breakpoint (1-based line, snaps to nearest stmt)
+  bps                      list active breakpoints
+  bp-clear <bpId>          remove a breakpoint
+
+Execution:
+  paused [timeoutSec=30]   block until next pause; prints stack + top-frame locals
+  stack                    current call stack (paused only)
+  vars                     top-frame locals (paused only)
+  eval <expr>              evaluateOnCallFrame if paused; else Runtime.evaluate
+                           (auto-awaits if expression contains 'await' or is async)
+  step                     step over, wait for pause
+  step-into                step into, wait for pause
+  step-out                 step out, wait for pause
+  resume                   continue execution
+
+Page:
+  reload                   Page.reload({ignoreCache:true})
+  navigate <url>           Page.navigate
+`;
+
+// ---------- entrypoint ----------
+const [cmd, ...args] = process.argv.slice(2);
+
+if (cmd === 'daemon-internal') {
+    await runDaemon(args[0]);
+} else if (cmd === 'attach') {
+    await cmdAttach(args[0]);
+} else if (cmd === 'target') {
+    await cmdTarget(args[0] || '9229');
+} else if (!cmd || cmd === '--help' || cmd === '-h') {
+    process.stderr.write(USAGE);
+    process.exit(2);
+} else {
+    await cmdViaDaemon(cmd, args);
+}
+
+// ---------- client commands ----------
+
+async function cmdAttach(wsUrl) {
+    if (!wsUrl) { process.stderr.write('attach requires <ws-url>\n'); process.exit(2); }
+    // Kill old daemon if present
+    if (await daemonReachable()) {
+        try { await rpc('exit', []); } catch {}
+        await sleep(200);
+    }
+    try { fs.unlinkSync(SOCK); } catch {}
+    // Spawn detached daemon
+    const out = fs.openSync(LOG, 'a');
+    const child = spawn(process.execPath, [process.argv[1], 'daemon-internal', wsUrl], {
+        detached: true, stdio: ['ignore', out, out],
+    });
+    child.unref();
+    // Poll for readiness (up to 5s)
+    for (let i = 0; i < 50; i++) {
+        await sleep(100);
+        if (await daemonReachable()) {
+            const status = await rpc('status', []);
+            console.log(`attached → ${wsUrl}\ndaemon pid=${status.output?.pid}  log=${LOG}`);
+            return;
+        }
+    }
+    console.error('daemon did not become ready; check log:', LOG);
+    process.exit(1);
+}
+
+async function cmdTarget(port) {
+    const res = await fetch(`http://127.0.0.1:${port}/json`).then(r => r.json()).catch(e => {
+        console.error(`fetch http://127.0.0.1:${port}/json failed: ${e.message}`); process.exit(1);
+    });
+    for (const t of res) {
+        const url = t.url ?? '';
+        const title = (t.title ?? '').slice(0, 40);
+        console.log(`${t.type.padEnd(10)} ${title.padEnd(42)} ${t.webSocketDebuggerUrl}`);
+        if (url) console.log(`           url: ${url}`);
+    }
+}
+
+async function cmdViaDaemon(cmd, args) {
+    if (!(await daemonReachable())) {
+        console.error('no daemon (run `vtbg attach <ws-url>` first)');
+        process.exit(1);
+    }
+    const resp = await rpc(cmd, args).catch(e => ({ ok: false, error: e.message }));
+    if (resp.ok === false) {
+        console.error(resp.error || 'unknown error');
+        process.exit(1);
+    }
+    if (resp.output !== undefined && resp.output !== null && resp.output !== '') {
+        console.log(typeof resp.output === 'string' ? resp.output : JSON.stringify(resp.output, null, 2));
+    }
+}
+
+function rpc(cmd, args) {
+    return new Promise((resolve, reject) => {
+        const sock = net.createConnection(SOCK);
+        let buf = '';
+        sock.on('data', d => { buf += d.toString(); });
+        sock.on('end', () => {
+            try { resolve(JSON.parse(buf)); } catch (e) { reject(new Error(`bad daemon response: ${buf}`)); }
+        });
+        sock.on('error', reject);
+        sock.write(JSON.stringify({ cmd, args }));
+        sock.end();
+    });
+}
+
+function daemonReachable() {
+    return new Promise(resolve => {
+        if (!fs.existsSync(SOCK)) return resolve(false);
+        const s = net.createConnection(SOCK);
+        s.on('connect', () => { s.end(); resolve(true); });
+        s.on('error', () => resolve(false));
+    });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ---------- daemon ----------
+
+async function runDaemon(wsUrl) {
+    // State
+    const pending = new Map();           // CDP request id -> resolver
+    let nextCdpId = 0;
+    const breakpoints = new Map();       // bpId -> { urlRegex, line, hits, locations }
+    let currentPause = null;             // { reason, hitBreakpoints, callFrames, ... }
+    const pauseWaiters = [];             // resolvers awaiting next Debugger.paused
+    const pauseQueue = [];               // pause events received with no waiter
+
+    let scripts = new Map();             // scriptId -> { url, ... }
+
+    function cdpSend(method, params = {}) {
+        const id = ++nextCdpId;
+        return new Promise((resolve, reject) => {
+            pending.set(id, { resolve, reject });
+            ws.send(JSON.stringify({ id, method, params }));
+        });
+    }
+
+    // Connect WS
+    const ws = new WebSocket(wsUrl);
+    let wsReady = false;
+    ws.addEventListener('open', () => { wsReady = true; });
+    ws.addEventListener('close', () => { process.stderr.write('[vtbg] WS closed; daemon exiting\n'); process.exit(0); });
+    ws.addEventListener('error', e => { process.stderr.write(`[vtbg] WS error: ${e.message ?? e}\n`); });
+    ws.addEventListener('message', ev => {
+        let msg;
+        try { msg = JSON.parse(ev.data.toString()); } catch { return; }
+        if (msg.id && pending.has(msg.id)) {
+            const { resolve, reject } = pending.get(msg.id);
+            pending.delete(msg.id);
+            if (msg.error) reject(new Error(`CDP error: ${JSON.stringify(msg.error)}`));
+            else resolve(msg.result);
+            return;
+        }
+        if (msg.method === 'Debugger.scriptParsed') {
+            scripts.set(msg.params.scriptId, msg.params);
+            return;
+        }
+        if (msg.method === 'Debugger.paused') {
+            currentPause = msg.params;
+            // dispatch to first waiter; else queue
+            if (pauseWaiters.length > 0) {
+                pauseWaiters.shift()(msg.params);
+            } else {
+                pauseQueue.push(msg.params);
+            }
+            return;
+        }
+        if (msg.method === 'Debugger.resumed') {
+            currentPause = null;
+            return;
+        }
+    });
+
+    // Wait for WS open
+    for (let i = 0; i < 100 && !wsReady; i++) await sleep(50);
+    if (!wsReady) { process.stderr.write('[vtbg] WS failed to open\n'); process.exit(1); }
+
+    await cdpSend('Debugger.enable');
+    await cdpSend('Runtime.enable');
+    await cdpSend('Page.enable').catch(() => { /* not all targets have Page */ });
+
+    function nextPause(timeoutMs = 30000) {
+        if (pauseQueue.length > 0) return Promise.resolve(pauseQueue.shift());
+        return new Promise((resolve) => {
+            pauseWaiters.push(resolve);
+            setTimeout(() => {
+                const idx = pauseWaiters.indexOf(resolve);
+                if (idx !== -1) { pauseWaiters.splice(idx, 1); resolve(null); }
+            }, timeoutMs);
+        });
+    }
+
+    function formatStack(callFrames, max = 10) {
+        return callFrames.slice(0, max).map(f => {
+            const url = f.url || `<scriptId=${f.location.scriptId}>`;
+            const line = f.location.lineNumber + 1;
+            const col = f.location.columnNumber + 1;
+            return `  ${(f.functionName || '<anon>').padEnd(28)} ${url}:${line}:${col}`;
+        }).join('\n');
+    }
+
+    async function inspectTopFrame(callFrames) {
+        const top = callFrames[0];
+        if (!top) return '';
+        // List all local-scope var names by inspecting the local scope object
+        const localScope = (top.scopeChain || []).find(s => s.type === 'local');
+        const lines = [];
+        if (localScope) {
+            const props = await cdpSend('Runtime.getProperties', {
+                objectId: localScope.object.objectId,
+                ownProperties: true,
+            });
+            for (const p of props.result || []) {
+                const v = p.value;
+                let display;
+                if (!v) display = '<no value>';
+                else if (v.type === 'object' && v.objectId) {
+                    // Try JSON.stringify
+                    try {
+                        const r = await cdpSend('Debugger.evaluateOnCallFrame', {
+                            callFrameId: top.callFrameId,
+                            expression: `(()=>{ try { return JSON.stringify(${p.name}); } catch(e) { return String(${p.name}); }})()`,
+                            returnByValue: true,
+                        });
+                        display = r.result?.value ?? v.description ?? v.type;
+                    } catch { display = v.description ?? v.type; }
+                } else {
+                    display = v.value !== undefined ? JSON.stringify(v.value) : (v.description ?? v.type);
+                }
+                lines.push(`  ${p.name.padEnd(24)} = ${display}`);
+            }
+        }
+        return lines.join('\n');
+    }
+
+    async function formatPause(pauseParams) {
+        return [
+            `PAUSED  reason=${pauseParams.reason}  hitBreakpoints=${JSON.stringify(pauseParams.hitBreakpoints || [])}`,
+            'stack:',
+            formatStack(pauseParams.callFrames),
+            'locals (top frame):',
+            await inspectTopFrame(pauseParams.callFrames),
+        ].join('\n');
+    }
+
+    async function handle({ cmd, args }) {
+        switch (cmd) {
+            case 'status':
+                return { ok: true, output: { pid: process.pid, wsUrl, paused: !!currentPause, breakpoints: [...breakpoints.keys()] } };
+
+            case 'exit':
+            case 'detach':
+                setTimeout(() => process.exit(0), 50);
+                return { ok: true, output: 'daemon exiting' };
+
+            case 'bp': {
+                const [urlRegex, lineStr] = args;
+                if (!urlRegex || !lineStr) throw new Error('bp <urlRegex> <line>');
+                const line = parseInt(lineStr, 10);
+                const r = await cdpSend('Debugger.setBreakpointByUrl', {
+                    urlRegex, lineNumber: Math.max(0, line - 1),
+                });
+                breakpoints.set(r.breakpointId, { urlRegex, line, locations: r.locations });
+                const loc = r.locations[0]
+                    ? `resolved at scriptId=${r.locations[0].scriptId} line=${r.locations[0].lineNumber + 1} col=${r.locations[0].columnNumber + 1}`
+                    : '(unresolved — set, will fire if a matching script loads)';
+                return { ok: true, output: `bp id=${r.breakpointId}  ${loc}` };
+            }
+
+            case 'bps': {
+                const lines = [...breakpoints.entries()].map(([id, b]) =>
+                    `  ${id}  url=${b.urlRegex}  line=${b.line}  locations=${b.locations.length}`);
+                return { ok: true, output: lines.join('\n') || '(none)' };
+            }
+
+            case 'bp-clear': {
+                const [id] = args;
+                if (!id) throw new Error('bp-clear <bpId>');
+                await cdpSend('Debugger.removeBreakpoint', { breakpointId: id });
+                breakpoints.delete(id);
+                return { ok: true, output: `removed ${id}` };
+            }
+
+            case 'paused': {
+                const timeoutMs = parseInt(args[0] || '30', 10) * 1000;
+                if (currentPause) {
+                    // Drain stale queue entries — they refer to this same pause or older ones
+                    // whose scope objectIds are invalid; future waits should see only fresh pauses.
+                    pauseQueue.length = 0;
+                    return { ok: true, output: await formatPause(currentPause) };
+                }
+                const p = await nextPause(timeoutMs);
+                if (!p) return { ok: false, error: `no pause within ${timeoutMs}ms` };
+                return { ok: true, output: await formatPause(p) };
+            }
+
+            case 'stack':
+                if (!currentPause) return { ok: false, error: 'not paused' };
+                return { ok: true, output: formatStack(currentPause.callFrames, 20) };
+
+            case 'vars':
+                if (!currentPause) return { ok: false, error: 'not paused' };
+                return { ok: true, output: await inspectTopFrame(currentPause.callFrames) };
+
+            case 'eval': {
+                const expr = args.join(' ');
+                if (!expr) throw new Error('eval <expr>');
+                // Auto-wrap top-level await — but skip when expr is a multi-statement script
+                // (presence of // or /* comments, or function declarations, signals "user's own scope").
+                const needsAwait = /\bawait\b/.test(expr)
+                    && !/^\s*\(?function\b/.test(expr)
+                    && !/\/\/[#!]\s*source/.test(expr);
+                if (currentPause) {
+                    const r = await cdpSend('Debugger.evaluateOnCallFrame', {
+                        callFrameId: currentPause.callFrames[0].callFrameId,
+                        expression: needsAwait ? `(async()=>{return (${expr})})()` : expr,
+                        returnByValue: true,
+                        awaitPromise: needsAwait,
+                    });
+                    if (r.exceptionDetails) return { ok: false, error: r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description || '') };
+                    return { ok: true, output: JSON.stringify(r.result?.value ?? r.result?.description ?? '<undefined>') };
+                } else {
+                    const r = await cdpSend('Runtime.evaluate', {
+                        expression: needsAwait ? `(async()=>{return (${expr})})()` : expr,
+                        awaitPromise: needsAwait, returnByValue: true,
+                    });
+                    if (r.exceptionDetails) return { ok: false, error: r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description || '') };
+                    return { ok: true, output: JSON.stringify(r.result?.value ?? r.result?.description ?? '<undefined>') };
+                }
+            }
+
+            case 'step':
+            case 'step-into':
+            case 'step-out': {
+                if (!currentPause) return { ok: false, error: 'not paused' };
+                const methodMap = { step: 'Debugger.stepOver', 'step-into': 'Debugger.stepInto', 'step-out': 'Debugger.stepOut' };
+                currentPause = null;
+                // Stepping invalidates any queued pause entries from the prior break.
+                pauseQueue.length = 0;
+                await cdpSend(methodMap[cmd]);
+                const p = await nextPause(5000);
+                if (!p) return { ok: false, error: 'no pause within 5s after step' };
+                return { ok: true, output: await formatPause(p) };
+            }
+
+            case 'resume': {
+                if (!currentPause) return { ok: false, error: 'not paused' };
+                currentPause = null;
+                await cdpSend('Debugger.resume');
+                return { ok: true, output: 'resumed' };
+            }
+
+            case 'reload':
+                await cdpSend('Page.reload', { ignoreCache: true });
+                return { ok: true, output: 'reload sent' };
+
+            case 'navigate': {
+                const [url] = args;
+                if (!url) throw new Error('navigate <url>');
+                await cdpSend('Page.navigate', { url });
+                return { ok: true, output: `navigated to ${url}` };
+            }
+
+            default:
+                throw new Error(`unknown command: ${cmd}`);
+        }
+    }
+
+    // UDS server
+    try { fs.unlinkSync(SOCK); } catch {}
+    const server = net.createServer({ allowHalfOpen: true }, sock => {
+        let buf = '';
+        sock.on('data', d => { buf += d.toString(); });
+        sock.on('end', async () => {
+            let req;
+            try { req = JSON.parse(buf); }
+            catch { sock.end(JSON.stringify({ ok: false, error: 'bad request json' })); return; }
+            try {
+                const resp = await handle(req);
+                sock.end(JSON.stringify(resp));
+            } catch (e) {
+                sock.end(JSON.stringify({ ok: false, error: e.message }));
+            }
+        });
+        sock.on('error', () => {});
+    });
+    server.listen(SOCK);
+    process.stderr.write(`[vtbg] daemon listening on ${SOCK} pid=${process.pid} ws=${wsUrl}\n`);
+
+    // Keep alive
+    process.on('SIGTERM', () => process.exit(0));
+    process.on('SIGINT', () => process.exit(0));
+}

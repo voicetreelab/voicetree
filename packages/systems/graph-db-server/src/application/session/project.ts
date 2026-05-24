@@ -67,13 +67,13 @@ function explicitFolderState(
   return folderState.get(normalizeFolderPath(path))
 }
 
-function folderStateWithImplicitWritePath(
+function folderStateWithImplicitWriteFolder(
   folderState: ReadonlyMap<string, FolderState>,
-  writePath: string,
+  writeFolder: string,
 ): ReadonlyMap<string, FolderState> {
-  const normalizedWritePath = normalizeFolderPath(writePath)
-  if (normalizedWritePath.length === 0 || folderState.has(normalizedWritePath)) return folderState
-  return new Map([...folderState, [normalizedWritePath, 'expanded' as const]])
+  const normalizedWriteFolder = normalizeFolderPath(writeFolder)
+  if (normalizedWriteFolder.length === 0 || folderState.has(normalizedWriteFolder)) return folderState
+  return new Map([...folderState, [normalizedWriteFolder, 'expanded' as const]])
 }
 
 function nearestExplicitAncestorState(
@@ -123,8 +123,8 @@ function collectFolderRecords(
 function isRootLevelFile(parentPath: string | null, vault: VaultState): boolean {
   if (!parentPath) return true
   const normalizedParent = normalizeFolderPath(parentPath)
-  return normalizedParent === normalizeFolderPath(vault.writePath)
-    || normalizedParent === normalizeFolderPath(vault.vaultPath)
+  return normalizedParent === normalizeFolderPath(vault.writeFolder)
+    || normalizedParent === normalizeFolderPath(vault.projectRoot)
 }
 
 function shouldProjectGraphNode(
@@ -295,7 +295,7 @@ function projectFolderTree(
 
 export function projectSessionState(args: ProjectSessionStateArgs): State {
   const { graph, vault, folderTree, session } = args
-  const folderState = folderStateWithImplicitWritePath(session.folderState, vault.writePath)
+  const folderState = folderStateWithImplicitWriteFolder(session.folderState, vault.writeFolder)
   const renderedFolderPaths = new Set(
     [...folderState]
       .filter(([, state]) => state !== 'hidden')
@@ -305,7 +305,7 @@ export function projectSessionState(args: ProjectSessionStateArgs): State {
   return {
     graph: projectedGraph,
     roots: {
-      loaded: new Set<string>([vault.writePath, ...vault.readPaths].filter((path) => path.length > 0)),
+      loaded: new Set<string>([vault.writeFolder, ...vault.readPaths].filter((path) => path.length > 0)),
       folderTree: projectFolderTree(folderTree, folderState, projectedGraph.nodes),
     },
     collapseSet: new Set([...folderState]

@@ -36,22 +36,22 @@ interface WindowWithGraph extends ExtendedWindow {
   };
 }
 
-const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; vaultPath: string }>({
-  vaultPath: async ({}, use) => {
+const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; projectRoot: string }>({
+  projectRoot: async ({}, use) => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-zoom-teleport-'));
-    const vaultPath = await createFolderTestVault(tempDir);
-    await use(vaultPath);
+    const projectRoot = await createFolderTestVault(tempDir);
+    await use(projectRoot);
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ vaultPath }, use) => {
+  electronApp: async ({ projectRoot }, use) => {
     const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-zoom-teleport-ud-'));
 
     await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-      lastDirectory: vaultPath,
+      lastDirectory: projectRoot,
       vaultConfig: {
-        [vaultPath]: {
-          writePath: vaultPath,
+        [projectRoot]: {
+          writeFolder: projectRoot,
           readPaths: [],
         },
       },
@@ -59,7 +59,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; va
 
     await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
       id: 'zoom-teleport-test',
-      path: vaultPath,
+      path: projectRoot,
       name: 'zoom-teleport-vault',
       type: 'folder',
       lastOpened: Date.now(),
@@ -97,7 +97,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; va
     await fs.rm(tempUserData, { recursive: true, force: true });
   },
 
-  appWindow: async ({ electronApp, vaultPath }, use) => {
+  appWindow: async ({ electronApp, projectRoot }, use) => {
     const window = await electronApp.firstWindow({ timeout: 20000 });
 
     window.on('console', msg => {
@@ -112,9 +112,9 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; va
     await window.waitForLoadState('domcontentloaded');
     await window.waitForTimeout(1000);
 
-    await window.evaluate(async (targetVaultPath: string) => {
-      await (window as unknown as ExtendedWindow).electronAPI?.main.startFileWatching(targetVaultPath);
-    }, vaultPath);
+    await window.evaluate(async (targetProjectRoot: string) => {
+      await (window as unknown as ExtendedWindow).electronAPI?.main.startFileWatching(targetProjectRoot);
+    }, projectRoot);
 
     await window.waitForFunction(() => !!(window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
     await window.waitForTimeout(3000);

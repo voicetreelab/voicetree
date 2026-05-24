@@ -171,8 +171,8 @@ export function ensureDefaultView(
     db.prepare('INSERT INTO views(view_id, name, is_active) VALUES (?, ?, 1)').run(createViewId(), 'main')
 }
 
-export function ensureDefaultFolderVisibilityView(vaultPath: string): void {
-    const folderVisibilityDb = openFolderVisibilityDb(vaultPath)
+export function ensureDefaultFolderVisibilityView(projectRoot: string): void {
+    const folderVisibilityDb = openFolderVisibilityDb(projectRoot)
     try {
         ensureDefaultView(folderVisibilityDb)
     } finally {

@@ -15,12 +15,12 @@ export const UnknownResponseSchema: Schema<unknown> = {
   },
 }
 
-export const WritePathMutationResponseSchema: Schema<{ writePath: string }> = {
+export const WriteFolderMutationResponseSchema: Schema<{ writeFolder: string }> = {
   parse(input: unknown) {
-    if (!isObject(input) || typeof input.writePath !== 'string') {
+    if (!isObject(input) || typeof input.writeFolder !== 'string') {
       throw new Error('Invalid write-path response body')
     }
-    return { writePath: input.writePath }
+    return { writeFolder: input.writeFolder }
   },
 }
 
@@ -48,7 +48,7 @@ export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
     if (
       !isObject(input)
       || typeof input.sessionId !== 'string'
-      || typeof input.writePath !== 'string'
+      || typeof input.writeFolder !== 'string'
       || !Array.isArray(input.folderState)
       || !input.folderState.every(isFolderStateEntry)
       || !isObject(input.activeView)
@@ -60,7 +60,7 @@ export const OpenVaultResponseSchema: Schema<OpenVaultResponse> = {
 
     return {
       sessionId: input.sessionId,
-      writePath: input.writePath,
+      writeFolder: input.writeFolder,
       vaultState: VaultStateSchema.parse(input.vaultState),
       initialProjectedGraph: input.initialProjectedGraph,
       folderState: input.folderState,

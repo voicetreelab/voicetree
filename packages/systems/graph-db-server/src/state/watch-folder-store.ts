@@ -31,11 +31,11 @@ export const setWatcher: (w: FSWatcher | null) => void = (w: FSWatcher | null): 
     }));
 };
 
-export const getProjectRootWatchedDirectory: () => FilePath | null = (): FilePath | null => {
+export const getProjectRoot: () => FilePath | null = (): FilePath | null => {
     return getProject()?.root ?? null;
 };
 
-export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
+export const setProjectRoot: (dir: FilePath | null) => void = (dir: FilePath | null): void => {
     if (dir === null) {
         resetProjectState();
         return;
@@ -43,6 +43,10 @@ export const setProjectRootWatchedDirectory: (dir: FilePath | null) => void = (d
     updateProject((prev: ProjectState | null): ProjectState => (
         prev === null ? freshProject(dir) : { ...prev, root: dir }
     ));
+};
+
+export const clearProjectRoot: () => void = (): void => {
+    resetProjectState();
 };
 
 export const onReadPathsChanged: (listener: ReadPathsListener) => (() => void) = (

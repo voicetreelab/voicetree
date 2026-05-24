@@ -6,7 +6,6 @@ import {afterEach, describe, expect, it} from 'vitest'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(TEST_DIR, '../../../../../..')
-const ESLINT_BIN = join(REPO_ROOT, 'webapp/node_modules/.bin/eslint')
 const ESLINT_CONFIG = join(REPO_ROOT, 'webapp/eslint.config.js')
 
 type LintResult = {
@@ -47,7 +46,12 @@ function runRootLint(): LintResult {
 }
 
 function runEslintFile(relativePath: string): LintResult {
-    return runCommand(ESLINT_BIN, [
+    return runCommand('npm', [
+        'exec',
+        '--prefix',
+        'webapp',
+        '--',
+        'eslint',
         '--no-error-on-unmatched-pattern',
         '--config',
         ESLINT_CONFIG,

@@ -108,7 +108,7 @@ function registerHeadlessTools(
 
 export interface HeadlessServerOptions {
     readonly port?: number
-    readonly vaultPath?: string
+    readonly projectRoot?: string
 }
 
 export interface HeadlessServer {
@@ -121,8 +121,8 @@ export async function createHeadlessServer(options: HeadlessServerOptions = {}):
 
     let state: State = emptyState()
 
-    if (options.vaultPath) {
-        const resolved = path.resolve(options.vaultPath)
+    if (options.projectRoot) {
+        const resolved = path.resolve(options.projectRoot)
         state = await buildStateFromVault(resolved, resolved)
     }
 

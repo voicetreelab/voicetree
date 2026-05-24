@@ -199,11 +199,11 @@ test.describe('Ask Mode End-to-End Integration', () => {
     console.log('\n=== STEP 3: Load example_real_large directory (with vault suffix) ===');
 
     const loadResult = await appWindow.evaluate(async (args) => {
-      const [port, vaultPath] = args;
+      const [port, projectRoot] = args;
       const response = await fetch(`http://localhost:${port}/load-directory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory_path: vaultPath })
+        body: JSON.stringify({ directory_path: projectRoot })
       });
       return {
         ok: response.ok,
@@ -379,11 +379,11 @@ test.describe('Ask Mode End-to-End Integration', () => {
 
     // Load the vault
     await appWindow.evaluate(async (args) => {
-      const [port, vaultPath] = args;
+      const [port, projectRoot] = args;
       await fetch(`http://localhost:${port}/load-directory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory_path: vaultPath })
+        body: JSON.stringify({ directory_path: projectRoot })
       });
     }, [backendPort, VAULT_PATH] as const);
 

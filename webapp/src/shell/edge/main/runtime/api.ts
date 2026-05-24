@@ -7,7 +7,7 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWriteFolder, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
@@ -62,7 +62,7 @@ import {
   postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
-  setWritePathThroughDaemon as setWritePath,
+  setWriteFolderThroughDaemon as setWriteFolder,
   syncRendererSessionStateWithDaemon,
   listViewsThroughDaemon,
   activateViewThroughDaemon,
@@ -150,8 +150,8 @@ export const mainAPI = {
   // Multi-vault path operations
   getVaultPaths,
   getReadPaths,
-  getWritePath,
-  setWritePath,
+  getWriteFolder,
+  setWriteFolder,
   addReadPath,
   removeReadPath,
   getAvailableFoldersForSelector,

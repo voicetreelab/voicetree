@@ -36,7 +36,7 @@ export type UnclaimedTmuxSession = {
     readonly createdAt: number
     readonly panePid: number
     readonly agentName: string
-    readonly vaultPath?: string
+    readonly projectRoot?: string
     readonly contextNodePath?: string
     readonly taskNodePath?: string
 }
@@ -85,10 +85,10 @@ export function parseVoicetreeTmuxSessionName(sessionName: string): ParsedVoicet
 
 async function resolveCurrentTmuxNamespace(): Promise<string | null> {
     const runtimeEnv = getRuntimeEnv()
-    const projectRoot: string | null = await (runtimeEnv.getProjectRootWatchedDirectory?.() ?? Promise.resolve(null))
+    const projectRoot: string | null = await (runtimeEnv.getProjectRoot?.() ?? Promise.resolve(null))
     if (projectRoot) return path.join(projectRoot, '.voicetree')
 
-    return await (runtimeEnv.getWritePath?.() ?? Promise.resolve(null))
+    return await (runtimeEnv.getWriteFolder?.() ?? Promise.resolve(null))
 }
 
 export async function getCurrentTmuxNamespaceHash(): Promise<string | null> {
@@ -158,7 +158,7 @@ export async function listUnclaimedTmuxSessions(
             createdAt: session.createdAtSeconds * 1000,
             panePid: session.panePid,
             agentName: env.AGENT_NAME || parsed.terminalId,
-            vaultPath: env.VOICETREE_VAULT_PATH,
+            projectRoot: env.VOICETREE_VAULT_PATH,
             contextNodePath: env.CONTEXT_NODE_PATH,
             taskNodePath: env.TASK_NODE_PATH,
         })

@@ -111,10 +111,10 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
       const mcpPort: number = runtimeInfo.mcpPort;
       expect(await waitForMcpServer(`http://127.0.0.1:${mcpPort}/mcp`)).toBe(true);
 
-      const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
-        return await api.main.startFileWatching(vaultPath);
+        return await api.main.startFileWatching(projectRoot);
       }, fixtureVaultPath);
       expect(watchResult.success, 'startFileWatching failed').toBe(true);
 

@@ -40,7 +40,7 @@ async function startHeadless(vault: string): Promise<{
       'serve',
       '--port',
       '0',
-      '--vault',
+      '--project-root',
       vault,
     ],
     { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] },

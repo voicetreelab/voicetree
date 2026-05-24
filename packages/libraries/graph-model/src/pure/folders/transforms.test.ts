@@ -243,28 +243,28 @@ describe('reduceFolderConfig', () => {
 
     it('RESET_WRITE_TO_ROOT sets write to root', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'RESET_WRITE_TO_ROOT' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writePath).toBe('/Users/bob/project');
+        expect(result.writeFolder).toBe('/Users/bob/project');
     });
 
     it('SET_AS_WRITE updates the write path only', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
             path: toAbsolutePath('/Users/bob/project/drafts'),
         };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);
-        expect(result.writePath).toBe('/Users/bob/project/drafts');
+        expect(result.writeFolder).toBe('/Users/bob/project/drafts');
     });
 
     it('SET_AS_WRITE returns the same config if same as new write', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'SET_AS_WRITE',
@@ -276,7 +276,7 @@ describe('reduceFolderConfig', () => {
 
     it('ADD_AS_READ leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'ADD_AS_READ',
@@ -288,7 +288,7 @@ describe('reduceFolderConfig', () => {
 
     it('REMOVE_READ_FOLDER leaves config unchanged because visibility is sqlite-backed', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = {
             type: 'REMOVE_READ_FOLDER',
@@ -300,7 +300,7 @@ describe('reduceFolderConfig', () => {
 
     it('returns same config for unhandled action types', () => {
         const config: VaultConfig = {
-            writePath: '/Users/bob/project/notes',
+            writeFolder: '/Users/bob/project/notes',
         };
         const action: FolderAction = { type: 'TOGGLE_DROPDOWN' };
         const result: VaultConfig = reduceFolderConfig(config, action, projectRoot);

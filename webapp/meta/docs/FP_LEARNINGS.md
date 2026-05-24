@@ -128,7 +128,7 @@ await effect1(env)()  // NOW it reads the file
 
 **Old pattern (pre-Reader):**
 ```typescript
-function apply_graph_deltas_to_db(vaultPath: string) {
+function apply_graph_deltas_to_db(projectRoot: string) {
   return (graph, action) => {
     const newGraph = ...
     const dbEffect = ...
@@ -204,7 +204,7 @@ If pure functions CALL `env.broadcast()`, they're executing side effects!
 
 **Correct usage:**
 - Put `broadcast` in `Env` for TYPE SAFETY (so impure shell has it)
-- Pure functions read from Env (like `env.vaultPath`) but DON'T CALL impure things
+- Pure functions read from Env (like `env.projectRoot`) but DON'T CALL impure things
 - Impure shell calls `env.broadcast()` after executing effects
 
 **Pattern:**
@@ -212,7 +212,7 @@ If pure functions CALL `env.broadcast()`, they're executing side effects!
 // Pure function can read vaultPath (just data)
 return (env: Env) => TE.tryCatch(
   async () => {
-    await fs.writeFile(env.vaultPath + '/file.md', content)
+    await fs.writeFile(env.projectRoot + '/file.md', content)
     //                 ^^^^^^^^^^^^^^ Reading data from env ✅
     return newGraph
   },
@@ -229,7 +229,7 @@ env.broadcast(newGraph)  // ✅ Side effect in shell, not pure function
 ### Pure Layer (`src/functional_graph/pure/`)
 - ✅ Build effect descriptions (return `AppEffect<A>` or `EnvReader<A>`)
 - ✅ Transform data (graph updates, parsing)
-- ✅ Read from environment (env.vaultPath)
+- ✅ Read from environment (env.projectRoot)
 - ❌ NEVER execute side effects (no broadcast, no setState)
 - ❌ NEVER call impure functions from env
 
@@ -245,7 +245,7 @@ env.broadcast(newGraph)  // ✅ Side effect in shell, not pure function
 ### Pure Functions (Easy!)
 ```typescript
 const testEnv: Env = {
-  vaultPath: '/tmp/test',
+  projectRoot: '/tmp/test',
   broadcast: vi.fn()  // Mock, but won't be called in pure function
 }
 

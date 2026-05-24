@@ -88,18 +88,18 @@ const test = base.extend<{
         // 1. Save the fixture vault as a known project
         // 2. Call startFileWatching which triggers loadFolder -> watching-started event
         // 3. App.tsx onWatchingStarted handler finds the saved project and switches to graph view
-        await window.evaluate(async (vaultPath: string) => {
+        await window.evaluate(async (projectRoot: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (!api) throw new Error('electronAPI not available');
             await api.main.saveProject({
                 id: 'test-cmd-edit',
-                path: vaultPath,
+                path: projectRoot,
                 name: 'test-cmd-edit',
                 type: 'folder' as const,
                 lastOpened: Date.now(),
                 voicetreeInitialized: true
             });
-            await api.main.startFileWatching(vaultPath);
+            await api.main.startFileWatching(projectRoot);
         }, FIXTURE_VAULT_PATH);
 
         // Wait for graph view to be created (triggered by watching-started event)

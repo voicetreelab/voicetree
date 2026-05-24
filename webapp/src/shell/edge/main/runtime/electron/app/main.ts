@@ -52,7 +52,7 @@ import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemo
 import {
     getWatchStatus,
     getVaultPaths,
-    getWritePath,
+    getWriteFolder,
     setOnFolderSwitchCleanup,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/runtime/backend-api';
@@ -107,13 +107,13 @@ configureMcpServer({
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -136,18 +136,18 @@ terminalRuntimeSurface.configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
-        getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory,
+        getWriteFolder: () => getWriteFolder(),
+        getProjectRoot,
         getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
@@ -196,7 +196,7 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
-async function getProjectRootWatchedDirectory(): Promise<string | null> {
+async function getProjectRoot(): Promise<string | null> {
     const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
         await getWatchStatus();
     return status.directory ?? null;

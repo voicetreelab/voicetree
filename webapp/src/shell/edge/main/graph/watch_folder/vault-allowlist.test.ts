@@ -14,9 +14,9 @@ vi.mock('electron', () => ({
 }))
 
 // Import after mocks are set up
-import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWritePath } from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import { getVaultPaths, loadAndMergeVaultPath, type VaultLoadOutcome, addReadPath, setWriteFolder } from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
-import { setProjectRootWatchedDirectory, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
+import { setProjectRoot, clearWatchFolderState, setWatcher } from '@vt/graph-db-server/state/watch-folder-store'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
 import { setActiveViewFolderState } from '@vt/graph-db-server/watch-folder/folder-visibility-active-view'
 import { createEmptyGraph } from '@vt/graph-model/graph'
@@ -52,7 +52,7 @@ async function seedMarkdownFiles(dir: string, count: number): Promise<void> {
   )
 }
 
-describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
+describe('vault-allowlist: duplicate writeFolder in dropdown bug', () => {
   let testTmpDir: string
 
   beforeEach(async () => {
@@ -83,18 +83,18 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
   })
 
   describe('getVaultPaths should not return duplicates', () => {
-    it('should NOT return duplicate paths when writePath is also in readPaths', async () => {
+    it('should NOT return duplicate paths when writeFolder is also in readPaths', async () => {
       // GIVEN: A watched directory
       const watchedDir: string = path.join(testTmpDir, 'project')
       await fs.mkdir(watchedDir, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      setProjectRoot(watchedDir)
 
-      // AND: A config where writePath is also present in readPaths (buggy state)
+      // AND: A config where writeFolder is also present in readPaths (buggy state)
       const vaultPath: string = path.join(watchedDir, 'fri')
       await fs.mkdir(vaultPath, { recursive: true })
       const buggyConfig: VaultConfig = {
-        writePath: vaultPath,
-        readPaths: [vaultPath]  // Same path in both writePath AND readPaths
+        writeFolder: vaultPath,
+        readPaths: [vaultPath]  // Same path in both writeFolder AND readPaths
       }
       await saveVaultConfigForDirectory(watchedDir, buggyConfig)
 
@@ -107,26 +107,26 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
       expect(paths).toEqual(uniquePaths)
     })
 
-    it('should return unique paths after setWritePath to a path already in readPaths', async () => {
+    it('should return unique paths after setWriteFolder to a path already in readPaths', async () => {
       // GIVEN: A watched directory with initial config
       const watchedDir: string = path.join(testTmpDir, 'project')
       await fs.mkdir(watchedDir, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      setProjectRoot(watchedDir)
 
-      // AND: Initial config with separate writePath and readPath
-      const writePathA: string = path.join(watchedDir, 'pathA')
+      // AND: Initial config with separate writeFolder and readPath
+      const writeFolderA: string = path.join(watchedDir, 'pathA')
       const readPathB: string = path.join(watchedDir, 'pathB')
-      await fs.mkdir(writePathA, { recursive: true })
+      await fs.mkdir(writeFolderA, { recursive: true })
       await fs.mkdir(readPathB, { recursive: true })
 
       const initialConfig: VaultConfig = {
-        writePath: writePathA,
+        writeFolder: writeFolderA,
         readPaths: [readPathB]
       }
       await saveVaultConfigForDirectory(watchedDir, initialConfig)
 
-      // WHEN: setWritePath is called with a path that's already in readPaths
-      await setWritePath(readPathB)
+      // WHEN: setWriteFolder is called with a path that's already in readPaths
+      await setWriteFolder(readPathB)
 
       // AND: getVaultPaths is called
       const paths: readonly string[] = await getVaultPaths()
@@ -138,54 +138,54 @@ describe('vault-allowlist: duplicate writePath in dropdown bug', () => {
     })
   })
 
-  describe('setWritePath should demote old writePath to readPaths', () => {
-    it('should add old writePath to readPaths when setting a new writePath', async () => {
-      // GIVEN: A watched directory with writePath=A, readPaths=[B]
+  describe('setWriteFolder should demote old writeFolder to readPaths', () => {
+    it('should add old writeFolder to readPaths when setting a new writeFolder', async () => {
+      // GIVEN: A watched directory with writeFolder=A, readPaths=[B]
       const watchedDir: string = path.join(testTmpDir, 'project')
-      const writePathA: string = path.join(watchedDir, 'pathA')
+      const writeFolderA: string = path.join(watchedDir, 'pathA')
       const readPathB: string = path.join(watchedDir, 'pathB')
-      const newWritePathC: string = path.join(watchedDir, 'pathC')
-      await fs.mkdir(writePathA, { recursive: true })
+      const newWriteFolderC: string = path.join(watchedDir, 'pathC')
+      await fs.mkdir(writeFolderA, { recursive: true })
       await fs.mkdir(readPathB, { recursive: true })
-      await fs.mkdir(newWritePathC, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      await fs.mkdir(newWriteFolderC, { recursive: true })
+      setProjectRoot(watchedDir)
 
       await saveVaultConfigForDirectory(watchedDir, {
-        writePath: writePathA,
+        writeFolder: writeFolderA,
       })
       await setActiveViewFolderState(watchedDir, readPathB, 'expanded')
 
-      // WHEN: setWritePath is called with a new path C
-      await setWritePath(newWritePathC)
+      // WHEN: setWriteFolder is called with a new path C
+      await setWriteFolder(newWriteFolderC)
 
       // THEN: getVaultPaths should include all three paths: C (write), B (read), A (demoted)
       const paths: readonly string[] = await getVaultPaths()
-      expect(paths).toContain(newWritePathC)
+      expect(paths).toContain(newWriteFolderC)
       expect(paths).toContain(readPathB)
-      expect(paths).toContain(writePathA)
+      expect(paths).toContain(writeFolderA)
     })
 
-    it('should demote old writePath when promoting a readPath to write', async () => {
-      // GIVEN: writePath=A, readPaths=[B]
+    it('should demote old writeFolder when promoting a readPath to write', async () => {
+      // GIVEN: writeFolder=A, readPaths=[B]
       const watchedDir: string = path.join(testTmpDir, 'project')
-      const writePathA: string = path.join(watchedDir, 'pathA')
+      const writeFolderA: string = path.join(watchedDir, 'pathA')
       const readPathB: string = path.join(watchedDir, 'pathB')
-      await fs.mkdir(writePathA, { recursive: true })
+      await fs.mkdir(writeFolderA, { recursive: true })
       await fs.mkdir(readPathB, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      setProjectRoot(watchedDir)
 
       await saveVaultConfigForDirectory(watchedDir, {
-        writePath: writePathA,
+        writeFolder: writeFolderA,
         readPaths: [readPathB]
       })
 
-      // WHEN: setWritePath promotes B to write
-      await setWritePath(readPathB)
+      // WHEN: setWriteFolder promotes B to write
+      await setWriteFolder(readPathB)
 
       // THEN: A should be demoted to readPaths, B should not be duplicated
       const paths: readonly string[] = await getVaultPaths()
-      expect(paths).toContain(readPathB)  // B is now writePath
-      expect(paths).toContain(writePathA) // A demoted to readPaths
+      expect(paths).toContain(readPathB)  // B is now writeFolder
+      expect(paths).toContain(writeFolderA) // A demoted to readPaths
       const uniquePaths: string[] = [...new Set(paths)]
       expect(paths.length).toBe(uniquePaths.length) // no duplicates
     })
@@ -201,7 +201,7 @@ describe('vault-allowlist: loadAndMergeVaultPath helper', () => {
     resetGraphModel()
     setGraph(createEmptyGraph())
     clearWatchFolderState()
-    setProjectRootWatchedDirectory(testTmpDir)
+    setProjectRoot(testTmpDir)
   })
 
   afterEach(async () => {
@@ -284,14 +284,14 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
     it('returns error when file limit is exceeded', async () => {
       // GIVEN: A watched directory with a config
       const watchedDir: string = path.join(testTmpDir, 'project')
-      const writePath: string = path.join(watchedDir, 'voicetree')
+      const writeFolder: string = path.join(watchedDir, 'voicetree')
       const newReadPath: string = path.join(watchedDir, 'too-many-files')
-      await fs.mkdir(writePath, { recursive: true })
+      await fs.mkdir(writeFolder, { recursive: true })
       await fs.mkdir(newReadPath, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      setProjectRoot(watchedDir)
 
       const config: VaultConfig = {
-        writePath: writePath,
+        writeFolder: writeFolder,
         readPaths: []
       }
       await saveVaultConfigForDirectory(watchedDir, config)
@@ -309,26 +309,26 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
     })
   })
 
-  describe('setWritePath returns error when file limit exceeded', () => {
+  describe('setWriteFolder returns error when file limit exceeded', () => {
     it('returns error when file limit is exceeded', async () => {
       // GIVEN: A watched directory with a config
       const watchedDir: string = path.join(testTmpDir, 'project')
-      const currentWritePath: string = path.join(watchedDir, 'voicetree')
-      const newWritePath: string = path.join(watchedDir, 'too-many-files')
-      await fs.mkdir(currentWritePath, { recursive: true })
-      await fs.mkdir(newWritePath, { recursive: true })
-      setProjectRootWatchedDirectory(watchedDir)
+      const currentWriteFolder: string = path.join(watchedDir, 'voicetree')
+      const newWriteFolder: string = path.join(watchedDir, 'too-many-files')
+      await fs.mkdir(currentWriteFolder, { recursive: true })
+      await fs.mkdir(newWriteFolder, { recursive: true })
+      setProjectRoot(watchedDir)
 
       const config: VaultConfig = {
-        writePath: currentWritePath,
+        writeFolder: currentWriteFolder,
         readPaths: []
       }
       await saveVaultConfigForDirectory(watchedDir, config)
 
-      await seedMarkdownFiles(newWritePath, FILE_COUNT_ABOVE_RAISED_LIMIT)
+      await seedMarkdownFiles(newWriteFolder, FILE_COUNT_ABOVE_RAISED_LIMIT)
 
-      // WHEN: setWritePath is called
-      const result: { success: boolean; error?: string } = await setWritePath(newWritePath)
+      // WHEN: setWriteFolder is called
+      const result: { success: boolean; error?: string } = await setWriteFolder(newWriteFolder)
 
       // THEN: Should return error with file limit message
       expect(result.success).toBe(false)
@@ -340,20 +340,20 @@ describe('vault-allowlist: file limit exceeded error handling', () => {
 })
 
 /**
- * Phase 2 Tests: loadAndMergeVaultPath with isWritePath option
+ * Phase 2 Tests: loadAndMergeVaultPath with isWriteFolder option
  * Updated for impure edge function that handles side effects internally
  */
-describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
+describe('vault-allowlist: loadAndMergeVaultPath isWriteFolder behavior', () => {
   let testTmpDir: string
 
   beforeEach(async () => {
-    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vault-isWritePath-test-'))
+    testTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vault-isWriteFolder-test-'))
     await fs.mkdir(mockUserDataPath, { recursive: true })
     resetGraphModel()
     setGraph(createEmptyGraph())
     clearWatchFolderState()
     // Set project root for wikilink resolution
-    setProjectRootWatchedDirectory(testTmpDir)
+    setProjectRoot(testTmpDir)
     vi.clearAllMocks()
   })
 
@@ -369,14 +369,14 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
     vi.clearAllMocks()
   })
 
-  describe('when isWritePath is true', () => {
+  describe('when isWriteFolder is true', () => {
     it('creates starter node when folder is empty', async () => {
       // GIVEN: An empty vault path
       const vaultPath: string = path.join(testTmpDir, 'empty-vault')
       await fs.mkdir(vaultPath, { recursive: true })
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: true
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: true })
 
       // THEN: Should return success
       expect(outcome.kind).toBe('ok')
@@ -395,8 +395,8 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       const existingNodeId: string = path.join(vaultPath, 'existing-file.md')
       await fs.writeFile(existingNodeId, '# Existing File\n\nAlready here.')
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: true
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: true })
 
       // THEN: Should return success
       expect(outcome.kind).toBe('ok')
@@ -411,8 +411,8 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       const vaultPath: string = path.join(testTmpDir, 'write-vault')
       await fs.mkdir(vaultPath, { recursive: true })
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: true
-      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: true
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: true })
 
       // THEN: Should return success
       expect(outcome.kind).toBe('ok')
@@ -431,21 +431,21 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.writeFile(targetId, '# Target\n\nResolved target.')
 
       // WHEN: loadAndMergeVaultPath is called
-      await loadAndMergeVaultPath(vaultPath, { isWritePath: true })
+      await loadAndMergeVaultPath(vaultPath, { isWriteFolder: true })
 
       // THEN: Wikilink resolution should connect note.md to target.md.
       expect(getGraph().nodes[noteId]?.outgoingEdges.map(edge => edge.targetId)).toContain(targetId)
     })
   })
 
-  describe('when isWritePath is false', () => {
+  describe('when isWriteFolder is false', () => {
     it('does not create starter node for read paths', async () => {
       // GIVEN: An empty vault path
       const vaultPath: string = path.join(testTmpDir, 'empty-read-vault')
       await fs.mkdir(vaultPath, { recursive: true })
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
-      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: false
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: false })
 
       // THEN: Should return success
       expect(outcome.kind).toBe('ok')
@@ -459,8 +459,8 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       const vaultPath: string = path.join(testTmpDir, 'read-vault')
       await fs.mkdir(vaultPath, { recursive: true })
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
-      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: false
+      const outcome: VaultLoadOutcome = await loadAndMergeVaultPath(vaultPath, { isWriteFolder: false })
 
       // THEN: Should return success
       expect(outcome.kind).toBe('ok')
@@ -478,8 +478,8 @@ describe('vault-allowlist: loadAndMergeVaultPath isWritePath behavior', () => {
       await fs.writeFile(noteId, '# Note\n\n[[target.md]]')
       await fs.writeFile(targetId, '# Target\n\nResolved target.')
 
-      // WHEN: loadAndMergeVaultPath is called with isWritePath: false
-      await loadAndMergeVaultPath(vaultPath, { isWritePath: false })
+      // WHEN: loadAndMergeVaultPath is called with isWriteFolder: false
+      await loadAndMergeVaultPath(vaultPath, { isWriteFolder: false })
 
       // THEN: Read-only loads should still resolve wikilinks into concrete edges.
       expect(getGraph().nodes[noteId]?.outgoingEdges.map(edge => edge.targetId)).toContain(targetId)

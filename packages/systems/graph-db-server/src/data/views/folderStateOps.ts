@@ -24,8 +24,8 @@ export type FolderStateBatchUpdate = {
 type ViewNameRow = { readonly name: string }
 type FolderStateRow = { readonly path: string; readonly state: FolderState }
 
-function withDb<T>(vaultPath: string, fn: (db: FolderVisibilityDatabase) => T): T {
-  const db = openFolderVisibilityDb(vaultPath)
+function withDb<T>(projectRoot: string, fn: (db: FolderVisibilityDatabase) => T): T {
+  const db = openFolderVisibilityDb(projectRoot)
   try {
     ensureDefaultView(db)
     return fn(db)
@@ -70,17 +70,17 @@ function upsertOne(
   ).run(viewId, path, state)
 }
 
-export function getActiveView(vaultPath: string): ActiveViewInfo {
-  return withDb(vaultPath, (db) => readActiveView(db))
+export function getActiveView(projectRoot: string): ActiveViewInfo {
+  return withDb(projectRoot, (db) => readActiveView(db))
 }
 
 export function getFolderStateForActiveView(
-  vaultPath: string,
+  projectRoot: string,
 ): {
   folderState: FolderStateEntry[]
   activeView: ActiveViewInfo
 } {
-  return withDb(vaultPath, (db) => {
+  return withDb(projectRoot, (db) => {
     const activeView = readActiveView(db)
     return {
       folderState: readFolderState(db, activeView.viewId),
@@ -90,14 +90,14 @@ export function getFolderStateForActiveView(
 }
 
 export function setFolderStateForActiveView(
-  vaultPath: string,
+  projectRoot: string,
   path: string,
   state: FolderState,
 ): {
   folderState: FolderStateEntry[]
   activeView: ActiveViewInfo
 } {
-  return withDb(vaultPath, (db) => {
+  return withDb(projectRoot, (db) => {
     const activeView = readActiveView(db)
     upsertOne(db, activeView.viewId, path, state)
     return {
@@ -108,13 +108,13 @@ export function setFolderStateForActiveView(
 }
 
 export function setFolderStateBatchForActiveView(
-  vaultPath: string,
+  projectRoot: string,
   updates: readonly FolderStateBatchUpdate[],
 ): {
   folderState: FolderStateEntry[]
   activeView: ActiveViewInfo
 } {
-  return withDb(vaultPath, (db) => {
+  return withDb(projectRoot, (db) => {
     const activeView = readActiveView(db)
     const applyAll = db.transaction((batch: readonly FolderStateBatchUpdate[]) => {
       for (const update of batch) {

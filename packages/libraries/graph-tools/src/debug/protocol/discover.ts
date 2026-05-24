@@ -4,7 +4,7 @@ import os from 'os';
 
 export type DebugInstance = {
     pid: number;
-    vaultPath: string;
+    projectRoot: string;
     mcpPort: number;
     cdpPort: number;
     startedAt: string;
@@ -13,7 +13,7 @@ export type DebugInstance = {
 export type PickOpts = {
     port?: number;   // match cdpPort or mcpPort
     pid?: number;
-    vault?: string;  // match resolved vaultPath prefix
+    vault?: string;  // match resolved projectRoot prefix
     forceNew?: boolean;  // --new: skip existing instances, always launch fresh
 };
 
@@ -41,7 +41,7 @@ export function filterInstancesBySelector(
 
     if (opts.vault !== undefined) {
         const resolved = path.resolve(opts.vault);
-        return liveFiles.filter(i => path.resolve(i.vaultPath).startsWith(resolved));
+        return liveFiles.filter(i => path.resolve(i.projectRoot).startsWith(resolved));
     }
 
     return liveFiles;
@@ -68,7 +68,7 @@ export function pickInstance(liveFiles: DebugInstance[], opts: PickOpts = {}): P
 
     // >1 candidate — ambiguous
     const list = candidates
-        .map(i => `  pid=${i.pid}  vault=${i.vaultPath}  cdp=${i.cdpPort}  mcp=${i.mcpPort}`)
+        .map(i => `  pid=${i.pid}  vault=${i.projectRoot}  cdp=${i.cdpPort}  mcp=${i.mcpPort}`)
         .join('\n');
     return {
         ok: false,

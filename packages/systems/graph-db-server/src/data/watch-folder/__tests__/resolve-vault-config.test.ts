@@ -19,16 +19,16 @@ describe('resolveAllowlistForProject', () => {
     let root: string
     let appSupportPath: string
     let watchedDir: string
-    let writePath: string
+    let writeFolder: string
 
     beforeEach(async () => {
         root = await mkdtemp(path.join(tmpdir(), 'resolve-vault-config-'))
         appSupportPath = path.join(root, 'app-support')
         watchedDir = path.join(root, 'project')
-        writePath = path.join(watchedDir, 'voicetree')
-        await mkdir(writePath, { recursive: true })
+        writeFolder = path.join(watchedDir, 'voicetree')
+        await mkdir(writeFolder, { recursive: true })
         initGraphModel({ appSupportPath })
-        await saveVaultConfigForDirectory(watchedDir, { writePath })
+        await saveVaultConfigForDirectory(watchedDir, { writeFolder })
         getExpandedFolderPathsForVault.mockResolvedValue([path.join(watchedDir, 'external')])
     })
 
@@ -41,8 +41,8 @@ describe('resolveAllowlistForProject', () => {
         await expect(
             resolveAllowlistForProject(watchedDir, { includeActiveViewExpandedPaths: false }),
         ).resolves.toEqual({
-            allowlist: [writePath],
-            writePath,
+            allowlist: [writeFolder],
+            writeFolder,
         })
 
         expect(getExpandedFolderPathsForVault).not.toHaveBeenCalled()

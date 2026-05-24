@@ -66,33 +66,33 @@ async function closeAllFloatingEditors(appWindow: Page): Promise<void> {
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-handle-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
+        const projectRoot = await createFolderTestVault(tempDir);
         // Folder note so HoverEditor can resolve /<vault>/auth/ → /<vault>/auth/index.md
         await fs.writeFile(
-            path.join(vaultPath, 'auth', 'index.md'),
+            path.join(projectRoot, 'auth', 'index.md'),
             `---\nposition:\n  x: 50\n  y: 120\n---\n# Auth Folder Note\n\nThis is the folder note for the auth/ folder.\n`,
         );
-        await use(vaultPath);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-handle-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: { writePath: vaultPath, readPaths: [] },
+                [projectRoot]: { writeFolder: projectRoot, readPaths: [] },
             },
         }, null, 2), 'utf8');
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-handle-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-handle-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -158,10 +158,10 @@ const test = base.extend<{
 });
 
 test.describe('Folder handle UI states', () => {
-    test('exercises 8 folder-handle states with screenshot per state', async ({ appWindow, vaultPath }) => {
+    test('exercises 8 folder-handle states with screenshot per state', async ({ appWindow, projectRoot }) => {
         test.setTimeout(120000);
 
-        const authFolderId = `${path.join(vaultPath, 'auth')}/`;
+        const authFolderId = `${path.join(projectRoot, 'auth')}/`;
 
         await waitForGraphLoaded(appWindow, 3);
 

@@ -3,7 +3,7 @@ import { decideVaultConfig } from '../decideVaultConfig';
 
 describe('decideVaultConfig', () => {
     it('uses saved config verbatim and skips persistence', () => {
-        const saved = { writePath: '/vault/write', allowlist: ['/vault/write', '/vault/notes'] } as const;
+        const saved = { writeFolder: '/vault/write', allowlist: ['/vault/write', '/vault/notes'] } as const;
 
         const plan = decideVaultConfig(saved, '/vault/ignored', ['/vault/ignored']);
 
@@ -15,7 +15,7 @@ describe('decideVaultConfig', () => {
         const plan = decideVaultConfig(null, '/vault/new', ['/vault/new', '/vault/extras']);
 
         expect(plan.config).toEqual({
-            writePath: '/vault/new',
+            writeFolder: '/vault/new',
             allowlist: ['/vault/new', '/vault/extras'],
         });
         expect(plan.shouldPersist).toBe(true);

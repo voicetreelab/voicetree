@@ -132,10 +132,10 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('✓ Agent command configured:', agentCommand);
 
     console.log('=== STEP 2: Load the test vault (example_small) ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);
@@ -153,11 +153,11 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     expect(watchStatus.isWatching).toBe(true);
     expect(watchStatus.directory).toBeTruthy();
-    // Vault path = projectRootWatchedDirectory + vaultSuffix (e.g., example_small + voicetree)
-    const vaultPath = path.join(watchStatus.directory!, watchStatus.vaultSuffix);
+    // Vault path = projectRoot + vaultSuffix (e.g., example_small + voicetree)
+    const projectRoot = path.join(watchStatus.directory!, watchStatus.vaultSuffix);
     console.log(`✓ Watch directory: ${watchStatus.directory}`);
     console.log(`✓ Vault suffix: ${watchStatus.vaultSuffix}`);
-    console.log(`✓ Vault path: ${vaultPath}`);
+    console.log(`✓ Vault path: ${projectRoot}`);
 
     console.log('=== STEP 4: Create context node from Node 5 ===');
     const parentNodeId = '5_Immediate_Test_Observation_No_Output.md';
@@ -173,8 +173,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     expect(contextNodeId).toBeTruthy();
     const contextNodePath = path.isAbsolute(contextNodeId)
       ? contextNodeId
-      : path.join(vaultPath, contextNodeId);
-    const contextNodeRelativePath = path.relative(vaultPath, contextNodePath);
+      : path.join(projectRoot, contextNodeId);
+    const contextNodeRelativePath = path.relative(projectRoot, contextNodePath);
     expect(contextNodeRelativePath).toMatch(/^ctx-nodes\//);
 
     console.log('=== STEP 4b: Verify context node file contains needle from ancestor ===');
@@ -187,7 +187,7 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log('=== STEP 5: Set up terminal data listener BEFORE spawning ===');
 
     // Compute paths in Node context, pass as strings to browser
-    const initialSpawnDir = path.join(vaultPath, '../');
+    const initialSpawnDir = path.join(projectRoot, '../');
     console.log(`Context node absolute path: ${contextNodePath}`);
     console.log(`Initial spawn directory: ${initialSpawnDir}`);
 

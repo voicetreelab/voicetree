@@ -11,7 +11,7 @@
  * defeating lazy loading. This test will FAIL until the bug is fixed.
  *
  * EXPECTED OUTCOME (when bug is fixed):
- * - Adding a readPath should only load nodes that are linked from writePath nodes
+ * - Adding a readPath should only load nodes that are linked from writeFolder nodes
  * - Unlinked nodes should remain hidden
  */
 
@@ -34,12 +34,12 @@ const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   testDir: string;
-  writePath: string;
+  writeFolder: string;
   readPath: string;
 }>({
   // Create test directory structure:
   // testDir/
-  //   write-vault/           <- writePath (loaded immediately)
+  //   write-vault/           <- writeFolder (loaded immediately)
   //     linking-node.md      <- Links to [[linked-node]]
   //   read-vault/            <- readPath (added later, should lazy load)
   //     linked-node.md       <- SHOULD be loaded (linked by linking-node)
@@ -51,13 +51,13 @@ const test = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writePath: async ({ testDir }, use) => {
-    const writePath = path.join(testDir, 'write-vault');
-    await fs.mkdir(writePath, { recursive: true });
+  writeFolder: async ({ testDir }, use) => {
+    const writeFolder = path.join(testDir, 'write-vault');
+    await fs.mkdir(writeFolder, { recursive: true });
 
     // Create a node that links to a node in readPath
     await fs.writeFile(
-      path.join(writePath, 'linking-node.md'),
+      path.join(writeFolder, 'linking-node.md'),
       `# Linking Node
 
 This node links to a node in the readPath:
@@ -66,7 +66,7 @@ This node links to a node in the readPath:
 `
     );
 
-    await use(writePath);
+    await use(writeFolder);
   },
 
   readPath: async ({ testDir }, use) => {
@@ -78,7 +78,7 @@ This node links to a node in the readPath:
       path.join(readPath, 'linked-node.md'),
       `# Linked Node
 
-This node is linked from the writePath and should be lazy-loaded.
+This node is linked from the writeFolder and should be lazy-loaded.
 `
     );
 
@@ -95,11 +95,11 @@ It should NOT be loaded when lazy loading is working correctly.
     await use(readPath);
   },
 
-  electronApp: async ({ testDir, writePath }, use) => {
+  electronApp: async ({ testDir, writeFolder }, use) => {
     // Create a temporary userData directory
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-load-userdata-'));
 
-    // Write config to auto-load the testDir with writePath as the only vault initially
+    // Write config to auto-load the testDir with writeFolder as the only vault initially
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(
       configPath,
@@ -107,7 +107,7 @@ It should NOT be loaded when lazy loading is working correctly.
         lastDirectory: testDir,
         vaultConfig: {
           [testDir]: {
-            writePath: writePath,
+            writeFolder: writeFolder,
             readPaths: []  // Start with no readPaths
           }
         }
@@ -182,9 +182,9 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
   }) => {
     test.setTimeout(30000);
 
-    console.log('=== STEP 1: Verify initial state (only writePath nodes loaded) ===');
+    console.log('=== STEP 1: Verify initial state (only writeFolder nodes loaded) ===');
 
-    // Get initial node count - should only have linking-node from writePath
+    // Get initial node count - should only have linking-node from writeFolder
     const initialNodes = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not available');
@@ -225,7 +225,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
     console.log('Nodes after addReadOnLinkPath:', nodesAfterAdd);
 
     // EXPECTED (when bug is fixed):
-    // - linking-node (from writePath) - LOADED
+    // - linking-node (from writeFolder) - LOADED
     // - linked-node (from readPath, linked by linking-node) - LOADED
     // - unlinked-node (from readPath, not linked) - NOT LOADED
 
@@ -260,7 +260,7 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
     console.log('');
     console.log('=== TEST SUMMARY ===');
     console.log('Lazy loading test for addReadOnLinkPath:');
-    console.log('- Initial state: only writePath nodes loaded');
+    console.log('- Initial state: only writeFolder nodes loaded');
     console.log('- After addReadOnLinkPath: only LINKED nodes from readPath loaded');
     console.log('- Unlinked nodes correctly remain hidden');
   });
@@ -268,21 +268,21 @@ test.describe('Lazy Loading - addReadOnLinkPath', () => {
   test('should load transitively linked nodes when adding readPath', async ({
     appWindow,
     testDir,
-    writePath
+    writeFolder
   }) => {
     test.setTimeout(30000);
 
     // Create a more complex scenario with transitive links:
-    // writePath/a.md -> [[b]] -> [[c]]
+    // writeFolder/a.md -> [[b]] -> [[c]]
     // readPath has: b.md, c.md, orphan.md
     // Expected: a, b, c loaded; orphan NOT loaded
 
     const readPath = path.join(testDir, 'transitive-vault');
     await fs.mkdir(readPath, { recursive: true });
 
-    // Update writePath node to link to b
+    // Update writeFolder node to link to b
     await fs.writeFile(
-      path.join(writePath, 'linking-node.md'),
+      path.join(writeFolder, 'linking-node.md'),
       `# Node A
 
 Links to [[b]] in readPath.
@@ -359,7 +359,7 @@ const testFileChange = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
   testDir: string;
-  writePath: string;
+  writeFolder: string;
   readPath: string;
 }>({
   testDir: async ({}, use) => {
@@ -368,20 +368,20 @@ const testFileChange = base.extend<{
     await fs.rm(tempDir, { recursive: true, force: true });
   },
 
-  writePath: async ({ testDir }, use) => {
-    const writePath = path.join(testDir, 'write-vault');
-    await fs.mkdir(writePath, { recursive: true });
+  writeFolder: async ({ testDir }, use) => {
+    const writeFolder = path.join(testDir, 'write-vault');
+    await fs.mkdir(writeFolder, { recursive: true });
 
     // Start with a node that has NO links
     await fs.writeFile(
-      path.join(writePath, 'source-node.md'),
+      path.join(writeFolder, 'source-node.md'),
       `# Source Node
 
 This node starts with NO links to readPath.
 `
     );
 
-    await use(writePath);
+    await use(writeFolder);
   },
 
   readPath: async ({ testDir }, use) => {
@@ -400,7 +400,7 @@ This should be lazy loaded when source-node links to it.
     await use(readPath);
   },
 
-  electronApp: async ({ testDir, writePath, readPath }, use) => {
+  electronApp: async ({ testDir, writeFolder, readPath }, use) => {
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-file-change-userdata-'));
 
     // Config already includes readPath (simulating user already added it)
@@ -412,7 +412,7 @@ This should be lazy loaded when source-node links to it.
         lastDirectory: testDir,
         vaultConfig: {
           [testDir]: {
-            writePath: writePath,
+            writeFolder: writeFolder,
             readPaths: [readPath]  // Already configured!
           }
         }
@@ -420,7 +420,7 @@ This should be lazy loaded when source-node links to it.
       'utf8'
     );
 
-    console.log('[Test Setup] Config saved. testDir:', testDir, 'writePath:', writePath, 'readPath:', readPath);
+    console.log('[Test Setup] Config saved. testDir:', testDir, 'writeFolder:', writeFolder, 'readPath:', readPath);
 
     const electronApp = await electron.launch({
       args: [
@@ -489,7 +489,7 @@ This should be lazy loaded when source-node links to it.
 testFileChange.describe('Lazy Loading - File Change Triggers', () => {
   testFileChange('should lazy load nodes when a file change adds a new link to readPath', async ({
     appWindow,
-    writePath,
+    writeFolder,
     _readPath  // Include to ensure fixture runs and creates the directory
   }) => {
     testFileChange.setTimeout(30000);
@@ -515,7 +515,7 @@ testFileChange.describe('Lazy Loading - File Change Triggers', () => {
 
     console.log('=== STEP 2: Edit source-node to add link [[target-node]] ===');
 
-    const sourceNodePath = path.join(writePath, 'source-node.md');
+    const sourceNodePath = path.join(writeFolder, 'source-node.md');
     await fs.writeFile(
       sourceNodePath,
       `# Source Node

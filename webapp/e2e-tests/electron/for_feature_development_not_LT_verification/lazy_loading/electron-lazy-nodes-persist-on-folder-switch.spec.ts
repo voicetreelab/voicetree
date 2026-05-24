@@ -44,7 +44,7 @@ const test = base.extend<{
    * Project 1: Has lazy-loaded nodes via transitive wikilinks
    *
    * project1/
-   *   writePath/
+   *   writeFolder/
    *     A.md -> [[B]]
    *   chain/
    *     B.md -> [[C]]
@@ -53,15 +53,15 @@ const test = base.extend<{
    */
   project1Path: async ({}, use) => {
     const project1 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-persist-p1-'));
-    const writePath = path.join(project1, 'writePath');
+    const writeFolder = path.join(project1, 'writeFolder');
     const chainDir = path.join(project1, 'chain');
 
-    await fs.mkdir(writePath, { recursive: true });
+    await fs.mkdir(writeFolder, { recursive: true });
     await fs.mkdir(chainDir, { recursive: true });
 
-    // A.md in writePath - links to B
+    // A.md in writeFolder - links to B
     await fs.writeFile(
-      path.join(writePath, 'A.md'),
+      path.join(writeFolder, 'A.md'),
       `# Node A
 Entry point in project 1.
 Links to: [[B]]
@@ -103,18 +103,18 @@ This should never appear in the graph.
    * Project 2: Completely different folder with different nodes
    *
    * project2/
-   *   writePath/
+   *   writeFolder/
    *     X.md (standalone node in project 2)
    */
   project2Path: async ({}, use) => {
     const project2 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-lazy-persist-p2-'));
-    const writePath = path.join(project2, 'writePath');
+    const writeFolder = path.join(project2, 'writeFolder');
 
-    await fs.mkdir(writePath, { recursive: true });
+    await fs.mkdir(writeFolder, { recursive: true });
 
-    // X.md in project 2's writePath
+    // X.md in project 2's writeFolder
     await fs.writeFile(
-      path.join(writePath, 'X.md'),
+      path.join(writeFolder, 'X.md'),
       `# Node X
 This is the only node in project 2.
 `
@@ -133,8 +133,8 @@ This is the only node in project 2.
   },
 
   electronApp: async ({ project1Path, project2Path, tempUserDataPath }, use) => {
-    const writePath1 = path.join(project1Path, 'writePath');
-    const writePath2 = path.join(project2Path, 'writePath');
+    const writeFolder1 = path.join(project1Path, 'writeFolder');
+    const writeFolder2 = path.join(project2Path, 'writeFolder');
 
     // Create projects.json with project1 as a saved project (like smoke test)
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
@@ -156,11 +156,11 @@ This is the only node in project 2.
         lastDirectory: project1Path,
         vaultConfig: {
           [project1Path]: {
-            writePath: writePath1,
+            writeFolder: writeFolder1,
             readPaths: []
           },
           [project2Path]: {
-            writePath: writePath2,
+            writeFolder: writeFolder2,
             readPaths: []
           }
         }
@@ -287,8 +287,8 @@ test.describe('Lazy-Loaded Nodes Persist on Folder Switch Bug', () => {
 
     console.log('Project1 state: A=' + hasNodeA + ', B=' + hasNodeB + ', C=' + hasNodeC + ', orphan=' + hasOrphan);
 
-    // A should be loaded (in writePath)
-    expect(hasNodeA, 'Node A should be loaded from writePath').toBe(true);
+    // A should be loaded (in writeFolder)
+    expect(hasNodeA, 'Node A should be loaded from writeFolder').toBe(true);
 
     // B and C should be loaded (transitively via A -> B -> C)
     expect(hasNodeB, 'Node B should be lazy-loaded (A links to it)').toBe(true);

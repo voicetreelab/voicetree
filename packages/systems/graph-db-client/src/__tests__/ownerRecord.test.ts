@@ -11,14 +11,14 @@ function fingerprint(
 ): CommandFingerprint {
   return {
     executable: '/usr/local/bin/node',
-    args: ['vt-graphd', '--vault', '/vault'],
+    args: ['vt-graphd', '--project-root', '/vault'],
     ...overrides,
   }
 }
 
 function validOwnerRecord(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return ownerRecordFile.create({
-    canonicalVaultPath: '/vault',
+    canonicalProjectRoot: '/vault',
     pid: 4242,
     ppid: 1,
     callerKind: 'electron',
@@ -49,7 +49,7 @@ describe('ownerRecordFile.create', () => {
 
   test('starts records with a null port until the daemon binds', () => {
     const record = ownerRecordFile.create({
-      canonicalVaultPath: '/vault',
+      canonicalProjectRoot: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -67,7 +67,7 @@ describe('ownerRecordFile.create', () => {
 
   test('produces a fresh nonce when none is supplied', () => {
     const a = ownerRecordFile.create({
-      canonicalVaultPath: '/vault',
+      canonicalProjectRoot: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -76,7 +76,7 @@ describe('ownerRecordFile.create', () => {
       nowMs: 1_000_000,
     })
     const b = ownerRecordFile.create({
-      canonicalVaultPath: '/vault',
+      canonicalProjectRoot: '/vault',
       pid: 4242,
       ppid: 1,
       callerKind: 'electron',
@@ -123,7 +123,7 @@ describe('ownerRecordFile.decode rejection', () => {
       ownerRecordFile.decode(
         JSON.stringify({
           ...validOwnerRecord(),
-          canonicalVaultPath: undefined,
+          canonicalProjectRoot: undefined,
         }),
       ),
     ).toBeNull()

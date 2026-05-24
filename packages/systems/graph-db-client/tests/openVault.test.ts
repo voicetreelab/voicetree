@@ -43,12 +43,12 @@ describe('GraphDbClient vault lifecycle API', () => {
     expect(opened.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
-    // setWritePath seeds the writePath as 'expanded' so the sidebar can show
+    // setWriteFolder seeds the writeFolder as 'expanded' so the sidebar can show
     // its contents on mount. Children remain collapsed by default.
     expect(opened.vaultState).toEqual({
-      vaultPath: vault,
+      projectRoot: vault,
       readPaths: [vault],
-      writePath: vault,
+      writeFolder: vault,
     })
     expect(opened.folderState).toEqual([[vault, 'expanded']])
     expect(opened.activeView).toMatchObject({ name: 'main' })

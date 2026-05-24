@@ -86,7 +86,7 @@ configureMcpServer({
   graph: {
     getGraph: async () => graph,
     getVaultPaths: async () => [vaultPath],
-    getWritePath: async () => vaultPath,
+    getWriteFolder: async () => vaultPath,
     applyGraphDelta: async () => undefined,
   },
 })
@@ -98,7 +98,7 @@ const deps: any = {
   loadAgentSettings: async () => ({
     agents: [{name: 'Fake Agent', command: 'node -e "setInterval(()=>{},1000)"'}],
   }),
-  loadWritePath: async () => O.some(vaultPath),
+  loadWriteFolder: async () => O.some(vaultPath),
   loadGraph: async () => graph,
   applyDelta: async () => undefined,
   spawnTerminal: async (

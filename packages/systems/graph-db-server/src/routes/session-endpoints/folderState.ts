@@ -7,7 +7,7 @@ import {
   type FolderStateBatchUpdate,
 } from '@vt/graph-db-server/contract'
 import type { WorkflowSessionRegistry } from '@vt/graph-db-server/application/workflows/sessionRoutes'
-import { getProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { getProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import {
   readCurrentFolderState,
   updateCurrentFolderState,
@@ -29,7 +29,7 @@ function decodePath(raw: string): string | null {
 }
 
 function vaultMustBeOpen() {
-  return getProjectRootWatchedDirectory()
+  return getProjectRoot()
     ? null
     : errorResult('No vault is currently open', 'vault_not_open', 409)
 }

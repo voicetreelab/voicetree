@@ -55,13 +55,13 @@ describe('vault routes', () => {
     const response = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    // setWritePath seeds the active view's folder-visibility table with the
-    // writePath itself (so the sidebar can show the writePath's contents on
-    // mount). Children default collapsed — only the writePath row appears.
+    // setWriteFolder seeds the active view's folder-visibility table with the
+    // writeFolder itself (so the sidebar can show the writeFolder's contents on
+    // mount). Children default collapsed — only the writeFolder row appears.
     expect(await response.json()).toEqual({
-      vaultPath: vault,
+      projectRoot: vault,
       readPaths: [vault],
-      writePath: vault,
+      writeFolder: vault,
     })
   })
 
@@ -81,10 +81,10 @@ describe('vault routes', () => {
     const vaultState = await fetch(`http://127.0.0.1:${handle.port}/vault`)
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ writePath: outPath })
+    expect(await response.json()).toEqual({ writeFolder: outPath })
     expect(await vaultState.json()).toMatchObject({
-      vaultPath: vault,
-      writePath: outPath,
+      projectRoot: vault,
+      writeFolder: outPath,
     })
   })
 

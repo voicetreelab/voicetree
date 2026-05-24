@@ -89,7 +89,7 @@ export function resolveCommand(
   if (trimmed) {
     const parts = trimmed.split(/\s+/)
     const [cmd, ...rest] = parts
-    return { cmd, args: [...rest, '--vault', vault] }
+    return { cmd, args: [...rest, '--project-root', vault] }
   }
   return {
     cmd: resolveDaemonRuntimeCommand(),
@@ -106,7 +106,7 @@ export function resolveDefaultDaemonArgs(
   },
 ): string[] {
   if (deps.exists(FALLBACK_BIN_PATH)) {
-    return [FALLBACK_BIN_PATH, '--vault', vault]
+    return [FALLBACK_BIN_PATH, '--project-root', vault]
   }
 
   if (deps.exists(SOURCE_BIN_PATH)) {
@@ -114,12 +114,12 @@ export function resolveDefaultDaemonArgs(
       '--import',
       deps.resolveTsx(),
       SOURCE_BIN_PATH,
-      '--vault',
+      '--project-root',
       vault,
     ]
   }
 
-  return [FALLBACK_BIN_PATH, '--vault', vault]
+  return [FALLBACK_BIN_PATH, '--project-root', vault]
 }
 
 function daemonRuntimeCandidates(input: Required<RuntimeCommandInput>): string[] {

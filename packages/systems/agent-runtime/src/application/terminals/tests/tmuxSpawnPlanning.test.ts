@@ -39,7 +39,7 @@ describe('tmux spawn planning', () => {
 
     it('plans a prompt file write only when both vault path and prompt exist', () => {
         expect(resolvePromptFileWrite('/vault', terminalId, 'task body')).toEqual({
-            vaultPath: '/vault',
+            projectRoot: '/vault',
             terminalId,
             prompt: 'task body',
         });

@@ -27,7 +27,7 @@ import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import {
     applyDeltaToTestProjectionState,
@@ -35,7 +35,7 @@ import {
     resetTestProjectionState,
 } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
-import { setProjectRootWatchedDirectory as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
+import { setProjectRoot as setProjectRootReal } from '@vt/graph-db-server/state/watch-folder-store'
 import { applyGraphDeltaToDBThroughMemAndUIAndEditors } from '@vt/graph-db-server/graph/applyGraphDelta'
 import { getGraph as getGraphReal, setGraph as setGraphReal } from '@vt/graph-db-server/state/graph-store'
 import { mapNewGraphToDelta } from '@vt/graph-model/graph'
@@ -107,13 +107,13 @@ vi.mock('@/shell/edge/main/graph/watch_folder/watchFolder', async (importOrigina
     const actual: typeof import('@/shell/edge/main/graph/watch_folder/watchFolder') = await importOriginal<typeof import('@/shell/edge/main/graph/watch_folder/watchFolder')>()
     return {
         ...actual,
-        getVaultPath: () => {
+        getProjectRoot: () => {
             return tempVault ? O.of(tempVault) : O.none
         },
-        setVaultPath: (path: string) => {
+        setProjectRoot: (path: string) => {
             tempVault = path
         },
-        clearVaultPath: () => {
+        clearProjectRoot: () => {
             tempVault = ''
         },
         startFileWatching: vi.fn().mockResolvedValue({ success: true }),
@@ -183,7 +183,7 @@ describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setVaultPath(tempVault)
+        setProjectRoot(tempVault)
 
         // Create initial markdown files with frontmatter and wikilinks
         await fs.writeFile(
@@ -359,7 +359,7 @@ describe('deleteNodesFromUI - Integration with Filesystem', () => {
 
         // Set vault path in graph store and real graph-model state
         setProjectRootReal(tempVault)
-        setVaultPath(tempVault)
+        setProjectRoot(tempVault)
 
         // Create initial markdown files
         await fs.writeFile(

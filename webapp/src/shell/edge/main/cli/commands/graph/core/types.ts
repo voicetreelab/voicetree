@@ -64,13 +64,13 @@ export type ToolFailure = {
 
 export type GraphIndexSuccess = {
     success: true
-    vaultPath: string
+    projectRoot: string
     indexPath: string
 }
 
 export type GraphSearchSuccess = {
     success: true
-    vaultPath: string
+    projectRoot: string
     query: string
     topK: number
     hits: readonly NodeSearchHit[]

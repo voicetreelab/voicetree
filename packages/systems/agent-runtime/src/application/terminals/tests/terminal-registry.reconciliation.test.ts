@@ -21,17 +21,17 @@ async function makeTempVault(): Promise<string> {
     return dir
 }
 
-function makeTerminalData(terminalId: TerminalId, vaultPath: string): TerminalData {
+function makeTerminalData(terminalId: TerminalId, projectRoot: string): TerminalData {
     return createTerminalData({
         terminalId,
-        attachedToNodeId: join(vaultPath, 'context.md') as NodeIdAndFilePath,
+        attachedToNodeId: join(projectRoot, 'context.md') as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'BF314 reconciled tmux headless',
         agentName: terminalId,
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_VAULT_PATH: projectRoot,
         },
     })
 }
@@ -52,8 +52,8 @@ describe('terminal-registry tmux reconciliation', () => {
     afterEach(cleanup)
 
     it('imports persisted running sessions that still exist and marks stale sessions exited', async () => {
-        const vaultPath: string = await makeTempVault()
-        const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+        const projectRoot: string = await makeTempVault()
+        const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
         await mkdir(terminalDir, {recursive: true})
 
         const aliveId: TerminalId = makeName('bf314-live')
@@ -69,7 +69,7 @@ describe('terminal-registry tmux reconciliation', () => {
             session: aliveId,
             startedAt,
             logFile: join(terminalDir, `${aliveId}.log`),
-            terminalData: makeTerminalData(aliveId, vaultPath),
+            terminalData: makeTerminalData(aliveId, projectRoot),
         }, null, 2), 'utf8')
         await writeFile(join(terminalDir, `${staleId}.json`), JSON.stringify({
             name: staleId,
@@ -78,10 +78,10 @@ describe('terminal-registry tmux reconciliation', () => {
             session: staleId,
             startedAt,
             logFile: join(terminalDir, `${staleId}.log`),
-            terminalData: makeTerminalData(staleId, vaultPath),
+            terminalData: makeTerminalData(staleId, projectRoot),
         }, null, 2), 'utf8')
 
-        const result = await reconcileTmuxTerminalRegistry(vaultPath, {
+        const result = await reconcileTmuxTerminalRegistry(projectRoot, {
             now: () => Date.parse('2026-05-15T01:00:00.000Z'),
         })
 
@@ -104,4 +104,3 @@ describe('terminal-registry tmux reconciliation', () => {
         expect(staleMetadata.endedAt).toBe('2026-05-15T01:00:00.000Z')
     }, 15000)
 })
-
