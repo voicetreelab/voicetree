@@ -2,7 +2,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js'
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
 export interface McpClient {
-  createGraph(callerTerminalId: string, nodes: Array<{filename: string; title: string; summary: string; content?: string; color?: string}>): Promise<unknown>
+  createGraph(callerTerminalId: string, nodes: Array<{filename: string; title: string; summary: string; content?: string; color?: string}>, outputPath?: string): Promise<unknown>
   spawnAgent(callerTerminalId: string, task: string, parentNodeId: string, opts?: {depthBudget?: number; headless?: boolean}): Promise<{terminalId: string}>
   waitForAgents(callerTerminalId: string, terminalIds: string[], pollIntervalMs?: number): Promise<{monitorId?: string; status: string; terminalIds?: string[]; message?: string}>
   sendMessage(callerTerminalId: string, targetTerminalId: string, message: string): Promise<unknown>
@@ -29,8 +29,10 @@ export async function connectToMcp(port: string): Promise<McpClient> {
   await client.connect(transport)
 
   return {
-    async createGraph(callerTerminalId, nodes) {
-      const result = await client.callTool({name: 'create_graph', arguments: {callerTerminalId, nodes}})
+    async createGraph(callerTerminalId, nodes, outputPath) {
+      const args: Record<string, unknown> = {callerTerminalId, nodes}
+      if (outputPath !== undefined && outputPath.length > 0) args.outputPath = outputPath
+      const result = await client.callTool({name: 'create_graph', arguments: args})
       return parseToolResult(result)
     },
 

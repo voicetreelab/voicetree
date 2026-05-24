@@ -6,6 +6,13 @@ export interface ExecutorEnv {
   taskNodePath: string
   canReceiveWaitNotifications?: boolean
   waitForMessage?: (matcher: (message: string) => boolean) => Promise<string>
+  /**
+   * Optional outputPath forwarded to every create_graph call. When set,
+   * the daemon writes new nodes into this directory instead of the vault
+   * write-path root. Used by the agent-storm perf harness to test the
+   * per-directory contention hypothesis (hypotheses.md #10).
+   */
+  outputDir?: string
 }
 
 let createNodeCounter = 0
@@ -48,7 +55,7 @@ export async function executeScript(
           summary: action.summary,
           content: action.content,
           color: action.color,
-        }])
+        }], env.outputDir)
         break
       }
 
