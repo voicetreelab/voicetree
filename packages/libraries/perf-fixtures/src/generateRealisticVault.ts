@@ -7,10 +7,13 @@
  * the same way it would a user's vault — far more useful than `mkdtemp`'s
  * empty dir for perf tests that need real parent nodes to attach to.
  *
- * Identical algorithm to webapp/e2e-tests/.../perf-helpers/generateRealisticVault.ts.
- * Duplicated here rather than imported because that file lives inside webapp
- * (a consumer of @vt/measures, not a dependency). Move both copies to a
- * shared package once a second consumer needs it.
+ * This file is the single source of truth, consumed by:
+ *   - `packages/measures/perf/agent-storm.ts`  (daemon-only storm harness)
+ *   - `webapp/e2e-tests/.../electron-agent-storm-perf.spec.ts` (e2e storm)
+ *   - `webapp/e2e-tests/.../electron-500-node-realistic-perf.spec.ts` (LOAD/PAN-ZOOM/UPDATE)
+ *
+ * Pure data + sync fs writes. No async, no logging, no console output —
+ * those would couple this to a particular runtime / test framework.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -58,6 +61,13 @@ function buildNodeContent(id: string, idx: number, links: readonly string[], des
     return `${frontmatter}\n${body.join('\n')}\n`
 }
 
+/**
+ * Compute the in-memory layout of an N-node realistic vault.
+ *
+ * Returned `nodes[]` is in deterministic order. `firstClusterNodePaths[]` is
+ * the per-cluster first node's relative path; perf harnesses use these as
+ * distinct parent-node hooks to avoid all agents dogpiling on one parent.
+ */
 export function planVault(nodeCount: number): VaultLayout {
     const nodes: VaultNode[] = []
     const firstClusterNodePaths: string[] = []
@@ -117,6 +127,13 @@ export function planVault(nodeCount: number): VaultLayout {
     return { nodes, firstClusterNodePaths }
 }
 
+/**
+ * Write a realistic vault rooted at `vaultPath`.
+ *
+ * Creates `vaultPath`, `vaultPath/.voicetree/positions.json`,
+ * `vaultPath/ctx-nodes/`, and one .md file per node. Caller owns `vaultPath`
+ * lifecycle and cleanup.
+ */
 export function generateVaultOnDisk(vaultPath: string, nodeCount: number): VaultLayout {
     mkdirSync(vaultPath, { recursive: true })
     const voicetreeDir = join(vaultPath, '.voicetree')

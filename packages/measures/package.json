@@ -16,6 +16,7 @@
     "@vt/graph-db-client": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
+    "@vt/perf-fixtures": "*",
     "@vt/voicetree-mcp": "*"
   },
   "devDependencies": {

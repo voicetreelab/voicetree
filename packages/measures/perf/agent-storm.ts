@@ -68,7 +68,7 @@ import {
     type GraphNode,
     type NodeIdAndFilePath,
 } from '@vt/graph-model/graph'
-import { generateVaultOnDisk } from './generate-realistic-vault.ts'
+import { generateVaultOnDisk } from '@vt/perf-fixtures'
 
 interface Args {
     readonly agents: number
@@ -78,6 +78,7 @@ interface Args {
     readonly globalTimeoutMs: number
     readonly outPath: string | null
     readonly keepArtifacts: boolean
+    readonly isolateDirs: boolean
 }
 
 interface AgentResult {
@@ -118,6 +119,7 @@ function parseArgs(argv: readonly string[]): Args {
         globalTimeoutMs: 5 * 60_000,
         outPath: null,
         keepArtifacts: false,
+        isolateDirs: false,
     }
     let agents = defaults.agents
     let nodesPerAgent = defaults.nodesPerAgent
@@ -126,6 +128,7 @@ function parseArgs(argv: readonly string[]): Args {
     let globalTimeoutMs = defaults.globalTimeoutMs
     let outPath = defaults.outPath
     let keepArtifacts = defaults.keepArtifacts
+    let isolateDirs = defaults.isolateDirs
 
     const intArg = (raw: string | undefined, name: string): number => {
         const n = Number.parseInt(raw ?? '', 10)
@@ -143,6 +146,7 @@ function parseArgs(argv: readonly string[]): Args {
             case '--global-timeout-ms': globalTimeoutMs = intArg(argv[++i], 'global-timeout-ms'); break
             case '--out': outPath = argv[++i] ?? null; break
             case '--keep-artifacts': keepArtifacts = true; break
+            case '--isolate-dirs': isolateDirs = true; break
             case '--help':
             case '-h':
                 process.stdout.write(
@@ -153,14 +157,15 @@ function parseArgs(argv: readonly string[]): Args {
                     + '  --per-agent-timeout-ms MS     per-agent completion deadline (default 60000)\n'
                     + '  --global-timeout-ms MS        overall run deadline (default 300000)\n'
                     + '  --out PATH                    JSON report path (default ~/.voicetree/reports/perf-agent-storm-<ts>.json)\n'
-                    + '  --keep-artifacts              keep temp vault + app-support dirs after the run\n',
+                    + '  --keep-artifacts              keep temp vault + app-support dirs after the run\n'
+                    + '  --isolate-dirs                give each agent a unique outputDir under <vault>/isolated/agent-<i>/ (probe per-dir FS contention)\n',
                 )
                 process.exit(0)
             default:
                 throw new Error(`unknown argument: ${a}`)
         }
     }
-    return { agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs, globalTimeoutMs, outPath, keepArtifacts }
+    return { agents, nodesPerAgent, vaultSeedNodeCount, perAgentTimeoutMs, globalTimeoutMs, outPath, keepArtifacts, isolateDirs }
 }
 
 function buildFakeAgentScript(nodesPerAgent: number): object {
@@ -491,6 +496,20 @@ async function main(): Promise<void> {
             ? vaultLayout.firstClusterNodePaths[i]
             : vaultLayout.nodes[i % vaultLayout.nodes.length].relativePath
         const attachedToNodeId = join(tempVault, seedNode)
+        // Under --isolate-dirs every agent gets its own pre-created output
+        // directory inside the vault. Without it, create_graph defaults to
+        // the vault write-path root, so all agents pile their writes into
+        // the same directory.
+        const isolatedDir = args.isolateDirs ? join(tempVault, 'isolated', terminalId) : null
+        if (isolatedDir) mkdirSync(isolatedDir, { recursive: true })
+        const initialEnvVars: Record<string, string> = {
+            VOICETREE_TERMINAL_ID: terminalId,
+            VOICETREE_MCP_PORT: String(mcpHandle.port),
+            VOICETREE_VAULT_PATH: tempVault,
+            TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
+            AGENT_PROMPT: agentPrompt,
+        }
+        if (isolatedDir) initialEnvVars.VOICETREE_OUTPUT_DIR = isolatedDir
         const td: TerminalData = createTerminalData({
             terminalId,
             attachedToNodeId,
@@ -498,13 +517,7 @@ async function main(): Promise<void> {
             title: terminalId,
             agentName: terminalId,
             isHeadless: true,
-            initialEnvVars: {
-                VOICETREE_TERMINAL_ID: terminalId,
-                VOICETREE_MCP_PORT: String(mcpHandle.port),
-                VOICETREE_VAULT_PATH: tempVault,
-                TASK_NODE_PATH: `${tempVault}/${terminalId}-task.md`,
-                AGENT_PROMPT: agentPrompt,
-            },
+            initialEnvVars,
             initialCommand: `${JSON.stringify(process.execPath)} --import ${JSON.stringify(tsxImportPath)} ${JSON.stringify(fakeAgentEntrypoint)}; exit`,
             executeCommand: true,
             initialSpawnDirectory: fakeAgentDir,
@@ -584,7 +597,7 @@ async function main(): Promise<void> {
     const timedOutCount = agentResults.filter(r => r.exitedAtMs === null).length
 
     const report = {
-        args,
+        args: { ...args, variant: 'daemon-only' as const },
         wallMs,
         agentCount: agentResults.length,
         completedCount,
