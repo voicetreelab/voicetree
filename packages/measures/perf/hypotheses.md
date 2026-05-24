@@ -17,15 +17,19 @@ per-call cost. All measurements via OTel NDJSON spans in
 | 6 | ext4-specific journal barrier on Onidel | ❌ | macOS APFS degrades 235x under same storm — universal, not Linux |
 | 7 | chokidar watcher feedback loop on the write dir | ❌ | disabling chokidar moved writeFile only ~10% |
 | 8 | `fs.mkdir(recursive:true)` every write is hot | ✅ | 22-32% of db-write; cached via module-scoped `Set<string>` in commit `56345ab8`; mkdir p50 went 104.9ms → 0.02ms, apply-delta -39% |
+| 10 | Per-directory metadata contention — concurrent writers into the same parent dir serialize | ❌ | Tested via synthetic (commit `a0c94ce2`, `--isolate-dirs` mode): isolated dirs were *slightly slower* than shared (0.76ms vs 0.65ms p50). Per-parent dentry contention disconfirmed. |
+| 11 | The remaining ~200ms is fs.writeFile under concurrent file-creation (kernel-side) | ❌ | Tested via synthetic Node script (commit `a0c94ce2`): 15-worker in-process concurrent `fs.writeFile` storm on Onidel shows only **3x** degradation (0.22ms → 0.65ms), vs VT daemon's **250-500x** (0.4ms → 100-200ms) on the same host, same Node, same FS. The fs.writeFile syscall is NOT the bottleneck. The bottleneck is in VT daemon code that runs around each write. |
 
 ## Open
 
 | # | Hypothesis | Cheapest probe |
 |---|---|---|
-| 9 | The remaining ~200ms p50 is kernel-side file-creation cost (dentry/inode alloc + journal entry for `O_CREAT`) | Split `fs.writeFile` into `open + write + close` spans; or `strace -c -T` on the daemon under storm |
-| 10 | Per-directory metadata contention — concurrent writers into the same parent dir serialize | Spread writes across N temp dirs and re-measure |
-| 11 | Some shared in-process lock in the daemon's apply-delta path (not yet identified) | Synthetic test: 15 concurrent `fs.writeFile`s into the same dir from a non-VT script; if it shows the same degradation, daemon code is exonerated |
-| 12 | Renderer-side CPU cost under the same storm (the actual user-felt regression) | Build the e2e Electron variant per `openspec/changes/e2e-storm-perf-test/` |
+| 9 | Of `open` / `write` / `close`, which syscall in writeFile actually dominates the daemon's 100-200ms span | Split into 3 spans (in flight — agent `ad293311f6163927a`) |
+| 12 | Renderer-side CPU cost under the same storm (the actual user-felt regression) | Build the e2e Electron variant per `openspec/changes/e2e-storm-perf-test/` (in flight — agent `a8d55e5e9da90b4b3`) |
+| 13 | **Event-loop starvation in the daemon process** — 15 concurrent in-flight requests interleave with chokidar event handlers, SSE broadcasts, HTTP parsing, JSON serialization, undo recording. Each `await fs.writeFile`'s libuv resolution is delayed not by the syscall but by the JS callback queue. | `perf_hooks.monitorEventLoopDelay` histogram around the storm; or `setImmediate` round-trip timer. Should show 50ms+ event-loop lag under storm. |
+| 14 | Some synchronous CPU-bound work in the daemon's hot path (full-graph JSON serialize, deep zod parse during HTTP response, deep clone during SetGraph) starves the loop | Add CPU-time span vs wall-time span side-by-side around the request handler; or v8 profiler under storm. |
+| 15 | Synchronous chokidar event handlers fire during the storm even with `markPendingWrite` suppression and steal the loop | Re-measure with chokidar fully disabled (already ~10% with the kept-but-suppressed watcher; the residual handler dispatch may still cost more under load). |
+| 16 | The daemon's `SetGraph` clone or `executeCommand` dispatch involves a synchronous deep operation over a growing graph | Add CPU-time spans inside `SetGraph` and `ReadGraph`; correlate with graph size. |
 
 ## Format
 
