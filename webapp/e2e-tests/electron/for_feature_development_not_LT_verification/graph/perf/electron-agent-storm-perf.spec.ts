@@ -501,15 +501,20 @@ const test = base.extend<StormFixtures>({
     },
 
     mcpPort: async ({ vaultPath, appWindow }, use) => {
-        // Click into the project so the app opens the vault and writes .mcp.json.
-        await appWindow.waitForSelector('text=Voicetree', { timeout: 15_000 })
+        // Click into the seeded project so the app opens the vault and writes
+        // .mcp.json. We target by `data-testid` rather than visible text — the
+        // text-match approach is brittle when the temp project name happens
+        // to span the layout (a 'visible / enabled / stable' check fails while
+        // the picker is still settling on a cold-boot Onidel disk).
+        await appWindow.waitForSelector('text=Voicetree', { timeout: 30_000 })
         const projectName = path.basename(path.dirname(vaultPath))
-        const projectBtn = appWindow.locator(`button:has-text("${projectName}")`).first()
-        await projectBtn.click()
+        const projectBtn = appWindow.locator('button[data-testid="saved-project-button"]').first()
+        await projectBtn.waitFor({ state: 'visible', timeout: 30_000 })
+        await projectBtn.click({ timeout: 60_000 })
         console.log(`[E2E Storm] Clicked project '${projectName}' to enter graph view`)
 
         const mcpJsonPath = path.join(vaultPath, '.mcp.json')
-        const port = await readMcpPort(mcpJsonPath, 60_000)
+        const port = await readMcpPort(mcpJsonPath, 90_000)
         console.log(`[E2E Storm] discovered MCP port=${port} from ${mcpJsonPath}`)
         await use(port)
     },
@@ -555,6 +560,12 @@ async function waitForExit(
 }
 
 test.describe('E2E Electron + agent storm perf', () => {
+    // Fixture setup includes vite build (already done by `pretest`), Electron
+    // boot, project picker click, and .mcp.json polling — well over the config
+    // default of 90s on a cold Onidel disk. Override here so fixture setup is
+    // not strangled by the test-level timeout before we enter the body.
+    test.describe.configure({ timeout: 15 * 60_000 })
+
     test('storm a real Electron-launched daemon with N fake-agents and report three-tracer + CDP timeline', async ({
         electronApp: _electronApp,
         appWindow,
