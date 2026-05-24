@@ -198,10 +198,11 @@ function spawnTmuxAttachPty(
     pty: NodePtyModule,
     ws: WebSocket,
     parsed: Exclude<ParsedAttachRequest, null>,
+    sessionName: string,
     options: TmuxAttachRelayOptions
 ): IPty | null {
     try {
-        return pty.spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['attach', '-t', parsed.sessionName]), {
+        return pty.spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['attach', '-t', sessionName]), {
             name: 'xterm-256color',
             cols: parsed.cols,
             rows: parsed.rows,
@@ -234,7 +235,7 @@ export async function attachTmuxSessionToWebSocket(
     const pty: NodePtyModule | null = await loadPtyForRelay(ws, logger, sessionName, options.loadPty ?? loadNodePty)
     if (!pty) return
 
-    const term: IPty | null = spawnTmuxAttachPty(pty, ws, parsed, options)
+    const term: IPty | null = spawnTmuxAttachPty(pty, ws, parsed, sessionName, options)
     if (!term) return
 
     const pendingWrites: string[] = []
