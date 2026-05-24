@@ -20,7 +20,7 @@
  *     they belong to the full-graph pre-push pass. Listed for symmetry
  *     with the existing CheckDef scope concept.
  */
-import type {ParsedSubgraph} from '../graph/parse-subgraph.ts'
+import type {ParsedSubgraph} from '../../_shared/graph/parse-subgraph.ts'
 
 export type Severity = 'pass' | 'warn' | 'fail'
 

@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /**
- * Subgraph-scoped health gate runner.
+ * Subgraph-scoped health gate runner. Wired into .githooks/pre-commit.
  *
- * Status: Phase 0 stub. The measure registry is intentionally empty — the
- * three parallel measure agents (BEHAVIORAL / STRUCTURAL / SHAPE) will
- * populate it next, then this runner is wired into pre-commit in Phase 2.4.
- *
- * Until those agents land, invoking this runner is harmless: it parses
- * the input, builds the subgraph, finds no measures to run, prints a
- * "no measures registered" notice, and exits 0.
+ * Reads the staged diff (or an explicit file list), builds the touched
+ * communities + N-hop subgraph, runs every registered SubgraphMeasure
+ * against it, prints violations grouped by axis, and exits non-zero if
+ * any measure produced a fail-severity violation.
  *
  * I/O lives here (the runner edge); the contract types and the extractor
  * are pure functions of their inputs.
@@ -22,7 +19,7 @@
  *       [--baseline-refresh]               (Phase 0.4 — TODO, not yet wired)
  *
  * Exit codes:
- *   0   all measures pass (or registry empty)
+ *   0   all measures pass (or no TS files staged → nothing to check)
  *   1   one or more violations at severity='fail'
  *   2   bad CLI usage
  */
@@ -31,9 +28,10 @@ import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
-import {listMeasures} from '../_shared/measures/registry.ts'
-import {loadBaseline} from '../_shared/measures/baseline-store.ts'
-import type {SubgraphMeasureResult, Violation} from '../_shared/measures/subgraph-measure.ts'
+import {listMeasures} from '../_subgraph_gate/_internal/registry.ts'
+import {loadBaseline} from '../_subgraph_gate/_internal/baseline-store.ts'
+import type {SubgraphMeasureResult, Violation} from '../_subgraph_gate/_internal/subgraph-measure.ts'
+import '../_subgraph_gate/_internal/load-all.ts'
 
 type Args = {
     readonly changedFilesFrom: string | null
@@ -82,15 +80,43 @@ async function loadChangedFiles(args: Args): Promise<string[]> {
     return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0)
 }
 
+/**
+ * For most measures, score is lower-is-better — boundary-width, cycles,
+ * cognitive complexity, etc. Modularity-Q is the outlier (higher is
+ * better — a clean partition has Q closer to 1). Used by the
+ * delta-vs-baseline filter so an inherited bad Q is not re-reported as a
+ * violation on every commit.
+ */
+function isWithinBaseline(measureId: string, score: number, baseline: number): boolean {
+    if (measureId === 'modularity-q') return score >= baseline
+    return score <= baseline
+}
+
+/**
+ * Decorate each violation with its per-community baseline (if any) AND
+ * drop violations that the commit did not worsen. A community with score
+ * equal to or better than its baseline contributes no violation — the
+ * debt was already there. Only commits that increase the touched
+ * community's score above its baseline produce visible violations.
+ *
+ * Violations with no baseline (new community, missing snapshot) fall
+ * back to the measure's absolute threshold decision and pass through
+ * unchanged.
+ */
 async function decorateWithBaselines(
     result: SubgraphMeasureResult,
 ): Promise<SubgraphMeasureResult> {
     if (result.violations.length === 0) return result
     const baseline = await loadBaseline(result.measureId)
-    const decorated: Violation[] = result.violations.map(v => ({
-        ...v,
-        baseline: v.baseline ?? (v.community in baseline ? baseline[v.community] : null),
-    }))
+    const decorated: Violation[] = result.violations
+        .map(v => ({
+            ...v,
+            baseline: v.baseline ?? (v.community in baseline ? baseline[v.community] : null),
+        }))
+        .filter(v => {
+            if (v.baseline === null) return true
+            return !isWithinBaseline(result.measureId, v.score, v.baseline)
+        })
     return {...result, violations: decorated}
 }
 
@@ -126,9 +152,8 @@ async function main(): Promise<void> {
 
     const measures = listMeasures()
     if (measures.length === 0) {
-        console.error('subgraph-gate: no measures registered — nothing to check.')
-        console.error('  (this is expected during Phase 0 — the three parallel measure agents will populate the registry.)')
-        process.exit(0)
+        console.error('subgraph-gate: no measures registered — load-all.ts side-effect import may have failed silently.')
+        process.exit(1)
     }
 
     const needsInbound = args.includeInbound || measures.some(m => m.needsInbound)
@@ -161,7 +186,15 @@ async function main(): Promise<void> {
     for (const [axis, byMeasureId] of byAxis) printViolationGroup(axis, byMeasureId)
 
     const failCount = allResults.reduce((n, r) => n + r.violations.filter(v => v.severity === 'fail').length, 0)
-    process.exit(failCount > 0 ? 1 : 0)
+    if (failCount > 0) {
+        process.stderr.write('\n')
+        process.stderr.write('━'.repeat(80) + '\n')
+        process.stderr.write('Codebase complexity / tech-debt health measures failing, please address\n')
+        process.stderr.write('with brain/workflows/engineering/architectural-complexity/fp-rearchitecting/SKILL.md\n')
+        process.stderr.write('━'.repeat(80) + '\n')
+        process.exit(1)
+    }
+    process.exit(0)
 }
 
 main().catch(err => {
