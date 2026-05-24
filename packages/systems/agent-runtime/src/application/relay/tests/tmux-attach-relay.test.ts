@@ -239,4 +239,33 @@ describe('tmux attach relay', () => {
         expect(output()).not.toContain('tmux session configuration failed')
         ws.close()
     }, TEST_TIMEOUT_MS)
+
+    it('reports node-pty load failure at attach time without killing the tmux session', async () => {
+        const sessionName: string = makeSessionName('missing-pty')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        relay?.close()
+        relay = mountTmuxAttachRelay(server!, {
+            loadPty: async () => {
+                throw new Error('native module missing')
+            },
+            logger: {
+                info: () => undefined,
+                warn: () => undefined,
+            },
+        })
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {closed, output, ws} = await connectAndCollect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach`
+        )
+
+        await closed
+        expect(output()).toContain('node-pty unavailable: native module missing')
+        expect(await hasSession(sessionName)).toBe(true)
+        ws.close()
+    }, TEST_TIMEOUT_MS)
 })
