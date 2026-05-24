@@ -79,6 +79,7 @@ async function main() {
   const terminalId = process.env.VOICETREE_TERMINAL_ID
   const mcpPort = process.env.VOICETREE_MCP_PORT ?? '3001'
   const taskNodePath = process.env.TASK_NODE_PATH ?? ''
+  const outputDir = process.env.VOICETREE_OUTPUT_DIR
   const agentPrompt = resolveAgentPrompt(process.env)
 
   if (!terminalId) { console.error('Missing VOICETREE_TERMINAL_ID'); process.exit(1) }
@@ -126,6 +127,7 @@ async function main() {
       taskNodePath,
       canReceiveWaitNotifications: process.stdin.isTTY === true,
       waitForMessage: (matcher) => inbox.waitFor(matcher),
+      outputDir,
     },
     currentAbort,
   )
@@ -151,6 +153,7 @@ async function main() {
             taskNodePath,
             canReceiveWaitNotifications: process.stdin.isTTY === true,
             waitForMessage: (matcher) => inbox.waitFor(matcher),
+            outputDir,
           },
           currentAbort,
         )

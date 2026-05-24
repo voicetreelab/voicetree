@@ -7,11 +7,17 @@ import {buildResumeCommand, type ResumeMode} from '../spawn/resumeCli'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {getExistingAgentNames} from '../terminals/terminal-registry'
 import {getUniqueAgentName} from '@vt/graph-model/settings'
+import {
+    defaultResolveNativeSession,
+    type NativeSessionResult,
+    type ResolveNativeSession,
+} from './resolvers/resolveNativeSession'
 import type {RecoverableAgentSession} from './types'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 
 export type ForkAgentSessionDeps = {
     readonly discover: () => Promise<readonly RecoverableAgentSession[]>
+    readonly resolveNativeSession: ResolveNativeSession
     readonly allocateForkAgentName: (sourceAgentName: string) => string
     readonly spawn: (
         terminalId: TerminalId,
@@ -25,7 +31,8 @@ export type ForkAgentSessionDeps = {
 export type ForkAgentSessionResult =
     | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-resume-handle'}
-    | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected'}
+    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
 
 function modeFor(terminalData: TerminalData): ResumeMode {
@@ -36,9 +43,10 @@ function modeFor(terminalData: TerminalData): ResumeMode {
  * Fork a Claude/Codex agent session into a new terminal.
  *
  * Looks up `sourceTerminalId` in current discovery output. If the row has a
- * `resume` capability, allocates a fresh terminalId/agentName (derived from
- * the source's name so the relationship is visible in the tree), copies the
- * source's terminalData onto it, and spawns a new tmux-backed terminal with
+ * `resume` capability, resolves the native session id lazily (the expensive
+ * `~/.claude/projects` scan happens once per click), then allocates a fresh
+ * terminalId/agentName derived from the source's name, copies the source's
+ * terminalData onto it, and spawns a new tmux-backed terminal with
  * `claude --resume <id>` / `codex resume <id>`. The fork's parent is set to
  * the source so the tree-style sidebar renders it as a child.
  *
@@ -59,9 +67,21 @@ export async function forkAgentSession(
     const initialCommand: string | undefined = source.terminalData.initialCommand
     if (!initialCommand) return {kind: 'unsupported', reason: 'missing-initial-command'}
 
+    const projectRoot: string | undefined = source.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH
+    if (!projectRoot) return {kind: 'unsupported', reason: 'missing-project-root'}
+    const taskNodePath: string = source.terminalData.initialEnvVars?.TASK_NODE_PATH ?? ''
+
+    const native: NativeSessionResult = await deps.resolveNativeSession({
+        cliType: source.resume.cliType,
+        terminalId: sourceTerminalId,
+        projectRoot,
+        taskNodePath,
+    })
+    if (native.kind !== 'found') return {kind: 'no-native-session', cliType: source.resume.cliType}
+
     const built = buildResumeCommand({
         cliType: source.resume.cliType,
-        nativeSessionId: source.resume.nativeSessionId,
+        nativeSessionId: native.sessionId,
         mode: modeFor(source.terminalData),
         originalCommand: initialCommand,
     })
@@ -103,6 +123,7 @@ export function defaultForkAgentDeps(
 ): ForkAgentSessionDeps {
     return {
         discover: () => discoverRecoverableAgentSessions(discoveryDeps),
+        resolveNativeSession: defaultResolveNativeSession,
         allocateForkAgentName: (sourceAgentName: string): string => {
             return getUniqueAgentName(sourceAgentName, getExistingAgentNames())
         },

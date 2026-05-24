@@ -6,7 +6,16 @@ export interface ExecutorEnv {
   taskNodePath: string
   canReceiveWaitNotifications?: boolean
   waitForMessage?: (matcher: (message: string) => boolean) => Promise<string>
+  /**
+   * Optional outputPath forwarded to every create_graph call. When set,
+   * the daemon writes new nodes into this directory instead of the vault
+   * write-path root. Used by the agent-storm perf harness to test the
+   * per-directory contention hypothesis (hypotheses.md #10).
+   */
+  outputDir?: string
 }
+
+let createNodeCounter = 0
 
 function interruptibleDelay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -36,14 +45,17 @@ export async function executeScript(
       }
 
       case 'create_node': {
-        const filename = `fake-agent-${Date.now()}.md`
+        // Include terminalId + a monotonic counter so concurrent fake-agents
+        // do not produce colliding filenames when their create_node actions
+        // land in the same millisecond.
+        const filename = `fake-agent-${env.terminalId}-${Date.now()}-${createNodeCounter++}.md`
         await mcpClient.createGraph(env.terminalId, [{
           filename,
           title: action.title,
           summary: action.summary,
           content: action.content,
           color: action.color,
-        }])
+        }], env.outputDir)
         break
       }
 

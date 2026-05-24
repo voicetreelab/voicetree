@@ -85,39 +85,14 @@ interface ExtendedWindowWithUndoTracking extends ExtendedWindow {
  * Sets up mock Electron API with undo/redo call tracking
  */
 async function setupMockElectronAPIWithUndoTracking(page: import('@playwright/test').Page): Promise<void> {
-  await setupMockElectronAPI(page);
-
-  // Add undo/redo tracking
   await page.addInitScript(() => {
-    // Initialize tracker
     (window as unknown as ExtendedWindowWithUndoTracking)._undoRedoTracker = {
       undoCalls: 0,
       redoCalls: 0
     };
-
-    const api = (window as unknown as { electronAPI?: { main: Record<string, unknown> } }).electronAPI;
-    if (api && api.main) {
-      // Mock performUndo with tracking
-      api.main.performUndo = async () => {
-        const tracker = (window as unknown as ExtendedWindowWithUndoTracking)._undoRedoTracker;
-        if (tracker) {
-          tracker.undoCalls++;
-          console.log(`[Mock] performUndo called (total: ${tracker.undoCalls})`);
-        }
-        return true;
-      };
-
-      // Mock performRedo with tracking
-      api.main.performRedo = async () => {
-        const tracker = (window as unknown as ExtendedWindowWithUndoTracking)._undoRedoTracker;
-        if (tracker) {
-          tracker.redoCalls++;
-          console.log(`[Mock] performRedo called (total: ${tracker.redoCalls})`);
-        }
-        return true;
-      };
-    }
   });
+
+  await setupMockElectronAPI(page);
 }
 
 test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {

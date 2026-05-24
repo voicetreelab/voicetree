@@ -34,7 +34,7 @@ describe('attach capability', () => {
     })
 
     it('exposes BOTH attach AND resume when session is alive AND a resume handle is present (fork-while-running)', () => {
-        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
+        const resumeHandle: ResumeCapability = {cliType: 'claude'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
             liveTmuxSessionsByName: new Map([[SESSION_A, makeLiveSession(SESSION_A)]]),
@@ -48,7 +48,7 @@ describe('attach capability', () => {
     })
 
     it('falls through to resume-only when session is dead but resume handle is present', () => {
-        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
+        const resumeHandle: ResumeCapability = {cliType: 'claude'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
             resumeHandleByTerminalId: new Map([[TERMINAL_A, resumeHandle]]),
@@ -67,7 +67,7 @@ describe('attach capability', () => {
 
 describe('resume capability — Claude', () => {
     it('exposes resume when a Claude handle is in resumeHandleByTerminalId', () => {
-        const resumeHandle: ResumeCapability = {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}
+        const resumeHandle: ResumeCapability = {cliType: 'claude'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
             resumeHandleByTerminalId: new Map([[TERMINAL_A, resumeHandle]]),
@@ -76,7 +76,6 @@ describe('resume capability — Claude', () => {
         if (result.kind === 'recoverable') {
             expect(result.record.terminalId).toBe(TERMINAL_A)
             expect(result.record.resume?.cliType).toBe('claude')
-            expect(result.record.resume?.nativeSessionId).toBe('sess-uuid-123')
             expect(result.record.agentName).toBe('Ari')
             expect(result.record.metadataPath).toBe(METADATA_PATH_A)
         }
@@ -85,7 +84,7 @@ describe('resume capability — Claude', () => {
     it('includes terminalData in the recoverable record', () => {
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningClaudeMetadata())],
-            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}]]),
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude'}]]),
         }))
         expect(result.kind).toBe('recoverable')
         if (result.kind === 'recoverable') {
@@ -100,7 +99,7 @@ describe('resume capability — Claude', () => {
                     initialCommand: 'CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions',
                 }),
             }))],
-            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}]]),
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude'}]]),
         }))
         expect(result.kind).toBe('recoverable')
         if (result.kind === 'recoverable') {
@@ -111,7 +110,7 @@ describe('resume capability — Claude', () => {
 
 describe('resume capability — Codex', () => {
     it('exposes resume when a Codex handle is in resumeHandleByTerminalId', () => {
-        const resumeHandle: ResumeCapability = {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}
+        const resumeHandle: ResumeCapability = {cliType: 'codex'}
         const [result] = classifyRecoveryCandidates(baseInput({
             metadataRecords: [record(makeRunningCodexMetadata())],
             resumeHandleByTerminalId: new Map([['B', resumeHandle]]),
@@ -120,7 +119,6 @@ describe('resume capability — Codex', () => {
         if (result.kind === 'recoverable') {
             expect(result.record.terminalId).toBe('B')
             expect(result.record.resume?.cliType).toBe('codex')
-            expect(result.record.resume?.nativeSessionId).toBe('thread-uuid-456')
             expect(result.record.agentName).toBe('Bea')
         }
     })
@@ -167,12 +165,12 @@ describe('session name resolution from env vars', () => {
                     },
                 }),
             })],
-            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sid'}]]),
+            resumeHandleByTerminalId: new Map([[TERMINAL_A, {cliType: 'claude'}]]),
         }))
         expect(result.kind).toBe('recoverable')
         if (result.kind === 'recoverable') {
             expect(result.record.attach).toBeUndefined()
-            expect(result.record.resume?.nativeSessionId).toBe('sid')
+            expect(result.record.resume?.cliType).toBe('claude')
         }
     })
 })
