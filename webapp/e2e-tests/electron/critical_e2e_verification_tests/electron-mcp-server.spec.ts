@@ -12,11 +12,18 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import {
+    mcpCallTool,
+    mcpRequest,
+    pollForCytoscape,
+    robustElectronTeardown,
+    resolveGraphDaemonNodeBin,
+    safeStopFileWatching,
+    waitForMcpServer,
+} from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
-const MCP_URL = 'http://localhost:3001/mcp';
 
 // Parent node from fixture (filename with .md as used in graph)
 const PARENT_NODE_ID = '1_VoiceTree_Website_Development_and_Node_Display_Bug';
@@ -32,6 +39,7 @@ interface ExtendedWindow {
             startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
+            getMcpPort: () => Promise<number>;
         };
     };
 }
@@ -116,76 +124,18 @@ const test = base.extend<{
     }
 });
 
-/**
- * Helper: Wait for MCP server to be available with retries
- */
-async function waitForMcpServer(maxRetries = 10, delayMs = 500): Promise<boolean> {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(MCP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'healthcheck', version: '1.0.0' } } })
-            });
-            if (response.ok) {
-                console.log(`[MCP Test] Server available after ${i + 1} attempts`);
-                return true;
-            }
-        } catch {
-            console.log(`[MCP Test] Server not ready, attempt ${i + 1}/${maxRetries}`);
-        }
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-    return false;
-}
-
-/**
- * Helper: Make MCP protocol request
- */
-async function mcpRequest(method: string, params: Record<string, unknown> = {}, id = 1): Promise<unknown> {
-    const response = await fetch(MCP_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({
-            jsonrpc: '2.0',
-            id,
-            method,
-            params
-        })
+async function getMcpUrl(appWindow: Page): Promise<string> {
+    const mcpPort = await appWindow.evaluate(async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (!api) throw new Error('electronAPI not available');
+        return await api.main.getMcpPort();
     });
-
-    const text = await response.text();
-    return JSON.parse(text);
-}
-
-/**
- * Helper: Call MCP tool
- */
-async function mcpCallTool(toolName: string, args: Record<string, unknown>): Promise<{ success: boolean; content?: Array<{ type: string; text: string }>; isError?: boolean }> {
-    const response = await mcpRequest('tools/call', {
-        name: toolName,
-        arguments: args
-    }) as { result?: { content?: Array<{ type: string; text: string }>; isError?: boolean }; error?: { message: string } };
-
-    if (response.error) {
-        throw new Error(`MCP error: ${response.error.message}`);
-    }
-
-    const content = response.result?.content;
-    if (content && content[0]?.text) {
-        const parsed = JSON.parse(content[0].text) as { success: boolean };
-        return { success: parsed.success, content, isError: response.result?.isError };
-    }
-
-    return { success: false };
+    return `http://127.0.0.1:${mcpPort}/mcp`;
 }
 
 test.describe('MCP Server Integration', () => {
-    // MCP server uses a fixed port (3001), so tests must run serially to avoid conflicts
-    // Increased timeout for MCP server startup and cleanup
+    // Tests share one Electron app/MCP instance per worker, so keep this suite serial.
+    // Increased timeout for MCP server startup and cleanup.
     test.describe.configure({ mode: 'serial', timeout: 90000 });
 
     // File created by test - will be cleaned up
@@ -204,9 +154,10 @@ test.describe('MCP Server Integration', () => {
 
     test('MCP server starts with Electron and responds to requests', async ({ appWindow }) => {
         console.log('=== TEST: MCP server health check ===');
+        const mcpUrl = await getMcpUrl(appWindow);
 
-        // Wait for MCP server to be available (handles port conflicts with other parallel tests)
-        const serverReady = await waitForMcpServer(15, 1000);
+        // Wait for the app-selected MCP port to be available.
+        const serverReady = await waitForMcpServer(mcpUrl, 15, 1000);
         if (!serverReady) {
             // If server isn't ready after retries, skip test gracefully
             // This can happen when another electron instance has the port
@@ -220,7 +171,7 @@ test.describe('MCP Server Integration', () => {
 
         // Test: Initialize MCP connection
         console.log('=== STEP 1: Initialize MCP connection ===');
-        const initResponse = await mcpRequest('initialize', {
+        const initResponse = await mcpRequest(mcpUrl, 'initialize', {
             protocolVersion: '2024-11-05',
             capabilities: {},
             clientInfo: { name: 'e2e-test', version: '1.0.0' }
@@ -231,7 +182,7 @@ test.describe('MCP Server Integration', () => {
 
         // Test: List tools
         console.log('=== STEP 2: List available tools ===');
-        const toolsResponse = await mcpRequest('tools/list') as { result?: { tools?: Array<{ name: string }> } };
+        const toolsResponse = await mcpRequest(mcpUrl, 'tools/list') as { result?: { tools?: Array<{ name: string }> } };
 
         const toolNames = toolsResponse.result?.tools?.map(t => t.name) ?? [];
         expect(toolNames).toContain('spawn_agent');
@@ -242,6 +193,7 @@ test.describe('MCP Server Integration', () => {
     test.skip('add_node creates file and updates graph with parent edge', async ({ appWindow }) => {
         // FIXME: Flaky test - MCP server sometimes not ready or returns unexpected format
         console.log('=== TEST: Add node via MCP with parent edge ===');
+        const mcpUrl = await getMcpUrl(appWindow);
 
         // STEP 1: Load the test vault
         console.log('=== STEP 1: Load test vault ===');
@@ -277,7 +229,7 @@ test.describe('MCP Server Integration', () => {
 
         // STEP 3: Initialize MCP connection
         console.log('=== STEP 3: Initialize MCP connection ===');
-        await mcpRequest('initialize', {
+        await mcpRequest(mcpUrl, 'initialize', {
             protocolVersion: '2024-11-05',
             capabilities: {},
             clientInfo: { name: 'e2e-test', version: '1.0.0' }
@@ -285,7 +237,7 @@ test.describe('MCP Server Integration', () => {
 
         // STEP 4: Call add_node via MCP
         console.log('=== STEP 4: Add node via MCP ===');
-        const addResult = await mcpCallTool('add_node', {
+        const addResult = await mcpCallTool(mcpUrl, 'add_node', {
             nodeId: TEST_NODE_ID,
             content: '### Test Node Created by MCP\n\nThis node was created via the MCP server e2e test.',
             parentNodeId: PARENT_NODE_ID
@@ -360,11 +312,12 @@ test.describe('MCP Server Integration', () => {
         console.log('✅ Test completed successfully');
     });
 
-    test('get_graph returns current graph state', async ({ appWindow }) => {
-        console.log('=== TEST: get_graph returns graph state ===');
+    test('vt_get_live_state returns current graph state', async ({ appWindow }) => {
+        console.log('=== TEST: vt_get_live_state returns graph state ===');
+        const mcpUrl = await getMcpUrl(appWindow);
 
-        // Wait for MCP server to be available (handles port conflicts with other parallel tests)
-        const serverReady = await waitForMcpServer(15, 1000);
+        // Wait for the app-selected MCP port to be available.
+        const serverReady = await waitForMcpServer(mcpUrl, 15, 1000);
         if (!serverReady) {
             console.log('[MCP Test] Server not available - port may be in use by another test');
             test.skip();
@@ -381,22 +334,23 @@ test.describe('MCP Server Integration', () => {
         await appWindow.waitForTimeout(3000);
 
         // Initialize MCP
-        await mcpRequest('initialize', {
+        await mcpRequest(mcpUrl, 'initialize', {
             protocolVersion: '2024-11-05',
             capabilities: {},
             clientInfo: { name: 'e2e-test', version: '1.0.0' }
         });
 
-        // Call get_graph
-        const response = await mcpRequest('tools/call', {
-            name: 'get_graph',
+        // Call vt_get_live_state
+        const response = await mcpRequest(mcpUrl, 'tools/call', {
+            name: 'vt_get_live_state',
             arguments: {}
-        }) as { result?: { content?: Array<{ text: string }> } };
+        }) as { result?: { content?: Array<{ text: string }>; isError?: boolean } };
 
-        const graphData = JSON.parse(response.result?.content?.[0]?.text ?? '{}') as { nodeCount: number; nodes: Record<string, unknown> };
+        expect(response.result?.isError).not.toBe(true);
+        const liveState = JSON.parse(response.result?.content?.[0]?.text ?? '{}') as { graph?: { nodes?: Record<string, unknown> } };
+        const nodeCount = Object.keys(liveState.graph?.nodes ?? {}).length;
 
-        expect(graphData.nodeCount).toBeGreaterThan(0);
-        expect(Object.keys(graphData.nodes).length).toBe(graphData.nodeCount);
-        console.log(`✓ get_graph returned ${graphData.nodeCount} nodes`);
+        expect(nodeCount).toBeGreaterThan(0);
+        console.log(`✓ vt_get_live_state returned ${nodeCount} graph nodes`);
     });
 });

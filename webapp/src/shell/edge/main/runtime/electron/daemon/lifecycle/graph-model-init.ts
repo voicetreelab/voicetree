@@ -8,6 +8,7 @@
 import { app, dialog } from 'electron'
 import * as E from 'fp-ts/lib/Either.js'
 import * as O from 'fp-ts/lib/Option.js'
+import log from 'electron-log'
 import { initGraphModel, type GraphModelCallbacks } from '@vt/graph-model'
 import type { Graph, GraphDelta } from '@vt/graph-model/graph'
 import { configureRootIO } from '@vt/graph-state'
@@ -25,6 +26,13 @@ import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/st
 import { getOnboardingDirectory } from '@/shell/edge/main/runtime/electron/startup/onboarding-setup'
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
+
+async function reconcileTmuxTerminalsForVault(writeFolder: string): Promise<void> {
+    const reconciliation = await terminalRuntimeSurface.reconcileTmuxHeadlessAgents(writeFolder)
+    if (reconciliation.imported.length > 0 || reconciliation.markedExited.length > 0) {
+        log.info('[Vault] Reconciled tmux terminals', reconciliation)
+    }
+}
 
 async function loadGraphThroughDaemon(_vaultPaths: readonly string[]): Promise<E.Either<unknown, Graph>> {
     // Post BF-345: there is no vaultless daemon fallback. Callers that need a
@@ -60,6 +68,12 @@ export function initializeGraphModel(): void {
         },
 
         // Watch folder events
+        onVaultSwitching(): void {
+            terminalRuntimeSurface.getTerminalManager().cleanup()
+        },
+        async onVaultOpened(info): Promise<void> {
+            await reconcileTmuxTerminalsForVault(info.writeFolder)
+        },
         onWatchingStarted(info): void {
             const mainWindow: Electron.BrowserWindow | null = getMainWindow()
             if (mainWindow && !mainWindow.isDestroyed()) {

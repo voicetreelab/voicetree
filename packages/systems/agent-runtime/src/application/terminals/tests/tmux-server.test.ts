@@ -1,12 +1,12 @@
 import {join} from 'node:path'
-import {beforeEach, describe, expect, it} from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {
     ensureTmuxServer,
     getTmuxCommandArgs,
     getTmuxSocketPath,
-    resetTmuxServerForTests,
-    type TmuxServerDeps,
+    shutdownTmuxServer,
 } from '../tmux/tmux-server.ts'
+import type {TmuxServerDeps} from '../tmux/tmux-server-core.ts'
 
 type FakeCall = {
     readonly args: readonly string[]
@@ -197,6 +197,12 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(null, '', '')
                 return
             }
+            if (command === 'kill-server') {
+                mutable.serverRunning = false
+                mutable.socketExists = false
+                callback(null, '', '')
+                return
+            }
             if (command === 'display-message') {
                 callback(null, '12345\n', '')
                 return
@@ -222,10 +228,6 @@ function commandTuples(calls: readonly FakeCall[]): readonly string[][] {
 }
 
 describe('tmux-server', () => {
-    beforeEach(() => {
-        resetTmuxServerForTests()
-    })
-
     it('builds socket-scoped tmux args from the app support path', () => {
         const appSupportPath: string = '/tmp/vt support'
         expect(getTmuxSocketPath(appSupportPath)).toBe('/tmp/vt support/tmux.sock')
@@ -263,6 +265,34 @@ describe('tmux-server', () => {
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
             ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
         ])
+    })
+
+    it('starts the root tmux server through the detached command path', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps()
+        const detachedCalls: FakeCall[] = []
+        const execFile = deps.execFile
+        ;(deps as {execFileDetached: NonNullable<TmuxServerDeps['execFileDetached']>}).execFileDetached = (file, args, callback): void => {
+            detachedCalls.push({file, args})
+            execFile(file, args, callback)
+        }
+
+        await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
+
+        expect(commandTuples(detachedCalls)).toEqual([[
+            '/opt/homebrew/bin/tmux',
+            '-S',
+            socketPath,
+            'new-session',
+            '-d',
+            '-s',
+            '__voicetree_root__',
+            '--',
+            'sh',
+            '-c',
+            'while :; do sleep 2147483647; done',
+        ]])
     })
 
     it('removes a stale socket and retries root session startup once', async () => {
@@ -407,5 +437,32 @@ describe('tmux-server', () => {
         ])
         expect(commandTuples(deps.calls).some((call: readonly string[]) => call.includes('bootstrap'))).toBe(false)
         expect(deps.removedPaths).toContain('/Users/test/Library/LaunchAgents/com.voicetree.tmux.plist')
+    })
+
+    it('shuts down the socket-scoped tmux server and removes its socket', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps({serverRunning: true, socketExists: true})
+
+        await shutdownTmuxServer({appSupportPath, deps})
+
+        expect(commandTuples(deps.calls)).toEqual([
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'kill-server'],
+        ])
+        expect(deps.removedPaths).toContain(socketPath)
+    })
+
+    it('treats a missing tmux server shutdown as a no-op', async () => {
+        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
+        const socketPath: string = join(appSupportPath, 'tmux.sock')
+        const deps = makeDeps({serverRunning: false, socketExists: false})
+
+        await shutdownTmuxServer({appSupportPath, deps})
+
+        expect(commandTuples(deps.calls)).toEqual([
+            ['/opt/homebrew/bin/tmux', '-S', socketPath, 'list-sessions'],
+        ])
+        expect(deps.removedPaths).toEqual([])
     })
 })

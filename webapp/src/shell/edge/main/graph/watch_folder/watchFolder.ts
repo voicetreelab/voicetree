@@ -14,11 +14,10 @@ import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-sta
 import {
     getStartupVaultHint,
     openVault,
-    setOnFolderSwitchCleanup,
     type StartupVaultHint,
 } from './openVault'
 
-export { getStartupVaultHint, openVault, setOnFolderSwitchCleanup }
+export { getStartupVaultHint, openVault }
 
 async function getVaultState(): Promise<VaultState> {
     return await callDaemon((client) => client.getVault())

@@ -52,7 +52,6 @@ import {
     getWatchStatus,
     getVaultPaths,
     getWriteFolder,
-    setOnFolderSwitchCleanup,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/runtime/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/workspace/saveNodePositions';
@@ -191,6 +190,10 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
+function pinProcessAppSupportPath(): void {
+    process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+}
+
 async function getProjectRoot(): Promise<string | null> {
     const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
         await getWatchStatus();
@@ -198,6 +201,7 @@ async function getProjectRoot(): Promise<string | null> {
 }
 
 configureEnvironment();
+pinProcessAppSupportPath();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances
@@ -232,12 +236,6 @@ terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     notifyOnCompletion(records);
     void refreshUnclaimedTmuxSessions().catch(() => undefined);
     void refreshRecoverySessions().catch(() => undefined);
-});
-
-// Register terminal cleanup for when folders are switched
-setOnFolderSwitchCleanup(() => {
-    //console.log('[main] Cleaning up terminals on folder switch');
-    terminalManager.cleanup();
 });
 
 // App event handlers
@@ -377,6 +375,9 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+    void terminalRuntimeSurface.shutdownTmuxServer().catch((error: unknown) => {
+        log.warn('[App] Failed to shut down tmux server before quit:', error);
+    });
     stopUnclaimedTmuxSessionPolling();
     stopRecoverySessionPolling();
 

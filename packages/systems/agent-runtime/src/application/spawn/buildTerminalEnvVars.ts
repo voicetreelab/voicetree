@@ -47,11 +47,12 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
     const voicetreeProjectDir: string = projectRoot ? path.join(projectRoot, '.voicetree') : ''
+    const vaultPath: string = writeFolder || projectRoot || ''
 
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-        VOICETREE_VAULT_PATH: projectRoot ?? writeFolder,
+        VOICETREE_VAULT_PATH: vaultPath,
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: params.contextNodePath,
         TASK_NODE_PATH: params.taskNodePath,
