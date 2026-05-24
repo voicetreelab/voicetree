@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {pathToFileURL} from 'node:url'
+import {fileURLToPath} from 'node:url'
 import {
     agentClose,
     agentList,
@@ -354,7 +354,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
 function isDirectExecution(): boolean {
     const invokedPath: string | undefined = process.argv[1]
-    return invokedPath !== undefined && import.meta.url === pathToFileURL(invokedPath).href
+    if (invokedPath === undefined) return false
+    // argv[1] may be a symlink (e.g. node_modules/@voicetree/cli is a workspace
+    // symlink); import.meta.url is always the real path, so resolve argv[1]
+    // before comparing or the guard silently skips main().
+    const invokedRealPath: string = fs.realpathSync(invokedPath)
+    return invokedRealPath === fileURLToPath(import.meta.url)
 }
 
 if (isDirectExecution()) {
