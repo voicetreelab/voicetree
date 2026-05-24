@@ -3,9 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
     Node,
-    Project,
     SyntaxKind,
-    ts,
     type FunctionDeclaration,
     type FunctionExpression,
     type Identifier,
@@ -14,7 +12,9 @@ import {
     type SourceFile,
     type VariableDeclaration,
 } from 'ts-morph'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
 import { buildCallGraph, type CallGraph } from '../../_shared/graph/call-graph'
+import { createRepoTsMorphProject } from '../../_shared/graph/repo-ts-morph-project'
 import { recordHealthMetric } from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
@@ -50,9 +50,10 @@ type FunctionSyntax = FunctionDeclaration | MethodDeclaration | FunctionExpressi
 describe('transitive impurity (ts-morph call graph)', () => {
     it('transitive impurity functions stay under budget', async () => {
         const started = performance.now()
-        const graph = await buildCallGraph()
+        const packages = await discoverPackages(REPO_ROOT)
+        const graph = await buildCallGraph(REPO_ROOT, packages)
         const buildMs = Math.round(performance.now() - started)
-        const directIds = collectDirectlyImpureFunctionIds(graph)
+        const directIds = collectDirectlyImpureFunctionIds(graph, packages)
         const scopedNodeIds = [...graph.nodes.keys()].filter(id => id.startsWith('packages/'))
         const transitiveIds = scopedNodeIds
             .filter(id => directIds.has(id) || graph.reachesAny(id, node => directIds.has(node.id)))
@@ -111,17 +112,8 @@ describe('transitive impurity (ts-morph call graph)', () => {
     }, 120000)
 })
 
-function collectDirectlyImpureFunctionIds(graph: CallGraph): ReadonlySet<string> {
-    const project = new Project({
-        compilerOptions: {
-            moduleResolution: ts.ModuleResolutionKind.Bundler,
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ES2022,
-            allowJs: false,
-            skipLibCheck: true,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    })
+function collectDirectlyImpureFunctionIds(graph: CallGraph, packages: readonly PackageInfo[]): ReadonlySet<string> {
+    const project = createRepoTsMorphProject(REPO_ROOT, packages)
     const files = [...new Set([...graph.nodes.values()].map(node => resolve(REPO_ROOT, node.file)))]
     const sourceFiles = project.addSourceFilesAtPaths(files)
     const functionNodes = new Map<string, FunctionSyntax>()

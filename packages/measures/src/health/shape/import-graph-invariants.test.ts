@@ -1,8 +1,10 @@
 import {existsSync} from 'node:fs'
 import {dirname, join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {Project, ts, type ExportDeclaration, type ImportDeclaration, type SourceFile} from 'ts-morph'
+import {ts, type ExportDeclaration, type ImportDeclaration, type Project, type SourceFile} from 'ts-morph'
 import {beforeAll, describe, expect, it} from 'vitest'
+import {discoverPackages, type PackageInfo} from '../../_shared/discovery/discover-packages'
+import {createRepoTsMorphProject} from '../../_shared/graph/repo-ts-morph-project'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
@@ -69,17 +71,8 @@ function importerIsServer(pkg: string): boolean {
     return pkg === SERVER_PACKAGE_DIR || pkg.startsWith(`${SERVER_PACKAGE_DIR}/`)
 }
 
-function buildProject(): Project {
-    const project = new Project({
-        compilerOptions: {
-            moduleResolution: ts.ModuleResolutionKind.Bundler,
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ES2022,
-            allowJs: false,
-            skipLibCheck: true,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    })
+function buildProject(packages: readonly PackageInfo[]): Project {
+    const project = createRepoTsMorphProject(REPO_ROOT, packages)
     project.addSourceFilesAtPaths([
         `${REPO_ROOT}/packages/libraries/**/*.{ts,tsx}`,
         `${REPO_ROOT}/packages/systems/**/*.{ts,tsx}`,
@@ -247,7 +240,7 @@ function formatRelativeViolation(e: ImportEdge): string {
 let edgesPromise: Promise<readonly ImportEdge[]> | undefined
 
 async function getEdges(): Promise<readonly ImportEdge[]> {
-    edgesPromise ??= Promise.resolve(collectEdges(buildProject()))
+    edgesPromise ??= discoverPackages(REPO_ROOT).then(packages => collectEdges(buildProject(packages)))
     return edgesPromise
 }
 
