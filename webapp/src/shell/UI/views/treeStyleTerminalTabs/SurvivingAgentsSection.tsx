@@ -41,7 +41,6 @@ function rowTooltip(row: RecoverableAgentSession): string {
     }
     if (row.resume) {
         parts.push(`resume cli: ${row.resume.cliType}`);
-        parts.push(`native session: ${row.resume.nativeSessionId}`);
     }
     if (row.metadataPath) parts.push(`metadata: ${row.metadataPath}`);
     const projectRoot: string | undefined = row.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH;
@@ -52,9 +51,6 @@ function rowTooltip(row: RecoverableAgentSession): string {
 function rowMeta(row: RecoverableAgentSession, now: number): string {
     if (row.attach) {
         return `${formatAge(row.attach.session.createdAt, now)} | pid ${row.attach.session.panePid}`;
-    }
-    if (row.resume) {
-        return `session ${row.resume.nativeSessionId}`;
     }
     return '';
 }

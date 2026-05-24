@@ -74,7 +74,7 @@ function makeResumable(overrides: Partial<RecoverableAgentSession> = {}): Recove
             agentName: 'Bob',
         }),
         isClaimed: false,
-        resume: {cliType: 'claude', nativeSessionId: 'sess-uuid-bob'},
+        resume: {cliType: 'claude'},
         ...overrides,
     };
 }
@@ -181,11 +181,11 @@ describe('SurvivingAgentsSection — resume capability rows', () => {
         expect(onResume).toHaveBeenCalledWith('Bob');
     });
 
-    it('renders the resumable native sessionId in the row meta', () => {
-        const {container} = renderSection([makeResumable({resume: {cliType: 'claude', nativeSessionId: 'sess-visible-id'}})]);
+    it('shows the cliType in the resumable badge (the row does NOT carry a native sessionId — that is resolved lazily on click)', () => {
+        const {container} = renderSection([makeResumable({resume: {cliType: 'claude'}})]);
         const row: Element | null = container.querySelector('[data-terminal-id="Bob"]');
         expect(row).not.toBeNull();
-        expect((row as HTMLElement).textContent).toContain('sess-visible-id');
+        expect((row as HTMLElement).textContent).toContain('Resumable (claude)');
     });
 });
 
@@ -197,7 +197,7 @@ describe('SurvivingAgentsSection — combined capabilities', () => {
     it('renders both Attach AND Resume buttons on a row that has both capabilities', () => {
         const both: RecoverableAgentSession = {
             ...makeAttachable(),
-            resume: {cliType: 'claude', nativeSessionId: 'sess-uuid-combo'},
+            resume: {cliType: 'claude'},
         };
         const {container} = renderSection([both]);
         const row: Element | null = container.querySelector('[data-terminal-id="Ari"][data-has-attach="true"][data-has-resume="true"]');

@@ -40,10 +40,5 @@ export {
   terminateUnresponsiveDaemon,
   type OrphanCleanupResult,
 } from './orphanCleanup.ts'
-export {
-  initTracing,
-  traceClientSpan,
-  traceClientSyncSpan,
-} from './tracing.ts'
 
 export * from './contract.ts'

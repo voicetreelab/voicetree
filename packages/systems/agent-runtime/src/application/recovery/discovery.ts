@@ -16,9 +16,6 @@ import {
     detectSupportedCliFromMetadata,
     type MetadataRecord,
 } from './classifier'
-import os from 'node:os'
-import {resolveClaudeNativeSession, defaultResolveClaudeDeps, type ResolveClaudeResult} from './resolvers/resolveClaudeNativeSession'
-import {resolveCodexNativeSession, defaultResolveCodexDeps, type ResolveCodexResult} from './resolvers/resolveCodexNativeSession'
 import type {RecoverableAgentSession, RecoveryClassification, ResumeCapability} from './types'
 
 export type DiscoverRecoveryDeps = {
@@ -26,14 +23,6 @@ export type DiscoverRecoveryDeps = {
     readonly listLiveUnclaimedTmuxSessions: () => Promise<readonly UnclaimedTmuxSession[]>
     readonly getRegistryTerminalIds: () => ReadonlySet<string>
     readonly getCurrentNamespaceHash: () => Promise<string | null>
-    readonly resolveResumeHandle: (req: ResolveRequest) => ResumeCapability | null
-}
-
-export type ResolveRequest = {
-    readonly cliType: 'claude' | 'codex'
-    readonly terminalId: string
-    readonly projectRoot: string
-    readonly taskNodePath: string
 }
 
 function sortRecords(records: readonly RecoverableAgentSession[]): readonly RecoverableAgentSession[] {
@@ -53,11 +42,13 @@ function sortRecords(records: readonly RecoverableAgentSession[]): readonly Reco
  * Impure discovery entry point.
  *
  * Reads vault terminal metadata, live tmux state, the in-memory terminal
- * registry, and the current vault namespace hash. For each candidate record
- * targeting a supported CLI (claude/codex), runs the matching resolver against
- * disk (e.g. `~/.claude/projects/**\/*.jsonl`) to determine the resume
- * capability at discovery time. Then routes everything through the pure
- * classifier and returns the recoverable rows.
+ * registry, and the current vault namespace hash. Decides resume capability
+ * purely from metadata shape: a record carries `resume: {cliType}` when its
+ * `initialCommand` parses to a supported CLI (`claude`/`codex`) and the
+ * record has a `VOICETREE_VAULT_PATH`. The actual native session id is NOT
+ * resolved here — that would require scanning `~/.claude/projects/**\/*.jsonl`
+ * (~1 GB for heavy users) on every 10s poll. The resolver runs lazily inside
+ * `resumePersistedAgentSession` / `forkAgentSession` at click time.
  *
  * Capabilities (`attach`, `resume`) are independent. A record can carry
  * neither, one, or both. The UI decides where to render based on `isClaimed`
@@ -80,11 +71,8 @@ export async function discoverRecoverableAgentSessions(
     const liveTmuxSessionsByName: ReadonlyMap<string, UnclaimedTmuxSession> = new Map(
         liveUnclaimed.map((session) => [session.sessionName, session]),
     )
-    const resumeHandleByTerminalId: ReadonlyMap<string, ResumeCapability> = resolveResumeHandlesForMetadata(
-        metadataRecords,
-        currentNamespaceHash,
-        resolvedDeps.resolveResumeHandle,
-    )
+    const resumeHandleByTerminalId: ReadonlyMap<string, ResumeCapability> =
+        detectResumeCapabilitiesFromMetadata(metadataRecords, currentNamespaceHash)
     const classifications: readonly RecoveryClassification[] = classifyRecoveryCandidates({
         metadataRecords,
         liveTmuxSessionsByName,
@@ -140,10 +128,22 @@ function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAg
     }
 }
 
-function resolveResumeHandlesForMetadata(
+/**
+ * Decide resume capability for each metadata record from metadata shape alone.
+ *
+ * Surfaces `{cliType}` when the record targets a supported CLI and carries the
+ * minimum env (`VOICETREE_VAULT_PATH`) required for the resolver to run later
+ * at click time. No filesystem IO, no transcript scans — this runs on every
+ * 10s poll and must stay cheap.
+ *
+ * The actual native session id lookup (which can touch ~1 GB of
+ * `~/.claude/projects/**\/*.jsonl`) is deferred to
+ * `resolveNativeSession` invoked by `resumePersistedAgentSession` /
+ * `forkAgentSession`.
+ */
+function detectResumeCapabilitiesFromMetadata(
     metadataRecords: readonly MetadataRecord[],
     currentNamespaceHash: string | null,
-    resolveResumeHandle: (req: ResolveRequest) => ResumeCapability | null,
 ): ReadonlyMap<string, ResumeCapability> {
     const out: Map<string, ResumeCapability> = new Map()
     for (const record of metadataRecords) {
@@ -153,7 +153,7 @@ function resolveResumeHandlesForMetadata(
         if (typeof obj.name !== 'string' || !obj.name) continue
         if (obj.status !== 'running' && obj.status !== 'exited') continue
         const metadata = data as TmuxTerminalMetadata
-        // Skip foreign vaults early — no point resolving handles we won't surface.
+        // Skip foreign vaults early — won't be surfaced anyway.
         if (currentNamespaceHash !== null) {
             const sessionName: string = metadata.session
                 ?? buildTmuxSessionName(metadata.name, metadata.terminalData?.initialEnvVars ?? {})
@@ -164,14 +164,7 @@ function resolveResumeHandlesForMetadata(
         if (!cliType) continue
         const projectRoot: string | undefined = metadata.terminalData?.initialEnvVars?.VOICETREE_VAULT_PATH
         if (!projectRoot) continue
-        const taskNodePath: string = metadata.terminalData?.initialEnvVars?.TASK_NODE_PATH ?? ''
-        const handle: ResumeCapability | null = resolveResumeHandle({
-            cliType,
-            terminalId: metadata.name,
-            projectRoot,
-            taskNodePath,
-        })
-        if (handle) out.set(metadata.name, handle)
+        out.set(metadata.name, {cliType})
     }
     return out
 }
@@ -207,35 +200,6 @@ function readMetadataDir(dir: string): readonly MetadataRecord[] {
     return records
 }
 
-/**
- * Resolve a Claude/Codex native session id by scanning the on-disk transcript
- * store. The store roots can be overridden via env vars, useful for tests
- * (point at a temp dir) and for users with non-default Claude/Codex configs:
- *
- * - `VOICETREE_CLAUDE_PROJECTS_DIR`  → defaults to `~/.claude/projects`
- * - `VOICETREE_CODEX_STATE_DB`       → defaults to `~/.codex/state_5.sqlite`
- */
-function defaultResolveResumeHandle(req: ResolveRequest): ResumeCapability | null {
-    if (req.cliType === 'claude') {
-        const claudeProjectsRoot: string = process.env.VOICETREE_CLAUDE_PROJECTS_DIR
-            ?? path.join(os.homedir(), '.claude', 'projects')
-        const result: ResolveClaudeResult = resolveClaudeNativeSession(
-            {terminalId: req.terminalId, projectRoot: req.projectRoot, taskNodePath: req.taskNodePath},
-            defaultResolveClaudeDeps(claudeProjectsRoot),
-        )
-        if (result.kind !== 'found') return null
-        return {cliType: 'claude', nativeSessionId: result.sessionId}
-    }
-    const codexDbPath: string = process.env.VOICETREE_CODEX_STATE_DB
-        ?? path.join(os.homedir(), '.codex', 'state_5.sqlite')
-    const result: ResolveCodexResult = resolveCodexNativeSession(
-        {terminalId: req.terminalId, projectRoot: req.projectRoot, taskNodePath: req.taskNodePath},
-        defaultResolveCodexDeps(codexDbPath),
-    )
-    if (result.kind !== 'found') return null
-    return {cliType: 'codex', nativeSessionId: result.sessionId}
-}
-
 export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
     return {
         readVaultMetadataDir: async (): Promise<readonly MetadataRecord[]> => {
@@ -248,7 +212,6 @@ export function defaultDiscoverRecoveryDeps(): DiscoverRecoveryDeps {
             return new Set(records.map((record) => record.terminalId))
         },
         getCurrentNamespaceHash: (): Promise<string | null> => getCurrentTmuxNamespaceHash(),
-        resolveResumeHandle: defaultResolveResumeHandle,
     }
 }
 

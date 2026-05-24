@@ -50,6 +50,9 @@ export async function resumeRecoverySession(terminalId: string): Promise<Rendere
     if (result.kind === 'stale' || result.kind === 'unsupported') {
         return {success: false, terminalId, error: `Cannot resume: ${result.reason}`}
     }
+    if (result.kind === 'no-native-session') {
+        return {success: false, terminalId, error: `Cannot resume: no ${result.cliType} transcript found for this terminal`}
+    }
     return {success: false, terminalId, error: result.error}
 }
 
@@ -61,6 +64,9 @@ export async function forkRecoverySession(sourceTerminalId: string): Promise<Ren
     }
     if (result.kind === 'stale' || result.kind === 'unsupported') {
         return {success: false, terminalId: sourceTerminalId, error: `Cannot fork: ${result.reason}`}
+    }
+    if (result.kind === 'no-native-session') {
+        return {success: false, terminalId: sourceTerminalId, error: `Cannot fork: no ${result.cliType} transcript found for this terminal`}
     }
     return {success: false, terminalId: sourceTerminalId, error: result.error}
 }
