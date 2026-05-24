@@ -110,6 +110,113 @@ jobs:
           --tier-max=2
           --only=e2e-browser-smoke,e2e-tier2-browser
 
+  required-fuzz-tests:
+    name: Fuzz Tests (${{ matrix.check_id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        check_id:
+          - fuzz-editor-sync
+          - fuzz-graph-delta
+          - fuzz-graph-state-invariants
+          - fuzz-session-state
+          - fuzz-system-lifecycle
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Run required fuzz check
+        run: >
+          node --no-warnings=ExperimentalWarning --experimental-strip-types
+          packages/measures/src/_runners/capture-ci-checks.ts
+          --tier-max=2
+          --sequential
+          --only=${{ matrix.check_id }}
+
+  browser-tier-2-e2e:
+    name: Browser Tier 2 E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser Tier 2 E2E
+        run: >
+          node --no-warnings=ExperimentalWarning --experimental-strip-types
+          packages/measures/src/_runners/capture-ci-checks.ts
+          --tier-max=2
+          --sequential
+          --only=e2e-tier2-browser
+
+  electron-tier-2-e2e:
+    name: Electron Tier 2 E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Electron Tier 2 E2E
+        run: >
+          node --no-warnings=ExperimentalWarning --experimental-strip-types
+          packages/measures/src/_runners/capture-ci-checks.ts
+          --tier-max=3
+          --sequential
+          --only=e2e-tier2-electron
+
   electron-tier-1-smoke:
     name: PR CI / Electron Tier 1 Smoke
     runs-on: ubuntu-latest
