@@ -48,7 +48,8 @@ vtbg target 64200                        # list page targets at that port
 ## Usage
 
 ```bash
-vtbg attach <ws-url>                     # start daemon, hold the WS open
+vtbg attach <ws-url>                     # start daemon, hold the WS open (renderer or Node)
+vtbg attach-node [port=9230]             # attach to Electron main-process V8 inspector
 vtbg status                              # daemon pid, ws url, paused?, BPs
 
 # Breakpoints (URL matched via regex, line is 1-based)
@@ -105,17 +106,51 @@ vtbg eval 'JSON.stringify(window.__r)'
 The `//# sourceURL=demo.js` pragma is what lets `vtbg bp 'demo\.js'` find the
 script — without it CDP names anonymous evals `VM<id>`.
 
+## Profiling: which Electron process is using CPU?
+
+Electron is multi-process. Activity Monitor shows several rows per app:
+
+| Row | What it is | How to profile it with vtbg |
+|---|---|---|
+| **Electron** (main) | Node.js — `main.ts`, IPC, daemon spawn, polling | `vtbg attach-node 9230` |
+| **Electron Helper (Renderer)** | Chromium — React + Cytoscape | `vtbg target <cdp-port>` → `vtbg attach <ws-url>` |
+| **Electron Helper (GPU)** | Chromium GPU — canvas compositing | not directly profilable from CDP |
+
+`webapp`'s `electron:debug` script opens `--inspect=9230` for main and a Chromium CDP port (registered in `vt debug ls`) for renderer.
+
+### Recipe: where is CPU going right now?
+
+```bash
+vt debug attach --new                    # fresh debug Electron
+vtbg attach-node 9230                    # main process
+vtbg profile-start 1000                  # 1ms sampling
+# ...do the slow thing in the app...
+vtbg profile-stop 25                     # top-25 by self time
+vtbg metrics                             # JS heap, DOM node count, etc.
+```
+
+Output is a self-time-ranked list:
+
+```
+profile: 2029 nodes, 67272 samples, v8-elapsed=87957ms (wall=87933ms)
+--- top by self time ---
+   62392.9ms ( 70.9%)  (idle)                               :0
+    4355.8ms (  5.0%)  safeReadJsonlLines                   file:///.../dist-electron/main/index.js:14999
+    2708.2ms (  3.1%)  readdir                              :0
+    ...
+```
+
+### Case study — how we found the recovery-poll hot path
+
+A profile of the main process during agent spawn showed `safeReadJsonlLines + readdir + stat + readFileSync = ~22% of CPU` over 88s. `grep safeReadJsonlLines packages/` pointed at `packages/systems/agent-runtime/src/application/recovery/resolvers/resolveClaudeNativeSession.ts:92`. Tracing callers back: `recovery-session-sync.ts:5` polls every 10s → resolver scans the entire `~/.claude/projects/` tree (~1 GB, thousands of `.jsonl` files) **synchronously on the main thread**. Fix landed as lazy resolution at resume-click time only. The profiler stack was the entire investigation — no instrumentation, no print-debugging, no guesswork.
+
 ## What `vtbg` does NOT do (yet)
 
-- **Main-process Node inspector**. Electron's `electron:debug` script doesn't
-  pass `--inspect-brk` to Node, so the main-process V8 inspector isn't open.
-  Wiring it up needs `NODE_OPTIONS='--inspect-brk=9230'` on the launch, plus a
-  small change in `vtbg` to handle Node-target WS URLs (slightly different
-  shape from page targets). Adding this is a follow-up.
 - **Source-map line snap-back**. `Debugger.setBreakpointByUrl` lands on the
   nearest break-able statement, which can be off by one from where you asked.
   The output shows the resolved location — adjust your line input if needed.
-- **Multi-target multiplexing**. One CDP target per daemon.
+- **Multi-target multiplexing**. One CDP target per daemon. To swap between
+  main and renderer, `vtbg detach` then re-attach.
 
 ## Internals
 

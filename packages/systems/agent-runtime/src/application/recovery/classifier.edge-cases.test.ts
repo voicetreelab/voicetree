@@ -83,8 +83,8 @@ describe('multiple records', () => {
                 record(null, '/vault/.voicetree/terminals/bad.json'),
             ],
             resumeHandleByTerminalId: new Map([
-                [TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}],
-                ['B', {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}],
+                [TERMINAL_A, {cliType: 'claude'}],
+                ['B', {cliType: 'codex'}],
             ]),
         }))
         expect(results).toHaveLength(3)
@@ -108,8 +108,8 @@ describe('multiple records', () => {
                 record(makeRunningCodexMetadata(), '/vault/.voicetree/terminals/B.json'),
             ],
             resumeHandleByTerminalId: new Map([
-                [TERMINAL_A, {cliType: 'claude', nativeSessionId: 'sess-uuid-123'}],
-                ['B', {cliType: 'codex', nativeSessionId: 'thread-uuid-456'}],
+                [TERMINAL_A, {cliType: 'claude'}],
+                ['B', {cliType: 'codex'}],
             ]),
         }))
         expect(results.map(r => r.kind)).toEqual(['recoverable', 'recoverable', 'recoverable'])

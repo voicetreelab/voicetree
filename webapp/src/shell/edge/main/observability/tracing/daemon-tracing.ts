@@ -1,40 +1,25 @@
 /**
- * Observability for the electron-side graph-daemon lifecycle.
+ * Owner-diagnostic → OTel-span bridge for the electron main process.
  *
- * Two side-effecting entries — both invoked from `main.ts` (the system
- * boundary, per FP S2 "effect interpretation at the system boundary"):
+ * The actual NodeTracerProvider + NDJSON exporter + W3C propagators are
+ * registered by `@vt/observability`'s `tracing.init('vt-electron-main')`
+ * (invoked from `main.ts`). This module only provides:
  *
- *  - `initDaemonObservability()` registers the OTel NodeTracerProvider with
- *    the NDJSON exporter (`~/.voicetree/traces/vt-electron-daemon.ndjson`)
- *    and the W3C trace-context + baggage propagator so client→daemon HTTP
- *    calls inject `traceparent` and daemon handlers attach to the caller
- *    trace.
- *  - `emitOwnerDiagnosticAsSpan` is the listener `main.ts` wires into
- *    `subscribeOwnerDiagnostics` from `@vt/graph-db-client`; it emits one
+ *  - `daemonTracer()`: a `vt-electron-daemon`-named tracer accessor —
+ *    `trace.getTracer` returns whatever provider was registered, so spans
+ *    issued here flow to the shared NDJSON file.
+ *  - `emitOwnerDiagnosticAsSpan`: the listener `main.ts` wires into
+ *    `subscribeOwnerDiagnostics` from `@vt/graph-db-client`, emitting one
  *    OTel span per `OwnerDiagnosticEvent` so the claim/wait/reclaim/cooldown
  *    lifecycle is visible without parsing the in-process pub/sub.
  *
- * Keeping `subscribeOwnerDiagnostics` *out* of this file collapses the
- * webapp→graph-db-client coupling edge for this concern — only the shell
- * entry talks to graph-db-client; tracing logic stays a pure handler.
+ * Keeping `subscribeOwnerDiagnostics` *out* of this file means there is no
+ * webapp/observability → graph-db-client edge for this concern — only the
+ * shell entry (`main.ts`) talks to graph-db-client; tracing logic stays a
+ * pure handler.
  */
 
-import { propagation, trace, type Tracer } from '@opentelemetry/api'
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
-import {
-  SimpleSpanProcessor,
-  type ReadableSpan,
-  type SpanExporter,
-} from '@opentelemetry/sdk-trace-base'
-import {
-  CompositePropagator,
-  ExportResultCode,
-  W3CBaggagePropagator,
-  W3CTraceContextPropagator,
-} from '@opentelemetry/core'
-import { appendFileSync, mkdirSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { trace, type Tracer } from '@opentelemetry/api'
 
 /**
  * Structural subset of `@vt/graph-db-protocol`'s `OwnerDiagnosticEvent`
@@ -56,24 +41,10 @@ export type OwnerEventLike = {
 }
 
 const TRACER_NAME = 'vt-electron-daemon'
-const SERVICE_NAME = 'vt-electron-daemon'
-
-let initialised = false
 
 /**
- * Register the OTel NodeTracerProvider + W3C propagators. Idempotent —
- * repeat calls are a no-op so accidental double-init during hot reload
- * doesn't re-register span processors.
- */
-export function initDaemonObservability(): void {
-  if (initialised) return
-  initialised = true
-  registerNodeTracerProvider()
-}
-
-/**
- * Tracer accessor. Safe to call before `initDaemonObservability()` —
- * the API returns a no-op tracer until the provider is registered.
+ * Tracer accessor. Safe to call before `tracing.init` runs in main.ts —
+ * the OTel API returns a no-op tracer until the provider is registered.
  */
 export function daemonTracer(): Tracer {
   return trace.getTracer(TRACER_NAME)
@@ -89,62 +60,6 @@ export function emitOwnerDiagnosticAsSpan(event: OwnerEventLike): void {
     attributes: flattenOwnerEvent(event),
   })
   span.end(event.nowMs)
-}
-
-function registerNodeTracerProvider(): void {
-  const traceDir = join(homedir(), '.voicetree', 'traces')
-  mkdirSync(traceDir, { recursive: true })
-  const traceFile = join(traceDir, `${SERVICE_NAME}.ndjson`)
-
-  const provider = new NodeTracerProvider({
-    spanProcessors: [
-      new SimpleSpanProcessor(createNdjsonFileExporter(traceFile)),
-    ],
-  })
-  provider.register()
-  propagation.setGlobalPropagator(
-    new CompositePropagator({
-      propagators: [
-        new W3CTraceContextPropagator(),
-        new W3CBaggagePropagator(),
-      ],
-    }),
-  )
-}
-
-function createNdjsonFileExporter(filePath: string): SpanExporter {
-  return {
-    export(
-      spans: readonly ReadableSpan[],
-      resultCallback: (result: { code: number }) => void,
-    ) {
-      try {
-        for (const span of spans) {
-          const json = {
-            traceId: span.spanContext().traceId,
-            spanId: span.spanContext().spanId,
-            parentSpanId: span.parentSpanContext?.spanId,
-            name: span.name,
-            startTimeMs: hrTimeToMs(span.startTime),
-            endTimeMs: hrTimeToMs(span.endTime),
-            durationMs: hrTimeToMs(span.duration),
-            status: span.status,
-            attributes: span.attributes,
-          }
-          appendFileSync(filePath, JSON.stringify(json) + '\n')
-        }
-        resultCallback({ code: ExportResultCode.SUCCESS })
-      } catch {
-        resultCallback({ code: ExportResultCode.FAILED })
-      }
-    },
-    shutdown: () => Promise.resolve(),
-    forceFlush: () => Promise.resolve(),
-  }
-}
-
-function hrTimeToMs(hrTime: [number, number]): number {
-  return hrTime[0] * 1000 + hrTime[1] / 1_000_000
 }
 
 function flattenOwnerEvent(event: OwnerEventLike): Record<string, string | number> {

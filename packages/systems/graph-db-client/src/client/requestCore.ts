@@ -1,5 +1,10 @@
-import { context, propagation } from '@opentelemetry/api'
-
+import {
+  context,
+  propagation,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api'
 import {
   GraphDbClientError,
   VaultNotOpenError,
@@ -26,8 +31,14 @@ type ErrorPayload = {
   message?: string
 }
 
+const tracer = trace.getTracer('vt-daemon-client')
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function routePath(path: string): string {
+  return path.split('?')[0] ?? path
 }
 
 export function normalizeBaseUrl(baseUrl: string): string {
@@ -86,36 +97,67 @@ export function createRequest(baseUrl: string): RequestClient {
     path: string,
     opts: RequestOptions<T>,
   ): Promise<T> {
-    // Inject W3C traceparent (and tracestate if present) so the daemon can
-    // attach its spans to the caller's trace. No-op when no tracer provider
-    // is registered in the calling process.
-    const propagationHeaders: Record<string, string> = {}
-    propagation.inject(context.active(), propagationHeaders)
-
-    const response = await fetch(`${normalizedBaseUrl}${path}`, {
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      headers: {
-        ...(opts.body === undefined
-          ? undefined
-          : { 'content-type': 'application/json' }),
-        ...propagationHeaders,
-        ...opts.headers,
+    const method = opts.method ?? 'GET'
+    const route = routePath(path)
+    return await tracer.startActiveSpan(
+      `graphdb.http ${method} ${route}`,
+      {
+        kind: SpanKind.CLIENT,
+        attributes: {
+          'http.method': method,
+          'http.route': route,
+          'url.full': `${normalizedBaseUrl}${path}`,
+        },
       },
-      method: opts.method ?? 'GET',
-    })
+      async (span): Promise<T> => {
+        try {
+          const body = opts.body === undefined ? undefined : JSON.stringify(opts.body)
+          const headers: Record<string, string> = {
+            ...(body === undefined ? undefined : { 'content-type': 'application/json' }),
+            ...opts.headers,
+          }
+          propagation.inject(context.active(), headers)
+          span.addEvent('graphdb.request.start', {
+            'http.request.body.size': body?.length ?? 0,
+          })
 
-    if (!response.ok) {
-      throw await toGraphDbClientError(response)
-    }
+          const response = await fetch(`${normalizedBaseUrl}${path}`, {
+            body,
+            headers,
+            method,
+          })
+          span.setAttribute('http.status_code', response.status)
+          span.addEvent('graphdb.response.received')
 
-    if (opts.expectNoContent) {
-      return undefined as T
-    }
+          if (!response.ok) {
+            const error = await toGraphDbClientError(response)
+            span.setAttribute('graphdb.error.code', error.code)
+            span.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+            throw error
+          }
 
-    if (!opts.responseSchema) {
-      throw new Error(`Missing response schema for ${opts.method ?? 'GET'} ${path}`)
-    }
+          if (opts.expectNoContent) {
+            return undefined as T
+          }
 
-    return opts.responseSchema.parse(await response.json())
+          if (!opts.responseSchema) {
+            throw new Error(`Missing response schema for ${method} ${path}`)
+          }
+
+          const parsed = opts.responseSchema.parse(await response.json())
+          span.addEvent('graphdb.response.parsed')
+          return parsed
+        } catch (error) {
+          span.recordException(error instanceof Error ? error : String(error))
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error instanceof Error ? error.message : String(error),
+          })
+          throw error
+        } finally {
+          span.end()
+        }
+      },
+    )
   }
 }

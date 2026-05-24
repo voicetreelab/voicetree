@@ -49,7 +49,7 @@ export async function openFolderVisibilityForVault(vaultPath: string): Promise<v
     const base = prev ?? freshProject(vaultPath as FilePath)
     return {
       ...base,
-      folderVisibility: { vaultPath: vaultPath as FilePath, db },
+      folderVisibility: { projectRoot: vaultPath as FilePath, db },
     }
   })
 }

@@ -52,7 +52,12 @@ const MAX_PAIR_TREE_WIDTH_BUDGET = 3
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-const AGGREGATE_BCI_BUDGET = 195.64
+// 2026-05-24: +3.17 from extracting @vt/observability (Pattern P2). Webapp gains
+// one new narrow pair (tw=1, 2 file-edges → contribution (1+1)·log₂(3) ≈ 3.17).
+// Acceptable: the extraction collapses three loose tracing symbols on
+// webapp→graph-db-client into one cohesive package boundary and deletes a
+// copy-pasted twin in graph-db-server. 195.64 → 198.68.
+const AGGREGATE_BCI_BUDGET = 198.68
 
 // ── Graph Construction ──
 

@@ -7,7 +7,7 @@ import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/appli
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
 import {trace} from '@/shell/edge/main/observability/tracing/trace';
-import {emitOwnerDiagnosticAsSpan, initDaemonObservability} from '@/shell/edge/main/observability/tracing/daemon-tracing';
+import {emitOwnerDiagnosticAsSpan} from '@/shell/edge/main/observability/tracing/daemon-tracing';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
@@ -64,6 +64,7 @@ import {appResource, createWindow, stopTrackpadMonitoring} from './create-window
 import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
@@ -89,13 +90,12 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
+tracing.init('vt-electron-main');
 validateStartupCwd();
 
-// Wire daemon-side observability before any code can touch
-// `ensureDaemonForActiveVault`. The tracer-provider registration happens in
-// daemon-tracing; the owner-diagnostic→span bridge is wired here at the
-// shell boundary so daemon-tracing has no @vt/graph-db-client edge.
-initDaemonObservability();
+// Wire the owner-diagnostic → span bridge at the shell boundary, so the
+// per-event handler in daemon-tracing.ts has no @vt/graph-db-client edge.
+// Must happen after `tracing.init` above so the OTel provider is registered.
 subscribeOwnerDiagnostics(emitOwnerDiagnosticAsSpan);
 
 // Initialize @vt/graph-model DI before any graph-model functions are called

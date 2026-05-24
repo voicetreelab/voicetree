@@ -137,24 +137,33 @@ async function applyGraphDeltaAndReadGraph(
   sessionId: string,
   options: ApplyDeltaOptions,
 ): Promise<Graph> {
-  await traceGraphdSpan('daemon.apply-delta.to-db', async span => {
-    span.setAttribute('vt.delta.size', parsed.delta.length)
+  return await traceGraphdSpan('graph.apply-delta-and-read', async (span) => {
+    span.setAttribute('graph.delta.count', parsed.delta.length)
+    span.setAttribute('graph.session.id', sessionId)
+    span.setAttribute('graph.record_for_undo', options.recordForUndo ?? false)
+
+    span.addEvent('graph.apply-delta.start')
     await executeCommand({
       type: 'ApplyGraphDeltaToDB',
       delta: parsed.delta,
       recordForUndo: options.recordForUndo,
     })
-  })
-  await traceGraphdSpan('daemon.apply-delta.publish', async () => {
+    span.addEvent('graph.apply-delta.complete')
+
+    span.addEvent('graph.publish-delta.start')
     await executeCommand({
       type: 'PublishDelta',
       delta: parsed.delta,
       source: `session:${sessionId}`,
     })
+    span.addEvent('graph.publish-delta.complete')
+
+    span.addEvent('graph.read-after-delta.start')
+    const graph = await executeCommand({ type: 'ReadGraph' })
+    span.setAttribute('graph.node.count', Object.keys(graph.nodes).length)
+    span.addEvent('graph.read-after-delta.complete')
+    return graph
   })
-  return await traceGraphdSpan('daemon.apply-delta.read-graph', async () =>
-    await executeCommand({ type: 'ReadGraph' }),
-  )
 }
 
 async function prepareDeleteGraphNode(
@@ -295,10 +304,18 @@ export async function previewContainedNodesWorkflow(nodeId: string): Promise<Htt
 export async function createContextNodeWorkflow(rawBody: unknown): Promise<HttpResult> {
   return await wrapWorkflow(
     parseContextNodeRequest,
-    parsed => executeCommand({
-      type: 'CreateContextNode',
-      parentNodeId: parsed.parentNodeId,
-      semanticNodeIds: parsed.semanticNodeIds,
+    parsed => traceGraphdSpan('graph.create-context-node', async (span) => {
+      span.setAttribute('graph.parent_node.id', parsed.parentNodeId)
+      span.setAttribute('graph.semantic_node.count', parsed.semanticNodeIds.length)
+      span.addEvent('graph.create-context-node.command.start')
+      const nodeId = await executeCommand({
+        type: 'CreateContextNode',
+        parentNodeId: parsed.parentNodeId,
+        semanticNodeIds: parsed.semanticNodeIds,
+      })
+      span.setAttribute('graph.context_node.id', nodeId)
+      span.addEvent('graph.create-context-node.command.complete')
+      return nodeId
     }),
     composeNodeIdResponse,
     'CONTEXT_NODE_CREATE_FAILED',
@@ -330,10 +347,18 @@ export async function createContextNodeFromSelectedNodesWorkflow(
 ): Promise<HttpResult> {
   return await wrapWorkflow(
     parseContextNodeFromSelectedNodesRequest,
-    parsed => executeCommand({
-      type: 'CreateContextNodeFromSelectedNodes',
-      taskNodeId: parsed.taskNodeId,
-      selectedNodeIds: parsed.selectedNodeIds,
+    parsed => traceGraphdSpan('graph.create-context-node-from-selection', async (span) => {
+      span.setAttribute('graph.task_node.id', parsed.taskNodeId)
+      span.setAttribute('graph.selected_node.count', parsed.selectedNodeIds.length)
+      span.addEvent('graph.create-context-node-from-selection.command.start')
+      const nodeId = await executeCommand({
+        type: 'CreateContextNodeFromSelectedNodes',
+        taskNodeId: parsed.taskNodeId,
+        selectedNodeIds: parsed.selectedNodeIds,
+      })
+      span.setAttribute('graph.context_node.id', nodeId)
+      span.addEvent('graph.create-context-node-from-selection.command.complete')
+      return nodeId
     }),
     composeNodeIdResponse,
     'SELECTED_CONTEXT_NODE_CREATE_FAILED',
@@ -360,13 +385,17 @@ export async function updateContextNodeContainedIdsWorkflow(
 ): Promise<HttpResult> {
   return await wrapWorkflow(
     parseContextNodeContainedIdsRequest,
-    async parsed => {
+    async parsed => await traceGraphdSpan('graph.update-context-node-contained-ids', async (span) => {
+      span.setAttribute('graph.context_node.id', parsed.contextNodeId)
+      span.setAttribute('graph.contained_node.count', parsed.newNodeIds.length)
+      span.addEvent('graph.update-context-node-contained-ids.command.start')
       await executeCommand({
         type: 'UpdateContextNodeContainedIds',
         contextNodeId: parsed.contextNodeId,
         newNodeIds: parsed.newNodeIds,
       })
-    },
+      span.addEvent('graph.update-context-node-contained-ids.command.complete')
+    }),
     () => composeContainedIdsUpdateResponse(),
     'CONTEXT_NODE_CONTAINED_IDS_UPDATE_FAILED',
   )(rawBody)

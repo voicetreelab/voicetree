@@ -1,9 +1,9 @@
 {
-  "name": "@vt/graph-db-client",
+  "name": "@vt/observability",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Typed HTTP client for vt-graphd. P1 skeleton — implementation lands in BF-217 (P5).",
+  "description": "Shared tracing facade. Owns process-startup tracing init and span helpers used by webapp, vt-graphd, and client. P2 deep-function package.",
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -14,8 +14,9 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@vt/graph-db-protocol": "*",
-    "@vt/graph-db-server": "*"
+    "@opentelemetry/core": "^2.7.1",
+    "@opentelemetry/sdk-trace-base": "^2.7.1",
+    "@opentelemetry/sdk-trace-node": "^2.7.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

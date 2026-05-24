@@ -10,10 +10,13 @@ import type {UnclaimedTmuxSession} from '../terminals/tmux/unclaimed-tmux'
  * - `attach`: a live tmux pane exists under this terminal id → Attach button
  *   (re-grabs the orphaned pane).
  *
- * - `resume`: a transcript matching this terminal id was found on disk by the
- *   Claude/Codex resolver → Resume button (spawns a fresh process with
- *   `--resume <sessionId>`, continuing the conversation). Resolved at discovery
- *   time, not pre-captured.
+ * - `resume`: the metadata identifies a supported CLI (`claude`/`codex`) that
+ *   could in principle be resumed → Resume button. The actual native session id
+ *   (`--resume <sessionId>` / `resume <threadId>`) is NOT looked up at
+ *   discovery time: scanning `~/.claude/projects` for a transcript match is
+ *   expensive (1+ GB of `.jsonl` for heavy users) and discovery runs on a 10s
+ *   poll. The lookup is deferred to the actual resume/fork action, where it
+ *   runs exactly once per user click.
  *
  * `isClaimed` reports whether the terminal id is in the live in-memory
  * registry. UI decides where to render: claimed rows render in the regular
@@ -38,7 +41,6 @@ export type AttachCapability = {
 
 export type ResumeCapability = {
     readonly cliType: 'claude' | 'codex'
-    readonly nativeSessionId: string
 }
 
 /**
