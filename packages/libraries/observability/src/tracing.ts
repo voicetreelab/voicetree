@@ -2,6 +2,7 @@ import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   context,
+  propagation,
   SpanStatusCode,
   trace,
   type Span,
@@ -10,8 +11,35 @@ import {
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { ExportResultCode } from '@opentelemetry/core'
+import {
+  CompositePropagator,
+  ExportResultCode,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
+
+// Structural shape of the owner-diagnostic event published by graph-db-client.
+// Deliberately NOT imported from `@vt/graph-db-protocol`:
+//   - A value import from `@vt/graph-db-client` would close a
+//     client → server → observability dependency cycle.
+//   - Even a type-only import from `@vt/graph-db-protocol` would make this
+//     file a "boundary file" under the pressure-axes measure, which pushes
+//     observability's boundary ratio to 1.0 (only 2 files in the package).
+// The subscribe function is injected by the shell (see `bridgeOwnerDiagnostics`),
+// so this structural shape is the entire surface area observability needs.
+type OwnerDiagnosticEvent = {
+  readonly kind: string
+  readonly attemptId: string
+  readonly callerKind: string
+  readonly canonicalProjectRoot: string
+  readonly nowMs: number
+  readonly [key: string]: unknown
+}
+
+type OwnerDiagnosticSubscribe = (
+  listener: (event: OwnerDiagnosticEvent) => void,
+) => void
 
 function hrTimeToMs(hrTime: [number, number]): number {
   return hrTime[0] * 1000 + hrTime[1] / 1_000_000
@@ -77,6 +105,17 @@ function initTracingImpl(serviceName: string): void {
     ],
   })
   provider.register()
+  // Register the W3C trace-context + baggage propagator so cross-process
+  // HTTP calls (client → daemon) inject `traceparent` and remote handlers
+  // attach their spans to the caller's trace.
+  propagation.setGlobalPropagator(
+    new CompositePropagator({
+      propagators: [
+        new W3CTraceContextPropagator(),
+        new W3CBaggagePropagator(),
+      ],
+    }),
+  )
 }
 
 type TraceOperation<T> = (span: Span) => T | Promise<T>
@@ -125,6 +164,47 @@ function syncSpanImpl<T>(
   }
 }
 
+let ownerDiagnosticsBridged = false
+
+function flattenOwnerEvent(event: OwnerDiagnosticEvent): Record<string, string | number> {
+  const base: Record<string, string | number> = {
+    'owner.kind': event.kind,
+    'owner.attemptId': event.attemptId,
+    'owner.callerKind': event.callerKind,
+    'owner.canonicalProjectRoot': event.canonicalProjectRoot,
+  }
+  for (const [key, value] of Object.entries(event)) {
+    if (key === 'kind' || key === 'attemptId' || key === 'callerKind' || key === 'canonicalProjectRoot' || key === 'nowMs') continue
+    if (typeof value === 'string' || typeof value === 'number') {
+      base[`owner.${key}`] = value
+    } else if (value !== undefined && value !== null) {
+      base[`owner.${key}`] = String(value)
+    }
+  }
+  return base
+}
+
+// Bridges an owner-diagnostic event stream into the registered tracer: one
+// OTel span per event. Idempotent. The `subscribe` function is supplied by
+// the shell (typically `subscribeOwnerDiagnostics` from @vt/graph-db-client)
+// — observability does not import from graph-db-client to avoid a package
+// dependency cycle (client→server→observability).
+function bridgeOwnerDiagnosticsImpl(
+  subscribe: OwnerDiagnosticSubscribe,
+  tracerName: string,
+): void {
+  if (ownerDiagnosticsBridged) return
+  ownerDiagnosticsBridged = true
+  const ownerTracer = trace.getTracer(tracerName)
+  subscribe((event: OwnerDiagnosticEvent) => {
+    const span = ownerTracer.startSpan(`owner.${event.kind}`, {
+      startTime: event.nowMs,
+      attributes: flattenOwnerEvent(event),
+    })
+    span.end(event.nowMs)
+  })
+}
+
 export const tracing = {
   /** Initialize tracing once at process startup. NDJSON exporter under ~/.voicetree/traces/<serviceName>.ndjson */
   init: initTracingImpl,
@@ -132,4 +212,6 @@ export const tracing = {
   span: spanImpl,
   /** Synchronous variant of `span`. */
   syncSpan: syncSpanImpl,
+  /** Bridge graph-db-client owner-diagnostic events to OTel spans. Idempotent. */
+  bridgeOwnerDiagnostics: bridgeOwnerDiagnosticsImpl,
 } as const

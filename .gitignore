@@ -191,6 +191,7 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-state/**/*.md
 !docker/**/*.md
 !packages/measures/README.md
+!packages/measures/perf/*.md
 !scripts/agent-debugging/README.md
 
 # MCP config (worktree-local; daemon port differs per worktree)

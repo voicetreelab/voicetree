@@ -25,12 +25,16 @@
  * shared graph-db-client owner infrastructure used by every caller.
  */
 
+import { SpanStatusCode } from '@opentelemetry/api'
+
 import {
   ensureGraphDaemonForVault,
   type CallerKind,
   type EnsureGraphDaemonOptions,
   type EnsureGraphDaemonResult,
 } from '@vt/graph-db-client'
+
+import { daemonTracer } from '@/shell/edge/main/observability/tracing/daemon-tracing'
 
 export type StopRecoveryLoopsFn = () => Promise<void> | void
 
@@ -66,12 +70,26 @@ export async function attemptOwnerMediatedRecovery(
   caller: CallerKind,
   options: OwnerMediatedRecoveryOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
-  const ensureFn = options.ensureFn ?? ensureGraphDaemonForVault
-  const stopLoops = options.stopLoops
+  return await daemonTracer().startActiveSpan('daemon.owner-mediated-recovery', async (span) => {
+    try {
+      span.setAttribute('vault', canonicalProjectRoot)
+      span.setAttribute('caller', caller)
+      const ensureFn = options.ensureFn ?? ensureGraphDaemonForVault
+      const stopLoops = options.stopLoops
 
-  // Stop SSE + watch-sync BEFORE ensure so loops cannot race recovery
-  // or reintroduce their own ensure path while the owner protocol runs.
-  if (stopLoops) await stopLoops()
+      // Stop SSE + watch-sync BEFORE ensure so loops cannot race recovery
+      // or reintroduce their own ensure path while the owner protocol runs.
+      if (stopLoops) await stopLoops()
 
-  return ensureFn(canonicalProjectRoot, caller)
+      const result = await ensureFn(canonicalProjectRoot, caller)
+      span.setAttribute('recoveredPid', result.pid)
+      span.setAttribute('launched', result.launched)
+      return result
+    } catch (error) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) })
+      throw error
+    } finally {
+      span.end()
+    }
+  })
 }

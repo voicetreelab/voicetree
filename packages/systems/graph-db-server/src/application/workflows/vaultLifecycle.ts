@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import { project } from '@vt/graph-state'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 import {
   OpenVaultRequestSchema,
   OpenVaultResponseSchema,
@@ -16,6 +17,7 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { createEmptyGraph } from '@vt/graph-model'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
+import { clearKnownExistingDirectoriesCache } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 import {
   getReadPaths,
   getWriteFolder,
@@ -173,51 +175,69 @@ async function bindVault(input: OpenVaultWorkflowInput, targetProjectRoot: strin
 }
 
 export async function openVaultWorkflow(input: OpenVaultWorkflowInput): Promise<OpenVaultResponse> {
-  return await withVaultMutex(async () => {
-    const body = OpenVaultRequestSchema.parse(input)
-    const targetProjectRoot = resolve(body.path)
-    const currentProjectRoot = getProjectRoot()
+  return await traceGraphdSpan('daemon.open-vault', async (span) => {
+    return await withVaultMutex(async () => {
+      const body = OpenVaultRequestSchema.parse(input)
+      const targetProjectRoot = resolve(body.path)
+      const currentProjectRoot = getProjectRoot()
+      span.setAttribute('targetVaultPath', targetProjectRoot)
+      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
 
-    if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
-      return await buildOpenVaultResponse(targetProjectRoot)
-    }
+      if (currentProjectRoot && resolve(currentProjectRoot) === targetProjectRoot) {
+        span.setAttribute('outcome', 'reuse-current')
+        return await buildOpenVaultResponse(targetProjectRoot)
+      }
 
-    if (currentProjectRoot) {
-      await closeResources()
-    }
+      if (currentProjectRoot) {
+        span.setAttribute('switchedFromActive', true)
+        await closeResources()
+        clearKnownExistingDirectoriesCache()
+      }
 
-    lifecycleState.activeSessionId = null
-    setGraph(createEmptyGraph())
+      lifecycleState.activeSessionId = null
+      setGraph(createEmptyGraph())
 
-    try {
-      await bindVault(
-        { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
-        targetProjectRoot,
-      )
-      await openResources(targetProjectRoot)
-      return await buildOpenVaultResponse(targetProjectRoot)
-    } catch (error) {
-      await closeResources()
-      clearProjectRoot()
-      throw error instanceof VaultOpenFailedError
-        ? error
-        : new VaultOpenFailedError(
-            error instanceof Error ? error.message : 'Failed to open vault',
-          )
-    }
+      try {
+        await bindVault(
+          { ...body, createStarterIfEmpty: input.createStarterIfEmpty },
+          targetProjectRoot,
+        )
+        await openResources(targetProjectRoot)
+        span.setAttribute('outcome', 'opened')
+        return await buildOpenVaultResponse(targetProjectRoot)
+      } catch (error) {
+        span.setAttribute('outcome', 'open-failed')
+        span.setAttribute('errorMessage', error instanceof Error ? error.message : String(error))
+        await closeResources()
+        clearProjectRoot()
+        clearKnownExistingDirectoriesCache()
+        throw error instanceof VaultOpenFailedError
+          ? error
+          : new VaultOpenFailedError(
+              error instanceof Error ? error.message : 'Failed to open vault',
+            )
+      }
+    })
   })
 }
 
 export async function closeVaultWorkflow(): Promise<void> {
-  await withVaultMutex(async () => {
-    if (!getProjectRoot()) {
-      return
-    }
+  await traceGraphdSpan('daemon.close-vault', async (span) => {
+    await withVaultMutex(async () => {
+      const currentProjectRoot = getProjectRoot()
+      span.setAttribute('priorActiveVaultPath', currentProjectRoot ?? '')
+      if (!currentProjectRoot) {
+        span.setAttribute('outcome', 'no-op')
+        return
+      }
 
-    await closeResources()
-    lifecycleState.activeSessionId = null
-    clearProjectRoot()
-    setGraph(createEmptyGraph())
+      await closeResources()
+      lifecycleState.activeSessionId = null
+      clearProjectRoot()
+      clearKnownExistingDirectoriesCache()
+      setGraph(createEmptyGraph())
+      span.setAttribute('outcome', 'closed')
+    })
   })
 }
 

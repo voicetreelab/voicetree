@@ -25,7 +25,7 @@ import { existsSync } from 'fs';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
-import { generateVaultOnDisk } from './perf-helpers/generateRealisticVault';
+import { generateVaultOnDisk } from '@vt/perf-fixtures';
 import {
   startCDPTrace,
   stopCDPTraceAndSave,
@@ -151,7 +151,9 @@ const test = base.extend<{
     );
 
     generatedProjectPath = path.join(tempUserDataPath, 'perf-test-project');
-    generatedVaultPath = await generateVaultOnDisk(generatedProjectPath, REALISTIC_PERF_NODE_COUNT);
+    generatedVaultPath = path.join(generatedProjectPath, 'perf-test-vault');
+    generateVaultOnDisk(generatedVaultPath, REALISTIC_PERF_NODE_COUNT);
+    console.log(`[Vault Gen] Created ${REALISTIC_PERF_NODE_COUNT} nodes in ${generatedVaultPath}`);
 
     // Seed projects.json pointing at the generated vault
     const projectsPath = path.join(tempUserDataPath, 'projects.json');
