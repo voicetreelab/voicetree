@@ -1,39 +1,21 @@
-# agent-storm: hypotheses tested
+# agent-storm: hypotheses
 
-Storm config: 15 agents × 30 nodes × 300-node seeded vault. Compared against
-single-agent baseline (1 × 30) to isolate concurrency effects from raw
-per-call cost. All measurements via OTel NDJSON spans in
-`~/.voicetree/traces/vt-graphd.ndjson`.
+Config: 15 agents × 30 nodes × 300-seed vault on Onidel. Spans in `~/.voicetree/traces/vt-graphd.ndjson`.
 
-## Tested
-
-| # | Hypothesis | Verdict | Evidence |
+| # | Hypothesis | Status | Evidence |
 |---|---|---|---|
-| 1 | Onidel VM disk has high baseline latency | ❌ | single-agent writeFile p50 = 0.4ms, healthy SSD-class |
-| 2 | `GraphStateSchema.parse` slows as graph grows | ❌ | compose-response p50 = 0.2ms across 450 calls |
-| 3 | Link resolution does disk reads under storm | ❌ | `resolve-links` span never fired (seeded vault has no unresolved links) |
-| 4 | Undo / publish / read-graph / rebase any slow | ❌ | each <0.1ms p50 |
-| 5 | libuv thread pool too small (default 4) | ❌ | `UV_THREADPOOL_SIZE=32` made it **worse** (writeFile p50 100→165ms) |
-| 6 | ext4-specific journal barrier on Onidel | ❌ | macOS APFS degrades 235x under same storm — universal, not Linux |
-| 7 | chokidar watcher feedback loop on the write dir | ❌ | disabling chokidar moved writeFile only ~10% |
-| 8 | `fs.mkdir(recursive:true)` every write is hot | ✅ | 22-32% of db-write; cached via module-scoped `Set<string>` in commit `56345ab8`; mkdir p50 went 104.9ms → 0.02ms, apply-delta -39% |
-| 10 | Per-directory metadata contention — concurrent writers into the same parent dir serialize | ❌ | Tested via synthetic (commit `a0c94ce2`, `--isolate-dirs` mode): isolated dirs were *slightly slower* than shared (0.76ms vs 0.65ms p50). Per-parent dentry contention disconfirmed. Independently re-tested through the real daemon path on Onidel (`agent-storm.ts --isolate-dirs`, fake-agent forwards per-agent `VOICETREE_OUTPUT_DIR` to `create_graph` so each of the 15 agents writes into its own pre-created subdir; 3 runs each, median): db-write p50 211.7ms (iso) vs 187.2ms (shared), p95 492.9ms vs 468.3ms; writeFile p50 208.8ms vs 186.8ms; apply-delta p50 214.0ms vs 189.9ms. Isolation made p50 slightly worse, p95 within noise. Verdict corroborated from both ends — real daemon path agrees with synthetic. |
-| 11 | The remaining ~200ms is fs.writeFile under concurrent file-creation (kernel-side) | ❌ | Tested via synthetic Node script (commit `a0c94ce2`): 15-worker in-process concurrent `fs.writeFile` storm on Onidel shows only **3x** degradation (0.22ms → 0.65ms), vs VT daemon's **250-500x** (0.4ms → 100-200ms) on the same host, same Node, same FS. The fs.writeFile syscall is NOT the bottleneck. The bottleneck is in VT daemon code that runs around each write. |
-| 9 | Of `open` / `write` / `close`, which syscall in writeFile actually dominates the daemon's 100-200ms span | ➤ reframed | Split landed (commit `db642789`): open 9.9ms / write 89.2ms / close 65.2ms p50 under storm. **But in H11's synthetic the same close+write pair is sub-millisecond.** Therefore each "syscall" span is really measuring JS wall-time including event-loop wait, not raw syscall time. H9 doesn't reveal a slow syscall — it reveals that ~75% of writeFile span time is event-loop wait between awaits. Strongly corroborates H13. Side effect: the 3-await split has more yield points than the original 1-await `fs.writeFile`; consider reverting to single-call once diagnostic value is extracted. |
-
-## Open
-
-| # | Hypothesis | Cheapest probe |
-|---|---|---|
-| 12 | Renderer-side CPU cost under the same storm (the actual user-felt regression) | Build the e2e Electron variant per `openspec/changes/e2e-storm-perf-test/` (in flight — agent `a8d55e5e9da90b4b3`) |
-| 13 | **Event-loop starvation in the daemon process** — 15 concurrent in-flight requests interleave with chokidar event handlers, SSE broadcasts, HTTP parsing, JSON serialization, undo recording. Each `await fs.writeFile`'s libuv resolution is delayed not by the syscall but by the JS callback queue. | `perf_hooks.monitorEventLoopDelay` histogram around the storm; or `setImmediate` round-trip timer. Should show 50ms+ event-loop lag under storm. |
-| 14 | Some synchronous CPU-bound work in the daemon's hot path (full-graph JSON serialize, deep zod parse during HTTP response, deep clone during SetGraph) starves the loop | Add CPU-time span vs wall-time span side-by-side around the request handler; or v8 profiler under storm. |
-| 15 | Synchronous chokidar event handlers fire during the storm even with `markPendingWrite` suppression and steal the loop | Re-measure with chokidar fully disabled (already ~10% with the kept-but-suppressed watcher; the residual handler dispatch may still cost more under load). |
-| 16 | The daemon's `SetGraph` clone or `executeCommand` dispatch involves a synchronous deep operation over a growing graph | Add CPU-time spans inside `SetGraph` and `ReadGraph`; correlate with graph size. |
-
-## Format
-
-Each entry is one row. Add to the **Tested** table when an experiment lands
-a verdict. Add to **Open** when a new hypothesis is worth recording but
-not yet probed. Keep it terse — full drill-downs belong in progress nodes
-under `get_dev_healthy/voicetree-15-5/`.
+| 1 | Onidel disk slow | ❌ | single-agent writeFile p50 = 0.4ms |
+| 2 | `GraphStateSchema.parse` slow | ❌ | compose-response p50 = 0.2ms |
+| 3 | Link resolution under storm | ❌ | resolve-links span never fired |
+| 4 | Undo/publish/read-graph/rebase | ❌ | <0.1ms each |
+| 5 | libuv pool too small | ❌ | `UV_THREADPOOL_SIZE=32` made it worse |
+| 6 | ext4-specific | ❌ | APFS degrades 235x too |
+| 7 | chokidar feedback | ❌ | disabling moved writeFile only ~10% |
+| 8 | mkdir-every-write | ✅ `56345ab8` | mkdir p50 104.9 → 0.02ms, apply-delta **-39%** |
+| 9 | open vs write vs close | ➤ reframed `db642789` | each "syscall" span is event-loop-wait time, not syscall time (vs H11) |
+| 10 | per-dir contention | ❌ `ce23ef31` | `--isolate-dirs` made p50 12% worse |
+| 11 | fs.writeFile kernel-side | ❌ `a0c94ce2` | synthetic 15-worker storm = 3x; daemon = 250-500x → daemon code is the cause |
+| 12 | Renderer CPU under storm | 🚧 partial | scaffolding in `openspec/changes/e2e-storm-perf-test/`; spec landed `35d60175` |
+| **13** | **Event-loop starvation in daemon** | **open (prime)** | probe: `perf_hooks.monitorEventLoopDelay` during storm |
+| 14 | Sync CPU-bound work in hot path | open | probe: CPU-time vs wall-time spans, or v8 profiler |
+| 15 | SetGraph/ReadGraph deep op on growing graph | open | probe: CPU-time spans inside, correlate with graph size |
