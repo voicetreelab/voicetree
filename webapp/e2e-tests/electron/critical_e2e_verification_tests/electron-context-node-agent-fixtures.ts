@@ -47,9 +47,8 @@ export const test = base.extend<{
         ENABLE_PLAYWRIGHT_DEBUG: '0',
         VOICETREE_PERSIST_STATE: '1',
         VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
-        // Pin the runtime's tmux vault path to the fixture so per-terminal
-        // log files land at `${FIXTURE_VAULT_PATH}/.voicetree/terminals/`
-        // regardless of any host-shell `VOICETREE_VAULT_PATH` leak.
+        // Fallback for runtime paths before the daemon has reported the
+        // configured write folder.
         VOICETREE_VAULT_PATH: FIXTURE_VAULT_PATH,
       },
       timeout: 10000
