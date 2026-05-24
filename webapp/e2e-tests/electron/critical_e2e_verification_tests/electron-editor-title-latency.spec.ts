@@ -61,11 +61,11 @@ function formatLatencyReport(values: readonly number[]): string {
 }
 
 async function seedProject(projectPath: string): Promise<string> {
-  const writePath = path.join(projectPath, 'voicetree')
-  await fs.mkdir(writePath, { recursive: true })
+  const writeFolder = path.join(projectPath, 'voicetree')
+  await fs.mkdir(writeFolder, { recursive: true })
   await fs.mkdir(path.join(projectPath, '.voicetree'), { recursive: true })
   await fs.writeFile(
-    path.join(writePath, 'Latency Target.md'),
+    path.join(writeFolder, 'Latency Target.md'),
     '# Latency Target\n\nInitial content.\n',
     'utf8',
   )
@@ -74,14 +74,14 @@ async function seedProject(projectPath: string): Promise<string> {
     JSON.stringify({ 'Latency Target.md': { x: 100, y: 100 } }, null, 2),
     'utf8',
   )
-  return writePath
+  return writeFolder
 }
 
 const test = base.extend<{
   electronApp: ElectronApplication
   appWindow: Page
   projectPath: string
-  writePath: string
+  writeFolder: string
 }>({
   projectPath: async ({}, use) => {
     const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-title-latency-'))
@@ -89,12 +89,12 @@ const test = base.extend<{
     await fs.rm(projectPath, { recursive: true, force: true })
   },
 
-  writePath: async ({ projectPath }, use) => {
-    const writePath = await seedProject(projectPath)
-    await use(writePath)
+  writeFolder: async ({ projectPath }, use) => {
+    const writeFolder = await seedProject(projectPath)
+    await use(writeFolder)
   },
 
-  electronApp: async ({ projectPath, writePath }, use) => {
+  electronApp: async ({ projectPath, writeFolder }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-title-latency-app-'))
     await fs.writeFile(
       path.join(userDataPath, 'projects.json'),
@@ -116,7 +116,7 @@ const test = base.extend<{
         lastDirectory: projectPath,
         vaultConfig: {
           [projectPath]: {
-            writePath,
+            writeFolder,
             readPaths: [],
           },
         },
@@ -189,7 +189,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 120_000 })
 
-test('keystroke-to-graph-label update stays within the editor FS write latency budget', async ({ appWindow, writePath }) => {
+test('keystroke-to-graph-label update stays within the editor FS write latency budget', async ({ appWindow, writeFolder }) => {
   await expect.poll(async () => {
     return await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance
@@ -258,7 +258,7 @@ test('keystroke-to-graph-label update stays within the editor FS write latency b
 
     latencies.push(performance.now() - t0)
 
-    const fileContent = await fs.readFile(path.join(writePath, 'Latency Target.md'), 'utf8')
+    const fileContent = await fs.readFile(path.join(writeFolder, 'Latency Target.md'), 'utf8')
     expect(fileContent).toContain(nextContent)
 
     const daemonHasContent = await appWindow.evaluate(async ({ id, content }) => {

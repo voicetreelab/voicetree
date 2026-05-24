@@ -17,7 +17,7 @@ import type { AvailableFolderItem } from '@/pure/folders/types';
 export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const mockVaultPaths: string[] = ['/mock/watched/directory'];
-    let mockWritePath = '/mock/watched/directory';
+    let mockWriteFolder = '/mock/watched/directory';
     const createEmptyProjectedGraph = () => ({
       nodes: [],
       edges: [],
@@ -126,7 +126,7 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
       const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
       listeners.forEach(cb => cb(null, 'syncVaultState', [{
         readPaths: [...mockVaultPaths],
-        writePath: mockWritePath,
+        writeFolder: mockWriteFolder,
         starredFolders: [],
       }]));
     };
@@ -162,11 +162,11 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
 
           return {
             sessionId: 'mock-session',
-            writePath: mockWritePath,
+            writeFolder: mockWriteFolder,
             vaultState: {
-              vaultPath: dir,
+              projectRoot: dir,
               readPaths: [...mockVaultPaths],
-              writePath: mockWritePath,
+              writeFolder: mockWriteFolder,
             },
             initialProjectedGraph: projectedGraph,
             folderState: [],
@@ -210,9 +210,9 @@ export async function setupMockElectronAPIWithNestedFolders(page: Page): Promise
         readImageAsDataUrl: async (): Promise<string> => 'data:image/png;base64,test',
         getAppSupportPath: async (): Promise<string> => '/Users/testuser/Library/Application Support/Voicetree',
         getVaultPaths: async (): Promise<readonly string[]> => [...mockVaultPaths],
-        getWritePath: async () => ({ _tag: 'Some' as const, value: mockWritePath }),
-        setWritePath: async (path: string) => {
-          mockWritePath = path;
+        getWriteFolder: async () => ({ _tag: 'Some' as const, value: mockWriteFolder }),
+        setWriteFolder: async (path: string) => {
+          mockWriteFolder = path;
           if (!mockVaultPaths.includes(path)) mockVaultPaths.push(path);
           broadcastVaultState();
           return { success: true };

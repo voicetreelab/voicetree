@@ -10,20 +10,20 @@ export type CodexThreadRow = {
 export type CodexMatchInput = {
     readonly rows: readonly CodexThreadRow[]
     readonly terminalId: string
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly taskNodePath: string
 }
 
 function rowMatchesMarkers(
     row: CodexThreadRow,
     terminalId: string,
-    vaultPath: string,
+    projectRoot: string,
     taskNodePath: string,
 ): boolean {
     const firstUserMessage: string | undefined = row.first_user_message
     if (typeof firstUserMessage !== 'string' || !firstUserMessage) return false
     return firstUserMessage.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && firstUserMessage.includes(`VOICETREE_VAULT_PATH = ${vaultPath}`)
+        && firstUserMessage.includes(`VOICETREE_VAULT_PATH = ${projectRoot}`)
         && firstUserMessage.includes(`TASK_NODE_PATH = ${taskNodePath}`)
 }
 
@@ -38,7 +38,7 @@ function rowMatchesMarkers(
 export function matchCodexThreadId(input: CodexMatchInput): string | null {
     for (const row of input.rows) {
         if (!row || typeof row !== 'object') continue
-        if (!rowMatchesMarkers(row, input.terminalId, input.vaultPath, input.taskNodePath)) continue
+        if (!rowMatchesMarkers(row, input.terminalId, input.projectRoot, input.taskNodePath)) continue
         if (typeof row.id === 'string' && row.id.length > 0) return row.id
     }
     return null

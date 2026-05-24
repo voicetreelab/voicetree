@@ -54,7 +54,7 @@ export type CommandFingerprint = {
 
 export type OwnerRecord = {
   readonly schemaVersion: OwnerRecordSchemaVersion
-  readonly canonicalVaultPath: string
+  readonly canonicalProjectRoot: string
   readonly pid: number
   readonly ppid: number
   /**
@@ -83,7 +83,7 @@ export type OwnerRecord = {
  * tests, future protocol additions).
  */
 export type OwnerHealthIdentity = {
-  readonly canonicalVaultPath: string
+  readonly canonicalProjectRoot: string
   readonly ownerNonce: string
   readonly pid: number
   readonly port: number
@@ -138,7 +138,7 @@ function isCommandFingerprint(value: unknown): value is CommandFingerprint {
 function isOwnerRecord(value: unknown): value is OwnerRecord {
   if (!isObject(value)) return false
   if (value.schemaVersion !== OWNER_RECORD_SCHEMA_VERSION) return false
-  if (typeof value.canonicalVaultPath !== 'string') return false
+  if (typeof value.canonicalProjectRoot !== 'string') return false
   if (!isPositiveInteger(value.pid)) return false
   if (!isNonNegativeInteger(value.ppid)) return false
   if (value.port !== null && !isPort(value.port)) return false
@@ -170,7 +170,7 @@ function encode(record: OwnerRecord): string {
 }
 
 export type CreateOwnerRecordInput = {
-  readonly canonicalVaultPath: string
+  readonly canonicalProjectRoot: string
   readonly pid: number
   readonly ppid: number
   readonly callerKind: CallerKind
@@ -188,7 +188,7 @@ export type CreateOwnerRecordInput = {
 function create(input: CreateOwnerRecordInput): OwnerRecord {
   return {
     schemaVersion: OWNER_RECORD_SCHEMA_VERSION,
-    canonicalVaultPath: input.canonicalVaultPath,
+    canonicalProjectRoot: input.canonicalProjectRoot,
     pid: input.pid,
     ppid: input.ppid,
     port: null,

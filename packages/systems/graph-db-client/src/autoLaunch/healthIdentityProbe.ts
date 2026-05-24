@@ -47,13 +47,13 @@ export async function probeOwnerHealth(
     if (owner === null) {
       return {
         kind: 'mismatch',
-        observedCanonicalVaultPath: null,
+        observedCanonicalProjectRoot: null,
         observedOwnerNonce: null,
       }
     }
     return {
       kind: 'verified',
-      canonicalVaultPath: owner.canonicalVaultPath,
+      canonicalProjectRoot: owner.canonicalProjectRoot,
       ownerNonce: owner.ownerNonce,
       pid: owner.pid,
       port: owner.port,

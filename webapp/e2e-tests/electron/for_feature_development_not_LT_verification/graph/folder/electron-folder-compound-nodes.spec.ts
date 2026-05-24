@@ -35,23 +35,23 @@ function findBySuffix(ids: string[], suffix: string): string | undefined {
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-compound-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createFolderTestVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-compound-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -59,7 +59,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'compound-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'compound-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -96,7 +96,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();
@@ -112,7 +112,7 @@ const test = base.extend<{
         await w.evaluate(async (vp: string) => {
             const api = (window as unknown as ExtendedWindow).electronAPI;
             if (api) await api.main.startFileWatching(vp);
-        }, vaultPath);
+        }, projectRoot);
 
         await w.waitForFunction(
             () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -270,7 +270,7 @@ test.describe('Folder Compound Nodes (v2.1)', () => {
         expect(styles!.borderStyle).toBe('dashed');
     });
 
-    test('deleting all files in a folder cleans up empty compound', async ({ appWindow, vaultPath }) => {
+    test('deleting all files in a folder cleans up empty compound', async ({ appWindow, projectRoot }) => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 3);
 
@@ -285,8 +285,8 @@ test.describe('Folder Compound Nodes (v2.1)', () => {
         expect(beforeCount).toBe(1);
 
         // Delete both files in utils/
-        await fs.rm(path.join(vaultPath, 'utils', 'logger.md'));
-        await fs.rm(path.join(vaultPath, 'utils', 'config.md'));
+        await fs.rm(path.join(projectRoot, 'utils', 'logger.md'));
+        await fs.rm(path.join(projectRoot, 'utils', 'config.md'));
 
         // Wait for file watcher to pick up changes and graph to update
         await appWindow.waitForTimeout(5000);

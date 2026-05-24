@@ -87,7 +87,7 @@ describe('BF-348 regression: May 22 fork-storm', () => {
       const owner = await readPersistedOwner(harness.vault)
       trackDaemonPid(harness, owner.pid)
       expect(owner.port).not.toBeNull()
-      expect(owner.canonicalVaultPath).toBe(resolve(harness.vault))
+      expect(owner.canonicalProjectRoot).toBe(resolve(harness.vault))
 
       // (2) Exactly ONE listening port whose /health reports the matching
       // ownerNonce. We probe the daemon directly via the returned client.
@@ -202,7 +202,7 @@ function spawnEnsureChild(vault: string, timeoutMs: number): ChildProcess {
       '--import',
       TSX_LOADER,
       ENSURE_CHILD,
-      '--vault',
+      '--project-root',
       vault,
       '--bin',
       FAKE_BIN_COMMAND,

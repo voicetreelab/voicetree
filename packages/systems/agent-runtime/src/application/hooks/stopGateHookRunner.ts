@@ -21,7 +21,7 @@ export type StopHookContext = {
     terminalId: string
     agentName: string
     taskNodePath: string
-    vaultPath: string
+    projectRoot: string
     parentTerminalId: string | null
     childAgents: Array<{
         terminalId: string
@@ -135,7 +135,7 @@ function buildContext(
         terminalId,
         agentName: record.terminalData.agentName,
         taskNodePath,
-        vaultPath: record.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH ?? '',
+        projectRoot: record.terminalData.initialEnvVars?.VOICETREE_VAULT_PATH ?? '',
         parentTerminalId: record.terminalData.parentTerminalId,
         childAgents
     }

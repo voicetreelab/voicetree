@@ -5,7 +5,7 @@ import {matchCodexThreadId, type CodexThreadRow} from './codex-thread-matcher'
 
 export type ResolveCodexRequest = {
     readonly terminalId: string
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly taskNodePath: string
     readonly recencyWindowMs?: number
     readonly rowLimit?: number
@@ -41,7 +41,7 @@ export function resolveCodexNativeSession(
     const sessionId: string | null = matchCodexThreadId({
         rows,
         terminalId: request.terminalId,
-        vaultPath: request.vaultPath,
+        projectRoot: request.projectRoot,
         taskNodePath: request.taskNodePath,
     })
     if (!sessionId) return {kind: 'not-found'}

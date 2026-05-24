@@ -201,9 +201,9 @@ function makeDynamicFolderTree(): FolderTreeNode {
 
 function makeVault(): VaultState {
   return {
-    vaultPath: '/vault',
+    projectRoot: '/vault',
     readPaths: ['/vault/docs'],
-    writePath: '/vault',
+    writeFolder: '/vault',
   }
 }
 
@@ -227,7 +227,7 @@ describe('projectSessionState', () => {
     // webapp/src/shell/edge/main/state/buildLiveStateSnapshot.ts.
     const graph = makeGraph()
     const folderTree = makeFolderTree()
-    // Under expand-descendants-of-target semantics: /vault writePath expands
+    // Under expand-descendants-of-target semantics: /vault writeFolder expands
     // every folder under it (docs, node_modules, node_modules/dep). Manual
     // collapse (collapseSet) is now conveyed through state.collapseSet alone —
     // the serialized folder tree keeps full children so downstream consumers

@@ -5,7 +5,7 @@ import type {VTSettings} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 
 vi.mock('@vt/graph-db-server/watch-folder/vault-allowlist', () => ({
-    getWritePath: vi.fn()
+    getWriteFolder: vi.fn()
 }))
 
 vi.mock('@vt/graph-db-server/state/graph-store', () => ({
@@ -46,7 +46,7 @@ vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
 
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'
 import {configureMcpServer, spawnAgentTool} from '@vt/voicetree-mcp'
-import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
+import {getWriteFolder} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {spawnTerminalWithContextNode} from '@vt/agent-runtime'
 import {getTerminalRecords} from '@vt/agent-runtime'
@@ -111,7 +111,7 @@ function mockCallerWithType(agentTypeName: string): void {
 }
 
 function setupGraph(nodeId: string = 'node-1.md', content: string = '# Node One'): void {
-    vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+    vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
     vi.mocked(getGraph).mockReturnValue({
         nodes: {[nodeId]: buildGraphNode(nodeId, content)},
         incomingEdgesIndex: new Map(),
@@ -131,7 +131,7 @@ describe('MCP spawn_agent tool', () => {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => [],
-                getWritePath: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
@@ -157,7 +157,7 @@ describe('MCP spawn_agent tool', () => {
 
     it('returns an error when node is not found', async () => {
         mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {}, incomingEdgesIndex: new Map(), nodeByBaseName: new Map(), unresolvedLinksIndex: new Map()
         })
@@ -172,7 +172,7 @@ describe('MCP spawn_agent tool', () => {
 
     it('resolves short nodeId to full path via nodeByBaseName index', async () => {
         mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
         const fullPath: NodeIdAndFilePath = '/Users/test/vault/voicetree/fix-test.md'
         vi.mocked(getGraph).mockReturnValue({
             nodes: {[fullPath]: buildGraphNode(fullPath, '# Fix Test')},
@@ -195,7 +195,7 @@ describe('MCP spawn_agent tool', () => {
 
     it('returns an error when vault path is not set', async () => {
         mockCallerTerminal()
-        vi.mocked(getWritePath).mockResolvedValue(O.none)
+        vi.mocked(getWriteFolder).mockResolvedValue(O.none)
 
         const response: McpToolResponse = await spawnAgentTool({nodeId: 'node-1.md', callerTerminalId: 'caller-terminal-99'})
         const payload: {success: boolean; error: string} = parsePayload(response) as {success: boolean; error: string}
@@ -275,7 +275,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
             graph: {
                 getGraph: async () => getGraph(),
                 getVaultPaths: async () => [],
-                getWritePath: async () => O.toNullable(await getWritePath()),
+                getWriteFolder: async () => O.toNullable(await getWriteFolder()),
                 applyGraphDelta: async (delta: GraphDelta, recordForUndo?: boolean) => {
                     await applyGraphDeltaToDBThroughMemAndUIAndEditors(delta, recordForUndo)
                 },
@@ -299,7 +299,7 @@ describe('MCP spawn_agent depthBudget auto-decrement', () => {
     }
 
     function setupGraphAndSpawn(): void {
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/vault'))
+        vi.mocked(getWriteFolder).mockResolvedValue(O.some('/vault'))
         vi.mocked(getGraph).mockReturnValue({
             nodes: {'node-1.md': buildGraphNode('node-1.md', '# Node One')},
             incomingEdgesIndex: new Map(),

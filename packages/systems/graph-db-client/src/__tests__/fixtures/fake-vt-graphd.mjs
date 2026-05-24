@@ -9,7 +9,7 @@
 // Recognised env vars (set by tests):
 //   FAKE_VT_GRAPHD_STARTUP_DELAY_MS - delay between claim and bind
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NONCE - override the /health owner.nonce
-//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT - override owner.canonicalVaultPath
+//   FAKE_VT_GRAPHD_HEALTH_CANONICAL_VAULT - override owner.canonicalProjectRoot
 //   FAKE_VT_GRAPHD_HEALTH_OWNER_NULL=1 - serve /health with owner=null
 
 import { createServer } from 'node:http'
@@ -22,9 +22,9 @@ import {
 import { join } from 'node:path'
 
 const args = process.argv.slice(2)
-const vaultIndex = args.indexOf('--vault')
+const vaultIndex = args.indexOf('--project-root')
 if (vaultIndex === -1 || !args[vaultIndex + 1]) {
-  process.stderr.write('fake-vt-graphd: missing --vault\n')
+  process.stderr.write('fake-vt-graphd: missing --project-root\n')
   process.exit(1)
 }
 const vault = args[vaultIndex + 1]
@@ -33,7 +33,7 @@ const startedAtMs = Date.now()
 const ownerNonce = randomUUID()
 const baseRecord = {
   schemaVersion: 1,
-  canonicalVaultPath: vault,
+  canonicalProjectRoot: vault,
   pid: process.pid,
   ppid: process.ppid ?? 0,
   port: null,
@@ -106,7 +106,7 @@ const server = createServer((req, res) => {
         ? null
         : {
             schemaVersion: 1,
-            canonicalVaultPath: reportedVault,
+            canonicalProjectRoot: reportedVault,
             pid: process.pid,
             ppid: process.ppid ?? 0,
             port: server.address().port,

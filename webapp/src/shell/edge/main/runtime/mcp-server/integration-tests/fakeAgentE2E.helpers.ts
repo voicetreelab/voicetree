@@ -83,7 +83,7 @@ export function makeInteractiveTerminalData(
     parentTerminalId: string,
     script: object,
     mcpPort: number,
-    vaultPath: string,
+    projectRoot: string,
 ): TerminalData {
     return createTerminalData({
         terminalId: terminalId as TerminalId,
@@ -98,7 +98,7 @@ export function makeInteractiveTerminalData(
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
             VOICETREE_MCP_PORT: String(mcpPort),
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_VAULT_PATH: projectRoot,
             TASK_NODE_PATH: `/tmp/vt-test-vault/${terminalId}-task.md`,
             AGENT_PROMPT: buildAgentPrompt(script),
         }
@@ -174,9 +174,9 @@ export async function spawnInteractiveFakeAgent(
     script: object,
     mcpPort: number,
     harness: ActivityHarness,
-    vaultPath: string,
+    projectRoot: string,
 ): Promise<void> {
-    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort, vaultPath)
+    const terminalData: TerminalData = makeInteractiveTerminalData(terminalId, parentTerminalId, script, mcpPort, projectRoot)
     const result: {success: boolean; terminalId: string} = await getTerminalManager().spawnTmuxBacked({
         terminalData,
         getToolsDirectory: () => FAKE_AGENT_DIR,

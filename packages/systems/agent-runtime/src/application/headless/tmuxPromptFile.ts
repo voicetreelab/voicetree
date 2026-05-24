@@ -40,22 +40,22 @@ function tmuxOk(args: string[]): Promise<boolean> {
     })
 }
 
-export function promptFilePath(vaultPath: string, terminalId: TerminalId): string {
-    return join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`)
+export function promptFilePath(projectRoot: string, terminalId: TerminalId): string {
+    return join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`)
 }
 
-export function writePromptFile(vaultPath: string, terminalId: TerminalId, prompt: string): string {
-    const target: string = promptFilePath(vaultPath, terminalId)
-    mkdirSync(join(vaultPath, '.voicetree', 'terminals'), {recursive: true})
+export function writePromptFile(projectRoot: string, terminalId: TerminalId, prompt: string): string {
+    const target: string = promptFilePath(projectRoot, terminalId)
+    mkdirSync(join(projectRoot, '.voicetree', 'terminals'), {recursive: true})
     writeFileSync(target, prompt, {encoding: 'utf8', mode: 0o600})
     // belt-and-braces: writeFileSync mode is masked by umask on some systems
     chmodSync(target, 0o600)
     return target
 }
 
-export function deletePromptFile(vaultPath: string | undefined, terminalId: TerminalId): void {
-    if (!vaultPath) return
-    rmSync(promptFilePath(vaultPath, terminalId), {force: true})
+export function deletePromptFile(projectRoot: string | undefined, terminalId: TerminalId): void {
+    if (!projectRoot) return
+    rmSync(promptFilePath(projectRoot, terminalId), {force: true})
 }
 
 export function deletePromptFileByPath(path: string | null | undefined): void {
@@ -130,7 +130,7 @@ export type PromptFileSpawnPlan = {
  * return inputs unchanged.
  */
 export function applyPromptFileToHeadlessSpawn(args: {
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly terminalId: TerminalId
     readonly command: string
     readonly env: Record<string, string>
@@ -139,7 +139,7 @@ export function applyPromptFileToHeadlessSpawn(args: {
     if (!prompt) {
         return {command: args.command, env: args.env, promptFilePath: null}
     }
-    const filePath: string = writePromptFile(args.vaultPath, args.terminalId, prompt)
+    const filePath: string = writePromptFile(args.projectRoot, args.terminalId, prompt)
     const rewritten: string = rewriteCommandForPromptFile(args.command, filePath)
     const wrapped: string = wrapForHeadlessTmux(rewritten)
     const {AGENT_PROMPT: _drop, ...rest} = args.env

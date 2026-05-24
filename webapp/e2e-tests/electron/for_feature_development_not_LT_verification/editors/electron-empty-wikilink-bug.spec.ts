@@ -49,8 +49,8 @@ const test = base.extend<{
     await fs.mkdir(watchedFolder, { recursive: true });
 
     // Create the actual vault path with default suffix 'voicetree'
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create a test node with empty/malformed wikilinks
     const testContent = `---
@@ -70,7 +70,7 @@ hmm
 
 These empty wikilinks should be ignored.
 `;
-    await fs.writeFile(path.join(vaultPath, 'test-node.md'), testContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'test-node.md'), testContent, 'utf-8');
 
     // Create a valid target node (to ensure valid wikilinks still work)
     const targetContent = `---
@@ -82,16 +82,16 @@ position:
 
 This is a valid target node.
 `;
-    await fs.writeFile(path.join(vaultPath, 'valid-target.md'), targetContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, 'valid-target.md'), targetContent, 'utf-8');
 
     // Write config to auto-load the vault
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
-    // Store vaultPath for test access
-    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
+    // Store projectRoot for test access
+    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
       args: [
@@ -133,7 +133,7 @@ This is a valid target node.
   },
 
   testVaultPath: async ({}, use, testInfo) => {
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   appWindow: async ({ electronApp }, use) => {

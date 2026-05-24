@@ -15,7 +15,7 @@ import type {
 } from '@vt/graph-state'
 import { applyCommandWithDelta } from '@vt/graph-state'
 import { createEmptyGraph, type Graph } from '@vt/graph-model'
-import { getWritePath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { getWriteFolder } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
 import { getActiveDaemonClient } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
@@ -73,9 +73,9 @@ async function bootstrapRootsFromProjectConfig(): Promise<void> {
         return
     }
 
-    const writePath: O.Option<string> = await getWritePath()
+    const writeFolder: O.Option<string> = await getWriteFolder()
     const loadedRoots: Set<string> = new Set<string>(
-        O.isSome(writePath) ? [writePath.value] : []
+        O.isSome(writeFolder) ? [writeFolder.value] : []
     )
 
     if (loadedRoots.size === 0) {

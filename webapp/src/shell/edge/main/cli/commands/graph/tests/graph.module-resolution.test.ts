@@ -115,7 +115,7 @@ async function startHeadless(vault: string): Promise<{readonly port: number; clo
             'serve',
             '--port',
             '0',
-            '--vault',
+            '--project-root',
             vault,
         ],
         {

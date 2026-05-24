@@ -13,7 +13,7 @@ import {
 } from '../../../data/views/folderVisibilityResource.ts'
 import {
   clearWatchFolderState,
-  setProjectRootWatchedDirectory,
+  setProjectRoot,
 } from '../../../state/watch-folder-store.ts'
 
 async function createTempVault(): Promise<string> {
@@ -59,7 +59,7 @@ describe('folderState routes', () => {
     )
 
     expect(response.status).toBe(200)
-    // setWritePath seeds the writePath as 'expanded' on cold mount so the
+    // setWriteFolder seeds the writeFolder as 'expanded' on cold mount so the
     // sidebar can show its contents. Children default collapsed.
     expect(await response.json()).toMatchObject({
       folderState: [[vault, 'expanded']],
@@ -103,7 +103,7 @@ describe('folderState routes', () => {
     expect(batch.status).toBe(200)
     const body = await batch.json()
     // folderState is ordered by path ASC. The PATCHed rows are interleaved
-    // with the seeded [vault, 'expanded'] writePath row (children of vault
+    // with the seeded [vault, 'expanded'] writeFolder row (children of vault
     // sort after vault itself).
     expect(body.folderState).toEqual([
       [vault, 'expanded'],
@@ -116,7 +116,7 @@ describe('folderState routes', () => {
 
   test('PATCH syncs the active session collapseSet used by projection', async () => {
     await openFolderVisibilityForVault(vault)
-    setProjectRootWatchedDirectory(vault as never)
+    setProjectRoot(vault as never)
     const registry = new SessionRegistry()
     const app = createDaemonApp({
       registry,

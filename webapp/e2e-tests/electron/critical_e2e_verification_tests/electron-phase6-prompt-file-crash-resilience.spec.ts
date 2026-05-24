@@ -202,7 +202,7 @@ function tmuxPanePid(
 // directory and uses it as VOICETREE_VAULT_PATH for spawned agents — that's
 // where Phase 6 writes prompt files. Resolve it once after file-watching
 // initializes the project.
-async function resolveVaultWritePath(parentDir: string): Promise<string> {
+async function resolveVaultWriteFolder(parentDir: string): Promise<string> {
   const entries = await fs.readdir(parentDir, { withFileTypes: true });
   const voicetreeDir = entries.find(
     (e) => e.isDirectory() && /^voicetree(-\d{1,2}-\d{1,2})?$/.test(e.name),
@@ -243,7 +243,7 @@ function graphIncludesTitle(
 
 async function writeSettings(
   userDataDir: string,
-  vaultPath: string,
+  projectRoot: string,
   agentPrompt: string,
 ): Promise<void> {
   // spawn_agent does NOT accept an inline `agentPrompt`; production resolves the
@@ -278,8 +278,8 @@ async function writeSettings(
       [
         {
           id: "phase6-test-project",
-          path: vaultPath,
-          name: path.basename(vaultPath),
+          path: projectRoot,
+          name: path.basename(projectRoot),
           type: "folder",
           lastOpened: Date.now(),
           voicetreeInitialized: true,
@@ -295,7 +295,7 @@ async function writeSettings(
     path.join(userDataDir, "voicetree-config.json"),
     JSON.stringify(
       {
-        lastDirectory: vaultPath,
+        lastDirectory: projectRoot,
       },
       null,
       2,
@@ -306,7 +306,7 @@ async function writeSettings(
 
 async function launchElectronApp(
   userDataDir: string,
-  vaultPath: string,
+  projectRoot: string,
 ): Promise<ElectronApplication> {
   const app = await electron.launch({
     args: [
@@ -315,13 +315,13 @@ async function launchElectronApp(
       path.join(WEBAPP_ROOT, "dist-electron/main/index.js"),
       `--user-data-dir=${userDataDir}`,
       "--open-folder",
-      vaultPath,
+      projectRoot,
     ],
     env: {
       ...process.env,
       NODE_ENV: "test",
       ENABLE_PLAYWRIGHT_DEBUG: "0",
-      VOICETREE_VAULT_PATH: vaultPath, // required for reconcileTmuxHeadlessAgents on startup
+      VOICETREE_VAULT_PATH: projectRoot, // required for reconcileTmuxHeadlessAgents on startup
       VOICETREE_PERSIST_STATE: "1",
       VT_GRAPHD_NODE_BIN: resolveGraphDaemonNodeBin(),
     },
@@ -394,13 +394,13 @@ type PhaseSixPrompt = {
 };
 
 type PhaseSixFixtures = {
-  vaultPath: string;
+  projectRoot: string;
   phaseSixPrompt: PhaseSixPrompt;
   userDataDir: string;
 };
 
 const test = base.extend<PhaseSixFixtures>({
-  vaultPath: async ({}, use) => {
+  projectRoot: async ({}, use) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-vault-"));
     const vault = path.join(root, "vault");
     await fs.mkdir(vault, { recursive: true });
@@ -425,9 +425,9 @@ const test = base.extend<PhaseSixFixtures>({
     });
   },
 
-  userDataDir: async ({ vaultPath, phaseSixPrompt }, use) => {
+  userDataDir: async ({ projectRoot, phaseSixPrompt }, use) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vt-phase6-udata-"));
-    await writeSettings(dir, vaultPath, phaseSixPrompt.agentPrompt);
+    await writeSettings(dir, projectRoot, phaseSixPrompt.agentPrompt);
     await use(dir);
     await fs.rm(dir, { recursive: true, force: true });
   },
@@ -470,7 +470,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
   test.describe.configure({ mode: "serial", timeout: 240_000 });
 
   test("headless tmux spawn delivers prompt via file, session survives Electron kill -9, relaunch rebinds", async ({
-    vaultPath,
+    projectRoot,
     userDataDir,
     phaseSixPrompt,
   }) => {
@@ -486,7 +486,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
     let killedMainPid: number | null = null;
 
     try {
-      app1 = await launchElectronApp(userDataDir, vaultPath);
+      app1 = await launchElectronApp(userDataDir, projectRoot);
       const appWindow = await firstLoadedWindow(app1);
 
       // ── STEP 1: MCP ready ──
@@ -509,13 +509,13 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
             startFileWatching: (p: string) => Promise<{ success: boolean }>;
           }
         ).startFileWatching(vp);
-      }, vaultPath);
+      }, projectRoot);
       expect(watchResult.success, "startFileWatching failed").toBe(true);
 
       // Also write `.mcp.json` so any agent that reads vault-local MCP config
       // finds the in-process server (mirrors the real-agent-spawn pattern).
       await fs.writeFile(
-        path.join(vaultPath, ".mcp.json"),
+        path.join(projectRoot, ".mcp.json"),
         JSON.stringify(
           {
             mcpServers: { voicetree: { type: "http", url: mcpUrl } },
@@ -572,11 +572,11 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       expect(terminalId).toBeTruthy();
 
       // ── STEP 4: prompt file contract (existence, mode, contents) ──
-      // `vaultPath` is the watched parent; production writes prompt files
+      // `projectRoot` is the watched parent; production writes prompt files
       // into the voicetree-N-M subfolder it created during init.
-      const writePath = await resolveVaultWritePath(vaultPath);
+      const writeFolder = await resolveVaultWriteFolder(projectRoot);
       promptFile = path.join(
-        writePath,
+        writeFolder,
         ".voicetree",
         "terminals",
         `${terminalId}-prompt.txt`,
@@ -678,7 +678,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       }
 
       // ── STEP 9: relaunch — reconciliation imports the surviving session ──
-      app2 = await launchElectronApp(userDataDir, vaultPath);
+      app2 = await launchElectronApp(userDataDir, projectRoot);
       const win2 = await firstLoadedWindow(app2, 60_000);
       const mcpUrl2 = await discoverMcpUrl(win2);
       const ready2 = await waitForMcpServer(mcpUrl2, 30, 1000);
@@ -706,7 +706,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
                     ) => Promise<{ success: boolean }>;
                   }
                 ).startFileWatching(vp);
-              }, vaultPath);
+              }, projectRoot);
               return watchResult.success;
             } catch {
               return false;

@@ -36,15 +36,15 @@ function isWithinRoot(candidatePath: string, rootPath: string): boolean {
     return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
 }
 
-function getNodeFilePath(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): string {
+function getNodeFilePath(nodeId: NodeIdAndFilePath, projectRoot: string): string {
     const filename: string = nodeIdToFilePathWithExtension(nodeId)
     return path.isAbsolute(filename)
         ? filename
-        : path.join(projectRootWatchedDirectory, filename)
+        : path.join(projectRoot, filename)
 }
 
-function createFileWritePlan(node: GraphNode, projectRootWatchedDirectory: string): FileWritePlan {
-    const fullPath: string = getNodeFilePath(node.absoluteFilePathIsID, projectRootWatchedDirectory)
+function createFileWritePlan(node: GraphNode, projectRoot: string): FileWritePlan {
+    const fullPath: string = getNodeFilePath(node.absoluteFilePathIsID, projectRoot)
     return {
         fullPath,
         parentDirectory: path.dirname(fullPath),
@@ -52,9 +52,9 @@ function createFileWritePlan(node: GraphNode, projectRootWatchedDirectory: strin
     }
 }
 
-function createFileDeletePlan(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): FileDeletePlan {
+function createFileDeletePlan(nodeId: NodeIdAndFilePath, projectRoot: string): FileDeletePlan {
     return {
-        fullPath: getNodeFilePath(nodeId, projectRootWatchedDirectory)
+        fullPath: getNodeFilePath(nodeId, projectRoot)
     }
 }
 
@@ -134,7 +134,7 @@ export function apply_graph_deltas_to_db(
 function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const plan: FileWritePlan = createFileWritePlan(node, env.projectRootWatchedDirectory)
+            const plan: FileWritePlan = createFileWritePlan(node, env.projectRoot)
 
             await fs.mkdir(plan.parentDirectory, { recursive: true })
 
@@ -151,11 +151,11 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRootWatchedDirectory)
+            const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRoot)
 
             markPendingDelete(plan.fullPath)
             await fs.unlink(plan.fullPath)
-            await pruneEmptyParentDirectories(plan.fullPath, env.projectRootWatchedDirectory)
+            await pruneEmptyParentDirectories(plan.fullPath, env.projectRoot)
         },
         toError
     )

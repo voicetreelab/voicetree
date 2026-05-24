@@ -125,22 +125,22 @@ describe('GraphDbClient', () => {
 
       await mkdir(outPath, { recursive: true })
 
-      // setWritePath seeds the writePath as 'expanded' on cold mount.
+      // setWriteFolder seeds the writeFolder as 'expanded' on cold mount.
       await expect(client.getVault()).resolves.toEqual({
-        vaultPath: harness.vault,
+        projectRoot: harness.vault,
         readPaths: [harness.vault],
-        writePath: harness.vault,
+        writeFolder: harness.vault,
       })
 
-      const afterWritePath = await client.setWritePath(outPath)
-      expect(afterWritePath).toMatchObject({
-        vaultPath: harness.vault,
-        writePath: outPath,
+      const afterWriteFolder = await client.setWriteFolder(outPath)
+      expect(afterWriteFolder).toMatchObject({
+        projectRoot: harness.vault,
+        writeFolder: outPath,
       })
-      // After setWritePath(outPath): the old writePath (harness.vault) is
-      // demoted to the expanded set, and the new writePath (outPath) is
+      // After setWriteFolder(outPath): the old writeFolder (harness.vault) is
+      // demoted to the expanded set, and the new writeFolder (outPath) is
       // seeded as expanded. Both appear in readPaths.
-      expect([...afterWritePath.readPaths].sort()).toEqual(
+      expect([...afterWriteFolder.readPaths].sort()).toEqual(
         [harness.vault, outPath].sort(),
       )
     })
@@ -150,7 +150,7 @@ describe('GraphDbClient', () => {
       const client = await connect()
       const missingPath = join(harness.vault, 'missing')
 
-      await expect(client.setWritePath(missingPath)).rejects.toMatchObject({
+      await expect(client.setWriteFolder(missingPath)).rejects.toMatchObject({
         name: 'GraphDbClientError',
         status: 400,
         code: 'PATH_NOT_FOUND',
@@ -301,7 +301,7 @@ describe('GraphDbClient', () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
 
-      // setWritePath seeds [vault, 'expanded'] on cold mount; subsequent
+      // setWriteFolder seeds [vault, 'expanded'] on cold mount; subsequent
       // PATCHes are interleaved with that row by path-ASC ordering.
       await expect(client.getSession(created.sessionId)).resolves.toMatchObject({
         id: created.sessionId,

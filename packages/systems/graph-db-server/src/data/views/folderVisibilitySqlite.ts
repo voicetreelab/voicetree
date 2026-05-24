@@ -26,15 +26,15 @@ export type FolderVisibilityDatabase = DatabaseSync & {
 }
 
 /**
- * Resolve `<vaultPath>/.voicetree/folder-visibility.db`.
+ * Resolve `<projectRoot>/.voicetree/folder-visibility.db`.
  */
-export function resolveFolderVisibilityDbPath(vaultPath: string): string {
-    return path.join(vaultPath, FOLDER_VISIBILITY_DB_RELATIVE_PATH)
+export function resolveFolderVisibilityDbPath(projectRoot: string): string {
+    return path.join(projectRoot, FOLDER_VISIBILITY_DB_RELATIVE_PATH)
 }
 
-function assertValidVaultPath(vaultPath: string): void {
-    if (typeof vaultPath !== 'string' || vaultPath.length === 0) {
-        throw new Error('openFolderVisibilityDb: vaultPath must be a non-empty string')
+function assertValidVaultPath(projectRoot: string): void {
+    if (typeof projectRoot !== 'string' || projectRoot.length === 0) {
+        throw new Error('openFolderVisibilityDb: projectRoot must be a non-empty string')
     }
 }
 
@@ -47,19 +47,19 @@ function prepareFolderVisibilityDb(db: FolderVisibilityDatabase): FolderVisibili
 /**
  * Open (or create) the folder-visibility sqlite db for a vault.
  *
- * - Creates `<vaultPath>/.voicetree/` if missing.
+ * - Creates `<projectRoot>/.voicetree/` if missing.
  * - Sets `journal_mode = WAL` (Decision 2: concurrent readers, single writer).
  * - Runs schema migrations (idempotent CREATE TABLE IF NOT EXISTS).
  *
  * The caller owns the returned Database handle and must close it via
  * {@link closeFolderVisibilityDb}.
  *
- * Throws if `vaultPath` is empty/invalid or the parent directory cannot be
+ * Throws if `projectRoot` is empty/invalid or the parent directory cannot be
  * created.
  */
-export function openFolderVisibilityDb(vaultPath: string): FolderVisibilityDatabase {
-    assertValidVaultPath(vaultPath)
-    const dbPath = resolveFolderVisibilityDbPath(vaultPath)
+export function openFolderVisibilityDb(projectRoot: string): FolderVisibilityDatabase {
+    assertValidVaultPath(projectRoot)
+    const dbPath = resolveFolderVisibilityDbPath(projectRoot)
     fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
     const db = addTransactionMethod(new DatabaseSync(dbPath))

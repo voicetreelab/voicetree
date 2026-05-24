@@ -29,11 +29,11 @@ import { applyGraphDeltaToGraph } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/actions/applyGraphDeltaToUI'
 import { projectDelta, resetTestProjectionState } from '@/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta'
 import { initGraphModel } from '@vt/graph-model'
-import { setProjectRootWatchedDirectory } from '@vt/graph-db-server/state/watch-folder-store'
+import { setProjectRoot } from '@vt/graph-db-server/state/watch-folder-store'
 import { apply_graph_deltas_to_db } from '@vt/graph-db-server/graph/graphActionsToDBEffects'
 
 // State managed by mocked globals
@@ -46,7 +46,7 @@ function applyDeltaToUI(cy: Core, delta: GraphDelta): ReturnType<typeof applyGra
 
 async function applyDeltaToFilesystemAndState(cy: Core, delta: GraphDelta): Promise<void> {
     const result: E.Either<Error, GraphDelta> = await apply_graph_deltas_to_db(delta)({
-        projectRootWatchedDirectory: tempVault
+        projectRoot: tempVault
     })()
     if (E.isLeft(result)) {
         throw result.left
@@ -57,15 +57,15 @@ async function applyDeltaToFilesystemAndState(cy: Core, delta: GraphDelta): Prom
     applyDeltaToUI(cy, delta)
 }
 
-function createTestWindow(cy: Core, includeWritePath: boolean): Window {
+function createTestWindow(cy: Core, includeWriteFolder: boolean): Window {
     return {
         electronAPI: {
             main: {
                 getGraph: async () => currentGraph,
                 getNode: async (nodeId: string) => currentGraph?.nodes[nodeId],
-                ...(includeWritePath
+                ...(includeWriteFolder
                     ? {
-                        getWritePath: () => Promise.resolve(O.some(tempVault)),
+                        getWriteFolder: () => Promise.resolve(O.some(tempVault)),
                         getWatchStatus: () => ({ isWatching: false, directory: tempVault })
                     }
                     : {}),
@@ -125,13 +125,13 @@ vi.mock('@/shell/UI/views/treeStyleTerminalTabs/agentTabsActivity', async () => 
 // Mock watchFolder for vault path functions
 vi.mock('@/shell/edge/main/graph/watchFolder', () => {
     return {
-        getVaultPath: () => {
+        getProjectRoot: () => {
             return tempVault ? O.of(tempVault) : O.none
         },
-        setVaultPath: (path: string) => {
+        setProjectRoot: (path: string) => {
             tempVault = path
         },
-        clearVaultPath: () => {
+        clearProjectRoot: () => {
             tempVault = ''
         },
         startFileWatching: vi.fn().mockResolvedValue({ success: true }),
@@ -181,7 +181,7 @@ function createTestNode(
 
 // Helper to write a markdown file with optional wikilinks
 async function writeMarkdownFile(
-    vaultPath: string,
+    projectRoot: string,
     filename: string,
     content: string,
     wikilinks: string[] = [],
@@ -194,7 +194,7 @@ async function writeMarkdownFile(
         ? `\n\n_Links:_\n${wikilinks.map(link => `- [[${link}]]`).join('\n')}`
         : ''
     const fullContent: string = `${frontmatter}${content}${linksSection}`
-    await fs.writeFile(path.join(vaultPath, filename), fullContent)
+    await fs.writeFile(path.join(projectRoot, filename), fullContent)
 }
 
 // Helper to read wikilinks from a markdown file
@@ -223,14 +223,14 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-delete-edges-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setVaultPath(tempVault)
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRootWatchedDirectory(null)
+        setProjectRoot(null)
         vi.clearAllMocks()
     })
 
@@ -401,14 +401,14 @@ describe('Merge Operation - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setVaultPath(tempVault)
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRootWatchedDirectory(null)
+        setProjectRoot(null)
         vi.clearAllMocks()
     })
 
@@ -524,14 +524,14 @@ describe('Merge with Context Nodes - Filesystem Integration', () => {
         await ensureHandlersImported()
         tempVault = path.join('/tmp', `test-vault-merge-ctx-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
-        setVaultPath(tempVault)
-        setProjectRootWatchedDirectory(tempVault)
+        setProjectRoot(tempVault)
+        setProjectRoot(tempVault)
     })
 
     afterEach(async () => {
         cy?.destroy()
         await fs.rm(tempVault, { recursive: true, force: true })
-        setProjectRootWatchedDirectory(null)
+        setProjectRoot(null)
         vi.clearAllMocks()
     })
 

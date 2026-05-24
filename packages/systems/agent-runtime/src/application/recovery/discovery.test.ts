@@ -43,7 +43,7 @@ function makeUnclaimed(overrides: Partial<UnclaimedTmuxSession> = {}): Unclaimed
         createdAt: 1_700_000_000_000,
         panePid: 1234,
         agentName: 'Ari',
-        vaultPath: VAULT_PATH,
+        projectRoot: VAULT_PATH,
         contextNodePath: '/vault/node.md',
         taskNodePath: '/vault/task.md',
         ...overrides,

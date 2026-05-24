@@ -157,23 +157,23 @@ export async function generateVaultOnDisk(
   parentDir: string,
   nodeCount: number = 500
 ): Promise<string> {
-  const vaultPath = path.join(parentDir, 'perf-test-vault');
-  await fs.mkdir(vaultPath, { recursive: true });
+  const projectRoot = path.join(parentDir, 'perf-test-vault');
+  await fs.mkdir(projectRoot, { recursive: true });
 
   // Create .voicetree directory with empty positions.json
-  const voicetreeDir = path.join(vaultPath, '.voicetree');
+  const voicetreeDir = path.join(projectRoot, '.voicetree');
   await fs.mkdir(voicetreeDir, { recursive: true });
   await fs.writeFile(path.join(voicetreeDir, 'positions.json'), '{}', 'utf8');
 
   // Create ctx-nodes directory (required by vault structure)
-  await fs.mkdir(path.join(vaultPath, 'ctx-nodes'), { recursive: true });
+  await fs.mkdir(path.join(projectRoot, 'ctx-nodes'), { recursive: true });
 
   // Generate and write all nodes
   const nodes = generateVaultNodes(nodeCount);
   const createdDirs = new Set<string>();
 
   for (const node of nodes) {
-    const fullPath = path.join(vaultPath, node.relativePath);
+    const fullPath = path.join(projectRoot, node.relativePath);
     const dir = path.dirname(fullPath);
     if (!createdDirs.has(dir)) {
       await fs.mkdir(dir, { recursive: true });
@@ -182,8 +182,8 @@ export async function generateVaultOnDisk(
     await fs.writeFile(fullPath, node.content, 'utf8');
   }
 
-  console.log(`[Vault Gen] Created ${nodes.length} nodes in ${vaultPath}`);
+  console.log(`[Vault Gen] Created ${nodes.length} nodes in ${projectRoot}`);
   console.log(`[Vault Gen] Directories: ${createdDirs.size}`);
 
-  return vaultPath;
+  return projectRoot;
 }

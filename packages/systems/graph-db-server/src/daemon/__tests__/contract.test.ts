@@ -30,7 +30,7 @@ describe('contract', () => {
   test('HealthResponse round-trips a valid sample with owner=null (vaultless)', () => {
     const sample: HealthResponse = {
       version: CONTRACT_VERSION,
-      vault: '/tmp/vault',
+      vault: null,
       uptimeSeconds: 42,
       sessionCount: 0,
       owner: null,
@@ -47,7 +47,7 @@ describe('contract', () => {
       sessionCount: 0,
       owner: {
         schemaVersion: 1,
-        canonicalVaultPath: '/tmp/vault',
+        canonicalProjectRoot: '/tmp/vault',
         pid: 1234,
         ppid: 1,
         port: 65123,
@@ -120,7 +120,7 @@ describe('contract', () => {
         sessionCount: 0,
         owner: {
           schemaVersion: 2,
-          canonicalVaultPath: '/tmp/v',
+          canonicalProjectRoot: '/tmp/v',
           pid: 1,
           ppid: 0,
           port: 1,

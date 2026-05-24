@@ -84,9 +84,9 @@ describe('closeAgentTool', () => {
     it('closes the renderer window before cleaning up a tmux-backed interactive agent', async () => {
         const terminalId: TerminalId = makeTerminalId()
         terminalIds.add(terminalId)
-        const vaultPath: string = await makeTempVault()
-        const contextNodeId: NodeIdAndFilePath = join(vaultPath, 'context.md') as NodeIdAndFilePath
-        const progressNodeId: NodeIdAndFilePath = join(vaultPath, 'progress.md') as NodeIdAndFilePath
+        const projectRoot: string = await makeTempVault()
+        const contextNodeId: NodeIdAndFilePath = join(projectRoot, 'context.md') as NodeIdAndFilePath
+        const progressNodeId: NodeIdAndFilePath = join(projectRoot, 'progress.md') as NodeIdAndFilePath
         const events: string[] = []
 
         configureAgentRuntime({
@@ -100,7 +100,7 @@ describe('closeAgentTool', () => {
             graph: {
                 getGraph: async (): Promise<Graph> => makeGraph(progressNodeId, terminalId),
                 getVaultPaths: async (): Promise<readonly string[]> => [],
-                getWritePath: async (): Promise<string | null> => null,
+                getWriteFolder: async (): Promise<string | null> => null,
                 applyGraphDelta: async (): Promise<void> => {},
             },
         })
@@ -115,7 +115,7 @@ describe('closeAgentTool', () => {
             executeCommand: true,
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: terminalId,
-                VOICETREE_VAULT_PATH: vaultPath,
+                VOICETREE_VAULT_PATH: projectRoot,
             },
         })
 
@@ -123,8 +123,8 @@ describe('closeAgentTool', () => {
             terminalId,
             terminalData,
             `bash -lc 'sleep 30'`,
-            vaultPath,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
         )
         expect(await hasSession(terminalId)).toBe(true)
 

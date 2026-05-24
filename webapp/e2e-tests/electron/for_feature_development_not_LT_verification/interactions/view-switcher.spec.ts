@@ -27,12 +27,12 @@ import {
 
 type FixtureVault = {
   readonly tempRoot: string;
-  readonly vaultPath: string;
+  readonly projectRoot: string;
 };
 
-async function writeFixtureVault(vaultPath: string): Promise<void> {
-  await fs.mkdir(vaultPath, { recursive: true });
-  await fs.writeFile(path.join(vaultPath, 'root.md'), '# Root\n\nHello.\n', 'utf8');
+async function writeFixtureVault(projectRoot: string): Promise<void> {
+  await fs.mkdir(projectRoot, { recursive: true });
+  await fs.writeFile(path.join(projectRoot, 'root.md'), '# Root\n\nHello.\n', 'utf8');
 }
 
 async function stubFolderDialog(electronApp: ElectronApplication, folderPath: string): Promise<void> {
@@ -53,10 +53,10 @@ const test = base.extend<{
 }>({
   fixtureVault: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-view-switcher-'));
-    const vaultPath = path.join(tempRoot, 'vault-a');
-    await writeFixtureVault(vaultPath);
-    await use({ tempRoot, vaultPath });
-    stopSmokeGraphDaemonForVault(vaultPath);
+    const projectRoot = path.join(tempRoot, 'vault-a');
+    await writeFixtureVault(projectRoot);
+    await use({ tempRoot, projectRoot });
+    stopSmokeGraphDaemonForVault(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
@@ -148,13 +148,13 @@ test.describe('view-switcher dropdown', () => {
     const openButton = appWindow.getByRole('button', { name: /open existing folder/i });
     await expect(openButton).toBeVisible({ timeout: 30000 });
 
-    await stubFolderDialog(electronApp, fixtureVault.vaultPath);
+    await stubFolderDialog(electronApp, fixtureVault.projectRoot);
     await openButton.click();
 
     // Wait for vault to open (bottom-bar should show vault name)
     await expect(
       appWindow.locator('button[title="Project root – agents spawn here by default"]'),
-    ).toContainText(path.basename(fixtureVault.vaultPath), { timeout: 60000 });
+    ).toContainText(path.basename(fixtureVault.projectRoot), { timeout: 60000 });
 
     // ViewSwitcher trigger should exist and show "main"
     const trigger = appWindow.getByTestId('view-switcher-trigger');

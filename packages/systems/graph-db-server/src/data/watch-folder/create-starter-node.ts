@@ -52,7 +52,7 @@ function randomLetters(random: () => number, length: number): string {
 }
 
 export function buildStarterNodePlan(
-    vaultPath: string,
+    projectRoot: string,
     template: string,
     now: Date,
     timestamp: string,
@@ -67,7 +67,7 @@ export function buildStarterNodePlan(
     const dayAbbrev: string = now.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()
     const fileName: string = `${timestamp}${randomChars}.md`
     const relativePath: string = `${dayAbbrev}/${fileName}`
-    const absolutePath: string = path.join(vaultPath, relativePath)
+    const absolutePath: string = path.join(projectRoot, relativePath)
     const nodeId: string = absolutePath
 
     const newNode: GraphNode = {
@@ -94,18 +94,18 @@ export function buildStarterNodePlan(
  * Creates a starter node when opening an empty folder.
  * Uses the emptyFolderTemplate from settings, with {{DATE}} placeholder replaced.
  *
- * @param vaultPath - The vault path where the node file will be created
+ * @param projectRoot - The vault path where the node file will be created
  * @returns Graph containing the new starter node
  */
 export async function createStarterNode(
-    vaultPath: string,
+    projectRoot: string,
     dependencies: CreateStarterNodeDependencies = defaultCreateStarterNodeDependencies,
 ): Promise<Graph> {
     const settings: VTSettings = await dependencies.loadSettings()
     const template: string = settings.emptyFolderTemplate ?? '# '
 
     const plan: StarterNodePlan = buildStarterNodePlan(
-        vaultPath,
+        projectRoot,
         template,
         dependencies.now(),
         dependencies.nowMs().toString(),

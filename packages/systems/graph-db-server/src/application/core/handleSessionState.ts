@@ -13,7 +13,7 @@ export type ReadSessionStateInput = {
   readonly contentMode: string | undefined
   readonly graph: Graph
   readonly projectRoot: string | null
-  readonly writePath: AbsolutePath | null
+  readonly writeFolder: AbsolutePath | null
   readonly readPaths: readonly string[]
   readonly folderTree: FolderTreeNode | null
   readonly folderVisibility: Pick<LiveStateSnapshot, 'folderState' | 'activeView'>
@@ -51,9 +51,9 @@ export function handleReadSessionState(
   input: ReadSessionStateInput,
 ): { commands: []; response: LiveStateSnapshot } {
   const vault: VaultState = {
-    vaultPath: input.projectRoot ?? '',
+    projectRoot: input.projectRoot ?? '',
     readPaths: [...input.readPaths],
-    writePath: input.writePath ?? input.projectRoot ?? '',
+    writeFolder: input.writeFolder ?? input.projectRoot ?? '',
   }
 
   const snapshot = projectSessionState({

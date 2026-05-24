@@ -126,10 +126,10 @@ test.describe('Terminal Tab Shortcut Hints Screenshot', () => {
     console.log('Settings configured with mock agent: echo test');
 
     console.log('=== STEP 2: Load test vault via file watching ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

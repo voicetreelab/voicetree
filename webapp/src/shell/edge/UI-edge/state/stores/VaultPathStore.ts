@@ -8,13 +8,13 @@
 
 export interface VaultPathState {
     readonly readPaths: readonly string[];
-    readonly writePath: string | null;
+    readonly writeFolder: string | null;
     readonly starredFolders: readonly string[];
 }
 
 const INITIAL_STATE: VaultPathState = {
     readPaths: [],
-    writePath: null,
+    writeFolder: null,
     starredFolders: [],
 };
 

@@ -21,11 +21,11 @@ type TestFixtures = {
     tempUserDataPath: string;
 };
 
-async function writeFixtureVault(vaultPath: string): Promise<void> {
-    await fs.mkdir(vaultPath, { recursive: true });
-    const subFolder = path.join(vaultPath, 'notes');
+async function writeFixtureVault(projectRoot: string): Promise<void> {
+    await fs.mkdir(projectRoot, { recursive: true });
+    const subFolder = path.join(projectRoot, 'notes');
     await fs.mkdir(subFolder, { recursive: true });
-    await fs.writeFile(path.join(vaultPath, 'root.md'), '# Root\n\nContent.\n', 'utf8');
+    await fs.writeFile(path.join(projectRoot, 'root.md'), '# Root\n\nContent.\n', 'utf8');
     await fs.writeFile(path.join(subFolder, 'note.md'), '# Note\n\nContent.\n', 'utf8');
 }
 

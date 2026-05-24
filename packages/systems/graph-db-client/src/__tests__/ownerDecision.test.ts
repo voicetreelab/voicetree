@@ -18,7 +18,7 @@ function fingerprint(
 ): CommandFingerprint {
   return {
     executable: '/usr/local/bin/node',
-    args: ['vt-graphd', '--vault', VAULT],
+    args: ['vt-graphd', '--project-root', VAULT],
     ...overrides,
   }
 }
@@ -26,7 +26,7 @@ function fingerprint(
 function record(overrides: Partial<OwnerRecord> = {}): OwnerRecord {
   return {
     schemaVersion: 1,
-    canonicalVaultPath: VAULT,
+    canonicalProjectRoot: VAULT,
     pid: 4242,
     ppid: 1,
     port: 65123,
@@ -45,7 +45,7 @@ function verifiedHealth(
 ): HealthProbeResult {
   return {
     kind: 'verified',
-    canonicalVaultPath: VAULT,
+    canonicalProjectRoot: VAULT,
     ownerNonce: 'nonce-abc',
     pid: 4242,
     port: 65123,
@@ -199,7 +199,7 @@ describe('decideOwnerAction — unsafe-owner', () => {
     const e = evidence({
       health: {
         kind: 'mismatch',
-        observedCanonicalVaultPath: '/other-vault',
+        observedCanonicalProjectRoot: '/other-vault',
         observedOwnerNonce: 'nonce-zzz',
       },
     })

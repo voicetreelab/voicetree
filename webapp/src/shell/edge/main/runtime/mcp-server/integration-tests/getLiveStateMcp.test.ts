@@ -25,10 +25,10 @@ vi.mock('@vt/graph-model', async () => {
     return {
         ...actual,
         getGraph: vi.fn(),
-        getProjectRootWatchedDirectory: vi.fn(),
+        getProjectRoot: vi.fn(),
         getVaultPaths: vi.fn(),
         getReadPaths: vi.fn(),
-        getWritePath: vi.fn(),
+        getWriteFolder: vi.fn(),
         getDirectoryTree: vi.fn(),
     }
 })
@@ -57,10 +57,10 @@ vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => 
 
 import {
     getGraph as mockedGetGraph,
-    getProjectRootWatchedDirectory,
+    getProjectRoot,
     getVaultPaths,
     getReadPaths,
-    getWritePath,
+    getWriteFolder,
     getDirectoryTree,
 } from '@vt/graph-model'
 import {getCurrentLiveState} from '@/shell/edge/main/runtime/state/live-state-store'
@@ -165,10 +165,10 @@ describe('vt_get_live_state real MCP roundtrip', () => {
             meta: {schemaVersion: 1, revision: 7},
         })
         vi.mocked(mockedGetGraph).mockReturnValue(graph)
-        vi.mocked(getProjectRootWatchedDirectory).mockReturnValue('/tmp/vault' as never)
+        vi.mocked(getProjectRoot).mockReturnValue('/tmp/vault' as never)
         vi.mocked(getVaultPaths).mockResolvedValue(['/tmp/vault'] as never)
         vi.mocked(getReadPaths).mockResolvedValue([])
-        vi.mocked(getWritePath).mockResolvedValue(O.some('/tmp/vault') as never)
+        vi.mocked(getWriteFolder).mockResolvedValue(O.some('/tmp/vault') as never)
         vi.mocked(getDirectoryTree).mockResolvedValue({
             absolutePath: '/tmp/vault' as never,
             name: 'vault',

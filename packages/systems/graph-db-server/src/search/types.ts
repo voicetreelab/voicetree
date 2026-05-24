@@ -6,20 +6,20 @@ export type NodeSearchHit = {
 }
 
 export interface SearchBackend {
-    buildIndex(vaultPath: string): Promise<void>
-    search(vaultPath: string, query: string, topK: number): Promise<readonly NodeSearchHit[]>
-    upsertNode(vaultPath: string, nodePath: string, content: string, title: string): Promise<void>
-    deleteNode(vaultPath: string, nodePath: string): Promise<void>
+    buildIndex(projectRoot: string): Promise<void>
+    search(projectRoot: string, query: string, topK: number): Promise<readonly NodeSearchHit[]>
+    upsertNode(projectRoot: string, nodePath: string, content: string, title: string): Promise<void>
+    deleteNode(projectRoot: string, nodePath: string): Promise<void>
 }
 
 export class SearchIndexNotFoundError extends Error {
-    readonly vaultPath: string
+    readonly projectRoot: string
     readonly indexPath: string
 
-    constructor(vaultPath: string, indexPath: string) {
-        super(`No search index found for vault "${vaultPath}" at "${indexPath}"`)
+    constructor(projectRoot: string, indexPath: string) {
+        super(`No search index found for vault "${projectRoot}" at "${indexPath}"`)
         this.name = 'SearchIndexNotFoundError'
-        this.vaultPath = vaultPath
+        this.projectRoot = projectRoot
         this.indexPath = indexPath
     }
 }

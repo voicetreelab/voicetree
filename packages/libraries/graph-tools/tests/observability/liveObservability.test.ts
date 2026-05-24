@@ -24,7 +24,7 @@ beforeAll(async () => {
     writeFileSync(B, '# B\n[[c]]\n')
     writeFileSync(C, '# C\n')
     writeFileSync(D, '# D\n') // isolated
-    server = await createHeadlessServer({vaultPath: VAULT})
+    server = await createHeadlessServer({projectRoot: VAULT})
     expect(server.port).not.toBe(3002)
     expect(server.port).not.toBe(0)
 })

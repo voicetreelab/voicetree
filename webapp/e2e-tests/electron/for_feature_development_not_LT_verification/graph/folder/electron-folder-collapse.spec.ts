@@ -28,23 +28,23 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-collapse-test-'));
-        const vaultPath = await createFolderTestVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createFolderTestVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-collapse-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -52,7 +52,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'collapse-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'collapse-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -89,7 +89,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath: _vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot: _vaultPath }, use) => {
         const w = await electronApp.firstWindow({ timeout: 20000 });
         w.on('console', msg => {
             const t = msg.text();

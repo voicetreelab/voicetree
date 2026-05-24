@@ -19,17 +19,17 @@ export async function getMcpGraph(): Promise<Graph> {
     return await requireGraphBridge('getMcpGraph').getGraph()
 }
 
-export async function getMcpWritePath(): Promise<O.Option<string>> {
-    return O.fromNullable(await requireGraphBridge('getMcpWritePath').getWritePath())
+export async function getMcpWriteFolder(): Promise<O.Option<string>> {
+    return O.fromNullable(await requireGraphBridge('getMcpWriteFolder').getWriteFolder())
 }
 
 export async function getMcpVaultPaths(): Promise<readonly string[]> {
     return await requireGraphBridge('getMcpVaultPaths').getVaultPaths()
 }
 
-export async function getMcpProjectRootWatchedDirectory(): Promise<string | null> {
-    const bridge: GraphBridge = requireGraphBridge('getMcpProjectRootWatchedDirectory')
-    return bridge.getProjectRootWatchedDirectory ? await bridge.getProjectRootWatchedDirectory() : null
+export async function getMcpProjectRoot(): Promise<string | null> {
+    const bridge: GraphBridge = requireGraphBridge('getMcpProjectRoot')
+    return bridge.getProjectRoot ? await bridge.getProjectRoot() : null
 }
 
 export async function getMcpUnseenNodesAroundContextNode(

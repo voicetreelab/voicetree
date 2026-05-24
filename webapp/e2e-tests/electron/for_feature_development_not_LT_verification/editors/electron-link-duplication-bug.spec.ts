@@ -72,8 +72,8 @@ const test = base.extend<{
 
     // Create the actual vault path with default suffix 'voicetree'
     // The app looks for .md files in {watchedFolder}/voicetree/
-    const vaultPath = path.join(watchedFolder, 'voicetree');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const projectRoot = path.join(watchedFolder, 'voicetree');
+    await fs.mkdir(projectRoot, { recursive: true });
 
     // Create test files that will be used by the tests
     // File names without vault prefix for filesystem operations
@@ -99,19 +99,19 @@ This node has a link: [[${linkedNodeFilename2}]]
 
 End of content.`;
 
-    await fs.writeFile(path.join(vaultPath, testNodeFilename), initialContent, 'utf-8');
-    await fs.writeFile(path.join(vaultPath, linkedNodeFilename), '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
-    await fs.writeFile(path.join(vaultPath, testNodeFilename2), initialContent2, 'utf-8');
-    await fs.writeFile(path.join(vaultPath, linkedNodeFilename2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
+    await fs.writeFile(path.join(projectRoot, testNodeFilename), initialContent, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, linkedNodeFilename), '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
+    await fs.writeFile(path.join(projectRoot, testNodeFilename2), initialContent2, 'utf-8');
+    await fs.writeFile(path.join(projectRoot, linkedNodeFilename2), '---\n---\n# Target Node\n\nTarget.', 'utf-8');
 
     // Write config to auto-load the watched folder (vault = watchedFolder + 'voicetree')
     const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
     await fs.writeFile(configPath, JSON.stringify({ lastDirectory: watchedFolder }, null, 2), 'utf8');
     console.log('[Test] Watched folder:', watchedFolder);
-    console.log('[Test] Vault path (with suffix):', vaultPath);
+    console.log('[Test] Vault path (with suffix):', projectRoot);
 
-    // Store vaultPath for test access via testInfo (the actual path where .md files live)
-    (testInfo as unknown as { vaultPath: string }).vaultPath = vaultPath;
+    // Store projectRoot for test access via testInfo (the actual path where .md files live)
+    (testInfo as unknown as { projectRoot: string }).projectRoot = projectRoot;
 
     const electronApp = await electron.launch({
       args: [
@@ -156,8 +156,8 @@ End of content.`;
 
   // Get vault path from testInfo (set by electronApp fixture)
   testVaultPath: async ({}, use, testInfo) => {
-    // Wait for electronApp fixture to set vaultPath
-    await use((testInfo as unknown as { vaultPath: string }).vaultPath);
+    // Wait for electronApp fixture to set projectRoot
+    await use((testInfo as unknown as { projectRoot: string }).projectRoot);
   },
 
   appWindow: [async ({ electronApp, testVaultPath: _testVaultPath }, use) => {

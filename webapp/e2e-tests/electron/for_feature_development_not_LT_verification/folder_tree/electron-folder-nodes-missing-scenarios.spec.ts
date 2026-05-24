@@ -55,14 +55,14 @@ function sortEdges(edges: readonly EdgeSnapshot[]): EdgeSnapshot[] {
         `${left.source}->${left.target}`.localeCompare(`${right.source}->${right.target}`));
 }
 
-function buildFixture(vaultPath: string): MissingScenarioFixture {
+function buildFixture(projectRoot: string): MissingScenarioFixture {
     return {
-        authFolderId: `${path.join(vaultPath, 'auth')}/`,
-        apiFolderId: `${path.join(vaultPath, 'api')}/`,
-        apiGatewayId: path.join(vaultPath, 'api', 'gateway.md'),
-        entryId: path.join(vaultPath, 'entry.md'),
-        exampleFolderId: `${path.join(vaultPath, 'example')}/`,
-        exampleNoteId: path.join(vaultPath, 'example', 'example.md'),
+        authFolderId: `${path.join(projectRoot, 'auth')}/`,
+        apiFolderId: `${path.join(projectRoot, 'api')}/`,
+        apiGatewayId: path.join(projectRoot, 'api', 'gateway.md'),
+        entryId: path.join(projectRoot, 'entry.md'),
+        exampleFolderId: `${path.join(projectRoot, 'example')}/`,
+        exampleNoteId: path.join(projectRoot, 'example', 'example.md'),
     };
 }
 
@@ -79,50 +79,50 @@ async function writeMarkdownAtomically(filePath: string, body: string): Promise<
 }
 
 async function createMissingScenarioVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'folder-missing-scenarios-vault');
+    const projectRoot = path.join(basePath, 'folder-missing-scenarios-vault');
 
-    await writeMarkdown(path.join(vaultPath, 'auth', 'login-flow.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'login-flow.md'),
         `---\nposition:\n  x: 100\n  y: 100\n---\n# Login Flow\nHandles user login.\n[[auth/jwt-token]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'auth', 'jwt-token.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'jwt-token.md'),
         `---\nposition:\n  x: 220\n  y: 100\n---\n# JWT Token\nToken generation.\n[[auth/session-manager]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'auth', 'session-manager.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'session-manager.md'),
         `---\nposition:\n  x: 340\n  y: 100\n---\n# Session Manager\nManages sessions.\n[[api/gateway]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'auth', 'internal', 'refresh-token.md'),
+    await writeMarkdown(path.join(projectRoot, 'auth', 'internal', 'refresh-token.md'),
         `---\nposition:\n  x: 460\n  y: 100\n---\n# Refresh Token\nNested auth detail.\n[[api/gateway]]\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'api', 'gateway.md'),
+    await writeMarkdown(path.join(projectRoot, 'api', 'gateway.md'),
         `---\nposition:\n  x: 160\n  y: 340\n---\n# API Gateway\nMain entry point.\n[[api/router]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'api', 'router.md'),
+    await writeMarkdown(path.join(projectRoot, 'api', 'router.md'),
         `---\nposition:\n  x: 300\n  y: 340\n---\n# Router\nRequest routing.\n`);
 
-    await writeMarkdown(path.join(vaultPath, 'entry.md'),
+    await writeMarkdown(path.join(projectRoot, 'entry.md'),
         `---\nposition:\n  x: 620\n  y: 260\n---\n# Entry\nLinks to the folder note identity.\n[[example]]\n`);
-    await writeMarkdown(path.join(vaultPath, 'example', 'example.md'),
+    await writeMarkdown(path.join(projectRoot, 'example', 'example.md'),
         `---\nposition:\n  x: 760\n  y: 260\n---\n# Example Folder Note\nThis file is the identity note for example/.\n`);
 
-    return vaultPath;
+    return projectRoot;
 }
 
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-missing-scenarios-'));
-        const vaultPath = await createMissingScenarioVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createMissingScenarioVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-folder-missing-scenarios-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: []
                 }
             }
@@ -130,7 +130,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'folder-missing-scenarios-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'folder-missing-scenarios-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -184,7 +184,7 @@ const test = base.extend<{
         await fs.rm(tempUserData, { recursive: true, force: true });
     },
 
-    appWindow: async ({ electronApp, vaultPath }, use) => {
+    appWindow: async ({ electronApp, projectRoot }, use) => {
         const window = await electronApp.firstWindow({ timeout: 20000 });
 
         window.on('console', msg => {
@@ -218,7 +218,7 @@ const test = base.extend<{
                 const api = (window as unknown as ExtendedWindow).electronAPI;
                 if (!api) throw new Error('electronAPI not available');
                 return api.main.startFileWatching(folderPath);
-            }, vaultPath);
+            }, projectRoot);
             expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);
             await window.waitForFunction(
                 () => !!(window as unknown as ExtendedWindow).cytoscapeInstance,
@@ -231,8 +231,8 @@ const test = base.extend<{
     }
 });
 
-async function collapseSidebarFolder(appWindow: Page, folderName: string, vaultPath: string): Promise<void> {
-    const row = await ensureSidebarFolderVisible(appWindow, folderName, vaultPath);
+async function collapseSidebarFolder(appWindow: Page, folderName: string, projectRoot: string): Promise<void> {
+    const row = await ensureSidebarFolderVisible(appWindow, folderName, projectRoot);
     const toggle = row.locator('.folder-tree-graph-collapse-icon');
     await expect(toggle).toHaveClass(/expanded/);
     await clickVisibleElementCenter(appWindow, toggle);
@@ -321,16 +321,16 @@ async function visibleNodeIds(appWindow: Page): Promise<string[]> {
 }
 
 test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
-    test('collapsed descendants connect to another collapsed folder through one folder-level synthetic edge', async ({ appWindow, vaultPath }) => {
+    test('collapsed descendants connect to another collapsed folder through one folder-level synthetic edge', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 8);
         await openFolderTreeSidebar(appWindow);
         await captureStateScreenshot(appWindow, 'before-collapse.png');
 
-        await collapseSidebarFolder(appWindow, 'auth', vaultPath);
-        await collapseSidebarFolder(appWindow, 'api', vaultPath);
+        await collapseSidebarFolder(appWindow, 'auth', projectRoot);
+        await collapseSidebarFolder(appWindow, 'api', projectRoot);
 
         await expect.poll(
             () => getSyntheticEdgesBetween(appWindow, fixture.authFolderId, fixture.apiFolderId),
@@ -356,13 +356,13 @@ test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
         await captureStateScreenshot(appWindow, 'after-both-collapse.png');
     });
 
-    test('delta update under a collapsed folder keeps it collapsed and updates badge plus synthetic topology', async ({ appWindow, vaultPath }) => {
+    test('delta update under a collapsed folder keeps it collapsed and updates badge plus synthetic topology', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 8);
         await openFolderTreeSidebar(appWindow);
-        await collapseSidebarFolder(appWindow, 'auth', vaultPath);
+        await collapseSidebarFolder(appWindow, 'auth', projectRoot);
 
         await expect.poll(
             () => getFolderGraphSnapshot(appWindow, 'auth/'),
@@ -377,7 +377,7 @@ test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
             visibleRegularDescendants: [],
         });
 
-        await writeMarkdownAtomically(path.join(vaultPath, 'auth', 'new-login.md'),
+        await writeMarkdownAtomically(path.join(projectRoot, 'auth', 'new-login.md'),
             `---\nposition:\n  x: 580\n  y: 100\n---\n# New Login\nA new direct auth child created while auth/ is collapsed.\n[[api/gateway]]\n`);
 
         await expect.poll(
@@ -411,9 +411,9 @@ test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
         await captureStateScreenshot(appWindow, 'after-delta.png');
     });
 
-    test('folder note resolves folder identity when basename wikilink is collapsed', async ({ appWindow, vaultPath }) => {
+    test('folder note resolves folder identity when basename wikilink is collapsed', async ({ appWindow, projectRoot }) => {
         test.setTimeout(70000);
-        const fixture = buildFixture(vaultPath);
+        const fixture = buildFixture(projectRoot);
 
         await waitForGraphLoaded(appWindow, 8);
         await openFolderTreeSidebar(appWindow);
@@ -435,7 +435,7 @@ test.describe('Folder Nodes - Missing OpenSpec Scenarios', () => {
         expect(await visibleNodeIds(appWindow)).not.toContain(fixture.exampleNoteId);
         await captureStateScreenshot(appWindow, 'before-folder-note.png');
 
-        await collapseSidebarFolder(appWindow, 'example', vaultPath);
+        await collapseSidebarFolder(appWindow, 'example', projectRoot);
 
         await expect.poll(
             () => getEdges(appWindow, fixture.entryId, fixture.exampleFolderId).then(sortEdges),

@@ -25,32 +25,32 @@ import {
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 async function createExtractIntoFolderVault(basePath: string): Promise<string> {
-    const vaultPath = path.join(basePath, 'extract-into-folder-vault');
+    const projectRoot = path.join(basePath, 'extract-into-folder-vault');
 
-    await fs.mkdir(path.join(vaultPath, 'docs'), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'docs'), { recursive: true });
 
     await fs.writeFile(
-        path.join(vaultPath, 'alpha.md'),
+        path.join(projectRoot, 'alpha.md'),
         `---\nposition:\n  x: 120\n  y: 120\n---\n# Alpha\nAlpha body.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'beta.md'),
+        path.join(projectRoot, 'beta.md'),
         `---\nposition:\n  x: 260\n  y: 120\n---\n# Beta\nBeta body.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'overview.md'),
+        path.join(projectRoot, 'overview.md'),
         `---\nposition:\n  x: 420\n  y: 120\n---\n# Overview\nOverview body.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'docs', 'intro.md'),
+        path.join(projectRoot, 'docs', 'intro.md'),
         `---\nposition:\n  x: 160\n  y: 280\n---\n# Intro\nDocs intro.\n`
     );
     await fs.writeFile(
-        path.join(vaultPath, 'docs', 'architecture.md'),
+        path.join(projectRoot, 'docs', 'architecture.md'),
         `---\nposition:\n  x: 300\n  y: 280\n---\n# Architecture\nDocs architecture.\n`
     );
 
-    return vaultPath;
+    return projectRoot;
 }
 
 type RootEntry = {
@@ -58,8 +58,8 @@ type RootEntry = {
     isDirectory: boolean;
 };
 
-async function listRootEntries(vaultPath: string): Promise<RootEntry[]> {
-    const entries = await fs.readdir(vaultPath, { withFileTypes: true });
+async function listRootEntries(projectRoot: string): Promise<RootEntry[]> {
+    const entries = await fs.readdir(projectRoot, { withFileTypes: true });
     return entries
         .map((entry: import('fs').Dirent): RootEntry => ({
             name: entry.name,
@@ -68,8 +68,8 @@ async function listRootEntries(vaultPath: string): Promise<RootEntry[]> {
         .sort((left: RootEntry, right: RootEntry) => left.name.localeCompare(right.name));
 }
 
-async function findSingleNewRootFolderName(vaultPath: string, beforeNames: readonly string[]): Promise<string | null> {
-    const entries = await listRootEntries(vaultPath);
+async function findSingleNewRootFolderName(projectRoot: string, beforeNames: readonly string[]): Promise<string | null> {
+    const entries = await listRootEntries(projectRoot);
     const beforeSet = new Set(beforeNames);
     const newFolders = entries
         .filter((entry: RootEntry) => entry.isDirectory && !beforeSet.has(entry.name))
@@ -216,23 +216,23 @@ async function triggerExtractIntoFolder(appWindow: Page): Promise<void> {
 const test = base.extend<{
     electronApp: ElectronApplication;
     appWindow: Page;
-    vaultPath: string;
+    projectRoot: string;
 }>({
-    vaultPath: async ({}, use) => {
+    projectRoot: async ({}, use) => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-folder-'));
-        const vaultPath = await createExtractIntoFolderVault(tempDir);
-        await use(vaultPath);
+        const projectRoot = await createExtractIntoFolderVault(tempDir);
+        await use(projectRoot);
         await fs.rm(tempDir, { recursive: true, force: true });
     },
 
-    electronApp: async ({ vaultPath }, use) => {
+    electronApp: async ({ projectRoot }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-extract-folder-ud-'));
 
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
-            lastDirectory: vaultPath,
+            lastDirectory: projectRoot,
             vaultConfig: {
-                [vaultPath]: {
-                    writePath: vaultPath,
+                [projectRoot]: {
+                    writeFolder: projectRoot,
                     readPaths: [],
                 },
             },
@@ -240,7 +240,7 @@ const test = base.extend<{
 
         await fs.writeFile(path.join(tempUserData, 'projects.json'), JSON.stringify([{
             id: 'extract-folder-test',
-            path: vaultPath,
+            path: projectRoot,
             name: 'extract-folder-test-vault',
             type: 'folder',
             lastOpened: Date.now(),
@@ -309,20 +309,20 @@ const test = base.extend<{
 });
 
 test.describe('Extract Into Folder Node', () => {
-    test('extracts two same-parent file nodes into one new folder with an index.md note', async ({ appWindow, vaultPath }) => {
+    test('extracts two same-parent file nodes into one new folder with an index.md note', async ({ appWindow, projectRoot }) => {
         test.setTimeout(90000);
         await waitForGraphLoaded(appWindow, 5);
 
-        const alphaId = path.join(vaultPath, 'alpha.md');
-        const betaId = path.join(vaultPath, 'beta.md');
-        const rootEntriesBefore = await listRootEntries(vaultPath);
+        const alphaId = path.join(projectRoot, 'alpha.md');
+        const betaId = path.join(projectRoot, 'beta.md');
+        const rootEntriesBefore = await listRootEntries(projectRoot);
 
         await selectGraphNodes(appWindow, [alphaId, betaId]);
         await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
-            return (await findSingleNewRootFolderName(vaultPath, rootEntriesBefore.map((entry: RootEntry) => entry.name))) ?? '';
+            return (await findSingleNewRootFolderName(projectRoot, rootEntriesBefore.map((entry: RootEntry) => entry.name))) ?? '';
         }, {
             message: 'Waiting for a single new root folder after extracting file nodes',
             timeout: 10000,
@@ -330,12 +330,12 @@ test.describe('Extract Into Folder Node', () => {
         }).not.toBe('');
 
         const newFolderName = await findSingleNewRootFolderName(
-            vaultPath,
+            projectRoot,
             rootEntriesBefore.map((entry: RootEntry) => entry.name)
         );
         expect(newFolderName).not.toBeNull();
 
-        const newFolderPath = path.join(vaultPath, newFolderName!);
+        const newFolderPath = path.join(projectRoot, newFolderName!);
         const newFolderEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
         const newFolderFileNames = newFolderEntries
             .filter((entry: import('fs').Dirent) => entry.isFile())
@@ -343,8 +343,8 @@ test.describe('Extract Into Folder Node', () => {
             .sort();
 
         expect(newFolderFileNames).toEqual(['alpha.md', 'beta.md', 'index.md']);
-        expect(await fs.access(path.join(vaultPath, 'alpha.md')).then(() => true).catch(() => false)).toBe(false);
-        expect(await fs.access(path.join(vaultPath, 'beta.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'alpha.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'beta.md')).then(() => true).catch(() => false)).toBe(false);
 
         await expect.poll(async () => getExtractedFolderCollapseState(appWindow, newFolderPath), {
             message: 'Waiting for the extracted folder to be collapsed in the projected graph',
@@ -360,20 +360,20 @@ test.describe('Extract Into Folder Node', () => {
         expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
-    test('extracts a same-parent folder node and file node into one new folder', async ({ appWindow, vaultPath }) => {
+    test('extracts a same-parent folder node and file node into one new folder', async ({ appWindow, projectRoot }) => {
         test.setTimeout(90000);
         await waitForGraphLoaded(appWindow, 5);
 
-        const docsFolderId = `${path.join(vaultPath, 'docs')}/`;
-        const overviewId = path.join(vaultPath, 'overview.md');
-        const rootEntriesBefore = await listRootEntries(vaultPath);
+        const docsFolderId = `${path.join(projectRoot, 'docs')}/`;
+        const overviewId = path.join(projectRoot, 'overview.md');
+        const rootEntriesBefore = await listRootEntries(projectRoot);
 
         await selectGraphNodes(appWindow, [docsFolderId, overviewId]);
         await startProjectedGraphCapture(appWindow);
         await triggerExtractIntoFolder(appWindow);
 
         await expect.poll(async () => {
-            return (await findSingleNewRootFolderName(vaultPath, rootEntriesBefore.map((entry: RootEntry) => entry.name))) ?? '';
+            return (await findSingleNewRootFolderName(projectRoot, rootEntriesBefore.map((entry: RootEntry) => entry.name))) ?? '';
         }, {
             message: 'Waiting for a single new root folder after extracting a folder node and file node',
             timeout: 10000,
@@ -381,18 +381,18 @@ test.describe('Extract Into Folder Node', () => {
         }).not.toBe('');
 
         const newFolderName = await findSingleNewRootFolderName(
-            vaultPath,
+            projectRoot,
             rootEntriesBefore.map((entry: RootEntry) => entry.name)
         );
         expect(newFolderName).not.toBeNull();
 
-        const newFolderPath = path.join(vaultPath, newFolderName!);
+        const newFolderPath = path.join(projectRoot, newFolderName!);
         const newFolderEntries = await fs.readdir(newFolderPath, { withFileTypes: true });
         const childNames = newFolderEntries.map((entry: import('fs').Dirent) => entry.name).sort();
 
         expect(childNames).toEqual(['docs', 'index.md', 'overview.md']);
-        expect(await fs.access(path.join(vaultPath, 'docs')).then(() => true).catch(() => false)).toBe(false);
-        expect(await fs.access(path.join(vaultPath, 'overview.md')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'docs')).then(() => true).catch(() => false)).toBe(false);
+        expect(await fs.access(path.join(projectRoot, 'overview.md')).then(() => true).catch(() => false)).toBe(false);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'intro.md')).then(() => true).catch(() => false)).toBe(true);
         expect(await fs.access(path.join(newFolderPath, 'docs', 'architecture.md')).then(() => true).catch(() => false)).toBe(true);
 
@@ -410,11 +410,11 @@ test.describe('Extract Into Folder Node', () => {
         expect(indexNoteContent).toContain('Contains 2 nodes.');
     });
 
-    test('shows the extract action disabled when fewer than two same-parent items are selected', async ({ appWindow, vaultPath }) => {
+    test('shows the extract action disabled when fewer than two same-parent items are selected', async ({ appWindow, projectRoot }) => {
         test.setTimeout(60000);
         await waitForGraphLoaded(appWindow, 5);
 
-        await selectGraphNodes(appWindow, [path.join(vaultPath, 'alpha.md')]);
+        await selectGraphNodes(appWindow, [path.join(projectRoot, 'alpha.md')]);
         await openCanvasContextMenu(appWindow);
 
         const extractMenuItem = getExtractMenuItem(appWindow);

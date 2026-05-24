@@ -48,7 +48,7 @@ export type EnsureGraphDaemonOptions = {
   /** Hard deadline for the whole ensure call. Default 5000ms. */
   readonly timeoutMs?: number
   /**
-   * Optional override of the daemon command (`<bin> [args] --vault <path>`).
+   * Optional override of the daemon command (`<bin> [args] --project-root <path>`).
    * Primarily for tests that point at a fake vt-graphd entrypoint.
    */
   readonly bin?: string
@@ -96,19 +96,19 @@ export async function ensureGraphDaemonForVault(
   caller: CallerKind,
   options: EnsureGraphDaemonOptions = {},
 ): Promise<EnsureGraphDaemonResult> {
-  const canonicalVaultPath = resolve(vault)
-  const existing = inflightByVault.get(canonicalVaultPath)
+  const canonicalProjectRoot = resolve(vault)
+  const existing = inflightByVault.get(canonicalProjectRoot)
   if (existing) return existing
 
-  const work = runEnsure(canonicalVaultPath, caller, options).finally(() => {
-    inflightByVault.delete(canonicalVaultPath)
+  const work = runEnsure(canonicalProjectRoot, caller, options).finally(() => {
+    inflightByVault.delete(canonicalProjectRoot)
   })
-  inflightByVault.set(canonicalVaultPath, work)
+  inflightByVault.set(canonicalProjectRoot, work)
   return work
 }
 
 type EnsureContext = {
-  readonly canonicalVaultPath: string
+  readonly canonicalProjectRoot: string
   readonly caller: CallerKind
   /**
    * Per-call UUID carried into every {@link emitOwnerDiagnostic} so
@@ -128,16 +128,16 @@ type LoopOutcome =
   | { readonly kind: 'continue'; readonly nextBackoff: number }
 
 async function runEnsure(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): Promise<EnsureGraphDaemonResult> {
-  await mkdir(`${canonicalVaultPath}/.voicetree`, { recursive: true })
-  const ctx = makeEnsureContext(canonicalVaultPath, caller, options)
+  await mkdir(`${canonicalProjectRoot}/.voicetree`, { recursive: true })
+  const ctx = makeEnsureContext(canonicalProjectRoot, caller, options)
   let backoff = ctx.initialBackoffMs
 
   while (Date.now() < ctx.deadlineMs) {
-    const evidence = await gatherEvidence(canonicalVaultPath)
+    const evidence = await gatherEvidence(canonicalProjectRoot)
     const decision = decideOwnerAction(evidence, {
       nowMs: Date.now(),
       staleHeartbeatMs: ctx.staleHeartbeatMs,
@@ -147,16 +147,16 @@ async function runEnsure(
     backoff = outcome.nextBackoff
   }
 
-  throw await timeoutError(canonicalVaultPath)
+  throw await timeoutError(canonicalProjectRoot)
 }
 
 function makeEnsureContext(
-  canonicalVaultPath: string,
+  canonicalProjectRoot: string,
   caller: CallerKind,
   options: EnsureGraphDaemonOptions,
 ): EnsureContext {
   return {
-    canonicalVaultPath,
+    canonicalProjectRoot,
     caller,
     attemptId: randomUUID(),
     options,
@@ -192,7 +192,7 @@ async function handleDecision(
         kind: 'reuse',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         pid: decision.pid,
         port: decision.port,
@@ -208,7 +208,7 @@ async function handleDecision(
         kind: 'wait',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         reason: decision.reason,
         recordedPid: decision.recordedPid,
@@ -221,12 +221,12 @@ async function handleDecision(
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         reason: 'no-owner',
       })
       const result = await attemptSpawnAndWait(
-        ctx.canonicalVaultPath,
+        ctx.canonicalProjectRoot,
         ctx.caller,
         ctx.attemptId,
         {
@@ -243,7 +243,7 @@ async function handleDecision(
           kind: 'acquired',
           attemptId: ctx.attemptId,
           callerKind: ctx.caller,
-          canonicalVaultPath: ctx.canonicalVaultPath,
+          canonicalProjectRoot: ctx.canonicalProjectRoot,
           nowMs: Date.now(),
           pid: result.pid,
           port: result.port,
@@ -260,16 +260,16 @@ async function handleDecision(
         kind: 'claim-attempt',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         reason: 'stale-reclaim',
       })
-      await reclaimStaleOwner(ctx.canonicalVaultPath, decision.staleRecord)
+      await reclaimStaleOwner(ctx.canonicalProjectRoot, decision.staleRecord)
       emitOwnerDiagnostic({
         kind: 'stale-reclaimed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         reason: decision.reason,
         recordedPid: decision.staleRecord.pid,
@@ -278,7 +278,7 @@ async function handleDecision(
     }
     case 'unsafe-owner':
       throw new UnsafeOwnerError(
-        ctx.canonicalVaultPath,
+        ctx.canonicalProjectRoot,
         decision.recordedPid,
         decision.reason,
       )
@@ -287,13 +287,13 @@ async function handleDecision(
         kind: 'cooldown-suppressed',
         attemptId: ctx.attemptId,
         callerKind: ctx.caller,
-        canonicalVaultPath: ctx.canonicalVaultPath,
+        canonicalProjectRoot: ctx.canonicalProjectRoot,
         nowMs: Date.now(),
         untilMs: decision.untilMs,
         reason: decision.reason,
       })
       throw new OwnerSpawnCooldownError(
-        ctx.canonicalVaultPath,
+        ctx.canonicalProjectRoot,
         decision.untilMs,
         decision.reason,
       )
@@ -317,13 +317,13 @@ async function waitAndContinue(
  * Distinguishes "we were waiting on an in-flight owner" (record on disk)
  * from "we never even got a record" (no owner ever materialised).
  */
-async function timeoutError(canonicalVaultPath: string): Promise<Error> {
-  const finalRecord = await readOwnerRecord(canonicalVaultPath)
+async function timeoutError(canonicalProjectRoot: string): Promise<Error> {
+  const finalRecord = await readOwnerRecord(canonicalProjectRoot)
   if (finalRecord !== null) {
-    return new OwnerWaitTimeoutError(canonicalVaultPath, finalRecord.pid)
+    return new OwnerWaitTimeoutError(canonicalProjectRoot, finalRecord.pid)
   }
   return new DaemonLaunchTimeout(
-    `vt-graphd ensure for vault ${canonicalVaultPath} did not produce an owner before deadline`,
+    `vt-graphd ensure for vault ${canonicalProjectRoot} did not produce an owner before deadline`,
   )
 }
 

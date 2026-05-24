@@ -990,7 +990,7 @@ async function main(): Promise<void> {
     }
 
     case 'hygiene': {
-      let vaultPath: string | undefined
+      let projectRoot: string | undefined
       let ruleFilter: HygieneRuleId | undefined
       let jsonFlag = false
 
@@ -1022,15 +1022,15 @@ async function main(): Promise<void> {
 
         if (arg.startsWith('--')) { fail(`Unknown argument: ${arg}`) }
 
-        if (vaultPath !== undefined) { fail(`Unexpected argument: ${arg}`) }
-        vaultPath = arg
+        if (projectRoot !== undefined) { fail(`Unexpected argument: ${arg}`) }
+        projectRoot = arg
       }
 
-      if (!vaultPath) {
-        fail('Usage: vt-graph hygiene <vault-path> [--rule <id>] [--json]')
+      if (!projectRoot) {
+        fail('Usage: vt-graph hygiene <project-root> [--rule <id>] [--json]')
       }
 
-      const report = runHygieneAudit(vaultPath, {rule: ruleFilter})
+      const report = runHygieneAudit(projectRoot, {rule: ruleFilter})
       console.log(jsonFlag ? formatHygieneReportJson(report) : formatHygieneReportHuman(report))
       if (report.summary.totalErrors > 0) process.exit(1)
       break
