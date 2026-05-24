@@ -56,8 +56,14 @@ function waitForReady(watcher: FSWatcher): Promise<void> {
 }
 
 function buildWatcherOptions() {
+  // fsevents on macOS silently drops 'add' events for some vault paths
+  // (reproduced deterministically: chokidar 3.6.0 + fsevents 2.3.3, dir under
+  // ~/Voicetree/voicetree-…/voicetree-…/). Polling is the only reliable
+  // backend in dev where this matters most for agent progress nodes.
   const usePolling =
-    process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
+    process.env.HEADLESS_TEST === '1' ||
+    process.env.NODE_ENV === 'test' ||
+    process.env.NODE_ENV === 'development'
 
   return {
     // KEEP IN SYNC WITH packages/libraries/graph-model/src/watch-folder/file-watcher-setup.ts
