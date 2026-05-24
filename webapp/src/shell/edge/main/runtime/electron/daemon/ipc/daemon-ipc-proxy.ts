@@ -1,6 +1,7 @@
 import { buildFolderTree, getCallbacks, toAbsolutePath, type DirectoryEntry, type FolderTreeNode, type Graph, type GraphDelta, type GraphNode } from '@vt/graph-model'
 import { getDirectoryTree } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { traceClientSpan, traceClientSyncSpan, type FolderState, type GraphDbClient, type LiveStateSnapshot, type VaultState, type ViewRecord } from '@vt/graph-db-client'
+import { tracing } from '@vt/observability'
+import type { FolderState, GraphDbClient, LiveStateSnapshot, VaultState, ViewRecord } from '@vt/graph-db-client'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { SerializedState, State } from '@vt/graph-state'
 
@@ -66,7 +67,7 @@ let currentRendererSession: {
 } | null = null
 
 export async function getOrCreateRendererSession(client: GraphDbClient): Promise<string> {
-  return await traceClientSpan('electron.renderer-session.ensure', async (span) => {
+  return await tracing.span('electron.renderer-session.ensure', async (span) => {
     span.setAttribute('daemon.base_url', client.baseUrl)
     if (currentRendererSession?.baseUrl === client.baseUrl) {
       span.setAttribute('renderer_session.cached', true)
@@ -100,7 +101,7 @@ async function syncRendererFromDaemon(
   nextGraph: Graph,
   vaultState: VaultState,
 ): Promise<void> {
-  await traceClientSpan('electron.renderer.sync-from-daemon', async (span) => {
+  await tracing.span('electron.renderer.sync-from-daemon', async (span) => {
     span.setAttribute('daemon.base_url', client.baseUrl)
     span.setAttribute('graph.node.count', graphNodeCount(nextGraph))
     span.setAttribute('vault.read_path.count', vaultState.readPaths.length)
@@ -148,7 +149,7 @@ export async function syncRendererSessionState(
   client: GraphDbClient,
   localState: State,
 ): Promise<string> {
-  return await traceClientSpan('electron.renderer-session.sync-state', async (span) => {
+  return await tracing.span('electron.renderer-session.sync-state', async (span) => {
     span.setAttribute('state.selection.count', localState.selection.size)
     span.setAttribute('state.layout.has_pan', localState.layout.pan !== undefined)
     span.setAttribute('state.layout.has_zoom', localState.layout.zoom !== undefined)
@@ -238,7 +239,7 @@ async function runVaultMutation(
 async function doRunVaultMutation(
   mutate: (client: GraphDbClient) => Promise<VaultState>,
 ): Promise<VaultState> {
-  return await traceClientSpan('electron.vault.mutation', async (span) => {
+  return await tracing.span('electron.vault.mutation', async (span) => {
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
       span.addEvent('electron.vault.mutation.request.start')
@@ -276,7 +277,7 @@ export async function postDeltaThroughDaemon(
   delta: GraphDelta,
   recordForUndo: boolean = true,
 ): Promise<void> {
-  await traceClientSpan('electron.graph.post-delta', async (span) => {
+  await tracing.span('electron.graph.post-delta', async (span) => {
     span.setAttribute('graph.delta.count', delta.length)
     span.setAttribute('graph.record_for_undo', recordForUndo)
     await callDaemon(async (client) => {
@@ -294,7 +295,7 @@ export async function postDeltaThroughDaemonWithEditors(
   delta: GraphDelta,
   recordForUndo: boolean = true,
 ): Promise<void> {
-  await traceClientSpan('electron.graph.post-delta-with-editors', async (span) => {
+  await tracing.span('electron.graph.post-delta-with-editors', async (span) => {
     span.setAttribute('graph.delta.count', delta.length)
     await postDeltaThroughDaemon(delta, recordForUndo)
     span.addEvent('electron.graph.floating-editor-update.start')
@@ -308,7 +309,7 @@ export async function postWriteMarkdownFileThroughDaemon(
   body: string,
   editorId: string,
 ): Promise<{ ok: true; absolutePath: string; preservedSuffix: string | null }> {
-  return await traceClientSpan('electron.graph.write-markdown-file', async (span) => {
+  return await tracing.span('electron.graph.write-markdown-file', async (span) => {
     span.setAttribute('file.request_path', absolutePath)
     span.setAttribute('editor.id', editorId)
     span.setAttribute('editor.body.size', body.length)
@@ -334,7 +335,7 @@ export async function getNodeFromDaemon(
 
 export async function getLiveStateSnapshotFromDaemon(): Promise<LiveStateSnapshot | null> {
   try {
-    return await traceClientSpan('electron.live-state.snapshot-from-daemon', async (span) => {
+    return await tracing.span('electron.live-state.snapshot-from-daemon', async (span) => {
       return await callDaemon(async (client) => {
         span.setAttribute('daemon.base_url', client.baseUrl)
         span.addEvent('electron.live-state.local-state.read.start')
@@ -370,7 +371,7 @@ export async function getLiveStateSnapshotFromDaemon(): Promise<LiveStateSnapsho
 }
 
 export async function syncRendererSessionStateWithDaemon(): Promise<string> {
-  return await traceClientSpan('electron.renderer-session.sync-state-with-daemon', async (span) => {
+  return await tracing.span('electron.renderer-session.sync-state-with-daemon', async (span) => {
     return await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
       const localState: State = await getCurrentLiveState()
@@ -381,7 +382,7 @@ export async function syncRendererSessionStateWithDaemon(): Promise<string> {
 }
 
 function publishProjectedGraphToRenderer(graph: unknown): void {
-  traceClientSyncSpan('electron.renderer.projected-graph.publish', (span) => {
+  tracing.syncSpan('electron.renderer.projected-graph.publish', (span) => {
     const mainWindow: Electron.BrowserWindow | null = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
       span.addEvent('electron.renderer.projected-graph.publish.skipped', {
@@ -411,7 +412,7 @@ export async function setFolderStateThroughDaemon(
   folderId: string,
   state: FolderState,
 ): Promise<unknown> {
-  return await traceClientSpan('electron.folder-state.set-through-daemon', async (span) => {
+  return await tracing.span('electron.folder-state.set-through-daemon', async (span) => {
     span.setAttribute('folder.id', folderId)
     span.setAttribute('folder.state', state)
     return await callDaemon(async (client) => {
@@ -459,7 +460,7 @@ export async function setWriteFolderThroughDaemon(path: string): Promise<VaultSt
 }
 
 export async function refreshMainGraphFromDaemon(_vault?: string): Promise<void> {
-  await traceClientSpan('electron.graph.refresh-main-from-daemon', async (span) => {
+  await tracing.span('electron.graph.refresh-main-from-daemon', async (span) => {
     await callDaemon(async (client) => {
       span.setAttribute('daemon.base_url', client.baseUrl)
       await syncMainGraphFromDaemonClient(client)
