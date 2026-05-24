@@ -42,10 +42,10 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
 import {
-    initTracing,
     startDaemon,
     type DaemonHandle,
 } from '@vt/graph-db-server'
+import { tracing } from '@vt/observability'
 import {
     configureMcpServer,
     getMcpPort,
@@ -306,7 +306,7 @@ async function main(): Promise<void> {
 
     // Bootstrap tracing BEFORE any graph-db-server / agent-runtime imports
     // create spans we want recorded.
-    initTracing('vt-graphd')
+    tracing.init('vt-graphd')
 
     const tempVault = mkdtempSync(join(tmpdir(), 'vt-perf-vault-'))
     const tempAppSupport = mkdtempSync(join(tmpdir(), 'vt-perf-app-'))

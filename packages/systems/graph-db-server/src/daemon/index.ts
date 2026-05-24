@@ -11,4 +11,3 @@ export {
   readOwnerRecord,
 } from './ownerRecord.ts'
 export { startDaemon, type DaemonHandle, type StartDaemonOptions } from './server.ts'
-export { initTracing } from './tracing.ts'

@@ -26,7 +26,8 @@
 
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
-import {initTracing, startDaemon, type DaemonHandle} from '@vt/graph-db-server'
+import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
+import {tracing} from '@vt/observability'
 import {
     configureMcpServer,
     getMcpPort,
@@ -125,7 +126,7 @@ async function main(): Promise<void> {
     // binary), so the binary's tracing init is bypassed. Wire it here so
     // ~/.voicetree/traces/vt-graphd.ndjson is populated for perf and
     // diagnostics runs against vt-mcpd.
-    initTracing('vt-graphd')
+    tracing.init('vt-graphd')
 
     configureHeadlessBridges(appSupportPath)
     await agentRuntime.ensureTmuxAvailable()

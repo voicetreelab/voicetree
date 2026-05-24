@@ -7,7 +7,6 @@ import {setupApplicationMenu} from '@/shell/edge/main/runtime/electron/app/appli
 import {StubTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/StubTextToTreeServerManager';
 import {RealTextToTreeServerManager} from '@/shell/edge/main/runtime/electron/server/RealTextToTreeServerManager';
 import {trace} from '@/shell/edge/main/observability/tracing/trace';
-import {emitOwnerDiagnosticAsSpan} from '@/shell/edge/main/observability/tracing/daemon-tracing';
 import {getOTLPReceiverPort as getOTLPReceiverPortForRuntime} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {
@@ -91,12 +90,8 @@ if (app.isPackaged) {
 // Startup
 // ============================================================================
 tracing.init('vt-electron-main');
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 validateStartupCwd();
-
-// Wire the owner-diagnostic → span bridge at the shell boundary, so the
-// per-event handler in daemon-tracing.ts has no @vt/graph-db-client edge.
-// Must happen after `tracing.init` above so the OTel provider is registered.
-subscribeOwnerDiagnostics(emitOwnerDiagnosticAsSpan);
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();

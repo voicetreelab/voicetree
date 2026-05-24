@@ -29,7 +29,6 @@ export {
   type OwnerDiagnosticListener,
   type OwnerDiagnosticUnsubscribe,
 } from './autoLaunch/diagnostics.ts'
-export { initTracing } from './tracing.ts'
 export {
   cooldownBreadcrumbPathFor,
   COOLDOWN_BREADCRUMB_FILENAME,

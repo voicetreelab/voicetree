@@ -17,6 +17,7 @@
     "@vt/graph-db-client": "*",
     "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
+    "@vt/observability": "*",
     "@vt/perf-fixtures": "*",
     "@vt/voicetree-mcp": "*",
     "ws": "^8.18.0"
