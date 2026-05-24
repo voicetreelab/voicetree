@@ -1,6 +1,6 @@
 {
   "name": "@voicetree/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Voicetree `vt` CLI — backend tool that runs headless on Mac/Linux/WSL. Decoupled from the Electron webapp shell so it can be embedded by other runtimes and published independently.",
   "bin": {
