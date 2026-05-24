@@ -8,6 +8,10 @@ import type { ProjectedGraph } from '@vt/graph-state/contract';
 
 export interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
+  _undoRedoTracker?: {
+    undoCalls: number;
+    redoCalls: number;
+  };
   electronAPI?: {
     graph?: {
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;
@@ -37,6 +41,61 @@ export interface ExtendedWindow extends Window {
  */
 export async function setupMockElectronAPI(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    const createMockSettings = () => ({
+      terminalSpawnPathRelativeToWatchedDirectory: '../',
+      agents: [
+        { name: 'Claude', command: './claude.sh' },
+        { name: 'Gemini', command: 'gemini' }
+      ],
+      INJECT_ENV_VARS: {
+        AGENT_PROMPT: '',
+        AGENT_PROMPT_CORE: '',
+        AGENT_PROMPT_LIGHTWEIGHT: ''
+      },
+      agentPermissionModeChosen: true,
+      shiftEnterSendsOptionEnter: true
+    });
+
+    const createEmptyClaudeUsageWindow = () => ({
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      totalTokens: 0,
+      messageCount: 0,
+      usedPercent: null,
+      resetsAt: null
+    });
+
+    const createUnavailableUsageData = () => ({
+      claude: {
+        available: false,
+        isRefreshing: false,
+        planType: null,
+        currentSession: createEmptyClaudeUsageWindow(),
+        currentWeek: createEmptyClaudeUsageWindow(),
+        currentWeekSonnet: createEmptyClaudeUsageWindow()
+      },
+      codex: {
+        available: false
+      }
+    });
+
+    const trackUndo = (): void => {
+      const tracker = (window as ExtendedWindow)._undoRedoTracker;
+      if (tracker) {
+        tracker.undoCalls++;
+        console.log(`[Mock] performUndo called (total: ${tracker.undoCalls})`);
+      }
+    };
+
+    const trackRedo = (): void => {
+      const tracker = (window as ExtendedWindow)._undoRedoTracker;
+      if (tracker) {
+        tracker.redoCalls++;
+        console.log(`[Mock] performRedo called (total: ${tracker.redoCalls})`);
+      }
+    };
+
     const updateMockGraphState = (delta: GraphDelta): void => {
       delta.forEach((nodeDelta) => {
         if (nodeDelta.type === 'UpsertNode') {
@@ -60,6 +119,26 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
       }, 10);
 
       return { success: true };
+    };
+
+    const writeMarkdownFile = async (
+      nodeId: string,
+      body: string,
+      _editorId: string
+    ): Promise<{ ok: true; absolutePath: string; preservedSuffix: null }> => {
+      const existingNode = mockElectronAPI.graph._graphState.nodes[nodeId];
+      if (existingNode) {
+        mockElectronAPI.graph._graphState.nodes[nodeId] = {
+          ...existingNode,
+          contentWithoutYamlOrLinks: body
+        };
+      }
+
+      return {
+        ok: true,
+        absolutePath: nodeId,
+        preservedSuffix: null
+      };
     };
 
     const createEmptyProjectedGraph = (): ProjectedGraph => ({
@@ -90,15 +169,9 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         },
 
         // Settings operations
-        loadSettings: async () => ({
-          terminalSpawnPathRelativeToWatchedDirectory: '../',
-          agents: [
-            { name: 'Claude', command: './claude.sh' }, //todo, old
-            { name: 'Gemini', command: 'gemini' }
-          ],
-          shiftEnterSendsOptionEnter: true
-        }),
+        loadSettings: async () => createMockSettings(),
         saveSettings: async () => ({ success: true }),
+        writeMarkdownFile,
 
         // Node position saving
         saveNodePositions: async () => ({ success: true }),
@@ -143,6 +216,18 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
 
         // Agent metrics
         getMetrics: async () => ({ sessions: [] }),
+        getUsageData: async () => createUnavailableUsageData(),
+        refreshClaudeUsageHeadless: async () => createUnavailableUsageData().claude,
+        performUndo: async () => {
+          trackUndo();
+          return true;
+        },
+        performRedo: async () => {
+          trackRedo();
+          return true;
+        },
+        setMcpIntegration: async () => ({ success: true }),
+        spawnTerminalWithContextNode: async () => ({ terminalId: 'mock-terminal-id' }),
 
         // Frontend ready signal (no-op for tests)
         markFrontendReady: async () => {},
