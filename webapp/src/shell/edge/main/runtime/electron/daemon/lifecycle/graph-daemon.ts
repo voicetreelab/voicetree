@@ -10,10 +10,7 @@ import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-stat
 import { attemptOwnerMediatedRecovery } from './graph-daemon-recovery'
 import { unsubscribeFromDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
-import {
-  daemonTracer,
-  recordDaemonEvent,
-} from '@/shell/edge/main/observability/tracing/daemon-tracing'
+import { daemonTracer } from '@/shell/edge/main/observability/tracing/daemon-tracing'
 
 export type DaemonHandle = EnsureGraphDaemonResult
 
@@ -46,7 +43,6 @@ function isConnectionFailure(error: unknown): boolean {
 function markDaemonLost(error: unknown): void {
   const previous = activeOwner
   activeOwner = null
-  recordDaemonEvent('vaultLost')
 
   pushToRenderer('vault:lost', {
     error: error instanceof Error ? error.message : String(error),
@@ -95,7 +91,6 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
           }
           span.setAttribute('outcome', 'cached-lost-recovering')
           markDaemonLost(error)
-          recordDaemonEvent('recoveryAttempt')
           const recovered = await attemptOwnerMediatedRecovery(
             activeVault,
             'electron-main',
@@ -106,7 +101,6 @@ export async function ensureDaemonForActiveVault(): Promise<DaemonHandle> {
           return recovered
         }
       }
-      recordDaemonEvent('firstTimeEnsure')
       span.setAttribute('outcome', 'first-time-ensure')
       const owner = await ensureGraphDaemonForVault(activeVault, 'electron-main')
       activeOwner = owner
@@ -152,14 +146,12 @@ export async function callDaemon<T>(
 ): Promise<T> {
   return await daemonTracer().startActiveSpan('daemon.call', async (span) => {
     try {
-      recordDaemonEvent('callDaemon')
       const owner = await ensureDaemonForActiveVault()
       try {
         return await fn(owner.client)
       } catch (error) {
         if (isConnectionFailure(error)) {
           span.setAttribute('connectionFailure', true)
-          recordDaemonEvent('connectionFailure')
           markDaemonLost(error)
         }
         throw error

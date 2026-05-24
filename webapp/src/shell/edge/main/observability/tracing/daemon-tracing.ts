@@ -1,84 +1,89 @@
 /**
  * Observability for the electron-side graph-daemon lifecycle.
  *
- * Single public entry — call once during app startup. Internally wires:
+ * Two side-effecting entries — both invoked from `main.ts` (the system
+ * boundary, per FP S2 "effect interpretation at the system boundary"):
  *
- *  - OTel NDJSON exporter via `initTracing('vt-electron-daemon')` →
- *    `~/.voicetree/traces/vt-electron-daemon.ndjson`.
- *  - A `subscribeOwnerDiagnostics` listener that emits one OTel span per
- *    `OwnerDiagnosticEvent` so the claim/wait/reclaim/cooldown lifecycle
- *    is visible without parsing the in-process pub/sub.
- *  - A 10-second rate logger that prints aggregate counters when any
- *    counter incremented in the window — the at-a-glance "are we spinning?"
- *    signal that catches recovery-loop regressions before NDJSON inspection.
+ *  - `initDaemonObservability()` registers the OTel NodeTracerProvider with
+ *    the NDJSON exporter (`~/.voicetree/traces/vt-electron-daemon.ndjson`)
+ *    and the W3C trace-context + baggage propagator so client→daemon HTTP
+ *    calls inject `traceparent` and daemon handlers attach to the caller
+ *    trace.
+ *  - `emitOwnerDiagnosticAsSpan` is the listener `main.ts` wires into
+ *    `subscribeOwnerDiagnostics` from `@vt/graph-db-client`; it emits one
+ *    OTel span per `OwnerDiagnosticEvent` so the claim/wait/reclaim/cooldown
+ *    lifecycle is visible without parsing the in-process pub/sub.
  *
- * Counters are mutated through `recordDaemonEvent`, exposed below so the
- * graph-daemon module can increment them inline without depending on the
- * tracer plumbing.
+ * Keeping `subscribeOwnerDiagnostics` *out* of this file collapses the
+ * webapp→graph-db-client coupling edge for this concern — only the shell
+ * entry talks to graph-db-client; tracing logic stays a pure handler.
  */
 
-import { trace, type Tracer } from '@opentelemetry/api'
+import { propagation, trace, type Tracer } from '@opentelemetry/api'
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import {
-  initTracing,
-  subscribeOwnerDiagnostics,
-  type OwnerDiagnosticListener,
-} from '@vt/graph-db-client'
-import type { OwnerDiagnosticEvent } from '@vt/graph-db-protocol'
+  SimpleSpanProcessor,
+  type ReadableSpan,
+  type SpanExporter,
+} from '@opentelemetry/sdk-trace-base'
+import {
+  CompositePropagator,
+  ExportResultCode,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+/**
+ * Structural subset of `@vt/graph-db-protocol`'s `OwnerDiagnosticEvent`
+ * needed by the span emitter. Declared locally so this module does not
+ * import from graph-db-client or graph-db-protocol (the wire-up lives in
+ * `main.ts`, which already imports graph-db-client).
+ *
+ * The four base fields mirror `OwnerDiagnosticEventBase`; arbitrary
+ * variant-specific fields surface through the index signature and are
+ * flattened into span attributes by `flattenOwnerEvent`.
+ */
+export type OwnerEventLike = {
+  readonly kind: string
+  readonly attemptId: string
+  readonly callerKind: string
+  readonly canonicalProjectRoot: string
+  readonly nowMs: number
+  readonly [key: string]: unknown
+}
 
 const TRACER_NAME = 'vt-electron-daemon'
 const SERVICE_NAME = 'vt-electron-daemon'
-const RATE_LOG_INTERVAL_MS = 10_000
 
-export type DaemonCounterKind =
-  | 'callDaemon'
-  | 'connectionFailure'
-  | 'recoveryAttempt'
-  | 'firstTimeEnsure'
-  | 'vaultLost'
-
-type CounterSnapshot = Record<DaemonCounterKind, number>
-
-const counters: CounterSnapshot = {
-  callDaemon: 0,
-  connectionFailure: 0,
-  recoveryAttempt: 0,
-  firstTimeEnsure: 0,
-  vaultLost: 0,
-}
-
-let rateLogTimer: NodeJS.Timeout | null = null
 let initialised = false
 
 /**
- * Public entry. Idempotent — repeat calls are a no-op so accidental
- * double-init during hot reload doesn't re-register span processors.
+ * Register the OTel NodeTracerProvider + W3C propagators. Idempotent —
+ * repeat calls are a no-op so accidental double-init during hot reload
+ * doesn't re-register span processors.
  */
 export function initDaemonObservability(): void {
   if (initialised) return
   initialised = true
-  initTracing(SERVICE_NAME)
-  subscribeOwnerDiagnostics(emitOwnerDiagnosticAsSpan)
-  startRateLogger()
+  registerNodeTracerProvider()
 }
 
 /**
- * Tracer accessor for the daemon-side instrumentation. Safe to call before
- * `initDaemonObservability()` — the NodeTracerProvider returns a no-op
- * tracer until the provider is registered.
+ * Tracer accessor. Safe to call before `initDaemonObservability()` —
+ * the API returns a no-op tracer until the provider is registered.
  */
 export function daemonTracer(): Tracer {
   return trace.getTracer(TRACER_NAME)
 }
 
 /**
- * Increment one of the daemon counters. The 10-second rate logger flushes
- * a snapshot whenever any counter changed in the window.
+ * Listener for `subscribeOwnerDiagnostics`. Wired by `main.ts` so this
+ * module does not depend on `@vt/graph-db-client`.
  */
-export function recordDaemonEvent(kind: DaemonCounterKind): void {
-  counters[kind] += 1
-}
-
-function emitOwnerDiagnosticAsSpan(event: OwnerDiagnosticEvent): void {
+export function emitOwnerDiagnosticAsSpan(event: OwnerEventLike): void {
   const span = daemonTracer().startSpan(`owner.${event.kind}`, {
     startTime: event.nowMs,
     attributes: flattenOwnerEvent(event),
@@ -86,15 +91,71 @@ function emitOwnerDiagnosticAsSpan(event: OwnerDiagnosticEvent): void {
   span.end(event.nowMs)
 }
 
-function flattenOwnerEvent(event: OwnerDiagnosticEvent): Record<string, string | number> {
+function registerNodeTracerProvider(): void {
+  const traceDir = join(homedir(), '.voicetree', 'traces')
+  mkdirSync(traceDir, { recursive: true })
+  const traceFile = join(traceDir, `${SERVICE_NAME}.ndjson`)
+
+  const provider = new NodeTracerProvider({
+    spanProcessors: [
+      new SimpleSpanProcessor(createNdjsonFileExporter(traceFile)),
+    ],
+  })
+  provider.register()
+  propagation.setGlobalPropagator(
+    new CompositePropagator({
+      propagators: [
+        new W3CTraceContextPropagator(),
+        new W3CBaggagePropagator(),
+      ],
+    }),
+  )
+}
+
+function createNdjsonFileExporter(filePath: string): SpanExporter {
+  return {
+    export(
+      spans: readonly ReadableSpan[],
+      resultCallback: (result: { code: number }) => void,
+    ) {
+      try {
+        for (const span of spans) {
+          const json = {
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: span.parentSpanContext?.spanId,
+            name: span.name,
+            startTimeMs: hrTimeToMs(span.startTime),
+            endTimeMs: hrTimeToMs(span.endTime),
+            durationMs: hrTimeToMs(span.duration),
+            status: span.status,
+            attributes: span.attributes,
+          }
+          appendFileSync(filePath, JSON.stringify(json) + '\n')
+        }
+        resultCallback({ code: ExportResultCode.SUCCESS })
+      } catch {
+        resultCallback({ code: ExportResultCode.FAILED })
+      }
+    },
+    shutdown: () => Promise.resolve(),
+    forceFlush: () => Promise.resolve(),
+  }
+}
+
+function hrTimeToMs(hrTime: [number, number]): number {
+  return hrTime[0] * 1000 + hrTime[1] / 1_000_000
+}
+
+function flattenOwnerEvent(event: OwnerEventLike): Record<string, string | number> {
   const base: Record<string, string | number> = {
     'owner.kind': event.kind,
     'owner.attemptId': event.attemptId,
     'owner.callerKind': event.callerKind,
-    'owner.canonicalVaultPath': event.canonicalVaultPath,
+    'owner.canonicalProjectRoot': event.canonicalProjectRoot,
   }
   for (const [key, value] of Object.entries(event)) {
-    if (key === 'kind' || key === 'attemptId' || key === 'callerKind' || key === 'canonicalVaultPath' || key === 'nowMs') continue
+    if (key === 'kind' || key === 'attemptId' || key === 'callerKind' || key === 'canonicalProjectRoot' || key === 'nowMs') continue
     if (typeof value === 'string' || typeof value === 'number') {
       base[`owner.${key}`] = value
     } else if (value !== undefined && value !== null) {
@@ -103,37 +164,3 @@ function flattenOwnerEvent(event: OwnerDiagnosticEvent): Record<string, string |
   }
   return base
 }
-
-function startRateLogger(): void {
-  if (rateLogTimer) return
-  let previous: CounterSnapshot = { ...counters }
-  rateLogTimer = setInterval(() => {
-    const delta = computeDelta(previous, counters)
-    if (anyNonZero(delta)) {
-      const snapshot = JSON.stringify({ kind: 'daemon-rate', windowMs: RATE_LOG_INTERVAL_MS, delta, total: { ...counters } })
-      console.warn(`[daemon-obs] ${snapshot}`)
-    }
-    previous = { ...counters }
-  }, RATE_LOG_INTERVAL_MS)
-  rateLogTimer.unref?.()
-}
-
-function computeDelta(previous: CounterSnapshot, current: CounterSnapshot): CounterSnapshot {
-  return {
-    callDaemon: current.callDaemon - previous.callDaemon,
-    connectionFailure: current.connectionFailure - previous.connectionFailure,
-    recoveryAttempt: current.recoveryAttempt - previous.recoveryAttempt,
-    firstTimeEnsure: current.firstTimeEnsure - previous.firstTimeEnsure,
-    vaultLost: current.vaultLost - previous.vaultLost,
-  }
-}
-
-function anyNonZero(delta: CounterSnapshot): boolean {
-  return delta.callDaemon > 0
-    || delta.connectionFailure > 0
-    || delta.recoveryAttempt > 0
-    || delta.firstTimeEnsure > 0
-    || delta.vaultLost > 0
-}
-
-export type { OwnerDiagnosticListener }
