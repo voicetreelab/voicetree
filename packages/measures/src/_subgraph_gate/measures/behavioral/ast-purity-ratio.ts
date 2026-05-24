@@ -204,6 +204,140 @@ function bodyOf(fn: Node): Node | null {
     return null
 }
 
+// --- Per-node-kind rules: each returns the reason string(s) added by this
+// node, or null when it doesn't trigger. Keeping each rule as a small pure
+// function gives the dispatcher a flat structure that ast-purity-ratio can
+// itself confirm is pure.
+
+type RuleCtx = {
+    readonly paramNames: ReadonlySet<string>
+    readonly impureLocalNames: ReadonlySet<string>
+}
+
+const COMPOUND_ASSIGN_TOKENS: ReadonlySet<SyntaxKind> = new Set([
+    SyntaxKind.PlusEqualsToken,
+    SyntaxKind.MinusEqualsToken,
+    SyntaxKind.AsteriskEqualsToken,
+    SyntaxKind.SlashEqualsToken,
+    SyntaxKind.PercentEqualsToken,
+    SyntaxKind.AmpersandEqualsToken,
+    SyntaxKind.BarEqualsToken,
+    SyntaxKind.CaretEqualsToken,
+])
+
+const DECLARATION_PARENT_KINDS_FOR_IDENTIFIER: ReadonlySet<SyntaxKind> = new Set([
+    SyntaxKind.PropertyAccessExpression,
+    SyntaxKind.PropertyAssignment,
+    SyntaxKind.VariableDeclaration,
+    SyntaxKind.Parameter,
+    SyntaxKind.FunctionDeclaration,
+    SyntaxKind.BindingElement,
+])
+
+function isDeclarationOrPropertyKey(identifier: Node): boolean {
+    const parent = identifier.getParent()
+    if (!parent) return false
+    if (!DECLARATION_PARENT_KINDS_FOR_IDENTIFIER.has(parent.getKind())) return false
+    // For each candidate parent the identifier is "decorative" when it is
+    // the parent's nameNode; we treat any matching parent kind as such.
+    const nameNode = (parent as unknown as {getNameNode?: () => Node | undefined}).getNameNode?.()
+    return nameNode === identifier
+}
+
+function checkImpureIdentifier(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isIdentifier(node)) return null
+    if (isDeclarationOrPropertyKey(node)) return null
+    const name = node.getText()
+    if (ctx.paramNames.has(name)) return null
+    if (IMPURE_ROOT_IDENTIFIERS.has(name)) return `uses-global:${name}`
+    if (ctx.impureLocalNames.has(name)) return `uses-impure-import:${name}`
+    return null
+}
+
+function checkImpureChain(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isPropertyAccessExpression(node)) return null
+    const root = node.getExpression()
+    if (!Node.isIdentifier(root)) return null
+    const rootName = root.getText()
+    if (ctx.paramNames.has(rootName)) return null
+    const member = node.getNameNode().getText()
+    const hit = IMPURE_CHAINS.find(r => r.root === rootName && r.method === member)
+    return hit ? `uses-chain:${rootName}.${member}` : null
+}
+
+function checkNewDateZeroArgs(node: Node): string | null {
+    if (!Node.isNewExpression(node)) return null
+    const expr = node.getExpression()
+    if (!Node.isIdentifier(expr) || expr.getText() !== 'Date') return null
+    return node.getArguments().length === 0 ? 'uses-chain:new Date()' : null
+}
+
+function checkDynamicImport(node: Node): string | null {
+    if (node.getKind() !== SyntaxKind.ImportKeyword) return null
+    const parent = node.getParent()
+    if (!parent || !Node.isCallExpression(parent)) return null
+    return parent.getExpression() === node ? 'uses-dynamic-import' : null
+}
+
+function isParamMemberAccess(target: Node, paramNames: ReadonlySet<string>): boolean {
+    if (!Node.isPropertyAccessExpression(target) && !Node.isElementAccessExpression(target)) return false
+    const root = getRootIdentifier(target)
+    return root !== null && paramNames.has(root.getText())
+}
+
+function checkParamAssignment(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isBinaryExpression(node)) return null
+    const op = node.getOperatorToken().getKind()
+    if (op === SyntaxKind.EqualsToken) {
+        return isParamMemberAccess(node.getLeft(), ctx.paramNames) ? 'mutates-param:assignment' : null
+    }
+    if (COMPOUND_ASSIGN_TOKENS.has(op)) {
+        return isParamMemberAccess(node.getLeft(), ctx.paramNames) ? 'mutates-param:compound-assignment' : null
+    }
+    return null
+}
+
+function checkMutatingMethodCall(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isCallExpression(node)) return null
+    const callee = node.getExpression()
+    if (!Node.isPropertyAccessExpression(callee)) return null
+    const method = callee.getNameNode().getText()
+    if (!MUTATING_METHOD_NAMES.has(method)) return null
+    const root = getRootIdentifier(callee.getExpression())
+    return root && ctx.paramNames.has(root.getText()) ? `mutates-param:method-${method}` : null
+}
+
+function checkParamDelete(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isDeleteExpression(node)) return null
+    const root = getRootIdentifier(node.getExpression())
+    return root && ctx.paramNames.has(root.getText()) ? 'mutates-param:delete' : null
+}
+
+function checkParamIncrement(node: Node, ctx: RuleCtx): string | null {
+    if (!Node.isPrefixUnaryExpression(node) && !Node.isPostfixUnaryExpression(node)) return null
+    const op = node.getOperatorToken()
+    if (op !== SyntaxKind.PlusPlusToken && op !== SyntaxKind.MinusMinusToken) return null
+    return isParamMemberAccess(node.getOperand(), ctx.paramNames) ? 'mutates-param:increment' : null
+}
+
+function checkThrow(node: Node): string | null {
+    return Node.isThrowStatement(node) ? 'throws' : null
+}
+
+type Rule = (node: Node, ctx: RuleCtx) => string | null
+
+const RULES: readonly Rule[] = [
+    (n, c) => checkImpureIdentifier(n, c),
+    (n, c) => checkImpureChain(n, c),
+    n => checkNewDateZeroArgs(n),
+    n => checkDynamicImport(n),
+    (n, c) => checkParamAssignment(n, c),
+    (n, c) => checkMutatingMethodCall(n, c),
+    (n, c) => checkParamDelete(n, c),
+    (n, c) => checkParamIncrement(n, c),
+    n => checkThrow(n),
+]
+
 /**
  * Pure function: AST classification only. Returns the reasons list so the
  * gate can explain why something failed; empty reasons → pure.
@@ -218,135 +352,17 @@ function classifyFunction(
         // No body → no observable behavior → call it pure.
         return {classification: 'pure', reasons: []}
     }
+    const ctx: RuleCtx = {
+        paramNames: collectFunctionParamNames(fn),
+        impureLocalNames,
+    }
     const reasons = new Set<string>()
-    const paramNames = collectFunctionParamNames(fn)
-
     body.forEachDescendant(node => {
-        // 1. Reference to impure global / impure-imported name.
-        if (Node.isIdentifier(node)) {
-            const name = node.getText()
-            // Skip the identifier portion of declarations/property keys.
-            const parent = node.getParent()
-            if (parent && Node.isPropertyAccessExpression(parent) && parent.getNameNode() === node) return
-            if (parent && Node.isPropertyAssignment(parent) && parent.getNameNode() === node) return
-            if (parent && Node.isVariableDeclaration(parent) && parent.getNameNode() === node) return
-            if (parent && Node.isParameterDeclaration(parent) && parent.getNameNode() === node) return
-            if (parent && Node.isFunctionDeclaration(parent) && parent.getNameNode() === node) return
-            if (parent && Node.isBindingElement(parent) && parent.getNameNode() === node) return
-
-            // Parameter shadow — using a parameter named `fs`, not the global.
-            if (paramNames.has(name)) return
-
-            if (IMPURE_ROOT_IDENTIFIERS.has(name)) reasons.add(`uses-global:${name}`)
-            else if (impureLocalNames.has(name)) reasons.add(`uses-impure-import:${name}`)
-        }
-
-        // 1b. Chain rules — Date.now, Math.random etc.
-        if (Node.isPropertyAccessExpression(node)) {
-            const root = node.getExpression()
-            const member = node.getNameNode().getText()
-            if (Node.isIdentifier(root)) {
-                const rootName = root.getText()
-                if (paramNames.has(rootName)) return
-                for (const rule of IMPURE_CHAINS) {
-                    if (rule.root === rootName && rule.method === member) {
-                        reasons.add(`uses-chain:${rootName}.${member}`)
-                    }
-                }
-            }
-        }
-
-        // 1c. `new Date()` (zero args) — non-deterministic.
-        if (Node.isNewExpression(node)) {
-            const expr = node.getExpression()
-            if (Node.isIdentifier(expr) && expr.getText() === 'Date') {
-                const args = node.getArguments()
-                if (args.length === 0) reasons.add('uses-chain:new Date()')
-            }
-        }
-
-        // 1d. Dynamic import in body.
-        if (node.getKind() === SyntaxKind.ImportKeyword) {
-            const parent = node.getParent()
-            if (parent && Node.isCallExpression(parent) && parent.getExpression() === node) {
-                reasons.add('uses-dynamic-import')
-            }
-        }
-
-        // 2. Parameter mutation: assignment to param.x or param[i].
-        if (Node.isBinaryExpression(node)) {
-            if (node.getOperatorToken().getKind() === SyntaxKind.EqualsToken) {
-                const lhs = node.getLeft()
-                if (Node.isPropertyAccessExpression(lhs) || Node.isElementAccessExpression(lhs)) {
-                    const root = getRootIdentifier(lhs)
-                    if (root && paramNames.has(root.getText())) {
-                        reasons.add('mutates-param:assignment')
-                    }
-                }
-            }
-            // Compound assignments (+=, *= …) on param.x — same family.
-            const op = node.getOperatorToken().getKind()
-            const isCompound = op === SyntaxKind.PlusEqualsToken
-                || op === SyntaxKind.MinusEqualsToken
-                || op === SyntaxKind.AsteriskEqualsToken
-                || op === SyntaxKind.SlashEqualsToken
-                || op === SyntaxKind.PercentEqualsToken
-                || op === SyntaxKind.AmpersandEqualsToken
-                || op === SyntaxKind.BarEqualsToken
-                || op === SyntaxKind.CaretEqualsToken
-            if (isCompound) {
-                const lhs = node.getLeft()
-                if (Node.isPropertyAccessExpression(lhs) || Node.isElementAccessExpression(lhs)) {
-                    const root = getRootIdentifier(lhs)
-                    if (root && paramNames.has(root.getText())) {
-                        reasons.add('mutates-param:compound-assignment')
-                    }
-                }
-            }
-        }
-
-        // 2b. Mutating method calls on a parameter: param.push(x), param.sort()
-        if (Node.isCallExpression(node)) {
-            const callee = node.getExpression()
-            if (Node.isPropertyAccessExpression(callee)) {
-                const method = callee.getNameNode().getText()
-                if (MUTATING_METHOD_NAMES.has(method)) {
-                    const receiver = callee.getExpression()
-                    const root = getRootIdentifier(receiver)
-                    if (root && paramNames.has(root.getText())) {
-                        reasons.add(`mutates-param:method-${method}`)
-                    }
-                }
-            }
-        }
-
-        // 2c. `delete param.x` and `++param.x` / `--param.x`
-        if (Node.isDeleteExpression(node)) {
-            const target = node.getExpression()
-            const root = getRootIdentifier(target)
-            if (root && paramNames.has(root.getText())) {
-                reasons.add('mutates-param:delete')
-            }
-        }
-        if (Node.isPrefixUnaryExpression(node) || Node.isPostfixUnaryExpression(node)) {
-            const op = node.getOperatorToken()
-            if (op === SyntaxKind.PlusPlusToken || op === SyntaxKind.MinusMinusToken) {
-                const operand = node.getOperand()
-                if (Node.isPropertyAccessExpression(operand) || Node.isElementAccessExpression(operand)) {
-                    const root = getRootIdentifier(operand)
-                    if (root && paramNames.has(root.getText())) {
-                        reasons.add('mutates-param:increment')
-                    }
-                }
-            }
-        }
-
-        // 3. Synchronous throw.
-        if (Node.isThrowStatement(node)) {
-            reasons.add('throws')
+        for (const rule of RULES) {
+            const reason = rule(node, ctx)
+            if (reason !== null) reasons.add(reason)
         }
     })
-
     return {
         classification: reasons.size === 0 ? 'pure' : 'impure',
         reasons: [...reasons].sort(),

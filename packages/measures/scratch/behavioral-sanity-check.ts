@@ -14,9 +14,9 @@ import {DEFAULT_REPO_ROOT} from '../src/_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../src/_shared/graph/parse-subgraph.ts'
 // Importing the measures triggers their registry side-effects, but we use
 // the returned `measure` value directly for clarity.
-import {measure as moduleStateBindings} from '../src/checks/tier_0_subgraph/behavioral/module-state-bindings.ts'
-import {measure as implicitGlobals} from '../src/checks/tier_0_subgraph/behavioral/implicit-globals.ts'
-import {measure as astPurityRatio} from '../src/checks/tier_0_subgraph/behavioral/ast-purity-ratio.ts'
+import {measure as moduleStateBindings} from '../src/_subgraph_gate/measures/behavioral/module-state-bindings.ts'
+import {measure as implicitGlobals} from '../src/_subgraph_gate/measures/behavioral/implicit-globals.ts'
+import {measure as astPurityRatio} from '../src/_subgraph_gate/measures/behavioral/ast-purity-ratio.ts'
 
 const REPO_ROOT = DEFAULT_REPO_ROOT
 

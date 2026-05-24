@@ -38,15 +38,15 @@
  */
 import {readFile} from 'node:fs/promises'
 import * as ts from 'typescript'
-import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../../_shared/measures/baseline-store.ts'
-import {registerMeasure} from '../../../_shared/measures/registry.ts'
+import type {Edge, SourceFile} from '../../../../_shared/graph/import-graph.ts'
+import {loadBaseline} from '../../../../_shared/measures/baseline-store.ts'
+import {registerMeasure} from '../../../../_shared/measures/registry.ts'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
     SubgraphMeasureResult,
     Violation,
-} from '../../../_shared/measures/subgraph-measure.ts'
+} from '../../../../_shared/measures/subgraph-measure.ts'
 
 export const MEASURE_ID = 'martin-distance'
 

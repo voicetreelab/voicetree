@@ -13,13 +13,13 @@
  *     A=0, I≈0, D ≈ 1  → fail.
  */
 import {afterAll, describe, expect, it} from 'vitest'
-import {parseSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
+import {parseSubgraph} from '../../../../_shared/graph/parse-subgraph.ts'
 import {
     classifyDecls,
     martinDistanceMeasure,
     MARTIN_DISTANCE_FAIL,
 } from './martin-distance.ts'
-import {buildTempRepo, type Fixture} from './_tempdir-fixture.ts'
+import {buildTempRepo, type Fixture} from '../_tempdir-fixture.ts'
 
 const cleanups: Fixture[] = []
 afterAll(async () => {

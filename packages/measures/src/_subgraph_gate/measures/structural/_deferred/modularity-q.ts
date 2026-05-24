@@ -31,17 +31,17 @@
  *
  * needsTsMorph = false: edge list arithmetic only.
  */
-import {communityAtDepth, siblingGroupParent} from '../../../_shared/community/community-at-depth.ts'
-import {computeModularityQ} from '../../../_shared/complexity/hierarchical-complexity-measures.ts'
-import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../../_shared/measures/baseline-store.ts'
-import {registerMeasure} from '../../../_shared/measures/registry.ts'
+import {communityAtDepth, siblingGroupParent} from '../../../../_shared/community/community-at-depth.ts'
+import {computeModularityQ} from '../../../../_shared/complexity/hierarchical-complexity-measures.ts'
+import type {Edge, SourceFile} from '../../../../_shared/graph/import-graph.ts'
+import {loadBaseline} from '../../../../_shared/measures/baseline-store.ts'
+import {registerMeasure} from '../../../../_shared/measures/registry.ts'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
     SubgraphMeasureResult,
     Violation,
-} from '../../../_shared/measures/subgraph-measure.ts'
+} from '../../../../_shared/measures/subgraph-measure.ts'
 
 export const MEASURE_ID = 'modularity-q'
 

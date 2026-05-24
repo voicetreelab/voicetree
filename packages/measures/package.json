@@ -8,7 +8,7 @@
     "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
   },
   "scripts": {
-    "test": "vitest run src/health/**/*.test.ts src/checks/**/*.test.ts"
+    "test": "vitest run src/health/**/*.test.ts src/checks/**/*.test.ts src/_subgraph_gate/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -2,7 +2,7 @@
  * Local AST helpers shared across the three shape measures
  * (cyclomatic-per-fn, cognitive-per-fn, exports-per-file).
  *
- * Kept co-located under `tier_0_subgraph/shape/` rather than promoted to
+ * Kept co-located under `_subgraph_gate/measures/shape/` rather than promoted to
  * `_shared/` because:
  *   1. Every helper here is a pure function from `ts.Node` → primitive,
  *      so duplicating semantics in a peer agent's measure is harmless.
