@@ -29,6 +29,7 @@
     "test:e2e": "npm run test:e2e:tier2:electron",
     "test:browser": "npm run test:e2e:tier2:browser",
     "test:perf:v1": "node scripts/run-perf-suite.mjs",
+    "test:perf:e2e-storm:local": "npm run prepare:vite-build && npm run prepare:native-rebuild && node --no-warnings=ExperimentalWarning --experimental-strip-types ../packages/measures/src/_runners/run-with-xvfb-if-needed.ts playwright test --config=playwright-electron-dev.config.ts e2e-tests/electron/for_feature_development_not_LT_verification/graph/perf/electron-agent-storm-perf.spec.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "tsc -b && vite build && npm run test:smoke",
