@@ -21,8 +21,10 @@ import {cyFitIntoVisibleViewport, getResponsivePadding} from "@/utils/responsive
 import type {GraphDelta, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {isImageNode} from "@vt/graph-model/graph";
 import type {Core} from "cytoscape";
-import type {TerminalRecord} from '@vt/agent-runtime';
+import type {RecoverableAgentSession, TerminalRecord, UnclaimedTmuxSession} from '@vt/agent-runtime';
 import {syncFromMain} from "@/shell/edge/UI-edge/state/stores/TerminalStore";
+import {syncUnclaimedTmuxFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore";
+import {syncRecoverySessionsFromMain} from "@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore";
 import {updateHeadlessBadges} from "@/shell/edge/UI-edge/floating-windows/anchoring/headless-badge-overlay";
 import {syncVaultStateFromMain} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
 import type {VaultPathState} from "@/shell/edge/UI-edge/state/stores/VaultPathStore";
@@ -108,6 +110,14 @@ function syncTerminals(records: TerminalRecord[]): void {
     updateHeadlessBadges();
 }
 
+function syncUnclaimedTmuxSessions(sessions: readonly UnclaimedTmuxSession[]): void {
+    syncUnclaimedTmuxFromMain(sessions);
+}
+
+function syncRecoverySessions(sessions: readonly RecoverableAgentSession[]): void {
+    syncRecoverySessionsFromMain(sessions);
+}
+
 /**
  * Sync vault path state from main process to renderer.
  * Called from main process after any vault path or starred folder mutation.
@@ -176,6 +186,8 @@ export const uiAPIHandler = {
     setIsTrackpadScrolling,
     closeTerminalById,
     updateInjectBadge,
+    syncUnclaimedTmuxSessions,
+    syncRecoverySessions,
     logHookResult,
     onSettingsChanged: (): void => {
         for (const cb of settingsChangeListeners) cb();

@@ -19,7 +19,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ElectronAPI } from '@/shell/electron';
-import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
+import { closeElectronAppForE2E } from './helpers/close-electron-app';
+import { safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -36,10 +37,10 @@ function idSelector(id: string): string {
   return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
-async function seedVault(vaultPath: string): Promise<void> {
-  await fs.mkdir(vaultPath, { recursive: true });
+async function seedVault(projectRoot: string): Promise<void> {
+  await fs.mkdir(projectRoot, { recursive: true });
   await fs.writeFile(
-    path.join(vaultPath, 'parent-node.md'),
+    path.join(projectRoot, 'parent-node.md'),
     '# \n',
     'utf8',
   );
@@ -67,21 +68,21 @@ function resolveGraphdNodeBin(): string | undefined {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
-  vaultPath: string;
+  projectRoot: string;
 }>({
-  vaultPath: async ({}, use) => {
+  projectRoot: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-child-title-'));
-    const vaultPath = path.join(tempRoot, 'vault');
-    await seedVault(vaultPath);
-    await use(vaultPath);
+    const projectRoot = path.join(tempRoot, 'vault');
+    await seedVault(projectRoot);
+    await use(projectRoot);
     await fs.rm(tempRoot, { recursive: true, force: true });
   },
 
-  electronApp: async ({ vaultPath }, use) => {
+  electronApp: async ({ projectRoot }, use) => {
     const userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-child-title-app-'));
     const savedProject = {
       id: 'child-title-overwrite-regression',
-      path: vaultPath,
+      path: projectRoot,
       name: 'child-title-test',
       type: 'folder',
       lastOpened: Date.now(),
@@ -93,8 +94,8 @@ const test = base.extend<{
       path.join(userDataPath, 'voicetree-config.json'),
       JSON.stringify({
         vaultConfig: {
-          [vaultPath]: {
-            writePath: vaultPath,
+          [projectRoot]: {
+            writeFolder: projectRoot,
             readPaths: [],
           },
         },
@@ -125,11 +126,11 @@ const test = base.extend<{
     await use(electronApp);
 
     await safeStopFileWatching(electronApp);
-    await robustElectronTeardown(electronApp);
+    await closeElectronAppForE2E(electronApp);
     await fs.rm(userDataPath, { recursive: true, force: true });
   },
 
-  appWindow: async ({ electronApp, vaultPath }, use) => {
+  appWindow: async ({ electronApp, projectRoot }, use) => {
     const window = await electronApp.firstWindow({ timeout: 15_000 });
     await window.waitForLoadState('domcontentloaded');
 
@@ -142,7 +143,7 @@ const test = base.extend<{
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         await api.main.startFileWatching(vault);
-      }, vaultPath);
+      }, projectRoot);
     }
 
     await pollForCytoscape(window, 15_000);
@@ -165,7 +166,7 @@ const test = base.extend<{
 
 test.describe.configure({ timeout: 90_000 });
 
-test('parent node title survives rapid child creation via cmd-n', async ({ appWindow, vaultPath }) => {
+test('parent node title survives rapid child creation via cmd-n', async ({ appWindow, projectRoot }) => {
   // 1. Find, select, and tap the parent node to open its editor
   const nodeId = await appWindow.evaluate(() => {
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -220,74 +221,33 @@ test('parent node title survives rapid child creation via cmd-n', async ({ appWi
     timeout: 3_000,
   }).toBe(typedTitle);
 
-  // 4. Create a child node via IPC before autosave fires. Electron's native
-  // menu can intercept Cmd/Ctrl+N in this harness, so this uses the same daemon
-  // write shape as the UI action: child upsert + parent upsert with the current
-  // open-editor content and the new child edge.
-  await appWindow.evaluate(async ({ parentId, currentContent }) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+  // 4. Create a child node through the same shortcut path a user uses.
+  const nodeCountBefore = await appWindow.evaluate(() => {
+    const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+    if (!cy) throw new Error('Cytoscape not initialized');
+    return cy.nodes().length;
+  });
 
-    const graph = await api.main.getGraph();
-    const parentNode = graph.nodes[parentId];
-    if (!parentNode) throw new Error(`Parent node ${parentId} not found in graph`);
+  await appWindow.waitForTimeout(75);
+  await appWindow.keyboard.press('ControlOrMeta+n');
 
-    const childId = parentId.replace(/\.md$/, '') + '_0.md';
-    const delta = [
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          kind: 'leaf' as const,
-          absoluteFilePathIsID: childId,
-          outgoingEdges: [],
-          contentWithoutYamlOrLinks: '# ',
-          nodeUIMetadata: {
-            color: { _tag: 'None' },
-            position: { _tag: 'Some', value: { x: 300, y: 300 } },
-            additionalYAMLProps: new Map(),
-            isContextNode: false,
-          },
-        },
-        previousNode: { _tag: 'None' },
-      },
-      {
-        type: 'UpsertNode' as const,
-        nodeToUpsert: {
-          ...parentNode,
-          contentWithoutYamlOrLinks: currentContent,
-          outgoingEdges: [...parentNode.outgoingEdges, { targetId: childId }],
-        },
-        previousNode: { _tag: 'Some', value: parentNode },
-      },
-    ];
-
-    await api.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed(delta);
-    return childId;
-  }, { parentId: nodeId, currentContent: typedTitle });
-
-  // 5. Wait for the child node file to be written to disk by the daemon.
-  // applyGraphDeltaToDBThroughMemUIAndEditorExposed writes via the daemon HTTP API;
-  // the daemon writes the child file synchronously before returning. Polling the
-  // file is simpler and more reliable than polling getGraph(), which can return 0
-  // transiently while the daemon rebuilds its in-memory graph from the file watcher.
+  // 5. Wait for the child node to appear in the graph.
   await expect.poll(async () => {
-    try {
-      await fs.access(nodeId.replace(/\.md$/, '') + '_0.md');
-      return true;
-    } catch {
-      return false;
-    }
+    return appWindow.evaluate((previousCount) => {
+      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
+      return cy?.nodes().length ?? previousCount;
+    }, nodeCountBefore);
   }, {
-    message: 'Waiting for child node file to be created on disk',
+    message: 'Waiting for Cmd/Ctrl+N to create a child node',
     timeout: 15_000,
-    intervals: [200, 500, 1000, 2000],
-  }).toBe(true);
+    intervals: [100, 250, 500, 1000],
+  }).toBeGreaterThan(nodeCountBefore);
 
   // 6. Allow autosave + file watcher to settle
   await appWindow.waitForTimeout(2_000);
 
   // 7. CRITICAL: Parent file on disk still has the title
-  const parentFilePath = path.join(vaultPath, 'parent-node.md');
+  const parentFilePath = path.join(projectRoot, 'parent-node.md');
   const diskContent = await fs.readFile(parentFilePath, 'utf8');
   expect(diskContent).toContain('My Important Title');
 

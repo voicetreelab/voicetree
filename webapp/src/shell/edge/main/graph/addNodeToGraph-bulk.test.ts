@@ -119,11 +119,11 @@ describe('Progressive Edge Validation - Bulk Load', () => {
 
   describe('Edge Cases: Non-existent Nodes', () => {
     it('bulk load should preserve raw link text when target never exists', async () => {
-      const vaultPath: string = path.join(testVaultPath, 'non-existent-bulk')
-      await fs.mkdir(vaultPath, { recursive: true })
-      await fs.writeFile(path.join(vaultPath, 'source.md'), '# Source\n\n- broken link [[does-not-exist]]')
+      const projectRoot: string = path.join(testVaultPath, 'non-existent-bulk')
+      await fs.mkdir(projectRoot, { recursive: true })
+      await fs.writeFile(path.join(projectRoot, 'source.md'), '# Source\n\n- broken link [[does-not-exist]]')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([projectRoot])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -132,15 +132,15 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(sourceNode!.outgoingEdges).toHaveLength(1)
       expect(sourceNode!.outgoingEdges[0].targetId).toBe('does-not-exist')
 
-      await fs.rm(vaultPath, { recursive: true })
+      await fs.rm(projectRoot, { recursive: true })
     })
 
     it('should handle multiple unresolved links', async () => {
-      const vaultPath: string = path.join(testVaultPath, 'multiple-unresolved')
-      await fs.mkdir(vaultPath, { recursive: true })
-      await fs.writeFile(path.join(vaultPath, 'source.md'), '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]')
+      const projectRoot: string = path.join(testVaultPath, 'multiple-unresolved')
+      await fs.mkdir(projectRoot, { recursive: true })
+      await fs.writeFile(path.join(projectRoot, 'source.md'), '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]')
 
-      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([vaultPath])
+      const result: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk([projectRoot])
       if (E.isLeft(result)) throw new Error('Expected Right')
       const graph: Graph = result.right
 
@@ -149,7 +149,7 @@ describe('Progressive Edge Validation - Bulk Load', () => {
       expect(sourceNode!.outgoingEdges).toHaveLength(3)
       expect(sourceNode!.outgoingEdges.map((e: { readonly targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
 
-      await fs.rm(vaultPath, { recursive: true })
+      await fs.rm(projectRoot, { recursive: true })
     })
   })
 })

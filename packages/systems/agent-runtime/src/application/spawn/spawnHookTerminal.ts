@@ -17,7 +17,7 @@ import {getTerminalRecords, type TerminalRecord} from '../terminals/terminal-reg
 import {sendTextToTerminal} from '../inject/send-text-to-terminal'
 import {loadSettings} from '@vt/app-config/settings'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWritePath} from '../runtime/graph-bridge'
+import {applyRuntimeGraphDelta, getRuntimeGraph, getRuntimeWatchStatus, getRuntimeWriteFolder} from '../runtime/graph-bridge'
 import {getRuntimeUI} from '../runtime/runtime-config'
 
 const HOOK_TERMINAL_ID: TerminalId = 'hook' as TerminalId
@@ -75,9 +75,9 @@ async function waitForTerminalReady(
 }
 
 async function createHookNode(): Promise<string> {
-    const writePathOption: O.Option<string> = await getRuntimeWritePath()
-    const writePath: string = O.getOrElse(() => '')(writePathOption)
-    if (!writePath) {
+    const writeFolderOption: O.Option<string> = await getRuntimeWriteFolder()
+    const writeFolder: string = O.getOrElse(() => '')(writeFolderOption)
+    if (!writeFolder) {
         throw new Error('No write path available for hook terminal node')
     }
 
@@ -85,7 +85,7 @@ async function createHookNode(): Promise<string> {
     const spatialIndex: SpatialIndex = buildSpatialIndexFromGraph(graph)
     const hookPosition: Position = O.getOrElse(() => ({x: 0, y: 0}))(calculateNodePosition(graph, spatialIndex))
     const {newNode}: {readonly newNode: GraphNode; readonly graphDelta: GraphDelta} =
-        createNewNodeNoParent(hookPosition, writePath, graph)
+        createNewNodeNoParent(hookPosition, writeFolder, graph)
 
     const hookNode: GraphNode = {...newNode, contentWithoutYamlOrLinks: '# Hook Terminal'}
     const hookDelta: GraphDelta = [{

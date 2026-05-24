@@ -8,6 +8,13 @@ function normalizeFolderIds(ids: ReadonlySet<string>): ReadonlySet<string> {
   return new Set([...ids].map((id) => id.endsWith('/') ? id.slice(0, -1) : id))
 }
 
+function projectForTreeCoverRendering(state: State): ProjectedGraph {
+  return project({
+    ...state,
+    collapseSet: new Set(),
+  })
+}
+
 export function handleRenderView(
   session: Session,
   state: State,
@@ -20,7 +27,7 @@ export function handleRenderView(
 } {
   const budget = budgetParam ? Math.max(1, Math.trunc(Number(budgetParam))) : 30
   const mergedExpands = [...session.expandOverrides, ...expandParams]
-  const graph = project(state)
+  const graph = projectForTreeCoverRendering(state)
 
   return {
     commands: [],

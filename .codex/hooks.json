@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write|MultiEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/webapp/.codex/hooks/file-size-check.cjs\"",
+            "timeout": 30,
+            "statusMessage": "Checking edited file sizes"
+          }
+        ]
+      }
+    ]
+  }
+}

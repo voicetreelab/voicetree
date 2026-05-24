@@ -31,8 +31,7 @@ import {runStructureCommand} from './structureCommand'
 const [,, command, ...args] = process.argv
 
 function fail(message: string): never {
-  console.error(message)
-  process.exit(1)
+  throw new Error(message)
 }
 
 function usage(): string {
@@ -81,6 +80,10 @@ interface ParsedLiveCrudCommand {
   readonly command: SerializedCommand
   readonly port?: number
 }
+
+type ParsedLiveCrudResult =
+  | {readonly type: 'help'; readonly text: string}
+  | ({readonly type: 'command'} & ParsedLiveCrudCommand)
 
 interface LiveGraphNodeSnapshot {
   readonly outgoingEdges?: readonly {readonly targetId?: string; readonly label?: string}[]
@@ -542,10 +545,9 @@ function resolveCommandNodeIds(
   }
 }
 
-function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]): ParsedLiveCrudCommand {
+function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]): ParsedLiveCrudResult {
   if (argsForVerb.includes('--help')) {
-    console.log(liveCrudUsage(verb))
-    process.exit(0)
+    return {type: 'help', text: liveCrudUsage(verb)}
   }
   if (argsForVerb.length === 0) {
     const firstRequired = LIVE_CRUD_FLAGS[verb].find((spec) => spec.required)
@@ -578,17 +580,18 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
           },
         },
       }
-      return {command, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command, ...(port !== undefined ? {port} : {})}
     }
     case 'rm-node': {
       const file = resolvedRequiredPath(values, '--file')
-      return {command: {type: 'RemoveNode', id: file}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'RemoveNode', id: file}, ...(port !== undefined ? {port} : {})}
     }
     case 'add-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
       const targetId = resolvedRequiredPath(values, '--tgt-file')
       const label = optionalString(values, '--label') ?? ''
       return {
+        type: 'command',
         command: {type: 'AddEdge', source, edge: {targetId, label}},
         ...(port !== undefined ? {port} : {}),
       }
@@ -596,13 +599,13 @@ function parseLiveCrudCommand(verb: LiveCrudVerb, argsForVerb: readonly string[]
     case 'rm-edge': {
       const source = resolvedRequiredPath(values, '--src-file')
       const targetId = resolvedRequiredPath(values, '--tgt-file')
-      return {command: {type: 'RemoveEdge', source, targetId}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'RemoveEdge', source, targetId}, ...(port !== undefined ? {port} : {})}
     }
     case 'mv-node': {
       const file = resolvedRequiredPath(values, '--file')
       const x = requiredNumber(values, '--x')
       const y = requiredNumber(values, '--y')
-      return {command: {type: 'Move', id: file, to: {x, y}}, ...(port !== undefined ? {port} : {})}
+      return {type: 'command', command: {type: 'Move', id: file, to: {x, y}}, ...(port !== undefined ? {port} : {})}
     }
   }
 }
@@ -945,6 +948,10 @@ async function main(): Promise<void> {
 
       if (isLiveCrudVerb(liveSubcommand)) {
         const parsed = parseLiveCrudCommand(liveSubcommand, liveArgs)
+        if (parsed.type === 'help') {
+          console.log(parsed.text)
+          break
+        }
         const beforeNodes = await getLiveGraphNodes(parsed.port)
         const resolvedParsed = resolveCommandNodeIds(parsed, beforeNodes)
         const result = await liveApply(JSON.stringify(resolvedParsed.command), {port: resolvedParsed.port})
@@ -983,7 +990,7 @@ async function main(): Promise<void> {
     }
 
     case 'hygiene': {
-      let vaultPath: string | undefined
+      let projectRoot: string | undefined
       let ruleFilter: HygieneRuleId | undefined
       let jsonFlag = false
 
@@ -1015,15 +1022,15 @@ async function main(): Promise<void> {
 
         if (arg.startsWith('--')) { fail(`Unknown argument: ${arg}`) }
 
-        if (vaultPath !== undefined) { fail(`Unexpected argument: ${arg}`) }
-        vaultPath = arg
+        if (projectRoot !== undefined) { fail(`Unexpected argument: ${arg}`) }
+        projectRoot = arg
       }
 
-      if (!vaultPath) {
-        fail('Usage: vt-graph hygiene <vault-path> [--rule <id>] [--json]')
+      if (!projectRoot) {
+        fail('Usage: vt-graph hygiene <project-root> [--rule <id>] [--json]')
       }
 
-      const report = runHygieneAudit(vaultPath, {rule: ruleFilter})
+      const report = runHygieneAudit(projectRoot, {rule: ruleFilter})
       console.log(jsonFlag ? formatHygieneReportJson(report) : formatHygieneReportHuman(report))
       if (report.summary.totalErrors > 0) process.exit(1)
       break

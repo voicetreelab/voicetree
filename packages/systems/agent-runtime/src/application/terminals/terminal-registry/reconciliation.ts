@@ -1,8 +1,8 @@
-import {randomUUID} from 'node:crypto'
-import {readdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs'
+import {readdirSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from './types'
 import {createTerminalData} from './types'
+import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from './terminal-metadata'
 import {
     notificationStateByTerminal,
     terminalRecords,
@@ -10,20 +10,7 @@ import {
     type TerminalRegistryLogger,
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
-import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux-session-manager'
-
-type TmuxTerminalMetadata = {
-    readonly name: string
-    readonly status: 'running' | 'exited'
-    readonly pid?: number
-    readonly session?: string
-    readonly startedAt?: string
-    readonly endedAt?: string
-    readonly exitCode?: number | null
-    readonly exitCodeFile?: string
-    readonly logFile?: string
-    readonly terminalData?: TerminalData
-}
+import {hasSession as defaultHasSession, registerTmuxSessionAlias} from '../tmux/tmux-session-manager'
 
 export type TmuxReconciliationResult = {
     readonly imported: string[]
@@ -44,39 +31,25 @@ export type TmuxReconciliationDeps = {
 
 const defaultClock: TerminalRegistryClock = {now: Date.now}
 
-function readMetadata(path: string): TmuxTerminalMetadata | null {
-    try {
-        return JSON.parse(readFileSync(path, 'utf8')) as TmuxTerminalMetadata
-    } catch {
-        return null
-    }
-}
-
-function writeMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
-    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
-    renameSync(tempPath, path)
-}
-
-function fallbackTerminalData(metadata: TmuxTerminalMetadata, vaultPath: string): TerminalData {
+function fallbackTerminalData(metadata: TmuxTerminalMetadata, projectRoot: string): TerminalData {
     const terminalId: TerminalId = metadata.name as TerminalId
     return createTerminalData({
         terminalId,
-        attachedToNodeId: `${vaultPath}/.voicetree/terminals/${metadata.name}.json`,
+        attachedToNodeId: `${projectRoot}/.voicetree/terminals/${metadata.name}.json`,
         terminalCount: 0,
         title: metadata.name,
         agentName: metadata.name,
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: metadata.name,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_VAULT_PATH: projectRoot,
         },
     })
 }
 
-function importRunningRecord(metadata: TmuxTerminalMetadata, vaultPath: string, now: number): TerminalId {
+function importRunningRecord(metadata: TmuxTerminalMetadata, projectRoot: string, now: number): TerminalId {
     const terminalId: TerminalId = metadata.name as TerminalId
-    const terminalData: TerminalData = metadata.terminalData ?? fallbackTerminalData(metadata, vaultPath)
+    const terminalData: TerminalData = metadata.terminalData ?? fallbackTerminalData(metadata, projectRoot)
     const spawnedAt: number = metadata.startedAt ? Date.parse(metadata.startedAt) : now
 
     terminalRecords.set(terminalId, {
@@ -99,10 +72,10 @@ function importRunningRecord(metadata: TmuxTerminalMetadata, vaultPath: string, 
 }
 
 export async function reconcileTmuxTerminalRegistry(
-    vaultPath: string,
+    projectRoot: string,
     deps: TmuxReconciliationDeps = {},
 ): Promise<TmuxReconciliationResult> {
-    const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
     const hasSession: (name: string) => Promise<boolean> = deps.hasSession ?? defaultHasSession
     const now: () => number = deps.now ?? defaultClock.now
     const result: TmuxReconciliationResult = {imported: [], markedExited: [], skipped: []}
@@ -133,7 +106,7 @@ export async function reconcileTmuxTerminalRegistry(
 
         if (alive) {
             registerTmuxSessionAlias(metadata.name, metadata.session ?? metadata.name)
-            const terminalId: TerminalId = importRunningRecord(metadata, vaultPath, now())
+            const terminalId: TerminalId = importRunningRecord(metadata, projectRoot, now())
             deps.onRunningSession?.({terminalId, metadataPath, metadata})
             result.imported.push(metadata.name)
             continue

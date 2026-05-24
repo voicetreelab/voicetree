@@ -183,12 +183,12 @@ test.describe('Backend API Integration E2E', () => {
     console.log(`Opening folder: ${FIXTURE_VAULT_PATH}`);
 
     // Start watching the fixture vault - this triggers backend API call from main process
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
-      console.log(`[Renderer] Starting file watching for: ${vaultPath}`);
-      return await api.main.startFileWatching(vaultPath);
+      console.log(`[Renderer] Starting file watching for: ${projectRoot}`);
+      return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);
@@ -322,10 +322,10 @@ test.describe('Backend API Integration E2E', () => {
     console.log('✓ Direct API call succeeded');
 
     console.log('=== STEP 3: Start file watching (uses backend-api.ts) ===');
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (projectRoot) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.main.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

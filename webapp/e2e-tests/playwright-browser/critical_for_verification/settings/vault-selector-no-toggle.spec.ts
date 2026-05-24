@@ -26,7 +26,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       '/mock/read-vault-1',
       '/mock/read-vault-2'
     ];
-    let mockWritePath = '/mock/write-vault';
+    let mockWriteFolder = '/mock/write-vault';
     let mockShowAllPaths: string[] = [];
     const createEmptyProjectedGraph = () => ({
       nodes: [],
@@ -43,7 +43,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
       const listeners = mockElectronAPI._ipcListeners['ui:call'] || [];
       listeners.forEach(cb => cb(null, 'syncVaultState', [{
         readPaths: [...mockVaultPaths],
-        writePath: mockWritePath,
+        writeFolder: mockWriteFolder,
         starredFolders: [],
       }]));
     };
@@ -88,11 +88,11 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
 
           return {
             sessionId: 'mock-session',
-            writePath: mockWritePath,
+            writeFolder: mockWriteFolder,
             vaultState: {
-              vaultPath: dir,
+              projectRoot: dir,
               readPaths: [...mockVaultPaths],
-              writePath: mockWritePath,
+              writeFolder: mockWriteFolder,
             },
             initialProjectedGraph: projectedGraph,
             folderState: [],
@@ -155,13 +155,13 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         // === VAULT METHODS (critical for VaultPathSelector) ===
         getVaultPaths: async (): Promise<readonly string[]> => mockVaultPaths,
 
-        getWritePath: async () => ({
+        getWriteFolder: async () => ({
           _tag: 'Some' as const,
-          value: mockWritePath
+          value: mockWriteFolder
         }),
 
-        setWritePath: async (path: string) => {
-          mockWritePath = path;
+        setWriteFolder: async (path: string) => {
+          mockWriteFolder = path;
           broadcastVaultState();
           return { success: true };
         },
@@ -241,6 +241,7 @@ async function setupMockElectronAPIWithVault(page: Page): Promise<void> {
         updateTerminalPinned: async () => {},
         updateTerminalActivityState: async () => {},
         removeTerminalFromRegistry: async () => {},
+        closeAgent: async () => ({closed: false} as const),
       },
 
       // File watching event listeners

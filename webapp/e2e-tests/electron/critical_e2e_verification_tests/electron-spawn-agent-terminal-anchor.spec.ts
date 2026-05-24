@@ -41,10 +41,10 @@ test.describe("spawn_agent terminal anchoring", () => {
         clientInfo: { name: "spawn-anchor-e2e", version: "1.0.0" },
       });
 
-      const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error("electronAPI not available");
-        return await api.main.startFileWatching(vaultPath);
+        return await api.main.startFileWatching(projectRoot);
       }, fixtureVaultPath);
       expect(watchResult.success).toBe(true);
 

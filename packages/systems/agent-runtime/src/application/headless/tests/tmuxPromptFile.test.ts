@@ -148,7 +148,7 @@ describe('wrapForHeadlessTmux', () => {
 describe('applyPromptFileToHeadlessSpawn', () => {
     it('writes the prompt, rewrites the command, and clears AGENT_PROMPT in favor of AGENT_PROMPT_FILE', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'claude "$AGENT_PROMPT"',
             env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
@@ -163,7 +163,7 @@ describe('applyPromptFileToHeadlessSpawn', () => {
 
     it('is a no-op when env has no AGENT_PROMPT', () => {
         const plan = applyPromptFileToHeadlessSpawn({
-            vaultPath: vault,
+            projectRoot: vault,
             terminalId: tid('Aki'),
             command: 'bash',
             env: {VOICETREE_TERMINAL_ID: 'Aki'},

@@ -173,25 +173,25 @@ describe('resolveLinkTarget', () => {
 
 describe('resolveLinkedNodesInWatchedFolder', () => {
     let tmpDir: string
-    let writePath: string
+    let writeFolder: string
     let watchedFolder: string
 
     beforeAll(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-watched-folder-test-'))
         watchedFolder = tmpDir
-        writePath = path.join(tmpDir, 'write-vault')
+        writeFolder = path.join(tmpDir, 'write-vault')
 
-        await fs.mkdir(writePath, { recursive: true })
+        await fs.mkdir(writeFolder, { recursive: true })
 
         // Create a chain: A -> B -> C -> D (all in watched folder)
         await fs.writeFile(
-            path.join(writePath, 'a.md'),
+            path.join(writeFolder, 'a.md'),
             `# Node A
 
 Links to [[b]].`
         )
 
-        // Create files outside writePath but inside watched folder
+        // Create files outside writeFolder but inside watched folder
         await fs.writeFile(
             path.join(watchedFolder, 'b.md'),
             `# Node B
@@ -221,9 +221,9 @@ End of chain.`
     it('should resolve linked nodes in watched folder using resolve-on-link', async () => {
         const { resolveLinkedNodesInWatchedFolder } = await import('@vt/graph-db-server/graph/loadGraphFromDisk')
 
-        // First load just the writePath
+        // First load just the writeFolder
         const initialResult: E.Either<FileLimitExceededError, Graph> = await loadGraphFromDisk(
-            [writePath]
+            [writeFolder]
         )
 
         if (E.isLeft(initialResult)) throw new Error('Expected Right')

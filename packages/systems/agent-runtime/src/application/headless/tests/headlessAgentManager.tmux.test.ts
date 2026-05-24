@@ -13,7 +13,7 @@ import {
 } from '../headlessAgentManager'
 import {createTerminalData, type TerminalData, type TerminalId} from '../../terminals/terminal-registry/types'
 import {clearTerminalRecords, getTerminalRecords} from '../../terminals/terminal-registry'
-import {hasSession, killSession} from '../../terminals/tmux-session-manager'
+import {hasSession, killSession} from '../../terminals/tmux/tmux-session-manager'
 
 type TmuxMetadata = {
     readonly status: 'running' | 'exited'
@@ -57,17 +57,17 @@ async function readMetadata(path: string): Promise<TmuxMetadata | null> {
     return raw ? JSON.parse(raw) as TmuxMetadata : null
 }
 
-function makeTerminalData(terminalId: TerminalId, vaultPath: string): TerminalData {
+function makeTerminalData(terminalId: TerminalId, projectRoot: string): TerminalData {
     return createTerminalData({
         terminalId,
-        attachedToNodeId: join(vaultPath, 'context.md') as NodeIdAndFilePath,
+        attachedToNodeId: join(projectRoot, 'context.md') as NodeIdAndFilePath,
         terminalCount: 0,
         title: 'BF311 tmux headless',
         agentName: terminalId,
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: terminalId,
-            VOICETREE_VAULT_PATH: vaultPath,
+            VOICETREE_VAULT_PATH: projectRoot,
         },
     })
 }
@@ -90,18 +90,18 @@ describe('headlessAgentManager tmux backend', () => {
 
     it('spawns a real tmux-backed headless agent, captures log output, accepts input, and marks natural exit', async () => {
         const terminalId: TerminalId = makeName()
-        const vaultPath: string = await makeTempVault()
-        const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+        const projectRoot: string = await makeTempVault()
+        const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
         const metadataPath: string = join(terminalDir, `${terminalId}.json`)
         const logPath: string = join(terminalDir, `${terminalId}.log`)
         sessions.add(terminalId)
 
         spawnHeadlessAgent(
             terminalId,
-            makeTerminalData(terminalId, vaultPath),
+            makeTerminalData(terminalId, projectRoot),
             `bash -lc 'echo BF311_READY; while IFS= read -r line; do echo BF311_GOT:$line; [ "$line" = "BF311_EXIT" ] && break; done'`,
-            vaultPath,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
             undefined,
             'tmux',
         )
@@ -130,20 +130,20 @@ describe('headlessAgentManager tmux backend', () => {
     // failure Wei observed cannot recur.
     it('spawns a tmux-backed interactive terminal (isHeadless=false) and persists the original terminalData for reconciliation', async () => {
         const terminalId: TerminalId = makeName()
-        const vaultPath: string = await makeTempVault()
-        const metadataPath: string = join(vaultPath, '.voicetree', 'terminals', `${terminalId}.json`)
+        const projectRoot: string = await makeTempVault()
+        const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
         sessions.add(terminalId)
 
         const interactiveTerminalData: TerminalData = createTerminalData({
             terminalId,
-            attachedToNodeId: join(vaultPath, 'context.md') as NodeIdAndFilePath,
+            attachedToNodeId: join(projectRoot, 'context.md') as NodeIdAndFilePath,
             terminalCount: 0,
             title: 'M1-fix interactive tmux',
             agentName: terminalId,
             isHeadless: false,
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: terminalId,
-                VOICETREE_VAULT_PATH: vaultPath,
+                VOICETREE_VAULT_PATH: projectRoot,
             },
         })
 
@@ -151,8 +151,8 @@ describe('headlessAgentManager tmux backend', () => {
             terminalId,
             interactiveTerminalData,
             '/bin/bash -l',
-            vaultPath,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
         )
         expect(created.pid).toBeGreaterThan(0)
 
@@ -178,17 +178,17 @@ describe('headlessAgentManager tmux backend', () => {
     // After the fix, the second call rebinds to the existing pane.
     it('rebinds to an existing tmux session instead of failing with duplicate session (Electron relaunch case)', async () => {
         const terminalId: TerminalId = makeName()
-        const vaultPath: string = await makeTempVault()
-        const metadataPath: string = join(vaultPath, '.voicetree', 'terminals', `${terminalId}.json`)
+        const projectRoot: string = await makeTempVault()
+        const metadataPath: string = join(projectRoot, '.voicetree', 'terminals', `${terminalId}.json`)
         sessions.add(terminalId)
 
-        const td: TerminalData = makeTerminalData(terminalId, vaultPath)
+        const td: TerminalData = makeTerminalData(terminalId, projectRoot)
         const first: {readonly pid: number} = await spawnTmuxBackedTerminal(
             terminalId,
             td,
             '/bin/bash -l',
-            vaultPath,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
         )
         expect(first.pid).toBeGreaterThan(0)
         expect(await hasSession(terminalId)).toBe(true)
@@ -200,8 +200,8 @@ describe('headlessAgentManager tmux backend', () => {
             terminalId,
             td,
             '/bin/bash -l',
-            vaultPath,
-            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: vaultPath},
+            projectRoot,
+            {VOICETREE_TERMINAL_ID: terminalId, VOICETREE_VAULT_PATH: projectRoot},
         )
         expect(second.pid).toBe(first.pid)
         expect(await hasSession(terminalId)).toBe(true)

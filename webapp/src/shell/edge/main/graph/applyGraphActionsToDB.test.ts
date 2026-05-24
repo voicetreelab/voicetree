@@ -21,7 +21,7 @@ describe('apply_graph_deltas_to_db', () => {
 
   // Mock environment for testing
   const testEnv: Env = {
-    projectRootWatchedDirectory: testVaultPath
+    projectRoot: testVaultPath
   }
 
   // Create test vault directory before all tests
@@ -393,11 +393,11 @@ describe('apply_graph_deltas_to_db', () => {
 
       // Test with different environments
       const env1: Env = {
-        projectRootWatchedDirectory: vault1Path
+        projectRoot: vault1Path
       }
 
       const env2: Env = {
-        projectRootWatchedDirectory: vault2Path
+        projectRoot: vault2Path
       }
 
       const newNode: GraphNode = createTestNode('test', '# Test')

@@ -14,38 +14,57 @@ import {
 } from "./loadGraphFromDisk";
 import { notifyTextToTreeServerOfDirectory } from "./notifyTextToTreeServer";
 import { setGraph, getGraph } from "@vt/graph-db-server/state/graph-store";
-import { getProjectRootWatchedDirectory } from "@vt/graph-db-server/state/watch-folder-store";
+import { getProjectRoot } from "@vt/graph-db-server/state/watch-folder-store";
 import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-starter-node";
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
 export interface LoadVaultPathOptions {
-  isWritePath: boolean;
+  isWriteFolder: boolean;
   createStarterIfEmpty?: boolean;
 }
 
-export type LoadVaultPathResult = {
-    success: boolean;
-    error?: string;
+export type FileLimitDetails = {
+    readonly fileCount: number;
+    readonly maxFiles: number;
 };
 
+export type VaultLoadOutcome =
+    | { readonly kind: 'ok' }
+    | { readonly kind: 'fileLimit'; readonly details: FileLimitDetails }
+    | { readonly kind: 'failed'; readonly reason: string };
+
+export function describeVaultLoadFailure(
+    outcome: Exclude<VaultLoadOutcome, { kind: 'ok' }>,
+): string {
+    switch (outcome.kind) {
+        case 'fileLimit':
+            return `File limit exceeded: ${outcome.details.fileCount} files (max: ${outcome.details.maxFiles})`;
+        case 'failed':
+            return outcome.reason;
+    }
+}
+
 export async function loadAndMergeVaultPath(
-    vaultPath: FilePath,
-    options: LoadVaultPathOptions = { isWritePath: false },
+    projectRoot: FilePath,
+    options: LoadVaultPathOptions = { isWriteFolder: false },
     positions?: ReadonlyMap<string, Position>
-): Promise<LoadVaultPathResult> {
+): Promise<VaultLoadOutcome> {
     const existingGraph: Graph = getGraph();
-    const watchedFolderPath: FilePath | null = getProjectRootWatchedDirectory();
+    const watchedFolderPath: FilePath | null = getProjectRoot();
 
     const loadResult: E.Either<FileLimitExceededError, { graph: Graph; delta: GraphDelta }> =
         await traceGraphdSpan('vault.load-and-merge.load-vault-path-additively', async (span) => {
-            span.setAttribute('vaultPath', vaultPath);
-            return await loadVaultPathAdditively(vaultPath, existingGraph);
+            span.setAttribute('projectRoot', projectRoot);
+            return await loadVaultPathAdditively(projectRoot, existingGraph);
         });
 
     if (E.isLeft(loadResult)) {
         return {
-            success: false,
-            error: `File limit exceeded: ${loadResult.left.fileCount} files (max: ${loadResult.left.maxFiles})`
+            kind: 'fileLimit',
+            details: {
+                fileCount: loadResult.left.fileCount,
+                maxFiles: loadResult.left.maxFiles,
+            },
         };
     }
 
@@ -75,14 +94,14 @@ export async function loadAndMergeVaultPath(
         }
     }
 
-    if (options.isWritePath && (options.createStarterIfEmpty ?? true)) {
+    if (options.isWriteFolder && (options.createStarterIfEmpty ?? true)) {
         await traceGraphdSpan('vault.load-and-merge.create-starter-node-if-empty', async (span) => {
             const nodesInPath: readonly string[] = Object.keys(currentGraph.nodes).filter(nodeId =>
-                nodeId.startsWith(vaultPath + '/') || nodeId === vaultPath
+                nodeId.startsWith(projectRoot + '/') || nodeId === projectRoot
             );
             span.setAttribute('nodesInPath.count', nodesInPath.length);
             if (nodesInPath.length === 0) {
-                const starterGraph: Graph = await createStarterNode(vaultPath);
+                const starterGraph: Graph = await createStarterNode(projectRoot);
                 currentGraph = { ...currentGraph, nodes: { ...currentGraph.nodes, ...starterGraph.nodes } };
                 const starterNodeId: string = Object.keys(starterGraph.nodes)[0];
                 if (starterNodeId) {
@@ -102,10 +121,10 @@ export async function loadAndMergeVaultPath(
         if (accumulatedDelta.length > 0) {
             refreshGraphChangeSideEffects();
         }
-        if (options.isWritePath) {
-            notifyTextToTreeServerOfDirectory(vaultPath);
+        if (options.isWriteFolder) {
+            notifyTextToTreeServerOfDirectory(projectRoot);
         }
     });
 
-    return { success: true };
+    return { kind: 'ok' };
 }

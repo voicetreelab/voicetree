@@ -3,8 +3,8 @@ import {createServer, type Server} from 'node:http'
 import type {AddressInfo} from 'node:net'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket} from 'ws'
-import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux-launchagent.ts'
-import {killSession, createSession, hasSession} from '../../terminals/tmux-session-manager.ts'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-server.ts'
+import {buildTmuxSessionName, killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
 import {mountTmuxAttachRelay, type TmuxAttachRelayHandle} from '../tmux-attach-relay.ts'
 
 const TEST_TIMEOUT_MS: 20000 = 20000
@@ -89,6 +89,16 @@ async function waitForOutput(output: () => string, needle: string, timeoutMs: nu
     throw new Error(`timed out waiting for ${needle}; output was:\n${output()}`)
 }
 
+async function waitForTmuxOutput(sessionName: string, needle: string, timeoutMs: number = 10000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-50', '-t', sessionName])
+        if (captured.includes(needle)) return
+        await delay(25)
+    }
+    throw new Error(`timed out waiting for tmux pane output ${needle}`)
+}
+
 async function waitForTmuxPaneSize(sessionName: string, expectedWidth: number, timeoutMs: number = 5000): Promise<void> {
     const start: number = Date.now()
     while (Date.now() - start < timeoutMs) {
@@ -97,6 +107,16 @@ async function waitForTmuxPaneSize(sessionName: string, expectedWidth: number, t
         await delay(10)
     }
     throw new Error(`timed out waiting for tmux pane width ${expectedWidth}`)
+}
+
+async function waitForTmuxWindowSizeOption(sessionName: string, expected: string, timeoutMs: number = 2000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const value: string = tmuxOutput(['show-options', '-v', '-t', sessionName, 'window-size']).trim()
+        if (value === expected) return
+        await delay(10)
+    }
+    throw new Error(`timed out waiting for tmux window-size=${expected}`)
 }
 
 describe('tmux attach relay', () => {
@@ -134,6 +154,7 @@ describe('tmux attach relay', () => {
         const sessionName: string = makeSessionName('bridge')
         sessions.push(sessionName)
         await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
 
         await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
         const port: number = (server!.address() as AddressInfo).port
@@ -162,12 +183,73 @@ describe('tmux attach relay', () => {
             const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-200', '-t', sessionName])
             expect(captured).toContain('COUNT:66 TOTAL:983')
 
+            await waitForTmuxWindowSizeOption(sessionName, 'latest')
+
             ws.send(JSON.stringify({type: 'resize', cols: 160, rows: 40}))
             await waitForTmuxPaneSize(sessionName, 160)
 
             ws.close()
             await delay(100)
             expect(await hasSession(sessionName)).toBe(true)
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('drops malformed WS frames without crashing the relay', async () => {
+        const sessionName: string = makeSessionName('badframe')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+
+            // Sequence: a frame that is invalid JSON, then a frame that is valid
+            // JSON but the wrong shape, then a normal input frame. The relay must
+            // survive both bad frames and still deliver the third.
+            ws.send('{not valid json')
+            ws.send(JSON.stringify(['unexpected', 'shape']))
+            ws.send(JSON.stringify({type: 'input', payload: 'BF312_AFTER_BAD\r'}))
+
+            await waitForOutput(output, 'ECHO:BF312_AFTER_BAD')
+            expect(await hasSession(sessionName)).toBe(true)
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
+    it('attaches a raw terminal route to its vault-namespaced tmux session', async () => {
+        const terminalId: string = makeSessionName('namespaced')
+        const env: Record<string, string> = {
+            VOICETREE_VAULT_PATH: `/tmp/${terminalId}-vault`,
+        }
+        const sessionName: string = buildTmuxSessionName(terminalId, env)
+        sessions.push(terminalId)
+        await createSession(terminalId, sessionCommand(), env)
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(terminalId)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+
+            ws.send(JSON.stringify({type: 'input', payload: 'BF312_NAMESPACED\r'}))
+            await waitForOutput(output, 'ECHO:BF312_NAMESPACED')
+
+            const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-50', '-t', sessionName])
+            expect(captured).toContain('ECHO:BF312_NAMESPACED')
+            expect(await hasSession(terminalId)).toBe(true)
         } finally {
             ws.close()
         }
@@ -185,6 +267,35 @@ describe('tmux attach relay', () => {
         await closed
         expect(output()).toContain('[session ended — agent exited]')
         expect(output()).not.toContain('tmux session configuration failed')
+        ws.close()
+    }, TEST_TIMEOUT_MS)
+
+    it('reports node-pty load failure at attach time without killing the tmux session', async () => {
+        const sessionName: string = makeSessionName('missing-pty')
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        relay?.close()
+        relay = mountTmuxAttachRelay(server!, {
+            loadPty: async () => {
+                throw new Error('native module missing')
+            },
+            logger: {
+                info: () => undefined,
+                warn: () => undefined,
+            },
+        })
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {closed, output, ws} = await connectAndCollect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach`
+        )
+
+        await closed
+        expect(output()).toContain('node-pty unavailable: native module missing')
+        expect(await hasSession(sessionName)).toBe(true)
         ws.close()
     }, TEST_TIMEOUT_MS)
 })

@@ -1,0 +1,42 @@
+name: Main CI
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: main-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    name: Main CI / Full
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full scheduled checks
+        run: npm run test:full

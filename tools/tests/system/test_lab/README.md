@@ -1,302 +1,94 @@
 # VoiceTree End-to-End Test Lab
 
-A comprehensive testing framework for validating agent orchestration and node creation in the VoiceTree system. This test lab enables automated testing of the complete agent lifecycle from task initiation through subtask creation to output validation.
-
-## Overview
-
-The End-to-End Test Lab provides:
-- **Headless Agent Execution**: Run agents in isolated environments without manual intervention
-- **Comprehensive Validation**: Verify node creation, linking, formatting, and content quality
-- **Multiple Test Scenarios**: Pre-configured scenarios covering various agent behaviors
-- **Detailed Reporting**: Generate comprehensive test reports with pass/fail analysis
+Automated testing framework for the VoiceTree agent lifecycle: task initiation → subtask creation → output validation. See `ARCHITECTURE.md` for design details.
 
 ## Quick Start
 
 ### Prerequisites
-- python3 3.8+
+- Python 3.8+
 - Claude CLI installed and configured
 - VoiceTree repository setup
-- Access to `$USER_ROOT_DIR/repos/VoiceTree` (or update paths in configuration)
 
-### Installation
-No additional installation required. The test lab uses only standard python3 libraries and the existing VoiceTree environment.
+### Usage
 
-### Basic Usage
-
-Run all test scenarios:
 ```bash
-cd $USER_ROOT_DIR/repos/VoiceTree/tools/test_lab
-python3 run_tests.py
-```
-
-Run a specific scenario:
-```bash
+cd tools/tests/system/test_lab
+python3 run_tests.py                                    # all scenarios
 python3 run_tests.py --scenario "Simple Progress Node Creation"
-```
-
-List available scenarios:
-```bash
-python3 run_tests.py --list
+python3 run_tests.py --list                             # list scenarios
+python3 run_tests.py --verbose                          # full output
+python3 run_tests.py --help                             # all options
 ```
 
 ## Configuration
 
-### Test Scenarios
+Test scenarios are defined in `test_scenarios.json`. Each scenario specifies:
+- `name` — unique identifier
+- `description` — human-readable purpose
+- `source_content` — content for the dummy source note
+- `agent_prompt` — prompt sent to the agent
+- `expected_behaviors` — list of expected behaviors
+- `validation_criteria` — validation rules
 
-Test scenarios are defined in `test_scenarios.json`. Each scenario includes:
-- **name**: Unique identifier for the test
-- **description**: Human-readable description
-- **source_content**: Content for the dummy source note
-- **agent_prompt**: Prompt sent to the agent
-- **expected_behaviors**: List of expected agent behaviors
-- **validation_criteria**: Specific validation rules
+### Environment variables (set automatically during test runs)
+- `OBSIDIAN_VAULT_PATH` — path to the test vault
+- `OBSIDIAN_SOURCE_NOTE` — relative path to the source note
+- `AGENT_COLOR` — color assigned to the test agent
 
-### Environment Configuration
+### Default validation rules
+Node creation, YAML frontmatter (`node_id`, `title`, `color`), node ID pattern
+`^\d+(_\d+)*$`, parent-child wikilinks, content structure (Summary / Technical Details /
+Impact), Mermaid diagrams, and filename sanitization.
 
-The test lab uses these environment variables (automatically set during testing):
-- `OBSIDIAN_VAULT_PATH`: Path to the test vault
-- `OBSIDIAN_SOURCE_NOTE`: Relative path to source note
-- `AGENT_COLOR`: Color assigned to the test agent
+## Built-in Scenarios
 
-### Validation Rules
+1. **Simple Progress Node Creation** — basic node creation with proper formatting
+2. **Agent Subtask Creation** — orchestrator creating linked subtasks
+3. **Error Handling Test** — graceful behavior on invalid inputs
+4. **Cross-Agent Communication Test** — agents referencing other agents' work
+5. **Complex Technical Documentation** — flowcharts, sequence and class diagrams
 
-Default validation includes:
-- **Node Creation**: New markdown files created
-- **YAML Frontmatter**: Proper node_id, title, and color fields
-- **Node ID Format**: Follows pattern `^\d+(_\d+)*$`
-- **Parent-Child Links**: Proper `[[filename.md]]` linking
-- **Content Structure**: Required sections (Summary, Technical Details, Impact)
-- **Mermaid Diagrams**: Visual diagrams in code blocks
-- **Filename Sanitization**: No invalid characters in filenames
+### Adding scenarios
 
-## Command Line Options
+Append a JSON object to `test_scenarios.json` with the fields listed above; see the
+existing entries as templates.
 
-### run_tests.py Options
+## Reports
 
-```bash
-python3 run_tests.py [OPTIONS]
-
-Options:
-  --scenario TEXT     Run specific test scenario by name
-  --list             List available test scenarios  
-  --config TEXT      Test scenarios configuration file (default: test_scenarios.json)
-  --verbose, -v      Verbose output
-  --help             Show help message
-```
-
-### Examples
-
-Run with verbose output:
-```bash
-python3 run_tests.py --verbose
-```
-
-Use custom configuration:
-```bash
-python3 run_tests.py --config my_scenarios.json
-```
-
-Run specific scenario with verbose output:
-```bash
-python3 run_tests.py --scenario "Agent Subtask Creation" --verbose
-```
-
-## Test Scenarios
-
-### Built-in Scenarios
-
-1. **Simple Progress Node Creation**
-   - Tests basic node creation with proper formatting
-   - Validates YAML frontmatter, Mermaid diagrams, content structure
-
-2. **Agent Subtask Creation**
-   - Tests orchestration agent creating multiple subtasks
-   - Validates multiple node creation and proper linking
-
-3. **Error Handling Test**
-   - Tests agent behavior with invalid inputs
-   - Validates graceful error handling and filename sanitization
-
-4. **Cross-Agent Communication Test**
-   - Tests agents referencing other agents' work
-   - Validates collaborative content and attribution
-
-5. **Complex Technical Documentation**
-   - Tests comprehensive documentation with multiple diagram types
-   - Validates flowcharts, sequence diagrams, and class diagrams
-
-### Adding Custom Scenarios
-
-Add new scenarios to `test_scenarios.json`:
-
-```json
-{
-  "name": "My Custom Test",
-  "description": "Description of what this tests",
-  "source_content": "Content for the dummy source note",
-  "agent_prompt": "Prompt to send to the agent",
-  "expected_behaviors": ["behavior1", "behavior2"],
-  "validation_criteria": {
-    "new_nodes_created": true,
-    "proper_node_ids": true,
-    "custom_validation": true
-  }
-}
-```
-
-## Output and Reporting
-
-### Test Execution Output
-
-During test execution, you'll see:
-- Real-time progress updates
-- Individual scenario results
-- Validation results for each test
-- Agent output (truncated for readability)
-- Overall pass/fail status
-
-### Test Reports
-
-After execution, a JSON report is generated containing:
-- Test run timestamp
-- Individual test results and timings
-- Validation details for each scenario
-- Error messages and debugging information
-
-Report location: `$USER_ROOT_DIR/repos/VoiceTree/test_results_TIMESTAMP.json`
-
-### Reading Test Results
-
-```python
-import json
-
-# Load test report
-with open('test_results_20250808_143022.json', 'r') as f:
-    report = json.load(f)
-
-# Check overall results
-print(f"Total tests: {report['total_tests']}")
-print(f"Passed: {report['passed_tests']}")
-
-# Examine specific test
-test = report['test_results'][0]
-print(f"Test: {test['prompt'][:50]}...")
-print(f"Status: {test['status']}")
-print(f"Validations: {test['validations']}")
-```
+Each run writes `test_results_TIMESTAMP.json` at the repo root with per-scenario
+results, validation details, agent output, and timings. Load with `json.load` and
+inspect `report['test_results']`.
 
 ## Troubleshooting
 
-### Common Issues
+| Symptom | Likely cause |
+|---|---|
+| `claude command not found` | Claude CLI not on `PATH`, or `.claude/settings.json` missing |
+| Tests time out (120s) | Prompt too complex, network slow, or timeout too tight in `end_to_end_test_runner.py` |
+| No nodes created | Agent prompt missing `add_new_node.py` instructions, vault path wrong, or insufficient permissions |
+| Validation fails | Mismatch between scenario `validation_criteria` and agent output format |
 
-**Test fails with "claude command not found"**
-- Ensure Claude CLI is installed and in your PATH
-- Verify Claude settings exist at `$USER_ROOT_DIR/repos/VoiceTree/.claude/settings.json`
+For deeper debugging, comment out `shutil.rmtree(self.test_vault_root)` in
+`cleanup_test_environment` to inspect the temporary vault after a run.
 
-**Tests timeout after 120 seconds**
-- Check if your prompts are too complex
-- Verify network connectivity for LLM requests
-- Consider increasing timeout in `end_to_end_test_runner.py`
+## Extending validation
 
-**No nodes created during test**
-- Check agent prompt includes instructions to use `add_new_node.py`
-- Verify vault path is correctly set
-- Check agent has proper permissions
+Subclass `AgentOutputValidator` in `output_validator.py` and add custom
+`validate_*` methods. Custom validators are picked up by name from the scenario's
+`validation_criteria` block.
 
-**Validation failures**
-- Review validation criteria in test scenarios
-- Check that agents are following content format requirements
-- Verify Mermaid diagrams are properly formatted
-
-### Debug Mode
-
-For detailed debugging, examine:
-1. Agent stdout/stderr in test results
-2. Temporary test vault contents (before cleanup)
-3. Claude execution environment variables
-
-### Enable Debug Output
-
-Modify `end_to_end_test_runner.py` to skip cleanup:
-```python
-def cleanup_test_environment(self):
-    # Comment out for debugging
-    # if self.test_vault_root and self.test_vault_root.exists():
-    #     shutil.rmtree(self.test_vault_root)
-    pass
-```
-
-### Performance Issues
-
-**Slow test execution:**
-- Reduce number of test scenarios
-- Use smaller, more focused prompts
-- Check system resources during execution
-
-**High memory usage:**
-- Monitor test vault cleanup
-- Verify no memory leaks in agent execution
-- Consider running tests sequentially rather than in parallel
-
-## Integration
-
-### CI/CD Integration
-
-See `charlie_create_cicd_integration.md` for GitHub Actions integration.
-
-### Custom Validation
-
-Extend `output_validator.py` for custom validation rules:
-
-```python
-from output_validator import AgentOutputValidator
-
-class CustomValidator(AgentOutputValidator):
-    def validate_custom_requirement(self, content):
-        # Your custom validation logic
-        return True  # or False
-```
-
-### Programmatic Usage
+## Programmatic usage
 
 ```python
 from end_to_end_test_runner import EndToEndTestLab
 
-# Create test lab
 lab = EndToEndTestLab()
-
-# Run custom test
 success = lab.run_test_scenario(
-    "My Test",
-    "Source content",
-    "Agent prompt",
-    ["expected_behavior"]
+    "My Test", "Source content", "Agent prompt", ["expected_behavior"]
 )
-
-# Generate report
 report_file = lab.generate_test_report()
 ```
 
-## Contributing
+## CI/CD
 
-When adding new test scenarios:
-1. Follow existing naming conventions
-2. Include comprehensive validation criteria
-3. Test scenarios should be independent
-4. Document expected behaviors clearly
-5. Ensure scenarios cover edge cases
-
-## Support
-
-For issues with the test lab:
-1. Check the troubleshooting section above
-2. Review test logs and reports
-3. Examine agent output for error patterns
-4. Verify environment configuration
-
-## Version Information
-
-- **Test Lab Version**: 1.0
-- **Compatible with**: VoiceTree Agent System v2.0+
-- **python3 Requirements**: 3.8+
-- **Claude CLI**: Latest version recommended
+See `charlie_create_cicd_integration.md` for GitHub Actions integration.

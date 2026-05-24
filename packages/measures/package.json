@@ -1,0 +1,33 @@
+{
+  "name": "@vt/measures",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./vitest-reporter": "./src/_shared/writers/vitest-ci-check-reporter.ts",
+    "./check-report-writer": "./src/_shared/writers/check-report-writer.ts"
+  },
+  "scripts": {
+    "test": "vitest run src/health/**/*.test.ts src/checks/**/*.test.ts src/_subgraph_gate/**/*.test.ts",
+    "test:perf:agents": "node --import tsx perf/agent-storm.ts",
+    "perf:main-storm": "node --import tsx perf/electron-main-storm.ts"
+  },
+  "dependencies": {
+    "@vt/agent-runtime": "*",
+    "@vt/graph-db-client": "*",
+    "@vt/graph-db-server": "*",
+    "@vt/graph-model": "*",
+    "@vt/observability": "*",
+    "@vt/perf-fixtures": "*",
+    "@vt/voicetree-mcp": "*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "ts-morph": "^28.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

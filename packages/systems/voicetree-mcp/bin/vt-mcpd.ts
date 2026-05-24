@@ -27,6 +27,7 @@
 import {homedir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
+import {tracing} from '@vt/observability'
 import {
     configureMcpServer,
     getMcpPort,
@@ -121,9 +122,15 @@ async function main(): Promise<void> {
     const args: Args = parseArgs(process.argv.slice(2))
     const appSupportPath: string = process.env.VOICETREE_APP_SUPPORT ?? defaultAppSupportPath()
 
+    // In headless mode the graph-db-server runs in-process (no vt-graphd
+    // binary), so the binary's tracing init is bypassed. Wire it here so
+    // ~/.voicetree/traces/vt-graphd.ndjson is populated for perf and
+    // diagnostics runs against vt-mcpd.
+    tracing.init('vt-graphd')
+
     configureHeadlessBridges(appSupportPath)
     await agentRuntime.ensureTmuxAvailable()
-    await agentRuntime.ensureTmuxLaunchAgent()
+    await agentRuntime.ensureTmuxServer()
 
     let daemonHandle: DaemonHandle
     try {

@@ -2,16 +2,11 @@ import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
-import * as O from 'fp-ts/lib/Option.js'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {type DaemonHandle, startDaemon} from '@vt/graph-db-server/server'
-import {
-    createGraph,
-    createEmptyGraph,
-    type GraphNode,
-} from '@vt/graph-model'
+import {createEmptyGraph} from '@vt/graph-model'
 import {main} from '@/shell/edge/main/cli/voicetree-cli'
 import {EXIT} from '@/shell/edge/main/cli/util/exitCodes'
 import {runViewCommand} from './view.ts'
@@ -144,7 +139,7 @@ describe('runViewCommand', () => {
         setStdoutIsTTY(false)
         clearWatchFolderState()
         setGraph(createEmptyGraph())
-        daemonHandle = await startDaemon({vault: harness.vault})
+        daemonHandle = await startDaemon({vault: harness.vault, createStarterIfEmpty: false})
     })
 
     afterEach(async () => {
@@ -418,22 +413,14 @@ describe('runViewCommand', () => {
         const docsPath: string = join(harness.vault, 'docs')
         const alphaPath: string = join(docsPath, 'alpha.md')
         const betaPath: string = join(docsPath, 'beta.md')
-        const makeNode = (absoluteFilePathIsID: string, title: string): GraphNode => ({
-            kind: 'leaf',
-            outgoingEdges: [],
-            absoluteFilePathIsID,
-            contentWithoutYamlOrLinks: title,
-            nodeUIMetadata: {
-                color: O.none,
-                position: O.none,
-                additionalYAMLProps: new Map(),
-            },
-        })
-        setGraph(createGraph({
-            [alphaPath]: makeNode(alphaPath, 'Alpha'),
-            [betaPath]: makeNode(betaPath, 'Beta'),
-        }))
         const client: GraphDbClient = createClient()
+        await mkdir(docsPath, {recursive: true})
+        await writeFile(alphaPath, '# Alpha\n', 'utf8')
+        await writeFile(betaPath, '# Beta\n', 'utf8')
+        await waitFor(async () => {
+            const graph = await client.getGraph()
+            return graph.nodes[alphaPath] && graph.nodes[betaPath] ? true : null
+        })
         const {sessionId}: {sessionId: string} = await client.createSession()
         await client.setFolderState(sessionId, docsPath, 'collapsed')
 

@@ -8,7 +8,15 @@ import path from "path";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const ciCheckReporter = require.resolve("@vt/ci-reporting/vitest-reporter");
+const ciCheckReporter = require.resolve("@vt/measures/vitest-reporter");
+const disableDevServerWatch = process.env.VT_DISABLE_DEV_SERVER_WATCH === "1";
+const devServerWatchIgnoredPaths = [
+  "**/dist/**",
+  "**/dist-electron/**",
+  "**/resources/**",
+  "**/.venv*/**",
+  "**/node_modules/**"
+];
 
 /**
  * Vite configuration for browser-only dev (npm run dev) and Vitest
@@ -59,15 +67,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    watch: {
-      ignored: [
-        '**/dist/**',
-        '**/dist-electron/**',
-        '**/resources/**',
-        '**/.venv*/**',
-        '**/node_modules/**'
-      ]
-    }
+    hmr: disableDevServerWatch ? false : undefined,
+    watch: disableDevServerWatch
+      ? null
+      : { ignored: devServerWatchIgnoredPaths }
   },
   build: {
     rollupOptions: {

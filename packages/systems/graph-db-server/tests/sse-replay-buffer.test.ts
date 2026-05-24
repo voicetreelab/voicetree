@@ -10,7 +10,7 @@ import {
   type GraphNode,
 } from '@vt/graph-model/graph'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
-import { SessionCreateResponseSchema } from '../src/daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import { publish } from '../src/state/events/deltaEventBus.ts'
 import { type DaemonHandle, startDaemon } from '../src/daemon/server.ts'
 import { getGraph, setGraph } from '../src/state/graph-store.ts'
@@ -89,7 +89,7 @@ async function createAppSupport(vault: string): Promise<string> {
   const appSupport = await mkdtemp(join(tmpdir(), 'graphd-sse-replay-appsupport-'))
   await writeFile(
     join(appSupport, 'voicetree-config.json'),
-    JSON.stringify({ vaultConfig: { [vault]: { writePath: vault } } }),
+    JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
   )
   return appSupport
 }

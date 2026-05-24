@@ -162,6 +162,7 @@ text.tm-leaf-meta {
   border: 1px solid var(--rule-strong);
 }
 .tm-tt-status.tm-status-fail      { color: var(--sig);     border-color: var(--sig-edge);     background: var(--sig-soft); }
+.tm-tt-status.tm-status-warn      { color: var(--caution); border-color: var(--caution-edge); background: var(--caution-soft); }
 .tm-tt-status.tm-status-caution   { color: var(--caution); border-color: var(--caution-edge); background: var(--caution-soft); }
 .tm-tt-status.tm-status-pass      { color: var(--vital);   border-color: var(--vital-edge);   background: var(--vital-soft); }
 .tm-tt-status.tm-status-gate-pass { color: var(--paper-muted); border-color: var(--rule-strong); }

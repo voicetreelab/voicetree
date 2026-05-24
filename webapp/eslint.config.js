@@ -20,7 +20,7 @@ const daemonMutationAllowComment = 'vt-allow-direct-daemon-mutation-import'
 const daemonMutationFixturePattern =
   /(^|[/\\])(?:__fixtures__|fixtures)[/\\]allowed-daemon-mutation-imports[/\\]/
 const daemonMutationSpecifiersByModule = {
-  '@vt/graph-model': new Set(['setWritePath', 'addReadPath', 'removeReadPath']),
+  '@vt/graph-model': new Set(['setWriteFolder', 'addReadPath', 'removeReadPath']),
 }
 
 function normalizeFilePath(filename) {
@@ -315,6 +315,13 @@ export default tseslint.config([
   {
     basePath: repoRootDir,
     files: ['webapp/src/shell/edge/main/cli/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    basePath: repoRootDir,
+    files: ['webapp/e2e-tests/electron/for_feature_development_not_LT_verification/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },

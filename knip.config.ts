@@ -6,8 +6,7 @@ const config: KnipConfig = {
             entry: [
                 'scripts/*.mjs',
                 'scripts/*.cjs',
-                'scripts/measures/**/*.ts',
-                'scripts/measures/invariants/coupling/**/*.mjs',
+                'packages/measures/**/*.ts',
                 'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
             ],
@@ -40,12 +39,12 @@ const config: KnipConfig = {
                 'e2e-tests/**',
             ],
         },
-        'packages/libraries/*': {
-            entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],
+        'packages/measures': {
+            entry: ['src/**/*.ts', 'src/**/*.test.ts'],
             project: ['src/**/*.ts'],
         },
-        'packages/codebase-health': {
-            entry: ['src/**/*.test.ts'],
+        'packages/libraries/*': {
+            entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],
             project: ['src/**/*.ts'],
         },
         'packages/systems/*': {

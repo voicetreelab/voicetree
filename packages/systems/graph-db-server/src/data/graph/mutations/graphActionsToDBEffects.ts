@@ -10,10 +10,11 @@ import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import { promises as fs } from 'fs'
 import path from 'path'
+import normalizePath from 'normalize-path'
 import { fromNodeToMarkdownContent } from '@vt/graph-model/markdown'
 import { nodeIdToFilePathWithExtension } from '@vt/graph-model/markdown'
-import {markRecentDelta} from "@vt/graph-db-server/state/recent-deltas-store";
 import { markPendingDelete, markPendingWrite } from '@vt/graph-db-server/watch-folder/pending-writes'
+import { traceGraphdSpan } from '@vt/graph-db-server/watch-folder/paths/traceGraphdSpan'
 
 /**
  * Helper to convert unknown errors to Error type
@@ -36,15 +37,15 @@ function isWithinRoot(candidatePath: string, rootPath: string): boolean {
     return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
 }
 
-function getNodeFilePath(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): string {
+function getNodeFilePath(nodeId: NodeIdAndFilePath, projectRoot: string): string {
     const filename: string = nodeIdToFilePathWithExtension(nodeId)
     return path.isAbsolute(filename)
         ? filename
-        : path.join(projectRootWatchedDirectory, filename)
+        : path.join(projectRoot, filename)
 }
 
-function createFileWritePlan(node: GraphNode, projectRootWatchedDirectory: string): FileWritePlan {
-    const fullPath: string = getNodeFilePath(node.absoluteFilePathIsID, projectRootWatchedDirectory)
+function createFileWritePlan(node: GraphNode, projectRoot: string): FileWritePlan {
+    const fullPath: string = getNodeFilePath(node.absoluteFilePathIsID, projectRoot)
     return {
         fullPath,
         parentDirectory: path.dirname(fullPath),
@@ -52,9 +53,9 @@ function createFileWritePlan(node: GraphNode, projectRootWatchedDirectory: strin
     }
 }
 
-function createFileDeletePlan(nodeId: NodeIdAndFilePath, projectRootWatchedDirectory: string): FileDeletePlan {
+function createFileDeletePlan(nodeId: NodeIdAndFilePath, projectRoot: string): FileDeletePlan {
     return {
-        fullPath: getNodeFilePath(nodeId, projectRootWatchedDirectory)
+        fullPath: getNodeFilePath(nodeId, projectRoot)
     }
 }
 
@@ -67,6 +68,36 @@ function getErrorCode(error: unknown): string | undefined {
 function isIgnorablePruneError(error: unknown): boolean {
     const errorCode: string | undefined = getErrorCode(error)
     return errorCode === 'ENOTEMPTY' || errorCode === 'ENOENT'
+}
+
+async function ensureDirectoryExists(directoryPath: string): Promise<void> {
+    await fs.mkdir(directoryPath, { recursive: true })
+}
+
+async function writeMarkdownToFile(fullPath: string, markdown: string): Promise<void> {
+    await fs.writeFile(fullPath, markdown, 'utf-8')
+}
+
+// Module-scoped cache of directories we have already created (or proven to
+// exist), partitioned by project root. `fs.mkdir(..., {recursive: true})` is a
+// syscall per write (~30-100ms under storm); after the first write into a given
+// directory we can skip the mkdir entirely. Root partitioning keeps vault
+// lifecycle state out of this data module's public boundary, and the write path
+// retries on ENOENT if an external process removes a cached directory.
+const knownExistingDirectoriesByRoot: Map<string, Set<string>> = new Map()
+
+function knownExistingDirectoriesForRoot(rootPath: string): Set<string> {
+    const rootKey = normalizePath(rootPath)
+    const existing = knownExistingDirectoriesByRoot.get(rootKey)
+    if (existing) return existing
+
+    const created: Set<string> = new Set()
+    knownExistingDirectoriesByRoot.set(rootKey, created)
+    return created
+}
+
+function deleteKnownDirectory(rootPath: string, directoryPath: string): void {
+    knownExistingDirectoriesForRoot(rootPath).delete(directoryPath)
 }
 
 async function pruneEmptyParentDirectories(filePath: string, rootPath: string): Promise<void> {
@@ -83,6 +114,9 @@ async function pruneEmptyParentDirectories(filePath: string, rootPath: string): 
 
             throw error
         }
+
+        // We just removed this directory; the cache must not claim it exists.
+        deleteKnownDirectory(rootPath, currentDirectory)
 
         const parentDirectory: string = path.dirname(currentDirectory)
         if (parentDirectory === currentDirectory) {
@@ -106,8 +140,6 @@ async function pruneEmptyParentDirectories(filePath: string, rootPath: string): 
 export function apply_graph_deltas_to_db(
   deltas: GraphDelta
 ): FSWriteEffect<GraphDelta> {
-    deltas.map( d =>  markRecentDelta(d))
-
     // Map each delta to a file write effect
     const writeEffects: readonly FSWriteEffect<void>[] = deltas.map(delta => {
         switch (delta.type) {
@@ -134,12 +166,38 @@ export function apply_graph_deltas_to_db(
 function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const plan: FileWritePlan = createFileWritePlan(node, env.projectRootWatchedDirectory)
+            const plan: FileWritePlan = createFileWritePlan(node, env.projectRoot)
+            const knownExistingDirectories = knownExistingDirectoriesForRoot(env.projectRoot)
+            let mkdirWasSkipped = false
 
-            await fs.mkdir(plan.parentDirectory, { recursive: true })
+            await traceGraphdSpan('daemon.apply-delta.db-write.mkdir', async span => {
+                if (knownExistingDirectories.has(plan.parentDirectory)) {
+                    span.setAttribute('vt.mkdir.cache', 'hit')
+                    mkdirWasSkipped = true
+                    return
+                }
+                span.setAttribute('vt.mkdir.cache', 'miss')
+                await ensureDirectoryExists(plan.parentDirectory)
+                knownExistingDirectories.add(plan.parentDirectory)
+            })
 
             markPendingWrite(plan.fullPath)
-            await fs.writeFile(plan.fullPath, plan.markdown, 'utf-8')
+            await traceGraphdSpan('daemon.apply-delta.db-write.writeFile', async span => {
+                span.setAttribute('vt.write.bytes', Buffer.byteLength(plan.markdown))
+                try {
+                    await writeMarkdownToFile(plan.fullPath, plan.markdown)
+                } catch (error: unknown) {
+                    if (!mkdirWasSkipped || getErrorCode(error) !== 'ENOENT') {
+                        throw error
+                    }
+
+                    knownExistingDirectories.delete(plan.parentDirectory)
+                    await ensureDirectoryExists(plan.parentDirectory)
+                    knownExistingDirectories.add(plan.parentDirectory)
+                    span.setAttribute('vt.mkdir.cache.recovered', true)
+                    await writeMarkdownToFile(plan.fullPath, plan.markdown)
+                }
+            })
         },
         toError
     )
@@ -151,11 +209,11 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
-            const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRootWatchedDirectory)
+            const plan: FileDeletePlan = createFileDeletePlan(nodeId, env.projectRoot)
 
             markPendingDelete(plan.fullPath)
             await fs.unlink(plan.fullPath)
-            await pruneEmptyParentDirectories(plan.fullPath, env.projectRootWatchedDirectory)
+            await pruneEmptyParentDirectories(plan.fullPath, env.projectRoot)
         },
         toError
     )

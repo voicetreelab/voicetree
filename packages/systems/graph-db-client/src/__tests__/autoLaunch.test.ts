@@ -1,11 +1,9 @@
-import { spawn, type ChildProcess } from 'node:child_process'
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 
-import { ensureDaemon, resolveDaemonRuntimeCommand } from '../autoLaunch.ts'
-import { DaemonLockHeldError } from '../errors.ts'
+import { resolveDaemonRuntimeCommand } from '../autoLaunch.ts'
 import { resolveDefaultDaemonArgs } from '../autoLaunch/runtime.ts'
 
 describe('resolveDaemonRuntimeCommand', () => {
@@ -128,7 +126,7 @@ describe('resolveDefaultDaemonArgs', () => {
 
     expect(args).toEqual([
       expect.stringMatching(/dist\/vt-graphd\.mjs$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })
@@ -143,69 +141,16 @@ describe('resolveDefaultDaemonArgs', () => {
       '--import',
       '/tmp/tsx',
       expect.stringMatching(/bin\/vt-graphd\.ts$/),
-      '--vault',
+      '--project-root',
       '/tmp/vault',
     ])
   })
 })
 
-describe('ensureDaemon — orphan lock recovery', () => {
-  let vault: string
-  let fakeHolder: ChildProcess | null = null
-
-  beforeEach(async () => {
-    vault = await mkdtemp(join(tmpdir(), 'vt-graphd-orphan-test-'))
-    await mkdir(join(vault, '.voicetree'), { recursive: true })
-    fakeHolder = null
-  })
-
-  afterEach(async () => {
-    if (fakeHolder?.pid) {
-      try {
-        process.kill(fakeHolder.pid, 'SIGKILL')
-      } catch {
-        // already gone
-      }
-    }
-    await rm(vault, { recursive: true, force: true })
-  })
-
-  test('throws DaemonLockHeldError fast when an alive process holds the lock without serving /health', async () => {
-    // An alive process whose HTTP server is dead — exactly the production
-    // failure mode where the spawned vt-graphd child sees the held lock and
-    // exits within milliseconds via process.exit(0).
-    fakeHolder = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e9)'], {
-      detached: true,
-      stdio: 'ignore',
-    })
-    fakeHolder.unref()
-    expect(fakeHolder.pid).toBeGreaterThan(0)
-    const holderPid = fakeHolder.pid!
-
-    await writeFile(
-      join(vault, '.voicetree', 'graphd.lock'),
-      String(holderPid),
-      { flag: 'wx' },
-    )
-
-    const start = Date.now()
-    let caught: unknown
-    try {
-      await ensureDaemon(vault, { timeoutMs: 8000 })
-    } catch (err) {
-      caught = err
-    }
-    const elapsed = Date.now() - start
-
-    // Bug: today this throws DaemonLaunchTimeout after ~8s.
-    // Fix: should throw DaemonLockHeldError carrying the holder pid, well
-    // under the configured timeout.
-    expect(caught).toBeInstanceOf(DaemonLockHeldError)
-    expect((caught as DaemonLockHeldError).pid).toBe(holderPid)
-    expect((caught as DaemonLockHeldError).vault).toBe(vault)
-    expect(elapsed).toBeLessThan(5000)
-  }, 15_000)
-})
+// The legacy `graphd.lock` orphan-recovery test moved to
+// `ensureGraphDaemonForVault.test.ts` — under the BF-344 owner protocol an
+// alive lock holder without a bound port surfaces as `OwnerWaitTimeoutError`
+// from the wait branch, not the older `DaemonLockHeldError`.
 
 async function withFakeRuntimeBin(
   run: (helpers: {

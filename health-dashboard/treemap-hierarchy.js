@@ -46,7 +46,7 @@ export function utilization (r) {
 export const utilCapped = (u) => Number.isFinite(u) ? Math.min(u, 2) : 2
 
 function leafStatus (r) {
-  if (!r.passed) return 'fail'
+  if (!r.passed) return r.severity === 'warning' ? 'warn' : 'fail'
   if (r.budget === 0) return 'gate-pass'
   if (utilization(r) >= 0.85) return 'caution'
   return 'pass'
@@ -54,12 +54,17 @@ function leafStatus (r) {
 
 function makeLeaf (r) {
   const u = utilization(r)
+  // effectivePassed: warning-only metrics don't propagate failure to parent
+  // aggregates — the leaf still shows the over-budget tile, but the category
+  // header stays green.
+  const effectivePassed = r.passed || r.severity === 'warning'
   return {
     kind: 'leaf',
     name: r.metricName,
     util: u,
     utilCapped: utilCapped(u),
     passed: r.passed,
+    effectivePassed,
     status: leafStatus(r),
     report: r,
   }
@@ -70,12 +75,12 @@ function aggregate (children) {
   let anyInfinite = false
   let allPass = true
   for (const c of children) {
-    if (!c.passed) allPass = false
+    if (!(c.effectivePassed ?? c.passed)) allPass = false
     if (!Number.isFinite(c.util)) anyInfinite = true
     else if (c.util > maxU) maxU = c.util
   }
   const util = anyInfinite ? Infinity : maxU
-  return { util, utilCapped: utilCapped(util), passed: allPass }
+  return { util, utilCapped: utilCapped(util), passed: allPass, effectivePassed: allPass }
 }
 
 export function buildHierarchy (reports) {

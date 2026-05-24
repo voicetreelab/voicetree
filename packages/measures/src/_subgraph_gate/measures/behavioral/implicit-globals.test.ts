@@ -1,0 +1,263 @@
+/**
+ * Black-box tests for the `implicit-globals` measure.
+ *
+ * As with module-state-bindings, the measure is exercised through its
+ * public `SubgraphMeasure.run` contract against in-memory ts-morph
+ * projects — no mocking of internals.
+ */
+import {Project} from 'ts-morph'
+import {describe, expect, it} from 'vitest'
+import {measure, analyzeFile, MEASURE_ID} from './implicit-globals.ts'
+import type {ParsedSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
+import type {SourceFile as SubgraphSourceFile} from '../../../_shared/graph/import-graph.ts'
+
+type FixtureFile = {
+    readonly path: string
+    readonly community: string
+    readonly content: string
+}
+
+function buildSubgraph(files: readonly FixtureFile[], touched: readonly string[]): ParsedSubgraph {
+    const project = new Project({useInMemoryFileSystem: true})
+    for (const f of files) project.createSourceFile(f.path, f.content)
+    const subgraphFiles: SubgraphSourceFile[] = files.map(f => ({
+        absolutePath: f.path,
+        relativePath: f.path.replace(/^\/virtual\//, ''),
+        relToSrc: f.path.replace(/^\/virtual\/[^/]+\/src\//, ''),
+        packageName: f.path.match(/^\/virtual\/([^/]+)\/src\//)?.[1] ?? 'unknown',
+    }))
+    const communityMap = new Map<string, string>(files.map(f => [f.path, f.community]))
+    return {
+        files: subgraphFiles,
+        communityMap,
+        edges: [],
+        touchedCommunities: [...touched].sort(),
+        depth: 1,
+        getProject: () => project,
+    }
+}
+
+// --- analyzeFile (pure) ---
+
+describe('analyzeFile (implicit-globals)', () => {
+    it('returns zero on a fully pure file', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts',
+            `export const add = (x: number, y: number) => x + y\n`)
+        const report = analyzeFile(sf)
+        expect(report.total).toBe(0)
+        expect(report.byCategory).toEqual({})
+    })
+
+    it('counts `fs` imports + downstream usages under `fs`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import {readFileSync, writeFileSync} from 'node:fs'
+            export const dump = (path: string, data: string) => {
+                writeFileSync(path, data)
+                return readFileSync(path, 'utf8')
+            }
+        `)
+        const report = analyzeFile(sf)
+        // 1 import (the declaration) + 1 readFileSync usage + 1 writeFileSync usage = 3
+        expect(report.byCategory.fs).toBeGreaterThanOrEqual(3)
+    })
+
+    it('does NOT count type-only fs imports (runtime-erased)', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import type {Stats} from 'node:fs'
+            export const measure = (s: Stats) => s.size
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory.fs ?? 0).toBe(0)
+    })
+
+    it('treats `path` as path-io ONLY when the file also imports fs', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const pureSf = project.createSourceFile('/virtual/pure.ts', `
+            import {join, dirname} from 'node:path'
+            export const childDir = (p: string, child: string) => join(dirname(p), child)
+        `)
+        const pureReport = analyzeFile(pureSf)
+        expect(pureReport.byCategory['path-io'] ?? 0).toBe(0)
+
+        const ioSf = project.createSourceFile('/virtual/io.ts', `
+            import {readFileSync} from 'node:fs'
+            import {join} from 'node:path'
+            export const readChild = (root: string, child: string) =>
+                readFileSync(join(root, child), 'utf8')
+        `)
+        const ioReport = analyzeFile(ioSf)
+        expect(ioReport.byCategory['path-io']).toBeGreaterThan(0)
+    })
+
+    it('counts every `console.*` call under `console`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const log = (m: string) => {
+                console.log(m)
+                console.error(m)
+                console.warn(m)
+            }
+        `)
+        const report = analyzeFile(sf)
+        // Free-identifier `console` resolves to the global; counted at each
+        // root identifier site (three property-access roots = three).
+        expect(report.byCategory.console).toBe(3)
+    })
+
+    it('counts `process.env` + `process.argv` under `process`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const home = () => process.env.HOME
+            export const argv = () => process.argv.slice(2)
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory.process).toBe(2)
+    })
+
+    it('counts `Date.now()` and `new Date()` (zero-arg) under `time`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const stamp = () => Date.now()
+            export const start = () => new Date()
+            export const parsed = () => new Date('2026-01-01')
+        `)
+        const report = analyzeFile(sf)
+        // Date.now() → 1 ; new Date() (no args) → 1 ; new Date('iso') → 0
+        expect(report.byCategory.time).toBe(2)
+    })
+
+    it('counts `Math.random()` under `random` (but NOT Math.PI)', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const r = () => Math.random()
+            export const pi = () => Math.PI
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory.random).toBe(1)
+    })
+
+    it('counts setTimeout/setInterval under `timer`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const later = () => setTimeout(() => {}, 10)
+            export const recur = () => setInterval(() => {}, 100)
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory.timer).toBe(2)
+    })
+
+    it('counts fetch + node:http imports under `network`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            import * as http from 'node:http'
+            export const ping = () => fetch('https://example.com')
+            export const local = () => http.createServer()
+        `)
+        const report = analyzeFile(sf)
+        // 1 import + 1 http usage + 1 fetch usage
+        expect(report.byCategory.network).toBeGreaterThanOrEqual(3)
+    })
+
+    it('counts `import(...)` dynamic imports under `dynamic-import`', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const lazy = () => import('./other.ts')
+            export const lazy2 = () => import('./other2.ts')
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory['dynamic-import']).toBe(2)
+    })
+
+    it('does NOT count parameter shadows (param named `fs`)', () => {
+        const project = new Project({useInMemoryFileSystem: true})
+        const sf = project.createSourceFile('/virtual/a.ts', `
+            export const write = (fs: {append: (p: string, d: string) => void}, p: string, d: string) =>
+                fs.append(p, d)
+        `)
+        const report = analyzeFile(sf)
+        expect(report.byCategory.fs ?? 0).toBe(0)
+        expect(report.total).toBe(0)
+    })
+})
+
+// --- measure.run() ---
+
+describe('implicit-globals measure', () => {
+    it('passes when touched files are pure', async () => {
+        const subgraph = buildSubgraph(
+            [{path: '/virtual/pkg/src/pure/a.ts', community: 'pkg/pure',
+                content: 'export const add = (a: number, b: number) => a + b\n'}],
+            ['pkg/pure'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        expect(result.perCommunity).toEqual({'pkg/pure': 0})
+        expect(result.violations).toEqual([])
+    })
+
+    it('reports breakdown by category in the violation message', async () => {
+        const subgraph = buildSubgraph(
+            [{
+                path: '/virtual/pkg/src/shell/a.ts', community: 'pkg/shell',
+                content: `
+                    import {readFileSync} from 'node:fs'
+                    export const dump = () => {
+                        console.log('starting')
+                        const data = readFileSync('/tmp/x', 'utf8')
+                        console.log('done')
+                        return Date.now()
+                    }
+                `,
+            }],
+            ['pkg/shell'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        expect(result.perCommunity['pkg/shell']).toBeGreaterThan(0)
+        expect(result.violations).toHaveLength(1)
+        const v = result.violations[0]
+        expect(v.severity).toBe('fail')
+        expect(v.message).toMatch(/fs=/)
+        expect(v.message).toMatch(/console=/)
+        expect(v.message).toMatch(/time=/)
+        expect(v.message).toMatch(/FP pattern 3/)
+    })
+
+    it('aggregates per community across multiple files', async () => {
+        const subgraph = buildSubgraph(
+            [
+                {path: '/virtual/pkg/src/shell/a.ts', community: 'pkg/shell',
+                    content: `export const log = (m: string) => console.log(m)\n`},
+                {path: '/virtual/pkg/src/shell/b.ts', community: 'pkg/shell',
+                    content: `export const err = (m: string) => console.error(m)\n`},
+            ],
+            ['pkg/shell'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        expect(result.perCommunity['pkg/shell']).toBe(2)
+    })
+
+    it('skips files in untouched neighbor communities', async () => {
+        const subgraph = buildSubgraph(
+            [
+                {path: '/virtual/pkg/src/touched/clean.ts', community: 'pkg/touched',
+                    content: 'export const add = (a: number, b: number) => a + b\n'},
+                {path: '/virtual/pkg/src/neighbor/dirty.ts', community: 'pkg/neighbor',
+                    content: `import {readFileSync} from 'node:fs'\nexport const r = () => readFileSync('/tmp', 'utf8')\n`},
+            ],
+            ['pkg/touched'],
+        )
+        const result = await measure.run({changedFiles: [], parsedSubgraph: subgraph})
+        expect(result.perCommunity).toEqual({'pkg/touched': 0})
+        expect(result.violations).toEqual([])
+    })
+
+    it('exposes the canonical SubgraphMeasure surface contract', () => {
+        expect(measure.id).toBe(MEASURE_ID)
+        expect(measure.axis).toBe('behavioral')
+        expect(measure.scope).toBe('file')
+        expect(measure.needsTsMorph).toBe(true)
+        expect(measure.needsInbound).toBe(false)
+    })
+})

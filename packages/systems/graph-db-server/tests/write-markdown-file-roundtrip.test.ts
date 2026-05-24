@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { createEmptyGraph, type GraphNode } from '@vt/graph-model'
 import type { ProjectedGraph } from '@vt/graph-state/contract'
 
-import { SessionCreateResponseSchema } from '../src/daemon/contract.ts'
+import { SessionCreateResponseSchema } from '@vt/graph-db-server/contract'
 import { startDaemon, type DaemonHandle } from '../src/daemon/index.ts'
 import { setGraph } from '../src/state/graph-store.ts'
 import { clearWatchFolderState } from '../src/state/watch-folder-store.ts'
@@ -72,7 +72,7 @@ async function createAppSupport(vault: string): Promise<string> {
   const appSupport = await mkdtemp(path.join(tmpdir(), 'graphd-write-md-appsupport-'))
   await writeFile(
     path.join(appSupport, 'voicetree-config.json'),
-    JSON.stringify({ vaultConfig: { [vault]: { writePath: vault } } }),
+    JSON.stringify({ vaultConfig: { [vault]: { writeFolder: vault } } }),
   )
   return appSupport
 }

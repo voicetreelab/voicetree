@@ -5,7 +5,7 @@ import {
     reconcileTmuxHeadlessAgents,
     sendHeadlessAgentInput,
 } from '../application/headless/headlessAgentManager'
-import { dispatchOnNewNodeHooks } from '../application/hooks/onNewNodeHook'
+import { createOnNewNodeHookDispatcher } from '../application/hooks/onNewNodeHook'
 import { runStopHooks } from '../application/hooks/stopGateHookRunner'
 import { getUnseenNodesForTerminal } from '../application/inject/get-unseen-nodes-for-terminal'
 import { injectNodesIntoTerminal } from '../application/inject/inject-nodes-into-terminal'
@@ -17,9 +17,17 @@ import { configureAgentRuntime, getRuntimeEnv, getRuntimeUI } from '../applicati
 import { spawnPlainTerminal, spawnPlainTerminalWithNode } from '../application/spawn/spawnPlainTerminal'
 import { spawnTerminalWithContextNode } from '../application/spawn/spawnTerminalWithContextNode'
 import { getOutput } from '../application/terminals/terminal-output-buffer'
-import { ensureTmuxAvailable } from '../application/terminals/tmux-preflight'
-import { ensureTmuxLaunchAgent } from '../application/terminals/tmux-launchagent'
+import { ensureTmuxAvailable } from '../application/terminals/tmux/tmux-preflight'
+import { ensureTmuxServer, shutdownTmuxServer } from '../application/terminals/tmux/tmux-server'
 import { getTerminalManager } from '../application/terminals/terminal-manager-instance'
+import {
+    attachUnclaimedTmuxSession,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
+} from '../application/terminals/tmux/unclaimed-tmux'
+import { discoverRecoverableAgentSessions } from '../application/recovery/discovery'
+import { resumePersistedAgentSession } from '../application/recovery/resumePersistedAgentSession'
+import { forkAgentSession } from '../application/recovery/forkAgentSession'
 import {
     enqueuePendingMessage,
     getExistingAgentNames,
@@ -41,12 +49,15 @@ import {
     tryConsumeAndSplitBudget,
 } from '../application/terminals/global-budget-registry'
 
+const dispatchOnNewNodeHooks = createOnNewNodeHookDispatcher()
+
 export const agentRuntime = {
+    attachUnclaimedTmuxSession,
     closeHeadlessAgent,
     configureAgentRuntime,
     dispatchOnNewNodeHooks,
     ensureTmuxAvailable,
-    ensureTmuxLaunchAgent,
+    ensureTmuxServer,
     enqueuePendingMessage,
     getExistingAgentNames,
     getHeadlessAgentOutput,
@@ -63,6 +74,11 @@ export const agentRuntime = {
     getUnseenNodesForTerminal,
     installJsonlTelemetrySink,
     injectNodesIntoTerminal,
+    killUnclaimedTmuxSession,
+    listUnclaimedTmuxSessions,
+    discoverRecoverableAgentSessions,
+    resumePersistedAgentSession,
+    forkAgentSession,
     registerChild,
     reconcileTmuxHeadlessAgents,
     removeTerminalFromRegistry,
@@ -71,6 +87,7 @@ export const agentRuntime = {
     sendTextToTerminal,
     sendHeadlessAgentInput,
     shouldFlipToActiveOnOutput,
+    shutdownTmuxServer,
     spawnPlainTerminal,
     spawnPlainTerminalWithNode,
     spawnTerminalWithContextNode,

@@ -21,9 +21,9 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
-import { loadFolder, stopFileWatching, isWatching, getVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { loadFolder, stopFileWatching, isWatching, getProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { getGraph, setGraph } from '@vt/graph-db-server/state/graph-store'
-import { setVaultPath } from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import { setProjectRoot } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphDelta, Graph, UpsertNodeDelta, DeleteNode, GraphNode, Edge } from '@vt/graph-model/graph'
 import { createGraph } from '@vt/graph-model/graph'
@@ -39,7 +39,7 @@ import { initGraphModel } from '@vt/graph-model'
 import { saveVaultConfigForDirectory } from '@vt/app-config/vault-config'
 import { handleFSEventWithStateAndUISides } from '@vt/graph-db-server/graph/handleFSEvent'
 import { GraphDbClient } from '@vt/graph-db-client'
-import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -63,10 +63,10 @@ async function loadFixtureFolder(folderPath: string): Promise<void> {
 }
 
 function expectWatchedDirectory(expected: string): void {
-  const vaultPath: O.Option<string> = getVaultPath()
-  expect(O.isSome(vaultPath)).toBe(true)
-  if (O.isSome(vaultPath)) {
-    expect(vaultPath.value).toBe(expected)
+  const projectRoot: O.Option<string> = getProjectRoot()
+  expect(O.isSome(projectRoot)).toBe(true)
+  if (O.isSome(projectRoot)) {
+    expect(projectRoot.value).toBe(expected)
   }
 }
 
@@ -91,9 +91,9 @@ async function copyFixtureToTemp(sourcePath: string, destinationName: string): P
   return destinationPath
 }
 
-async function shutdownDaemonForVault(vaultPath: string | undefined): Promise<void> {
-  if (!vaultPath) return
-  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: vaultPath }).catch(() => null)
+async function shutdownDaemonForVault(projectRoot: string | undefined): Promise<void> {
+  if (!projectRoot) return
+  const client: GraphDbClient | null = await GraphDbClient.connect({ vault: projectRoot }).catch(() => null)
   await client?.shutdown().catch(() => undefined)
 }
 
@@ -150,13 +150,13 @@ describe.skip('Folder Loading - Integration Tests', () => {
 
     // Reset graph state
     setGraph(createGraph({}))
-    setVaultPath('')
+    setProjectRoot('')
 
     await saveVaultConfigForDirectory(exampleSmallPath, {
-      writePath: path.join(exampleSmallPath, 'voicetree')
+      writeFolder: path.join(exampleSmallPath, 'voicetree')
     })
     await saveVaultConfigForDirectory(exampleLargePath, {
-      writePath: path.join(exampleLargePath, 'voicetree')
+      writeFolder: path.join(exampleLargePath, 'voicetree')
     })
 
     for (const testFilePath of [
@@ -500,7 +500,7 @@ describe.skip('Folder Loading - Integration Tests', () => {
       //
       // Reproduces: concurrent initialLoad + debug-auto-setup both calling loadFolder, with the
       // second load seeing stale state from the first (daemon not yet connected).
-      setVaultPath(exampleSmallPath)
+      setProjectRoot(exampleSmallPath)
       // The old load implementation attempted writeCurrentPositionsThroughDaemon and
       // had to avoid propagating that error.
 
@@ -716,8 +716,8 @@ describe.skip('Folder Loading - Integration Tests', () => {
     }, INTEGRATION_TEST_TIMEOUT_MS)
   })
 
-  describe('BEHAVIOR: projectRootWatchedDirectory updated before file limit check (suffix bug fix)', () => {
-    it('should update projectRootWatchedDirectory immediately when loadFolder is called', async () => {
+  describe('BEHAVIOR: projectRoot updated before file limit check (suffix bug fix)', () => {
+    it('should update projectRoot immediately when loadFolder is called', async () => {
       // GIVEN: Load the first folder
       await loadFixtureFolder(exampleSmallPath)
       expectWatchedDirectory(exampleSmallPath)
@@ -725,11 +725,11 @@ describe.skip('Folder Loading - Integration Tests', () => {
       // WHEN: Load a different folder
       await loadFixtureFolder(exampleLargePath)
 
-      // THEN: projectRootWatchedDirectory should be updated to the new folder
+      // THEN: projectRoot should be updated to the new folder
       expectWatchedDirectory(exampleLargePath)
     }, INTEGRATION_TEST_TIMEOUT_MS)
 
-    it('should maintain projectRootWatchedDirectory even after switching folders multiple times', async () => {
+    it('should maintain projectRoot even after switching folders multiple times', async () => {
       // Load folder A
       await loadFixtureFolder(exampleSmallPath)
       expectWatchedDirectory(exampleSmallPath)

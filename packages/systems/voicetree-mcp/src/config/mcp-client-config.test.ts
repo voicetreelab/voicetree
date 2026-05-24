@@ -12,8 +12,8 @@ function makeGraphBridge(): GraphBridge {
     return {
         getGraph: vi.fn(async () => createEmptyGraph()),
         getVaultPaths: vi.fn(async () => [testDir]),
-        getWritePath: vi.fn(async () => testDir),
-        getProjectRootWatchedDirectory: vi.fn(async () => testDir),
+        getWriteFolder: vi.fn(async () => testDir),
+        getProjectRoot: vi.fn(async () => testDir),
         applyGraphDelta: vi.fn(async () => undefined),
     };
 }

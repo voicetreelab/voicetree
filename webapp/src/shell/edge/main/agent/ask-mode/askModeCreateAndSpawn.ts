@@ -14,20 +14,20 @@ import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-st
 import {loadSettings} from '@/shell/edge/main/settings/settings_IO';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
-import {getWritePath} from '@/shell/edge/main/graph/watch_folder/watchFolder';
+import {getWriteFolder} from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {
   createContextNodeFromQuestionThroughDaemon,
   getGraphThroughDaemon,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-graph-queries';
+} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 
 export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], question: string): Promise<void> {
   const graph: Graph = await getGraphThroughDaemon();
 
-  // Use writePath for normalizing search results - this matches what the backend loads from
-  // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writePath)
-  const writePathOption: O.Option<string> = await getWritePath();
-  const basePath: string | null = O.isSome(writePathOption)
-    ? writePathOption.value
+  // Use writeFolder for normalizing search results - this matches what the backend loads from
+  // (see watchFolder.ts:316 where notifyTextToTreeServerOfDirectory uses config.writeFolder)
+  const writeFolderOption: O.Option<string> = await getWriteFolder();
+  const basePath: string | null = O.isSome(writeFolderOption)
+    ? writeFolderOption.value
     : null;
 
   // Normalize incoming node IDs to absolute paths

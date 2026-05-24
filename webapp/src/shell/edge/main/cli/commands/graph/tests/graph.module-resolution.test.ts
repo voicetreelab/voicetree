@@ -1,5 +1,6 @@
 import {spawn, type ChildProcess} from 'node:child_process'
 import {access, mkdir, mkdtemp, readFile, realpath, rm, writeFile} from 'node:fs/promises'
+import {createRequire} from 'node:module'
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -8,7 +9,10 @@ import {afterEach, describe, expect, it} from 'vitest'
 const TEST_FILE_DIR: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(TEST_FILE_DIR, '../../../../../../../../..')
 const CLI_ENTRYPOINT: string = join(REPO_ROOT, 'webapp/src/shell/edge/main/cli/voicetree-cli.ts')
-const TSX_LOADER: string = join(REPO_ROOT, 'node_modules/tsx/dist/loader.mjs')
+// Resolve tsx through Node's own module lookup. Worktrees keep most deps in
+// the main repo's node_modules and do not always materialise a usable
+// tsx/dist/loader.mjs under the worktree root.
+const TSX_LOADER: string = createRequire(import.meta.url).resolve('tsx')
 const WEBAPP_TSCONFIG: string = join(REPO_ROOT, 'webapp/tsconfig.json')
 const CLI_EXIT_TIMEOUT_MS: number = 20_000
 const HEADLESS_START_TIMEOUT_MS: number = 15_000
@@ -111,7 +115,7 @@ async function startHeadless(vault: string): Promise<{readonly port: number; clo
             'serve',
             '--port',
             '0',
-            '--vault',
+            '--project-root',
             vault,
         ],
         {

@@ -181,6 +181,8 @@ webapp/workers/share-worker/.wrangler/**
 
 # Markdown (tracked exceptions below)
 **/*.md
+!/CLAUDE.md
+!/AGENTS.md
 !tools/prompts/*.md
 !brain/workflow-verifier/**/*.md
 !webapp/example_folder_fixtures/example_small/voicetree/**/*.md
@@ -188,6 +190,10 @@ webapp/workers/share-worker/.wrangler/**
 !packages/graph-model/tests/**/*.md
 !packages/graph-state/**/*.md
 !docker/**/*.md
+!packages/measures/README.md
+!packages/measures/perf/*.md
+!scripts/agent-debugging/README.md
+!scripts/agent-debugging/REFERENCE.md
 
 # MCP config (worktree-local; daemon port differs per worktree)
 **/.mcp.json
@@ -224,6 +230,14 @@ webapp/workers/share-worker/.wrangler/**
 **/chromadb_data/*
 test_output/*
 .claude/settings.local.json
+
+# Vestigial root-level files that tools/agents might recreate
+# (progress notes are already covered by **/*.md above)
+/test.db
+/pnpm-lock.yaml
+/opencode.json
+/.obsidianignore
+/.pre-commit-config.yaml
 
 # Codebase health dashboard report state
 /health-dashboard/reports/*.json

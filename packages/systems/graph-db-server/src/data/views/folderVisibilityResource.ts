@@ -5,13 +5,21 @@ import {
   setFolderState,
   setFolderStateBatch,
 } from '@vt/graph-state'
-import type { FolderState } from '@vt/graph-db-protocol'
+import type { FolderState } from '@vt/graph-db-server/contract'
+import type { FilePath } from '@vt/graph-model/graph'
 import {
   closeFolderVisibilityDb,
   openFolderVisibilityDb,
   type FolderVisibilityDatabase,
 } from './folderVisibilitySqlite'
 import { ensureDefaultView, getActiveViewId } from './viewsRepository'
+import {
+  freshProject,
+  getProject,
+  mutateProject,
+  updateProject,
+  type ProjectState,
+} from '@vt/graph-db-server/application/workflows/projectState'
 
 export type ActiveViewInfo = {
   readonly viewId: string
@@ -25,38 +33,46 @@ export type FolderStateUpdate = {
   readonly state: FolderState
 }
 
-type CurrentFolderVisibility = {
-  readonly vaultPath: string
-  readonly db: FolderVisibilityDatabase
-}
-
 type ViewNameRow = { readonly name: string }
 
-let current: CurrentFolderVisibility | null = null
+function readDb(): FolderVisibilityDatabase | null {
+  const handle = getProject()?.folderVisibility
+  return handle ? (handle.db as FolderVisibilityDatabase) : null
+}
 
 export async function openFolderVisibilityForVault(vaultPath: string): Promise<void> {
   await closeFolderVisibilityForVault()
   const db = openFolderVisibilityDb(vaultPath)
   ensureDefaultView(db)
   configureFolderVisibilityStore(db as never)
-  current = { vaultPath, db }
+  updateProject((prev: ProjectState | null): ProjectState => {
+    const base = prev ?? freshProject(vaultPath as FilePath)
+    return {
+      ...base,
+      folderVisibility: { projectRoot: vaultPath as FilePath, db },
+    }
+  })
 }
 
 export async function closeFolderVisibilityForVault(): Promise<void> {
-  const previous = current
-  current = null
+  const previous = getProject()?.folderVisibility ?? null
+  mutateProject((prev: ProjectState): ProjectState => ({
+    ...prev,
+    folderVisibility: null,
+  }))
   clearFolderVisibilityStoreForTests()
   if (previous) {
-    closeFolderVisibilityDb(previous.db)
+    closeFolderVisibilityDb(previous.db as FolderVisibilityDatabase)
   }
 }
 
 export function getCurrentFolderVisibilityDb(): FolderVisibilityDatabase {
-  if (!current) {
+  const db = readDb()
+  if (!db) {
     throw new Error('No folder visibility database is open for the current vault')
   }
-  configureFolderVisibilityStore(current.db as never)
-  return current.db
+  configureFolderVisibilityStore(db as never)
+  return db
 }
 
 function readActiveView(db: FolderVisibilityDatabase): ActiveViewInfo {

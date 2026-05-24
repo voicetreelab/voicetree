@@ -8,6 +8,7 @@
 
 import { test as base, expect, type Page } from '@playwright/test';
 import {
+  setupMockElectronAPI,
   waitForCytoscapeReady,
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 import type { SessionMetric } from '@/shell/UI/views/hooks/useAgentMetrics';
@@ -60,155 +61,14 @@ function generateWeekOfSessions(): SessionMetric[] {
   return sessions;
 }
 
-/**
- * Sets up mock Electron API with custom session data
- */
 async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMetric[]): Promise<void> {
-  await page.addInitScript((sessionsData) => {
-    const createEmptyProjectedGraph = () => ({
-      nodes: [],
-      edges: [],
-      rootPath: '',
-      revision: 0,
-      forests: [],
-      arboricity: 0,
-      recentNodeIds: []
-    });
+  await setupMockElectronAPI(page);
+  await page.addInitScript((sessionsData: SessionMetric[]) => {
+    const electronAPI = (window as unknown as { electronAPI?: { main: Record<string, unknown> } }).electronAPI;
+    if (!electronAPI) throw new Error('electronAPI not available');
 
-    // Create a comprehensive mock of the Electron API
-    const mockElectronAPI = {
-      main: {
-        applyGraphDeltaToDBAndMem: async () => ({ success: true }),
-        applyGraphDeltaToDBThroughMem: async () => ({ success: true }),
-        getGraph: async () => ({ nodes: {}, edges: [] }),
-        getProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
-        getNode: async () => null,
-        loadSettings: async () => ({
-          terminalSpawnPathRelativeToWatchedDirectory: '../',
-          agents: [{ name: 'Claude', command: './claude.sh' }],
-          shiftEnterSendsOptionEnter: true
-        }),
-        saveSettings: async () => ({ success: true }),
-        saveNodePositions: async () => ({ success: true }),
-        startFileWatching: async () => ({ success: true, directory: '/mock' }),
-        stopFileWatching: async () => ({ success: true }),
-        getWatchStatus: async () => ({ isWatching: true, directory: '/mock' }),
-        loadPreviousFolder: async () => ({ success: false }),
-        getStartupVaultHint: async () => ({ kind: 'open-folder' as const, path: '/mock' }),
-        openVault: async (dir: string) => {
-          const projectedGraph = mockElectronAPI.graph._projectedGraph ?? createEmptyProjectedGraph();
-          setTimeout(() => {
-            mockElectronAPI.graph._projectedGraphCallback?.(projectedGraph);
-          }, 10);
-
-          return {
-            sessionId: 'mock-session',
-            writePath: dir,
-            vaultState: {
-              vaultPath: dir,
-              readPaths: [dir],
-              writePath: dir,
-            },
-            initialProjectedGraph: projectedGraph,
-            folderState: [],
-            activeView: {
-              viewId: 'main',
-              name: 'Main',
-            },
-          };
-        },
-        getBackendPort: async () => 5001,
-        getMetrics: async () => ({ sessions: sessionsData }),
-        // Frontend ready signal (no-op for tests)
-        markFrontendReady: async () => {},
-        views: {
-          list: async () => [{ viewId: 'main', name: 'Main', isActive: true }],
-          activate: async () => ({ success: true }),
-          clone: async (_srcViewId: string, name: string) => ({ viewId: `view-${name}`, name }),
-          delete: async () => ({ success: true }),
-        },
-        applyGraphDeltaToDBThroughMemUIAndEditorExposed: async () => ({ success: true }),
-        applyGraphDeltaToDBThroughMemAndUIExposed: async () => ({ success: true }),
-
-        // Vault path methods
-        getVaultPaths: async (): Promise<readonly string[]> => ['/mock'],
-        getWritePath: async () => ({ _tag: 'Some' as const, value: '/mock' }),
-        setWritePath: async () => ({ success: true }),
-        getShowAllPaths: async (): Promise<readonly string[]> => [],
-        toggleShowAll: async () => ({ success: true, showAll: false }),
-        addReadOnLinkPath: async () => ({ success: true }),
-        removeReadOnLinkPath: async () => ({ success: true }),
-        readImageAsDataUrl: async () => 'data:image/png;base64,test',
-
-        // Project selection operations
-        loadProjects: async () => [{
-          id: 'mock-project-1',
-          path: '/mock',
-          name: 'Mock Test Project',
-          type: 'folder' as const,
-          lastOpened: Date.now(),
-          voicetreeInitialized: true,
-        }],
-        saveProject: async () => {},
-        removeProject: async () => {},
-        getDefaultSearchDirectories: async () => [],
-        scanForProjects: async () => [],
-        initializeProject: async () => '/mock/voicetree',
-        showFolderPicker: async () => ({ success: false }),
-
-        // Terminal state mutations
-        updateTerminalIsDone: async () => {},
-        updateTerminalPinned: async () => {},
-        updateTerminalActivityState: async () => {},
-        removeTerminalFromRegistry: async () => {},
-      },
-      onWatchingStarted: () => {},
-      onFileWatchingStopped: () => {},
-      onVaultSwitching: () => () => {},
-      onVaultReady: () => () => {},
-      onVaultLost: () => () => {},
-      onViewSwitched: () => () => {},
-      removeAllListeners: () => {},
-      terminal: {
-        spawn: async () => ({ success: false }),
-        write: async () => {},
-        resize: async () => {},
-        kill: async () => {},
-        onData: () => {},
-        onExit: () => {}
-      },
-      positions: {
-        save: async () => ({ success: true }),
-        load: async () => ({ success: false, positions: {} })
-      },
-      onBackendLog: () => {},
-      graph: {
-        _graphState: { nodes: {}, edges: [] },
-        _projectedGraph: createEmptyProjectedGraph(),
-        applyGraphDelta: async () => ({ success: true }),
-        getState: async () => mockElectronAPI.graph._graphState,
-        getCurrentProjectedGraph: async () => mockElectronAPI.graph._projectedGraph,
-        onProjectedGraphUpdate: (callback: (graph: unknown) => void) => {
-          mockElectronAPI.graph._projectedGraphCallback = callback;
-          return () => {};
-        },
-        onGraphClear: () => () => {},
-        _projectedGraphCallback: undefined as ((graph: unknown) => void) | undefined
-      },
-      invoke: async () => {},
-      _ipcListeners: {} as Record<string, ((event: unknown, ...args: unknown[]) => void)[]>,
-      on: (channel: string, callback: (event: unknown, ...args: unknown[]) => void) => {
-        if (!mockElectronAPI._ipcListeners[channel]) {
-          mockElectronAPI._ipcListeners[channel] = [];
-        }
-        mockElectronAPI._ipcListeners[channel].push(callback);
-        return () => {};
-      },
-      off: () => {},
-      _triggerIpc: () => {}
-    };
-
-    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+    electronAPI.main.getBackendPort = async () => 5001;
+    electronAPI.main.getMetrics = async () => ({ sessions: sessionsData });
   }, sessions);
 }
 

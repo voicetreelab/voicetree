@@ -8,7 +8,7 @@ import {
     getRuntimeUnseenNodesAroundContextNode,
     getRuntimeVaultPaths,
     getRuntimeWatchStatus,
-    getRuntimeWritePath,
+    getRuntimeWriteFolder,
     runtimeCreateContextNode,
     runtimeCreateContextNodeFromSelectedNodes,
     runtimeUpdateContextNodeContainedIds,
@@ -26,7 +26,7 @@ describe('graph bridge runtime accessors', () => {
         configureAgentRuntime({})
 
         await expect(getRuntimeGraph()).rejects.toThrow(MISSING_BRIDGE_ERROR)
-        await expect(getRuntimeWritePath()).rejects.toThrow(MISSING_BRIDGE_ERROR)
+        await expect(getRuntimeWriteFolder()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(getRuntimeVaultPaths()).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(applyRuntimeGraphDelta({} as GraphDelta)).rejects.toThrow(MISSING_BRIDGE_ERROR)
         await expect(getRuntimeProjectRoot()).rejects.toThrow(MISSING_BRIDGE_ERROR)

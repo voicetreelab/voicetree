@@ -24,11 +24,21 @@ import {
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
-import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
+import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
+import {
+    refreshUnclaimedTmuxSessions,
+    startUnclaimedTmuxSessionPolling,
+    stopUnclaimedTmuxSessionPolling,
+} from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync';
+import {
+    refreshRecoverySessions,
+    startRecoverySessionPolling,
+    stopRecoverySessionPolling,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
@@ -36,13 +46,12 @@ import {
     getGraphFromDaemon,
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
-import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/graph-ipc-handlers';
+} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
+import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
 import {
     getWatchStatus,
     getVaultPaths,
-    getWritePath,
-    setOnFolderSwitchCleanup,
+    getWriteFolder,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder';
 import {askQuery} from '@/shell/edge/main/runtime/backend-api';
 import {cleanupOrphanedContextNodes} from '@/shell/edge/main/workspace/saveNodePositions';
@@ -50,15 +59,16 @@ import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/sta
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
-import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/graph-model-init';
+import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
-import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
+import {killOrphanVtGraphdDaemons, subscribeOwnerDiagnostics} from '@vt/graph-db-client';
+import {tracing} from '@vt/observability';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
-} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
-import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
-import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
+} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
+import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -78,6 +88,8 @@ if (app.isPackaged) {
 // ============================================================================
 // Startup
 // ============================================================================
+tracing.init('vt-electron-main');
+tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 validateStartupCwd();
 
 // Initialize @vt/graph-model DI before any graph-model functions are called
@@ -89,13 +101,13 @@ configureMcpServer({
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getUnseenNodesAroundContextNode: async (contextNodeId, searchFromNode) => {
             return await getActiveGraphDbClient().getUnseenNodesAroundContextNode(
                 contextNodeId,
@@ -118,18 +130,18 @@ terminalRuntimeSurface.configureAgentRuntime({
         getAppSupportPath,
         getMcpPort,
         getOTLPReceiverPort: getOTLPReceiverPortForRuntime,
-        getProjectRootWatchedDirectory,
+        getProjectRoot,
         getVaultPaths,
-        getWritePath: async () => {
-            const writePath: O.Option<string> = await getWritePath();
-            return O.isSome(writePath) ? writePath.value : null;
+        getWriteFolder: async () => {
+            const writeFolder: O.Option<string> = await getWriteFolder();
+            return O.isSome(writeFolder) ? writeFolder.value : null;
         },
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
         getVaultPaths: () => getVaultPaths(),
-        getWritePath: () => getWritePath(),
-        getProjectRootWatchedDirectory,
+        getWriteFolder: () => getWriteFolder(),
+        getProjectRoot,
         getWatchStatus,
         applyGraphDelta: (delta, recordForUndo) =>
             postDeltaThroughDaemonWithEditors(delta, recordForUndo),
@@ -178,13 +190,18 @@ function getActiveGraphDbClient(): ReturnType<typeof getDaemonClient> {
     return getDaemonClient();
 }
 
-async function getProjectRootWatchedDirectory(): Promise<string | null> {
+function pinProcessAppSupportPath(): void {
+    process.env.VOICETREE_APP_SUPPORT = getAppSupportPath();
+}
+
+async function getProjectRoot(): Promise<string | null> {
     const status: {readonly isWatching: boolean; readonly directory: string | undefined} =
         await getWatchStatus();
     return status.directory ?? null;
 }
 
 configureEnvironment();
+pinProcessAppSupportPath();
 setupAutoUpdater(autoUpdater, () => isQuitting, (v: boolean) => { isQuitting = v; });
 
 // Global manager instances
@@ -217,12 +234,8 @@ const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createA
 terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
-});
-
-// Register terminal cleanup for when folders are switched
-setOnFolderSwitchCleanup(() => {
-    //console.log('[main] Cleaning up terminals on folder switch');
-    terminalManager.cleanup();
+    void refreshUnclaimedTmuxSessions().catch(() => undefined);
+    void refreshRecoverySessions().catch(() => undefined);
 });
 
 // App event handlers
@@ -236,7 +249,7 @@ void app.whenReady().then(async () => {
     // Start MCP server in-process (shares graph state with Electron)
     try {
         await terminalRuntimeSurface.ensureTmuxAvailable();
-        await terminalRuntimeSurface.ensureTmuxLaunchAgent();
+        await terminalRuntimeSurface.ensureTmuxServer();
     } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error);
         dialog.showErrorBox('Voicetree cannot start', message);
@@ -299,6 +312,8 @@ void app.whenReady().then(async () => {
 
     console.time('[Startup] createWindow');
     createWindow({terminalManager, isQuitting: () => isQuitting});
+    startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
@@ -360,14 +375,24 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+    void terminalRuntimeSurface.shutdownTmuxServer().catch((error: unknown) => {
+        log.warn('[App] Failed to shut down tmux server before quit:', error);
+    });
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
     void cleanupOrphanedContextNodes().catch((error: unknown) => {
         console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
     });
 
-    // Remove stale .mcp.json so external agents don't connect to a dead port
-    void disableMcpJsonIntegration();
+    // Remove stale .mcp.json so external agents don't connect to a dead port.
+    // Fire-and-forget but with .catch — `will-quit` shuts down the daemon and
+    // can clear the graph bridge mid-flight, so this can race even after our
+    // null-guards inside disableMcpJsonIntegration itself.
+    void disableMcpJsonIntegration().catch((error: unknown) => {
+        console.warn('[App] Failed to disable .mcp.json integration before quit:', error);
+    });
 
     // Stop OTLP receiver
     void stopOTLPReceiver();
@@ -395,6 +420,8 @@ app.on('window-all-closed', () => {
     // but it's complicated because the graph renderer (which hosts terminal UI-edge) is destroyed
     // when the window closes, so terminals lose their renderer connection anyway
     terminalManager.cleanup();
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     if (process.platform !== 'darwin') {
         app.quit();
@@ -414,6 +441,8 @@ app.on('activate', () => {
                 setBackendPort(textToTreeServerPort);
             }
             createWindow({terminalManager, isQuitting: () => isQuitting});
+            startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();

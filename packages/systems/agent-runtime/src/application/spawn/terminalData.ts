@@ -142,7 +142,7 @@ export async function prepareTerminalDataInMain(
         parentTerminalId: parentTerminalId as TerminalId | null,
         worktreeName,
         isHeadless: headless,
-        contextContent: contextNode.contentWithoutYamlOrLinks,
+        contextContent: contextNode?.contentWithoutYamlOrLinks ?? '',
         agentTypeName,
     })
 }

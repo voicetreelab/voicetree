@@ -1,8 +1,8 @@
-import {randomUUID} from 'node:crypto'
-import {existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs'
+import {existsSync, mkdirSync, readFileSync, statSync} from 'node:fs'
 import {join} from 'node:path'
 import type {TerminalData, TerminalId} from '../terminals/terminal-registry/types'
 import type {TmuxReconciliationResult} from '../terminals/terminal-registry'
+import {readMetadata, writeMetadata, type TmuxTerminalMetadata} from '../terminals/terminal-registry/terminal-metadata'
 import {
     captureOutput,
     getOutput,
@@ -16,7 +16,7 @@ import {
     buildTmuxSessionName,
     registerTmuxSessionAlias,
     sendKeys,
-} from '../terminals/tmux-session-manager'
+} from '../terminals/tmux/tmux-session-manager'
 import {reconcileTmuxTerminalRegistry} from '../terminals/terminal-registry'
 import {shellQuote} from '../util/shellQuote.ts'
 import {applyPromptFileToHeadlessSpawn, deletePromptFile, deletePromptFileByPath} from './tmuxPromptFile'
@@ -42,19 +42,6 @@ type TmuxHeadlessState = {
     readonly logReadOffsets: Map<TerminalId, number>
 }
 
-type TmuxTerminalMetadata = {
-    readonly name: string
-    readonly status: 'running' | 'exited'
-    readonly pid: number
-    readonly session: string
-    readonly startedAt: string
-    readonly endedAt?: string
-    readonly exitCode?: number | null
-    readonly exitCodeFile?: string
-    readonly logFile: string
-    readonly terminalData: TerminalData
-}
-
 const tmuxHeadlessState: TmuxHeadlessState = {
     sessions: new Map(),
     logReadOffsets: new Map(),
@@ -65,30 +52,16 @@ function resolveTmuxPaths(terminalId: TerminalId, env: Record<string, string>): 
     readonly metadataPath: string
     readonly exitCodePath: string
 } {
-    const vaultPath: string | undefined = env.VOICETREE_VAULT_PATH
-    if (!vaultPath) {
+    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+    if (!projectRoot) {
         throw new Error(`Cannot spawn tmux-backed headless agent ${terminalId}: VOICETREE_VAULT_PATH is missing`)
     }
-    const terminalDir: string = join(vaultPath, '.voicetree', 'terminals')
+    const terminalDir: string = join(projectRoot, '.voicetree', 'terminals')
     mkdirSync(terminalDir, {recursive: true})
     return {
         logPath: join(terminalDir, `${terminalId}.log`),
         metadataPath: join(terminalDir, `${terminalId}.json`),
         exitCodePath: join(terminalDir, `${terminalId}.exitcode`),
-    }
-}
-
-function writeTmuxMetadata(path: string, metadata: TmuxTerminalMetadata): void {
-    const tempPath: string = `${path}.${process.pid}.${randomUUID()}.tmp`
-    writeFileSync(tempPath, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8')
-    renameSync(tempPath, path)
-}
-
-function readTmuxMetadata(path: string): TmuxTerminalMetadata | null {
-    try {
-        return JSON.parse(readFileSync(path, 'utf8')) as TmuxTerminalMetadata
-    } catch {
-        return null
     }
 }
 
@@ -121,9 +94,9 @@ function clearTmuxPoll(terminalId: TerminalId): void {
 function markTmuxMetadataExited(terminalId: TerminalId, exitCode: number | null = null): void {
     const session: TmuxHeadlessSession | undefined = tmuxHeadlessState.sessions.get(terminalId)
     if (!session) return
-    const existing: TmuxTerminalMetadata | null = readTmuxMetadata(session.metadataPath)
+    const existing: TmuxTerminalMetadata | null = readMetadata(session.metadataPath)
     if (!existing || existing.status === 'exited') return
-    writeTmuxMetadata(session.metadataPath, {
+    writeMetadata(session.metadataPath, {
         ...existing,
         status: 'exited',
         exitCode,
@@ -172,8 +145,8 @@ export async function spawnTmuxBackedTerminal(
         )
 
     await pipePaneToFile(sessionName, paths.logPath)
-    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readTmuxMetadata(paths.metadataPath) : null
-    writeTmuxMetadata(paths.metadataPath, {
+    const existingMeta: TmuxTerminalMetadata | null = sessionExists ? readMetadata(paths.metadataPath) : null
+    writeMetadata(paths.metadataPath, {
         name: terminalId,
         status: 'running',
         pid: created.pid,
@@ -192,6 +165,41 @@ export async function spawnTmuxBackedTerminal(
     return created
 }
 
+export async function attachExistingTmuxBackedTerminal(
+    terminalId: TerminalId,
+    terminalData: TerminalData,
+    sessionName: string,
+    env: Record<string, string>,
+    deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
+): Promise<{readonly pid: number}> {
+    const paths = resolveTmuxPaths(terminalId, env)
+    registerTmuxSessionAlias(terminalId, sessionName)
+    if (!(await hasSession(sessionName))) {
+        throw new Error(`Cannot attach ${terminalId}: tmux session ${sessionName} no longer exists`)
+    }
+
+    const pid: number = await getPanePid(sessionName)
+    await pipePaneToFile(sessionName, paths.logPath)
+    const existingMeta: TmuxTerminalMetadata | null = readMetadata(paths.metadataPath)
+    writeMetadata(paths.metadataPath, {
+        name: terminalId,
+        status: 'running',
+        pid,
+        session: sessionName,
+        startedAt: existingMeta?.startedAt ?? new Date().toISOString(),
+        logFile: paths.logPath,
+        exitCodeFile: paths.exitCodePath,
+        terminalData,
+    })
+
+    clearTmuxPoll(terminalId)
+    const pollTimer: ReturnType<typeof setInterval> = startTmuxExitPoll(terminalId, sessionName, deps)
+    tmuxHeadlessState.sessions.set(terminalId, {...paths, sessionName, promptFilePath: null, pollTimer})
+    deps.recordTerminalSpawn(terminalId, terminalData)
+    deps.writeLog({level: 'info', message: `[headlessAgentManager] Attached existing tmux-backed terminal ${terminalId} (pid=${pid}) session=${sessionName}`})
+    return {pid}
+}
+
 export function spawnTmuxHeadlessAgent(
     terminalId: TerminalId,
     terminalData: TerminalData,
@@ -200,14 +208,14 @@ export function spawnTmuxHeadlessAgent(
     env: Record<string, string>,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
 ): void {
-    const vaultPath: string | undefined = env.VOICETREE_VAULT_PATH
-    const plan = vaultPath
-        ? applyPromptFileToHeadlessSpawn({vaultPath, terminalId, command, env})
+    const projectRoot: string | undefined = env.VOICETREE_VAULT_PATH
+    const plan = projectRoot
+        ? applyPromptFileToHeadlessSpawn({projectRoot, terminalId, command, env})
         : {command, env, promptFilePath: null}
     void spawnTmuxBackedTerminal(terminalId, terminalData, plan.command, cwd, plan.env, deps, plan.promptFilePath).catch((error: unknown) => {
         deps.writeLog({level: 'error', message: `[headlessAgentManager] Failed to spawn tmux-backed headless agent ${terminalId}:`, error})
         deps.markTerminalExited(terminalId, null)
-        if (plan.promptFilePath && vaultPath) deletePromptFile(vaultPath, terminalId)
+        if (plan.promptFilePath) deletePromptFile(projectRoot, terminalId)
     })
 }
 
@@ -261,10 +269,10 @@ export function getTmuxHeadlessAgentOutput(terminalId: TerminalId): string {
 }
 
 export async function reconcileTmuxHeadlessAgents(
-    vaultPath: string,
+    projectRoot: string,
     deps: HeadlessAgentDeps = defaultHeadlessAgentDeps,
 ): Promise<TmuxReconciliationResult> {
-    return reconcileTmuxTerminalRegistry(vaultPath, {
+    return reconcileTmuxTerminalRegistry(projectRoot, {
         hasSession,
         logger: {
             info: (message?: unknown, ...optionalParams: unknown[]): void =>
@@ -278,10 +286,10 @@ export async function reconcileTmuxHeadlessAgents(
             registerTmuxSessionAlias(terminalId, sessionName)
             tmuxHeadlessState.sessions.set(terminalId, {
                 sessionName,
-                logPath: metadata.logFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.log`),
+                logPath: metadata.logFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.log`),
                 metadataPath,
-                exitCodePath: metadata.exitCodeFile ?? join(vaultPath, '.voicetree', 'terminals', `${terminalId}.exitcode`),
-                promptFilePath: join(vaultPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
+                exitCodePath: metadata.exitCodeFile ?? join(projectRoot, '.voicetree', 'terminals', `${terminalId}.exitcode`),
+                promptFilePath: join(projectRoot, '.voicetree', 'terminals', `${terminalId}-prompt.txt`),
                 pollTimer: startTmuxExitPoll(terminalId, sessionName, deps),
             })
         },

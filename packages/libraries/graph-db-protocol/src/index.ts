@@ -1,12 +1,42 @@
 import { z } from 'zod'
 
+export * from './owner.ts'
+export * from './diagnostics.ts'
+
 export const CONTRACT_VERSION = '0.2.0'
+
+/**
+ * Owner-identifying block surfaced by `/health`. Mirrors the seven fields
+ * BF-343 must expose so a client can prove "is this the daemon I am allowed
+ * to use?": canonical vault path, owner nonce, contract version, pid, ppid,
+ * bound port, schema version.
+ *
+ * This is the response-shape projection of OwnerRecord. The pure decision
+ * input uses the narrower OwnerHealthIdentity; both are derived from the
+ * same on-disk record.
+ */
+export const HealthOwnerSchema = z.object({
+  schemaVersion: z.literal(1),
+  canonicalProjectRoot: z.string().min(1),
+  pid: z.number().int().positive(),
+  ppid: z.number().int().nonnegative(),
+  port: z.number().int().min(0).max(65535),
+  ownerNonce: z.string().min(1),
+  contractVersion: z.string().min(1),
+})
+export type HealthOwner = z.infer<typeof HealthOwnerSchema>
 
 export const HealthResponseSchema = z.object({
   version: z.string(),
-  vault: z.string(),
+  vault: z.string().nullable(),
   uptimeSeconds: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
+  /**
+   * Owner identity for the canonical vault this daemon serves. `null`
+   * during the vaultless startup window (no claim yet) and on legacy
+   * vaultless daemons (Electron's pre-BF-345 path).
+   */
+  owner: HealthOwnerSchema.nullable(),
 })
 export type HealthResponse = z.infer<typeof HealthResponseSchema>
 
@@ -186,21 +216,21 @@ export const LiveStateSnapshotSchema = z.object({
 export type LiveStateSnapshot = z.infer<typeof LiveStateSnapshotSchema>
 
 export const VaultStateSchema = z.object({
-  vaultPath: z.string(),
+  projectRoot: z.string(),
   readPaths: z.array(z.string()),
-  writePath: z.string(),
+  writeFolder: z.string(),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
 
 export const OpenVaultRequestSchema = z.object({
   path: z.string(),
-  writePath: z.string().optional(),
+  writeFolder: z.string().optional(),
 })
 export type OpenVaultRequest = z.infer<typeof OpenVaultRequestSchema>
 
 export const OpenVaultResponseSchema = z.object({
   sessionId: SessionIdSchema,
-  writePath: z.string(),
+  writeFolder: z.string(),
   vaultState: VaultStateSchema,
   initialProjectedGraph: z.unknown(),
   folderState: z.array(FolderStateEntrySchema),
@@ -208,10 +238,10 @@ export const OpenVaultResponseSchema = z.object({
 })
 export type OpenVaultResponse = z.infer<typeof OpenVaultResponseSchema>
 
-export const SetWritePathRequestSchema = z.object({
+export const SetWriteFolderRequestSchema = z.object({
   path: z.string(),
 })
-export type SetWritePathRequest = z.infer<typeof SetWritePathRequestSchema>
+export type SetWriteFolderRequest = z.infer<typeof SetWriteFolderRequestSchema>
 
 export const AddReadPathRequestSchema = z.object({
   path: z.string(),

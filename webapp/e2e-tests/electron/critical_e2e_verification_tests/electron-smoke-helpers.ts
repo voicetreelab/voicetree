@@ -1,11 +1,13 @@
 import { expect } from "@playwright/test";
-import type { ElectronApplication, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import * as path from "path";
 import * as os from "os";
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import type { Core as CytoscapeCore } from "cytoscape";
 import type { ElectronAPI } from "@/shell/electron";
+
+import { electronTeardown } from "./helpers/electron-teardown";
 
 export const WEBAPP_ROOT = path.resolve(process.cwd());
 export const REPO_ROOT = path.resolve(WEBAPP_ROOT, "..");
@@ -17,6 +19,16 @@ export const FAKE_AGENT_ENTRYPOINT = path.join(
   "index.js",
 );
 const TMUX_SOCKET_NAME = "tmux.sock";
+const MCP_REQUEST_HEADERS = {
+  "Content-Type": "application/json",
+  Accept: "application/json, text/event-stream",
+  Connection: "close",
+} as const;
+
+export const {
+  robustElectronTeardown,
+  safeStopFileWatching,
+} = electronTeardown;
 
 export type ElectronDiagnostics = {
   mainOutput: string[];
@@ -119,22 +131,53 @@ export function resolveGraphDaemonNodeBin(): string {
   return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
 }
 
-function escapeProcessPattern(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+type ProcessRow = {
+  readonly pid: number;
+  readonly command: string;
+};
+
+function readProcessRows(): readonly ProcessRow[] {
+  try {
+    const output = execFileSync("ps", ["-ww", "-eo", "pid=,command="], {
+      encoding: "utf8",
+    });
+    return output
+      .split("\n")
+      .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
+      .filter((match): match is RegExpMatchArray => match !== null)
+      .map((match) => ({ pid: Number(match[1]), command: match[2] }))
+      .filter(
+        (row) =>
+          Number.isInteger(row.pid) && row.pid > 0 && row.pid !== process.pid,
+      );
+  } catch {
+    return [];
+  }
+}
+
+function killProcessesMatching(predicate: (command: string) => boolean): void {
+  const pids = readProcessRows()
+    .filter((row) => predicate(row.command))
+    .map((row) => row.pid);
+
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    for (const pid of pids) {
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // The process may already be gone.
+      }
+    }
+  }
 }
 
 export function stopSmokeGraphDaemonForVault(vaultPath: string): void {
-  try {
-    execFileSync(
-      "pkill",
-      ["-f", `vt-graphd\\.ts --vault ${escapeProcessPattern(vaultPath)}`],
-      {
-        stdio: "ignore",
-      },
-    );
-  } catch {
-    // No matching smoke daemon is fine.
-  }
+  killProcessesMatching(
+    (command) =>
+      command.includes(vaultPath) &&
+      (command.includes("vt-graphd.ts") ||
+        command.includes("vt-graphd.mjs")),
+  );
 }
 
 export async function waitForMcpServer(
@@ -146,10 +189,7 @@ export async function waitForMcpServer(
     try {
       const response = await fetch(mcpUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-        },
+        headers: MCP_REQUEST_HEADERS,
         body: JSON.stringify({
           jsonrpc: "2.0",
           id: 0,
@@ -161,7 +201,9 @@ export async function waitForMcpServer(
           },
         }),
       });
-      if (response.ok) return true;
+      const ok = response.ok;
+      await response.body?.cancel().catch(() => undefined);
+      if (ok) return true;
     } catch {
       // Retry until the MCP server finishes startup.
     }
@@ -178,10 +220,7 @@ export async function mcpRequest(
 ): Promise<unknown> {
   const response = await fetch(mcpUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream",
-    },
+    headers: MCP_REQUEST_HEADERS,
     body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
   });
   return JSON.parse(await response.text());
@@ -231,11 +270,6 @@ export function getCiElectronFlags(): string[] {
 }
 
 const POLL_INTERVALS: number[] = [250, 500, 1000, 2000];
-const SHUTDOWN_IPC_TIMEOUT_MS = 2500;
-const FIRST_WINDOW_TIMEOUT_MS = 1000;
-const APP_QUIT_TIMEOUT_MS = 2500;
-const ELECTRON_CLOSE_TIMEOUT_MS = 5000;
-const PROCESS_EXIT_TIMEOUT_MS = 2000;
 
 export async function pollForCytoscape(
   page: Page,
@@ -289,141 +323,6 @@ export async function pollForCondition(
   await expect
     .poll(async () => fn(), { message, timeout, intervals: POLL_INTERVALS })
     .toBe(true);
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForProcessExit(
-  proc: NonNullable<ReturnType<ElectronApplication["process"]>>,
-): Promise<void> {
-  if (proc.exitCode !== null || proc.signalCode !== null) return;
-  await Promise.race([
-    new Promise<void>((resolve) => proc.once("exit", () => resolve())),
-    delay(PROCESS_EXIT_TIMEOUT_MS),
-  ]);
-}
-
-function isProcessStillAlive(
-  proc: NonNullable<ReturnType<ElectronApplication["process"]>>,
-): boolean {
-  if (proc.exitCode !== null || proc.signalCode !== null) return false;
-  if (!proc.pid) return false;
-  try {
-    process.kill(proc.pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function requestAppQuit(electronApp: ElectronApplication): Promise<void> {
-  await Promise.race([
-    electronApp
-      .evaluate(({ app }) => {
-        app.quit();
-      })
-      .catch(() => undefined),
-    delay(APP_QUIT_TIMEOUT_MS).then(() => undefined),
-  ]);
-}
-
-async function runBoundedShutdownIpc(
-  electronApp: ElectronApplication,
-  method: "shutdownGraphDaemon" | "stopFileWatching",
-): Promise<void> {
-  const proc = electronApp.process();
-  if (proc && !isProcessStillAlive(proc)) return;
-
-  const page = await Promise.race([
-    electronApp
-      .firstWindow({ timeout: FIRST_WINDOW_TIMEOUT_MS })
-      .catch(() => null),
-    delay(FIRST_WINDOW_TIMEOUT_MS).then(() => null),
-  ]);
-  if (!page) return;
-
-  await Promise.race([
-    page
-      .evaluate(
-        async ({ methodName, timeoutMs }) => {
-          type ShutdownMethod = "shutdownGraphDaemon" | "stopFileWatching";
-          const api = (
-            window as unknown as {
-              electronAPI?: {
-                main: Partial<Record<ShutdownMethod, () => Promise<unknown>>>;
-              };
-            }
-          ).electronAPI;
-          const shutdown = api?.main[methodName as ShutdownMethod];
-          if (!shutdown) return;
-
-          await Promise.race([
-            shutdown(),
-            new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-          ]);
-        },
-        { methodName: method, timeoutMs: SHUTDOWN_IPC_TIMEOUT_MS },
-      )
-      .catch(() => undefined),
-    delay(SHUTDOWN_IPC_TIMEOUT_MS).then(() => undefined),
-  ]);
-}
-
-export async function robustElectronTeardown(
-  electronApp: ElectronApplication,
-): Promise<void> {
-  await safeDaemonShutdown(electronApp);
-
-  const proc = electronApp.process();
-  if (proc && !isProcessStillAlive(proc)) {
-    await Promise.race([
-      electronApp.close().catch(() => undefined),
-      delay(PROCESS_EXIT_TIMEOUT_MS).then(() => undefined),
-    ]);
-    return;
-  }
-
-  await requestAppQuit(electronApp);
-
-  const close = electronApp.close().catch(() => undefined);
-  const closed = await Promise.race([
-    close.then(() => true),
-    delay(ELECTRON_CLOSE_TIMEOUT_MS).then(() => false),
-  ]);
-
-  if (closed) return;
-
-  if (proc?.pid) {
-    try {
-      process.kill(proc.pid, "SIGKILL");
-    } catch {
-      // Already exited
-    }
-  }
-  if (proc) await waitForProcessExit(proc);
-  await Promise.race([close, delay(PROCESS_EXIT_TIMEOUT_MS)]);
-}
-
-export async function safeDaemonShutdown(
-  electronApp: ElectronApplication,
-): Promise<void> {
-  try {
-    await runBoundedShutdownIpc(electronApp, "shutdownGraphDaemon");
-  } catch {
-    // Window may already be closed or app in bad state
-  }
-}
-
-export async function safeStopFileWatching(
-  electronApp: ElectronApplication,
-): Promise<void> {
-  try {
-    await runBoundedShutdownIpc(electronApp, "stopFileWatching");
-  } catch {
-    // Window may already be closed or app in bad state
-  }
 }
 
 export function expectNoCriticalElectronErrors(

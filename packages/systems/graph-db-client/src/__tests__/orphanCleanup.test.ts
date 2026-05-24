@@ -7,54 +7,62 @@ function psLine(pid: number, ppid: number, command: string): string {
   return `  ${pid} ${ppid} ${command}`
 }
 
-// Approximates the actual `ps -o command=` output for spawnVaultlessDaemon —
-// the inline script uses a destructured `import { startDaemon } from '@vt/...'`,
-// which macOS ps emits inline (newlines escaped to \012 sequences, irrelevant
-// to the regex anchor).
-const VAULTLESS_DAEMON_CMD =
-  "node --import tsx --eval import { startDaemon } from '@vt/graph-db-server/server'"
-
-describe('killOrphanVtGraphdDaemons — vaultless branch', () => {
-  test('kills vaultless vt-graphd processes whose PPID is 1 (orphaned)', () => {
+describe('killOrphanVtGraphdDaemons — vault-bound branch', () => {
+  test('kills vt-graphd binaries whose --project-root directory no longer exists', () => {
     const killProcess = vi.fn()
     const result = killOrphanVtGraphdDaemons({
       currentPid: 999,
       killProcess,
       listProcesses: () => [
-        psLine(1234, 1, VAULTLESS_DAEMON_CMD),
-        psLine(5678, 1, VAULTLESS_DAEMON_CMD),
+        psLine(
+          4242,
+          1,
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
+        ),
       ],
       platform: 'darwin',
-      vaultExists: () => true,
+      vaultExists: () => false,
     })
 
-    expect(killProcess).toHaveBeenCalledWith(1234, 'SIGTERM')
-    expect(killProcess).toHaveBeenCalledWith(5678, 'SIGTERM')
-    expect(result.killed.map((k) => k.pid).sort()).toEqual([1234, 5678])
+    expect(killProcess).toHaveBeenCalledWith(4242, 'SIGTERM')
+    expect(result.killed[0]?.pid).toBe(4242)
   })
 
-  test('skips vaultless vt-graphd whose PPID is not 1 (still attached to a live parent)', () => {
+  test('skips vault-bound daemons whose vault directory exists', () => {
     const killProcess = vi.fn()
     const result = killOrphanVtGraphdDaemons({
       currentPid: 999,
       killProcess,
-      listProcesses: () => [psLine(1234, 4242, VAULTLESS_DAEMON_CMD)],
+      listProcesses: () => [
+        psLine(
+          4242,
+          5000,
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/live-vault',
+        ),
+      ],
       platform: 'darwin',
       vaultExists: () => true,
     })
 
     expect(killProcess).not.toHaveBeenCalled()
     expect(result.killed).toEqual([])
+    expect(result.skipped[0]?.reason).toBe('vault-exists')
   })
 
-  test('skips processes matching the current pid (so the reaper does not kill itself)', () => {
+  test('skips the current pid so the reaper does not kill itself', () => {
     const killProcess = vi.fn()
     const result = killOrphanVtGraphdDaemons({
-      currentPid: 1234,
+      currentPid: 4242,
       killProcess,
-      listProcesses: () => [psLine(1234, 1, VAULTLESS_DAEMON_CMD)],
+      listProcesses: () => [
+        psLine(
+          4242,
+          1,
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
+        ),
+      ],
       platform: 'darwin',
-      vaultExists: () => true,
+      vaultExists: () => false,
     })
 
     expect(killProcess).not.toHaveBeenCalled()
@@ -80,58 +88,21 @@ describe('killOrphanVtGraphdDaemons — vaultless branch', () => {
   })
 })
 
-describe('killOrphanVtGraphdDaemons — vault-bound branch (unchanged behavior)', () => {
-  test('still kills vt-graphd binaries whose --vault directory no longer exists', () => {
-    const killProcess = vi.fn()
-    const result = killOrphanVtGraphdDaemons({
-      currentPid: 999,
-      killProcess,
-      listProcesses: () => [
-        psLine(
-          4242,
-          1,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/missing-vault',
-        ),
-      ],
-      platform: 'darwin',
-      vaultExists: () => false,
-    })
-
-    expect(killProcess).toHaveBeenCalledWith(4242, 'SIGTERM')
-    expect(result.killed[0]?.pid).toBe(4242)
-  })
-
-  test('still skips vault-bound daemons whose vault directory exists', () => {
-    const killProcess = vi.fn()
-    const result = killOrphanVtGraphdDaemons({
-      currentPid: 999,
-      killProcess,
-      listProcesses: () => [
-        psLine(
-          4242,
-          5000,
-          'node /opt/voicetree/vt-graphd.ts --vault /tmp/live-vault',
-        ),
-      ],
-      platform: 'darwin',
-      vaultExists: () => true,
-    })
-
-    expect(killProcess).not.toHaveBeenCalled()
-    expect(result.killed).toEqual([])
-    expect(result.skipped[0]?.reason).toBe('vault-exists')
-  })
-})
-
 describe('killOrphanVtGraphdDaemons — platform gate', () => {
   test('is a no-op on unsupported platforms', () => {
     const killProcess = vi.fn()
     const result = killOrphanVtGraphdDaemons({
       currentPid: 999,
       killProcess,
-      listProcesses: () => [psLine(1234, 1, VAULTLESS_DAEMON_CMD)],
+      listProcesses: () => [
+        psLine(
+          1234,
+          1,
+          'node /opt/voicetree/vt-graphd.ts --project-root /tmp/missing-vault',
+        ),
+      ],
       platform: 'win32',
-      vaultExists: () => true,
+      vaultExists: () => false,
     })
 
     expect(killProcess).not.toHaveBeenCalled()

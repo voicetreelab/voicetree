@@ -64,8 +64,6 @@ export {
     hydrateState,
     hydrateCommand,
     readSnapshotDocument,
-    readSequenceDocument,
-    readProjectionDocument,
     listSnapshotDocuments,
     listSequenceDocuments,
     listProjectionDocuments,

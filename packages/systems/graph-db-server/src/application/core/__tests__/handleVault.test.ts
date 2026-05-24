@@ -4,10 +4,10 @@ import { afterEach, describe, expect, test } from 'vitest'
 import {
   classifyAddReadPathResult,
   classifyRemoveReadPathResult,
-  classifySetWritePathResult,
+  classifySetWriteFolderResult,
   composeReadPathsResponse,
   composeVaultState,
-  composeWritePathResponse,
+  composeWriteFolderResponse,
   decodeVaultPath,
   resolveAppSupportPath,
 } from '../handleVault.ts'
@@ -72,25 +72,25 @@ describe('handleVault', () => {
 
   test('composes vault state using configured write path when present', () => {
     expect(composeVaultState({
-      vaultPath: '/tmp/vault',
+      projectRoot: '/tmp/vault',
       readPaths: ['/tmp/vault/docs'],
-      writePathOption: { value: '/tmp/vault/out' },
+      writeFolderOption: { value: '/tmp/vault/out' },
     })).toEqual({
-      vaultPath: '/tmp/vault',
+      projectRoot: '/tmp/vault',
       readPaths: ['/tmp/vault/docs'],
-      writePath: '/tmp/vault/out',
+      writeFolder: '/tmp/vault/out',
     })
   })
 
   test('composes vault state using vault path when write path is absent', () => {
     expect(composeVaultState({
-      vaultPath: '/tmp/vault',
+      projectRoot: '/tmp/vault',
       readPaths: [],
-      writePathOption: { value: null },
+      writeFolderOption: { value: null },
     })).toEqual({
-      vaultPath: '/tmp/vault',
+      projectRoot: '/tmp/vault',
       readPaths: [],
-      writePath: '/tmp/vault',
+      writeFolder: '/tmp/vault',
     })
   })
 
@@ -162,15 +162,15 @@ describe('handleVault', () => {
       },
     },
   ])('classifies set write path result %#', ({ result, expected }) => {
-    expect(classifySetWritePathResult(result)).toEqual(expected)
+    expect(classifySetWriteFolderResult(result)).toEqual(expected)
   })
 
   test('composes schema-valid read and write path responses', () => {
     expect(composeReadPathsResponse(['/tmp/vault/docs'])).toEqual({
       readPaths: ['/tmp/vault/docs'],
     })
-    expect(composeWritePathResponse('/tmp/vault/out')).toEqual({
-      writePath: '/tmp/vault/out',
+    expect(composeWriteFolderResponse('/tmp/vault/out')).toEqual({
+      writeFolder: '/tmp/vault/out',
     })
   })
 })

@@ -25,11 +25,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import {
     loadFolder,
-    setVaultPath,
+    setProjectRoot,
     stopFileWatching,
 } from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import { setGraph } from '@vt/graph-db-server/state/graph-store'
-import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { clearDaemonClientCache } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { GraphDbClient } from '@vt/graph-db-client'
 import { initGraphModel } from '@vt/graph-model'
 import { createGraph } from '@vt/graph-model/graph'
@@ -57,7 +57,7 @@ vi.mock('electron', () => ({
 }))
 
 let tempFixtureRoot: string | null = null
-let vaultPath: string
+let projectRoot: string
 
 async function copyFixture(): Promise<string> {
     if (!tempFixtureRoot) throw new Error('tempFixtureRoot not initialized')
@@ -82,7 +82,7 @@ function countVtGraphdProcessesForVault(vault: string): number {
         timeout: 5000,
     })
     if (result.status !== 0 || !result.stdout) return 0
-    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--vault\\s+${vault}(\\s|$)`)
+    const re: RegExp = new RegExp(`vt-graphd\\.ts.*--project-root\\s+${vault}(\\s|$)`)
     return result.stdout.split('\n').filter(line => re.test(line)).length
 }
 
@@ -115,9 +115,9 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
                 onWatchingStarted: (): void => undefined,
             },
         )
-        vaultPath = await copyFixture()
-        await saveVaultConfigForDirectory(vaultPath, {
-            writePath: path.join(vaultPath, 'voicetree'),
+        projectRoot = await copyFixture()
+        await saveVaultConfigForDirectory(projectRoot, {
+            writeFolder: path.join(projectRoot, 'voicetree'),
         })
     }, TIMEOUT_MS)
 
@@ -140,7 +140,7 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
         )
 
         setGraph(createGraph({}))
-        setVaultPath('')
+        setProjectRoot('')
         clearRecentDeltas()
         clearDaemonClientCache()
     })
@@ -151,7 +151,7 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
     })
 
     afterAll(async () => {
-        await shutdownDaemonForVault(vaultPath)
+        await shutdownDaemonForVault(projectRoot)
         clearDaemonClientCache()
         if (tempFixtureRoot) {
             await fs.rm(tempFixtureRoot, { recursive: true, force: true })
@@ -161,17 +161,17 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
 
     it('5 concurrent loadFolder callers spawn ≤1 vt-graphd and leave graph populated', async () => {
         // GIVEN: clean slate — no stale daemon for this vault.
-        await shutdownDaemonForVault(vaultPath)
+        await shutdownDaemonForVault(projectRoot)
         clearDaemonClientCache()
 
         // WHEN: 5 callers race to load the same folder.
         // (Models renderer-bootstrap + UI click + IPC handler + 2 stragglers.)
         const callers: ReadonlyArray<Promise<{ readonly success: boolean }>> = [
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
-            loadFolder(vaultPath, { includeActiveViewExpandedPaths: false }),
+            loadFolder(projectRoot, { includeActiveViewExpandedPaths: false }),
+            loadFolder(projectRoot, { includeActiveViewExpandedPaths: false }),
+            loadFolder(projectRoot, { includeActiveViewExpandedPaths: false }),
+            loadFolder(projectRoot, { includeActiveViewExpandedPaths: false }),
+            loadFolder(projectRoot, { includeActiveViewExpandedPaths: false }),
         ]
         const results: ReadonlyArray<{ readonly success: boolean }> = await Promise.all(callers)
 
@@ -179,23 +179,23 @@ describe('Parallel loadFolder idempotency (Hot Zone A surface a)', () => {
         results.forEach(r => expect(r.success).toBe(true))
 
         // AND: daemon graph populated — not cleared by a late re-spawn.
-        const nodeCount: number = await waitForDaemonNodeCount(vaultPath)
+        const nodeCount: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCount).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
 
         // AND: at most 1 vt-graphd process for this vault.
         if (process.platform === 'darwin' || process.platform === 'linux') {
-            const daemonCount: number = countVtGraphdProcessesForVault(vaultPath)
+            const daemonCount: number = countVtGraphdProcessesForVault(projectRoot)
             expect(daemonCount, `expected ≤1 vt-graphd for vault, found ${daemonCount}`)
                 .toBeLessThanOrEqual(1)
         }
 
         // AND: a follow-up loadFolder is a no-op that preserves the graph
         // (the original race symptom: late call-site re-spawns and clears).
-        const followup: { readonly success: boolean } = await loadFolder(vaultPath, {
+        const followup: { readonly success: boolean } = await loadFolder(projectRoot, {
             includeActiveViewExpandedPaths: false,
         })
         expect(followup.success).toBe(true)
-        const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(vaultPath)
+        const nodeCountAfterFollowup: number = await waitForDaemonNodeCount(projectRoot)
         expect(nodeCountAfterFollowup).toBeGreaterThanOrEqual(MIN_SMALL_NODE_COUNT)
     }, TIMEOUT_MS)
 })

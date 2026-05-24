@@ -68,14 +68,14 @@ async function unlinkFile(path: string): Promise<void> {
 }
 
 /**
- * True when pid's command-line is a `vt-graphd` invocation whose `--vault`
+ * True when pid's command-line is a `vt-graphd` invocation whose `--project-root`
  * argument resolves to `vault`. Used as a safety check before SIGTERM-ing a
  * pid recovered from a lockfile we don't trust.
  */
 export function isVtGraphdProcessForVault(pid: number, vault: string): boolean {
   const cmd = readPidCommandLine(pid)
   if (!cmd) return false
-  const match = /\bvt-graphd\.\w+\b.*--vault\s+(\S+)/.exec(cmd)
+  const match = /\bvt-graphd\.\w+\b.*--project-root\s+(\S+)/.exec(cmd)
   if (!match) return false
   return resolve(match[1]) === resolve(vault)
 }
@@ -106,7 +106,7 @@ async function removeDaemonFiles(
 /**
  * Terminate a vt-graphd process holding the lock for a vault and clean up its
  * stale lock + port files. Refuses to kill a pid whose command-line doesn't
- * match `vt-graphd ... --vault <vault>` — the lockfile contents are
+ * match `vt-graphd ... --project-root <vault>` — the lockfile contents are
  * untrusted, so we verify before killing.
  *
  * Returns true when the process was terminated (or already dead) and lock /
@@ -183,30 +183,12 @@ function vaultExists(vault: string): boolean {
 }
 
 function parseVtGraphdProcessLine(line: string): OrphanProcessCandidate | null {
-  const matcher = /^\s*(\d+)\s+\d+\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
+  const matcher = /^\s*(\d+)\s+\d+\s+(.*\bvt-graphd\.\w+\b.*--project-root\s+(\S+).*)$/
   const match = matcher.exec(line)
   if (!match) return null
   const pid = Number(match[1])
   if (!Number.isFinite(pid)) return null
   return { pid, vault: match[3] }
-}
-
-type VaultlessOrphanCandidate = { readonly pid: number; readonly ppid: number }
-
-function parseVaultlessVtGraphdLine(
-  line: string,
-): VaultlessOrphanCandidate | null {
-  // Matches the inline script used by spawnVaultlessDaemon, which has no
-  // vt-graphd argv literal and no --vault flag. The destructured import string
-  // (`from '@vt/graph-db-server/server'`) is the unique fingerprint. Required
-  // PPID column placed by listProcessLines.
-  const matcher = /^\s*(\d+)\s+(\d+)\s+.*@vt\/graph-db-server\/server/
-  const match = matcher.exec(line)
-  if (!match) return null
-  const pid = Number(match[1])
-  const ppid = Number(match[2])
-  if (!Number.isFinite(pid) || !Number.isFinite(ppid)) return null
-  return { pid, ppid }
 }
 
 function findOrphanCandidates(
@@ -221,33 +203,23 @@ function findOrphanCandidates(
 
   for (const line of lines) {
     const vaultBound = parseVtGraphdProcessLine(line)
-    if (vaultBound && vaultBound.pid !== deps.currentPid) {
-      if (deps.vaultExists(vaultBound.vault)) {
-        skipped.push({
-          pid: vaultBound.pid,
-          reason: 'vault-exists',
-          vault: vaultBound.vault,
-        })
-      } else {
-        candidates.push(vaultBound)
-      }
-      continue
+    if (!vaultBound || vaultBound.pid === deps.currentPid) continue
+    if (deps.vaultExists(vaultBound.vault)) {
+      skipped.push({
+        pid: vaultBound.pid,
+        reason: 'vault-exists',
+        vault: vaultBound.vault,
+      })
+    } else {
+      candidates.push(vaultBound)
     }
-
-    // Vaultless (Electron-spawned) daemons have no --vault arg. We can't use a
-    // vault path as a liveness proxy; instead the kernel-level signal that the
-    // parent died is the daemon's ppid being 1 (reparented to launchd/init).
-    const vaultless = parseVaultlessVtGraphdLine(line)
-    if (!vaultless || vaultless.pid === deps.currentPid) continue
-    if (vaultless.ppid !== 1) continue
-    candidates.push({ pid: vaultless.pid, vault: '<vaultless>' })
   }
 
   return { candidates, skipped }
 }
 
 /**
- * Find vt-graphd processes whose --vault argument no longer points to an
+ * Find vt-graphd processes whose --project-root argument no longer points to an
  * existing directory and terminate them. These are leftover daemons from
  * crashed apps or aborted test runs; they hold ports and contend with the
  * fresh daemon a current load is trying to reach.
