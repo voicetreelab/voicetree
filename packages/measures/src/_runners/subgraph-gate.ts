@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /**
- * Subgraph-scoped health gate runner.
+ * Subgraph-scoped health gate runner. Wired into .githooks/pre-commit.
  *
- * Status: Phase 0 stub. The measure registry is intentionally empty — the
- * three parallel measure agents (BEHAVIORAL / STRUCTURAL / SHAPE) will
- * populate it next, then this runner is wired into pre-commit in Phase 2.4.
- *
- * Until those agents land, invoking this runner is harmless: it parses
- * the input, builds the subgraph, finds no measures to run, prints a
- * "no measures registered" notice, and exits 0.
+ * Reads the staged diff (or an explicit file list), builds the touched
+ * communities + N-hop subgraph, runs every registered SubgraphMeasure
+ * against it, prints violations grouped by axis, and exits non-zero if
+ * any measure produced a fail-severity violation.
  *
  * I/O lives here (the runner edge); the contract types and the extractor
  * are pure functions of their inputs.
@@ -22,7 +19,7 @@
  *       [--baseline-refresh]               (Phase 0.4 — TODO, not yet wired)
  *
  * Exit codes:
- *   0   all measures pass (or registry empty)
+ *   0   all measures pass (or no TS files staged → nothing to check)
  *   1   one or more violations at severity='fail'
  *   2   bad CLI usage
  */
@@ -34,6 +31,7 @@ import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
 import {listMeasures} from '../_shared/measures/registry.ts'
 import {loadBaseline} from '../_shared/measures/baseline-store.ts'
 import type {SubgraphMeasureResult, Violation} from '../_shared/measures/subgraph-measure.ts'
+import '../_shared/measures/load-all.ts'
 
 type Args = {
     readonly changedFilesFrom: string | null
@@ -126,9 +124,8 @@ async function main(): Promise<void> {
 
     const measures = listMeasures()
     if (measures.length === 0) {
-        console.error('subgraph-gate: no measures registered — nothing to check.')
-        console.error('  (this is expected during Phase 0 — the three parallel measure agents will populate the registry.)')
-        process.exit(0)
+        console.error('subgraph-gate: no measures registered — load-all.ts side-effect import may have failed silently.')
+        process.exit(1)
     }
 
     const needsInbound = args.includeInbound || measures.some(m => m.needsInbound)
@@ -161,7 +158,15 @@ async function main(): Promise<void> {
     for (const [axis, byMeasureId] of byAxis) printViolationGroup(axis, byMeasureId)
 
     const failCount = allResults.reduce((n, r) => n + r.violations.filter(v => v.severity === 'fail').length, 0)
-    process.exit(failCount > 0 ? 1 : 0)
+    if (failCount > 0) {
+        process.stderr.write('\n')
+        process.stderr.write('━'.repeat(80) + '\n')
+        process.stderr.write('Codebase complexity / tech-debt health measures failing, please address\n')
+        process.stderr.write('with brain/workflows/engineering/architectural-complexity/fp-rearchitecting/SKILL.md\n')
+        process.stderr.write('━'.repeat(80) + '\n')
+        process.exit(1)
+    }
+    process.exit(0)
 }
 
 main().catch(err => {
