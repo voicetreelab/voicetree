@@ -4,6 +4,7 @@ import * as ts from 'typescript'
 import {describe, expect, it} from 'vitest'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../../_shared/discovery/discover-packages'
 import {type SourceFile, scanSourceFiles} from '../../_shared/graph/import-graph'
+import {communityAtDepth} from '../../_shared/community/community-at-depth.ts'
 import {
     GLOBAL_SIDE_EFFECT_CATEGORIES,
     extractFunctions,
@@ -46,17 +47,6 @@ type CommunityBehavioralReport = {
     readonly globalsByCategory: Readonly<Record<string, number>>
     readonly impureGlobalsCount: number
     readonly score: number
-}
-
-// --- Community assignment at arbitrary depth ---
-
-function communityAtDepth(pkg: string, relToSrc: string, depth: number): string {
-    if (depth === 0) return pkg
-    const dir = dirname(relToSrc)
-    const parts = dir === '.' ? [] : dir.split('/')
-    const segments = parts.slice(0, depth)
-    if (segments.length < depth) return [pkg, ...segments, '__root__'].join('/')
-    return [pkg, ...segments].join('/')
 }
 
 // --- Module-level state binding detection ---
