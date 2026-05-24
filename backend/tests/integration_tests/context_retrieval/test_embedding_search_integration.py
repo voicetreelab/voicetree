@@ -35,7 +35,7 @@ class TestEmbeddingSearchIntegration:
         tree = MarkdownTree()
 
         # Manually load nodes from test files (simplified loader)
-        for md_file in sorted(test_data_dir.glob("*.md")):
+        for md_file in sorted(test_data_dir.rglob("*.md")):
             with open(md_file) as f:
                 content = f.read()
 

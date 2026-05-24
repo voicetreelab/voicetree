@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import {app, BrowserWindow, nativeImage} from 'electron';
+import {app, BrowserWindow, dialog, nativeImage} from 'electron';
 import * as O from 'fp-ts/lib/Option.js';
 import electronUpdater, {type UpdateCheckResult} from 'electron-updater';
 import log from 'electron-log';
@@ -12,22 +12,35 @@ import {getAppSupportPath} from '@/shell/edge/main/runtime/state/app-electron-st
 import {
     configureMcpServer,
     registerChildIfMonitored,
-} from '@vt/voicetree-mcp';
+} from '@vt/vt-daemon';
 import {agentRuntime} from '@vt/agent-runtime';
+import {resolveVtBinDir} from '@vt/agent-runtime/spawn/vtPathInjection.ts';
+import {existsSync} from 'node:fs';
 import {unbindHttpDaemon} from '@/shell/edge/main/runtime/electron/daemon/http-server-binding';
 import {
     terminalRuntimeSurface,
     type TerminalRecord,
 } from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface';
 import {setupToolsDirectory, getToolsDirectory} from '@/shell/edge/main/runtime/electron/startup/tools-setup';
+import {getBuildConfig} from '@/shell/edge/main/runtime/electron/app/build-config';
 import path from 'path';
 import {setupOnboardingDirectory} from '@/shell/edge/main/runtime/electron/startup/onboarding-setup';
 import {startNotificationScheduler, stopNotificationScheduler} from '@/shell/edge/main/runtime/electron/startup/notification-scheduler';
-import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/agent-completion-notifier';
+import {createAgentCompletionNotifier} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/agent-completion-notifier';
 import {migrateAgentPromptCoreOnAppUpdateIfNeeded, migrateLayoutConfigIfNeeded, migrateStarredFoldersIfNeeded, migrateStarredFoldersBrainRename} from '@/shell/edge/main/settings/settings_IO';
 import {setBackendPort} from '@/shell/edge/main/runtime/state/app-electron-state';
 import {startOTLPReceiver, stopOTLPReceiver} from '@/shell/edge/main/observability/metrics/otlp-receiver';
 import {registerTerminalIpcHandlers} from '@/shell/edge/main/agent/terminals/ipc-terminal-handlers';
+import {
+    refreshUnclaimedTmuxSessions,
+    startUnclaimedTmuxSessionPolling,
+    stopUnclaimedTmuxSessionPolling,
+} from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync';
+import {
+    refreshRecoverySessions,
+    startRecoverySessionPolling,
+    stopRecoverySessionPolling,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync';
 import {uiAPI} from '@/shell/edge/main/runtime/ui-api-proxy';
 import {setupRPCHandlers} from '@/shell/edge/main/runtime/edge-auto-rpc/rpc-handler';
 import {applyLiveCommand} from '@/shell/edge/main/runtime/state/live-state-store';
@@ -35,7 +48,8 @@ import {
     getGraphFromDaemon,
     getLiveStateSnapshotFromDaemon,
     postDeltaThroughDaemonWithEditors,
-} from '@/shell/edge/main/runtime/electron/daemon/daemon-ipc-proxy';
+} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
+import {registerGraphIpcHandlers} from '@/shell/edge/main/runtime/electron/daemon/ipc/graph-ipc-handlers';
 import {
     getWatchStatus,
     getVaultPaths,
@@ -48,15 +62,15 @@ import {validateStartupCwd} from '@/shell/edge/main/runtime/electron/startup/sta
 import {configureEnvironment} from './environment-config';
 import {setupAutoUpdater} from './auto-updater-setup';
 import {appResource, createWindow, stopTrackpadMonitoring} from './create-window';
-import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/graph-model-init';
+import {initializeGraphModel} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-model-init';
 import {registerInstance, unregisterInstance} from './instance-discovery';
 import {killOrphanVtGraphdDaemons} from '@vt/graph-db-client';
 import {
     getDaemonClient,
     shutdownActiveDaemonConnection,
-} from '@/shell/edge/main/runtime/electron/daemon/graph-daemon';
-import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync';
-import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/daemon-sse-subscription';
+} from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
+import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
+import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -81,7 +95,7 @@ validateStartupCwd();
 // Initialize @vt/graph-model DI before any graph-model functions are called
 initializeGraphModel();
 
-// Wire @vt/voicetree-mcp late-bound bridges. Headless vt-mcpd will provide
+// Wire @vt/vt-daemon late-bound bridges. Headless vt-mcpd will provide
 // its own implementations (or omit, for tools that don't apply headlessly).
 configureMcpServer({
     graph: {
@@ -121,7 +135,8 @@ terminalRuntimeSurface.configureAgentRuntime({
             const writePath: O.Option<string> = await getWritePath();
             return O.isSome(writePath) ? writePath.value : null;
         },
-        getCliManualPath: (): string => path.join(getToolsDirectory(), 'prompts', 'cli-manual.md'),
+        getCliManualPath: (): string => getBuildConfig().cliManualPath,
+        getVtBinDir: (): string | null => resolveVtBinDir(getBuildConfig().voicetreeCliPackageDir, existsSync),
     },
     graph: {
         getGraph: async () => getGraphFromDaemon(),
@@ -210,6 +225,8 @@ const notifyOnCompletion: (records: readonly TerminalRecord[]) => void = createA
 terminalRuntimeSurface.subscribeToRegistry((records: TerminalRecord[]) => {
     uiAPI.syncTerminals(records);
     notifyOnCompletion(records);
+    void refreshUnclaimedTmuxSessions().catch(() => undefined);
+    void refreshRecoverySessions().catch(() => undefined);
 });
 
 // Register terminal cleanup for when folders are switched
@@ -223,7 +240,21 @@ void app.whenReady().then(async () => {
     console.time('[Startup] Total time to window');
 
     setupRPCHandlers();
+    registerGraphIpcHandlers();
     setupApplicationMenu();
+
+    // Tmux preflight — fail fast with a user-visible dialog if tmux is missing
+    // or the launchd-owned server can't start. Without this the app starts but
+    // every terminal spawn silently fails later.
+    try {
+        await terminalRuntimeSurface.ensureTmuxAvailable();
+        await terminalRuntimeSurface.ensureTmuxServer();
+    } catch (error: unknown) {
+        const message: string = error instanceof Error ? error.message : String(error);
+        dialog.showErrorBox('Voicetree cannot start', message);
+        app.exit(1);
+        return;
+    }
 
     // The unified HTTP daemon (Step 9b) is started per-opened-vault by
     // openVault → bindHttpDaemonForVault; nothing app-wide to start here.
@@ -294,6 +325,8 @@ void app.whenReady().then(async () => {
 
     console.time('[Startup] createWindow');
     createWindow({terminalManager, isQuitting: () => isQuitting});
+    startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
     console.timeEnd('[Startup] createWindow');
     console.timeEnd('[Startup] Total time to window');
 
@@ -344,6 +377,8 @@ app.on('before-quit', () => {
 
     // Clean up all terminals
     terminalManager.cleanup();
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
     void cleanupOrphanedContextNodes().catch((error: unknown) => {
@@ -377,6 +412,8 @@ app.on('window-all-closed', () => {
     // but it's complicated because the graph renderer (which hosts terminal UI-edge) is destroyed
     // when the window closes, so terminals lose their renderer connection anyway
     terminalManager.cleanup();
+    stopUnclaimedTmuxSessionPolling();
+    stopRecoverySessionPolling();
 
     if (process.platform !== 'darwin') {
         app.quit();
@@ -396,6 +433,8 @@ app.on('activate', () => {
                 setBackendPort(textToTreeServerPort);
             }
             createWindow({terminalManager, isQuitting: () => isQuitting});
+            startUnclaimedTmuxSessionPolling();
+    startRecoverySessionPolling();
         } else {
             // Show the hidden window (macOS hide-on-close behavior)
             windows[0].show();

@@ -1,46 +1,10 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {describe, it, expect, beforeEach} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode} from '@vt/graph-model/graph'
 
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType'
-import type {TerminalRecord} from '@vt/agent-runtime'
-
-// Mock leaf dependencies
-vi.mock('@vt/agent-runtime', () => {
-    const runtime = {
-        closeHeadlessAgent: vi.fn(),
-        enqueuePendingMessage: vi.fn(),
-        getHeadlessAgentOutput: vi.fn(),
-        getIdleSince: vi.fn(),
-        getOutput: vi.fn(),
-        getPendingTerminal: vi.fn(),
-        getRuntimeUI: vi.fn(),
-        getTerminalRecords: vi.fn(),
-        registerChild: vi.fn(),
-        resetAuditRetryCount: vi.fn(),
-        runStopHooks: vi.fn(),
-        sendTextToTerminal: vi.fn(),
-        spawnTerminalWithContextNode: vi.fn(),
-        tryConsumeAndSplitBudget: vi.fn(() => ({allowed: true, childBudget: undefined}))
-    }
-    return {
-        ...runtime,
-        agentRuntime: runtime,
-    }
-})
-
-vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
-    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
-    return {
-        ...actual,
-        getAgentNodes: vi.fn()
-    }
-})
-
-import {isAgentComplete} from '@vt/voicetree-mcp'
-import {getIdleSince} from '@vt/agent-runtime'
-import {getAgentNodes} from '@vt/voicetree-mcp'
+import {isAgentComplete, type IsAgentCompleteDeps, type TerminalRecord} from '@vt/agent-runtime'
 
 // --- Helpers ---
 
@@ -92,15 +56,24 @@ function makeRecord(id: string, data: TerminalData, status: 'running' | 'exited'
 
 // --- Tests ---
 
+type DepsBuilder = (overrides?: Partial<IsAgentCompleteDeps>) => IsAgentCompleteDeps
+
 describe('isAgentComplete cycle detection', () => {
     const NOW: number = 100_000
     const IDLE_SINCE: number = NOW - 10_000 // 10s idle, well above 7s threshold
 
+    let buildDeps: DepsBuilder
+    let deps: IsAgentCompleteDeps
+
     beforeEach(() => {
-        vi.clearAllMocks()
-        vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
-        // Default: agents have progress nodes (so progress-node gate doesn't block)
-        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'progress.md', title: 'Progress'}])
+        // Default leaf deps: all agents idle long enough, all agents have one progress node.
+        buildDeps = (overrides: Partial<IsAgentCompleteDeps> = {}): IsAgentCompleteDeps => ({
+            getIdleSince: (_id: string) => IDLE_SINCE,
+            getAgentNodes: (_id: string) => [{nodeId: 'progress.md', title: 'Progress'}],
+            getNewNodesForAgent: (_graph: Graph, _agentName: string | undefined, _spawnedAt: number) => [],
+            ...overrides,
+        })
+        deps = buildDeps()
     })
 
     it('handles self-referential cycle (terminalId === parentTerminalId) without stack overflow', () => {
@@ -114,7 +87,7 @@ describe('isAgentComplete cycle detection', () => {
 
         // Without cycle detection, this would throw RangeError: Maximum call stack size exceeded.
         // With the fix, it should return true (self-cycle treated as already visited).
-        const result: boolean = isAgentComplete(selfCycleRecord, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(selfCycleRecord, graph, NOW, allRecords, undefined, deps)
 
         expect(result).toBe(true)
     })
@@ -134,7 +107,7 @@ describe('isAgentComplete cycle detection', () => {
 
         // Without cycle detection, A checks B which checks A which checks B... stack overflow.
         // With the fix, when B tries to recurse into A, A is already in the visited set.
-        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
 
         expect(result).toBe(true)
     })
@@ -154,7 +127,7 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('gamma-node.md', 'Gamma progress', 'gamma')
         ])
 
-        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
 
         expect(result).toBe(true)
     })
@@ -179,7 +152,7 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('delta-node.md', 'Delta progress', 'delta')
         ])
 
-        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
 
         expect(result).toBe(true)
     })
@@ -199,7 +172,7 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('beta-node.md', 'Beta progress', 'beta')
         ])
 
-        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
 
         expect(result).toBe(false)
     })
@@ -222,7 +195,7 @@ describe('isAgentComplete cycle detection', () => {
             buildGraphNode('alpha-node.md', 'Alpha progress', 'alpha')
         ])
 
-        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords)
+        const result: boolean = isAgentComplete(recordA, graph, NOW, allRecords, undefined, deps)
 
         // C is still running, so A is not complete
         expect(result).toBe(false)
@@ -233,36 +206,37 @@ describe('isAgentComplete progress-node gate', () => {
     const NOW: number = 100_000
     const IDLE_SINCE: number = NOW - 10_000 // 10s idle
 
-    beforeEach(() => {
-        vi.clearAllMocks()
-        vi.mocked(getIdleSince).mockReturnValue(IDLE_SINCE)
-    })
+    function depsWith(overrides: Partial<IsAgentCompleteDeps>): IsAgentCompleteDeps {
+        return {
+            getIdleSince: (_id: string) => IDLE_SINCE,
+            getAgentNodes: (_id: string) => [],
+            getNewNodesForAgent: (_g: Graph, _n: string | undefined, _s: number) => [],
+            ...overrides,
+        }
+    }
 
     it('blocks completion when agent has no progress nodes and is within 30-min timeout', () => {
-        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         // Spawned recently — within the 30-min timeout
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 60_000 // 1 minute ago
         const graph: Graph = buildGraph()
 
-        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, depsWith({}))
         expect(result).toBe(false)
     })
 
     it('allows completion when agent has no progress nodes but exceeds 30-min timeout', () => {
-        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - (31 * 60 * 1000) // 31 minutes ago
         const graph: Graph = buildGraph()
 
-        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, depsWith({}))
         expect(result).toBe(true)
     })
 
     it('allows completion when agent has progress nodes regardless of spawn time', () => {
-        vi.mocked(getAgentNodes).mockReturnValue([{nodeId: 'node.md', title: 'My Progress'}])
         const data: TerminalData = makeIdleTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data)
         record.spawnedAt = NOW - 10_000 // 10 seconds ago — very recent
@@ -270,18 +244,20 @@ describe('isAgentComplete progress-node gate', () => {
             buildGraphNode('node.md', 'My Progress', 'alpha')
         ])
 
-        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        const deps: IsAgentCompleteDeps = depsWith({
+            getAgentNodes: (_id: string) => [{nodeId: 'node.md', title: 'My Progress'}],
+        })
+        const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, deps)
         expect(result).toBe(true)
     })
 
     it('does not apply progress-node gate to exited agents', () => {
-        vi.mocked(getAgentNodes).mockReturnValue([])
         const data: TerminalData = makeTerminalData('agent-x', 'alpha')
         const record: TerminalRecord = makeRecord('agent-x', data, 'exited')
         record.spawnedAt = NOW - 10_000 // recent spawn, no progress nodes
         const graph: Graph = buildGraph()
 
-        const result: boolean = isAgentComplete(record, graph, NOW, [record])
+        const result: boolean = isAgentComplete(record, graph, NOW, [record], undefined, depsWith({}))
         expect(result).toBe(true) // exited agents are always complete
     })
 })

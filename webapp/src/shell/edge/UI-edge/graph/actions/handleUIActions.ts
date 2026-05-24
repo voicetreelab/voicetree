@@ -18,6 +18,7 @@ import type {Core} from 'cytoscape';
 import {
     updateFloatingEditors,
 } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
+import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
 import {getEditorId} from "@/shell/edge/UI-edge/floating-windows/anchoring/types";
 import {getEditorByNodeId} from "@/shell/edge/UI-edge/state/stores/EditorStore";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/stores/UIAppState";
@@ -78,6 +79,8 @@ export async function createNewChildNodeFromUI(
     cy: Core,
     spatialIndex?: SpatialIndex
 ): Promise<NodeIdAndFilePath> {
+
+    await flushEditorForNode(parentNodeId as NodeIdAndFilePath);
 
     // Get current graph state
     const currentGraph: Graph | undefined = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?

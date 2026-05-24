@@ -1,0 +1,9 @@
+{
+  "description": "P1: Agent exits with code 1 — tests that failed agents are reported correctly",
+  "actions": [
+    { "type": "log", "message": "Starting work..." },
+    { "type": "delay", "ms": 2000 },
+    { "type": "log", "message": "Simulating failure" },
+    { "type": "exit", "code": 1 }
+  ]
+}

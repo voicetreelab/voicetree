@@ -35,13 +35,23 @@ export function subscribeToGraphUpdates(
 ): (() => void) | null {
     const electronAPI: ElectronAPI | undefined = window.electronAPI;
 
-    if (!electronAPI?.graph?.onProjectedGraphUpdate) {
+    if (!electronAPI?.graph?.onProjectedGraphUpdate || !electronAPI.graph.getCurrentProjectedGraph) {
         console.error('[subscribeToGraphUpdates] projected graph API not available, skipping graph subscription');
         return null;
     }
 
     const cy: Core = navigationService.getCy();
     let lastProjectedGraph: ProjectedGraph | null = null;
+    let searchUpdateRaf: number | null = null;
+
+    const scheduleSearchUpdate = (): void => {
+        if (searchUpdateRaf !== null) return;
+
+        searchUpdateRaf = requestAnimationFrame(() => {
+            searchUpdateRaf = null;
+            searchService.updateSearchData();
+        });
+    };
 
     const handleProjectedGraph: (graph: ProjectedGraph) => void = (graph: ProjectedGraph): void => {
         setLoadingState(false);
@@ -50,7 +60,7 @@ export function subscribeToGraphUpdates(
 
         applyGraphDeltaToUI(cy, graph);
         publishLatestProjectedGraph(graph);
-        searchService.updateSearchData();
+        scheduleSearchUpdate();
 
         // Floating editors don't ride applyGraphDeltaToUI — that path only
         // syncs Cytoscape. Without this call, an external file change (FS
@@ -84,8 +94,25 @@ export function subscribeToGraphUpdates(
 
     const cleanupProjected: () => void = electronAPI.graph.onProjectedGraphUpdate?.(handleProjectedGraph) ?? ((): void => {});
     const cleanupClear: () => void = electronAPI.graph.onGraphClear?.(handleGraphClear) ?? ((): void => {});
+    let isSubscribed: boolean = true;
+
+    void electronAPI.graph.getCurrentProjectedGraph()
+        .then((graph: ProjectedGraph): void => {
+            if (!isSubscribed) return;
+            handleProjectedGraph(graph);
+        })
+        .catch((error: unknown): void => {
+            if (!isSubscribed) return;
+            console.error('[subscribeToGraphUpdates] failed to fetch current projected graph', error);
+        });
 
     return (): void => {
+        if (searchUpdateRaf !== null) {
+            cancelAnimationFrame(searchUpdateRaf);
+            searchUpdateRaf = null;
+        }
+
+        isSubscribed = false;
         cleanupProjected();
         cleanupClear();
     };

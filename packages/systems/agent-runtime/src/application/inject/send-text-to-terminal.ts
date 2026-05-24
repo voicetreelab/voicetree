@@ -36,7 +36,7 @@
  * code worked around are still present.
  */
 
-import {sendKeysLiteral} from '../terminals/tmux-session-manager'
+import {sendKeysLiteral} from '../terminals/tmux/tmux-session-manager'
 import type {TerminalOperationResult} from '../terminals/terminal-manager'
 
 const CHAR_DELAY_MS: number = 200

@@ -4,18 +4,19 @@ import type {AddressInfo} from 'node:net'
 import type {Duplex} from 'node:stream'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {WebSocket, WebSocketServer} from 'ws'
-import {killSession, createSession, hasSession} from '../../terminals/tmux-session-manager.ts'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../../terminals/tmux/tmux-server.ts'
+import {killSession, createSession, hasSession} from '../../terminals/tmux/tmux-session-manager.ts'
 import {attachTmuxSessionToWebSocket} from '../tmux-attach-relay.ts'
 
 // Bridge-level black-box test. The daemon-side wiring lives in
-// voicetree-mcp/transport/tmuxAttachWiring.ts; here we drive the primitive
+// vt-daemon/transport/tmuxAttachWiring.ts; here we drive the primitive
 // directly via a tiny test-local mount helper so the bridge can be verified
 // in isolation from daemon auth.
 function mountForTest(server: Server): {readonly close: () => void} {
     const wss: WebSocketServer = new WebSocketServer({noServer: true})
     const listener = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
         wss.handleUpgrade(request, socket, head, (ws: WebSocket): void => {
-            attachTmuxSessionToWebSocket(ws, request)
+            void attachTmuxSessionToWebSocket(ws, request)
         })
     }
     server.on('upgrade', listener)
@@ -29,7 +30,7 @@ function delay(ms: number): Promise<void> {
 }
 
 function tmuxOutput(args: string[]): string {
-    return execFileSync('tmux', args, {encoding: 'utf8'})
+    return execFileSync(getTmuxBinaryPath(), getTmuxCommandArgs(args), {encoding: 'utf8'})
 }
 
 function shellQuote(value: string): string {
@@ -83,6 +84,18 @@ async function connect(url: string): Promise<{readonly ws: WebSocket, readonly o
     return {ws, output: () => output}
 }
 
+async function connectAndCollect(url: string): Promise<{
+    readonly closed: Promise<void>
+    readonly output: () => string
+    readonly ws: WebSocket
+}> {
+    const connection = await connect(url)
+    const closed = new Promise<void>((resolve) => {
+        connection.ws.on('close', resolve)
+    })
+    return {...connection, closed}
+}
+
 async function waitForOutput(output: () => string, needle: string, timeoutMs: number = 5000): Promise<void> {
     const start: number = Date.now()
     while (Date.now() - start < timeoutMs) {
@@ -90,6 +103,16 @@ async function waitForOutput(output: () => string, needle: string, timeoutMs: nu
         await delay(10)
     }
     throw new Error(`timed out waiting for ${needle}; output was:\n${output()}`)
+}
+
+async function waitForTmuxOutput(sessionName: string, needle: string, timeoutMs: number = 10000): Promise<void> {
+    const start: number = Date.now()
+    while (Date.now() - start < timeoutMs) {
+        const captured: string = tmuxOutput(['capture-pane', '-p', '-J', '-S', '-50', '-t', sessionName])
+        if (captured.includes(needle)) return
+        await delay(25)
+    }
+    throw new Error(`timed out waiting for tmux pane output ${needle}`)
 }
 
 async function waitForTmuxPaneSize(sessionName: string, expectedWidth: number, timeoutMs: number = 5000): Promise<void> {
@@ -137,6 +160,7 @@ describe('tmux attach relay', () => {
         const sessionName: string = makeSessionName('bridge')
         sessions.push(sessionName)
         await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
 
         await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
         const port: number = (server!.address() as AddressInfo).port
@@ -174,5 +198,20 @@ describe('tmux attach relay', () => {
         } finally {
             ws.close()
         }
+    }, TEST_TIMEOUT_MS)
+
+    it('reports a missing session once instead of surfacing tmux set failures', async () => {
+        const sessionName: string = makeSessionName('missing')
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {closed, output, ws} = await connectAndCollect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach`
+        )
+
+        await closed
+        expect(output()).toContain('[session ended — agent exited]')
+        expect(output()).not.toContain('tmux session configuration failed')
+        ws.close()
     }, TEST_TIMEOUT_MS)
 })

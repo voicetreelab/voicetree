@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { stripBracketedContent, hasActualContentChanged, isAppendOnly, getAppendedSuffix } from './contentChangeDetection'
+import {
+    stripBracketedContent,
+    hasActualContentChanged,
+    isAppendOnly,
+    getAppendedSuffix,
+    normalizeContentForEchoComparison,
+} from './contentChangeDetection'
 
 describe('stripBracketedContent', () => {
     describe('double brackets (wikilinks)', () => {
@@ -126,6 +132,16 @@ describe('hasActualContentChanged', () => {
             'Hello [[old]] world',
             'Hello [[new]] world'
         )).toBe(false)
+    })
+})
+
+describe('normalizeContentForEchoComparison', () => {
+    it('strips bracketed content and collapses whitespace', () => {
+        expect(normalizeContentForEchoComparison('Hello [[old.md]]\r\nworld [label]')).toBe('Helloworld')
+    })
+
+    it('treats whitespace-only line ending differences as equal', () => {
+        expect(normalizeContentForEchoComparison('A\r\n\r\nB')).toBe(normalizeContentForEchoComparison('A\n\nB'))
     })
 })
 

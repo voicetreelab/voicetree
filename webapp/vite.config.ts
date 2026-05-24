@@ -5,9 +5,10 @@ import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 import path from "path";
-import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
-const ciCheckReporter = fileURLToPath(new URL("../packages/systems/_vitest-ci-check-reporter.ts", import.meta.url));
+const require = createRequire(import.meta.url);
+const ciCheckReporter = require.resolve("@vt/measures/vitest-reporter");
 
 /**
  * Vite configuration for browser-only dev (npm run dev) and Vitest

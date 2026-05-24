@@ -43,16 +43,16 @@ vi.mock('@vt/app-config/settings', () => ({
     loadSettings: vi.fn().mockResolvedValue({agents: []})
 }))
 
-vi.mock('@vt/voicetree-mcp', async (importOriginal) => {
-    const actual: typeof import('@vt/voicetree-mcp') = await importOriginal()
+vi.mock('@vt/vt-daemon', async (importOriginal) => {
+    const actual: typeof import('@vt/vt-daemon') = await importOriginal()
     return {
         ...actual,
         startMonitor: vi.fn().mockReturnValue('monitor-1')
     }
 })
 
-import {spawnAgentTool} from '@vt/voicetree-mcp'
-import {configureMcpServer} from '@vt/voicetree-mcp'
+import {spawnAgentTool} from '@vt/vt-daemon'
+import {configureMcpServer} from '@vt/vt-daemon'
 import {getWritePath} from '@vt/graph-db-server/watch-folder/vault-allowlist'
 import {getGraph} from '@vt/graph-db-server/state/graph-store'
 import {applyGraphDeltaToDBThroughMemAndUIAndEditors} from '@vt/graph-db-server/graph/applyGraphDelta'

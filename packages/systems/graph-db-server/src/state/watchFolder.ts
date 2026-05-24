@@ -47,6 +47,7 @@ import { setupWatcher } from "../data/watch-folder/watching/file-watcher-setup";
 import { setupStateChangeSubscriptions } from "../data/views/watcherRebuild";
 import type { WatcherOptions } from "../data/watch-folder/watching/file-watcher-setup";
 import { createWatcherOptions, DEFAULT_WATCHER_OPTIONS } from "../data/watch-folder/watching/watcher-options.shared";
+import { MAX_MARKDOWN_FILES_PER_VAULT_PATH } from "../data/graph/loading/fileLimitEnforce";
 import { createEmptyGraph } from '@vt/graph-model/graph';
 import { broadcastVaultState } from "../data/watch-folder/broadcast/broadcast-vault-state";
 import { loadPositions, savePositionsSync } from "@vt/app-config/positions";
@@ -83,6 +84,7 @@ export interface WatchFolderEffects {
 }
 
 type WatchFolderConfig = { writePath: string; allowlist: readonly string[] };
+type FileLimitDetails = { readonly fileCount: number; readonly maxFiles: number };
 
 const defaultWatchFolderEffects: WatchFolderEffects = {
     warn(message?: unknown, ...optionalParams: unknown[]): void {
@@ -97,10 +99,13 @@ function getWatchFolderEffects(options: WatchFolderLoadOptions): WatchFolderEffe
     return options.effects ?? defaultWatchFolderEffects;
 }
 
-function extractFileLimitCount(error: string | undefined): number | null {
+function extractFileLimitDetails(error: string | undefined): FileLimitDetails | null {
     if (!error?.includes('File limit exceeded')) return null;
-    const match: RegExpMatchArray | null = error.match(/(\d+) files/);
-    return match ? parseInt(match[1], 10) : 0;
+    const match: RegExpMatchArray | null = error.match(/(\d+) files \(max: (\d+)\)/);
+    return {
+        fileCount: match ? parseInt(match[1], 10) : 0,
+        maxFiles: match ? parseInt(match[2], 10) : MAX_MARKDOWN_FILES_PER_VAULT_PATH,
+    };
 }
 
 function buildWatchingStartedPayload(
@@ -138,7 +143,9 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
     }
 
     return createWatcherOptions(
-        maybeProcess.env.HEADLESS_TEST === '1' || maybeProcess.env.NODE_ENV === 'test'
+        maybeProcess.env.HEADLESS_TEST === '1' ||
+        maybeProcess.env.NODE_ENV === 'test' ||
+        maybeProcess.env.NODE_ENV === 'development'
     );
 }
 
@@ -266,11 +273,11 @@ async function handleVaultLoadResult(
 ): Promise<{ success: boolean } | null> {
     if (result.success) return null;
 
-    const fileCount: number | null = extractFileLimitCount(result.error);
-    if (fileCount !== null) {
+    const fileLimitDetails: FileLimitDetails | null = extractFileLimitDetails(result.error);
+    if (fileLimitDetails !== null) {
         return createNewWorkspaceOnFileLimitExceeded(
             watchedFolderPath,
-            fileCount,
+            fileLimitDetails,
             getExpandedPaths(config),
             options,
         );
@@ -295,7 +302,7 @@ async function loadExpandedPaths(
 
         if (expandedResult.success) continue;
 
-        if (extractFileLimitCount(expandedResult.error) !== null) {
+        if (extractFileLimitDetails(expandedResult.error) !== null) {
             return handleVaultLoadResult(
                 expandedResult,
                 watchedFolderPath,
@@ -419,7 +426,7 @@ export async function loadFolder(
  */
 async function createNewWorkspaceOnFileLimitExceeded(
     watchedFolderPath: FilePath,
-    fileCount: number,
+    fileLimitDetails: FileLimitDetails,
     existingExpandedPaths: readonly string[],
     options: WatchFolderLoadOptions = {},
 ): Promise<{ success: boolean }> {
@@ -429,7 +436,7 @@ async function createNewWorkspaceOnFileLimitExceeded(
     // Show info dialog (non-blocking)
     void getCallbacks().showInfoDialog?.(
         'New Workspace Created',
-        `Previous workspace has ${fileCount} markdown files (limit: 600).\n\nCreated new workspace:\n${newSubfolderPath}`
+        `Previous workspace has ${fileLimitDetails.fileCount} markdown files (limit: ${fileLimitDetails.maxFiles}).\n\nCreated new workspace:\n${newSubfolderPath}`
     );
 
     // Save new config with the new subfolder, keeping expanded paths for linking

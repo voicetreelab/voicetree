@@ -4,7 +4,7 @@
 // Daemon-restart invalidates — there's no rotation endpoint and no
 // persistence across restarts (§2.8).
 //
-// Lives in @vt/vt-rpc so both `voicetree-mcp`'s full daemon and
+// Lives in @vt/vt-rpc so both `vt-daemon`'s full daemon and
 // `graph-tools`'s headless data-layer daemon share the same canonical
 // implementation (consolidated in 9g; previously duplicated per design
 // doc §6 followup).

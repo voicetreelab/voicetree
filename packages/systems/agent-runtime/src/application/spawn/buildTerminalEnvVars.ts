@@ -3,12 +3,12 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
-import * as O from 'fp-ts/lib/Option.js'
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getRuntimeProjectRoot, getRuntimeVaultPaths, getRuntimeWritePath} from '../runtime/graph-bridge'
+import {getRuntimeProjectRoot, getRuntimeVaultPaths} from '../runtime/graph-bridge'
 import {appendCliManualToAgentPrompt, readCliManualOrNull} from './cliManualInjection'
+import {prependVtBinToPath, readVtBinDirOrNull} from './vtPathInjection'
 import {readDaemonPortFromVault} from './daemonUrlFile'
 import path from 'path'
 
@@ -41,10 +41,13 @@ export async function buildTerminalEnvVars(params: {
         ? await env.getVaultPaths()
         : await getRuntimeVaultPaths()
     const allMarkdownReadPaths: string = allVaultPaths.join('\n')
-    const vaultPath: string = env.getWritePath
-        ? (await env.getWritePath()) ?? ''
-        : O.getOrElse(() => '')(await getRuntimeWritePath())
 
+    // VOICETREE_VAULT_PATH points at the canonical vault root (where `.voicetree/` lives),
+    // not the daemon's current writePath. Many consumers — the CLI's auth-token resolver
+    // (vt-rpc#authTokenFilePath), the agent hook script template
+    // (agentHookInjection.ts), tmuxPromptFile, the tmux namespace builder — all read
+    // `$VOICETREE_VAULT_PATH/.voicetree/...`. Pointing the var at a subfolder writePath
+    // creates stub `.voicetree/` dirs that break the CLI up-walk and the hook script.
     const projectRoot: string | null = env.getProjectRootWatchedDirectory
         ? await env.getProjectRootWatchedDirectory()
         : await getRuntimeProjectRoot()
@@ -55,7 +58,7 @@ export async function buildTerminalEnvVars(params: {
     const unexpandedEnvVars: Record<string, string> = {
         VOICETREE_PROJECT_DIR: voicetreeProjectDir,
         VOICETREE_APP_SUPPORT: appSupportPath ?? '',
-        VOICETREE_VAULT_PATH: vaultPath,
+        VOICETREE_VAULT_PATH: projectRoot ?? '',
         ALL_MARKDOWN_READ_PATHS: allMarkdownReadPaths,
         CONTEXT_NODE_PATH: params.contextNodePath,
         TASK_NODE_PATH: params.taskNodePath,
@@ -70,7 +73,22 @@ export async function buildTerminalEnvVars(params: {
         ...resolvedEnvVars,
         ...(params.envOverrides ?? {}),
     }
-    const expanded: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars)
+    const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const cliManual: string | null = await readCliManualOrNull()
-    return appendCliManualToAgentPrompt(expanded, cliManual)
+    const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered, cliManual)
+    const vtBinDir: string | null = await readVtBinDirOrNull()
+    return prependVtBinToPath(withManual, vtBinDir)
+}
+
+export function dropPromptTemplateVariants(env: Record<string, string>): Record<string, string> {
+    const result: Record<string, string> = {}
+    for (const key of Object.keys(env)) {
+        if (key === 'AGENT_PROMPT' || key === 'AGENT_PROMPT_FILE') {
+            result[key] = env[key]
+            continue
+        }
+        if (key.startsWith('AGENT_PROMPT_')) continue
+        result[key] = env[key]
+    }
+    return result
 }

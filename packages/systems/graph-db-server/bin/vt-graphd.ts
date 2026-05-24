@@ -71,6 +71,10 @@ async function main() {
   initTracing('vt-graphd')
   const args = parseArgs(process.argv.slice(2))
 
+  // A competing owner for the same vault now causes startDaemon to throw
+  // DaemonOwnerConflictError loudly (BF-343 spec: fail loudly, never
+  // silently overwrite). The catch below reports it as a non-zero exit so
+  // any orchestrator can react.
   let handle
   try {
     handle = await startDaemon({
@@ -82,11 +86,6 @@ async function main() {
   } catch (err) {
     process.stderr.write(`vt-graphd: fatal: ${(err as Error).message}\n`)
     process.exit(1)
-  }
-
-  if (handle.alreadyRunning) {
-    // Stderr line already printed by startDaemon.
-    process.exit(0)
   }
 
   process.stdout.write(

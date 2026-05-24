@@ -81,7 +81,7 @@ type HealthReport = {
 
 ## CI/CD Check Report
 
-CI/CD checks (unit, integration, e2e, lint, typecheck, static analysis) are captured separately by `npm run health:capture-ci`. Each check writes one file named `checks/<checkId>.json`. The aggregate file `checks.json` contains every check report sorted by category, name, and id.
+CI/CD checks (unit, integration, e2e, lint, typecheck, static analysis) are captured separately by `npm run measures:capture-ci`. Each check writes one file named `checks/<checkId>.json`. The aggregate file `checks.json` contains every check report sorted by category, name, and id.
 
 ```ts
 type CheckReport = {
@@ -108,10 +108,10 @@ type CheckReport = {
 - `checkName`: human-readable display name.
 - `category`: dashboard grouping. `TypeCheck` covers `tsc --noEmit`; `Static` covers knip, jscpd, custom analyzers; `Command` covers umbrella npm scripts (e.g. `npm run test`); `Hook` covers git hooks and Claude Code hooks.
 - `command`: exact shell command invoked, for the dashboard's monospace subtitle.
-- `status`: `pass` (exit 0), `fail` (non-zero exit or timeout), `skip` (gated off by `--quick`/`--only`).
+- `status`: `pass` (exit 0), `fail` (non-zero exit or timeout), `skip` (gated off by `--only`).
 - `durationMs`: wall-clock duration in milliseconds.
 - `testsTotal/Passed/Failed/Skipped`: optional counts. Populated for vitest (`--reporter=json`) and playwright (`--reporter=json`); absent for non-test checks.
-- `slow`: marks long-running checks (e.g. Stryker mutation). The runner reports `status: 'skip'` for them under `--quick`.
+- `slow`: marks long-running reports written by explicit wrappers such as `record-run --slow`.
 - `errorSummary`: truncated stderr (≤4 lines) when the check failed. No full traces.
 - `timestamp`: ISO timestamp for when the check finished.
 - `details`: optional JSON payload for runner-specific diagnostics (e.g. exitCode, configPath).
@@ -152,11 +152,11 @@ type CheckReport = {
 
 ### Runner
 
-`npm run health:capture-ci` (script: `scripts/capture-ci-checks.mjs`) runs each check via `child_process.spawn`, parses test counts where possible, and writes the reports through `recordCheckReport()`.
+`npm run measures:capture-ci` runs each check via `child_process.spawn`, parses test counts where possible, and writes the reports through `recordCheckReport()`.
 
 Flags:
-- `--quick` — skip checks marked `slow: true` (e.g. Stryker mutation).
 - `--only=<checkId,...>` — run only the listed check ids. Other checks are recorded with `status: 'skip'`.
+- `--tier<=N` / `--tier-max=N` / `--max-tier=N` — run checks under `checks/tier_0` through `checks/tier_N`.
 - `--fail-fast` — still records every check that ran, but stops scheduling new ones after the first failure.
 
-Exit code is `0` when every non-slow / non-skipped check passed, `1` otherwise.
+Exit code is `0` when every non-skipped check passed, `1` otherwise.

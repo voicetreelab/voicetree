@@ -483,3 +483,7 @@ describe('Bug 2: createDatedVoiceTreeFolder should not auto-load starred folders
         expect(expandedPaths).toContain(starredAndLoaded)
     })
 })
+
+// The 'write path folder visibility seeding' describe lives in
+// ./write-path-visibility-seeding.test.ts (extracted to keep this file under the
+// 500-line file-size cap).

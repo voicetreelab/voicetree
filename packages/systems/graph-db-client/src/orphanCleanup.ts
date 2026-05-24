@@ -164,7 +164,7 @@ function isSupportedOrphanCleanupPlatform(platform: NodeJS.Platform): boolean {
 }
 
 function listProcessLines(): readonly string[] | null {
-  const result = spawnSync('ps', ['-A', '-o', 'pid=,command='], {
+  const result = spawnSync('ps', ['-A', '-o', 'pid=,ppid=,command='], {
     encoding: 'utf8',
     timeout: 5000,
   })
@@ -183,7 +183,7 @@ function vaultExists(vault: string): boolean {
 }
 
 function parseVtGraphdProcessLine(line: string): OrphanProcessCandidate | null {
-  const matcher = /^\s*(\d+)\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
+  const matcher = /^\s*(\d+)\s+\d+\s+(.*\bvt-graphd\.\w+\b.*--vault\s+(\S+).*)$/
   const match = matcher.exec(line)
   if (!match) return null
   const pid = Number(match[1])
@@ -202,19 +202,17 @@ function findOrphanCandidates(
   const skipped: { pid: number; vault: string; reason: string }[] = []
 
   for (const line of lines) {
-    const candidate = parseVtGraphdProcessLine(line)
-    if (!candidate || candidate.pid === deps.currentPid) continue
-
-    if (deps.vaultExists(candidate.vault)) {
+    const vaultBound = parseVtGraphdProcessLine(line)
+    if (!vaultBound || vaultBound.pid === deps.currentPid) continue
+    if (deps.vaultExists(vaultBound.vault)) {
       skipped.push({
-        pid: candidate.pid,
+        pid: vaultBound.pid,
         reason: 'vault-exists',
-        vault: candidate.vault,
+        vault: vaultBound.vault,
       })
-      continue
+    } else {
+      candidates.push(vaultBound)
     }
-
-    candidates.push(candidate)
   }
 
   return { candidates, skipped }

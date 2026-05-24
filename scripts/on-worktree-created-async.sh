@@ -1,6 +1,6 @@
 #!/bin/sh
 # on-worktree-created-async.sh
-# Async worktree setup: symlink node_modules from main repo.
+# Async worktree setup: symlink node_modules and .env from main repo.
 # Runs after git worktree add, fire-and-forget (does not block terminal spawn).
 #
 # Usage: on-worktree-created-async.sh <worktreePath> <worktreeName>
@@ -31,13 +31,16 @@ if [ -f "$WORKTREE_PATH/webapp/package.json" ] && [ ! -e "$WORKTREE_PATH/webapp/
     fi
 fi
 
+# --- Symlink .env from main repo so run-remote.mjs and other tools see
+#     VT_REMOTE_HOST etc. without per-shell exports. ---
+MAIN_ENV="$MAIN_REPO/.env"
+if [ -f "$MAIN_ENV" ] && [ ! -e "$WORKTREE_PATH/.env" ]; then
+    echo "Symlinking .env from $MAIN_ENV ..."
+    ln -s "$MAIN_ENV" "$WORKTREE_PATH/.env"
+fi
+
 echo "Async setup complete for worktree $WORKTREE_NAME"
 
-# --- Mirror the worktree on devbox so it's reachable as part of "vt-remote" ---
-# Best-effort: if ssh is unreachable, agents keep working locally; user can
-# re-run vt-mirror-worktree.sh manually later. Stderr/stdout captured so the
-# fire-and-forget caller doesn't get noise.
-SCRIPT_DIR_ASYNC="$(CDPATH= cd "$(dirname "$0")" && pwd)"
-"$SCRIPT_DIR_ASYNC/vt-mirror-worktree.sh" "$WORKTREE_PATH" "$WORKTREE_NAME" 2>&1 || {
-    echo "WARNING: vt-mirror-worktree failed; devbox-side admin not registered" >&2
-}
+# Devbox-side mirroring is handled by mutagen (vt-remote bidirectional sync of
+# .git/ with narrow per-host excludes) plus git-gate's `worktree add` post-action
+# that normalizes admin gitdir to relative paths. No bespoke script needed.

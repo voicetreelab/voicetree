@@ -236,13 +236,13 @@ export default tseslint.config([
     basePath: repoRootDir,
     files: [
       'packages/systems/agent-runtime/**/*.ts',
-      'packages/systems/voicetree-mcp/**/*.ts',
+      'packages/systems/vt-daemon/**/*.ts',
     ],
     ignores: [
       'packages/systems/agent-runtime/src/graph-bridge.ts',
-      'packages/systems/voicetree-mcp/src/mcp-graph-bridge.ts',
+      'packages/systems/vt-daemon/src/mcp-graph-bridge.ts',
       'packages/systems/agent-runtime/src/runtime-config.ts',
-      'packages/systems/voicetree-mcp/src/config/mcp-config-public.ts',
+      'packages/systems/vt-daemon/src/config/mcp-config-public.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', {
@@ -314,7 +314,14 @@ export default tseslint.config([
   },
   {
     basePath: repoRootDir,
-    files: ['webapp/src/shell/edge/main/cli/**/*.ts'],
+    files: ['packages/systems/voicetree-cli/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    basePath: repoRootDir,
+    files: ['webapp/e2e-tests/electron/for_feature_development_not_LT_verification/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },

@@ -1,0 +1,179 @@
+#!/bin/bash
+# git-gate: PATH-shim that prompts for a password before destructive git
+# subcommands, then forwards to the real git for everything else.
+#
+# Install with ./install.sh (sibling script). Configure your password via
+# one of (precedence high → low):
+#   1) export GIT_GATE_PASS="..."   in your shell init
+#   2) security add-generic-password -s git-gate -a "$USER" -w 'yourpass'   (macOS only)
+#   3) the hardcoded default below — please change.
+#
+# Non-interactive / agent contexts (no TTY) cannot read /dev/tty, so the gate
+# accepts the password via the GIT_GATE_PASS_ATTEMPT env var instead:
+#
+#   GIT_GATE_PASS_ATTEMPT='<password>' git <destructive subcommand>
+#
+# When the agent is blocked it MUST surface the block to the user and ask
+# for the password — it MUST NOT call git through an alternate binary path
+# or manipulate PATH to circumvent this gate.
+
+REAL_GIT=""
+for cand in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git /opt/local/bin/git; do
+  if [ -x "$cand" ] && [ "$cand" != "${BASH_SOURCE[0]}" ]; then
+    REAL_GIT="$cand"; break
+  fi
+done
+[ -n "$REAL_GIT" ] || { echo "git-gate: cannot find real git" >&2; exit 127; }
+
+sub="${1:-}"
+rest="${*:2}"
+reason=""
+merge_assertion=""   # non-empty → use this password instead of GIT_GATE_PASS
+
+case "$sub" in
+  merge)
+    # --continue / --abort are conflict-resolution steps, not new merges — let through
+    if [[ ! "$rest" =~ (^|[[:space:]])(--continue|--abort|--quit)([[:space:]]|$) ]]; then
+      target_branch="$(echo "$rest" | tr -s ' ' | cut -d' ' -f1)"
+      current_branch="$(git -C "${GIT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || echo "unknown")"
+      # Only gate merges performed in the MAIN worktree (primary checkout
+      # tied directly to .git/). Merges in linked worktrees (`.worktrees/*`,
+      # created via `git worktree add`) are cheap-to-revert local integration
+      # steps and pass through.
+      # Detection: in the main worktree, --git-dir and --git-common-dir resolve
+      # to the same path. In a linked worktree, --git-dir points inside
+      # <repo>/.git/worktrees/<name>/ while --git-common-dir is the shared .git.
+      gd="$("$REAL_GIT" rev-parse --git-dir 2>/dev/null)"
+      gcd="$("$REAL_GIT" rev-parse --git-common-dir 2>/dev/null)"
+      gd_abs="$(cd "$gd" 2>/dev/null && pwd -P)"
+      gcd_abs="$(cd "$gcd" 2>/dev/null && pwd -P)"
+      if [ -n "$gd_abs" ] && [ "$gd_abs" = "$gcd_abs" ]; then
+        reason="merging ${target_branch:-branch} into ${current_branch} (main worktree)"
+        merge_assertion="yes_tests_and_measures_green"
+      fi
+    fi
+    ;;
+  reset)
+    [[ "$rest" =~ (^|[[:space:]])--hard([[:space:]]|$) ]] && reason="reset --hard destroys uncommitted changes"
+    ;;
+  stash)
+    [[ -z "$rest" || "$rest" =~ ^(push|save|-) ]] && reason="stash hides your working-tree changes"
+    ;;
+  checkout|switch)
+    # branch switch: no '--' file separator => not a file restore
+    [[ ! " $rest " =~ [[:space:]]--[[:space:]] ]] && reason="$sub changes branch / overwrites working tree"
+    ;;
+  restore)
+    reason="restore overwrites working-tree files"
+    ;;
+  clean)
+    [[ "$rest" =~ -[a-zA-Z]*f ]] && reason="clean -f deletes untracked files"
+    ;;
+  rebase)
+    reason="rebase rewrites history"
+    ;;
+  branch)
+    [[ "$rest" =~ -[a-zA-Z]*D ]] && reason="branch -D force-deletes a branch"
+    ;;
+  push)
+    [[ "$rest" =~ (^|[[:space:]])(--force|--force-with-lease|-f)([[:space:]]|$) ]] && reason="force-push overwrites remote history"
+    ;;
+  # worktree is intentionally NOT gated — add/remove/list/prune all allowed.
+  # See post-action block below for `worktree add` normalization.
+esac
+
+# --- Post-action: `git worktree add` → normalize admin pointers to relative ---
+# Absolute paths in .git/worktrees/<name>/gitdir are host-specific and break
+# cross-host file sync (e.g. mac<->devbox via mutagen). Relative pointers are
+# host-portable. `worktree repair --relative-paths` rewrites both sides of
+# the pointer pair and is idempotent. Best-effort: failure does not affect
+# the underlying add's exit code.
+if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
+  "$REAL_GIT" "$@"
+  ec=$?
+  if [ $ec -eq 0 ]; then
+    "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1 || true
+  fi
+  exit $ec
+fi
+
+if [ -n "$reason" ]; then
+  if [ -n "$merge_assertion" ]; then
+    {
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════════════════╗"
+      echo "  ║  git-gate: MERGE BLOCKED                                         ║"
+      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo "    command: git $*"
+      echo ""
+      echo "    Before merging, confirm ALL of the following:"
+      echo ""
+      echo "      1. \`npm run test\` passes in this worktree"
+      echo "      2. Tier 1 e2e tests are green"
+      echo "      3. Complexity measures have not regressed"
+      echo ""
+      echo "    If all green, type the assertion password to proceed:"
+      echo "      yes_tests_and_measures_green"
+      echo ""
+    } >&2
+    expected="$merge_assertion"
+  else
+    {
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════════════════╗"
+      echo "  ║  git-gate: BLOCKED                                               ║"
+      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo "    command: git $*"
+      echo "    reason:  $reason"
+      echo ""
+      echo "    Think before you run destructive git commands."
+      echo "    Other agents may be working in this repo right now."
+      echo "    Prefer multiple commits to get where you want — not destructive"
+      echo "    rewrites that stomp on parallel work."
+      echo ""
+    } >&2
+    expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
+    expected="${expected:-changeme}"
+  fi
+
+  pass=""
+  if { exec 3</dev/tty; } 2>/dev/null; then
+    read -rsp "    password: " pass <&3 || pass=""
+    exec 3<&-
+    echo "" >&2
+  elif [ -n "${GIT_GATE_PASS_ATTEMPT:-}" ]; then
+    pass="$GIT_GATE_PASS_ATTEMPT"
+  else
+    {
+      echo "  ╔══════════════════════════════════════════════════════════════════╗"
+      echo "  ║  git-gate: BLOCKED — no TTY (agent / non-interactive context)    ║"
+      echo "  ╚══════════════════════════════════════════════════════════════════╝"
+      echo ""
+      echo "    Ask the user for the password."
+      echo ""
+      echo "    If the user provides it, retry the command with the password in"
+      echo "    the GIT_GATE_PASS_ATTEMPT environment variable, e.g.:"
+      echo ""
+      echo "      GIT_GATE_PASS_ATTEMPT='<password>' git $*"
+      echo ""
+      echo "    Do NOT call git through any other path or binary. Do NOT modify"
+      echo "    PATH to circumvent this gate. If you cannot get the password,"
+      echo "    surface the blocked command to the user and stop."
+      echo ""
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (no TTY, no GIT_GATE_PASS_ATTEMPT)"
+    } >&2
+    exit 1
+  fi
+
+  if [ "$pass" != "$expected" ]; then
+    {
+      echo "    wrong password — aborted."
+      echo "  ✗ git-gate: REJECTED — the command above did NOT run (wrong password)"
+    } >&2
+    exit 1
+  fi
+  # one-shot: clear the attempt so re-invocations require fresh authorization
+  unset GIT_GATE_PASS_ATTEMPT
+fi
+
+exec "$REAL_GIT" "$@"

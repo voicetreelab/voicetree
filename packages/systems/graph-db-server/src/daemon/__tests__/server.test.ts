@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { connect } from 'node:net'
@@ -8,7 +8,8 @@ import {
   type DaemonHandle,
   type StartDaemonOptions,
 } from '../server.ts'
-import { acquireLock } from '../lock.ts'
+import { ownerRecordPathFor, readOwnerRecord } from '../ownerRecord.ts'
+import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from '../contract.ts'
 
@@ -35,7 +36,6 @@ describe('startDaemon', () => {
   })
 
   afterEach(async () => {
-    vi.restoreAllMocks()
     for (const h of handles) await h.stop().catch(() => {})
     await rm(vault, { recursive: true, force: true })
   })
@@ -46,7 +46,7 @@ describe('startDaemon', () => {
     return h
   }
 
-  test('health roundtrip returns schema-valid body', async () => {
+  test('health roundtrip returns schema-valid body with owner identity', async () => {
     const h = await start()
     const res = await fetch(`http://127.0.0.1:${h.port}/health`)
     expect(res.status).toBe(200)
@@ -55,9 +55,16 @@ describe('startDaemon', () => {
     expect(body.vault).toBe(vault)
     expect(body.sessionCount).toBe(0)
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
+    expect(body.owner).not.toBeNull()
+    expect(body.owner?.canonicalVaultPath).toBe(vault)
+    expect(body.owner?.pid).toBe(process.pid)
+    expect(body.owner?.port).toBe(h.port)
+    expect(body.owner?.contractVersion).toBe(CONTRACT_VERSION)
+    expect(body.owner?.schemaVersion).toBe(1)
+    expect(body.owner?.ownerNonce).toEqual(expect.any(String))
   })
 
-  test('health works before any vault is opened', async () => {
+  test('health works before any vault is opened and reports owner=null', async () => {
     const h = await startDaemon({ appSupportPath: join(vault, 'app-support') })
     handles.push(h)
 
@@ -67,6 +74,7 @@ describe('startDaemon', () => {
     expect(body.version).toBe(CONTRACT_VERSION)
     expect(body.vault).toBe('')
     expect(body.sessionCount).toBe(0)
+    expect(body.owner).toBeNull()
   })
 
   test('port file reflects the assigned port', async () => {
@@ -74,29 +82,38 @@ describe('startDaemon', () => {
     expect(await readPortFile(vault)).toBe(h.port)
   })
 
-  test('single-instance coalesces and returns no-op handle', async () => {
+  test('competing startDaemon for the same vault fails loudly with conflict', async () => {
     const first = await start()
-    const second = await start()
-    expect(second.alreadyRunning).toBeDefined()
-    expect(second.alreadyRunning?.pid).toBe(process.pid)
-    // second.stop() must be a no-op that does not tear down the first daemon.
-    await second.stop()
-    expect(await readPortFile(vault)).toBe(first.port)
+    await expect(start()).rejects.toBeInstanceOf(DaemonOwnerConflictError)
+    // First daemon stays alive and serves.
     const probe = await fetch(`http://127.0.0.1:${first.port}/health`)
     expect(probe.status).toBe(200)
   })
 
-  test('stop() releases lock and deletes port file', async () => {
+  test('owner record on disk matches /health payload', async () => {
+    const h = await start()
+    const res = await fetch(`http://127.0.0.1:${h.port}/health`)
+    const body = HealthResponseSchema.parse(await res.json())
+    const onDisk = await readOwnerRecord(ownerRecordPathFor(vault))
+    expect(onDisk).not.toBeNull()
+    expect(body.owner?.canonicalVaultPath).toBe(onDisk?.canonicalVaultPath)
+    expect(body.owner?.ownerNonce).toBe(onDisk?.ownerNonce)
+    expect(body.owner?.pid).toBe(onDisk?.pid)
+    expect(body.owner?.port).toBe(onDisk?.port)
+  })
+
+  test('stop() removes the owner record and the port file', async () => {
     const h = await start()
     await h.stop()
     handles = handles.filter((x) => x !== h)
     expect(await readPortFile(vault)).toBeNull()
-    const again = await acquireLock(vault)
-    expect('release' in again).toBe(true)
-    if ('release' in again) await again.release()
+    expect(await readOwnerRecord(ownerRecordPathFor(vault))).toBeNull()
+    await expect(stat(ownerRecordPathFor(vault))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
   })
 
-  test('/shutdown endpoint releases lock, deletes port file, fires callback', async () => {
+  test('/shutdown endpoint releases the owner record, deletes port file, fires callback', async () => {
     let callbackFired = false
     const done = new Promise<void>((res) => {
       const h = startDaemon({
@@ -122,84 +139,20 @@ describe('startDaemon', () => {
     ])
     expect(callbackFired).toBe(true)
     expect(await readPortFile(vault)).toBeNull()
-    const claim = await acquireLock(vault)
-    expect('release' in claim).toBe(true)
-    if ('release' in claim) await claim.release()
+    expect(await readOwnerRecord(ownerRecordPathFor(vault))).toBeNull()
     handles = [] // already torn down
   })
 
-  test('idle cleanup tick prunes sessions and clearInterval runs during shutdown', async () => {
-    const realSetInterval = globalThis.setInterval.bind(globalThis)
-    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
-    let idleCleanupTickRegistered = false
-    let triggerIdleCleanup: () => void = () => {
-      throw new Error('expected idle cleanup tick to be registered')
-    }
-    let intervalHandle: ReturnType<typeof setInterval> | null = null
-
-    vi.spyOn(globalThis, 'setInterval').mockImplementation(
-      ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-        if (typeof handler === 'function') {
-          idleCleanupTickRegistered = true
-          triggerIdleCleanup = () =>
-            (handler as (...callbackArgs: unknown[]) => void)(...args)
-        }
-        intervalHandle = realSetInterval(
-          handler as (...callbackArgs: unknown[]) => void,
-          timeout,
-          ...args,
-        )
-        return intervalHandle
-      }) as unknown as typeof setInterval,
-    )
-
-    let callbackFired = false
-    const shutdownComplete = new Promise<void>((resolve) => {
-      void start({
-        idleTimeoutMs: 0,
-        onShutdownComplete: () => {
-          callbackFired = true
-          resolve()
-        },
-      })
-    })
-
-    while (handles.length === 0) await new Promise((r) => setTimeout(r, 5))
-    const handle = handles[0]
-
-    const createResponse = await fetch(`http://127.0.0.1:${handle.port}/sessions`, {
-      method: 'POST',
-    })
-    expect(createResponse.status).toBe(201)
-
-    const healthBeforePurge = HealthResponseSchema.parse(
-      await (
-        await fetch(`http://127.0.0.1:${handle.port}/health`)
-      ).json(),
-    )
-    expect(healthBeforePurge.sessionCount).toBe(1)
-
-    expect(idleCleanupTickRegistered).toBe(true)
-    triggerIdleCleanup()
-
-    const healthAfterPurge = HealthResponseSchema.parse(
-      await (
-        await fetch(`http://127.0.0.1:${handle.port}/health`)
-      ).json(),
-    )
-    expect(healthAfterPurge.sessionCount).toBe(0)
-
-    const shutdownResponse = await fetch(`http://127.0.0.1:${handle.port}/shutdown`, {
-      method: 'POST',
-    })
-    expect(shutdownResponse.status).toBe(200)
-    await shutdownComplete
-
-    expect(callbackFired).toBe(true)
-    expect(intervalHandle).not.toBeNull()
-    expect(clearIntervalSpy).toHaveBeenCalledWith(intervalHandle)
-    handles = []
-  })
+  // The previous `idle cleanup tick prunes sessions and clearInterval runs
+  // during shutdown` test mocked global setInterval and used
+  // toHaveBeenCalledWith; both are explicitly disallowed by CLAUDE.md
+  // (no internal mocks, no toHaveBeenCalledWith). It also coupled to the
+  // fact that the daemon registered exactly one setInterval, which BF-343
+  // breaks by adding the owner-record heartbeat. The shutdown-callback path
+  // is already covered by the `/shutdown endpoint releases the owner record,
+  // deletes port file, fires callback` test above; the idle-pruning path
+  // belongs in a focused test of createIdleSessionTimer rather than a
+  // startDaemon integration test.
 
   const nonLoopback = firstNonLoopbackIPv4()
   test.skipIf(!nonLoopback)(

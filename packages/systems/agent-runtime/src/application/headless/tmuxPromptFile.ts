@@ -25,12 +25,13 @@ import {spawn} from 'node:child_process'
 import {join} from 'node:path'
 import type {TerminalId} from '../terminals/terminal-registry/types'
 import {detectCliType, type SupportedHeadlessCli} from '../spawn/headlessCli'
-import {sendKeys} from '../terminals/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../terminals/tmux/tmux-server'
+import {resolveTmuxSessionName, sendKeys} from '../terminals/tmux/tmux-session-manager'
 
 function tmuxOk(args: string[]): Promise<boolean> {
     return new Promise((resolve) => {
         try {
-            const child = spawn('tmux', args, {stdio: 'ignore'})
+            const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(args), {stdio: 'ignore'})
             child.on('error', () => resolve(false))
             child.on('close', (code: number | null) => resolve(code === 0))
         } catch {
@@ -193,7 +194,7 @@ export function applyPromptFileToHeadlessSpawn(args: {
 export async function waitForTmuxShellReady(terminalId: TerminalId): Promise<void> {
     // Round-trip tmux display-message. If it fails, sendKeys will surface
     // the real error to the caller — this gate is best-effort.
-    await tmuxOk(['display-message', '-p', '-t', terminalId, 'ready'])
+    await tmuxOk(['display-message', '-p', '-t', resolveTmuxSessionName(terminalId), 'ready'])
 }
 
 /**

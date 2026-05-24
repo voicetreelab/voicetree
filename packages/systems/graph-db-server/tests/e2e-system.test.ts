@@ -256,7 +256,7 @@ describe('@vt/graph-db-server system contract', () => {
         await (await fetch(`${baseUrl}/sessions/${sessionId}/state`)).json(),
       )
       expect(sessionState.selection).toEqual([notePath])
-      expect(sessionState.folderState).toEqual([[folderId, 'collapsed']])
+      expect(sessionState.folderState).toEqual(expect.arrayContaining([[folderId, 'collapsed']]))
       expect(sessionState.layout.positions).toEqual([[notePath, { x: 10, y: 20 }]])
       expect(sessionState.layout.pan).toEqual({ x: 3, y: 4 })
       expect(sessionState.layout.zoom).toBe(1.5)

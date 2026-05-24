@@ -61,6 +61,57 @@ describe('appendCliManualToAgentPrompt (pure)', () => {
         expect(result.AGENT_PROMPT).toContain('<vt_cli_manual>')
         expect(result.AGENT_PROMPT).toContain('MANUAL')
     })
+
+    it('injects only the Essentials block when markers are present', () => {
+        const manual: string = [
+            '# vt CLI Manual',
+            '',
+            'Preamble that should be excluded.',
+            '',
+            '<!-- BEGIN_ESSENTIALS -->',
+            '## Essentials',
+            '',
+            '### `vt agent spawn`',
+            '',
+            'Spawn an agent.',
+            '<!-- END_ESSENTIALS -->',
+            '',
+            '## Reference',
+            '',
+            '### `vt graph structure`',
+            '',
+            'Render the graph.',
+            '',
+        ].join('\n')
+
+        const result = appendCliManualToAgentPrompt({AGENT_PROMPT: 'Base.'}, manual)
+
+        expect(result.AGENT_PROMPT).toContain('## Essentials')
+        expect(result.AGENT_PROMPT).toContain('`vt agent spawn`')
+        expect(result.AGENT_PROMPT).not.toContain('Preamble that should be excluded.')
+        expect(result.AGENT_PROMPT).not.toContain('## Reference')
+        expect(result.AGENT_PROMPT).not.toContain('`vt graph structure`')
+        expect(result.AGENT_PROMPT).not.toContain('BEGIN_ESSENTIALS')
+        expect(result.AGENT_PROMPT).not.toContain('END_ESSENTIALS')
+    })
+
+    it('falls back to the full manual when markers are absent', () => {
+        const manual: string = '# vt CLI Manual\n\n### `vt agent spawn`\n\nSpawn an agent.\n'
+        const result = appendCliManualToAgentPrompt({AGENT_PROMPT: 'Base.'}, manual)
+
+        expect(result.AGENT_PROMPT).toContain('# vt CLI Manual')
+        expect(result.AGENT_PROMPT).toContain('`vt agent spawn`')
+        expect(result.AGENT_PROMPT).toContain('Spawn an agent.')
+    })
+
+    it('falls back to the full manual when only the BEGIN marker is present', () => {
+        const manual: string = '# vt CLI Manual\n<!-- BEGIN_ESSENTIALS -->\n## Essentials\n\nbody\n'
+        const result = appendCliManualToAgentPrompt({AGENT_PROMPT: 'Base.'}, manual)
+
+        // Without an END marker we can't trust the boundary — inject everything.
+        expect(result.AGENT_PROMPT).toContain('# vt CLI Manual')
+        expect(result.AGENT_PROMPT).toContain('## Essentials')
+    })
 })
 
 describe('buildTerminalEnvVars — CLI manual injection end-to-end', () => {

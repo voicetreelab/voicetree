@@ -3,7 +3,7 @@ import { emitReadPathsChanged, clearWatchFolderState } from '../../state/watch-f
 import * as vaultAllowlist from '../../state/vaultAllowlist.ts'
 import * as daemonWatcherModule from '../../data/graph/watching/daemonWatcher.ts'
 import type { Watcher } from '../../data/graph/watching/daemonWatcher.ts'
-import { startDaemonWatcher } from '../daemonWatcherLifecycle.ts'
+import { startDaemonWatcher } from '../lifecycle/daemonWatcherLifecycle.ts'
 
 function makeFakeWatcher(paths: readonly string[]): Watcher & {
   addedPaths: string[]
@@ -57,7 +57,7 @@ describe('startDaemonWatcher', () => {
       return fakeWatcher
     })
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
 
     expect(capturedMountArgs).toEqual([{ paths: initialPaths, vault: '/vault' }])
 
@@ -70,7 +70,7 @@ describe('startDaemonWatcher', () => {
     getVaultPathsSpy = vi.spyOn(vaultAllowlist, 'getVaultPaths').mockResolvedValue(initialPaths)
     vi.spyOn(daemonWatcherModule, 'mountWatcher').mockReturnValue(fakeWatcher)
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
 
     emitReadPathsChanged(['/vault', '/vault/public'])
 
@@ -88,7 +88,7 @@ describe('startDaemonWatcher', () => {
     getVaultPathsSpy = vi.spyOn(vaultAllowlist, 'getVaultPaths').mockResolvedValue(paths)
     vi.spyOn(daemonWatcherModule, 'mountWatcher').mockReturnValue(fakeWatcher)
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
 
     // Simulate hiding a folder that was never explicitly expanded.
     // getVaultPaths() returns [writePath, expandedPaths] — hidden folders are not included.
@@ -107,7 +107,7 @@ describe('startDaemonWatcher', () => {
     getVaultPathsSpy = vi.spyOn(vaultAllowlist, 'getVaultPaths').mockResolvedValue(initialPaths)
     vi.spyOn(daemonWatcherModule, 'mountWatcher').mockReturnValue(fakeWatcher)
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
 
     emitReadPathsChanged(['/vault'])
 
@@ -123,7 +123,7 @@ describe('startDaemonWatcher', () => {
     getVaultPathsSpy = vi.spyOn(vaultAllowlist, 'getVaultPaths').mockResolvedValue(initialPaths)
     vi.spyOn(daemonWatcherModule, 'mountWatcher').mockReturnValue(fakeWatcher)
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
     await controller.stop()
 
     emitReadPathsChanged(['/vault', '/vault/public'])
@@ -138,7 +138,7 @@ describe('startDaemonWatcher', () => {
     vi.spyOn(daemonWatcherModule, 'mountWatcher').mockReturnValue(fakeWatcher)
     const unmountSpy = vi.spyOn(fakeWatcher, 'unmount')
 
-    const controller = await startDaemonWatcher('/vault', { error: vi.fn() })
+    const controller = await startDaemonWatcher('/vault', { error: vi.fn(), writeStderr: vi.fn() })
     await controller.stop()
     await controller.stop()
 

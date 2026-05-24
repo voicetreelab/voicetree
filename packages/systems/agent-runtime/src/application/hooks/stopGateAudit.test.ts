@@ -335,6 +335,14 @@ describe('detectCliType', () => {
     it('returns null for "codex-ai" (prefix false positive)', () => {
         expect(detectCliType('codex-ai')).toBeNull()
     })
+
+    it('detects claude past a leading shell env-var assignment (default template)', () => {
+        expect(detectCliType('CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions')).toBe('claude')
+    })
+
+    it('detects past multiple leading env-var assignments', () => {
+        expect(detectCliType('FOO=bar BAZ=qux claude --model opus')).toBe('claude')
+    })
 })
 
 // ─── buildResumeCommand ────────────────────────────────────────────────────

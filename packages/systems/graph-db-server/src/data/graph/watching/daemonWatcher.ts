@@ -10,6 +10,7 @@ import {
 import { handleFSEventWithStateAndUISides } from './handleFSEvent.ts'
 import { readFileWithRetry } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
 import type { FileWatcherLogger } from '@vt/graph-db-server/watch-folder/watching/file-watcher-setup'
+import { consumeBroadcastSuppression } from '@vt/graph-db-server/watch-folder/pending-writes'
 
 export type Watcher = {
   readonly ready: Promise<void>
@@ -55,8 +56,14 @@ function waitForReady(watcher: FSWatcher): Promise<void> {
 }
 
 function buildWatcherOptions() {
+  // fsevents on macOS silently drops 'add' events for some vault paths
+  // (reproduced deterministically: chokidar 3.6.0 + fsevents 2.3.3, dir under
+  // ~/Voicetree/voicetree-…/voicetree-…/). Polling is the only reliable
+  // backend in dev where this matters most for agent progress nodes.
   const usePolling =
-    process.env.HEADLESS_TEST === '1' || process.env.NODE_ENV === 'test'
+    process.env.HEADLESS_TEST === '1' ||
+    process.env.NODE_ENV === 'test' ||
+    process.env.NODE_ENV === 'development'
 
   return {
     // KEEP IN SYNC WITH packages/libraries/graph-model/src/watch-folder/file-watcher-setup.ts
@@ -94,6 +101,7 @@ export function mountWatcher(
   const ready = waitForReady(watcher)
 
   watcher.on('add', (filePath: string) => {
+    const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
     const contentPromise = isImageNode(filePath)
       ? Promise.resolve('')
       : dependencies.readFileWithRetry(filePath)
@@ -105,7 +113,7 @@ export function mountWatcher(
           content,
           eventType: 'Added',
         }
-        dependencies.handleFSEvent(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
       })
       .catch((error: unknown) => {
         dependencies.logger.error(`graphd watcher add failed for ${filePath}:`, error)
@@ -113,6 +121,7 @@ export function mountWatcher(
   })
 
   watcher.on('change', (filePath: string) => {
+    const suppressBroadcastTo: ReadonlySet<string> = consumeBroadcastSuppression(filePath)
     if (isImageNode(filePath)) {
       return
     }
@@ -124,7 +133,7 @@ export function mountWatcher(
           content,
           eventType: 'Changed',
         }
-        dependencies.handleFSEvent(fsUpdate, watchedDir)
+        dependencies.handleFSEvent(fsUpdate, watchedDir, suppressBroadcastTo)
       })
       .catch((error: unknown) => {
         dependencies.logger.error(`graphd watcher change failed for ${filePath}:`, error)

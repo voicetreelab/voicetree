@@ -104,7 +104,7 @@ export function setupStandardMocks(graphOverride?: Graph): void {
 }
 
 export function configureCreateGraphServer(): Promise<void> {
-    return import('@vt/voicetree-mcp').then(({configureMcpServer}) => {
+    return import('@vt/vt-daemon').then(({configureMcpServer}) => {
         configureMcpServer({
             graph: {
                 getGraph: async () => getGraph(),

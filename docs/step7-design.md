@@ -402,7 +402,7 @@ Tables, not prose. Paths are repo-relative.
 
 ### 5.4 Package rename in 7g
 
-After Step 7 the `@vt/voicetree-mcp` package contains zero MCP code; its
+After Step 7 the `@vt/vt-daemon` package contains zero MCP code; its
 name is the only "MCP" reference left in the codebase. 7g renames the
 package to **`@vt/tool-catalog`** to fix the misleading label. The rename
 is the last action in 7g (after all other deletions and the dependency
@@ -410,8 +410,8 @@ audit) and covers:
 
 - `packages/systems/voicetree-mcp/` → `packages/systems/tool-catalog/`
   (directory rename)
-- `package.json` `name` field: `@vt/voicetree-mcp` → `@vt/tool-catalog`
-- Every import in the repo: search/replace `@vt/voicetree-mcp` →
+- `package.json` `name` field: `@vt/vt-daemon` → `@vt/tool-catalog`
+- Every import in the repo: search/replace `@vt/vt-daemon` →
   `@vt/tool-catalog`
 - The `vt-mcpd` binary name: TBD by the 7g implementer — recommend
   renaming the script entry to `vt-toold` or leaving the binary name
@@ -614,7 +614,7 @@ Linux. If Windows support returns, the named-pipe branch goes into
 `daemon-client.ts`'s path-resolution code. Release notes (post-7f)
 should call out "Windows not supported" for clarity.
 
-### 9.5 Package rename: `@vt/voicetree-mcp` → `@vt/tool-catalog` in 7g
+### 9.5 Package rename: `@vt/vt-daemon` → `@vt/tool-catalog` in 7g
 
 §5.4 records the full rename plan. Rationale: after Step 7 the package
 contains zero MCP code; its role is the RPC layer between CLI and

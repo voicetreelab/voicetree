@@ -6,7 +6,7 @@ import {afterEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {clearTerminalRecords, getTerminalRecords, reconcileTmuxTerminalRegistry} from '../terminal-registry'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
-import {createSession, killSession} from '../tmux-session-manager'
+import {createSession, killSession} from '../tmux/tmux-session-manager'
 
 const sessions: Set<string> = new Set<string>()
 const tempDirs: Set<string> = new Set<string>()

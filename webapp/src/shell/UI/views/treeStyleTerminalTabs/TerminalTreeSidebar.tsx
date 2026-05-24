@@ -16,6 +16,7 @@ import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/t
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { buildTerminalTree, type ChildStatusSummary, type TerminalTreeNode } from '@vt/graph-model/agent-tabs';
 import { getShortcutHintForTab } from '@vt/graph-model/agent-tabs';
+import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
 // =============================================================================
 // Collapse / expand
@@ -79,6 +80,21 @@ import {
     clearTerminals,
 } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {
+    clearUnclaimedTmuxSessions,
+    startUnclaimedTmuxPolling,
+    stopUnclaimedTmuxPolling,
+} from '@/shell/edge/UI-edge/state/stores/recovery/UnclaimedTmuxStore';
+import {
+    attachRecoverySession,
+    clearRecoverySessions,
+    killRecoverySession,
+    refreshRecoverySessions,
+    resumeRecoverySession,
+    startRecoverySessionsPolling,
+    stopRecoverySessionsPolling,
+} from '@/shell/edge/UI-edge/state/stores/recovery/RecoverySessionsStore';
+import {useRecoverySessions} from './survivingAgentsHooks';
+import {
     syncDisplayOrder,
 } from '@/shell/edge/UI-edge/state/stores/AgentTabsStore';
 import {
@@ -88,6 +104,8 @@ import {
 import { clearActivityForTerminal } from './agentTabsActivity';
 import { restoreTerminal } from './terminalTabUtils';
 import { closeTerminalById } from '@/shell/edge/UI-edge/floating-windows/terminals/closeTerminalById';
+import { SurvivingAgentsSection } from './SurvivingAgentsSection';
+import type { RecoverableAgentSession } from '@vt/agent-runtime';
 
 // Re-export activity tracking functions for external callers
 export { markTerminalActivityForContextNode, clearActivityForTerminal } from './agentTabsActivity';
@@ -117,6 +135,7 @@ function useActiveTerminalId(): TerminalId | null {
 
     return activeId;
 }
+
 
 // =============================================================================
 // Resize Hook
@@ -322,6 +341,7 @@ interface SidebarInternalProps {
 // eslint-disable-next-line react-refresh/only-export-components
 function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.Element | null {
     const allTerminals: TerminalData[] = useTerminals();
+    const recoverySessions: readonly RecoverableAgentSession[] = useRecoverySessions();
     const activeTerminalId: TerminalId | null = useActiveTerminalId();
     const sidebarRef: React.RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
     const resizeHandleRef: React.RefObject<HTMLDivElement | null> = useResizeHandle(sidebarRef);
@@ -331,7 +351,13 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     // Start/stop activity polling with component lifecycle
     useEffect(() => {
         startTerminalActivityPolling();
-        return () => stopTerminalActivityPolling();
+        startUnclaimedTmuxPolling();
+        startRecoverySessionsPolling();
+        return () => {
+            stopTerminalActivityPolling();
+            stopUnclaimedTmuxPolling();
+            stopRecoverySessionsPolling();
+        };
     }, []);
 
     const collapse = useCollapseState();
@@ -352,6 +378,8 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
     );
 
     const totalTabs: number = displayOrder.length;
+    const shortcutPlatform = useMemo(() => getShortcutPlatform(), []);
+    const hasSidebarContent: boolean = terminals.length > 0 || recoverySessions.length > 0;
 
     const handleSelect: (terminal: TerminalData) => void = useCallback((terminal: TerminalData): void => {
         if (!terminal.isHeadless && terminal.isMinimized) {
@@ -366,14 +394,14 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
             ref={sidebarRef}
             className="terminal-tree-sidebar"
             data-testid="terminal-tree-sidebar"
-            style={{ display: terminals.length === 0 ? 'none' : 'flex' }}
+            style={{ display: hasSidebarContent ? 'flex' : 'none' }}
         >
             <div className="terminal-tree-header">Terminals</div>
             <div className="terminal-tree-container">
                 {treeNodes.map((treeNode: TerminalTreeNode) => {
                     const terminalId: TerminalId = treeNode.terminal.terminalId;
                     const tabIndex: number = displayOrder.indexOf(terminalId);
-                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs);
+                    const hint: string | null = getShortcutHintForTab(tabIndex, activeIndex, totalTabs, shortcutPlatform);
                     const collapsed: boolean = treeNode.hasChildren
                         && collapse.isCollapsed(terminalId, treeNode.directChildCount);
 
@@ -390,6 +418,13 @@ function TerminalTreeSidebarInternal({ onNavigate }: SidebarInternalProps): JSX.
                     );
                 })}
             </div>
+            <SurvivingAgentsSection
+                sessions={recoverySessions}
+                onRefresh={refreshRecoverySessions}
+                onAttach={attachRecoverySession}
+                onKill={killRecoverySession}
+                onResume={resumeRecoverySession}
+            />
             <div ref={resizeHandleRef} className="terminal-tree-resize-handle" />
         </div>
     );
@@ -437,4 +472,6 @@ export function disposeTerminalTreeSidebar(): void {
 
     // Clear terminal stores to ensure clean state when switching projects
     clearTerminals();
+    clearUnclaimedTmuxSessions();
+    clearRecoverySessions();
 }

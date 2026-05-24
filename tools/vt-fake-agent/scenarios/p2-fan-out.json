@@ -1,0 +1,51 @@
+{
+  "description": "P2: Parent spawns 3 children with different durations, waits for all — tests fan-out topology",
+  "actions": [
+    { "type": "log", "message": "Parent starting, spawning 3 children..." },
+    { "type": "delay", "ms": 500 },
+    {
+      "type": "spawn_child",
+      "task": "Fast child (2s)",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Fast child working..." },
+          { "type": "delay", "ms": 2000 },
+          { "type": "create_node", "title": "Fast child done", "summary": "Completed in 2s" },
+          { "type": "delay", "ms": 500 },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    {
+      "type": "spawn_child",
+      "task": "Medium child (5s)",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Medium child working..." },
+          { "type": "delay", "ms": 5000 },
+          { "type": "create_node", "title": "Medium child done", "summary": "Completed in 5s" },
+          { "type": "delay", "ms": 500 },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    {
+      "type": "spawn_child",
+      "task": "Slow child (8s)",
+      "childScript": {
+        "actions": [
+          { "type": "log", "message": "Slow child working..." },
+          { "type": "delay", "ms": 8000 },
+          { "type": "create_node", "title": "Slow child done", "summary": "Completed in 8s" },
+          { "type": "delay", "ms": 500 },
+          { "type": "exit", "code": 0 }
+        ]
+      }
+    },
+    { "type": "wait_for_children" },
+    { "type": "log", "message": "All 3 children completed" },
+    { "type": "create_node", "title": "Fan-out parent done", "summary": "Parent completed after all 3 children (2s, 5s, 8s) finished" },
+    { "type": "delay", "ms": 500 },
+    { "type": "exit", "code": 0 }
+  ]
+}

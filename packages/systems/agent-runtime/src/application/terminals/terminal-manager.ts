@@ -15,7 +15,7 @@ import {
   resolveTmuxVaultPath,
   withResolvedTmuxVaultPath,
   withVoicetreeVaultPath,
-} from './tmuxSpawnPlanning';
+} from './tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '../runtime/runtime-config';
 
 export interface TerminalSpawnResult {
@@ -36,9 +36,9 @@ export interface TerminalSpawnOpts {
   onExit: (terminalId: string, exitCode: number, signal?: string | null) => void;
 }
 
-async function resolveRuntimeWritePath(): Promise<string | null> {
+async function resolveRuntimeProjectRoot(): Promise<string | null> {
   try {
-    return await (getRuntimeEnv().getWritePath?.() ?? Promise.resolve(null));
+    return await (getRuntimeEnv().getProjectRootWatchedDirectory?.() ?? Promise.resolve(null));
   } catch {
     return null;
   }
@@ -96,7 +96,7 @@ export class TerminalManager {
       const shell: string = await resolveTerminalShell(deps);
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
-      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeWritePath());
+      const vaultPath: string | undefined = resolveTmuxVaultPath(deps.env, initial, await resolveRuntimeProjectRoot());
       const plan = vaultPath
         ? applyPromptFileToTmuxSpawn({
             vaultPath,

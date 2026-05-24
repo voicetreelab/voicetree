@@ -28,7 +28,9 @@ async function resolveWatcherOptions(): Promise<WatcherOptions> {
         }).process
     if (!maybeProcess?.env) return DEFAULT_WATCHER_OPTIONS
     return createWatcherOptions(
-        maybeProcess.env.HEADLESS_TEST === '1' || maybeProcess.env.NODE_ENV === 'test'
+        maybeProcess.env.HEADLESS_TEST === '1' ||
+        maybeProcess.env.NODE_ENV === 'test' ||
+        maybeProcess.env.NODE_ENV === 'development'
     )
 }
 

@@ -4,14 +4,29 @@
 
 export type SupportedHeadlessCli = 'claude' | 'codex' | 'gemini'
 
+// Shell-style `VAR=value` env-var assignments that prefix a command, e.g.
+// `CLAUDE_CODE_NO_FLICKER=1 claude ...`. Values are non-space (quoted values
+// with embedded whitespace are not used in agent templates).
+const ENV_ASSIGNMENT_PREFIX_RE: RegExp = /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/
+
+function stripLeadingEnvAssignments(command: string): string {
+    return command.replace(ENV_ASSIGNMENT_PREFIX_RE, '')
+}
+
 /**
  * Detect CLI type from the agent command string.
  * Used for CLI-specific headless command construction and stop gate resume.
+ *
+ * The default Claude template prefixes the binary with a shell env-var
+ * assignment (`CLAUDE_CODE_NO_FLICKER=1 claude ...`); strip any such
+ * leading `VAR=value` tokens before matching the CLI name so detection
+ * survives env-prefixed templates.
  */
 export function detectCliType(command: string): SupportedHeadlessCli | null {
-    if (command.startsWith('claude ') || command === 'claude') return 'claude'
-    if (command.startsWith('codex ') || command === 'codex') return 'codex'
-    if (command.startsWith('gemini ') || command === 'gemini') return 'gemini'
+    const tail: string = stripLeadingEnvAssignments(command)
+    if (tail.startsWith('claude ') || tail === 'claude') return 'claude'
+    if (tail.startsWith('codex ') || tail === 'codex') return 'codex'
+    if (tail.startsWith('gemini ') || tail === 'gemini') return 'gemini'
     return null
 }
 

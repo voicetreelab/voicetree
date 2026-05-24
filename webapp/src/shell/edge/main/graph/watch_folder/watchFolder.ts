@@ -8,14 +8,13 @@ import type { ParsedQuery } from '@vt/graph-model'
 import { createDatedSubfolder } from '@vt/app-config/project'
 import type { VaultState } from '@vt/graph-db-client'
 import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/main/graph/watch_folder/folderScanning'
-import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/daemon-watch-sync'
-import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/graph-daemon'
+import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
+import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { syncWatchedProjectRoot } from '@/shell/edge/main/runtime/state/live-state-store'
 import {
     getStartupVaultHint,
     openVault,
     setOnFolderSwitchCleanup,
-    type StartupVaultHint,
 } from './openVault'
 
 export { getStartupVaultHint, openVault, setOnFolderSwitchCleanup }
@@ -90,28 +89,6 @@ export async function getAvailableFoldersForSelector(
     )
 }
 
-async function selectDirectory(directoryPath?: string): Promise<string | undefined> {
-    return directoryPath ?? await getCallbacks().openFolderDialog?.()
-}
-
-export async function startFileWatching(
-    directoryPath?: string,
-): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
-    console.warn('[watchFolder] startFileWatching is deprecated; use openVault instead.')
-    const selectedDirectory: string | undefined = await selectDirectory(directoryPath)
-    if (!selectedDirectory) {
-        return { success: false, error: 'No new directory selected' }
-    }
-
-    try {
-        await openVault(selectedDirectory)
-        return { success: true, directory: selectedDirectory }
-    } catch (error) {
-        const message: string = error instanceof Error ? error.message : String(error)
-        return { success: false, error: message }
-    }
-}
-
 export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     try {
         await stopDaemonGraphSync()
@@ -139,34 +116,6 @@ export async function getWatchStatus(): Promise<{ readonly isWatching: boolean; 
 
 export async function isWatching(): Promise<boolean> {
     return (await getWatchStatus()).isWatching
-}
-
-export async function loadPreviousFolder(): Promise<{
-    readonly success: boolean
-    readonly directory?: string
-    readonly error?: string
-}> {
-    console.warn('[watchFolder] loadPreviousFolder is deprecated; use getStartupVaultHint + openVault instead.')
-    const hint: StartupVaultHint = await getStartupVaultHint()
-    if (hint.kind === 'none') {
-        return { success: false, error: 'No previous folder found' }
-    }
-
-    try {
-        await openVault(hint.path)
-        return { success: true, directory: hint.path }
-    } catch (error) {
-        const message: string = error instanceof Error ? error.message : String(error)
-        return { success: false, error: message }
-    }
-}
-
-export async function markFrontendReady(): Promise<void> {
-    console.warn('[watchFolder] markFrontendReady is deprecated; use getStartupVaultHint + openVault instead.')
-    const hint: StartupVaultHint = await getStartupVaultHint()
-    if (hint.kind !== 'none') {
-        await openVault(hint.path)
-    }
 }
 
 export async function getVaultPaths(): Promise<readonly FilePath[]> {
@@ -236,19 +185,3 @@ export async function createSubfolder(
     }
 }
 
-export async function loadFolder(
-    watchedFolderPath: FilePath,
-    _opts?: unknown,
-): Promise<{ readonly success: boolean }> {
-    console.warn('[watchFolder] loadFolder is deprecated; use openVault instead.')
-    await openVault(watchedFolderPath)
-    return { success: true }
-}
-
-export function getVaultPath(): O.Option<FilePath> {
-    return O.none
-}
-
-export function setVaultPath(_vaultPath: FilePath): void {
-    console.warn('[watchFolder] setVaultPath is deprecated and no longer stores webapp-side vault state.')
-}

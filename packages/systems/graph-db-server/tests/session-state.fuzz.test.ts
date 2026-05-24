@@ -82,7 +82,7 @@ describe('session-state fuzz', () => {
     }
 
     nodeIds = files.map((f) => path.join(f.dir, f.name))
-    folderIds = [notes, projects, projectsSub]
+    folderIds = [vault, notes, projects, projectsSub]
 
     clearWatchFolderState()
     setGraph(createEmptyGraph())

@@ -43,6 +43,16 @@ export function getDefaultEdgeStyles(colors: GraphColorPalette, font: string, is
         'width': 'mapData(edgeCount, 1, 50, 2.5, 12.5)', // 2.5x scale (was 1-5)
         'arrow-scale': 'mapData(edgeCount, 1, 50, 0.735, 3.15)', // 30% smaller (was 1.05-4.5)
         'line-opacity': 'mapData(edgeCount, 1, 10, 0.35, 0.6)', // Increased min/max for visibility
+        // §9.3 — surface aggregated count explicitly: ×N text on the edge so users can quantify.
+        // Only aggregated synthetics carry edgeCount, and those never carry a relationship label,
+        // so the label slot is free.
+        'label': (ele: { data: (key: string) => unknown }) =>
+          `×${ele.data('edgeCount') as number}`,
+        'text-rotation': 'none',
+        'text-background-color': colors.lineColor,
+        'text-background-opacity': 0.15,
+        'text-background-padding': '2px',
+        'font-weight': 'bold',
       }
     },
 

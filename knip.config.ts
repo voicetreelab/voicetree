@@ -6,11 +6,9 @@ const config: KnipConfig = {
             entry: [
                 'scripts/*.mjs',
                 'scripts/*.cjs',
-                'scripts/measures/**/*.ts',
-                'scripts/measures/invariants/coupling/**/*.mjs',
+                'packages/measures/**/*.ts',
                 'health-dashboard/app.js',
                 'vitest.config.fuzz.ts',
-                'packages/systems/*.test.ts',
             ],
             ignore: [
                 'brain/**',
@@ -19,6 +17,7 @@ const config: KnipConfig = {
                 'old/**',
                 'spikes/**',
                 'tools/**',
+                'voicetree-20-5/**',
                 '.venv-server/**',
                 'health-dashboard/mockups/**',
             ],
@@ -31,7 +30,6 @@ const config: KnipConfig = {
                 'src/web-main.tsx',
                 'src/shell/edge/main/runtime/electron/app/main.ts',
                 'src/shell/edge/main/runtime/electron/app/preload.ts',
-                'src/shell/edge/main/cli/**/*.ts',
                 'src/shell/edge/main/runtime/mcp-server/**/*.ts',
                 'src/**/*.test.{ts,tsx}',
             ],
@@ -39,6 +37,10 @@ const config: KnipConfig = {
             ignore: [
                 'e2e-tests/**',
             ],
+        },
+        'packages/measures': {
+            entry: ['src/**/*.ts', 'src/**/*.test.ts'],
+            project: ['src/**/*.ts'],
         },
         'packages/libraries/*': {
             entry: ['bin/*.ts', 'scripts/*.ts', 'src/debug/buildBundles.ts', 'src/**/*.test.ts', 'tests/**/*.test.ts'],

@@ -12,6 +12,7 @@ import { bindCopyButtons } from './copyStatus.js'
 
 const REPORTS_URL = 'reports/latest.json'
 const CHECKS_URL = 'reports/checks.json'
+const MANIFEST_URL = 'api/checks/manifest'
 const GIT_URL = 'api/git'
 const GIT_POLL_MS = 5000
 
@@ -366,7 +367,7 @@ function renderEmpty() {
   <div class="state-empty-icon">📊</div>
   <h2>No health reports found</h2>
   <p>Run the test suite to generate reports:</p>
-  <code>npm run test:codebase-health</code>
+  <code>npm run test:measures</code>
 </div>`
 }
 
@@ -399,24 +400,59 @@ function renderError(err) {
   </div>`
 }
 
+function mergeManifest(checksData, manifestData) {
+  const captured = checksData?.reports ?? []
+  const manifest = manifestData?.checks ?? []
+  if (manifest.length === 0) return checksData ?? { reports: captured }
+  const manifestById = new Map(manifest.map(c => [c.id, c]))
+  // Backfill measurePath/tier/concern onto captured reports when missing.
+  // Captured JSONs from before the tier refactor lack details.measurePath and
+  // would otherwise fall into the untiered bucket on the dashboard.
+  const enrichedCaptured = captured.map(r => {
+    const m = manifestById.get(r.checkId)
+    if (!m) return r
+    const details = { ...(r.details ?? {}) }
+    if (!details.measurePath) details.measurePath = m.measurePath
+    if (details.tier === undefined) details.tier = m.tier
+    if (!details.concern) details.concern = m.concern
+    return { ...r, details }
+  })
+  const capturedIds = new Set(captured.map(r => r.checkId))
+  const synthesized = manifest
+    .filter(c => !capturedIds.has(c.id))
+    .map(c => ({
+      checkId: c.id,
+      checkName: c.name,
+      category: c.category,
+      command: c.display,
+      status: 'never-run',
+      durationMs: 0,
+      timestamp: null,
+      details: { measurePath: c.measurePath, tier: c.tier, concern: c.concern },
+    }))
+  return { ...(checksData ?? {}), reports: [...enrichedCaptured, ...synthesized] }
+}
+
 async function load() {
   renderLoading()
   try {
-    const [data, checksData, gitData] = await Promise.all([
+    const [data, checksData, manifestData, gitData] = await Promise.all([
       fetchJson(REPORTS_URL),
       fetchJson(CHECKS_URL),
+      fetchJson(MANIFEST_URL),
       fetchJson(GIT_URL),
     ])
 
+    const mergedChecks = mergeManifest(checksData, manifestData)
     liveState.data = data
-    liveState.checksData = checksData
+    liveState.checksData = mergedChecks
     liveState.gitData = gitData
 
-    if (!data?.reports?.length && !checksData?.reports?.length) {
+    if (!data?.reports?.length && !mergedChecks?.reports?.length) {
       renderEmpty()
       return
     }
-    renderDashboard(data ?? { reports: [], generatedAt: null }, checksData, gitData)
+    renderDashboard(data ?? { reports: [], generatedAt: null }, mergedChecks, gitData)
   } catch (err) {
     console.error('[health-dashboard] render failure', err)
     renderError(err)

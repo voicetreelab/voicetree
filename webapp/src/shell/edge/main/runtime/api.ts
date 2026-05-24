@@ -7,14 +7,23 @@
 
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getWatchStatus, loadPreviousFolder, markFrontendReady, startFileWatching, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getWatchStatus, stopFileWatching, getVaultPaths, getReadPaths, getWritePath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openVault, getStartupVaultHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
 import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
 import {getBackendPort, getAppSupportPath} from "@/shell/edge/main/runtime/state/app-electron-state";
-import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/daemon-graph-queries'
-import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/daemon-graph-queries'
+import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
+import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
 import {saveNodePositions} from "@/shell/edge/main/workspace/saveNodePositions";
-import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/daemon-graph-queries'
+import {performUndoThroughDaemon as performUndo, performRedoThroughDaemon as performRedo} from './electron/daemon/queries/daemon-graph-queries'
 import {terminalRuntimeSurface} from '@/shell/edge/main/agent/terminals/terminalRuntimeSurface'
+import {
+  attachUnclaimedTmuxSession,
+  killUnclaimedTmuxSession,
+  refreshUnclaimedTmuxSessions,
+} from '@/shell/edge/main/agent/terminals/unclaimed-tmux-session-sync'
+import {
+  refreshRecoverySessions,
+  resumeRecoverySession,
+} from '@/shell/edge/main/agent/terminals/recovery-session-sync'
 import {askQuery} from './backend-api';
 import {askModeCreateAndSpawn} from '@/shell/edge/main/agent/ask-mode/askModeCreateAndSpawn';
 import {getMetrics} from '@/shell/edge/main/observability/metrics/agent-metrics-store';
@@ -23,7 +32,7 @@ import {openClaudeUsage, openCodexStatus} from '@/shell/edge/main/observability/
 import {getDaemonUrl, getAuthToken} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClipboardImage';
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
-import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/daemon-graph-queries';
+import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelectedNodes';
 import {listWorktrees, createWorktree as createWorktreeCore, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
@@ -49,6 +58,7 @@ import {
   getNodeFromDaemon as getNode,
   postDeltaThroughDaemon,
   postDeltaThroughDaemonWithEditors,
+  postWriteMarkdownFileThroughDaemon,
   removeReadPathThroughDaemon as removeReadPath,
   setFolderStateThroughDaemon,
   setWritePathThroughDaemon as setWritePath,
@@ -57,10 +67,10 @@ import {
   activateViewThroughDaemon,
   cloneViewThroughDaemon,
   deleteViewThroughDaemon,
-} from './electron/daemon/daemon-ipc-proxy';
-import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/daemon-sse-subscription';
-import { stopDaemonGraphSync } from './electron/daemon/daemon-watch-sync';
-import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/graph-daemon';
+} from './electron/daemon/ipc/daemon-ipc-proxy';
+import { __debugLockSSE, __debugUnlockSSE } from './electron/daemon/sync/daemon-sse-subscription';
+import { stopDaemonGraphSync } from './electron/daemon/sync/daemon-watch-sync';
+import { shutdownActiveDaemonConnection as shutdownGraphDaemon } from './electron/daemon/lifecycle/graph-daemon';
 import path from 'path';
 
 async function __debugStopDaemonGraphSync(): Promise<void> {
@@ -95,7 +105,9 @@ export const mainAPI = {
   // Graph operations - daemon-only write path
   applyGraphDeltaToDBThroughMemUIAndEditorExposed: postDeltaThroughDaemonWithEditors,
 
-    applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
+  applyGraphDeltaToDBThroughMemAndUIExposed: postDeltaThroughDaemon,
+
+  writeMarkdownFile: postWriteMarkdownFileThroughDaemon,
 
   getGraph,
 
@@ -116,23 +128,16 @@ export const mainAPI = {
 
   saveSettings,
 
-  // File watching operations - thin wrappers
+  // Vault operations — single canonical entry-point.
   openVault,
 
   getStartupVaultHint,
-
-  startFileWatching,
 
   stopFileWatching,
 
   shutdownGraphDaemon,
 
   getWatchStatus,
-
-  loadPreviousFolder,
-
-  // Frontend readiness signal - triggers initial folder load
-  markFrontendReady,
 
   // Multi-vault path operations
   getVaultPaths,
@@ -177,6 +182,17 @@ export const mainAPI = {
   updateTerminalMinimized: terminalRuntimeSurface.updateTerminalMinimized,
   updateTerminalActivityState: terminalRuntimeSurface.updateTerminalActivityState,
   removeTerminalFromRegistry: terminalRuntimeSurface.removeTerminalFromRegistry,
+  closeAgent: terminalRuntimeSurface.closeHeadlessAgent,
+
+  // Existing tmux sessions not yet claimed by this Electron registry
+  listUnclaimedTmuxSessions: terminalRuntimeSurface.listUnclaimedTmuxSessions,
+  refreshUnclaimedTmuxSessions,
+  attachUnclaimedTmuxSession,
+  killUnclaimedTmuxSession,
+
+  // Unified recovery feed: live-tmux attach rows + dead-pane resumable rows
+  refreshRecoverySessions,
+  resumeRecoverySession,
 
   // Manual node injection (InjectBar UI)
   getUnseenNodesForTerminal: terminalRuntimeSurface.getUnseenNodesForTerminal,

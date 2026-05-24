@@ -95,6 +95,15 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
         _graphState: { nodes: {}, edges: [] } as any,
         applyGraphDelta: async () => ({ success: true }),
         getState: async () => mockElectronAPI.graph._graphState,
+        getCurrentProjectedGraph: async () => ({
+          nodes: [],
+          edges: [],
+          rootPath: '',
+          revision: 0,
+          forests: [],
+          arboricity: 0,
+          recentNodeIds: []
+        }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onProjectedGraphUpdate: (callback: (graph: any) => void) => {
           mockElectronAPI.graph._projectedGraphCallback = callback;
