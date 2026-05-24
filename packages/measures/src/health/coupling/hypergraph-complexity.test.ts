@@ -52,12 +52,13 @@ const MAX_PAIR_TREE_WIDTH_BUDGET = 3
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
 const MAX_BOUNDARY_RATIO_BUDGET = 1
 // Captured 2026-05-14 after widening discovery to whole repo; ratchet down later.
-// 2026-05-24: +3.17 from extracting @vt/observability (Pattern P2). Webapp gains
-// one new narrow pair (tw=1, 2 file-edges → contribution (1+1)·log₂(3) ≈ 3.17).
-// Acceptable: the extraction collapses three loose tracing symbols on
-// webapp→graph-db-client into one cohesive package boundary and deletes a
-// copy-pasted twin in graph-db-server. 195.64 → 198.68.
-const AGGREGATE_BCI_BUDGET = 198.68
+//
+// 2026-05-24: BCI formula fixed — `(tw + 1)` (existence tax) replaced with
+// `max(tw - 1, 0)` (tangle only). Aggregate rebaselined 198.68 → 50.60.
+// See `aggregateBCI` docstring for the rationale. The +3.17 charge that
+// extracting @vt/observability triggered against the old formula now
+// correctly contributes 0 (tw=1 narrow star). Tight ratchet: 50.61.
+const AGGREGATE_BCI_BUDGET = 50.61
 
 // ── Graph Construction ──
 
@@ -195,8 +196,33 @@ function computeSubdirCoupling(
     }
 }
 
+// Aggregate Boundary Complexity Index.
+//
+// Each pair contributes max(tw - 1, 0) × log₂(edges + 1):
+//   tw = 0 or 1 (trivial / narrow star / tree)  →  cost 0
+//   tw ≥ 2                                       →  (tw - 1) × log₂(edges + 1)
+//
+// The factor used to be `(tw + 1)`, which charged every pair an existence
+// tax — a single-edge boundary cost 2.0, the canonical narrow star
+// (n consumers → 1 facade) cost ≈ 2·log₂(n+1). That gradient actively
+// rewarded bundling new responsibilities into existing packages over
+// extracting them into a deep-narrow new package, which is the *opposite*
+// of what the boundary measure should reward. Changed 2026-05-24 when
+// the @vt/observability extraction surfaced the bug (see TODOs below).
+//
+// TODO(bci-asymmetry): tree-width is symmetric; package boundaries are not.
+// The architecturally ideal shape is asymmetric — many consumer files in
+// package A all funnel through one facade file in package B. Replacing the
+// tangle factor with `max(min(srcFan, tgtFan) - 1, 0)` (two-sided
+// narrowness) would charge mesh-shaped boundaries (5 ↔ 5) without taxing
+// deep-narrow ones (50 → 1). Defer until cross-pair budgets are stable.
+//
+// TODO(bci-edge-density): once asymmetry is fixed, consider replacing the
+// log₂(edges+1) factor with bipartite density `edges / (srcFan × tgtFan)`
+// (∈ [0, 1]) so the metric is bounded per-pair and the aggregate has a
+// natural interpretation as "average density across boundaries".
 function aggregateBCI(pairs: readonly PairMetrics[]): number {
-    return pairs.reduce((sum, p) => sum + (p.treeWidth + 1) * Math.log2(p.edgeCount + 1), 0)
+    return pairs.reduce((sum, p) => sum + Math.max(p.treeWidth - 1, 0) * Math.log2(p.edgeCount + 1), 0)
 }
 
 // ── Report Formatting ──
@@ -274,8 +300,8 @@ function formatAggregate(pairs: readonly PairMetrics[], maxTw: number, maxBounda
         `  Max boundary ratio:   ${maxBoundaryRatio.toFixed(3)}  (budget: ${MAX_BOUNDARY_RATIO_BUDGET.toFixed(3)})`,
         `  Boundary Complexity:  ${bci.toFixed(2)}  (budget: ${AGGREGATE_BCI_BUDGET.toFixed(2)})`,
         '',
-        '  BCI = Σ (tw + 1) × log₂(edges + 1) per pair',
-        '  Penalizes tangled boundaries (high tw × many edges) over clean narrow ones',
+        '  BCI = Σ max(tw - 1, 0) × log₂(edges + 1) per pair',
+        '  Narrow boundaries (tw ≤ 1) cost 0; only genuine tangle (tw ≥ 2) contributes',
         '',
     ].join('\n')
 }
