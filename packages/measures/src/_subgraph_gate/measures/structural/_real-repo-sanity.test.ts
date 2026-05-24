@@ -49,7 +49,7 @@ import {martinDistanceMeasure} from './_deferred/martin-distance.ts'
 import {modularityQMeasure} from './_deferred/modularity-q.ts'
 import {structuralOrangeMeasure} from './structural-orange.ts'
 import {treeWidthApproxMeasure} from './tree-width-approx.ts'
-import type {SubgraphMeasure} from '../../../_shared/measures/subgraph-measure.ts'
+import type {SubgraphMeasure} from '../../_internal/subgraph-measure.ts'
 
 const ALL_MEASURES: SubgraphMeasure[] = [
     structuralOrangeMeasure,

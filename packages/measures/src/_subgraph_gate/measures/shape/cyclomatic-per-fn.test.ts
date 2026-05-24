@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {__resetRegistryForTesting} from '../../../_shared/measures/registry.ts'
+import {__resetRegistryForTesting} from '../../_internal/registry.ts'
 import {buildSyntheticSubgraph, type SyntheticSubgraph} from './_test-helpers.ts'
 import {cyclomaticPerFnMeasure, scoreCyclomatic, CYCLOMATIC_WARN_SOFT} from './cyclomatic-per-fn.ts'
 // IMPORTANT: tests use ts-morph's bundled typescript so SyntaxKind enums

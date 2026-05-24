@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 // match what the scorer functions check against. Don't switch to bare
 // `typescript` — version drift causes type-predicates to silently fail.
 import {ts} from 'ts-morph'
-import {__resetRegistryForTesting} from '../../../_shared/measures/registry.ts'
+import {__resetRegistryForTesting} from '../../_internal/registry.ts'
 import {buildSyntheticSubgraph, type SyntheticSubgraph} from './_test-helpers.ts'
 import {cognitivePerFnMeasure, scoreCognitive, COGNITIVE_WARN_SOFT} from './cognitive-per-fn.ts'
 

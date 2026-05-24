@@ -28,10 +28,10 @@ import {readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {DEFAULT_REPO_ROOT} from '../_shared/discovery/discover-packages.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
-import {listMeasures} from '../_shared/measures/registry.ts'
-import {loadBaseline} from '../_shared/measures/baseline-store.ts'
-import type {SubgraphMeasureResult, Violation} from '../_shared/measures/subgraph-measure.ts'
-import '../_shared/measures/load-all.ts'
+import {listMeasures} from '../_subgraph_gate/_internal/registry.ts'
+import {loadBaseline} from '../_subgraph_gate/_internal/baseline-store.ts'
+import type {SubgraphMeasureResult, Violation} from '../_subgraph_gate/_internal/subgraph-measure.ts'
+import '../_subgraph_gate/_internal/load-all.ts'
 
 type Args = {
     readonly changedFilesFrom: string | null

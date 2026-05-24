@@ -23,9 +23,9 @@
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../_shared/discovery/discover-packages.ts'
 import {scanSourceFiles} from '../_shared/graph/import-graph.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
-import {listMeasures} from '../_shared/measures/registry.ts'
-import {writeBaseline} from '../_shared/measures/baseline-store.ts'
-import '../_shared/measures/load-all.ts'
+import {listMeasures} from '../_subgraph_gate/_internal/registry.ts'
+import {writeBaseline} from '../_subgraph_gate/_internal/baseline-store.ts'
+import '../_subgraph_gate/_internal/load-all.ts'
 
 async function main(): Promise<void> {
     const packages = await discoverPackages(DEFAULT_REPO_ROOT)

@@ -37,14 +37,14 @@
  */
 import {siblingGroupParent} from '../../../_shared/community/community-at-depth.ts'
 import type {Edge, SourceFile} from '../../../_shared/graph/import-graph.ts'
-import {loadBaseline} from '../../../_shared/measures/baseline-store.ts'
-import {registerMeasure} from '../../../_shared/measures/registry.ts'
+import {loadBaseline} from '../../_internal/baseline-store.ts'
+import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
     SubgraphMeasureResult,
     Violation,
-} from '../../../_shared/measures/subgraph-measure.ts'
+} from '../../_internal/subgraph-measure.ts'
 
 export const MEASURE_ID = 'dsm-upper-triangular'
 

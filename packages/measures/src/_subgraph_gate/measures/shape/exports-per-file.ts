@@ -28,14 +28,14 @@
 // returns nodes from that TS instance, and SyntaxKind constants differ).
 import {ts} from 'ts-morph'
 import {communityForFile} from '../../../_shared/community/community-at-depth.ts'
-import {registerMeasure} from '../../../_shared/measures/registry.ts'
+import {registerMeasure} from '../../_internal/registry.ts'
 import type {
     Severity,
     SubgraphMeasure,
     SubgraphMeasureInput,
     SubgraphMeasureResult,
     Violation,
-} from '../../../_shared/measures/subgraph-measure.ts'
+} from '../../_internal/subgraph-measure.ts'
 
 export const EXPORTS_WARN_SOFT = 5
 export const EXPORTS_WARN_HARD = 10
