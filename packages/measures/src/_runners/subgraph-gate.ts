@@ -80,15 +80,43 @@ async function loadChangedFiles(args: Args): Promise<string[]> {
     return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0)
 }
 
+/**
+ * For most measures, score is lower-is-better — boundary-width, cycles,
+ * cognitive complexity, etc. Modularity-Q is the outlier (higher is
+ * better — a clean partition has Q closer to 1). Used by the
+ * delta-vs-baseline filter so an inherited bad Q is not re-reported as a
+ * violation on every commit.
+ */
+function isWithinBaseline(measureId: string, score: number, baseline: number): boolean {
+    if (measureId === 'modularity-q') return score >= baseline
+    return score <= baseline
+}
+
+/**
+ * Decorate each violation with its per-community baseline (if any) AND
+ * drop violations that the commit did not worsen. A community with score
+ * equal to or better than its baseline contributes no violation — the
+ * debt was already there. Only commits that increase the touched
+ * community's score above its baseline produce visible violations.
+ *
+ * Violations with no baseline (new community, missing snapshot) fall
+ * back to the measure's absolute threshold decision and pass through
+ * unchanged.
+ */
 async function decorateWithBaselines(
     result: SubgraphMeasureResult,
 ): Promise<SubgraphMeasureResult> {
     if (result.violations.length === 0) return result
     const baseline = await loadBaseline(result.measureId)
-    const decorated: Violation[] = result.violations.map(v => ({
-        ...v,
-        baseline: v.baseline ?? (v.community in baseline ? baseline[v.community] : null),
-    }))
+    const decorated: Violation[] = result.violations
+        .map(v => ({
+            ...v,
+            baseline: v.baseline ?? (v.community in baseline ? baseline[v.community] : null),
+        }))
+        .filter(v => {
+            if (v.baseline === null) return true
+            return !isWithinBaseline(result.measureId, v.score, v.baseline)
+        })
     return {...result, violations: decorated}
 }
 
