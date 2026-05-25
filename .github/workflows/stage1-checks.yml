@@ -44,7 +44,7 @@ jobs:
         run: >
           node --no-warnings=ExperimentalWarning --experimental-strip-types
           packages/measures/src/_runners/capture-ci-checks.ts
-          --tier-max=1
+          --tier-max=2
           --only=blackbox-tests-lint,root-lint,agent-instructions-sync,e2e-taxonomy,verify-cytoscape-rules,webapp-check,webapp-lint
 
   unit-integration:
