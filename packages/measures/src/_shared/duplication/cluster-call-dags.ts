@@ -19,9 +19,10 @@ import {
     type CallDagFingerprint,
     type CallDagIndex,
 } from './call-dag-fingerprint'
+import {bucketsToPairs} from './buckets-to-pairs'
 import type {FunctionRecord} from './extract-functions'
 import {jaccard} from './jaccard'
-import {decodePairKey, lshBuckets, pairKey, type SignedItem} from './lsh'
+import {decodePairKey, lshBuckets, type SignedItem} from './lsh'
 import {minhash} from './minhash'
 
 export const EXACT_MATCH_WEIGHT: number = 0.6
@@ -108,31 +109,14 @@ function shouldDrop(a: FunctionRecord, b: FunctionRecord): boolean {
     return a.file === b.file && a.name === b.name
 }
 
-type ExactResult = {
-    readonly pairs: ReadonlySet<string>
-    readonly bucketsWithDuplicates: number
-}
-
-function exactBuckets(items: readonly DaggedRecord[]): ExactResult {
+function exactBuckets(items: readonly DaggedRecord[]) {
     const buckets = new Map<number, string[]>()
     for (const item of items) {
         const ids = buckets.get(item.fingerprint.canonicalHash)
         if (ids) ids.push(item.record.id)
         else buckets.set(item.fingerprint.canonicalHash, [item.record.id])
     }
-    const pairs = new Set<string>()
-    let bucketsWithDuplicates = 0
-    for (const ids of buckets.values()) {
-        if (ids.length < 2) continue
-        bucketsWithDuplicates += 1
-        const unique = [...new Set(ids)].sort()
-        for (let i = 0; i < unique.length; i += 1) {
-            for (let j = i + 1; j < unique.length; j += 1) {
-                pairs.add(pairKey(unique[i], unique[j]))
-            }
-        }
-    }
-    return {pairs, bucketsWithDuplicates}
+    return bucketsToPairs(buckets)
 }
 
 function fuzzyBuckets(items: readonly DaggedRecord[]): Set<string> {

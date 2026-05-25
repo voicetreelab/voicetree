@@ -13,9 +13,10 @@
  */
 import type {FunctionRecord} from './extract-functions'
 import {behavioralFingerprint, BEH_BAND_COUNT, BEH_ROWS_PER_BAND, type BehavioralFingerprint} from './behavioral-fingerprint'
+import {bucketsToPairs} from './buckets-to-pairs'
 import {jaccard} from './jaccard'
 import {lexicalFingerprint, LEX_BAND_COUNT, LEX_ROWS_PER_BAND, type LexicalFingerprint} from './lexical-fingerprint'
-import {decodePairKey, lshBuckets, pairKey, type SignedItem} from './lsh'
+import {decodePairKey, lshBuckets, type SignedItem} from './lsh'
 import {structuralFingerprint, type StructuralFingerprint} from './structural-fingerprint'
 
 export const STRUCTURAL_WEIGHT: number = 0.3
@@ -78,17 +79,7 @@ function structuralPairs(items: readonly Fingerprinted[]): Set<string> {
         if (ids) ids.push(item.record.id)
         else buckets.set(hash, [item.record.id])
     }
-    const pairs = new Set<string>()
-    for (const ids of buckets.values()) {
-        if (ids.length < 2) continue
-        const unique = [...new Set(ids)].sort()
-        for (let i = 0; i < unique.length; i += 1) {
-            for (let j = i + 1; j < unique.length; j += 1) {
-                pairs.add(pairKey(unique[i], unique[j]))
-            }
-        }
-    }
-    return pairs
+    return bucketsToPairs(buckets).pairs
 }
 
 function lexicalPairs(items: readonly Fingerprinted[]): Set<string> {
