@@ -27,6 +27,7 @@ import {applyPromptFileToTmuxSpawn} from '../../headless/tmuxPromptFile'
 import {spawnTmuxBackedTerminal} from '../../headless/headlessAgentManager'
 import {clearTerminalRecords} from '../terminal-registry'
 import {hasSession, killSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
+import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
 import {withVoicetreeVaultPath} from '../tmux/tmuxSpawnPlanning'
 import {createTerminalData, type TerminalData, type TerminalId} from '../terminal-registry/types'
 
@@ -45,7 +46,12 @@ async function makeTempVault(): Promise<string> {
 
 async function showSessionEnv(sessionName: string): Promise<Map<string, string>> {
     return new Promise((resolve, reject) => {
-        const child = spawn('tmux', ['show-environment', '-t', sessionName], {stdio: ['ignore', 'pipe', 'pipe']})
+        // Must use the VoiceTree private tmux socket (`-S <path>`) — sessions
+        // spawned by spawnTmuxBackedTerminal live on that socket, not on the
+        // default `/tmp/tmux-$UID/default`. Hitting the default socket would
+        // either fail with "no such file" (no server) or "no such session"
+        // (server up but our session isn't there).
+        const child = spawn(getTmuxBinaryPath(), getTmuxCommandArgs(['show-environment', '-t', sessionName]), {stdio: ['ignore', 'pipe', 'pipe']})
         const out: Buffer[] = []
         const err: Buffer[] = []
         child.stdout.on('data', (c: Buffer) => out.push(c))

@@ -348,25 +348,31 @@ describe('detectCliType', () => {
 // ─── buildResumeCommand ────────────────────────────────────────────────────
 
 describe('buildResumeCommand', () => {
-    it('builds Claude resume command with --continue using env var', () => {
+    // The deficiency prompt is piped to the agent CLI on stdin (see
+    // `resumeWithDeficiency` in headlessAgentLifecycle.ts), not passed as an
+    // argv flag. This keeps large deficiency prompts off the command line and
+    // out of ARG_MAX. The CLIs therefore run with NO inline prompt flag.
+
+    it('builds Claude resume command with --continue (prompt piped via stdin)', () => {
         const cmd: string = buildResumeCommand('claude')
-        expect(cmd).toBe('claude --continue -p "$RESUME_PROMPT" --dangerously-skip-permissions')
+        expect(cmd).toBe('claude --continue --dangerously-skip-permissions')
     })
 
-    it('builds Codex resume command (uses --last) with env var', () => {
+    it('builds Codex resume command using --last (prompt piped via stdin)', () => {
         const cmd: string = buildResumeCommand('codex')
-        expect(cmd).toBe('codex exec resume --last -p "$RESUME_PROMPT" --full-auto')
+        expect(cmd).toBe('codex exec resume --last --full-auto')
     })
 
-    it('builds Gemini resume command (uses latest) with env var', () => {
+    it('builds Gemini resume command using latest (prompt piped via stdin)', () => {
         const cmd: string = buildResumeCommand('gemini')
-        expect(cmd).toBe('gemini --resume latest -p "$RESUME_PROMPT" --yolo')
+        expect(cmd).toBe('gemini --resume latest --yolo')
     })
 
-    it('uses env var expansion (no --prompt-file)', () => {
+    it('emits no inline prompt flags — prompt is delivered via stdin', () => {
         const cmd: string = buildResumeCommand('claude')
         expect(cmd).not.toContain('--prompt-file')
-        expect(cmd).toContain('-p "$RESUME_PROMPT"')
+        expect(cmd).not.toContain('-p ')
+        expect(cmd).not.toContain('$RESUME_PROMPT')
     })
 })
 
