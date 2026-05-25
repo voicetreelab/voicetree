@@ -13,137 +13,17 @@
  * - loadAndMergeVaultPath handles isWriteFolder option correctly
  */
 
-import { test as base, expect, _electron as electron } from '@playwright/test';
-import type { ElectronApplication, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import * as os from 'os';
-import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
-
-const PROJECT_ROOT = path.resolve(process.cwd());
-
-// Type definitions
-interface ExtendedWindow {
-  cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
-}
-
-// Extend test with Electron app
-const test = base.extend<{
-  electronApp: ElectronApplication;
-  appWindow: Page;
-  testProjectPath: string;
-  primaryVaultPath: string;
-  secondVaultPath: string;
-  tempUserDataPath: string;
-}>({
-  // Create temp userData path for isolated config
-  tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-unified-loading-userdata-'));
-    await use(tempUserDataPath);
-    await fs.rm(tempUserDataPath, { recursive: true, force: true });
-  },
-
-  // Create a test project with two vault directories
-  testProjectPath: async ({}, use) => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-unified-loading-test-'));
-    const primaryVault = path.join(tempDir, 'primary');
-    const secondVault = path.join(tempDir, 'second-vault');
-
-    await fs.mkdir(primaryVault, { recursive: true });
-    await fs.mkdir(secondVault, { recursive: true });
-
-    // CRITICAL: Create an initial node in primary vault so the app auto-loads
-    // Without this, the app shows the project selector instead of loading
-    await fs.writeFile(
-      path.join(primaryVault, 'initial-node.md'),
-      '# Initial Node\n\nThis is the starting node in primary vault.'
-    );
-
-    await use(tempDir);
-
-    // Cleanup
-    await fs.rm(tempDir, { recursive: true, force: true });
-  },
-
-  primaryVaultPath: async ({ testProjectPath }, use) => {
-    await use(path.join(testProjectPath, 'primary'));
-  },
-
-  secondVaultPath: async ({ testProjectPath }, use) => {
-    await use(path.join(testProjectPath, 'second-vault'));
-  },
-
-  electronApp: async ({ testProjectPath, tempUserDataPath, primaryVaultPath }, use) => {
-    // Write config to auto-load the test project
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: testProjectPath,
-      vaultConfig: {
-        [testProjectPath]: {
-          writeFolder: primaryVaultPath,
-          readPaths: []
-        }
-      }
-    }, null, 2), 'utf8');
-
-    const electronApp = await electron.launch({
-      args: [
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
-      },
-      timeout: 15000
-    });
-
-    await use(electronApp);
-
-    // Graceful shutdown
-    try {
-      const window = await electronApp.firstWindow();
-      await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await window.waitForTimeout(300);
-    } catch {
-      console.log('Note: Could not stop file watching during cleanup');
-    }
-
-    await electronApp.close();
-  },
-
-  appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow({ timeout: 15000 });
-
-    window.on('console', msg => {
-      const text = msg.text();
-      // Only log important messages for debugging
-      if (text.includes('[Unified Loading]') || text.includes('Error')) {
-        console.log(`[${msg.type()}] ${text}`);
-      }
-    });
-
-    window.on('pageerror', error => {
-      console.error('PAGE ERROR:', error.message);
-    });
-
-    await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 15000 });
-    await window.waitForTimeout(1000);
-
-    await use(window);
-  }
-});
+import type { NodeSingular } from 'cytoscape';
+import {
+  launchElectronApp,
+  stopFileWatching,
+  test,
+  writeVaultConfig
+} from './electron-unified-folder-loading/fixtures';
+import type { ExtendedWindow } from './electron-unified-folder-loading/types';
 
 test.describe('Unified Folder Loading E2E Tests', () => {
   /**
@@ -328,32 +208,10 @@ test.describe('Unified Folder Loading E2E Tests', () => {
     );
 
     console.log('=== STEP 2: Update config to load this project ===');
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({
-      lastDirectory: testProjectPath,
-      vaultConfig: {
-        [testProjectPath]: {
-          writeFolder: primaryVaultPath,
-          readPaths: []
-        }
-      }
-    }, null, 2), 'utf8');
+    await writeVaultConfig(tempUserDataPath, testProjectPath, primaryVaultPath);
 
     console.log('=== STEP 3: Launch Electron app ===');
-    const electronApp = await electron.launch({
-      args: [
-        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`
-      ],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        HEADLESS_TEST: '1',
-        MINIMIZE_TEST: '1',
-        VOICETREE_PERSIST_STATE: '1'
-      },
-      timeout: 15000
-    });
+    const electronApp = await launchElectronApp(tempUserDataPath);
 
     try {
       const appWindow = await electronApp.firstWindow({ timeout: 15000 });
@@ -408,11 +266,7 @@ test.describe('Unified Folder Loading E2E Tests', () => {
       console.log('=== TEST 5B PASSED: All files loaded correctly on reopen ===');
     } finally {
       try {
-        const window = await electronApp.firstWindow();
-        await window.evaluate(async () => {
-          const api = (window as unknown as ExtendedWindow).electronAPI;
-          if (api) await api.main.stopFileWatching();
-        });
+        await stopFileWatching(electronApp);
       } catch { /* ignore */ }
       await electronApp.close();
     }
