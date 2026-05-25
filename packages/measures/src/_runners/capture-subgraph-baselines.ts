@@ -20,6 +20,11 @@
  * Usage:
  *   node --experimental-strip-types packages/measures/src/_runners/capture-subgraph-baselines.ts
  */
+import {execFileSync} from 'node:child_process'
+import {appendFile} from 'node:fs/promises'
+import {join} from 'node:path'
+
+import {MIN_RATIONALE_CHARS} from '../checks/_shared/baseline-policy.ts'
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../_shared/discovery/discover-packages.ts'
 import {scanSourceFiles} from '../_shared/graph/import-graph.ts'
 import {parseSubgraph} from '../_shared/graph/parse-subgraph.ts'
@@ -27,7 +32,65 @@ import {listMeasures} from '../_subgraph_gate/_internal/registry.ts'
 import {writeBaseline} from '../_subgraph_gate/_internal/baseline-store.ts'
 import '../_subgraph_gate/_internal/load-all.ts'
 
+const BUMP_LOG_PATH = join(DEFAULT_REPO_ROOT, 'packages', 'measures', 'budgets', 'BASELINE_BUMP_LOG.md')
+
+type Args = {readonly iAmSure: boolean; readonly reason: string | null}
+
+function parseArgs(argv: readonly string[]): Args {
+    let iAmSure = false
+    let reason: string | null = null
+    for (const arg of argv) {
+        if (arg === '--i-am-sure') { iAmSure = true; continue }
+        if (arg.startsWith('--reason=')) { reason = arg.slice('--reason='.length); continue }
+        console.error(`capture-subgraph-baselines: unknown flag '${arg}'`)
+        process.exit(2)
+    }
+    return {iAmSure, reason}
+}
+
+function refusalBanner(): string {
+    return [
+        '',
+        '━'.repeat(80),
+        'Refused: this runner refreshes baselines, which is almost never the right',
+        'response to a failing subgraph-gate. The gate failed because your commit',
+        'worsened a community\'s score; the fix is to refactor the change, not',
+        'raise the threshold.',
+        '',
+        'If — after applying the FP rearchitecting pattern — you have concluded',
+        'a refresh is genuinely justified, rerun with explicit consent:',
+        '',
+        `  npm run measures:capture-baselines -- --i-am-sure --reason="<>=${MIN_RATIONALE_CHARS} chars>"`,
+        '',
+        'The reason will be appended to packages/measures/budgets/BASELINE_BUMP_LOG.md',
+        'so git history records why the refresh was authorized.',
+        '━'.repeat(80),
+        '',
+    ].join('\n')
+}
+
+function gitUser(): string {
+    try {
+        const name = execFileSync('git', ['config', 'user.name'], {cwd: DEFAULT_REPO_ROOT, encoding: 'utf8'}).trim()
+        const email = execFileSync('git', ['config', 'user.email'], {cwd: DEFAULT_REPO_ROOT, encoding: 'utf8'}).trim()
+        return `${name} <${email}>`
+    } catch {
+        return 'unknown'
+    }
+}
+
+async function appendBumpLogEntry(reason: string): Promise<void> {
+    const line = `- ${new Date().toISOString()} · ${gitUser()} · ${reason}\n`
+    await appendFile(BUMP_LOG_PATH, line, 'utf8')
+}
+
 async function main(): Promise<void> {
+    const args = parseArgs(process.argv.slice(2))
+    if (!args.iAmSure || args.reason === null || args.reason.length < MIN_RATIONALE_CHARS) {
+        process.stderr.write(refusalBanner())
+        process.exit(1)
+    }
+
     const packages = await discoverPackages(DEFAULT_REPO_ROOT)
     const allFiles = await scanSourceFiles(packages, DEFAULT_REPO_ROOT)
     const allPaths = allFiles.map(f => f.absolutePath)
@@ -67,6 +130,8 @@ async function main(): Promise<void> {
     }
 
     console.log('\nBaselines written under packages/measures/budgets/subgraph/')
+    await appendBumpLogEntry(args.reason!)
+    console.log(`Bump logged in ${BUMP_LOG_PATH}`)
 }
 
 main().catch(err => {

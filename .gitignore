@@ -192,6 +192,7 @@ webapp/workers/share-worker/.wrangler/**
 !docker/**/*.md
 !packages/measures/README.md
 !packages/measures/perf/*.md
+!packages/measures/budgets/BASELINE_BUMP_LOG.md
 !packages/systems/agent-runtime/src/application/terminals/tmux/README.md
 !scripts/agent-debugging/README.md
 !scripts/agent-debugging/REFERENCE.md
