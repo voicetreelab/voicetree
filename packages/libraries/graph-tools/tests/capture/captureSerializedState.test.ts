@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import type { Graph, GraphNode, NodeIdAndFilePath } from '@vt/graph-model/graph'
 import type { State } from '@vt/graph-state'
 
-import {
+import { runImplementation } from '../../src/commands/capture/run/index'
+import type { CyDump } from '../../src/debug/state/cyStateShape'
+
+const {
   applyDeltaToStateCaptureOverlay,
   buildCapturedSerializedState,
   createStateCaptureOverlay,
-} from '../../src/commands/capture/run'
-import type { CyDump } from '../../src/debug/state/cyStateShape'
+} = runImplementation
 
 function buildGraph(nodeIds: readonly NodeIdAndFilePath[]): Graph {
   const nodes = Object.fromEntries(

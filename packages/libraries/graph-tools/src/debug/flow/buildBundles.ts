@@ -7,7 +7,10 @@ import path from 'node:path'
 
 import { loadFlowDefinition, FLOW_IDS, type FlowId } from './flows/index'
 import { buildJudgePrompt, type FlowBundle, type RunSummary, type StepOutputSummary } from './judge'
-import type { RunStepOutput, RunResult } from '@vt/graph-tools/commands/capture/run'
+import type { RunTypes } from '@vt/graph-tools/commands/capture/run/types'
+
+type RunResult = RunTypes['RunResult']
+type RunStepOutput = RunTypes['RunStepOutput']
 
 export type BuiltBundle = {
   flowId: FlowId
@@ -88,7 +91,7 @@ async function buildRunSummary(runDir: string, runIndex: number, stepCount: numb
 
     stepOutputs.push({
       stepIndex: i,
-      step: output.step,
+      step: output.step as StepOutputSummary['step'],
       ok: output.ok,
       error: output.error,
       observationErrors: output.observationErrors,

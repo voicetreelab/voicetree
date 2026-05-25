@@ -9,12 +9,14 @@ import {
   generateStressSequence,
   resolveStressSequence,
 } from '../../src/debug/stress/stressSpec'
-import type { RunResult } from '../../src/commands/capture/run'
+import type { RunTypes } from '../../src/commands/capture/run/types'
 
 import { readJson, writeJson } from './io'
 import { pad, uniqueSorted } from './math'
 import { childRunArgs, execFileResult, parseResponse } from './process'
 import type { LiveSequenceResult, RunnerOptions, StressResult } from './types'
+
+type RunResult = RunTypes['RunResult']
 
 export async function runLiveStress(
   options: RunnerOptions,

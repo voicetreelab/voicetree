@@ -1,9 +1,12 @@
 import type { Response } from '../protocol/Response'
-import type { RunResult, RunStepOutput } from '@vt/graph-tools/commands/capture/run'
+import type { RunTypes } from '@vt/graph-tools/commands/capture/run/types'
 import type { JudgeVerdict } from './judge'
 
+type RunResult = RunTypes['RunResult']
+type RunStepOutput = RunTypes['RunStepOutput']
+
 export const PRE_REGISTERED_BASELINE = '≤3/8 pass (Ayu prediction B, conf 0.75)'
-export const JUDGE_FLAKE_RUNS = 3
+const JUDGE_FLAKE_RUNS = 3
 
 export interface FlowAttempt {
   readonly pass: boolean
