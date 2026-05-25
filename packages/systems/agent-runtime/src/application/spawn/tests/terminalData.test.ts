@@ -55,7 +55,6 @@ describe('prepareTerminalDataInMain', () => {
             configureAgentRuntime({
                 env: {
                     getAppSupportPath: () => appSupportPath,
-                    getMcpPort: () => 4242,
                     getProjectRoot: async () => '/project',
                     getWriteFolder: async () => '/project/voicetree-25-5',
                     getVaultPaths: async () => ['/project/voicetree-25-5'],

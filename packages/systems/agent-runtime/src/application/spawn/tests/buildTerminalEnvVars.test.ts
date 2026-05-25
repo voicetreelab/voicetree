@@ -18,7 +18,6 @@ describe('buildTerminalEnvVars', () => {
         configureAgentRuntime({
             env: {
                 getAppSupportPath: () => '/app-support',
-                getMcpPort: () => 4242,
                 getProjectRoot: async () => '/watched-project',
                 getWriteFolder: async () => '/watched-project/voicetree-25-5',
                 getVaultPaths: async () => [
