@@ -9,15 +9,19 @@
 //   workflowYamlToText()  → pure formatter, WorkflowYaml → string
 //   generate()            → shell, composes the three + writes the file
 //
-// Why this file is not activated:
-//   `on: workflow_dispatch: {}` only. The hand-written `stage1-checks.yml`
-//   remains the real PR gate until a follow-up PR cuts over.
+// Triggers: `workflow_dispatch` + `pull_request` on `packages/measures/**`.
+// Runs side-by-side with `stage1-checks.yml` until BF-365 cuts the latter over.
 
 import {readdir, readFile, writeFile, mkdir} from 'node:fs/promises'
 import {dirname, join, resolve, relative} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 
 import type {WorkflowSpec} from '../src/checks/_workflow-types.ts'
+
+import type {Job, Step, WorkflowYaml} from './gen-workflows/_types.ts'
+import {precheckJob} from './gen-workflows/precheck-job.ts'
+
+export type {WorkflowYaml}
 
 const SCRIPT_DIR: string = dirname(fileURLToPath(import.meta.url))
 const PKG_ROOT: string = resolve(SCRIPT_DIR, '..')
@@ -43,33 +47,6 @@ export type TierSpecs = {
     // All tier folder names participating (e.g. ['tier_0_pre_commit', 'tier_1', ...]).
     // Used to compute `budget-gate.needs` and `<tier>.needs` membership.
     readonly tierFolderNames: readonly string[]
-}
-
-// Internal IR — what the pure transform emits, fed to the pure formatter.
-// Kept structural so equality is trivial.
-type Step =
-    | {kind: 'checkout'}
-    | {kind: 'setup-node'; node: string}
-    | {kind: 'npm-ci'}
-    | {kind: 'playwright-install'}
-    | {kind: 'run'; name: string; run: string}
-    | {kind: 'upload-artifact'; name: string; path: string}
-    | {kind: 'download-artifact'; pattern: string; path: string}
-
-type Job = {
-    readonly id: string
-    readonly name: string
-    readonly runsOn: string
-    readonly needs: readonly string[]
-    readonly ifExpr: string | null
-    readonly strategy: {readonly matrix: {readonly check_id: readonly string[]}} | null
-    readonly outputs: Record<string, string> | null
-    readonly steps: readonly Step[]
-}
-
-export type WorkflowYaml = {
-    readonly name: string
-    readonly jobs: readonly Job[]
 }
 
 // ── Pure: discovery helpers used by both shell and tests ─────────────────────
@@ -283,67 +260,6 @@ function perCheckMatrixJob(conc: ConcernSpec, input: TierSpecs): Job {
     }
 }
 
-function precheckJob(jobId: string, trigger: WorkflowSpec['trigger']): Job {
-    // Self-contained decision job — equivalent to the hand-written
-    // `mutation-gate` in stage1-checks.yml. PR size + freshness of the last
-    // nightly Tier-4 carrier together gate Tier 4 on PRs into main.
-    const decideScript = [
-        'set -euo pipefail',
-        'ADDED=$(git diff --shortstat "$BASE_SHA...$HEAD_SHA" \\',
-        '        | grep -oE \'[0-9]+ insertion\' | grep -oE \'[0-9]+\' || echo 0)',
-        'ADDED=${ADDED:-0}',
-        'echo "PR added $ADDED lines"',
-        '',
-        'if [ "$ADDED" -lt "$LARGE_FLOOR" ]; then',
-        '  echo "should_run=false" >> "$GITHUB_OUTPUT"',
-        '  echo "reason=PR is small ($ADDED < $LARGE_FLOOR lines)" >> "$GITHUB_OUTPUT"',
-        '  exit 0',
-        'fi',
-        '',
-        'if [ "$ADDED" -ge "$LARGE_CEILING" ]; then',
-        '  echo "should_run=true" >> "$GITHUB_OUTPUT"',
-        '  echo "reason=huge PR ($ADDED >= $LARGE_CEILING lines)" >> "$GITHUB_OUTPUT"',
-        '  exit 0',
-        'fi',
-        '',
-        'LAST=""',
-        'for sha in $(git rev-list -n 100 origin/main); do',
-        '  LAST=$(gh api "repos/$REPO/commits/$sha/check-runs" \\',
-        '         --jq \'.check_runs[] | select(.name=="Main CI / Full" and .conclusion=="success") | .completed_at\' \\',
-        '         | head -n1)',
-        '  [ -n "$LAST" ] && break',
-        'done',
-        '',
-        'if [ -z "$LAST" ]; then',
-        '  echo "should_run=true" >> "$GITHUB_OUTPUT"',
-        '  echo "reason=no successful Main CI / Full found on main in last 100 commits" >> "$GITHUB_OUTPUT"',
-        '  exit 0',
-        'fi',
-        '',
-        'AGE_DAYS=$(( ( $(date +%s) - $(date -d "$LAST" +%s) ) / 86400 ))',
-        'if [ "$AGE_DAYS" -gt "$STALE_DAYS" ]; then',
-        '  echo "should_run=true" >> "$GITHUB_OUTPUT"',
-        '  echo "reason=stale (${AGE_DAYS}d > ${STALE_DAYS}d) and PR is $ADDED lines" >> "$GITHUB_OUTPUT"',
-        'else',
-        '  echo "should_run=false" >> "$GITHUB_OUTPUT"',
-        '  echo "reason=Tier 4 fresh (${AGE_DAYS}d <= ${STALE_DAYS}d) and PR under huge threshold" >> "$GITHUB_OUTPUT"',
-        'fi',
-    ].join('\n')
-    return {
-        id: jobId,
-        name: jobId,
-        runsOn: 'ubuntu-latest',
-        needs: [],
-        ifExpr: trigger.baseRef ? `github.base_ref == '${trigger.baseRef}'` : null,
-        strategy: null,
-        outputs: {should_run: '${{ steps.decide.outputs.should_run }}', reason: '${{ steps.decide.outputs.reason }}'},
-        steps: [
-            {kind: 'checkout'},
-            {kind: 'run', name: 'decide', run: decideScript},
-        ],
-    }
-}
-
 function budgetGateJob(tierJobs: readonly Job[], maxTier: number): Job {
     const tierJobIds = tierJobs
         .filter(j => /^tier-\d/.test(j.id))
@@ -380,7 +296,7 @@ const HEADER = [
     '# AUTO-GENERATED by packages/measures/scripts/gen-workflows.ts',
     '# from tier_N/_workflow.ts. Do not edit by hand.',
     '# Run `npm run gen:workflows` to regenerate.',
-    '# Not activated — workflow_dispatch only until cut-over in follow-up PR.',
+    '# Runs alongside stage1-checks.yml until the BF-365 cutover.',
 ].join('\n')
 
 export function workflowYamlToText(yaml: WorkflowYaml): string {
@@ -390,6 +306,10 @@ export function workflowYamlToText(yaml: WorkflowYaml): string {
     lines.push('')
     lines.push('on:')
     lines.push('  workflow_dispatch: {}')
+    lines.push('  pull_request:')
+    lines.push('    paths:')
+    lines.push("      - 'packages/measures/**'")
+    lines.push("      - '.github/workflows/measures-budget-gate.yml'")
     lines.push('')
     lines.push('jobs:')
     for (const job of yaml.jobs) {

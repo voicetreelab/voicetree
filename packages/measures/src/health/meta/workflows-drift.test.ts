@@ -70,6 +70,26 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
         }
     })
 
+    it('emits a pull_request trigger scoped to packages/measures/** alongside workflow_dispatch', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
+        try {
+            await writeTierFixture(root, 'tier_0_pre_commit', {needs: []}, {
+                'lint/foo.ts': checkSrc('foo-check'),
+            })
+            const text = workflowYamlToText(tierSpecsToWorkflow(await discoverTiers(root)))
+            expect(text).toContain(
+                "on:\n" +
+                "  workflow_dispatch: {}\n" +
+                "  pull_request:\n" +
+                "    paths:\n" +
+                "      - 'packages/measures/**'\n" +
+                "      - '.github/workflows/measures-budget-gate.yml'",
+            )
+        } finally {
+            await rm(root, {recursive: true, force: true})
+        }
+    })
+
     it('emits sequential capture-ci commands when a concern requires shared-resource isolation', async () => {
         const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
         try {
