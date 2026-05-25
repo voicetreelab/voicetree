@@ -209,30 +209,26 @@ function ifExprFor(conc: ConcernSpec): string | null {
 }
 
 function captureCiStep(conc: ConcernSpec): Step {
-    const tierMax = conc.tierNumber
-    const only = conc.checkIds.join(',')
-    const cmd = [
-        'node --no-warnings=ExperimentalWarning --experimental-strip-types',
-        '  packages/measures/src/_runners/capture-ci-checks.ts',
-        `  --tier-max=${tierMax}`,
-        `  --only=${only}`,
-    ].join(' \\\n')
+    const cmd = captureCiCommand(conc.tierNumber, conc.checkIds.join(','), conc.spec.sequential)
     const wrapped = conc.spec.setup.xvfb
         ? `xvfb-run -a -s "-screen 0 1280x1024x24" \\\n${cmd}`
         : cmd
     return {kind: 'run', name: `Run ${jobIdFor(conc.tier, conc.concern)} checks`, run: wrapped}
 }
 
-function captureCiMatrixStep(conc: ConcernSpec): Step {
-    // matrix variant: --only=${{ matrix.check_id }}.
-    const tierMax = conc.tierNumber
-    const cmd = [
+function captureCiCommand(tierMax: number, only: string, sequential: boolean): string {
+    return [
         'node --no-warnings=ExperimentalWarning --experimental-strip-types',
         '  packages/measures/src/_runners/capture-ci-checks.ts',
         `  --tier-max=${tierMax}`,
-        '  --sequential',
-        '  --only=${{ matrix.check_id }}',
+        ...(sequential ? ['  --sequential'] : []),
+        `  --only=${only}`,
     ].join(' \\\n')
+}
+
+function captureCiMatrixStep(conc: ConcernSpec): Step {
+    // matrix variant: --only=${{ matrix.check_id }}.
+    const cmd = captureCiCommand(conc.tierNumber, '${{ matrix.check_id }}', true)
     const wrapped = conc.spec.setup.xvfb
         ? `xvfb-run -a -s "-screen 0 1280x1024x24" \\\n${cmd}`
         : cmd
