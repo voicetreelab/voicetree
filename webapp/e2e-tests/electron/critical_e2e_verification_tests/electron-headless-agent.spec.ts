@@ -21,14 +21,12 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import {
-    mcpCallTool,
-    mcpRequest,
     pollForCytoscape,
     robustElectronTeardown,
     resolveGraphDaemonNodeBin,
     safeStopFileWatching,
-    waitForMcpServer,
 } from './electron-smoke-helpers';
+import { getBearerToken, getDaemonRpcUrl, rpcCallTool } from './helpers/e2e-rpc-helpers';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_SOURCE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
@@ -43,7 +41,6 @@ interface ExtendedWindow {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
             saveSettings: (settings: Record<string, unknown>) => Promise<boolean>;
-            getMcpPort: () => Promise<number>;
         };
         terminal: {
             spawn: (data: Record<string, unknown>) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
@@ -159,8 +156,9 @@ const test = base.extend<{
     }
 });
 
-async function waitForMcpToolSuccess(
-    mcpUrl: string,
+async function waitForRpcToolSuccess(
+    rpcUrl: string,
+    token: string,
     toolName: string,
     args: Record<string, unknown>,
     label: string
@@ -170,10 +168,10 @@ async function waitForMcpToolSuccess(
     isError?: boolean;
     parsed?: Record<string, unknown>;
 }> {
-    let lastResult: Awaited<ReturnType<typeof mcpCallTool>> | undefined;
+    let lastResult: Awaited<ReturnType<typeof rpcCallTool>> | undefined;
 
     await expect.poll(async () => {
-        lastResult = await mcpCallTool(mcpUrl, toolName, args);
+        lastResult = await rpcCallTool(rpcUrl, token, toolName, args);
         console.log(`  ${label} result: ${JSON.stringify(lastResult.parsed)}`);
         return lastResult.success === true && lastResult.isError !== true;
     }, {
@@ -190,39 +188,14 @@ async function waitForMcpToolSuccess(
 test.describe('Headless Agent E2E', () => {
     test.describe.configure({ mode: 'serial', timeout: 120000 });
 
-    test('spawn headless agent via MCP, verify lifecycle and guards', async ({ appWindow }) => {
+    test('spawn headless agent via /rpc, verify lifecycle and guards', async ({ appWindow }) => {
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 1: Discover MCP port from running process
+        // STEP 1: Discover daemon /rpc URL + bearer token
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 1: Discover MCP port from running process ===');
-        const mcpPort: number = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
-            return await api.main.getMcpPort();
-        });
-        const mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-        console.log(`✓ MCP port discovered: ${mcpPort} → ${mcpUrl}`);
-
-        // ═══════════════════════════════════════════════════════════════════
-        // STEP 2: Wait for MCP server to be ready
-        // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 2: Wait for MCP server ===');
-        const serverReady = await waitForMcpServer(mcpUrl, 20, 1000);
-        if (!serverReady) {
-            console.log(`[Headless Test] MCP server not available on port ${mcpPort}`);
-            test.skip();
-            return;
-        }
-
-        await appWindow.waitForTimeout(500);
-
-        // Initialize MCP connection
-        await mcpRequest(mcpUrl, 'initialize', {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'headless-e2e-test', version: '1.0.0' }
-        });
-        console.log('✓ MCP server ready and initialized');
+        console.log('=== STEP 1: Discover daemon /rpc URL + bearer token ===');
+        const rpcUrl: string = await getDaemonRpcUrl(appWindow);
+        const token: string = await getBearerToken(appWindow);
+        console.log(`✓ Daemon discovered: ${rpcUrl}`);
 
         // ═══════════════════════════════════════════════════════════════════
         // STEP 3: Wait for vault to fully load (graph nodes)
@@ -304,7 +277,7 @@ test.describe('Headless Agent E2E', () => {
 
         // Verify caller terminal appears in list_agents
         console.log('=== STEP 5b: Verify caller terminal in list_agents ===');
-        const initialList = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const initialList = await rpcCallTool(rpcUrl, token, 'list_agents', {});
         const initialAgents = (initialList.parsed as {
             agents: Array<{ terminalId: string; isHeadless: boolean; status: string }>
         }).agents;
@@ -315,10 +288,10 @@ test.describe('Headless Agent E2E', () => {
         console.log(`✓ Caller terminal registered: ${callerTerminalId}, isHeadless: false`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 6: Spawn headless agent via MCP
+        // STEP 6: Spawn headless agent via /rpc spawn_agent
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 6: Spawn headless agent via MCP spawn_agent ===');
-        const headlessResult = await mcpCallTool(mcpUrl, 'spawn_agent', {
+        console.log('=== STEP 6: Spawn headless agent via /rpc spawn_agent ===');
+        const headlessResult = await rpcCallTool(rpcUrl, token, 'spawn_agent', {
             nodeId: parentNodeId,
             callerTerminalId: callerTerminalId,
             headless: true
@@ -337,7 +310,7 @@ test.describe('Headless Agent E2E', () => {
         console.log('=== STEP 7: Verify isHeadless flag in list_agents ===');
         await appWindow.waitForTimeout(500);
 
-        const listAfterSpawn = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const listAfterSpawn = await rpcCallTool(rpcUrl, token, 'list_agents', {});
         const agentsAfterSpawn = (listAfterSpawn.parsed as {
             agents: Array<{ terminalId: string; isHeadless: boolean; status: string }>
         }).agents;
@@ -353,7 +326,7 @@ test.describe('Headless Agent E2E', () => {
         // STEP 8: Verify send_message reaches tmux-backed headless stdin
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 8: Verify send_message reaches tmux-backed headless stdin ===');
-        const sendResult = await waitForMcpToolSuccess(mcpUrl, 'send_message', {
+        const sendResult = await waitForRpcToolSuccess(rpcUrl, token, 'send_message', {
             terminalId: headlessTerminalId,
             message: 'test message',
             callerTerminalId: callerTerminalId
@@ -373,7 +346,7 @@ test.describe('Headless Agent E2E', () => {
         // and that read_terminal_output exposes its real output (not an empty
         // pending stub).
         await expect.poll(async () => {
-            const readResult = await mcpCallTool(mcpUrl, 'read_terminal_output', {
+            const readResult = await rpcCallTool(rpcUrl, token, 'read_terminal_output', {
                 terminalId: headlessTerminalId,
                 callerTerminalId: callerTerminalId
             });
@@ -401,7 +374,7 @@ test.describe('Headless Agent E2E', () => {
         // The headless command echoes the marker and exits — only enough time
         // for the child process to be reaped and the registry to flip status.
         await expect.poll(async () => {
-            const listResult = await mcpCallTool(mcpUrl, 'list_agents', {});
+            const listResult = await rpcCallTool(rpcUrl, token, 'list_agents', {});
             const currentAgents = (listResult.parsed as {
                 agents: Array<{ terminalId: string; status: string }>
             }).agents;
@@ -420,7 +393,7 @@ test.describe('Headless Agent E2E', () => {
         // STEP 11: Assert exit code is 0
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 11: Assert headless agent exited with code 0 ===');
-        const finalList = await mcpCallTool(mcpUrl, 'list_agents', {});
+        const finalList = await rpcCallTool(rpcUrl, token, 'list_agents', {});
         const finalAgents = (finalList.parsed as { agents: Array<{ terminalId: string; exitCode: number | null }> }).agents;
         const exitedAgent = finalAgents.find(a => a.terminalId === headlessTerminalId);
         expect(exitedAgent?.exitCode).toBe(0);
@@ -431,7 +404,7 @@ test.describe('Headless Agent E2E', () => {
         // ═══════════════════════════════════════════════════════════════════
         console.log('');
         console.log('=== HEADLESS AGENT E2E TEST SUMMARY ===');
-        console.log('✓ MCP server started and initialized');
+        console.log('✓ Daemon /rpc reachable');
         console.log('✓ Test vault loaded');
         console.log('✓ Caller terminal spawned and registered (isHeadless: false)');
         console.log('✓ Headless agent spawned via MCP spawn_agent (headless: true)');

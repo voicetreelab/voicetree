@@ -13,7 +13,7 @@
  *
  *   1. Spawn an interactive tmux-backed terminal via IPC (ptyBackend='tmux').
  *   2. Open a WebSocket to the relay route the renderer uses
- *      (`/terminals/{terminalId}/attach`) on the MCP port.
+ *      (`/terminals/{terminalId}/attach`) on the unified HTTP daemon.
  *   3. Send `{type: 'data', payload: 'echo <sentinel>\r'}` — the same JSON the
  *      renderer's TerminalRelayClient sends.
  *   4. Assert the sentinel appears in `tmux capture-pane`.
@@ -27,9 +27,9 @@ import {
   type ExtendedWindow,
   resolveTmuxSessionNameForTest,
   tmuxCommandArgsForTest,
-  waitForMcpServer,
 } from './electron-smoke-helpers';
 import { test } from './electron-anchor-test-fixtures';
+import { getBearerToken } from './helpers/e2e-rpc-helpers';
 
 const KEYSTROKE_SETTLE_TIMEOUT_MS: number = 15_000;
 
@@ -79,8 +79,11 @@ function killTmuxSession(sessionName: string, appSupportPath?: string): void {
   }
 }
 
-async function openRelay(url: string): Promise<WebSocket> {
-  const ws: WebSocket = new WebSocket(url);
+async function openRelay(url: string, token: string): Promise<WebSocket> {
+  // Subprotocol bearer per packages/systems/vt-daemon/src/transport/wsUpgradeAuth.ts
+  // — the renderer (TerminalVanilla.ts) opens the same /terminals/:id/attach
+  // route with ['vt-bearer', token]; mirror that wire shape exactly.
+  const ws: WebSocket = new WebSocket(url, ['vt-bearer', token]);
   await new Promise<void>((resolve, reject) => {
     ws.once('open', () => resolve());
     ws.once('error', err => reject(err));
@@ -99,17 +102,17 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
     let appSupportPath: string | undefined;
 
     try {
-      const runtimeInfo: { appSupportPath: string; mcpPort: number } = await appWindow.evaluate(async () => {
+      const runtimeInfo: { appSupportPath: string; daemonUrl: string } = await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (!api) throw new Error('electronAPI not available');
         return {
           appSupportPath: await api.main.getAppSupportPath(),
-          mcpPort: await api.main.getMcpPort(),
+          daemonUrl: await api.main.getDaemonUrl(),
         };
       });
       appSupportPath = runtimeInfo.appSupportPath;
-      const mcpPort: number = runtimeInfo.mcpPort;
-      expect(await waitForMcpServer(`http://127.0.0.1:${mcpPort}/mcp`)).toBe(true);
+      const daemonWsUrl: string = runtimeInfo.daemonUrl.replace(/^http/, 'ws').replace(/\/+$/, '');
+      const token: string = await getBearerToken(appWindow);
 
       const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
@@ -170,8 +173,8 @@ test.describe('renderer keystroke → relay WS → tmux pane', () => {
       }).toBe(true);
 
       // ── Connect to the SAME relay endpoint the renderer uses. ──
-      const relayUrl: string = `ws://127.0.0.1:${mcpPort}/terminals/${encodeURIComponent(terminalId)}/attach?cols=120&rows=40`;
-      const ws: WebSocket = await openRelay(relayUrl);
+      const relayUrl: string = `${daemonWsUrl}/terminals/${encodeURIComponent(terminalId)}/attach?cols=120&rows=40`;
+      const ws: WebSocket = await openRelay(relayUrl, token);
 
       try {
         // Buffer all inbound `data` payloads so we can prove the relay's

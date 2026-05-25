@@ -4,15 +4,18 @@ import {
   REPO_ROOT,
   type ExtendedWindow,
   expectNoCriticalElectronErrors,
-  mcpCallTool,
-  mcpRequest,
-  waitForMcpServer,
 } from "./electron-smoke-helpers";
 import {
   cleanupAnchorTestTerminals,
+  type RpcAccess,
   test,
   readAnchorState,
 } from "./electron-anchor-test-fixtures";
+import {
+  getBearerToken,
+  getDaemonRpcUrl,
+  rpcCallTool,
+} from "./helpers/e2e-rpc-helpers";
 
 test.describe("spawn_agent terminal anchoring", () => {
   test.describe.configure({ timeout: process.env.CI ? 120_000 : 90_000 });
@@ -22,24 +25,15 @@ test.describe("spawn_agent terminal anchoring", () => {
     fixtureVaultPath,
     electronDiagnostics,
   }) => {
-    let mcpUrl: string | null = null;
+    let rpc: RpcAccess | null = null;
     const callerTerminalId = "e2e-anchor-caller";
     let spawnedTerminalId: string | null = null;
 
     try {
-      const mcpPort = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
-        return await api.main.getMcpPort();
-      });
-      mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-      expect(await waitForMcpServer(mcpUrl)).toBe(true);
-
-      await mcpRequest(mcpUrl, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "spawn-anchor-e2e", version: "1.0.0" },
-      });
+      rpc = {
+        rpcUrl: await getDaemonRpcUrl(appWindow),
+        token: await getBearerToken(appWindow),
+      };
 
       const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as ExtendedWindow).electronAPI;
@@ -109,8 +103,9 @@ test.describe("spawn_agent terminal anchoring", () => {
       await expect
         .poll(
           async () => {
-            const listResult = await mcpCallTool(
-              mcpUrl as string,
+            const listResult = await rpcCallTool(
+              rpc!.rpcUrl,
+              rpc!.token,
               "list_agents",
               {},
             );
@@ -123,14 +118,14 @@ test.describe("spawn_agent terminal anchoring", () => {
           },
           {
             message:
-              "Waiting for caller terminal to register before MCP spawn_agent",
+              "Waiting for caller terminal to register before /rpc spawn_agent",
             timeout: 10_000,
             intervals: [250, 500, 1000],
           },
         )
         .toBe(true);
 
-      const spawnResult = await mcpCallTool(mcpUrl, "spawn_agent", {
+      const spawnResult = await rpcCallTool(rpc.rpcUrl, rpc.token, "spawn_agent", {
         task: "E2E spawned terminal anchor task",
         parentNodeId,
         callerTerminalId,
@@ -269,7 +264,7 @@ test.describe("spawn_agent terminal anchoring", () => {
     } finally {
       await cleanupAnchorTestTerminals(
         appWindow,
-        mcpUrl,
+        rpc,
         [spawnedTerminalId, callerTerminalId],
         callerTerminalId,
       );

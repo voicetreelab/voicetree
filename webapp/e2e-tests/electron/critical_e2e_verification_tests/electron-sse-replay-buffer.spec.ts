@@ -3,15 +3,18 @@ import {
   REPO_ROOT,
   type ExtendedWindow,
   expectNoCriticalElectronErrors,
-  mcpCallTool,
-  mcpRequest,
-  waitForMcpServer,
 } from "./electron-smoke-helpers";
 import {
   cleanupAnchorTestTerminals,
+  type RpcAccess,
   test,
   readAnchorState,
 } from "./electron-anchor-test-fixtures";
+import {
+  getBearerToken,
+  getDaemonRpcUrl,
+  rpcCallTool,
+} from "./helpers/e2e-rpc-helpers";
 
 test.describe("SSE replay buffer", () => {
   test("anchors terminal after SSE reconnect replays missed delta", async ({
@@ -20,24 +23,15 @@ test.describe("SSE replay buffer", () => {
     electronDiagnostics,
   }) => {
     test.setTimeout(process.env.CI ? 120_000 : 90_000);
-    let mcpUrl: string | null = null;
+    let rpc: RpcAccess | null = null;
     const callerTerminalId = "e2e-replay-caller";
     let spawnedTerminalId: string | null = null;
 
     try {
-      const mcpPort = await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
-        return await api.main.getMcpPort();
-      });
-      mcpUrl = `http://127.0.0.1:${mcpPort}/mcp`;
-      expect(await waitForMcpServer(mcpUrl)).toBe(true);
-
-      await mcpRequest(mcpUrl, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "replay-buffer-e2e", version: "1.0.0" },
-      });
+      rpc = {
+        rpcUrl: await getDaemonRpcUrl(appWindow),
+        token: await getBearerToken(appWindow),
+      };
 
       const watchResult = await appWindow.evaluate(async (projectRoot) => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
@@ -114,8 +108,9 @@ test.describe("SSE replay buffer", () => {
       await expect
         .poll(
           async () => {
-            const listResult = await mcpCallTool(
-              mcpUrl as string,
+            const listResult = await rpcCallTool(
+              rpc!.rpcUrl,
+              rpc!.token,
               "list_agents",
               {},
             );
@@ -156,7 +151,7 @@ test.describe("SSE replay buffer", () => {
       });
 
       // Spawn agent while SSE is locked — deltas land in daemon replay buffer
-      const spawnResult = await mcpCallTool(mcpUrl, "spawn_agent", {
+      const spawnResult = await rpcCallTool(rpc.rpcUrl, rpc.token, "spawn_agent", {
         task: "E2E replay buffer regression task",
         parentNodeId,
         callerTerminalId,
@@ -295,7 +290,7 @@ test.describe("SSE replay buffer", () => {
     } finally {
       await cleanupAnchorTestTerminals(
         appWindow,
-        mcpUrl,
+        rpc,
         [spawnedTerminalId, callerTerminalId],
         callerTerminalId,
       );

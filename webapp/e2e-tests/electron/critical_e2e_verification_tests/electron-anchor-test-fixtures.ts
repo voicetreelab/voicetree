@@ -10,12 +10,12 @@ import {
   type ElectronDiagnostics,
   type ExtendedWindow,
   getCiElectronFlags,
-  mcpCallTool,
   resolveGraphDaemonNodeBin,
   robustElectronTeardown,
   safeStopFileWatching,
   stopSmokeGraphDaemonForVault,
 } from "./electron-smoke-helpers";
+import { rpcCallTool } from "./helpers/e2e-rpc-helpers";
 
 export const test = base.extend<{
   fixtureVaultPath: string;
@@ -248,9 +248,14 @@ function killTmuxSessionsForTest(terminalId: string): void {
   }
 }
 
+export type RpcAccess = {
+  readonly rpcUrl: string;
+  readonly token: string;
+};
+
 export async function cleanupAnchorTestTerminals(
   appWindow: Page,
-  mcpUrl: string | null,
+  rpc: RpcAccess | null,
   terminalIds: ReadonlyArray<string | null | undefined>,
   callerTerminalId: string,
 ): Promise<void> {
@@ -258,10 +263,10 @@ export async function cleanupAnchorTestTerminals(
     ...new Set(terminalIds.filter((id): id is string => Boolean(id))),
   ];
 
-  if (mcpUrl) {
+  if (rpc) {
     for (const terminalId of ids.filter((id) => id !== callerTerminalId)) {
       try {
-        await mcpCallTool(mcpUrl, "close_agent", {
+        await rpcCallTool(rpc.rpcUrl, rpc.token, "close_agent", {
           terminalId,
           callerTerminalId,
           forceWithReason:
