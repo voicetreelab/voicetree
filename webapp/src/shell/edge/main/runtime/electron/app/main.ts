@@ -69,6 +69,7 @@ import {
 } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon';
 import {stopDaemonGraphSync} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync';
 import {unsubscribeFromDaemonSSE} from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription';
+import {installQuitLifecycleHandlers} from './quit-lifecycle';
 
 // Swallow EPIPE on stdout/stderr so writes after the parent terminal closes
 // don't become uncaughtException dialogs (which loop because SSE-driven
@@ -353,55 +354,21 @@ let isQuitting: boolean = false;
 
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
-app.on('before-quit', () => {
-    isQuitting = true;
-    //console.log('[App] before-quit event - cleaning up resources...');
-    // Remove instance file so vt-debug stops discovering this pid
-    unregisterInstance();
-
-    // Clean up server process
-    textToTreeServerManager.stop();
-
-    // Stop the MCP HTTP server. Closing the listener (and idle connections)
-    // releases the last refs holding Node's event loop open so the process
-    // actually exits after Cmd+Q.
-    if (mcpHandle) {
-        const handle: McpServerHandle = mcpHandle;
-        mcpHandle = null;
-        void handle.stop().catch((err: unknown) => {
-            console.warn('[App] Failed to stop MCP server:', err);
-        });
-    }
-
-    // Clean up all terminals
-    terminalManager.cleanup();
-    void terminalRuntimeSurface.shutdownTmuxServer().catch((error: unknown) => {
-        log.warn('[App] Failed to shut down tmux server before quit:', error);
-    });
-    stopUnclaimedTmuxSessionPolling();
-    stopRecoverySessionPolling();
-
-    // Clean up orphaned context nodes (fire-and-forget, best effort on quit)
-    void cleanupOrphanedContextNodes().catch((error: unknown) => {
-        console.warn('[App] Failed to clean up orphaned context nodes before quit:', error);
-    });
-
-    // Remove stale .mcp.json so external agents don't connect to a dead port.
-    // Fire-and-forget but with .catch — `will-quit` shuts down the daemon and
-    // can clear the graph bridge mid-flight, so this can race even after our
-    // null-guards inside disableMcpJsonIntegration itself.
-    void disableMcpJsonIntegration().catch((error: unknown) => {
-        console.warn('[App] Failed to disable .mcp.json integration before quit:', error);
-    });
-
-    // Stop OTLP receiver
-    void stopOTLPReceiver();
-
-    // Stop notification scheduler
-    stopNotificationScheduler();
-
-    // Stop trackpad monitoring
-    stopTrackpadMonitoring();
+installQuitLifecycleHandlers({
+    cleanupOrphanedContextNodes,
+    clearMcpHandle: (): void => { mcpHandle = null; },
+    disableMcpJsonIntegration,
+    getMcpHandle: (): McpServerHandle | null => mcpHandle,
+    getTerminalRecords: terminalRuntimeSurface.getTerminalRecords,
+    setIsQuitting: (value: boolean): void => { isQuitting = value; },
+    stopNotificationScheduler,
+    stopOTLPReceiver,
+    stopRecoverySessionPolling,
+    stopTextToTreeServer: (): void => { textToTreeServerManager.stop(); },
+    stopTrackpadMonitoring,
+    stopUnclaimedTmuxSessionPolling,
+    terminalManager,
+    unregisterInstance,
 });
 
 app.on('will-quit', () => {
@@ -410,22 +377,6 @@ app.on('will-quit', () => {
     unsubscribeFromDaemonSSE();
     void stopDaemonGraphSync();
     void shutdownActiveDaemonConnection();
-});
-
-app.on('window-all-closed', () => {
-    // Server cleanup moved to before-quit only to allow macOS to keep server running when window closes
-    // This prevents the "worst of both worlds" where app stays in dock but server is dead
-
-    // TODO: terminalManager.cleanup() should maybe also be moved to before-quit only,
-    // but it's complicated because the graph renderer (which hosts terminal UI-edge) is destroyed
-    // when the window closes, so terminals lose their renderer connection anyway
-    terminalManager.cleanup();
-    stopUnclaimedTmuxSessionPolling();
-    stopRecoverySessionPolling();
-
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
 });
 
 app.on('activate', () => {

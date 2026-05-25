@@ -111,10 +111,6 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(new Error('not loaded'), '', 'not loaded')
                 return
             }
-            if (file === 'taskpolicy') {
-                callback(null, '', '')
-                return
-            }
             if (file === 'pgrep') {
                 // Two forms: `pgrep -f <pattern>` for argv match, `pgrep -P <ppid>` for children.
                 if (args[0] === '-f' && typeof args[1] === 'string') {
@@ -203,11 +199,6 @@ function makeDeps(state: Partial<FakeState> = {}): TmuxServerDeps & {
                 callback(null, '', '')
                 return
             }
-            if (command === 'display-message') {
-                callback(null, '12345\n', '')
-                return
-            }
-
             callback(new Error(`unexpected tmux args: ${args.join(' ')}`), '', '')
         },
         logger: {
@@ -307,46 +298,15 @@ describe('tmux-server', () => {
         expect(deps.warnLogs.some((line: string) => line.includes('[tmux-server] removing stale tmux socket'))).toBe(true)
     })
 
-    it('raises tmux server jetsam priority on darwin after starting it', async () => {
+    it('does not run unsupported post-start priority commands on darwin', async () => {
         const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const socketPath: string = join(appSupportPath, 'tmux.sock')
         const deps = makeDeps({platform: 'darwin'})
 
         await ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false})
 
         const tuples: readonly string[][] = commandTuples(deps.calls)
-        expect(tuples).toContainEqual([
-            '/opt/homebrew/bin/tmux',
-            '-S',
-            socketPath,
-            'display-message',
-            '-p',
-            '#{pid}',
-        ])
-        expect(tuples).toContainEqual(['taskpolicy', '-c', 'user-interactive', '-p', '12345'])
-        // priority raise must follow the start, not precede it
-        const startIdx: number = tuples.findIndex((call: readonly string[]) => call.includes('new-session'))
-        const policyIdx: number = tuples.findIndex((call: readonly string[]) => call[0] === 'taskpolicy')
-        expect(startIdx).toBeGreaterThanOrEqual(0)
-        expect(policyIdx).toBeGreaterThan(startIdx)
-    })
-
-    it('still completes server start when taskpolicy raise fails (best-effort)', async () => {
-        const appSupportPath: string = '/Users/test/Library/Application Support/Voicetree'
-        const deps = makeDeps({platform: 'darwin'})
-        const originalExecFile = deps.execFile
-        ;(deps as {execFile: typeof originalExecFile}).execFile = (file, args, callback): void => {
-            if (file === 'taskpolicy') {
-                callback(new Error('not permitted'), '', 'not permitted')
-                return
-            }
-            originalExecFile(file, args, callback)
-        }
-
-        await expect(
-            ensureTmuxServer({appSupportPath, deps, cleanupLegacyLaunchAgent: false}),
-        ).resolves.toBeUndefined()
-        expect(deps.warnLogs.some((line: string) => line.includes('taskpolicy raise failed'))).toBe(true)
+        expect(tuples.some((call: readonly string[]) => call[0] === 'taskpolicy')).toBe(false)
+        expect(tuples.some((call: readonly string[]) => call.includes('display-message'))).toBe(false)
     })
 
     it('kills an orphan tmux daemon with no user sessions before unlinking a stale socket', async () => {

@@ -175,12 +175,13 @@ async function main(): Promise<void> {
         if (shuttingDown) return
         shuttingDown = true
         process.stderr.write(`vt-mcpd: ${signal} received, shutting down\n`)
-        // Order: MCP server → terminals/PTYs (incl. headless agents) → graph-db (watcher + lock)
+        // Order: MCP server → detach terminal runtime state → graph-db (watcher + lock).
+        // tmux sessions survive host shutdown and are reconciled by the next host.
         try {
             await mcpHandle.stop().catch((err: unknown) => {
                 process.stderr.write(`vt-mcpd: mcp stop error: ${(err as Error).message}\n`)
             })
-            agentRuntime.getTerminalManager().cleanup()
+            agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'})
             await daemonHandle.stop()
             process.exit(0)
         } catch (err) {
