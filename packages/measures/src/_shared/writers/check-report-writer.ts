@@ -3,6 +3,8 @@ import {randomBytes} from 'node:crypto'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
+import {appendScore} from './scores-history-writer.ts'
+
 const CI_REPORTING_SRC_ROOT: string = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT: string = resolve(CI_REPORTING_SRC_ROOT, '..', '..', '..', '..', '..')
 const REPORTS_DIR: string = join(REPO_ROOT, 'health-dashboard', 'reports')
@@ -134,5 +136,11 @@ export async function recordCheckReport(report: CheckReport): Promise<void> {
     assertCheckReport(report)
     await mkdir(CHECKS_DIR, {recursive: true})
     await writeJsonAtomic(checkReportPath(report.checkId), report)
+    // Capture duration as the check's "score" for regression-blame. Status
+    // (pass/fail) is best left in the per-check JSON; duration is the
+    // numeric axis that matters for the CSV history.
+    if (report.status !== 'skip') {
+        await appendScore({measure: `check/${report.checkId}`, score: report.durationMs})
+    }
     await writeChecksAggregate()
 }

@@ -247,6 +247,7 @@ test_output/*
 /health-dashboard/reports/checks/*.json
 !/health-dashboard/reports/SCHEMA.md
 !/health-dashboard/reports/.gitkeep
+!/health-dashboard/reports/scores-history.csv
 **/.claude/scheduled_tasks.lock
 /test-results/
 /VoiceTree/
