@@ -17,7 +17,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 const MEASURES_DIR = join(REPO_ROOT, 'packages', 'measures', 'src')
 const CHECKS_DIR = join(MEASURES_DIR, 'checks')
-const MAX_TIER = 3
+const MAX_TIER = 4
 
 const DEFAULT_PARALLELISM = Math.max(1, availableParallelism())
 
@@ -101,7 +101,7 @@ function parseArgs(argv) {
     return opts
 }
 
-const CHECK_PATH = /\/checks\/tier_([0-3])\/([^/]+)\//
+const CHECK_PATH = /\/checks\/tier_(\d+)\/([^/]+)\//
 
 function tierFromMeasurePath(measurePath) {
     const match = CHECK_PATH.exec(measurePath)
