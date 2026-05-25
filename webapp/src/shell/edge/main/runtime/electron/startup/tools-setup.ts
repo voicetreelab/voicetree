@@ -204,7 +204,9 @@ async function copySpecificFiles(sourceDir: string, destDir: string, fileNames: 
     try {
       await fs.access(dest);
       continue;
-    } catch {}
+    } catch {
+      // Dest doesn't exist — fall through to copy.
+    }
     try {
       await fs.copyFile(src, dest);
     } catch {

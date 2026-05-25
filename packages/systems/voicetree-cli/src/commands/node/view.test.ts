@@ -1,6 +1,7 @@
 import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
+import * as O from 'fp-ts/lib/Option.js'
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest'
 import {GraphDbClient} from '@vt/graph-db-client'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
