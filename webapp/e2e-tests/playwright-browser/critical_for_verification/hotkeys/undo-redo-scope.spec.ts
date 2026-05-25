@@ -339,12 +339,17 @@ test.describe('Undo/Redo Hotkey Scope Isolation (Browser)', () => {
     console.log('✓ Editor opened');
 
     console.log('=== Step 6: Focus editor, type text, then undo ===');
-    await page.evaluate((selector) => {
-      const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-      if (!editorElement) throw new Error('Editor not found');
-      editorElement.cmView?.view.focus();
-    }, editorSelector);
-    await page.waitForTimeout(50);
+    // Focus via Playwright locator so the focus event is synthesized through real input
+    // dispatch — matches how a real user click puts focus on a contenteditable element.
+    // Calling cmView.view.focus() directly does not move document.activeElement reliably
+    // in the browser-test harness, leading to false positives where hotkeys still fire on
+    // the graph container.
+    await page.locator(`${editorSelector} .cm-content`).focus();
+    await page.waitForFunction(
+      () => document.activeElement?.closest('.cm-editor') !== null,
+      undefined,
+      { timeout: 1000 }
+    );
 
     await page.keyboard.type('XYZ');
     await page.waitForTimeout(50);
