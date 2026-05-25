@@ -147,7 +147,7 @@ async function captureHandler(argv: string[]): Promise<Response<unknown>> {
 
   let session: Awaited<ReturnType<typeof openDebugSession>> | null = null
   try {
-    const transport = createLiveTransport(pick.instance.vaultPath)
+    const transport = createLiveTransport(pick.instance.projectRoot)
     session = await openDebugSession(pick.instance)
     const page = session.pages[0]
     if (!page) {

@@ -98,7 +98,7 @@ async function driftHandler(argv: string[]): Promise<Response<unknown>> {
       return err('drift', 'CDP connected but no pages found', 'verify app is fully started', 3)
     }
 
-    const transport = createLiveTransport(pick.instance.vaultPath)
+    const transport = createLiveTransport(pick.instance.projectRoot)
     const [state, rendered] = await Promise.all([
       transport.getLiveState(),
       fetchRendered(page),

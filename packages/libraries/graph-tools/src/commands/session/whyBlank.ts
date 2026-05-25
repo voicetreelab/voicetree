@@ -380,7 +380,7 @@ async function whyBlankHandler(argv: string[]): Promise<Response<unknown>> {
 
   const { browser, page } = connected
   try {
-    const transport = createLiveTransport(pick.instance.vaultPath)
+    const transport = createLiveTransport(pick.instance.projectRoot)
     const [shot, msgs, liveState, root] = await Promise.all([
       fetchShot(page),
       fetchMessages(page),

@@ -383,7 +383,7 @@ async function nodeHandler(argv: string[]): Promise<Response<unknown>> {
     return err('node', pick.message, pick.hint, 2)
   }
 
-  const transport = createLiveTransport(pick.instance.vaultPath)
+  const transport = createLiveTransport(pick.instance.projectRoot)
   let state
   try {
     state = await transport.getLiveState()
