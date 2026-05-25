@@ -43,7 +43,7 @@ import {
   getGraphBroadcasts,
   loadFixtureFolder,
   prepareFolderLoadingTest
-} from './folder-loading.test/test-support'
+} from './folder-loading.test/__tests__/test-support'
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
