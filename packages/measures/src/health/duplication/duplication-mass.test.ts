@@ -30,17 +30,26 @@ import {recordHealthMetric} from '../../_shared/writers/report-writer.ts'
 const SEVERITY_THRESHOLD: number = 20
 
 // Captured 2026-05-26 first full-repo run:
-//   552 deduped rankable pairs (549 per-function + 16 workflow)
+//   569 deduped rankable pairs (549 per-function + 40 workflow incl
+//     fuzzy band; ~20 pairs surfaced only by the workflow signal)
 //   import graph: 922 vertices, 1953 undirected edges
-//   distance buckets: 105 same-file, 121 unreachable (cap=8)
-//   pairs at or above severity threshold (20): 104
-//   recoverable LOC: 2194
+//     sampled diameter: max-observed-hops=7 (cap=8 is generous)
+//     52.5% of random module pairs are reachable; 47.5% land at the cap
+//   distance buckets across the ranked pairs: 110 same-file,
+//     121 unreachable (cap=8)
+//   pairs at or above severity threshold (20): 111
+//   recoverable LOC: 2525
 // Budget = current + 50 headroom per spec. Ratchet DOWN as duplicates
 // merge, never up.
-const MAX_RECOVERABLE_LOC: number = 2244
+const MAX_RECOVERABLE_LOC: number = 2575
 
 const PER_FUNCTION_MIN_SCORE: number = 0.7
-const WORKFLOW_MIN_SCORE: number = 0.5  // include fuzzy hits per the diagnostic — fuzzy band tops out at 0.4
+// The workflow check's fuzzy band caps at score 0.40 (max=0.6×0+0.4×1.0)
+// per the workflow diagnostic, with a long noise tail below 0.20. 0.30
+// admits the genuine high-edgeJ near-dups (e.g. daemon vs shell
+// getAvailableFoldersForSelector at edgeJ=0.93 → score 0.37) without
+// dragging in single-band LSH-collision noise.
+const WORKFLOW_MIN_SCORE: number = 0.3
 
 function makeRankablePairs(
     perFunctionPairs: ReadonlyArray<{readonly aId: string; readonly bId: string; readonly score: number}>,
