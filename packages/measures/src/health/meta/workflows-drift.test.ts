@@ -69,6 +69,21 @@ describe('workflow generator — pure transform on a synthesized fixture', () =>
             await rm(root, {recursive: true, force: true})
         }
     })
+
+    it('emits sequential capture-ci commands when a concern requires shared-resource isolation', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'workflow-gen-fixture-'))
+        try {
+            await writeTierFixture(root, 'tier_2', {needs: []}, {})
+            await writeConcernFixture(root, 'tier_2', 'contract', {sequential: true}, {
+                'public-api.ts': checkSrc('public-api-contract'),
+            })
+            const text = workflowYamlToText(tierSpecsToWorkflow(await discoverTiers(root)))
+            expect(text).toContain('tier-2-contract:')
+            expect(text).toContain('--tier-max=2 \\\n            --sequential \\\n            --only=public-api-contract')
+        } finally {
+            await rm(root, {recursive: true, force: true})
+        }
+    })
 })
 
 describe('workflow generator — checked-in YAML matches current folder tree', () => {
@@ -95,6 +110,7 @@ type SpecLike = {
     setup?: {playwright?: boolean; xvfb?: boolean; node?: string}
     trigger?: {baseRef?: string | null}
     precheck?: string | null
+    sequential?: boolean
 }
 
 function specSource(spec: SpecLike): string {
@@ -109,6 +125,7 @@ function specSource(spec: SpecLike): string {
         trigger: {baseRef: spec.trigger?.baseRef ?? null},
         precheck: spec.precheck ?? null,
         parallelism: spec.parallelism ?? 'per-concern',
+        sequential: spec.sequential ?? false,
     }
     return `export const workflow = ${JSON.stringify(full, null, 4)} as const\n`
 }
