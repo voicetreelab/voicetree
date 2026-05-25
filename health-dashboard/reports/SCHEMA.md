@@ -156,7 +156,7 @@ type CheckReport = {
 
 Flags:
 - `--only=<checkId,...>` — run only the listed check ids. Other checks are recorded with `status: 'skip'`.
-- `--tier<=N` / `--tier-max=N` / `--max-tier=N` — run checks under `checks/tier_0` through `checks/tier_N`.
+- `--tier<=N` / `--tier-max=N` / `--max-tier=N` — run checks under `checks/tier_0_pre_commit` through `checks/tier_N` (and any legacy bare `tier_K/` folders).
 - `--fail-fast` — still records every check that ran, but stops scheduling new ones after the first failure.
 
 Exit code is `0` when every non-skipped check passed, `1` otherwise.

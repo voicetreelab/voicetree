@@ -38,15 +38,31 @@ do not affect scheduling.
 
 | Tier | Verb | Where it runs | Budget |
 |---|---|---|---|
-| `tier_0` | `npm run test:t0` | pre-commit | <30s — instant lint/static |
+| `tier_0_pre_commit` | `npm run test:t0` | pre-commit | <30s — instant lint/static |
 | `tier_1` | `npm run test:t1` | pre-push (via `test:local`) | <3min — unit + push-gate E2E smoke + health |
 | `tier_2` | `npm run test:t2` | stage1 CI (every PR) | <15min — full unit + contract + browser E2E + fuzz |
 | `tier_3` | `npm run test:t3` | merge to main + nightly | <60min — electron E2E + dead-code + duplication + mutation |
 | all | `npm run test:full` | release / nightly | union of every tier |
 
 `capture-ci-checks.ts` accepts `--tier<=N` (or `--tier-max=N` /
-`--max-tier=N`) to walk only `checks/tier_0/` through `checks/tier_N/`.
-Without that flag, every tier is discovered.
+`--max-tier=N`) to walk only `checks/tier_0_pre_commit/` through
+`checks/tier_N/`. Without that flag, every scheduled tier is discovered.
+
+### Tier-0 has two invocation contexts
+
+`tier_0` measures run at two distinct gates:
+
+- `tier_0_pre_commit/` — discovered by `capture-ci-checks.ts`, runs on
+  pre-commit (and bundled into `test:t1` / `test:local`).
+- `tier_0_post_edit/` — invoked by agent hooks (`.claude/`, `.codex/`
+  `PostToolUse`) on every Write/Edit/MultiEdit. Single-file input,
+  sub-100ms budget, blocks the agent on violation. NOT discovered by
+  `capture-ci-checks.ts`.
+
+Predicates shared between the two layers live in
+`packages/measures/src/checks/_shared/` (pure functions, no I/O).
+Tiers 1–4 have only one invocation context (scheduled), so they keep
+their bare `tier_N/` names.
 
 ## CheckDef `phase`
 
@@ -65,7 +81,7 @@ location IS the schedule axis.
 | Trigger | Composition |
 |---|---|
 | `pre-commit` | `test:t0` |
-| `pre-push` (`test:local`) | `test:t1` (includes tier_0) |
+| `pre-push` (`test:local`) | `test:t1` (includes tier_0_pre_commit) |
 | `stage1-checks.yml` (PR) | `test:t2` |
 | `main.yml` (merge / nightly) | `test:full` |
 
