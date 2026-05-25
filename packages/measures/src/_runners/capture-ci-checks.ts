@@ -203,6 +203,8 @@ async function recordOutcome(check, outcome) {
         command: check.display,
         status: outcome.status,
         durationMs: outcome.durationMs,
+        startedAt: outcome.startedAt,
+        endedAt: outcome.endedAt,
         testsTotal: outcome.testsTotal,
         testsPassed: outcome.testsPassed,
         testsFailed: outcome.testsFailed,
@@ -226,10 +228,12 @@ function describeScope(opts) {
     return ''
 }
 
-function failedSpawnOutcome(err) {
+function failedSpawnOutcome(err, startedAt, endedAt) {
     return {
         status: 'fail',
-        durationMs: 0,
+        durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
+        startedAt,
+        endedAt,
         exitCode: -1,
         signal: null,
         timedOut: false,
@@ -240,10 +244,11 @@ function failedSpawnOutcome(err) {
 }
 
 async function runCheck(check) {
+    const startedAt = new Date().toISOString()
     try {
         return await spawnCheck(check, process.env, REPO_ROOT)
     } catch (err) {
-        return failedSpawnOutcome(err)
+        return failedSpawnOutcome(err, startedAt, new Date().toISOString())
     }
 }
 
@@ -268,10 +273,14 @@ function shouldRunExclusivelyWithinParallelPhase(check) {
 }
 
 async function runCheckWithSkip(check, opts) {
-    return {
-        check,
-        outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
+    if (shouldSkipCheck(check, opts)) return {check, outcome: skippedOutcome()}
+    const outcome = await runCheck(check)
+    try {
+        await recordOutcome(check, outcome)
+    } catch (err) {
+        console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
     }
+    return {check, outcome}
 }
 
 async function runChecksWithConcurrency(checks, opts, concurrency = DEFAULT_PARALLELISM) {
@@ -323,7 +332,16 @@ async function runChecksSequentially(checks, opts) {
     const results = []
     let stopScheduling = false
     for (const check of checks) {
-        const outcome = shouldSkipCheck(check, opts, stopScheduling) ? skippedOutcome() : await runCheck(check)
+        if (shouldSkipCheck(check, opts, stopScheduling)) {
+            results.push({check, outcome: skippedOutcome()})
+            continue
+        }
+        const outcome = await runCheck(check)
+        try {
+            await recordOutcome(check, outcome)
+        } catch (err) {
+            console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
+        }
         results.push({check, outcome})
         if (opts.failFast && outcome.status === 'fail') stopScheduling = true
     }
@@ -367,13 +385,6 @@ async function main() {
 
     let failed = 0
     for (const {check, outcome} of results) {
-        if (outcome.status !== 'skip') {
-            try {
-                await recordOutcome(check, outcome)
-            } catch (err) {
-                console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
-            }
-        }
         printRow(check, outcome)
         if (outcome.status === 'fail') {
             failed++

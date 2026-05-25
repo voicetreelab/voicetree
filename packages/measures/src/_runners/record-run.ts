@@ -8,7 +8,7 @@
 // Usage:
 //   node --experimental-strip-types packages/measures/src/_runners/record-run.ts \
 //     --id=npm-test --name="npm run test" --category=Command \
-//     [--display="npm run test"] [--slow] \
+//     [--display="npm run test"] \
 //     -- <command> [args...]
 //
 // Failures recording the CheckReport never change the exit code — observation
@@ -25,12 +25,11 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
 
 function parseArgs(argv) {
-    const opts = {id: null, name: null, category: null, display: null, slow: false}
+    const opts = {id: null, name: null, category: null, display: null}
     let i = 0
     while (i < argv.length) {
         const arg = argv[i]
         if (arg === '--') { i++; break }
-        if (arg === '--slow') { opts.slow = true; i++; continue }
         const eq = arg.indexOf('=')
         const key = eq >= 0 ? arg.slice(2, eq) : arg.slice(2)
         const value = eq >= 0 ? arg.slice(eq + 1) : argv[++i]
@@ -43,7 +42,7 @@ function parseArgs(argv) {
     }
     const cmd = argv.slice(i)
     if (!opts.id || !opts.name || !opts.category || cmd.length === 0) {
-        console.error('record-run: usage: --id=<id> --name=<name> --category=<cat> [--display=...] [--slow] -- <command> [args...]')
+        console.error('record-run: usage: --id=<id> --name=<name> --category=<cat> [--display=...] -- <command> [args...]')
         process.exit(64)
     }
     return {opts, cmd}
@@ -51,7 +50,8 @@ function parseArgs(argv) {
 
 async function runChild(cmd) {
     const [bin, ...rest] = cmd
-    const startedAt = Date.now()
+    const startedAtMs = Date.now()
+    const startedAt = new Date(startedAtMs).toISOString()
     let stdoutBuf = ''
     let stderrBuf = ''
     const appendTail = (current, chunk) => `${current}${chunk}`.slice(-8_000)
@@ -70,7 +70,9 @@ async function runChild(cmd) {
         child.on('error', err => resolve({code: -1, signal: null, spawnError: String(err?.message ?? err)}))
         child.on('close', (code, signal) => resolve({code, signal, spawnError: null}))
     })
-    return {durationMs: Date.now() - startedAt, stdoutTail: summarizeTail(stdoutBuf), stderrTail: summarizeTail(stderrBuf), ...result}
+    const endedAtMs = Date.now()
+    const endedAt = new Date(endedAtMs).toISOString()
+    return {startedAt, endedAt, durationMs: endedAtMs - startedAtMs, stdoutTail: summarizeTail(stdoutBuf), stderrTail: summarizeTail(stderrBuf), ...result}
 }
 
 function statusFor(exitCode, spawnError) {
@@ -101,7 +103,8 @@ try {
         command: display,
         status,
         durationMs: outcome.durationMs,
-        slow: opts.slow || undefined,
+        startedAt: outcome.startedAt,
+        endedAt: outcome.endedAt,
         errorSummary: status === 'fail'
             ? (outcome.spawnError ?? outcome.stderrTail ?? outcome.stdoutTail ?? `exit ${outcome.code}${outcome.signal ? ` (${outcome.signal})` : ''}`)
             : undefined,
