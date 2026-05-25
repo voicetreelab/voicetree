@@ -2,8 +2,9 @@
 # Pre-commit gate. Two hard checks, in order:
 #   1. tier-0 static checks (typecheck/lint/etc) via npm run test:t0
 #   2. subgraph-scoped codebase-health gate via npm run health:subgraph-gate
-# Both route to the devbox automatically via the bin/npm shim when
-# VT_REMOTE_HOST is set. Either failure blocks the commit.
+# Both are forced LOCAL via VT_REMOTE_EXEC=1: they read the local staged
+# index, and Onidel's replica index is refreshed from HEAD before remote
+# execution so a remote run would see nothing staged.
 set -e
 export PATH="$(git rev-parse --show-toplevel)/bin:$PATH"
 
@@ -36,7 +37,7 @@ if printf '%s\n' "$staged_files" | grep -qE '^(packages/measures/src/checks/.*\.
     fi
 fi
 
-npm run test:t0
+VT_REMOTE_EXEC=1 npm run test:t0
 
 # Subgraph health gate. This must run locally because it reads the local staged
 # index; Onidel's replica index is refreshed from HEAD before remote execution.
