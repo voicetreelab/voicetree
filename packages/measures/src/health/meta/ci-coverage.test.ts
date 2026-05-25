@@ -42,8 +42,8 @@ async function discoverCheckFiles(dir: string): Promise<readonly string[]> {
 }
 
 function tierFor(relPath: string): number {
-    const match = /^tier_(\d+)\//.exec(relPath)
-    if (!match) throw new Error(`scheduled check must live under checks/tier_N/: ${relPath}`)
+    const match = /^tier_(\d+)(?:_pre_commit)?\//.exec(relPath)
+    if (!match) throw new Error(`scheduled check must live under checks/tier_N(_pre_commit)?/: ${relPath}`)
     const tier = Number(match[1])
     if (!Number.isInteger(tier) || tier < 0 || tier > MAX_TIER) {
         throw new Error(`scheduled check tier must be 0 through ${MAX_TIER}: ${relPath}`)
