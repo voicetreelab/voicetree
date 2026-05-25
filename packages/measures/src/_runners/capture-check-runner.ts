@@ -1,4 +1,4 @@
-import {spawn} from 'node:child_process'
+import {spawn, type ChildProcess} from 'node:child_process'
 import {mkdtemp, readFile, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
@@ -6,6 +6,19 @@ import {join} from 'node:path'
 import {vitestFailureDetailsForCommand} from './vitest-failure-detail-reader.ts'
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+const SUPPORTS_PROCESS_GROUP_KILL = process.platform !== 'win32'
+
+function killCheckProcess(child: ChildProcess, signal: NodeJS.Signals) {
+    if (!SUPPORTS_PROCESS_GROUP_KILL || child.pid === undefined) {
+        child.kill(signal)
+        return
+    }
+    try {
+        process.kill(-child.pid, signal)
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code !== 'ESRCH') throw err
+    }
+}
 
 export async function spawnCheck(check, env, repoRoot) {
     const tmpDir = await mkdtemp(join(tmpdir(), 'ci-check-'))
@@ -29,13 +42,14 @@ export async function spawnCheck(check, env, repoRoot) {
         const child = spawn(cmd, rest, {
             cwd: repoRoot,
             env: childEnv,
+            detached: SUPPORTS_PROCESS_GROUP_KILL,
             shell: false,
             stdio: ['ignore', 'pipe', 'pipe'],
         })
         const timer = setTimeout(() => {
             timedOut = true
-            child.kill('SIGTERM')
-            setTimeout(() => child.kill('SIGKILL'), 5_000).unref()
+            killCheckProcess(child, 'SIGTERM')
+            setTimeout(() => killCheckProcess(child, 'SIGKILL'), 5_000).unref()
         }, timeoutMs)
         child.stdout.on('data', chunk => {
             stdoutBuf += chunk.toString('utf8')
