@@ -20,11 +20,12 @@ export type CheckReport = {
     readonly command: string
     readonly status: typeof STATUSES[number]
     readonly durationMs: number
+    readonly startedAt: string
+    readonly endedAt: string
     readonly testsTotal?: number
     readonly testsPassed?: number
     readonly testsFailed?: number
     readonly testsSkipped?: number
-    readonly slow?: boolean
     readonly errorSummary?: string
     readonly timestamp: string
     readonly details?: Record<string, unknown>
@@ -35,8 +36,26 @@ type ChecksReport = {
     readonly reports: readonly CheckReport[]
 }
 
+type CheckReportCandidate = Partial<CheckReport> & Record<string, unknown>
+
 function checkReportPath(checkId: string): string {
     return join(CHECKS_DIR, `${checkId}.json`)
+}
+
+function normalizeLegacyTimingFields(report: CheckReportCandidate): CheckReportCandidate {
+    const timestamp = typeof report.timestamp === 'string' ? report.timestamp : undefined
+    const durationMs = typeof report.durationMs === 'number' && Number.isFinite(report.durationMs)
+        ? Math.max(0, report.durationMs)
+        : 0
+    const endedAt = typeof report.endedAt === 'string' ? report.endedAt : timestamp
+    const endedAtMs = endedAt === undefined ? NaN : Date.parse(endedAt)
+    const startedAt = typeof report.startedAt === 'string'
+        ? report.startedAt
+        : Number.isNaN(endedAtMs)
+            ? undefined
+            : new Date(endedAtMs - durationMs).toISOString()
+
+    return {...report, startedAt, endedAt}
 }
 
 function assertCheckReport(report: CheckReport): void {
@@ -47,6 +66,9 @@ function assertCheckReport(report: CheckReport): void {
     if (!STATUSES.includes(report.status)) throw new Error(`unsupported status for ${report.checkId}: ${report.status}`)
     if (!Number.isFinite(report.durationMs) || report.durationMs < 0) throw new Error(`durationMs must be a non-negative finite number for ${report.checkId}`)
     if (Number.isNaN(Date.parse(report.timestamp))) throw new Error(`timestamp must be ISO-like for ${report.checkId}: ${report.timestamp}`)
+    if (Number.isNaN(Date.parse(report.startedAt))) throw new Error(`startedAt must be ISO-like for ${report.checkId}: ${report.startedAt}`)
+    if (Number.isNaN(Date.parse(report.endedAt))) throw new Error(`endedAt must be ISO-like for ${report.checkId}: ${report.endedAt}`)
+    if (Date.parse(report.endedAt) < Date.parse(report.startedAt)) throw new Error(`endedAt must be >= startedAt for ${report.checkId}`)
     for (const [field, value] of [
         ['testsTotal', report.testsTotal],
         ['testsPassed', report.testsPassed],
@@ -74,7 +96,7 @@ function isCheckReportFile(name: string): boolean {
 
 async function readCheckReport(path: string): Promise<CheckReport | null> {
     try {
-        const parsed = JSON.parse(await readFile(path, 'utf8')) as CheckReport
+        const parsed = normalizeLegacyTimingFields(JSON.parse(await readFile(path, 'utf8')) as CheckReportCandidate) as CheckReport
         assertCheckReport(parsed)
         return parsed
     } catch (err) {

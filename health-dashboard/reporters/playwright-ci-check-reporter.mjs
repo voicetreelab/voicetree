@@ -107,7 +107,8 @@ export default class PlaywrightCiCheckReporter {
         try {
             if (process.argv.includes('--list')) return
 
-            const durationMs = Date.now() - this.startedAt
+            const endedAtMs = Date.now()
+            const durationMs = endedAtMs - this.startedAt
             const counts = countTests(this.suite)
             const status = statusFromResult(result, counts)
             const errorSummary = status === 'fail'
@@ -121,9 +122,11 @@ export default class PlaywrightCiCheckReporter {
                 command: this.options.command,
                 status,
                 durationMs,
+                startedAt: new Date(this.startedAt).toISOString(),
+                endedAt: new Date(endedAtMs).toISOString(),
                 ...counts,
                 errorSummary,
-                timestamp: new Date().toISOString(),
+                timestamp: new Date(endedAtMs).toISOString(),
                 details: {exitCode: status === 'pass' ? 0 : 1},
             })
         } catch (err) {

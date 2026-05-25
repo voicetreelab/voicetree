@@ -15,7 +15,7 @@ import {parseSubgraph} from '../../../_shared/graph/parse-subgraph.ts'
 import {listMeasures} from '../../_internal/registry.ts'
 import type {SubgraphMeasure} from '../../_internal/subgraph-measure.ts'
 import './relative-import-depth.ts' // side-effect: registers the measure
-import {buildTempRepo, type Fixture} from './_tempdir-fixture.ts'
+import {buildTempRepo, type Fixture} from './test-support/tempdir-fixture.ts'
 
 const LAYER = 'packages/libraries'
 

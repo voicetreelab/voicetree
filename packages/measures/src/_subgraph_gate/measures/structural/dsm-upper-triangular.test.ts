@@ -14,7 +14,7 @@ import {
     DSM_BACKEDGE_BUDGET,
     orderCommunitiesTopologically,
 } from './dsm-upper-triangular.ts'
-import {makeSyntheticSubgraph, type FixtureFile} from './_test-fixtures.ts'
+import {makeSyntheticSubgraph, type FixtureFile} from './test-support/test-fixtures.ts'
 
 describe('orderCommunitiesTopologically (pure)', () => {
     it('orders a simple DAG', () => {

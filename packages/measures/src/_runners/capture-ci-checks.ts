@@ -231,6 +231,8 @@ async function recordOutcome(check, outcome) {
         command: check.display,
         status: outcome.status,
         durationMs: outcome.durationMs,
+        startedAt: outcome.startedAt,
+        endedAt: outcome.endedAt,
         testsTotal: outcome.testsTotal,
         testsPassed: outcome.testsPassed,
         testsFailed: outcome.testsFailed,
@@ -254,10 +256,12 @@ function describeScope(opts) {
     return ''
 }
 
-function failedSpawnOutcome(err) {
+function failedSpawnOutcome(err, startedAt, endedAt) {
     return {
         status: 'fail',
-        durationMs: 0,
+        durationMs: Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)),
+        startedAt,
+        endedAt,
         exitCode: -1,
         signal: null,
         timedOut: false,
@@ -268,10 +272,11 @@ function failedSpawnOutcome(err) {
 }
 
 async function runCheck(check) {
+    const startedAt = new Date().toISOString()
     try {
         return await spawnCheck(check, process.env, REPO_ROOT)
     } catch (err) {
-        return failedSpawnOutcome(err)
+        return failedSpawnOutcome(err, startedAt, new Date().toISOString())
     }
 }
 
@@ -296,10 +301,14 @@ function shouldRunExclusivelyWithinParallelPhase(check) {
 }
 
 async function runCheckWithSkip(check, opts) {
-    return {
-        check,
-        outcome: shouldSkipCheck(check, opts) ? skippedOutcome() : await runCheck(check),
+    if (shouldSkipCheck(check, opts)) return {check, outcome: skippedOutcome()}
+    const outcome = await runCheck(check)
+    try {
+        await recordOutcome(check, outcome)
+    } catch (err) {
+        console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
     }
+    return {check, outcome}
 }
 
 async function runChecksWithConcurrency(checks, opts, concurrency = DEFAULT_PARALLELISM) {
@@ -351,7 +360,16 @@ async function runChecksSequentially(checks, opts) {
     const results = []
     let stopScheduling = false
     for (const check of checks) {
-        const outcome = shouldSkipCheck(check, opts, stopScheduling) ? skippedOutcome() : await runCheck(check)
+        if (shouldSkipCheck(check, opts, stopScheduling)) {
+            results.push({check, outcome: skippedOutcome()})
+            continue
+        }
+        const outcome = await runCheck(check)
+        try {
+            await recordOutcome(check, outcome)
+        } catch (err) {
+            console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
+        }
         results.push({check, outcome})
         if (opts.failFast && outcome.status === 'fail') stopScheduling = true
     }
@@ -384,15 +402,6 @@ async function runAllChecks(checks, opts) {
     return runChecksInParallel(checks, opts)
 }
 
-async function safeRecordOutcome(check, outcome) {
-    if (outcome.status === 'skip') return
-    try {
-        await recordOutcome(check, outcome)
-    } catch (err) {
-        console.error(`failed to write report for ${check.id}: ${err?.message ?? err}`)
-    }
-}
-
 function formatFailuresSection(failures) {
     if (failures.length === 0) return ''
     const blocks = failures.map(({check, outcome}) => {
@@ -403,10 +412,12 @@ function formatFailuresSection(failures) {
     return `\n  failures:\n\n${blocks.join('\n')}`
 }
 
-async function persistAndReport(results) {
+// Reports are persisted eagerly per-check by runCheckWithSkip / runChecksSequentially
+// (required so isolated-phase checks can read sibling reports during their own
+// invocation). This pass only renders the result table and counts failures.
+function reportResults(results) {
     const failures = []
     for (const {check, outcome} of results) {
-        await safeRecordOutcome(check, outcome)
         printRow(check, outcome)
         if (outcome.status === 'fail') failures.push({check, outcome})
     }
@@ -424,7 +435,7 @@ async function main() {
     await mkdir(join(REPO_ROOT, 'health-dashboard', 'reports', 'checks'), {recursive: true})
     console.log(formatRunHeader(opts, checks))
     const results = await runAllChecks(checks, opts)
-    const failed = await persistAndReport(results)
+    const failed = reportResults(results)
     return failed === 0 ? 0 : 1
 }
 

@@ -14,7 +14,8 @@ export async function spawnCheck(check, env, repoRoot) {
     const args = check.args(jsonOut)
     const [cmd, ...rest] = args
     const timeoutMs = check.timeoutMs ?? DEFAULT_TIMEOUT_MS
-    const startedAt = Date.now()
+    const startedAtMs = Date.now()
+    const startedAt = new Date(startedAtMs).toISOString()
     const childEnv = {
         ...env,
         ...(playwrightJson ? {PLAYWRIGHT_JSON_OUTPUT_FILE: playwrightJson} : {}),
@@ -54,7 +55,9 @@ export async function spawnCheck(check, env, repoRoot) {
         })
     })
 
-    const durationMs = Date.now() - startedAt
+    const endedAtMs = Date.now()
+    const endedAt = new Date(endedAtMs).toISOString()
+    const durationMs = endedAtMs - startedAtMs
     const counts = await parseCounts(check.parser, jsonOut, playwrightJson)
     const exitOk = result.exitCode === 0 && !timedOut && !result.spawnError
     const status = exitOk ? 'pass' : 'fail'
@@ -64,6 +67,8 @@ export async function spawnCheck(check, env, repoRoot) {
     await rm(tmpDir, {recursive: true, force: true}).catch(() => {})
 
     return {
+        startedAt,
+        endedAt,
         durationMs,
         exitCode: result.exitCode ?? -1,
         signal: result.signal,
