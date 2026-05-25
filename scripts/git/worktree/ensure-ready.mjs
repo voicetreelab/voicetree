@@ -192,9 +192,7 @@ function removeDependencySymlinks(root) {
 }
 
 function runNpmInstall(targetRoot) {
-  const commandArgs = pathExists(join(targetRoot, 'package-lock.json'))
-    ? ['ci', '--prefer-offline']
-    : ['install', '--prefer-offline']
+  const commandArgs = ['install', '--prefer-offline', '--no-audit', '--fund=false']
   const result = spawnSync('npm', commandArgs, {cwd: targetRoot, stdio: 'inherit'})
   if (result.status !== 0) {
     throw new Error(`npm ${commandArgs.join(' ')} failed in ${targetRoot}`)
@@ -237,6 +235,16 @@ function sourceSeedBlockReason({sourceRoot, targetRoot, targetFingerprint}) {
   return null
 }
 
+function sourceCanCopyDependencies({sourceRoot, targetRoot}) {
+  return sourceDependencyCopyBlockReason({sourceRoot, targetRoot}) === null
+}
+
+function sourceDependencyCopyBlockReason({sourceRoot, targetRoot}) {
+  if (sourceRoot === targetRoot) return 'target is the main checkout'
+  if (!dependencyDirectoriesPresent(sourceRoot)) return `source dependency directories are missing in ${sourceRoot}`
+  return null
+}
+
 function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, log = console.error} = {}) {
   const targetRoot = resolveWorktreeRoot(inputPath)
   const sourceRoot = resolveMainRepoRoot(targetRoot)
@@ -265,13 +273,21 @@ function ensureWorktreeReady(inputPath, {installDependencies = runNpmInstall, lo
     return {status: 'seeded', sourceRoot, targetRoot}
   }
 
-  log(`[worktree-ready] not copying node_modules: ${seedBlockReason}`)
-  log(`[worktree-ready] installing dependencies in ${targetRoot}`)
+  const copyBlockReason = sourceDependencyCopyBlockReason({sourceRoot, targetRoot})
+  if (copyBlockReason === null) {
+    log(`[worktree-ready] copying node_modules from ${sourceRoot} to ${targetRoot}`)
+    log(`[worktree-ready] reconciling copied dependencies: ${seedBlockReason}`)
+    seedNodeModulesFromSource({sourceRoot, targetRoot})
+  } else {
+    log(`[worktree-ready] not copying node_modules: ${copyBlockReason}`)
+  }
+
+  log(`[worktree-ready] running npm install to reconcile dependencies in ${targetRoot}`)
   removeDependencySymlinks(targetRoot)
   installDependencies(targetRoot)
   verifyWorkspaceLinksStayInsideTarget(targetRoot)
-  writeReadyMarker(targetRoot, fingerprint)
-  return {status: 'installed', sourceRoot, targetRoot}
+  writeReadyMarker(targetRoot, dependencyFingerprint(targetRoot))
+  return {status: copyBlockReason === null ? 'reconciled' : 'installed', sourceRoot, targetRoot}
 }
 
 function main(argv = process.argv.slice(2)) {
@@ -298,6 +314,8 @@ export {
   markerPath,
   resolveMainRepoRoot,
   resolveWorktreeRoot,
+  sourceCanCopyDependencies,
   sourceCanSeedTarget,
+  sourceDependencyCopyBlockReason,
   sourceSeedBlockReason,
 }

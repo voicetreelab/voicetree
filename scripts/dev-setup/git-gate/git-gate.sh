@@ -60,7 +60,7 @@ worktree_add_path_arg() {
   done
 }
 
-ensure_added_worktree_ready() {
+ensure_remote_added_worktree_ready() {
   local wt_path="$1"
   if [ -z "$wt_path" ]; then
     echo "git-gate: worktree add path not detected; skipping dependency readiness" >&2
@@ -89,12 +89,20 @@ ensure_added_worktree_ready() {
     return 0
   fi
 
-  echo "git-gate: ensuring local worktree dependencies" >&2
-  echo "git-gate: readiness will copy node_modules when dependency inputs match, otherwise it will run npm ci" >&2
-  if "$ready_script" "$wt_abs"; then
-    echo "git-gate: local worktree dependency readiness complete" >&2
+  local remote_runner="$main_repo/scripts/run-remote.mjs"
+  if [ ! -f "$remote_runner" ]; then
+    echo "git-gate: warning: missing remote runner: $remote_runner" >&2
+    echo "git-gate: command-boundary readiness will retry before remote commands" >&2
+    return 0
+  fi
+
+  echo "git-gate: ensuring remote worktree dependencies on the devbox" >&2
+  echo "git-gate: local node_modules will not be created by default" >&2
+  echo "git-gate: remote readiness will copy node_modules first, then run npm install if dependency inputs differ" >&2
+  if (cd "$wt_abs" && node "$remote_runner" true); then
+    echo "git-gate: remote worktree dependency readiness complete" >&2
   else
-    echo "git-gate: warning: worktree dependency readiness failed for $wt_abs" >&2
+    echo "git-gate: warning: remote worktree dependency readiness failed for $wt_abs" >&2
     echo "git-gate: command-boundary readiness will retry before remote commands" >&2
   fi
 }
@@ -169,7 +177,7 @@ if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
     else
       echo "git-gate: warning: git worktree repair --relative-paths failed; command-boundary repair will retry" >&2
     fi
-    ensure_added_worktree_ready "$wt_path"
+    ensure_remote_added_worktree_ready "$wt_path"
     echo "git-gate: worktree add post-setup complete" >&2
   else
     echo "git-gate: git worktree add failed with exit code $ec" >&2

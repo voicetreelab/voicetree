@@ -17,6 +17,7 @@ import {
   ensureWorktreeReady,
   mainRepoFromPath,
   markerPath,
+  sourceDependencyCopyBlockReason,
   sourceSeedBlockReason,
 } from './ensure-ready.mjs'
 
@@ -75,13 +76,14 @@ test('copies main node_modules into a matching worktree and keeps @vt links loca
   )
 })
 
-test('runs npm when main and worktree dependency fingerprints differ', () => {
+test('copies first and runs npm install when dependency fingerprints differ', () => {
   const repoRoot = mkdtempSync(join(tmpdir(), 'vt-worktree-ready-'))
   const worktreeRoot = join(repoRoot, '.worktrees', 'wt-two')
 
   writeDependencyFiles(repoRoot, 'main-lock')
   writeDependencyFiles(worktreeRoot, 'worktree-lock')
   const realWorktreeRoot = realpathSync(worktreeRoot)
+  mkdirSync(join(worktreeRoot, 'packages', 'local-pkg'), {recursive: true})
   seedSourceNodeModules(repoRoot)
 
   let installedAt = ''
@@ -94,8 +96,9 @@ test('runs npm when main and worktree dependency fingerprints differ', () => {
     log() {},
   })
 
-  assert.equal(result.status, 'installed')
+  assert.equal(result.status, 'reconciled')
   assert.equal(installedAt, realWorktreeRoot)
+  assert.ok(existsSync(join(worktreeRoot, 'webapp', 'node_modules', 'vite', 'index.js')))
   assert.ok(existsSync(markerPath(worktreeRoot)))
 })
 
@@ -114,5 +117,12 @@ test('explains why source node_modules cannot seed a worktree', () => {
       targetFingerprint: dependencyFingerprint(worktreeRoot),
     }),
     'dependency inputs differ between source and worktree',
+  )
+  assert.equal(
+    sourceDependencyCopyBlockReason({
+      sourceRoot: repoRoot,
+      targetRoot: worktreeRoot,
+    }),
+    null,
   )
 })
