@@ -30,6 +30,60 @@ rest="${*:2}"
 reason=""
 merge_assertion=""   # non-empty → use this password instead of GIT_GATE_PASS
 
+worktree_add_path_arg() {
+  local expect_option_value=0
+  local after_separator=0
+  local arg
+  for arg in "${@:3}"; do
+    if [ "$after_separator" -eq 1 ]; then
+      printf '%s\n' "$arg"
+      return 0
+    fi
+    if [ "$expect_option_value" -eq 1 ]; then
+      expect_option_value=0
+      continue
+    fi
+    case "$arg" in
+      --)
+        after_separator=1
+        ;;
+      -b|-B|--orphan|--reason)
+        expect_option_value=1
+        ;;
+      -*)
+        ;;
+      *)
+        printf '%s\n' "$arg"
+        return 0
+        ;;
+    esac
+  done
+}
+
+prewarm_added_worktree() {
+  local wt_path="$1"
+  [ -n "$wt_path" ] || return 0
+
+  local wt_abs
+  case "$wt_path" in
+    /*) wt_abs="$wt_path" ;;
+    *)  wt_abs="$(pwd -P)/$wt_path" ;;
+  esac
+  wt_abs="$(cd "$wt_abs" 2>/dev/null && pwd -P || printf '%s' "$wt_abs")"
+
+  local main_repo
+  main_repo="$("$REAL_GIT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  [ -n "$main_repo" ] || return 0
+
+  local ready_script="$main_repo/scripts/git/worktree/ensure-ready.mjs"
+  [ -x "$ready_script" ] || return 0
+
+  (
+    "$ready_script" "$wt_abs" >/dev/null 2>&1 || \
+      echo "git-gate: warning: worktree dependency prewarm failed for $wt_abs; command-boundary readiness will retry" >&2
+  ) &
+}
+
 case "$sub" in
   merge)
     # --continue / --abort are conflict-resolution steps, not new merges — let through
@@ -89,10 +143,12 @@ esac
 # the pointer pair and is idempotent. Best-effort: failure does not affect
 # the underlying add's exit code.
 if [ "$sub" = "worktree" ] && [ "${2:-}" = "add" ]; then
+  wt_path="$(worktree_add_path_arg "$@")"
   "$REAL_GIT" "$@"
   ec=$?
   if [ $ec -eq 0 ]; then
     "$REAL_GIT" worktree repair --relative-paths >/dev/null 2>&1 || true
+    prewarm_added_worktree "$wt_path"
   fi
   exit $ec
 fi

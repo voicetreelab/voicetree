@@ -116,6 +116,20 @@ function refreshRemoteGitIndexScript() {
   ].join(' ')
 }
 
+function remoteWorktreeRoot(remoteCwd, remoteRoot = REMOTE_ROOT) {
+  const rel = ppath.relative(remoteRoot, remoteCwd)
+  const parts = rel.split('/')
+  if (parts[0] !== '.worktrees' || !parts[1]) return null
+  return ppath.join(remoteRoot, '.worktrees', parts[1])
+}
+
+function ensureRemoteWorktreeReadyScript(remoteCwd) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd)
+  if (worktreeRoot === null) return ':'
+  const readyScript = ppath.join(REMOTE_ROOT, 'scripts/git/worktree/ensure-ready.mjs')
+  return `node ${shq(readyScript)} ${shq(worktreeRoot)}`
+}
+
 function runRemote(host, cmd, args) {
   const syncRoot = localSyncRoot()
   const rel = pathRelative(syncRoot, process.cwd())
@@ -124,7 +138,13 @@ function runRemote(host, cmd, args) {
   }
   const remoteCwd = ppath.join(REMOTE_ROOT, rel.split(/[\\/]/).join('/'))
   const quotedCmd = [cmd, ...args].map(shq).join(' ')
-  const remoteScript = `cd ${shq(remoteCwd)} && ${refreshRemoteGitIndexScript()} && export ${RECURSION_GUARD}=1 && exec ${quotedCmd}`
+  const remoteScript = [
+    `cd ${shq(remoteCwd)}`,
+    refreshRemoteGitIndexScript(),
+    ensureRemoteWorktreeReadyScript(remoteCwd),
+    `export ${RECURSION_GUARD}=1`,
+    `exec ${quotedCmd}`,
+  ].join(' && ')
 
   // -tt allocates a TTY (needed for interactive commands, colors, signals).
   // -T disables it (needed when local stdin is piped, else TTY echo doubles output).
@@ -174,6 +194,8 @@ if (isDirectRun) {
 
 export {
   assertOneWayReplica,
+  ensureRemoteWorktreeReadyScript,
   refreshRemoteGitIndexScript,
+  remoteWorktreeRoot,
   synchronizationMode,
 }
