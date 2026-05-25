@@ -1,18 +1,14 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode, getNodeTitle } from '.'
 import type { Graph, GraphNode } from '..'
 import { createGraph } from '../construction/createGraph'
+import {
+  appendAgentExtractionAnalysisContent,
+  immediateTestObservationContent,
+} from './__tests__/parse-markdown-to-node-fixtures'
 
 const emptyGraph: Graph = createGraph({})
-const fixtureUrl = (name: string): string =>
-  fileURLToPath(new URL(`./parse-markdown-to-node/${name}`, import.meta.url))
-const appendAgentExtractionAnalysisContent: string = readFileSync(
-  fixtureUrl('append-agent-extraction-analysis.md'), 'utf8')
-const immediateTestObservationContent: string = readFileSync(
-  fixtureUrl('immediate-test-observation.md'), 'utf8')
 
 describe('parseMarkdownToGraphNode', () => {
   it('should parse node with complete frontmatter including color', () => {

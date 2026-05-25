@@ -21,8 +21,8 @@ beforeAll(() => {
 });
 
 import { CodeMirrorEditorView } from "@/shell/UI/floating-windows/editors/CodeMirrorEditorView";
-import { describeHasFrontmatterTests } from "./CodeMirrorEditorView.test/hasFrontmatter.test";
-import { describeImagePasteHandlerTests } from "./CodeMirrorEditorView.test/imagePasteHandler.test";
+import { describeHasFrontmatterTests } from "./CodeMirrorEditorView.test/hasFrontmatter";
+import { describeImagePasteHandlerTests } from "./CodeMirrorEditorView.test/imagePasteHandler";
 
 interface CodeMirrorElement extends HTMLElement {
   cmView?: {

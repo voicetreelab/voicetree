@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { pollForCytoscape, pollForCytoscapeNodes, robustElectronTeardown, safeStopFileWatching } from '../electron-smoke-helpers';
+import { pollForCytoscape, pollForCytoscapeNodes, robustElectronTeardown, safeStopFileWatching } from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 import { launchProjectSelectionApp } from './electron-launch';
 import { test } from './fixtures';
 import { clickBackToProjectSelection, clickSavedProject, savedProjectButton } from './selectors';

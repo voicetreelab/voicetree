@@ -19,7 +19,7 @@ import {
   safeStopFileWatching,
   tmuxCommandArgsForTest,
   type ExtendedWindow,
-} from "../electron-smoke-helpers";
+} from "@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers";
 
 export { expect };
 

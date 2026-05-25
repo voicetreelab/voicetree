@@ -121,7 +121,7 @@ title: Test
       });
 
       it("should return false for single line with ---", () => {
-        const content: "---" = "---";
+        const content = "---" as const;
         expect(hasFrontmatter(content)).toBe(false);
       });
 

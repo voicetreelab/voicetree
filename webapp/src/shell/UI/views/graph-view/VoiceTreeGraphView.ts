@@ -101,7 +101,13 @@ type DarkModeCallbackInputs = {
     searchService: () => SearchService | undefined;
 };
 
-const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCallbackInputs) => ({
+type DarkModeCallbacks = {
+    updateGraphStyles: () => void;
+    updateSpeedDialMenu: (isDark: boolean) => void;
+    updateSearchTheme: (isDark: boolean) => void;
+};
+
+const createDarkModeCallbacks = ({updateGraphStyles, searchService}: DarkModeCallbackInputs): DarkModeCallbacks => ({
     updateGraphStyles,
     updateSpeedDialMenu: (isDark: boolean) => updateSpeedDialDarkMode(isDark),
     updateSearchTheme: (isDark: boolean) => searchService()?.updateTheme(isDark),

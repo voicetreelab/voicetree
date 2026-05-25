@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from '../electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 import type { ExtendedWindow } from './types';
 
 // Use absolute paths

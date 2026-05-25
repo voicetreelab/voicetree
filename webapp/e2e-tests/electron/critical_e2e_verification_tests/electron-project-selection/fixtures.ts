@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching } from '../electron-smoke-helpers';
+import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching } from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 import { CI_FLAGS, PROJECT_ROOT } from './paths';
 
 export const test = base.extend<{

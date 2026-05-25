@@ -1,6 +1,6 @@
 import { _electron as electron } from '@playwright/test';
 import * as path from 'path';
-import { resolveGraphDaemonNodeBin } from '../electron-smoke-helpers';
+import { resolveGraphDaemonNodeBin } from '@e2e/electron/critical_e2e_verification_tests/electron-smoke-helpers';
 import { CI_FLAGS, PROJECT_ROOT } from './paths';
 
 export function launchProjectSelectionApp(tempUserDataPath: string) {
