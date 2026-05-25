@@ -26,7 +26,6 @@ import {
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { Page } from '@playwright/test';
 import type { GraphDelta, GraphNode } from '@/pure/graph';
-import type { EditorView } from '@codemirror/view';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -75,11 +74,6 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
   }
 });
 
-// Helper type for CodeMirror access
-interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: EditorView };
-}
-
 interface ExtendedWindowWithGraph extends ExtendedWindow {
   electronAPI?: {
     main?: {
@@ -93,42 +87,39 @@ interface ExtendedWindowWithGraph extends ExtendedWindow {
   };
 }
 
-/**
- * Helper to get editor content via CodeMirror API
- */
-async function getEditorContent(page: Page, editorWindowId: string): Promise<string | null> {
-  // Escape dots in window ID for CSS selector
-  const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`;
-  return page.evaluate((selector) => {
-    const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-    if (!editorElement) return null;
+// Editor access goes through the production `vanillaFloatingWindowInstances` store
+// and the public CodeMirrorEditorView API (focusAtEnd/getValue). The older approach
+// of reading CodeMirror's internal `cmView` property off `.cm-content` stopped
+// working in @codemirror/view 6.43, which replaced it with `cmTile`. The store
+// lookup is version-agnostic and lets us drive real `page.keyboard` input so CM
+// tags transactions as user events (which the production autosave path requires).
+type EditorInstance = { getValue: () => string; focusAtEnd: () => void };
 
-    const cmView = editorElement.cmView?.view;
-    if (!cmView) return null;
-
-    return cmView.state.doc.toString();
-  }, editorSelector);
+async function waitForEditorInstance(page: Page, editorInstanceId: string): Promise<void> {
+  await page.waitForFunction(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    return store.vanillaFloatingWindowInstances.has(id);
+  }, editorInstanceId, { timeout: 5000 });
 }
 
-/**
- * Helper to set editor content via CodeMirror API (simulates typing)
- */
-async function typeInEditor(page: Page, editorWindowId: string, content: string): Promise<void> {
-  // Escape dots in window ID for CSS selector
-  const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`;
-  await page.evaluate(({ selector, newContent }: { selector: string; newContent: string }) => {
-    const editorElement = document.querySelector(`${selector} .cm-content`) as CodeMirrorElement | null;
-    if (!editorElement) throw new Error('Editor content element not found');
+async function focusEditorAtEnd(page: Page, editorInstanceId: string): Promise<void> {
+  await page.evaluate(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
+    if (!instance) throw new Error(`Editor instance not registered: ${id}`);
+    if (typeof instance.focusAtEnd !== 'function') throw new Error('Editor lacks focusAtEnd');
+    instance.focusAtEnd();
+  }, editorInstanceId);
+}
 
-    const cmView = editorElement.cmView?.view;
-    if (!cmView) throw new Error('CodeMirror view not found');
-
-    // Simulate typing by appending to existing content
-    const currentLength = cmView.state.doc.length;
-    cmView.dispatch({
-      changes: { from: currentLength, to: currentLength, insert: newContent }
-    });
-  }, { selector: editorSelector, newContent: content });
+async function readEditorValue(page: Page, editorInstanceId: string): Promise<string> {
+  return page.evaluate(async (id) => {
+    const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
+    const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
+    if (!instance) throw new Error(`Editor instance not registered: ${id}`);
+    if (typeof instance.getValue !== 'function') throw new Error('Editor lacks getValue');
+    return instance.getValue();
+  }, editorInstanceId);
 }
 
 /**
@@ -260,12 +251,9 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     // Wait for CodeMirror to render
     await page.waitForSelector(`${editorSelector} .cm-editor`, { timeout: 5000 });
 
-    // Wait for the editor instance to be registered in the production store.
-    // Without this, our access via vanillaFloatingWindowInstances races editor mount.
-    await page.waitForFunction(async (id) => {
-      const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
-      return store.vanillaFloatingWindowInstances.has(id);
-    }, editorInstanceId, { timeout: 5000 });
+    // Wait for the editor instance to be registered in the production store
+    // before reading/writing through it.
+    await waitForEditorInstance(page, editorInstanceId);
 
     // Production autosave debounce (set in FloatingEditorCRUD). Keep in sync if it changes.
     const AUTOSAVE_DEBOUNCE_MS = 150;
@@ -336,40 +324,10 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
       };
     }, { feedbackDelayMs: MOCK_FS_FEEDBACK_DELAY_MS });
 
-    // Local helpers (scoped to this test by design — :307 owns its own helper choices).
-    // We deliberately avoid the file-level typeInEditor/getEditorContent helpers because:
-    //   (a) those rely on CodeMirror's internal `.cmView` DOM property which was renamed
-    //       to `.cmTile` in @codemirror/view 6.43 — the test was failing on `cmView is undefined`.
-    //   (b) those helpers call `view.dispatch({changes})` without a `userEvent` annotation,
-    //       so the editor's updateListener never marks the change as user input and onChange
-    //       never fires — the autosave-mock feedback loop never gets simulated.
-    // Instead, we drive real keyboard input through Playwright (CM6 then properly tags the
-    // transaction as `input.type`) and read content via the public CodeMirrorEditorView API.
-
-    type EditorInstance = { getValue: () => string; focusAtEnd: () => void };
-    const focusEditorAtEnd = async (): Promise<void> => {
-      await page.evaluate(async (id) => {
-        const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
-        const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
-        if (!instance) throw new Error(`Editor instance not registered: ${id}`);
-        if (typeof instance.focusAtEnd !== 'function') throw new Error('Editor lacks focusAtEnd');
-        instance.focusAtEnd();
-      }, editorInstanceId);
-    };
-    const readEditorValue = async (): Promise<string> => {
-      return page.evaluate(async (id) => {
-        const store = await import('/src/shell/edge/UI-edge/state/stores/UIAppState.ts' as string);
-        const instance = store.vanillaFloatingWindowInstances.get(id) as unknown as EditorInstance | undefined;
-        if (!instance) throw new Error(`Editor instance not registered: ${id}`);
-        if (typeof instance.getValue !== 'function') throw new Error('Editor lacks getValue');
-        return instance.getValue();
-      }, editorInstanceId);
-    };
-
     console.log('=== Step 6: Reproduce the feedback loop bug ===');
 
     // Focus the editor with cursor at end so subsequent keystrokes append to existing content.
-    await focusEditorAtEnd();
+    await focusEditorAtEnd(page, editorInstanceId);
 
     // Simulate the sequence of events:
     // 1. User types "Hello world"
@@ -377,7 +335,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     await page.keyboard.press('Enter');
     await page.keyboard.type('Hello world');
 
-    const contentAfterFirstType = await readEditorValue();
+    const contentAfterFirstType = await readEditorValue(page, editorInstanceId);
     console.log('Content after first type:', contentAfterFirstType.substring(contentAfterFirstType.length - 50));
     expect(contentAfterFirstType).toContain('Hello world');
 
@@ -393,7 +351,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     console.log('[Bug Repro Step 3] User types " and more text" AFTER debounce fired');
     await page.keyboard.type(' and more text');
 
-    const contentAfterSecondType = await readEditorValue();
+    const contentAfterSecondType = await readEditorValue(page, editorInstanceId);
     console.log('Content after second type:', contentAfterSecondType.substring(contentAfterSecondType.length - 50));
     expect(contentAfterSecondType).toContain('Hello world and more text');
 
@@ -404,7 +362,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     await page.waitForTimeout(MOCK_FS_FEEDBACK_DELAY_MS + 80);
 
     // 5. CRITICAL ASSERTION: Editor should STILL have the full content (no overwrite).
-    const finalContent = await readEditorValue();
+    const finalContent = await readEditorValue(page, editorInstanceId);
     console.log('Final editor content:', finalContent.substring(finalContent.length - 50));
 
     expect(finalContent).toContain('Hello world and more text');
@@ -455,35 +413,38 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     const editorWindowId = `window-${nodeId}-editor`;
     const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`; // Escape dots for CSS selector
+    const editorInstanceId = `${nodeId}-editor`; // Matches getEditorId(): `${nodeId}-editor`
+
     await page.waitForSelector(`${editorSelector} .cm-editor`, { timeout: 5000 });
+    await waitForEditorInstance(page, editorInstanceId);
 
     console.log('=== Simulating rapid typing pattern ===');
 
-    // Type "Line 1"
-    await typeInEditor(page, editorWindowId, 'Line 1\n');
+    // Focus once with cursor at end; the four rapid types below append in sequence.
+    await focusEditorAtEnd(page, editorInstanceId);
+
+    await page.keyboard.type('Line 1\n');
     console.log('[Rapid] Typed "Line 1"');
     await page.waitForTimeout(10);
 
-    // Type "Line 2"
-    await typeInEditor(page, editorWindowId, 'Line 2\n');
+    await page.keyboard.type('Line 2\n');
     console.log('[Rapid] Typed "Line 2"');
     await page.waitForTimeout(10);
 
-    // Type "Line 3"
-    await typeInEditor(page, editorWindowId, 'Line 3\n');
+    await page.keyboard.type('Line 3\n');
     console.log('[Rapid] Typed "Line 3"');
 
     // Wait for debounce
     await page.waitForTimeout(35);
 
     // Type "Line 4" AFTER debounce
-    await typeInEditor(page, editorWindowId, 'Line 4\n');
+    await page.keyboard.type('Line 4\n');
     console.log('[Rapid] Typed "Line 4" after debounce');
 
     // Wait for filesystem feedback
     await page.waitForTimeout(20);
 
-    const finalContent = await getEditorContent(page, editorWindowId);
+    const finalContent = await readEditorValue(page, editorInstanceId);
     console.log('Final content after rapid edits:', finalContent);
 
     // All lines should be present
