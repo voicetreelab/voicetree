@@ -172,6 +172,11 @@ if [ -n "$reason" ]; then
       echo "    Other agents may be working in this repo right now."
       echo "    Prefer multiple commits to get where you want — not destructive"
       echo "    rewrites that stomp on parallel work."
+      if [ "$sub" = "rebase" ]; then
+        echo ""
+        echo "    Merge does not require a password in linked worktrees."
+        echo "    It is preferred for conflict resolution because it is non-destructive."
+      fi
       echo ""
     } >&2
     expected="${GIT_GATE_PASS:-$(security find-generic-password -s git-gate -a "$USER" -w 2>/dev/null)}"
